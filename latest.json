@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC91N1ZQVm5VUGl2Tzk4VjVlRFhrd3VNWWpoemxPNlhZZ0tLQ3VuWWViL3AvYjVLbnBXdHplVWJOSGZTWGJCM1Vma0d6QUVQeWowaUx6R2t6Qis4K1FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjM5MzEyCWZpbGU6T21uaUJhbmtfMS4wLjEwX3g2NF9mci1GUi5tc2kKUHREaDUxalBnUGZ2TlpER1RoZ0NTTEhBMTVWTEs0WTdWSERUdWtJZVIyZWNDQW9yUG5tMGtQcFd0THpaLytFVDNoMlVlcGFST2s1WVlubWJxM3R3REE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.10/OmniBank_1.0.10_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDRpMXJML1plQWE1WG1KdVduUFdGK1BGczh2QUtvMVFjTlZnbWQweUF0MGsrK08yandPb0U5RVFQMFNTOWt4cW0zUHNvV2JWK201d2IrUEFvT05nSXdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjM5OTQ1CWZpbGU6T21uaUJhbmtfMS4wLjExX3g2NF9mci1GUi5tc2kKckp2aGFlWWttbm13THhJbXNOaDRrTW5Sakhwa1l3UE83K1Z5SXUyeTFXSEE1anFwTnhlOUxpTy8yTUphenp5MGhRMHBiTXdvdWU5T1ZiZkl0MjRYQVE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.11/OmniBank_1.0.11_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-08T11:21:52Z",
-    "version":  "1.0.10",
-    "notes":  "Fix IPC remote for version badge"
+    "pub_date":  "2026-05-08T11:32:25Z",
+    "version":  "1.0.11",
+    "notes":  "Update build guide with IPC and BOM docs"
 }
