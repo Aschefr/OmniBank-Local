@@ -305,8 +305,10 @@ window.AllOperationsView = {
                 <td class="col-slip" data-label="N° Bordereau">${tx.slip_number ? '<span style="background: rgba(255,152,0,0.15); color: #ff9800; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">' + tx.slip_number + '</span>' : '-'}</td>
                 <td class="col-attachments" data-label="P. Jointes">${tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}">📎</span>` : '-'}</td>
                 <td class="col-actions mobile-card-actions">
-                    <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.AllOperationsView.edit(${tx.id})">✏️</button>
-                    <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.AllOperationsView.delete(${tx.id})">X</button>
+                    <div style="display:flex;gap:4px;align-items:center;justify-content:flex-end;">
+                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;white-space:nowrap;" onclick="window.AllOperationsView.edit(${tx.id})">✏️ Éditer</button>
+                        <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.AllOperationsView.delete(${tx.id})">✕</button>
+                    </div>
                 </td>
             </tr>
             `;

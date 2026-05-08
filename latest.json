@@ -1,11 +1,11 @@
 {
-  "version": "1.0.3",
-  "notes": "v1.0.3 — Badge de version, fenêtre plus grande, correction updater.",
-  "pub_date": "2026-05-08T07:31:00Z",
+  "version": "1.0.4",
+  "notes": "v1.0.4 — Alignement boutons Historique, corrections updater.",
+  "pub_date": "2026-05-08T09:46:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHc1WkNyN0F6a1N1RUpwSHdyYzR6Y2k5OWdTZWFSVUlHeDhOZFpFYmNCbjU3NUIzdmVwL1g2Z0xKNEo4bnY5ZGNkNkdxbVF6eTMvTm5wZXJFY1kxamdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjI1NDY4CWZpbGU6T21uaUJhbmtfMS4wLjNfeDY0X2ZyLUZSLm1zaQoyNW5DeVR0UUF0L25VVFZVaWtwYnFZenYzMW5DZSt6V2dXOGlOeUhuZXRuZTJzWWNaWURWczAxTnQwbkpVYXg3V05CWS8zeXJVMVlqSXBiYnJLaFNCQT09Cg==",
-      "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.3/OmniBank_1.0.3_x64_fr-FR.msi"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDA3S003ZGNreVhQK1FYcCt1b3NRek5PejJsK3VFQU9teUFZMnhpV0Zsa0pWc3QwS20vaEZxOXRUcTFmbXJEamtKL0N5SFdhOFY3SXljYWFiWUQwUEFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjMzNjA0CWZpbGU6T21uaUJhbmtfMS4wLjRfeDY0X2ZyLUZSLm1zaQpyNDA0aWNyNlU2N1RiODZVRnBEdDNJQzBobG1hOHQyeGM0V2hyV0VwekVwVzJoUzE5OFFBMXNhelFZbXpDTUhicVdlR1dXeVYwbXF1SndlUzNiNXNEZz09Cg==",
+      "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.4/OmniBank_1.0.4_x64_fr-FR.msi"
     }
   }
 }
