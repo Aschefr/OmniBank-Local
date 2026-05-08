@@ -171,6 +171,7 @@ async fn check_for_updates(app: tauri::AppHandle) {
 
                     println!("[updater] Downloading update v{}...", version);
 
+                    let app_handle = app.clone();
                     let mut downloaded: u64 = 0;
                     let download_result = update.download_and_install(
                         move |chunk_len, total| {
@@ -182,8 +183,19 @@ async fn check_for_updates(app: tauri::AppHandle) {
                                 }
                             }
                         },
-                        || {
-                            println!("[updater] Download complete, installing...");
+                        move || {
+                            println!("[updater] Download complete, killing sidecar before install...");
+                            // Kill sidecar so MSI can replace files without stalling
+                            if let Some(state) = app_handle.try_state::<SidecarState>() {
+                                kill_sidecar(&state);
+                            }
+                            // Also force-kill by name as safety net
+                            let _ = std::process::Command::new("taskkill")
+                                .args(["/F", "/IM", "omnibank-api.exe"])
+                                .creation_flags(0x08000000)
+                                .output();
+                            std::thread::sleep(Duration::from_millis(500));
+                            println!("[updater] Sidecar killed, proceeding with install...");
                         },
                     ).await;
 

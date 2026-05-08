@@ -1,11 +1,11 @@
 {
-  "version": "1.0.4",
-  "notes": "v1.0.4 — Alignement boutons Historique, corrections updater.",
-  "pub_date": "2026-05-08T09:46:00Z",
+  "version": "1.0.5",
+  "notes": "v1.0.5 — Kill sidecar avant install pour éviter le stall MSI.",
+  "pub_date": "2026-05-08T09:51:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDA3S003ZGNreVhQK1FYcCt1b3NRek5PejJsK3VFQU9teUFZMnhpV0Zsa0pWc3QwS20vaEZxOXRUcTFmbXJEamtKL0N5SFdhOFY3SXljYWFiWUQwUEFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjMzNjA0CWZpbGU6T21uaUJhbmtfMS4wLjRfeDY0X2ZyLUZSLm1zaQpyNDA0aWNyNlU2N1RiODZVRnBEdDNJQzBobG1hOHQyeGM0V2hyV0VwekVwVzJoUzE5OFFBMXNhelFZbXpDTUhicVdlR1dXeVYwbXF1SndlUzNiNXNEZz09Cg==",
-      "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.4/OmniBank_1.0.4_x64_fr-FR.msi"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC9ITWdFeTV4MGVJdEtnUEoxTGxWZWFkUHF5VEVQSFgwakNaM21zdnpRaU04WmZNYStpTnQrZnlPSHJVZlcycG9teEZ6ZHNiOXprU3dUeXM5V05CdndZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjMzODc1CWZpbGU6T21uaUJhbmtfMS4wLjVfeDY0X2ZyLUZSLm1zaQp1MmhSM2taTEh2UXJTZkpTc1dnQkZqdFRTYURMcExIcVRVVURKMUlLUEswU2w1MnJuNzhZU3ppM1dxUys1MzdvTDVKVjlXckZ2Y2NQZ1YvQzh1dzZCZz09Cg==",
+      "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.5/OmniBank_1.0.5_x64_fr-FR.msi"
     }
   }
 }
