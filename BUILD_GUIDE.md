@@ -570,8 +570,20 @@ Get-Process | Where-Object { $_.ProcessName -like "*omnibank*" } | Stop-Process 
 ### 17. Le badge version affiche une ancienne version
 
 **Cause** : La version etait lue depuis `/api/version` (sidecar Python).
-Si le sidecar n'est pas rebuild, le `package.json` embarque garde l'ancienne version.
+Le sidecar PyInstaller embarque un `package.json` fige au moment du build.
+De plus, `window.__TAURI__` n'est pas disponible avec une URL externe
+(`http://127.0.0.1:8434`) meme avec `withGlobalTauri: true`.
 
-**Solution** : Utiliser `window.__TAURI__.app.getVersion()` qui lit depuis
-`tauri.conf.json` au build time. Necessite `core:app:default`.
+**Solution** : Commande Tauri `get_app_version` via `__TAURI_INTERNALS__.invoke()`.
+Cote Rust : `app.config().version` lit `tauri.conf.json` au build time.
+Cote JS : `window.__TAURI_INTERNALS__.invoke('get_app_version')` fonctionne
+toujours dans le webview Tauri, quelle que soit la source de l'URL.
 
+### 18. blocking_show() deadlock dans async task
+
+**Cause** : `blocking_show()` de `tauri-plugin-dialog` bloque le thread courant.
+Appele dans un `tauri::async_runtime::spawn`, il bloque un worker tokio et peut
+deadlock le runtime async.
+
+**Solution** : Executer le dialogue dans un `std::thread::spawn` separe et
+utiliser un `mpsc::channel` pour recuperer le resultat.
