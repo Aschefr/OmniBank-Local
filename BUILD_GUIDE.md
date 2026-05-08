@@ -175,74 +175,85 @@ npx tauri build
 
 ## Signature et Clés (Updater)
 
-Le système de mise à jour Tauri utilise **minisign/rsign2** pour signer les
-installateurs MSI. L'app vérifie la signature avant d'installer une mise à jour.
+Le système de mise à jour Tauri utilise **minisign** pour signer les MSI.
+L'app vérifie la signature avant d'installer une mise à jour.
 
-### Génération des clés
+> ⚠️ **DÉCOUVERTE CRITIQUE** : Tauri stocke et vérifie les clés/signatures
+> en **base64(contenu_minisign_complet)**. Le format brut minisign
+> (tel que produit par rsign2 ou py-minisign) est **INCOMPATIBLE**.
+> Ne JAMAIS utiliser rsign2 directement pour la signature.
 
-> ⚠️ **NE PAS utiliser py-minisign ni d'autres outils Python pour générer les clés.**
-> Le format produit n'est pas compatible avec le signer de Tauri.
-> Utiliser **uniquement `rsign2`** (crate Rust).
+### Format attendu par Tauri
 
-```powershell
-# Installer rsign2 (une seule fois)
-cargo install rsign2
+```
+Tauri interne:
+  pubkey     = base64( "untrusted comment: ...\n<raw_pubkey_b64>\n" )
+  signature  = base64( "untrusted comment: ...\n<raw_sig_b64>\ntrusted comment: ...\n<comment_sig_b64>\n" )
 
-# Générer les clés SANS mot de passe (-W = passwordless)
-rsign generate -f -W -s src-tauri\.tauri-private-key -p src-tauri\.tauri-public-key
+rsign2 brut (INCOMPATIBLE):
+  pubkey     = "<raw_pubkey_b64>"
+  signature  = "untrusted comment: ...\n<raw_sig_b64>\ntrusted comment: ...\n..."
 ```
 
-La commande affiche la clé publique. Mettre à jour `tauri.conf.json` :
+### Outil de signature : `scripts/gen-keys`
+
+Un outil Rust custom utilise la **même version exacte** de la crate `minisign`
+que `tauri-cli` (v0.7.3), garantissant la compatibilité.
+
+**Générer des clés** :
+```powershell
+cd scripts\gen-keys
+cargo run --release -- generate
+# Produit : tauri-private-key, tauri-public-key, tauri-private-key.b64
+# Affiche la pubkey base64 pour tauri.conf.json
+```
+
+**Signer un MSI** :
+```powershell
+cd scripts\gen-keys
+.\target\release\gen-tauri-keys.exe sign `
+    "..\..\src-tauri\target\release\bundle\msi\OmniBank_X.Y.Z_x64_fr-FR.msi" `
+    "..\..\src-tauri\.tauri-private-key"
+# Produit : .sig file + affiche la signature base64 pour latest.json
+```
+
+### Après génération de clés
+
+1. Copier `tauri-private-key` → `src-tauri/.tauri-private-key`
+2. Copier `tauri-public-key` → `src-tauri/.tauri-public-key`
+3. Mettre la **pubkey base64** (affichée par l'outil) dans `tauri.conf.json` :
+
 ```json
 {
   "plugins": {
     "updater": {
-      "pubkey": "COLLER_LA_CLÉ_PUBLIQUE_ICI"
+      "pubkey": "dW50cnVzd...(base64 de la pubkey box complète)..."
     }
   }
 }
 ```
 
-### Pourquoi `rsign2` et pas `tauri signer generate` ?
+### Pourquoi pas rsign2 ni `tauri signer` ?
 
-`tauri signer generate` utilise `rpassword` pour demander un mot de passe
-interactif. Cette commande **ne peut pas être automatisée** car `rpassword`
-lit directement depuis la console Windows (pas stdin). `rsign2` avec `-W`
-(passwordless) contourne ce problème.
-
-### Signature d'un MSI
-
-Le `.sig` / `.minisig` n'est **pas généré automatiquement** par `npx tauri build`
-(la variable `TAURI_SIGNING_PRIVATE_KEY` n'est pas toujours propagée par npx).
-
-**Signer manuellement après le build** :
-
-```powershell
-rsign sign -s src-tauri\.tauri-private-key -W src-tauri\target\release\bundle\msi\OmniBank_X.Y.Z_x64_fr-FR.msi
-```
-
-Cela crée un fichier `.minisig` à côté du MSI.
-
-**Vérifier la signature** :
-```powershell
-rsign verify src-tauri\target\release\bundle\msi\OmniBank_X.Y.Z_x64_fr-FR.msi -P <CLÉ_PUBLIQUE>
-# Attendu : "Signature and comment signature verified"
-```
+| Outil | Problème |
+|-------|----------|
+| `rsign2` | Produit du minisign brut. Tauri attend base64(minisign). Incompatible. |
+| `tauri signer generate` | Utilise `rpassword` qui bloque (lit console Windows, pas stdin). Impossible à automatiser. |
+| `tauri signer sign` | Même problème rpassword. Bloque indéfiniment même avec `TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""`. |
+| `py-minisign` | Format de fichier incompatible avec minisign Rust. |
+| **`scripts/gen-keys`** ✅ | Utilise `minisign 0.7.3` (même que tauri-cli). Pas de rpassword. Fonctionne. |
 
 ### Fichier latest.json
 
-Le champ `"signature"` dans `latest.json` doit contenir le **contenu complet**
-du fichier `.minisig` (les 4 lignes : untrusted comment, signature base64,
-trusted comment, et comment signature) :
+Le champ `"signature"` doit contenir la **signature base64** (PAS le contenu
+brut du .sig, mais son encodage base64 complet) :
 
 ```json
 {
   "version": "X.Y.Z",
-  "notes": "Description de la mise à jour",
-  "pub_date": "2026-XX-XXTXX:XX:XXZ",
   "platforms": {
     "windows-x86_64": {
-      "signature": "untrusted comment: signature from rsign secret key\nRUS...(base64)...\ntrusted comment: timestamp:...\n...(base64)...",
+      "signature": "dW50cnVzd...(base64 du contenu .sig complet)...",
       "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/vX.Y.Z/OmniBank_X.Y.Z_x64_fr-FR.msi"
     }
   }
@@ -254,7 +265,7 @@ trusted comment, et comment signature) :
 | Fichier | Localisation | Git | Notes |
 |---------|-------------|-----|-------|
 | **Clé privée** | `src-tauri/.tauri-private-key` | ❌ gitignored | **NE PAS PERDRE** — si perdue, impossible de signer les futures mises à jour |
-| **Clé publique** | `src-tauri/.tauri-public-key` | ✅ commité | Référencée dans `tauri.conf.json` |
+| **Clé publique** | `src-tauri/.tauri-public-key` | ✅ commité | Référencée (en base64) dans `tauri.conf.json` |
 
 > ⚠️ **Bootstrap** : Si vous changez les clés de signature, les utilisateurs avec
 > l'ancienne clé publique ne pourront pas vérifier les nouvelles mises à jour.
