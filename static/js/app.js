@@ -18,11 +18,18 @@ class App {
             this.config = {};
         }
         
-        // Display app version in header
+        // Display app version in header (from Tauri, not sidecar)
         try {
-            const vData = await API.get('/api/version');
+            let version = null;
+            if (window.__TAURI__ && window.__TAURI__.app) {
+                version = await window.__TAURI__.app.getVersion();
+            } else {
+                // Fallback for dev mode without Tauri
+                const vData = await API.get('/api/version');
+                version = vData.version;
+            }
             const badge = document.getElementById('appVersionBadge');
-            if (badge && vData.version) badge.textContent = `v${vData.version}`;
+            if (badge && version) badge.textContent = `v${version}`;
         } catch (e) { /* silent */ }
         
         // Theme toggle

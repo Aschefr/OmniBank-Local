@@ -1,11 +1,11 @@
-{
-  "version": "1.0.6",
-  "notes": "v1.0.6 — Nettoyage sidecar orphelin au démarrage.",
-  "pub_date": "2026-05-08T09:56:00Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSCs1MG9YRGJnN1FJa3FVREFTTEFWSHpyVDE4QVkyMGpiRGdkVjEydXdRTThaK2lTRkxhU2tIWkNIaThCaDhQeGFPVXdIRkRKdlBRV0d3VEZXcVlDbmcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjM0NzAyCWZpbGU6T21uaUJhbmtfMS4wLjZfeDY0X2ZyLUZSLm1zaQpuK01Vd3BEN3VHZ2hsYmw3S1R6cGVSR044aEJyLytYZGl5a1MrbnovR2k3bWgzRTRpUGZEU3VFcXNQdWExQ0NEdUpLSDBYUm14ZS9OU2tTc05tTG9Cdz09Cg==",
-      "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.6/OmniBank_1.0.6_x64_fr-FR.msi"
-    }
-  }
+﻿{
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDNjL3ZSVjZscG1OOFdtK0cxMWM4MXlGc2pCN1Q1N0JPclVNUlRHVE81bzdYVW5qR1h3NVh2djNjN0RFbzI3ZGdhVjlrWmY2K1Z0NjRLMk1kQXZvdndNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjM3MDQyCWZpbGU6T21uaUJhbmtfMS4wLjdfeDY0X2ZyLUZSLm1zaQpsVTN0VktvRGM0NWtSdG1qcHBCYlIxa1hXRXFocndtVlpWZTIzRXBFQmdNZ1lRWTVuQ3VBOTJ5RzhGczdZbWh4OU43NEUvSWFwRUE3TytkRVpNRldCdz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.7/OmniBank_1.0.7_x64_fr-FR.msi"
+                                         }
+                  },
+    "pub_date":  "2026-05-08T10:44:02Z",
+    "version":  "1.0.7",
+    "notes":  "Fix confirmation native, badge version Tauri, nettoyage sidecar"
 }

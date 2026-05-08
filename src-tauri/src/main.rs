@@ -2,6 +2,7 @@
 
 use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind, MessageDialogButtons};
 use std::time::Duration;
 use std::sync::Mutex;
 
@@ -42,6 +43,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Kill any orphan omnibank-api.exe from previous session/update
             let _ = std::process::Command::new("taskkill")
@@ -144,87 +146,74 @@ async fn check_for_updates(app: tauri::AppHandle) {
             println!("[updater] Update available: v{}", update.version);
             let version = update.version.clone();
 
-            // Ask user via JS confirm (synchronous in WebView)
-            if let Some(window) = app.get_webview_window("main") {
-                let msg = format!(
-                    "Une mise à jour est disponible (v{}).\\n\\nVoulez-vous l\\'installer maintenant ?\\n\\nL\\'application redémarrera automatiquement.",
-                    version
-                );
-                let js_check = format!(
-                    "window.__TAURI_UPDATE_RESULT__ = confirm('{}');",
-                    msg
-                );
-                let _ = window.eval(&js_check);
+            // Ask user via native dialog
+            let msg = format!(
+                "Une mise à jour est disponible (v{}).\n\nVoulez-vous l'installer maintenant ?\n\nL'application redémarrera automatiquement.",
+                version
+            );
 
-                // Wait for confirm dialog to complete
-                std::thread::sleep(Duration::from_secs(1));
+            let user_accepted = app.dialog()
+                .message(&msg)
+                .title("Mise a jour OmniBank")
+                .kind(MessageDialogKind::Info)
+                .buttons(MessageDialogButtons::OkCancel)
+                .blocking_show();
 
-                // Read the result
-                let result = window.eval("window.__TAURI_UPDATE_RESULT__");
-                let user_accepted = match result {
-                    Ok(_) => true, // confirm() is blocking in JS, if we get here user responded
-                    Err(_) => true,
-                };
-
-                // The issue: window.eval is fire-and-forget in Tauri, we can't read the return value.
-                // Workaround: always proceed if update is available (the user saw the confirm).
-                // In the future, use tauri-plugin-dialog for proper native dialogs.
-
-                if user_accepted {
-                    // Show downloading notification
+            if user_accepted {
+                if let Some(window) = app.get_webview_window("main") {
                     let _ = window.eval(
                         "document.title = 'OmniBank — Téléchargement de la mise à jour...';"
                     );
+                }
 
-                    println!("[updater] Downloading update v{}...", version);
+                println!("[updater] Downloading update v{}...", version);
 
-                    let app_handle = app.clone();
-                    let mut downloaded: u64 = 0;
-                    let download_result = update.download_and_install(
-                        move |chunk_len, total| {
-                            downloaded += chunk_len as u64;
-                            if let Some(t) = total {
-                                let pct = (downloaded as f64 / t as f64 * 100.0) as u32;
-                                if pct % 10 == 0 {
-                                    println!("[updater] Download progress: {}%", pct);
-                                }
+                let app_handle = app.clone();
+                let mut downloaded: u64 = 0;
+                let download_result = update.download_and_install(
+                    move |chunk_len, total| {
+                        downloaded += chunk_len as u64;
+                        if let Some(t) = total {
+                            let pct = (downloaded as f64 / t as f64 * 100.0) as u32;
+                            if pct % 10 == 0 {
+                                println!("[updater] Download progress: {}%", pct);
                             }
-                        },
-                        move || {
-                            println!("[updater] Download complete, killing sidecar before install...");
-                            // Kill sidecar so MSI can replace files without stalling
-                            if let Some(state) = app_handle.try_state::<SidecarState>() {
-                                kill_sidecar(&state);
-                            }
-                            // Also force-kill by name as safety net
-                            let _ = std::process::Command::new("taskkill")
-                                .args(["/F", "/IM", "omnibank-api.exe"])
-                                .creation_flags(0x08000000)
-                                .output();
-                            std::thread::sleep(Duration::from_millis(500));
-                            println!("[updater] Sidecar killed, proceeding with install...");
-                        },
-                    ).await;
-
-                    match download_result {
-                        Ok(_) => {
-                            println!("[updater] Update installed, restarting...");
-                            let _ = window.eval(
-                                "alert('Mise à jour installée ! L\\'application va redémarrer.');"
-                            );
-                            std::thread::sleep(Duration::from_secs(1));
-                            app.restart();
                         }
-                        Err(e) => {
-                            let err_msg = format!(
-                                "Échec de la mise à jour :\\n{}",
-                                e.to_string().replace('\'', "\\'").replace('\n', "\\n")
-                            );
-                            eprintln!("[updater] Install failed: {}", e);
-                            let _ = window.eval(&format!("alert('{}');", err_msg));
-                            let _ = window.eval(
-                                "document.title = 'OmniBank';"
-                            );
+                    },
+                    move || {
+                        println!("[updater] Download complete, killing sidecar before install...");
+                        if let Some(state) = app_handle.try_state::<SidecarState>() {
+                            kill_sidecar(&state);
+                        }
+                        let _ = std::process::Command::new("taskkill")
+                            .args(["/F", "/IM", "omnibank-api.exe"])
+                            .creation_flags(0x08000000)
+                            .output();
+                        std::thread::sleep(Duration::from_millis(500));
+                        println!("[updater] Sidecar killed, proceeding with install...");
+                    },
+                ).await;
+
+                match download_result {
+                    Ok(_) => {
+                        println!("[updater] Update installed, restarting...");
+                        app.dialog()
+                            .message("Mise a jour installee ! L'application va redemarrer.")
+                            .title("OmniBank")
+                            .kind(MessageDialogKind::Info)
+                            .buttons(MessageDialogButtons::Ok)
+                            .blocking_show();
+                        app.restart();
+                    }
+                    Err(e) => {
+                        eprintln!("[updater] Install failed: {}", e);
+                        app.dialog()
+                            .message(&format!("Echec de la mise a jour :\n{}", e))
+                            .title("Erreur de mise a jour")
+                            .kind(MessageDialogKind::Error)
+                            .blocking_show();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.eval("document.title = 'OmniBank';");
                         }
                     }
                 }
