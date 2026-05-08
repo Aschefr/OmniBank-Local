@@ -61,13 +61,11 @@ if (-not (Test-Path $SignerExe)) {
     }
 }
 
-# Check for uncommitted changes (except version files we'll modify)
+# Check for uncommitted changes (informational only — script commits all at step 6)
 $dirty = git status --porcelain 2>&1
 if ($dirty) {
-    Write-Host "WARNING: Uncommitted changes detected:" -ForegroundColor Yellow
+    Write-Host "INFO: Uncommitted changes will be included in the release commit:" -ForegroundColor Yellow
     Write-Host $dirty
-    $confirm = Read-Host "Continue anyway? (y/N)"
-    if ($confirm -ne "y") { exit 0 }
 }
 
 Write-Host "  All checks passed" -ForegroundColor Green
