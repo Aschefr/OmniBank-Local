@@ -146,18 +146,24 @@ async fn check_for_updates(app: tauri::AppHandle) {
             println!("[updater] Update available: v{}", update.version);
             let version = update.version.clone();
 
-            // Ask user via native dialog
+            // Ask user via native dialog (must run on a separate thread, NOT tokio worker)
             let msg = format!(
-                "Une mise à jour est disponible (v{}).\n\nVoulez-vous l'installer maintenant ?\n\nL'application redémarrera automatiquement.",
+                "Une mise a jour est disponible (v{}).\n\nVoulez-vous l'installer maintenant ?\n\nL'application va redemarrer automatiquement.",
                 version
             );
 
-            let user_accepted = app.dialog()
-                .message(&msg)
-                .title("Mise a jour OmniBank")
-                .kind(MessageDialogKind::Info)
-                .buttons(MessageDialogButtons::OkCancel)
-                .blocking_show();
+            let app_for_dialog = app.clone();
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let accepted = app_for_dialog.dialog()
+                    .message(&msg)
+                    .title("Mise a jour OmniBank")
+                    .kind(MessageDialogKind::Info)
+                    .buttons(MessageDialogButtons::OkCancel)
+                    .blocking_show();
+                let _ = tx.send(accepted);
+            });
+            let user_accepted = rx.recv().unwrap_or(false);
 
             if user_accepted {
                 if let Some(window) = app.get_webview_window("main") {
@@ -197,21 +203,30 @@ async fn check_for_updates(app: tauri::AppHandle) {
                 match download_result {
                     Ok(_) => {
                         println!("[updater] Update installed, restarting...");
-                        app.dialog()
-                            .message("Mise a jour installee ! L'application va redemarrer.")
-                            .title("OmniBank")
-                            .kind(MessageDialogKind::Info)
-                            .buttons(MessageDialogButtons::Ok)
-                            .blocking_show();
+                        let app2 = app.clone();
+                        let handle = std::thread::spawn(move || {
+                            app2.dialog()
+                                .message("Mise a jour installee ! L'application va redemarrer.")
+                                .title("OmniBank")
+                                .kind(MessageDialogKind::Info)
+                                .buttons(MessageDialogButtons::Ok)
+                                .blocking_show();
+                        });
+                        let _ = handle.join();
                         app.restart();
                     }
                     Err(e) => {
                         eprintln!("[updater] Install failed: {}", e);
-                        app.dialog()
-                            .message(&format!("Echec de la mise a jour :\n{}", e))
-                            .title("Erreur de mise a jour")
-                            .kind(MessageDialogKind::Error)
-                            .blocking_show();
+                        let app2 = app.clone();
+                        let err_msg = format!("Echec de la mise a jour :\n{}", e);
+                        let handle = std::thread::spawn(move || {
+                            app2.dialog()
+                                .message(&err_msg)
+                                .title("Erreur de mise a jour")
+                                .kind(MessageDialogKind::Error)
+                                .blocking_show();
+                        });
+                        let _ = handle.join();
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.eval("document.title = 'OmniBank';");
                         }
