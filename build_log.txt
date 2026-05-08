@@ -1,8 +1,0 @@
-﻿cargo :    Compiling omnibank v1.0.0 (D:\Code Projects\OmniBank-Local\src-tauri)
-Au caractère Ligne:1 : 203
-+ ... rojects\OmniBank-Local\src-tauri"; cargo build --release 2>&1 | Out-F ...
-+                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (   Compiling om...ocal\src-tauri):String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-    Finished `release` profile [optimized] target(s) in 30.03s

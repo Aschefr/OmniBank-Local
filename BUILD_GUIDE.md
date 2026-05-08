@@ -543,36 +543,35 @@ std::thread::sleep(Duration::from_millis(300));
 ## Commandes rapides
 
 ```powershell
-# === BUILD COMPLET (sidecar + MSI + signature) ===
+# === RELEASE AUTOMATISE (RECOMMANDE) ===
+.\scripts\release.ps1 -Version "X.Y.Z" -Notes "Description"
+# Ajouter -SkipSidecar si seul le frontend/Rust change
+# Ajouter -DryRun pour tester sans git push
+
+# === BUILD COMPLET MANUEL ===
 powershell -ExecutionPolicy Bypass -File .\scripts\build_sidecar.ps1
 npx tauri build
-rsign sign -s src-tauri\.tauri-private-key -W src-tauri\target\release\bundle\msi\OmniBank_X.Y.Z_x64_fr-FR.msi
+.\scripts\gen-keys\target\release\gen-tauri-keys.exe sign <msi> src-tauri\.tauri-private-key
 
 # === DEV MODE ===
-# Terminal 1 : Backend
 uvicorn app.main:app --host 127.0.0.1 --port 8434 --reload
-# Terminal 2 : Frontend Tauri
 npx tauri dev
 
 # === NETTOYAGE ===
 Get-Process | Where-Object { $_.ProcessName -like "*omnibank*" } | Stop-Process -Force
-
-# === TEST SIDECAR STANDALONE ===
-.\src-tauri\bin\omnibank-api-x86_64-pc-windows-msvc.exe
-# Puis : Invoke-WebRequest http://127.0.0.1:8434/api/health
-
-# === GÉNÉRER CLÉS UPDATER ===
-cargo install rsign2
-rsign generate -f -W -s src-tauri\.tauri-private-key -p src-tauri\.tauri-public-key
-
-# === SIGNER UN MSI ===
-rsign sign -s src-tauri\.tauri-private-key -W <chemin_du_msi>
-
-# === VÉRIFIER UNE SIGNATURE ===
-rsign verify <chemin_du_msi> -P <clé_publique>
-
-# === PUBLIER UNE RELEASE ===
-git add -A && git commit -m "release: vX.Y.Z"
-git tag -a vX.Y.Z -m "Description" && git push origin main --tags
-gh release create vX.Y.Z <msi_path> --title "OmniBank vX.Y.Z" --notes "Changelog"
 ```
+
+### 16. Permission `app:default` not found (Tauri v2)
+
+**Cause** : En Tauri v2, les permissions core sont prefixees `core:`.
+
+**Solution** : Utiliser `"core:app:default"` dans capabilities.
+
+### 17. Le badge version affiche une ancienne version
+
+**Cause** : La version etait lue depuis `/api/version` (sidecar Python).
+Si le sidecar n'est pas rebuild, le `package.json` embarque garde l'ancienne version.
+
+**Solution** : Utiliser `window.__TAURI__.app.getVersion()` qui lit depuis
+`tauri.conf.json` au build time. Necessite `core:app:default`.
+
