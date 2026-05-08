@@ -278,8 +278,12 @@ def ai_suggest_budgets(db: Session = Depends(get_db)):
             already_used_cats.add(c.category_name)
 
     from dateutil.relativedelta import relativedelta
-    today = date.today()
-    six_months_ago = today - relativedelta(months=6)
+    
+    # Base the 6-month window on the latest available transaction date, not necessarily today's date
+    latest_tx = db.query(Transaction).order_by(Transaction.date_operation.desc()).first()
+    anchor_date = latest_tx.date_operation if latest_tx else date.today()
+    
+    six_months_ago = anchor_date - relativedelta(months=6)
 
     txs = db.query(Transaction).filter(
         Transaction.date_operation >= six_months_ago,

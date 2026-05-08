@@ -15,6 +15,8 @@ router = APIRouter(prefix="/api/csv", tags=["csv"])
 TYPE_FR_TO_KEY = {
     "Dépenses fixes": "expense_fixed",
     "Dépenses variables": "expense_var",
+    "Dépenses": "expense_var",
+    "Dépense": "expense_var",
     "Recettes": "income",
     "Transfert": "transfer",
     "Neutre": "neutral",
@@ -85,11 +87,12 @@ async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
                 db.refresh(new_acc)
                 accounts_db[name] = new_acc
             return accounts_db[name].id
-
+        
         imported_count = 0
         skipped_count = 0
+        attachments_needed = set()
         
-        for _, row in df.iterrows():
+        for idx, row in df.iterrows():
             if pd.isna(row['Date de saisie']) or pd.isna(row['Date opération']):
                 continue # Skip invalid rows
                 
@@ -146,10 +149,21 @@ async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
                 val = str(row['Documents joints']).strip()
                 if val and val != 'nan':
                     attachments = val
+            elif 'Fichier' in df.columns and not pd.isna(row['Fichier']):
+                val = str(row['Fichier']).strip()
+                if val and val != 'nan':
+                    attachments = val
+                    
+            if attachments:
+                attachments_needed.add(attachments)
                     
             check_slip_number = None
             if 'Bordereau de chèque' in df.columns and not pd.isna(row['Bordereau de chèque']):
                 val = str(row['Bordereau de chèque']).strip()
+                if val and val != 'nan':
+                    check_slip_number = val
+            elif 'Chèque' in df.columns and not pd.isna(row['Chèque']):
+                val = str(row['Chèque']).strip()
                 if val and val != 'nan':
                     check_slip_number = val
 
@@ -160,8 +174,22 @@ async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
             if cat_val == 'nan' or cat_val == '':
                 cat_val = None
 
-            tx_type = str(row['Type']).strip() if not pd.isna(row['Type']) else "neutral"
-            tx_type = TYPE_FR_TO_KEY.get(tx_type, tx_type)  # Convert FR→key if needed
+            csv_type = str(row['Type']).strip() if 'Type' in df.columns and not pd.isna(row['Type']) else "neutral"
+            csv_type = TYPE_FR_TO_KEY.get(csv_type, csv_type)  # Convert FR→key if needed
+
+            # Base type dictated by Accounts (Depuis/Vers)
+            tx_type = "neutral"
+            if from_acc_id and to_acc_id:
+                tx_type = "transfer"
+            elif not from_acc_id and to_acc_id:
+                tx_type = "income"
+            elif from_acc_id and not to_acc_id:
+                if is_monthly or is_yearly or is_bimonthly or csv_type == "expense_fixed":
+                    tx_type = "expense_fixed"
+                else:
+                    tx_type = "expense_var"
+            else:
+                tx_type = csv_type
 
             # Create Category if missing
             if cat_val and cat_val not in categories_db:
@@ -229,10 +257,26 @@ async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
         except Exception as e:
             print("Auto-generation of recurrences failed:", str(e))
             
-        return {"imported": imported_count, "skipped": skipped_count}
+        return {"imported": imported_count, "skipped": skipped_count, "attachments_needed": list(attachments_needed)}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/update_imported_attachments")
+def update_imported_attachments(data: dict, db: Session = Depends(get_db)):
+    mapping = data.get("mapping", {})
+    if not mapping:
+        return {"updated": 0}
+        
+    updated = 0
+    txs = db.query(Transaction).filter(Transaction.attachments.in_(mapping.keys())).all()
+    for tx in txs:
+        if tx.attachments in mapping:
+            tx.attachments = mapping[tx.attachments]
+            updated += 1
+            
+    db.commit()
+    return {"updated": updated}
 
 @router.get("/export")
 def export_csv(db: Session = Depends(get_db), cols: str = Query(None, description="Comma-separated list of columns to export")):
@@ -394,6 +438,26 @@ async def analyze_heuristic(file: UploadFile = File(...), db: Session = Depends(
         match_info = check_reconciliation(db, parsed_date_val, amt, matched_ids) if not pd.isna(parsed_date_val) else None
         if match_info:
             matched_ids.append(match_info["id"])
+
+        attachments = None
+        if 'Documents joints' in df.columns and not pd.isna(row['Documents joints']):
+            val = str(row['Documents joints']).strip()
+            if val and val != 'nan':
+                attachments = val
+        elif 'Fichier' in df.columns and not pd.isna(row['Fichier']):
+            val = str(row['Fichier']).strip()
+            if val and val != 'nan':
+                attachments = val
+
+        check_slip_number = None
+        if 'Bordereau de chèque' in df.columns and not pd.isna(row['Bordereau de chèque']):
+            val = str(row['Bordereau de chèque']).strip()
+            if val and val != 'nan':
+                check_slip_number = val
+        elif 'Chèque' in df.columns and not pd.isna(row['Chèque']):
+            val = str(row['Chèque']).strip()
+            if val and val != 'nan':
+                check_slip_number = val
         
         results.append({
             "date_operation": date_str,
@@ -402,7 +466,9 @@ async def analyze_heuristic(file: UploadFile = File(...), db: Session = Depends(
             "amount": amt,
             "is_reconciled": match_info is not None,
             "already_reconciled": match_info["already_reconciled"] if match_info else False,
-            "matched_db_id": match_info["id"] if match_info else None
+            "matched_db_id": match_info["id"] if match_info else None,
+            "attachments": attachments,
+            "check_slip_number": check_slip_number
         })
         
     return {"transactions": results, "file_balance": file_balance}
@@ -411,6 +477,8 @@ async def analyze_heuristic(file: UploadFile = File(...), db: Session = Depends(
 async def save_batch(data: dict, db: Session = Depends(get_db)):
     txs = data.get("transactions", [])
     account_id = data.get("account_id")
+    csv_absolute_path = data.get("csv_absolute_path")
+    
     if account_id:
         try:
             account_id = int(account_id)
@@ -450,6 +518,34 @@ async def save_batch(data: dict, db: Session = Depends(get_db)):
             elif from_acc and not to_acc:
                 tx_type = "expense_var"
 
+        # Handle automatic local copy if csv_absolute_path is provided
+        final_attachment = tx.get('attachments')
+        if final_attachment and csv_absolute_path:
+            import os
+            import uuid
+            import shutil
+            from app.routers.backup import DATA_DIR
+            uploads_dir = os.path.join(DATA_DIR, "uploads")
+            os.makedirs(uploads_dir, exist_ok=True)
+            
+            clean_att = final_attachment.replace('\\', '/')
+            if '\\' in csv_absolute_path:
+                dir_path = '\\'.join(csv_absolute_path.split('\\')[:-1])
+                clean_att_win = final_attachment.replace('/', '\\')
+                src_path = f"{dir_path}\\{clean_att_win}"
+            else:
+                src_path = os.path.join(os.path.dirname(csv_absolute_path), clean_att)
+                
+            if os.path.exists(src_path):
+                filename = os.path.basename(src_path)
+                unique_filename = f"{uuid.uuid4().hex[:8]}_{filename}"
+                dst_path = os.path.join(uploads_dir, unique_filename)
+                try:
+                    shutil.copy2(src_path, dst_path)
+                    final_attachment = f"uploads/{unique_filename}"
+                except:
+                    pass
+
         new_tx = Transaction(
             date_operation=pd.to_datetime(tx['date_operation']).date(),
             date_saisie=pd.to_datetime(tx['date_operation']).date(),
@@ -459,10 +555,73 @@ async def save_batch(data: dict, db: Session = Depends(get_db)):
             category=cat_name,
             reconciliation_date=pd.to_datetime(tx['date_operation']).date(),
             from_account_id=from_acc,
-            to_account_id=to_acc
+            to_account_id=to_acc,
+            attachments=tx.get('attachments'),
+            check_slip_number=tx.get('check_slip_number')
         )
         db.add(new_tx)
         imported += 1
         
     db.commit()
     return {"imported": imported}
+
+@router.post("/check_attachments")
+async def check_attachments(data: dict):
+    csv_absolute_path = data.get("csv_absolute_path")
+    attachments = data.get("attachments", [])
+    
+    if not csv_absolute_path or not attachments:
+        return {"all_exist": False, "missing": attachments}
+        
+    import os
+    missing = []
+    # Only support Windows paths or Linux paths natively if the backend matches the OS.
+    # We will just try os.path.join. If csv_absolute_path comes from Windows and we are in Docker, it might fail, which is correct.
+    for att in attachments:
+        # replace backslashes if needed, but os.path.join handles it mostly. To be safe:
+        clean_att = att.replace('\\', '/')
+        if '\\' in csv_absolute_path:
+            # It's a Windows path
+            dir_path = '\\'.join(csv_absolute_path.split('\\')[:-1])
+            clean_att_win = att.replace('/', '\\')
+            path = f"{dir_path}\\{clean_att_win}"
+            if not os.path.exists(path):
+                missing.append(att)
+        else:
+            path = os.path.join(os.path.dirname(csv_absolute_path), clean_att)
+            if not os.path.exists(path):
+                missing.append(att)
+            
+    return {"all_exist": len(missing) == 0, "missing": missing}
+
+from typing import List
+from fastapi import Form
+import shutil
+import uuid
+from app.routers.backup import DATA_DIR
+
+@router.post("/upload_attachments")
+async def upload_attachments(files: List[UploadFile] = File(...), relative_paths: str = Form(...)):
+    import json
+    import os
+    try:
+        paths = json.loads(relative_paths)
+    except:
+        paths = []
+        
+    uploads_dir = os.path.join(DATA_DIR, "uploads")
+    os.makedirs(uploads_dir, exist_ok=True)
+    
+    saved_files = {}
+    for i, file in enumerate(files):
+        filename = file.filename
+        rel_path = paths[i] if i < len(paths) else filename
+        unique_filename = f"{uuid.uuid4().hex[:8]}_{os.path.basename(filename)}"
+        dst_path = os.path.join(uploads_dir, unique_filename)
+        
+        with open(dst_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        saved_files[rel_path] = f"uploads/{unique_filename}"
+        
+    return {"saved": saved_files}

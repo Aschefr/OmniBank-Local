@@ -30,7 +30,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 # Mount user uploads from DATA_DIR (persisted in %APPDATA%)
 uploads_dir = os.path.join(DATA_DIR, "uploads")
 os.makedirs(uploads_dir, exist_ok=True)
-app.mount("/data/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 from app.routers import (
     transactions,

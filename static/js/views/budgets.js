@@ -1,4 +1,4 @@
-﻿// budgets.js â€” Enveloppes v2 : multi-catégories, projets, suggestions IA
+// budgets.js â€” Enveloppes v2 : multi-catégories, projets, suggestions IA
 window.BudgetsView = {
     budgets: [],
     categories: [],
@@ -6,13 +6,16 @@ window.BudgetsView = {
     aiEnabled: false,
 
     render() {
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const aiDisp = cfg.enable_ai === 'true' ? '' : 'display: none !important;';
+
         return `
         <div>
             <div class="view-header" style="position:sticky;top:-32px;z-index:10;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <h2 style="margin:0;">🎯 Budgets par Enveloppe</h2>
                 <div class="history-filters" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                     <input type="month" id="budgetMonth" class="inline-input" style="flex:1;min-width:140px;" onchange="window.BudgetsView.loadStatus()">
-                    <button id="budgetAiBtn" class="btn btn-secondary" style="white-space:nowrap;" onclick="window.BudgetsView.requestAiSuggestions()">✨ Suggestions IA</button>
+                    <button id="budgetAiBtn" class="btn btn-secondary" style="white-space:nowrap; ${aiDisp}" onclick="window.BudgetsView.requestAiSuggestions()">✨ Suggestions IA</button>
                     <button class="btn btn-primary" style="white-space:nowrap;" onclick="window.BudgetsView.showAddForm()">+ Nouvelle enveloppe</button>
                 </div>
             </div>
@@ -32,8 +35,8 @@ window.BudgetsView = {
             <!-- Budget config list (Merged into Status) -->
 
             <!-- Unified Modal (Details + Add/Edit Form) -->
-            <div id="budgetUnifiedModal" class="modal-overlay" style="display:none;z-index:1000;">
-                <div class="modal" style="width:95vw;max-width:1100px;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);padding:30px;background:var(--bg-surface);border:1px solid var(--accent);max-height:90vh;overflow-y:auto;">
+            <div id="budgetUnifiedModal" class="modal-overlay" style="display:none;z-index:1000;align-items:flex-start;padding-top:8vh;padding-bottom:8vh;overflow-y:auto;">
+                <div class="modal" style="width:95vw;max-width:1100px;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);padding:30px;background:var(--bg-surface);border:1px solid var(--accent);height:max-content;">
                     
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
                         <h4 id="budgetUnifiedTitle" style="margin:0;font-size:16px;">Titre de la modale</h4>
@@ -61,16 +64,18 @@ window.BudgetsView = {
                             </div>
 
                             <!-- Type toggle -->
-                            <div style="display:flex;align-items:center;gap:12px;">
-                                <label style="font-size:12px;color:var(--text-muted);">Type :</label>
-                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
-                                    <input type="radio" name="budgetType" value="category" id="budgetTypeCategory" checked onchange="window.BudgetsView.toggleType()">
-                                    📁 Par catégorie(s)
-                                </label>
-                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
-                                    <input type="radio" name="budgetType" value="project" id="budgetTypeProject" onchange="window.BudgetsView.toggleType()">
-                                    🗂️ Projet libre
-                                </label>
+                            <div style="display:flex;align-items:center;gap:12px;width:100%;">
+                                <label style="font-size:12px;color:var(--text-muted);white-space:nowrap;">Type :</label>
+                                <div style="display:flex; flex:1; background:var(--bg-base); padding:4px; border-radius:8px; border:1px solid var(--border-color);">
+                                    <label id="tabLabelCat" style="flex:1; text-align:center; cursor:pointer; padding:8px 12px; font-size:13px; border-radius:6px; transition:all 0.2s;">
+                                        <input type="radio" name="budgetType" value="category" id="budgetTypeCategory" checked onchange="window.BudgetsView.toggleType()" style="display:none;">
+                                        📁 Par catégorie(s)
+                                    </label>
+                                    <label id="tabLabelProj" style="flex:1; text-align:center; cursor:pointer; padding:8px 12px; font-size:13px; border-radius:6px; transition:all 0.2s;">
+                                        <input type="radio" name="budgetType" value="project" id="budgetTypeProject" onchange="window.BudgetsView.toggleType()" style="display:none;">
+                                        🗂️ Projet libre
+                                    </label>
+                                </div>
                             </div>
 
                             <!-- Category selector (hidden for project type) -->
@@ -156,10 +161,10 @@ window.BudgetsView = {
 
         // Group categories by type
         const groups = {
-            'expense_fixed': { title: window.i18n.t('type_expense_fixed'), cats: [] },
-            'expense_var': { title: window.i18n.t('type_expense_var'), cats: [] },
-            'income': { title: window.i18n.t('type_income'), cats: [] },
-            'neutral': { title: window.i18n.t('type_neutral'), cats: [] },
+            'expense_fixed': { title: window.app.getTypeLabel('expense_fixed'), cats: [] },
+            'expense_var': { title: window.app.getTypeLabel('expense_var'), cats: [] },
+            'income': { title: window.app.getTypeLabel('income'), cats: [] },
+            'neutral': { title: window.app.getTypeLabel('neutral'), cats: [] },
             'other': { title: 'Autres', cats: [] }
         };
 
@@ -223,9 +228,33 @@ window.BudgetsView = {
     },
 
     toggleType() {
-        const isProject = document.getElementById('budgetTypeProject').checked;
+        const isProject = document.getElementById('budgetTypeProject')?.checked;
         const catSection = document.getElementById('budgetCatSection');
         if (catSection) catSection.style.display = isProject ? 'none' : 'block';
+
+        const tabCat = document.getElementById('tabLabelCat');
+        const tabProj = document.getElementById('tabLabelProj');
+        if (tabCat && tabProj) {
+            if (isProject) {
+                tabProj.style.background = 'var(--bg-surface)';
+                tabProj.style.fontWeight = '700';
+                tabProj.style.color = 'var(--accent)';
+                tabProj.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+                tabCat.style.background = 'transparent';
+                tabCat.style.fontWeight = 'normal';
+                tabCat.style.color = 'inherit';
+                tabCat.style.boxShadow = 'none';
+            } else {
+                tabCat.style.background = 'var(--bg-surface)';
+                tabCat.style.fontWeight = '700';
+                tabCat.style.color = 'var(--accent)';
+                tabCat.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+                tabProj.style.background = 'transparent';
+                tabProj.style.fontWeight = 'normal';
+                tabProj.style.color = 'inherit';
+                tabProj.style.boxShadow = 'none';
+            }
+        }
     },
 
     async loadStatus() {
@@ -450,7 +479,7 @@ window.BudgetsView = {
 
             graph.innerHTML =
                 barHtml(totalExp, null, '💸 Dépenses', `${formatCurrency(totalRecExp)} rapprochés / ${formatCurrency(totalExp)} engagés`, totalRecExp, recExpColor) +
-                (totalInc > 0 ? barHtml(totalInc, '#10b981', '↑ ' + window.i18n.t('type_income'), formatCurrency(totalInc)) : '') +
+                (totalInc > 0 ? barHtml(totalInc, '#10b981', '↑ ' + window.app.getTypeLabel('income'), formatCurrency(totalInc)) : '') +
                 barHtml(target, 'rgba(99,102,241,0.6)', '🎯 Objectif', formatCurrency(target));
 
             // ── Transactions list ─────────────────────────────────────────
@@ -495,7 +524,13 @@ window.BudgetsView = {
     },
     
     hideEditSection() {
-        document.getElementById('budgetFormSection').style.display = 'none';
+        if (!document.getElementById('budgetEditId').value) {
+            // We were adding a new budget, close the whole modal
+            this.closeUnifiedModal();
+        } else {
+            // We were editing an existing budget, just hide the form
+            document.getElementById('budgetFormSection').style.display = 'none';
+        }
     },
 
     showEditSection() {

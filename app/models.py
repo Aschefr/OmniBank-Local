@@ -57,6 +57,7 @@ class Category(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
     type = Column(String) # For grouping: expense_fixed, expense_var, income, neutral
+    is_closed = Column(Boolean, default=False)
 
 class RecurrenceTemplate(Base):
     __tablename__ = "recurrence_templates"

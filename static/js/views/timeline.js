@@ -2,59 +2,64 @@ window.TimelineView = {
     transactions: [],
     
     render() {
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const attachDisp = cfg.enable_attachments === 'true' ? '' : 'display: none !important;';
+        const slipDisp = cfg.enable_check_slips === 'true' ? '' : 'display: none !important;';
+        const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
+        const unreconciledDisp = isOrgMode ? 'display: none !important;' : '';
+
         return `
             <style id="timelineColsStyle"></style>
             <div id="timelineColsModal" class="modal-overlay" style="display: none; z-index: 100;">
-                <div class="modal-content" style="max-width: 300px;">
-                    <h3>⚙️ Colonnes</h3>
-                    <div style="display:flex; flex-direction:column; gap:10px; margin: 20px 0;">
-                        <label><input type="checkbox" id="chk_col_dateSaisie" onchange="window.TimelineView.toggleCol('dateSaisie')"> Date Saisie</label>
-                        <label><input type="checkbox" id="chk_col_date" onchange="window.TimelineView.toggleCol('date')"> Date Op.</label>
-                        <label><input type="checkbox" id="chk_col_desc" onchange="window.TimelineView.toggleCol('desc')"> Description</label>
-                        <label><input type="checkbox" id="chk_col_type" onchange="window.TimelineView.toggleCol('type')"> Type</label>
-                        <label><input type="checkbox" id="chk_col_cat" onchange="window.TimelineView.toggleCol('cat')"> Catégorie</label>
-                        <label><input type="checkbox" id="chk_col_amount" onchange="window.TimelineView.toggleCol('amount')"> Montant</label>
-                        <label><input type="checkbox" id="chk_col_recon" onchange="window.TimelineView.toggleCol('recon')"> Rapproché</label>
-                        <label><input type="checkbox" id="chk_col_budget" onchange="window.TimelineView.toggleCol('budget')"> Enveloppe</label>
-                        <label><input type="checkbox" id="chk_col_depuis" onchange="window.TimelineView.toggleCol('depuis')"> Depuis</label>
-                        <label><input type="checkbox" id="chk_col_vers" onchange="window.TimelineView.toggleCol('vers')"> Vers</label>
-                        <label><input type="checkbox" id="chk_col_recurrence" onchange="window.TimelineView.toggleCol('recurrence')"> Répétition</label>
-                        <label><input type="checkbox" id="chk_col_slip" onchange="window.TimelineView.toggleCol('slip')"> N° Bordereau</label>
-                        <label><input type="checkbox" id="chk_col_attachments" onchange="window.TimelineView.toggleCol('attachments')"> P. Jointes</label>
+                <div class="modal" style="max-width: 380px; min-width: auto; padding: 25px;">
+                    <h3 style="margin-top:0; margin-bottom: 20px; display:flex; align-items:center; gap:8px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">⚙️ Gérer les colonnes</h3>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 25px;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_col_dateSaisie" onchange="window.TimelineView.toggleCol('dateSaisie')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Date Saisie</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_col_date" onchange="window.TimelineView.toggleCol('date')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Date Op.</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_col_desc" onchange="window.TimelineView.toggleCol('desc')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Description</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_col_type" onchange="window.TimelineView.toggleCol('type')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Type</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_col_cat" onchange="window.TimelineView.toggleCol('cat')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Catégorie</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_col_amount" onchange="window.TimelineView.toggleCol('amount')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Montant</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_col_recon" onchange="window.TimelineView.toggleCol('recon')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Rapproché</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_col_budget" onchange="window.TimelineView.toggleCol('budget')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Enveloppe</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_col_depuis" onchange="window.TimelineView.toggleCol('depuis')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Depuis</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_col_vers" onchange="window.TimelineView.toggleCol('vers')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Vers</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_col_recurrence" onchange="window.TimelineView.toggleCol('recurrence')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Répétition</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${slipDisp}"><input type="checkbox" id="chk_col_slip" onchange="window.TimelineView.toggleCol('slip')" style="accent-color: var(--accent); width: 16px; height: 16px;"> N° Bordereau</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${attachDisp}"><input type="checkbox" id="chk_col_attachments" onchange="window.TimelineView.toggleCol('attachments')" style="accent-color: var(--accent); width: 16px; height: 16px;"> P. Jointes</label>
                     </div>
-                    <div style="text-align: right;">
-                        <button class="btn btn-primary" onclick="document.getElementById('timelineColsModal').style.display='none'">Fermer</button>
+                    <div style="text-align: center;">
+                        <button class="btn btn-primary" style="width: 100%; padding: 10px; font-size: 14px;" onclick="document.getElementById('timelineColsModal').style.display='none'">Fermer</button>
                     </div>
                 </div>
             </div>
             <div id="timelineHeader" class="view-header" style="position: sticky; top: -32px; z-index: 10; background-color: var(--bg-base); padding: 32px 0 15px 0; margin-top: -32px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                 <h2 style="margin:0;">🏠 <span data-i18n="nav_timeline">Dashboard</span></h2>
-                <div class="history-filters" style="display:flex; gap:8px; flex:1; max-width:900px; justify-content:flex-end; flex-wrap:wrap;">
-                    <input type="text" id="timelineSearch" class="inline-input" placeholder="Rechercher..." style="min-width:0; flex:1; max-width: 200px;" oninput="window.TimelineView.applyFilters()">
-                    <select id="timelineTypeFilter" class="inline-input" style="min-width:130px; flex:1;" onchange="window.TimelineView.applyFilters()">
+                <div class="history-filters" style="display:flex; gap:8px; flex:1; max-width:950px; justify-content:flex-start; flex-wrap:wrap; align-items: center;">
+                    <div style="display:flex; align-items:center; gap: 6px; flex:1; min-width: 260px; max-width: 320px;">
+                        <input type="date" id="timelineStartDate" class="inline-input" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()" style="flex:1; min-width: 110px;">
+                        <span style="color:var(--text-muted); font-size:12px; font-weight: 500;">au</span>
+                        <input type="date" id="timelineEndDate" class="inline-input" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()" style="flex:1; min-width: 110px;">
+                    </div>
+                    <input type="text" id="timelineSearch" class="inline-input" placeholder="Rechercher..." style="min-width:140px; flex:1; max-width: 200px;" oninput="window.TimelineView.applyFilters()">
+                    <select id="timelineTypeFilter" class="inline-input" style="min-width:140px; flex:1; max-width: 180px;" onchange="window.TimelineView.applyFilters()">
                         <option value="">Tous les types</option>
                         <option value="expense_fixed">Dépenses fixes</option>
                         <option value="expense_var">Dépenses variables</option>
                         <option value="income">Recettes</option>
                         <option value="transfer">Transfert</option>
                     </select>
-                    <select id="timelineCategoryFilter" class="inline-input" style="min-width:130px; flex:1;" onchange="window.TimelineView.applyFilters()">
+                    <select id="timelineCategoryFilter" class="inline-input" style="min-width:140px; flex:1; max-width: 180px;" onchange="window.TimelineView.applyFilters()">
                         <option value="">Toutes les catégories</option>
                     </select>
-                    <select id="timelineReconciledPeriod" class="inline-input" style="min-width:150px; flex:1;" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()">
-                        <option value="current_month">Rapprochées : Mois en cours</option>
-                        <option value="5_days">Rapprochées : 5 derniers jours</option>
-                        <option value="15_days">Rapprochées : 15 derniers jours</option>
-                        <option value="30_days">Rapprochées : 30 derniers jours</option>
-                    </select>
-                    <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px; ${unreconciledDisp}">
                         <span style="font-size:12px; font-weight:600; color:var(--text-muted); white-space:nowrap;">Non-rapproché avant paie</span>
                         <label class="toggle-switch" style="flex-shrink: 0;" title="Filtre les dépenses non-rapprochées prévues avant la prochaine paie">
                             <input type="checkbox" id="timelineUnreconciledFilter" onchange="window.TimelineView.applyFilters()">
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px; ${attachDisp}">
                         <span style="font-size:12px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_attachments">Pièces jointes</span>
                         <label class="toggle-switch" style="flex-shrink: 0;" title="Uniquement avec pièces jointes">
                             <input type="checkbox" id="timelineAttachmentFilter" onchange="window.TimelineView.applyFilters()">
@@ -102,28 +107,46 @@ window.TimelineView = {
     async init() {
         this.applyColSettings();
         
-        // Restore period filter
-        const savedPeriod = localStorage.getItem('timeline_period_filter');
-        if (savedPeriod) {
-            const select = document.getElementById('timelineReconciledPeriod');
-            if (select) select.value = savedPeriod;
-        }
+        // Restore date filters or set defaults to current month
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        // Function to format date to YYYY-MM-DD
+        const fmtDate = (d) => {
+            const pad = (n) => n < 10 ? '0'+n : n;
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+        };
+
+        const savedStart = localStorage.getItem('timeline_start_date');
+        const savedEnd = localStorage.getItem('timeline_end_date');
+        
+        const startInput = document.getElementById('timelineStartDate');
+        const endInput = document.getElementById('timelineEndDate');
+        
+        if (startInput) startInput.value = savedStart || fmtDate(startOfMonth);
+        if (endInput) endInput.value = savedEnd || ''; // empty end date means up to future
 
         await this.loadData();
     },
 
     savePeriod() {
-        const select = document.getElementById('timelineReconciledPeriod');
-        if (select) {
-            localStorage.setItem('timeline_period_filter', select.value);
-        }
+        const startInput = document.getElementById('timelineStartDate');
+        const endInput = document.getElementById('timelineEndDate');
+        if (startInput) localStorage.setItem('timeline_start_date', startInput.value);
+        if (endInput) localStorage.setItem('timeline_end_date', endInput.value);
     },
 
     getColSettings() {
-        const def = { dateSaisie: false, date: true, desc: true, type: false, cat: true, amount: true, recon: true, budget: false, depuis: false, vers: false, recurrence: false, slip: false, attachments: false };
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const showAttachments = cfg.enable_attachments === 'true';
+        const showSlips = cfg.enable_check_slips === 'true';
+        const def = { dateSaisie: false, date: true, desc: true, type: false, cat: true, amount: true, recon: true, budget: false, depuis: false, vers: false, recurrence: false, slip: showSlips, attachments: showAttachments };
         try {
             const saved = localStorage.getItem('timeline_cols');
-            return saved ? { ...def, ...JSON.parse(saved) } : def;
+            const parsed = saved ? { ...def, ...JSON.parse(saved) } : def;
+            if (!showSlips) parsed.slip = false;
+            if (!showAttachments) parsed.attachments = false;
+            return parsed;
         } catch { return def; }
     },
 
@@ -239,13 +262,10 @@ window.TimelineView = {
         const unrecFilter = document.getElementById('timelineUnreconciledFilter');
         const unrecChecked = unrecFilter ? unrecFilter.checked : false;
         
-        const periodFilter = document.getElementById('timelineReconciledPeriod');
-        const periodValue = periodFilter ? periodFilter.value : 'current_month';
-        
-        const now = new Date();
-        now.setHours(0,0,0,0);
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth();
+        const startInput = document.getElementById('timelineStartDate');
+        const endInput = document.getElementById('timelineEndDate');
+        const startDateStr = startInput ? startInput.value : '';
+        const endDateStr = endInput ? endInput.value : '';
 
         if (unrecChecked && window.app.nextPayDate) {
             const nextPayDate = new Date(window.app.nextPayDate);
@@ -271,25 +291,17 @@ window.TimelineView = {
             });
         }
         
-        // Filter reconciled transactions based on the selected period
+        // Filter reconciled transactions based on start and end dates
         reconciled = reconciled.filter(tx => {
-            const txDate = new Date(tx.date_operation);
+            if (!startDateStr && !endDateStr) return true;
             
-            if (periodValue === 'current_month') {
-                return txDate.getFullYear() === currentYear && txDate.getMonth() === currentMonth;
-            } else if (periodValue === '5_days') {
-                const diffTime = Math.abs(now - txDate);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                return diffDays <= 5;
-            } else if (periodValue === '15_days') {
-                const diffTime = Math.abs(now - txDate);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                return diffDays <= 15;
-            } else if (periodValue === '30_days') {
-                const diffTime = Math.abs(now - txDate);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                return diffDays <= 30;
-            }
+            // Lexicographical comparison works for YYYY-MM-DD format
+            const txDateStr = tx.date_operation ? tx.date_operation.substring(0, 10) : '';
+            if (!txDateStr) return true;
+            
+            if (startDateStr && txDateStr < startDateStr) return false;
+            if (endDateStr && txDateStr > endDateStr) return false;
+            
             return true;
         });
 
@@ -339,7 +351,7 @@ window.TimelineView = {
                 <td class="col-dateSaisie" data-label="Date Saisie">${formatDate(tx.date_saisie)}</td>
                 <td class="col-date" data-label="Date Op.">${formatDate(tx.date_operation)}</td>
                 <td class="col-desc" data-label="Description"><strong>${tx.description}</strong></td>
-                <td class="col-type" data-label="Type">${tx.type || '-'}</td>
+                <td class="col-type" data-label="Type">${window.app.getTypeLabel(tx.type) || '-'}</td>
                 <td class="col-cat" data-label="Catégorie" style="white-space: nowrap;"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
                 <td class="col-amount" data-label="Montant">
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>

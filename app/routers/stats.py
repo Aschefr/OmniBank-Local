@@ -56,6 +56,14 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         ).all()
         unreconciled_expenses = sum(tx.amount for tx in unrec_txs)
         
+    total_unreconciled_expenses = 0.0
+    if main_acc:
+        all_unrec_txs = db.query(Transaction).filter(
+            Transaction.reconciliation_date.is_(None),
+            Transaction.from_account_id == main_acc.id
+        ).all()
+        total_unreconciled_expenses = sum(tx.amount for tx in all_unrec_txs)
+        
     # Hide overdraft warning if the risk date is after the next predicted pay date
     if warning and next_pay_date:
         if warning["date"] > next_pay_date:
@@ -77,6 +85,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "pay_history": pay_history,
         "overdraft_warning": warning,
         "unreconciled_expenses": unreconciled_expenses,
+        "total_unreconciled_expenses": total_unreconciled_expenses,
         "budget_summary": {
             "target": total_budgeted,
             "spent": total_spent,

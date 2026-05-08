@@ -24,7 +24,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="theme-dark">
-    <div class="app-container">
+    <div class="app-container" style="opacity: 0; transition: opacity 0.3s ease;">
         <header class="app-header">
             <div style="display:flex; align-items:center; gap: 10px;">
                 <button id="mobileMenuBtn" class="mobile-only-btn" style="display:none; font-size: 20px; background: none; border: none; color: white; cursor: pointer;">☰</button>
@@ -97,11 +97,15 @@
                         <span class="stat-label" style="color: var(--text-main); font-weight: 600; font-size: 11px; margin-bottom: 6px; display: block; text-transform: uppercase;">Dépenses non rapprochées avant paie</span>
                         <span class="stat-value privacy-blur" id="valUnreconciled" style="color: #ff9800;">0.00 €</span>
                     </div>
-                    <div class="stat-box highlight">
-                        <span class="stat-label" data-i18n="stat_rest_to_live">Reste à vivre</span>
+                    <div class="stat-box" style="border-color: rgba(255, 152, 0, 0.3); background-color: rgba(255, 152, 0, 0.05); cursor: pointer; display: none;" id="plannedExpensesBox" onclick="window.app.loadView('all_operations')">
+                        <span class="stat-label" style="color: var(--text-main); font-weight: 600; font-size: 11px; margin-bottom: 6px; display: block; text-transform: uppercase;">Dépenses prévues</span>
+                        <span class="stat-value privacy-blur" id="valPlannedExpenses" style="color: #ff9800;">0.00 €</span>
+                    </div>
+                    <div class="stat-box highlight" id="restToLiveBox">
+                        <span class="stat-label" id="restToLiveLabel" data-i18n="stat_rest_to_live">Reste à vivre</span>
                         <span class="stat-value" id="valRestToLive">0.00 €</span>
                     </div>
-                    <div class="stat-box" style="border-color: rgba(51, 102, 255, 0.4); background-color: rgba(51, 102, 255, 0.1);">
+                    <div class="stat-box" id="nextPayBox" style="border-color: rgba(51, 102, 255, 0.4); background-color: rgba(51, 102, 255, 0.1);">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span class="stat-label" style="color: var(--accent); font-weight: 600;">Prochaine paie (Estimée)</span>
                             <div style="display:flex; gap:8px;">
@@ -138,7 +142,7 @@
                     </div>
                 </div>
 
-                <div style="margin-top: auto; padding: 15px; border-radius: 8px; background-color: var(--bg-body); border: 1px solid var(--border-color);">
+                <div id="quickSettingsBox" style="margin-top: auto; padding: 15px; border-radius: 8px; background-color: var(--bg-body); border: 1px solid var(--border-color);">
                     <h3 style="font-size: 12px; margin-bottom: 10px; color: var(--text-main); font-weight: 600;">⚙️ Réglages Rapides</h3>
                     <div id="quickPayContainer" style="display:flex; flex-direction: column; gap: 8px;">
                         <div id="quickPayTypeContainer" style="display:flex; align-items:center; justify-content:space-between;">

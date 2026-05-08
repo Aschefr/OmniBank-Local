@@ -779,6 +779,8 @@ select.inline-input:focus option:checked {
 }
 
 
+
+
 /* AI Loading Animation */
 @keyframes spin {
     from { transform: rotate(0deg); }
@@ -786,4 +788,58 @@ select.inline-input:focus option:checked {
 }
 .animate-spin {
     animation: spin 1s linear infinite;
+}
+
+/* Print / PDF Export Styles */
+@media print {
+    /* Hide non-essential UI elements */
+    .app-sidebar,
+    .app-header,
+    #analyticsPeriod,
+    #analyticsReconciled,
+    .btn,
+    .modal-overlay,
+    .header-actions {
+        display: none !important;
+    }
+    
+    /* Expand main content */
+    .app-container, .app-body, .app-main {
+        display: block;
+        height: auto;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+        background: white;
+    }
+    
+    /* Force background colors to print */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color: black;
+    }
+    
+    /* Basic typography adjustments for print */
+    body {
+        background-color: white !important;
+        font-size: 10pt;
+    }
+    
+    /* Keep table formatting clean */
+    .data-table {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        page-break-inside: auto;
+    }
+    .data-table tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    .data-table th, .data-table td {
+        border-bottom: 1px solid #ddd !important;
+        color: black !important;
+        background-color: transparent !important;
+    }
 }

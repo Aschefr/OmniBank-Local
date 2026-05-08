@@ -52,6 +52,7 @@ class TransactionOut(TransactionBase):
 class CategoryBase(BaseModel):
     name: str
     type: str
+    is_closed: bool = False
 
 class CategoryOut(CategoryBase):
     id: int

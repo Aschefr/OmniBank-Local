@@ -21,6 +21,12 @@ def init_db():
             conn.execute(text("UPDATE transactions SET type = :new WHERE type = :old"), {"new": new_val, "old": old_val})
             conn.execute(text("UPDATE categories SET type = :new WHERE type = :old"), {"new": new_val, "old": old_val})
             conn.execute(text("UPDATE recurrence_templates SET type = :new WHERE type = :old"), {"new": new_val, "old": old_val})
+            
+        try:
+            conn.execute(text("ALTER TABLE categories ADD COLUMN is_closed BOOLEAN DEFAULT 0"))
+        except Exception:
+            pass # Column likely already exists
+            
         conn.commit()
 
 def wipe_db(db: Session):

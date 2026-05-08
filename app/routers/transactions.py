@@ -117,7 +117,13 @@ def toggle_reconciliation(tx_id: int, db: Session = Depends(get_db)):
 
 @router.delete("/all/clear", status_code=200)
 def clear_all_transactions(db: Session = Depends(get_db)):
-    """Deletes all transactions from the database (Danger Zone)."""
+    """Deletes all user data from the database (Danger Zone)."""
+    from app.models import BudgetCategory, Budget, RecurrenceTemplate, Account, Category
     db.query(Transaction).delete()
+    db.query(BudgetCategory).delete()
+    db.query(Budget).delete()
+    db.query(RecurrenceTemplate).delete()
+    db.query(Account).delete()
+    db.query(Category).delete()
     db.commit()
-    return {"ok": True, "message": "All transactions have been deleted"}
+    return {"ok": True, "message": "All user data has been deleted"}

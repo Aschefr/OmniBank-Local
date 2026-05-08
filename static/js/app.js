@@ -6,6 +6,17 @@ class App {
         this.views = {};
     }
 
+    getTypeLabel(typeKey) {
+        if (!typeKey) return '';
+        if (this.config && this.config['type_label_' + typeKey]) {
+            return this.config['type_label_' + typeKey];
+        }
+        if (window.i18n && window.i18n.t) {
+            return window.i18n.t('type_' + typeKey) || typeKey;
+        }
+        return typeKey;
+    }
+
     async init() {
         // Init i18n
         await window.i18n.init();
@@ -139,6 +150,10 @@ class App {
         // Restore view from localStorage
         const savedView = localStorage.getItem('omni_current_view') || this.currentView;
         this.loadView(savedView);
+
+        // Reveal UI after init is complete (prevents FOUC)
+        const container = document.querySelector('.app-container');
+        if (container) container.style.opacity = '1';
     }
 
     showUnreconciledBeforePay() {
@@ -169,17 +184,34 @@ class App {
             const stats = await API.get('/api/stats/dashboard');
             document.getElementById('valNetWorth').textContent = formatCurrency(stats.net_worth);
             document.getElementById('valRestToLive').textContent = formatCurrency(stats.rest_to_live);
+            // Load base config early to check Org Mode
+            const configs = window.app.config || await API.get('/api/config/');
+            const isOrgMode = configs.enable_org_mode === 'true' || configs.enable_org_mode === true;
+
             // Unreconciled expenses box
             const valUnreconciled = document.getElementById('valUnreconciled');
-            if (valUnreconciled) {
+            const valPlannedExpenses = document.getElementById('valPlannedExpenses');
+            if (valUnreconciled && !isOrgMode) {
                 valUnreconciled.textContent = formatCurrency(stats.unreconciled_expenses || 0);
                 document.getElementById('unreconciledBox').style.display = 'flex';
+                if (document.getElementById('plannedExpensesBox')) document.getElementById('plannedExpensesBox').style.display = 'none';
+            } else if (isOrgMode) {
+                document.getElementById('unreconciledBox').style.display = 'none';
+                if (valPlannedExpenses) {
+                    valPlannedExpenses.textContent = formatCurrency(stats.total_unreconciled_expenses || 0);
+                    document.getElementById('plannedExpensesBox').style.display = 'flex';
+                }
+            } else if (valUnreconciled) {
+                document.getElementById('unreconciledBox').style.display = 'none';
+                if (document.getElementById('plannedExpensesBox')) document.getElementById('plannedExpensesBox').style.display = 'none';
             }
             
             // Next Paycheck UI
             const payAmtSpan = document.getElementById('valNextPayAmount');
             const payDateDiv = document.getElementById('valNextPayDate');
-            if (stats.next_pay_date) {
+            const nextPayBox = document.getElementById('nextPayBox');
+            if (stats.next_pay_date && !isOrgMode) {
+                if (nextPayBox) nextPayBox.style.display = '';
                 payAmtSpan.textContent = formatCurrency(stats.next_pay_amount);
                 payDateDiv.textContent = formatDate(stats.next_pay_date) + (stats.is_pay_override ? ' (Manuel)' : '');
                 
@@ -190,9 +222,23 @@ class App {
                 // Pre-fill modal
                 document.getElementById('overridePayDate').value = stats.next_pay_date;
                 document.getElementById('overridePayAmount').value = stats.next_pay_amount;
+            } else if (nextPayBox) {
+                nextPayBox.style.display = 'none';
             }
             
-            // Budget Summary
+            // Rest to Live label
+            const restLabel = document.getElementById('restToLiveLabel');
+            if (restLabel) {
+                if (isOrgMode) {
+                    restLabel.textContent = 'Peut-être dépenser';
+                    restLabel.removeAttribute('data-i18n'); // prevent i18n from overriding
+                } else {
+                    restLabel.textContent = 'Reste à vivre';
+                    restLabel.setAttribute('data-i18n', 'stat_rest_to_live');
+                }
+            }
+            
+            // Budget Summary (Always hide if no budgets are set, even in org mode)
             if (stats.budget_summary && stats.budget_summary.target > 0) {
                 const box = document.getElementById('sidebarBudgetBox');
                 const spent = document.getElementById('sidebarBudgetSpent');
@@ -200,13 +246,14 @@ class App {
                 const bar = document.getElementById('sidebarBudgetBar');
                 const totalBar = document.getElementById('sidebarBudgetTotalBar');
                 
+                const targetVal = stats.budget_summary.target || 0;
                 const totalSpent = stats.budget_summary.spent || 0;
                 const recSpent = stats.budget_summary.reconciled_spent || 0;
                 
-                const totalPct = Math.min((totalSpent / stats.budget_summary.target) * 100, 100);
-                const recPct = Math.min((recSpent / stats.budget_summary.target) * 100, 100);
+                const totalPct = targetVal > 0 ? Math.min((totalSpent / targetVal) * 100, 100) : 0;
+                const recPct = targetVal > 0 ? Math.min((recSpent / targetVal) * 100, 100) : 0;
                 
-                const over = recSpent > stats.budget_summary.target;
+                const over = targetVal > 0 && recSpent > targetVal;
                 const color = over ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
                 
                 box.style.display = 'block';
@@ -217,7 +264,7 @@ class App {
                 
                 spent.textContent = formatCurrency(recSpent);
                 spent.style.color = color;
-                target.textContent = "/ " + formatCurrency(stats.budget_summary.target);
+                target.textContent = "/ " + formatCurrency(targetVal);
                 
                 bar.style.width = recPct + '%';
                 bar.style.backgroundColor = color;
@@ -230,8 +277,8 @@ class App {
                 if (box) box.style.display = 'none';
             }
             
-            // Load base pay day config
-            const configs = window.app.config || await API.get('/api/config/');
+            const quickSettingsBox = document.getElementById('quickSettingsBox');
+            if (quickSettingsBox) quickSettingsBox.style.display = isOrgMode ? 'none' : 'block';
             
             const bimonthlyOpt = document.getElementById('quickPayOptBimonthly');
             const typeContainer = document.getElementById('quickPayTypeContainer');

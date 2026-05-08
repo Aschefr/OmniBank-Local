@@ -18,7 +18,7 @@
     "btn_export_csv": "Export Data (CSV)",
     "btn_import_csv": "Import (CSV/XLSX)",
     "btn_clear_db": "Clear Database",
-    "alert_clear_db": "Are you sure you want to delete ALL operations? This action is irreversible.",
+    "alert_clear_db": "Are you sure you want to delete ALL your data (accounts, transactions, budgets, etc.)? This action is irreversible.",
     "nav_history": "History",
     "sys_prompt_simulator": "Tu es le Simulateur de Projets OmniBank. Ton rôle est d'aider l'utilisateur à planifier financièrement ses projets (achats immobiliers, voyages, crédits). Sois analytique, calcule les impacts sur le budget et propose des scénarios optimisés. Utilise le format Markdown et LaTeX pour les calculs. Voici les données financières actuelles:\n{FINANCE_DATA}",
     "sys_prompt_alerts": "Tu es l'Analyste d'Alertes OmniBank. Ton rôle est de repérer proactivement les anomalies dans les dépenses, les risques de découvert, et les augmentations suspectes de factures. Sois direct et met en évidence les problèmes potentiels. Format Markdown. Voici les données financières actuelles:\n{FINANCE_DATA}",
@@ -43,5 +43,6 @@
     "type_income": "Income",
     "type_transfer": "Transfer",
     "type_neutral": "Neutral",
-    "type_internal_transfer": "Internal Transfer"
+    "type_internal_transfer": "Internal Transfer",
+    "btn_import_csv_db": "Import CSV to DB"
 }

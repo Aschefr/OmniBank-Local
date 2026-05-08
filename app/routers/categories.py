@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.database import get_db
-from app.models import Category, Transaction
+from app.models import Category, Transaction, RecurrenceTemplate, BudgetCategory
 from sqlalchemy import func
 from datetime import date
 from app.schemas.api_schemas import CategoryBase, CategoryOut
@@ -95,11 +95,47 @@ def create_category(cat: CategoryBase, db: Session = Depends(get_db)):
     db.refresh(new_cat)
     return new_cat
 
-@router.delete("/{cat_id}")
-def delete_category(cat_id: int, db: Session = Depends(get_db)):
+@router.put("/{cat_id}", response_model=CategoryOut)
+def update_category(cat_id: int, cat: CategoryBase, db: Session = Depends(get_db)):
     db_cat = db.query(Category).filter(Category.id == cat_id).first()
     if not db_cat:
         raise HTTPException(status_code=404, detail="Category not found")
+        
+    old_name = db_cat.name
+    new_name = cat.name
+    
+    db_cat.name = new_name
+    db_cat.type = cat.type
+    db_cat.is_closed = cat.is_closed
+    
+    # If name changed, cascade update to other tables
+    if old_name != new_name:
+        # Check if the new name already exists in another category to prevent unique constraint error
+        if db.query(Category).filter(Category.name == new_name, Category.id != cat_id).first():
+            raise HTTPException(status_code=400, detail="A category with this name already exists")
+            
+        db.query(Transaction).filter(Transaction.category == old_name).update({"category": new_name})
+        db.query(RecurrenceTemplate).filter(RecurrenceTemplate.category == old_name).update({"category": new_name})
+        db.query(BudgetCategory).filter(BudgetCategory.category_name == old_name).update({"category_name": new_name})
+        
+    db.commit()
+    db.refresh(db_cat)
+    return db_cat
+
+@router.delete("/{cat_id}")
+def delete_category(cat_id: int, reallocate_to: str = None, db: Session = Depends(get_db)):
+    db_cat = db.query(Category).filter(Category.id == cat_id).first()
+    if not db_cat:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    old_name = db_cat.name
+    
+    # If reallocation requested, update existing records
+    if reallocate_to:
+        db.query(Transaction).filter(Transaction.category == old_name).update({"category": reallocate_to})
+        db.query(RecurrenceTemplate).filter(RecurrenceTemplate.category == old_name).update({"category": reallocate_to})
+        db.query(BudgetCategory).filter(BudgetCategory.category_name == old_name).update({"category_name": reallocate_to})
+        
     db.delete(db_cat)
     db.commit()
     return {"ok": True}

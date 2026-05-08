@@ -166,6 +166,24 @@ window.ImportWizard = {
             }
         }
         
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const enableAttach = cfg.enable_attachments === 'true';
+        let hasAttachments = enableAttach && txs.some(tx => tx.attachments);
+        let attachmentsCheckHtml = '';
+        if (hasAttachments) {
+            attachmentsCheckHtml = `
+                <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                    <input type="checkbox" id="importAttachmentsCheck" checked style="cursor: pointer;">
+                    <label for="importAttachmentsCheck" style="cursor: pointer; color: var(--text-color);">Importer les pièces jointes (colonnes Fichier / Documents joints)</label>
+                </div>
+            `;
+        }
+        
+        if (summaryDiv) {
+            summaryDiv.style.display = 'block';
+            summaryDiv.innerHTML = `Analyse terminée : ${txs.length} opération(s) trouvée(s). Vous pouvez modifier les valeurs avant validation.${attachmentsCheckHtml}`;
+        }
+        
         const tbody = document.getElementById('importDataBody');
         tbody.innerHTML = '';
         
@@ -210,7 +228,9 @@ window.ImportWizard = {
             if (!isRec) {
                 let options = `<option value="">-- Catégorie --</option>`;
                 (window.app.categoriesList || []).forEach(cat => {
-                    options += `<option value="${cat.name.replace(/"/g, '&quot;')}">${cat.name}</option>`;
+                    if (!cat.is_closed) {
+                        options += `<option value="${cat.name.replace(/"/g, '&quot;')}">${cat.name}</option>`;
+                    }
                 });
                 
                 const aiBtnHtml = (window.app.config && window.app.config.enable_ai === 'true') ? 
@@ -247,6 +267,8 @@ window.ImportWizard = {
                     <input type="hidden" class="import-reconciled" value="${isRec ? 'true' : 'false'}">
                     <input type="hidden" class="import-already-rec" value="${alreadyRec ? 'true' : 'false'}">
                     <input type="hidden" class="import-matched-id" value="${tx.matched_db_id || ''}">
+                    <input type="hidden" class="import-attachments" value="${tx.attachments ? tx.attachments.replace(/"/g, '&quot;') : ''}">
+                    <input type="hidden" class="import-check" value="${tx.check_slip_number ? tx.check_slip_number.replace(/"/g, '&quot;') : ''}">
                 </td>
                 <td style="border-bottom: 1px solid var(--border-color);">
                     <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px;">
@@ -430,6 +452,8 @@ window.ImportWizard = {
             const amt = parseFloat(tr.querySelector('.import-amt').value);
             const isRec = tr.querySelector('.import-reconciled').value === 'true';
             const matchId = tr.querySelector('.import-matched-id').value;
+            const attachments = tr.querySelector('.import-attachments').value;
+            const check = tr.querySelector('.import-check').value;
             const catSelect = tr.querySelector('.import-cat');
             const cat = catSelect ? catSelect.value : null;
             
@@ -440,7 +464,9 @@ window.ImportWizard = {
                     category: cat || null,
                     amount: amt,
                     is_reconciled: isRec,
-                    matched_db_id: matchId
+                    matched_db_id: matchId,
+                    attachments: attachments || null,
+                    check_slip_number: check || null
                 });
             }
         });
@@ -456,6 +482,65 @@ window.ImportWizard = {
             return;
         }
         
+        const importAttachments = document.getElementById('importAttachmentsCheck')?.checked;
+        const txsWithAttachments = txs.filter(t => t.attachments);
+        
+        if (importAttachments && txsWithAttachments.length > 0) {
+            showInlineMessage("Info", "Veuillez sélectionner le dossier contenant les pièces jointes.");
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.onchange = async (e) => {
+                if (!e.target.files.length) {
+                    this.finalizeSave(txs, accountId);
+                    return;
+                }
+                const files = Array.from(e.target.files);
+                const formData = new FormData();
+                const paths = [];
+                
+                for (const tx of txsWithAttachments) {
+                    const expectedName = tx.attachments.replace(/\\/g, '/').split('/').pop();
+                    const matchedFile = files.find(f => f.name === expectedName || f.webkitRelativePath.endsWith(expectedName));
+                    if (matchedFile) {
+                        formData.append("files", matchedFile);
+                        paths.push(tx.attachments);
+                    }
+                }
+                
+                if (paths.length > 0) {
+                    formData.append("relative_paths", JSON.stringify(paths));
+                    try {
+                        document.getElementById('importDataDesc').textContent = "Upload des pièces jointes...";
+                        document.getElementById('importDataDesc').style.display = 'block';
+                        const res = await fetch('/api/csv/upload_attachments', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await res.json();
+                        if (data.saved) {
+                            txs.forEach(t => {
+                                if (t.attachments && data.saved[t.attachments]) {
+                                    t.attachments = data.saved[t.attachments];
+                                } else if (t.attachments) {
+                                    t.attachments = null;
+                                }
+                            });
+                        }
+                    } catch(err) {
+                        console.error("Erreur upload", err);
+                    }
+                }
+                this.finalizeSave(txs, accountId);
+            };
+            input.click();
+            return;
+        }
+        
+        this.finalizeSave(txs, accountId);
+    },
+    
+    async finalizeSave(txs, accountId) {
         try {
             const res = await API.post('/api/csv/save_batch', { transactions: txs, account_id: accountId });
             showInlineMessage("Info", `Import réussi ! ${res.imported} opérations traitées.`);

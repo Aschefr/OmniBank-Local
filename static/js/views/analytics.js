@@ -1,4 +1,4 @@
-﻿// analytics.js — Synthèse Catégories × Mois (séparée par type) + totaux annuels
+// analytics.js — Synthèse Catégories × Mois (séparée par type) + totaux annuels
 window.AnalyticsView = {
     data: null,
     months: null,
@@ -16,9 +16,10 @@ window.AnalyticsView = {
     render() {
         return `
         <div style="padding:0;">
-            <div class="view-header" style="position:sticky;top:-32px;z-index:30;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <div class="view-header" style="position:sticky;top:-32px;z-index:50;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <h2 style="margin:0;">📊 Synthèse</h2>
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="window.print()" style="padding: 6px 12px; font-size: 13px;" title="Générer un PDF du rapport">📥 Exporter en PDF</button>
                     <select id="analyticsReconciled" class="inline-input" style="width:210px;" onchange="window.AnalyticsView.changeFilter('reconciled', this.value)">
                         <option value="all">Tous les montants</option>
                         <option value="reconciled">Rapprochés uniquement</option>
@@ -40,6 +41,20 @@ window.AnalyticsView = {
     },
 
     async init() {
+        const savedReconciled = localStorage.getItem('analytics_reconciled');
+        if (savedReconciled) this.reconciled = savedReconciled;
+        
+        const savedPeriod = localStorage.getItem('analytics_period');
+        if (savedPeriod) {
+            if (savedPeriod.startsWith('y')) {
+                this.selectedYear = parseInt(savedPeriod.slice(1));
+                this.months = null;
+            } else if (savedPeriod.startsWith('m')) {
+                this.selectedYear = null;
+                this.months = parseInt(savedPeriod.slice(1));
+            }
+        }
+        
         // First load to discover available years, then populate selector
         await this.loadData();
     },
@@ -63,17 +78,26 @@ window.AnalyticsView = {
         // Restore current selection
         if (this.selectedYear) {
             sel.value = `y${this.selectedYear}`;
-        } else {
+        } else if (this.months) {
             sel.value = `m${this.months}`;
+        }
+
+        const selRec = document.getElementById('analyticsReconciled');
+        if (selRec) {
+            selRec.value = this.reconciled;
         }
     },
 
     async changeFilter(key, val) {
-        if (key === 'reconciled') { this.reconciled = val; }
+        if (key === 'reconciled') { 
+            this.reconciled = val; 
+            localStorage.setItem('analytics_reconciled', val);
+        }
         if (key === 'period') {
+            localStorage.setItem('analytics_period', val);
             if (val.startsWith('y')) {
                 this.selectedYear = parseInt(val.slice(1));
-                this.months = 12;
+                this.months = null;
             } else if (val.startsWith('m')) {
                 this.selectedYear = null;
                 this.months = parseInt(val.slice(1));
@@ -127,6 +151,7 @@ window.AnalyticsView = {
 
         const isExpense = ['expense_fixed', 'expense_var'].includes(txType);
         const isIncome = txType === 'income';
+        const translatedType = window.app.getTypeLabel(txType);
 
         // Max for heatmap
         let maxVal = 0;
@@ -149,13 +174,13 @@ window.AnalyticsView = {
         let html = `
         <div style="border:1px solid ${hbd};border-radius:12px;display:flex;flex-direction:column;max-height:75vh;">
             <div style="background:${hb};padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${hbd};flex-shrink:0;">
-                <span style="font-weight:700;font-size:15px;color:${cfg.color};">${cfg.emoji} ${txType}</span>
+                <span style="font-weight:700;font-size:15px;color:${cfg.color};">${cfg.emoji} ${translatedType}</span>
                 <span class="privacy-blur" style="font-size:13px;font-weight:600;color:${cfg.color};">Total période : ${cfg.sign}${formatCurrency(grand_total)}</span>
             </div>
             <div style="overflow:auto;flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
             <table class="data-table" style="min-width:${220 + months.length * 80 + years.length * 90}px;border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
             <thead><tr style="background:var(--bg-surface);">
-                <th style="text-align:left;min-width:170px;border-bottom:1px solid ${hbd};position:sticky;left:0;top:0;background:var(--bg-surface);z-index:30;box-shadow:3px 0 6px rgba(0,0,0,0.2);">Catégorie</th>
+                <th style="text-align:left;min-width:100px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:sticky;left:0;top:0;background:var(--bg-surface);z-index:20;box-shadow:3px 0 6px rgba(0,0,0,0.2);">Catégorie</th>
                 ${monthHeaders}
                 ${yearHeaders}
             </tr></thead>
@@ -187,7 +212,7 @@ window.AnalyticsView = {
             }).join('');
 
             html += `<tr>
-                <td style="font-weight:500;white-space:nowrap;position:sticky;left:0;z-index:5;
+                <td title="${cat.replace(/"/g, '&quot;')}" style="font-weight:500;min-width:100px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;z-index:5;
                     background:var(--bg-surface);
                     box-shadow:3px 0 8px rgba(0,0,0,0.25);">${cat}</td>
                 ${monthCells}
@@ -209,7 +234,7 @@ window.AnalyticsView = {
         html += `<tr style="font-weight:700;">
             <td style="color:${cfg.color};font-weight:700;position:sticky;left:0;bottom:0;z-index:25;padding-left:16px;
                 background:var(--bg-surface);border-top:2px solid ${hbd};
-                box-shadow:inset 0 0 0 999px ${hb}, 3px 0 8px rgba(0,0,0,0.3);">TOTAL ${txType.toUpperCase()}</td>
+                box-shadow:inset 0 0 0 999px ${hb}, 3px 0 8px rgba(0,0,0,0.3);">TOTAL ${translatedType.toUpperCase()}</td>
             ${totalMonthCells}
             ${totalYearCells}
         </tr>`;

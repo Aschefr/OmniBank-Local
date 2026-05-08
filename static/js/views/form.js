@@ -1,4 +1,4 @@
-﻿window.FormView = {
+window.FormView = {
     categories: [],
     accounts: [],
     descriptions: [],
@@ -315,24 +315,19 @@
         const isRecurrent = document.getElementById('op_is_recurrent').checked;
         
         let type = 'neutral';
-        let displayType = 'neutral';
         if (fromAcc && toAcc) {
             type = 'transfer';
-            displayType = 'type_internal_transfer';
         } else if (!fromAcc && toAcc) {
             type = 'income';
-            displayType = 'type_income';
         } else if (fromAcc && !toAcc) {
             type = isRecurrent ? 'expense_fixed' : 'expense_var';
-            displayType = isRecurrent ? 'type_expense_fixed' : 'type_expense_var';
         } else {
             type = 'neutral';
-            displayType = 'type_neutral';
         }
         
         // Update hidden input and display badge
         document.getElementById('op_tx_type').value = type;
-        document.getElementById('op_inferred_type_display').textContent = window.i18n.t(displayType);
+        document.getElementById('op_inferred_type_display').textContent = window.app.getTypeLabel(type);
         
         // Change badge color based on type
         const badge = document.getElementById('op_inferred_type_display');
@@ -363,6 +358,7 @@
         
         let html = '<option value="">-- Sans cat\u00e9gorie --</option>';
         this.categories.forEach(c => {
+            if (c.is_closed && c.name !== currentVal) return;
             if (!currentType || currentType === 'neutral' || c.type === currentType) {
                 if (!search || c.name.toLowerCase().includes(search)) {
                     html += `<option value="${c.name}">${c.name}</option>`;

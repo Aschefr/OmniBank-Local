@@ -103,6 +103,14 @@ window.ConfigView = {
                         </div>
                         <span data-i18n="config_opt_check_slips">Activer la saisie des numéros de bordereaux de chèques</span>
                     </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                        <div style="position: relative; width: 40px; height: 24px;">
+                            <input type="checkbox" id="conf_enable_org_mode" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
+                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                            <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                        </div>
+                        <span data-i18n="config_opt_org_mode">Activer le mode Organisation (Association/CSE)</span>
+                    </label>
                 </div>
                 <style>
                     .global-toggle:checked ~ .slider { background-color: var(--accent) !important; }
@@ -122,9 +130,10 @@ window.ConfigView = {
                         📥 <span data-i18n="btn_export_csv">Exporter les données (CSV)</span>
                     </button>
                     
-                    <!-- Import -->
-                    <button class="btn btn-primary" onclick="window.ImportWizard.open()" style="display: flex; align-items: center; gap: 5px;">
-                        📤 <span data-i18n="btn_import_csv">Importer (CSV/XLSX)</span>
+                    <!-- Import vers DB -->
+                    <input type="file" id="rawDbCsvInput" accept=".csv" style="display: none;" onchange="window.ConfigView.importRawCSV(event)">
+                    <button class="btn btn-primary" onclick="document.getElementById('rawDbCsvInput').click()" style="display: flex; align-items: center; gap: 5px;">
+                        📤 <span data-i18n="btn_import_csv_db">Import CSV vers DB</span>
                     </button>
                     
                     <!-- Backup -->
@@ -178,6 +187,7 @@ window.ConfigView = {
             if (this.configData.enable_bimonthly === 'true') document.getElementById('conf_enable_bimonthly').checked = true;
             if (this.configData.enable_attachments === 'true') document.getElementById('conf_enable_attachments').checked = true;
             if (this.configData.enable_check_slips === 'true') document.getElementById('conf_enable_check_slips').checked = true;
+            if (this.configData.enable_org_mode === 'true') document.getElementById('conf_enable_org_mode').checked = true;
             
         } catch (e) {
             console.error("Failed to load config", e);
@@ -245,12 +255,20 @@ window.ConfigView = {
                 enable_ai: document.getElementById('conf_enable_ai').checked ? 'true' : 'false',
                 enable_bimonthly: document.getElementById('conf_enable_bimonthly').checked ? 'true' : 'false',
                 enable_attachments: document.getElementById('conf_enable_attachments').checked ? 'true' : 'false',
-                enable_check_slips: document.getElementById('conf_enable_check_slips').checked ? 'true' : 'false'
+                enable_check_slips: document.getElementById('conf_enable_check_slips').checked ? 'true' : 'false',
+                enable_org_mode: document.getElementById('conf_enable_org_mode').checked ? 'true' : 'false'
             };
             
             // Sync to window.app.config immediately
             if (window.app) {
                 window.app.config = { ...window.app.config, ...data };
+                if (window.app.refreshSidebar) window.app.refreshSidebar();
+                if (window.TimelineView && window.app.currentView === 'dashboard') {
+                    // Update filters visibility without full refresh if possible, or just render
+                    const main = document.getElementById('mainContent');
+                    if (main) main.innerHTML = window.TimelineView.render();
+                    window.TimelineView.init();
+                }
             }
             
             await API.post('/api/config/', data);
@@ -308,7 +326,145 @@ window.ConfigView = {
         window.open('/api/csv/export?cols=' + encodeURIComponent(selectedCols), '_blank');
     },
 
-    // Import functions moved to import_wizard.js
+    async importRawCSV(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/csv/import', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || "Upload failed");
+            }
+            
+            const data = await res.json();
+            
+            if (data.attachments_needed && data.attachments_needed.length > 0) {
+                // Create a manual trigger modal to bypass browser async popup blockers
+                const overlay = document.createElement('div');
+                overlay.style.position = 'fixed';
+                overlay.style.top = '0'; overlay.style.left = '0'; overlay.style.width = '100vw'; overlay.style.height = '100vh';
+                overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                overlay.style.display = 'flex'; overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center';
+                overlay.style.zIndex = '9999';
+                
+                const modal = document.createElement('div');
+                modal.style.background = 'var(--bg-surface)';
+                modal.style.padding = '20px';
+                modal.style.borderRadius = '8px';
+                modal.style.maxWidth = '500px';
+                modal.style.textAlign = 'center';
+                modal.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
+                
+                const title = document.createElement('h3');
+                title.textContent = "Pièces jointes manquantes";
+                title.style.marginTop = '0';
+                
+                const text = document.createElement('p');
+                text.textContent = `L'import nécessite ${data.attachments_needed.length} pièces jointes. Veuillez sélectionner le dossier les contenant ("Data-Import" par exemple).`;
+                
+                const btnContainer = document.createElement('div');
+                btnContainer.style.marginTop = '20px';
+                btnContainer.style.display = 'flex';
+                btnContainer.style.justifyContent = 'center';
+                btnContainer.style.gap = '10px';
+                
+                const btnCancel = document.createElement('button');
+                btnCancel.className = 'btn btn-secondary';
+                btnCancel.textContent = "Ignorer";
+                btnCancel.onclick = () => {
+                    document.body.removeChild(overlay);
+                    showInlineMessage("Succès", `Import réussi ! ${data.imported} opérations ajoutées (sans les pièces jointes).`);
+                    setTimeout(() => window.location.reload(), 2000);
+                };
+                
+                const label = document.createElement('label');
+                label.className = 'btn btn-primary';
+                label.style.cursor = 'pointer';
+                label.textContent = "Sélectionner le dossier";
+                
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.webkitdirectory = true;
+                input.style.display = 'none';
+                
+                label.appendChild(input);
+                btnContainer.appendChild(btnCancel);
+                btnContainer.appendChild(label);
+                
+                modal.appendChild(title);
+                modal.appendChild(text);
+                modal.appendChild(btnContainer);
+                overlay.appendChild(modal);
+                document.body.appendChild(overlay);
+
+                input.onchange = async (e) => {
+                    label.textContent = "Chargement...";
+                    label.style.pointerEvents = "none";
+                    btnCancel.disabled = true;
+                    
+                    if (!e.target.files.length) {
+                        document.body.removeChild(overlay);
+                        showInlineMessage("Succès", `Import réussi ! ${data.imported} opérations ajoutées (sans les pièces jointes).`);
+                        setTimeout(() => window.location.reload(), 2000);
+                        return;
+                    }
+                    
+                    const files = Array.from(e.target.files);
+                    const formDataUpload = new FormData();
+                    const paths = [];
+                    
+                    for (const att of data.attachments_needed) {
+                        const expectedName = att.replace(/\\/g, '/').split('/').pop();
+                        const matchedFile = files.find(f => f.name === expectedName || f.webkitRelativePath.endsWith(expectedName));
+                        if (matchedFile) {
+                            formDataUpload.append("files", matchedFile);
+                            paths.push(att);
+                        }
+                    }
+                    
+                    if (paths.length > 0) {
+                        formDataUpload.append("relative_paths", JSON.stringify(paths));
+                        try {
+                            const upRes = await fetch('/api/csv/upload_attachments', {
+                                method: 'POST',
+                                body: formDataUpload
+                            });
+                            const upData = await upRes.json();
+                            if (upData.saved) {
+                                await fetch('/api/csv/update_imported_attachments', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ mapping: upData.saved })
+                                });
+                            }
+                        } catch(err) {
+                            console.error("Erreur upload attachments", err);
+                        }
+                    }
+                    
+                    document.body.removeChild(overlay);
+                    showInlineMessage("Succès", `Import réussi ! ${data.imported} opérations ajoutées et pièces jointes liées.`);
+                    setTimeout(() => window.location.reload(), 2000);
+                };
+            } else {
+                showInlineMessage("Succès", `Import réussi ! ${data.imported} opérations ajoutées, ${data.skipped} ignorées.`);
+                setTimeout(() => window.location.reload(), 2000);
+            }
+        } catch (e) {
+            console.error(e);
+            showInlineMessage("Erreur", "L'import a échoué : " + e.message);
+        } finally {
+            event.target.value = '';
+        }
+    },
 
     async clearDB() {
         const i18nMsg = (window.i18n && window.i18n.t) ? window.i18n.t('alert_clear_db') : "Êtes-vous sûr de vouloir supprimer TOUTES vos opérations ? Cette action est irréversible.";

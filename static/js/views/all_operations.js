@@ -6,28 +6,32 @@ window.AllOperationsView = {
     budgetsMap: {}, // added for column matching
 
     render() {
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const attachDisp = cfg.enable_attachments === 'true' ? '' : 'display: none !important;';
+        const slipDisp = cfg.enable_check_slips === 'true' ? '' : 'display: none !important;';
+
         return `
             <style id="historyColsStyle"></style>
             <div id="historyColsModal" class="modal-overlay" style="display: none; z-index: 100;">
-                <div class="modal-content" style="max-width: 300px;">
-                    <h3>⚙️ Colonnes</h3>
-                    <div style="display:flex; flex-direction:column; gap:10px; margin: 20px 0;">
-                        <label><input type="checkbox" id="chk_history_col_dateSaisie" onchange="window.AllOperationsView.toggleCol('dateSaisie')"> Date Saisie</label>
-                        <label><input type="checkbox" id="chk_history_col_date" onchange="window.AllOperationsView.toggleCol('date')"> Date Op.</label>
-                        <label><input type="checkbox" id="chk_history_col_desc" onchange="window.AllOperationsView.toggleCol('desc')"> Description</label>
-                        <label><input type="checkbox" id="chk_history_col_type" onchange="window.AllOperationsView.toggleCol('type')"> Type</label>
-                        <label><input type="checkbox" id="chk_history_col_cat" onchange="window.AllOperationsView.toggleCol('cat')"> Catégorie</label>
-                        <label><input type="checkbox" id="chk_history_col_amount" onchange="window.AllOperationsView.toggleCol('amount')"> Montant</label>
-                        <label><input type="checkbox" id="chk_history_col_recon" onchange="window.AllOperationsView.toggleCol('recon')"> Rapproché</label>
-                        <label><input type="checkbox" id="chk_history_col_budget" onchange="window.AllOperationsView.toggleCol('budget')"> Enveloppe</label>
-                        <label><input type="checkbox" id="chk_history_col_depuis" onchange="window.AllOperationsView.toggleCol('depuis')"> Depuis</label>
-                        <label><input type="checkbox" id="chk_history_col_vers" onchange="window.AllOperationsView.toggleCol('vers')"> Vers</label>
-                        <label><input type="checkbox" id="chk_history_col_recurrence" onchange="window.AllOperationsView.toggleCol('recurrence')"> Répétition</label>
-                        <label><input type="checkbox" id="chk_history_col_slip" onchange="window.AllOperationsView.toggleCol('slip')"> N° Bordereau</label>
-                        <label><input type="checkbox" id="chk_history_col_attachments" onchange="window.AllOperationsView.toggleCol('attachments')"> P. Jointes</label>
+                <div class="modal" style="max-width: 380px; min-width: auto; padding: 25px;">
+                    <h3 style="margin-top:0; margin-bottom: 20px; display:flex; align-items:center; gap:8px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">⚙️ Gérer les colonnes</h3>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 25px;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_dateSaisie" onchange="window.AllOperationsView.toggleCol('dateSaisie')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Date Saisie</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_date" onchange="window.AllOperationsView.toggleCol('date')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Date Op.</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_desc" onchange="window.AllOperationsView.toggleCol('desc')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Description</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_type" onchange="window.AllOperationsView.toggleCol('type')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Type</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_cat" onchange="window.AllOperationsView.toggleCol('cat')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Catégorie</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_amount" onchange="window.AllOperationsView.toggleCol('amount')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Montant</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_recon" onchange="window.AllOperationsView.toggleCol('recon')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Rapproché</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_budget" onchange="window.AllOperationsView.toggleCol('budget')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Enveloppe</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_depuis" onchange="window.AllOperationsView.toggleCol('depuis')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Depuis</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_vers" onchange="window.AllOperationsView.toggleCol('vers')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Vers</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_recurrence" onchange="window.AllOperationsView.toggleCol('recurrence')" style="accent-color: var(--accent); width: 16px; height: 16px;"> Répétition</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${slipDisp}"><input type="checkbox" id="chk_history_col_slip" onchange="window.AllOperationsView.toggleCol('slip')" style="accent-color: var(--accent); width: 16px; height: 16px;"> N° Bordereau</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${attachDisp}"><input type="checkbox" id="chk_history_col_attachments" onchange="window.AllOperationsView.toggleCol('attachments')" style="accent-color: var(--accent); width: 16px; height: 16px;"> P. Jointes</label>
                     </div>
-                    <div style="text-align: right;">
-                        <button class="btn btn-primary" onclick="document.getElementById('historyColsModal').style.display='none'">Fermer</button>
+                    <div style="text-align: center;">
+                        <button class="btn btn-primary" style="width: 100%; padding: 10px; font-size: 14px;" onclick="document.getElementById('historyColsModal').style.display='none'">Fermer</button>
                     </div>
                 </div>
             </div>
@@ -53,7 +57,7 @@ window.AllOperationsView = {
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px; ${attachDisp}">
                         <span style="font-size:12px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_attachments">Pièces jointes</span>
                         <label class="toggle-switch" style="flex-shrink: 0;" title="Uniquement avec pièces jointes">
                             <input type="checkbox" id="historyAttachmentFilter" onchange="window.AllOperationsView.applyFilters()">
@@ -101,10 +105,16 @@ window.AllOperationsView = {
     },
 
     getColSettings() {
-        const def = { dateSaisie: false, date: true, desc: true, type: false, cat: true, amount: true, recon: true, budget: false, depuis: false, vers: false, recurrence: false, slip: false, attachments: false };
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const showAttachments = cfg.enable_attachments === 'true';
+        const showSlips = cfg.enable_check_slips === 'true';
+        const def = { dateSaisie: false, date: true, desc: true, type: false, cat: true, amount: true, recon: true, budget: false, depuis: false, vers: false, recurrence: false, slip: showSlips, attachments: showAttachments };
         try {
             const saved = localStorage.getItem('history_cols');
-            return saved ? { ...def, ...JSON.parse(saved) } : def;
+            const parsed = saved ? { ...def, ...JSON.parse(saved) } : def;
+            if (!showSlips) parsed.slip = false;
+            if (!showAttachments) parsed.attachments = false;
+            return parsed;
         } catch { return def; }
     },
 
@@ -292,7 +302,7 @@ window.AllOperationsView = {
                 <td class="col-dateSaisie" data-label="Date Saisie">${formatDate(tx.date_saisie)}</td>
                 <td class="col-date" data-label="Date Op.">${formatDate(tx.date_operation)}</td>
                 <td class="col-desc" data-label="Description"><strong>${tx.description}</strong></td>
-                <td class="col-type" data-label="Type">${tx.type}</td>
+                <td class="col-type" data-label="Type">${window.app.getTypeLabel(tx.type)}</td>
                 <td class="col-cat" data-label="Catégorie" style="white-space: nowrap;"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
                 <td class="col-amount" data-label="Montant">
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>
