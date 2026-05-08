@@ -153,8 +153,9 @@ $latestJson = @{
     }
 } | ConvertTo-Json -Depth 10
 
-$latestJson | Set-Content "latest.json" -Encoding UTF8
-Write-Host "  latest.json updated" -ForegroundColor Green
+$utf8NoBom = New-Object System.Text.UTF8Encoding $False
+[System.IO.File]::WriteAllText((Join-Path $PWD "latest.json"), $latestJson, $utf8NoBom)
+Write-Host "  latest.json updated (No BOM)" -ForegroundColor Green
 
 if ($DryRun) {
     Write-Host "`n[DRY RUN] Stopping before git operations." -ForegroundColor Yellow
