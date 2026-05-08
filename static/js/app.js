@@ -18,11 +18,11 @@ class App {
             this.config = {};
         }
         
-        // Display app version in header (from Tauri, not sidecar)
+        // Display app version in header (via Tauri IPC command)
         try {
             let version = null;
-            if (window.__TAURI__ && window.__TAURI__.app) {
-                version = await window.__TAURI__.app.getVersion();
+            if (window.__TAURI_INTERNALS__) {
+                version = await window.__TAURI_INTERNALS__.invoke('get_app_version');
             } else {
                 // Fallback for dev mode without Tauri
                 const vData = await API.get('/api/version');
@@ -30,7 +30,7 @@ class App {
             }
             const badge = document.getElementById('appVersionBadge');
             if (badge && version) badge.textContent = `v${version}`;
-        } catch (e) { /* silent */ }
+        } catch (e) { console.warn('[version]', e); }
         
         // Theme toggle
         const savedTheme = localStorage.getItem('omni_theme');

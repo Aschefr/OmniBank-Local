@@ -1,11 +1,11 @@
 ﻿{
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHhOdnBONGlWb1JNREdIUFVwOUtEWWVHWFlWQlpsb1p6UjNFb25sbTVpakNhdDdhZzl0ZVYrMUJOckFvR1hLaFdObmozbjNqSGpWa1FjNUdsUnR1a3djPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjM3NDcxCWZpbGU6T21uaUJhbmtfMS4wLjhfeDY0X2ZyLUZSLm1zaQpkZ1NqZDhJRExaeUJRRi9wc0d6dHVFWlJTdkUwRmhLbGg1dXptWkFNcHc4UEpFWEtTN1VYODdleFZiZjRNQXM2TW1nT2Robkx1QVYwZjBzYWtGcWJEZz09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.8/OmniBank_1.0.8_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDRBdjQ5cE1MYWdSbkFLRVFkNzZVam5wNUlURG1FWUJYVXF5MitmUk15VEk1eHdaR1RpZGtNc1RaTHdpallpNkZNcXpUZU9CZ2JXNTN3V25ydHAvc1FZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjM4MDE0CWZpbGU6T21uaUJhbmtfMS4wLjlfeDY0X2ZyLUZSLm1zaQpjZWErQ0hMNkZGb1lvb2hHVy9mVGRCYm9IenVRaG5VQW5TOXI5anVEKzI2dDVFVW5lUENqVklJNzBoVDZEcUc4NnA2RGdDMFQ3S1d2OW9rR3Zob2xCUT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.9/OmniBank_1.0.9_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-08T10:51:11Z",
-    "version":  "1.0.8",
-    "notes":  "Fix badge version + dialogue natif update"
+    "pub_date":  "2026-05-08T11:00:14Z",
+    "version":  "1.0.9",
+    "notes":  "Fix badge version via Tauri invoke command"
 }

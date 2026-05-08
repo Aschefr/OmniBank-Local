@@ -39,11 +39,17 @@ fn kill_sidecar(state: &SidecarState) {
         .output();
 }
 
+#[tauri::command]
+fn get_app_version(app: tauri::AppHandle) -> String {
+    app.config().version.clone().unwrap_or_else(|| "?".into())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![get_app_version])
         .setup(|app| {
             // Kill any orphan omnibank-api.exe from previous session/update
             let _ = std::process::Command::new("taskkill")
