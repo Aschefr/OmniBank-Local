@@ -616,15 +616,14 @@ Get-Process | Where-Object { $_.ProcessName -like "*omnibank*" } | Stop-Process 
 
 ### 17. Le badge version affiche une ancienne version
 
-**Cause** : La version etait lue depuis `/api/version` (sidecar Python).
-Le sidecar PyInstaller embarque un `package.json` fige au moment du build.
-De plus, `window.__TAURI__` n'est pas disponible avec une URL externe
-(`http://127.0.0.1:8434`) meme avec `withGlobalTauri: true`.
+**Cause** : La version était lue depuis `/api/version` (sidecar Python).
+Le sidecar PyInstaller embarque un `package.json` figé au moment du build.
+De plus, l'IPC Tauri n'est pas injecté par défaut sur une URL externe
+(`http://127.0.0.1:8434`), même avec `withGlobalTauri: true`.
 
-**Solution** : Commande Tauri `get_app_version` via `__TAURI_INTERNALS__.invoke()`.
-Cote Rust : `app.config().version` lit `tauri.conf.json` au build time.
-Cote JS : `window.__TAURI_INTERNALS__.invoke('get_app_version')` fonctionne
-toujours dans le webview Tauri, quelle que soit la source de l'URL.
+**Solution** : 
+1. Ajouter le domaine dans `src-tauri/capabilities/default.json` sous la clé `"remote": { "urls": ["http://127.0.0.1:8434", "http://127.0.0.1:8434/**"] }`. Cela autorise Tauri à injecter le bridge IPC sur cette URL.
+2. Utiliser `window.__TAURI_INTERNALS__.invoke('get_app_version')` (ou `window.__TAURI__.core.invoke`) dans le frontend JS pour appeler la commande Rust.
 
 ### 18. blocking_show() deadlock dans async task
 
@@ -634,3 +633,15 @@ deadlock le runtime async.
 
 **Solution** : Executer le dialogue dans un `std::thread::spawn` separe et
 utiliser un `mpsc::channel` pour recuperer le resultat.
+
+### 19. L'auto-update est cassé (Erreur "error decoding response body")
+
+**Cause** : Le plugin updater Tauri utilise `serde_json` qui est strictement conforme à la norme JSON et refuse de parser un fichier JSON contenant un BOM (Byte Order Mark) UTF-8.
+Le script `release.ps1` utilisait `Set-Content -Encoding UTF8`, ce qui dans PowerShell 5.1 (Windows) ajoute automatiquement un BOM. Cela corrompait silencieusement le fichier `latest.json` hébergé sur GitHub.
+
+**Solution** : 
+Forcer l'écriture sans BOM en utilisant les classes natives .NET dans PowerShell :
+```powershell
+$utf8NoBom = New-Object System.Text.UTF8Encoding $False
+[System.IO.File]::WriteAllText("latest.json", $latestJson, $utf8NoBom)
+```
