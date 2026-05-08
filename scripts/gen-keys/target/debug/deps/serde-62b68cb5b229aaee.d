@@ -1,0 +1,14 @@
+D:\Code Projects\OmniBank-Local\scripts\gen-keys\target\debug\deps\serde-62b68cb5b229aaee.d: C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs D:\Code\ Projects\OmniBank-Local\scripts\gen-keys\target\debug\build\serde-6731966c590e634f\out/private.rs
+
+D:\Code Projects\OmniBank-Local\scripts\gen-keys\target\debug\deps\libserde-62b68cb5b229aaee.rlib: C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs D:\Code\ Projects\OmniBank-Local\scripts\gen-keys\target\debug\build\serde-6731966c590e634f\out/private.rs
+
+D:\Code Projects\OmniBank-Local\scripts\gen-keys\target\debug\deps\libserde-62b68cb5b229aaee.rmeta: C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs D:\Code\ Projects\OmniBank-Local\scripts\gen-keys\target\debug\build\serde-6731966c590e634f\out/private.rs
+
+C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs:
+C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs:
+C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs:
+C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:
+C:\Users\Adminlocal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs:
+D:\Code\ Projects\OmniBank-Local\scripts\gen-keys\target\debug\build\serde-6731966c590e634f\out/private.rs:
+
+# env-dep:OUT_DIR=D:\\Code Projects\\OmniBank-Local\\scripts\\gen-keys\\target\\debug\\build\\serde-6731966c590e634f\\out
