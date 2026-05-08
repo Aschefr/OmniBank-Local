@@ -521,6 +521,23 @@ brut → le décodage base64 échoue ou produit des données corrompues.
 **Solution** : Utiliser `scripts/gen-keys` qui produit les clés au format natif
 minisign, puis base64-encoder le résultat pour `tauri.conf.json` et `latest.json`.
 
+### 15. Doublons omnibank-api.exe après mise à jour
+
+**Cause** : Après un update, `app.restart()` relance l'app mais l'ancien
+`omnibank-api.exe` n'a pas été tué (ou a survécu au `kill_sidecar()`).
+Le nouveau process spawn un 2ème sidecar → doublons.
+
+**Solution** : Au démarrage dans `setup()`, **avant** de spawner le sidecar,
+exécuter `taskkill /F /IM omnibank-api.exe` pour nettoyer les orphelins :
+```rust
+// Dans setup(), avant le spawn
+let _ = std::process::Command::new("taskkill")
+    .args(["/F", "/IM", "omnibank-api.exe"])
+    .creation_flags(0x08000000)
+    .output();
+std::thread::sleep(Duration::from_millis(300));
+```
+
 ---
 
 ## Commandes rapides
