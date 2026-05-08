@@ -39,7 +39,7 @@ window.ImportWizard = {
         this.selectedFile = event.target.files[0];
         if (!this.selectedFile) return;
         
-        document.getElementById('importDataDesc').textContent = `Fichier sélectionné: ${this.selectedFile.name}. Choisissez l'analyse.`;
+        document.getElementById('importDataDesc').textContent = window.i18n.tp('msg_file_selected', {name: this.selectedFile.name});
         document.getElementById('importDataTable').style.display = 'none';
         document.getElementById('importDataBody').innerHTML = '';
         this.fileBalance = null;
@@ -88,7 +88,7 @@ window.ImportWizard = {
         const formData = new FormData();
         formData.append("file", this.selectedFile);
         
-        document.getElementById('importDataDesc').textContent = "Analyse en cours...";
+        document.getElementById('importDataDesc').textContent = window.i18n.t('msg_analyzing');
         
         try {
             const res = await fetch('/api/csv/analyze_heuristic', {
@@ -100,11 +100,11 @@ window.ImportWizard = {
                 this.fileBalance = result.file_balance || null;
                 await this.renderImportTable(result.transactions || []);
             } else {
-                document.getElementById('importDataDesc').textContent = "Erreur: " + result.detail;
+                document.getElementById('importDataDesc').textContent = window.i18n.tp('msg_error_prefix', {detail: result.detail});
             }
         } catch (e) {
             console.error(e);
-            document.getElementById('importDataDesc').textContent = "Erreur réseau.";
+            document.getElementById('importDataDesc').textContent = window.i18n.t('msg_network_error');
         }
     },
     
@@ -114,7 +114,7 @@ window.ImportWizard = {
         const formData = new FormData();
         formData.append("file", this.selectedFile);
         
-        document.getElementById('importDataDesc').textContent = "Analyse IA en cours (cela peut prendre du temps)...";
+        document.getElementById('importDataDesc').textContent = window.i18n.t('msg_ai_analyzing');
         
         try {
             const res = await fetch('/api/ai/import_csv', { 
@@ -126,11 +126,11 @@ window.ImportWizard = {
                 this.fileBalance = result.file_balance || null;
                 await this.renderImportTable(result.transactions || []);
             } else {
-                document.getElementById('importDataDesc').textContent = "Erreur IA: " + result.detail;
+                document.getElementById('importDataDesc').textContent = window.i18n.tp('msg_ai_error_prefix', {detail: result.detail});
             }
         } catch (e) {
             console.error(e);
-            document.getElementById('importDataDesc').textContent = "Erreur réseau IA.";
+            document.getElementById('importDataDesc').textContent = window.i18n.t('msg_ai_network_error');
         }
     },
 
@@ -146,7 +146,7 @@ window.ImportWizard = {
         const summaryDiv = document.getElementById('importSummaryText');
         if (summaryDiv) {
             summaryDiv.style.display = 'block';
-            summaryDiv.textContent = `Analyse terminée : ${txs.length} opération(s) trouvée(s). Vous pouvez modifier les valeurs avant validation.`;
+            summaryDiv.textContent = window.i18n.tp('msg_analysis_complete', {count: txs.length});
         }
         document.getElementById('importDataDesc').style.display = 'none';
         document.getElementById('importDataTable').style.display = 'table';
@@ -181,7 +181,7 @@ window.ImportWizard = {
         
         if (summaryDiv) {
             summaryDiv.style.display = 'block';
-            summaryDiv.innerHTML = `Analyse terminée : ${txs.length} opération(s) trouvée(s). Vous pouvez modifier les valeurs avant validation.${attachmentsCheckHtml}`;
+            summaryDiv.innerHTML = window.i18n.tp('msg_analysis_complete_attachments', {count: txs.length, attachHtml: attachmentsCheckHtml});
         }
         
         const tbody = document.getElementById('importDataBody');
@@ -202,15 +202,15 @@ window.ImportWizard = {
             let actionColor = '';
             
             if (isRec && alreadyRec) {
-                statusHtml = `<span class="badge" style="background:var(--bg-surface);color:var(--text-muted);border:1px solid var(--border-color);">Déjà rapproché</span>`;
+                statusHtml = `<span class="badge" style="background:var(--bg-surface);color:var(--text-muted);border:1px solid var(--border-color);">${window.i18n.t('import_status_reconciled')}</span>`;
                 actionText = `Ignorée<br>(déjà traitée)`;
                 actionColor = `color: var(--text-muted);`;
             } else if (isRec && !alreadyRec) {
-                statusHtml = `<span class="badge" style="background:var(--color-income);color:white;">À rapprocher</span>`;
+                statusHtml = `<span class="badge" style="background:var(--color-income);color:white;">${window.i18n.t('import_status_to_reconcile')}</span>`;
                 actionText = `Sera rapprochée<br>(pas de doublon)`;
                 actionColor = `color: var(--color-income);`;
             } else {
-                statusHtml = `<span class="badge" style="background:var(--color-expense);color:white;">Nouveau</span>`;
+                statusHtml = `<span class="badge" style="background:var(--color-expense);color:white;">${window.i18n.t('import_status_new')}</span>`;
                 actionText = `Sera ajoutée`;
                 actionColor = `color: var(--color-expense);`;
             }
@@ -234,7 +234,7 @@ window.ImportWizard = {
                 });
                 
                 const aiBtnHtml = (window.app.config && window.app.config.enable_ai === 'true') ? 
-                    `<button class="btn btn-secondary" onclick="window.ImportWizard.categorizeRow(this)" style="padding: 4px; border: none; background: transparent; cursor: pointer;" title="Catégoriser avec l'IA">🧠</button>` : '';
+                    `<button class="btn btn-secondary" onclick="window.ImportWizard.categorizeRow(this)" style="padding: 4px; border: none; background: transparent; cursor: pointer;" title=\"${window.i18n.t('tooltip_categorize_ai')}\">🧠</button>` : '';
                     
                 catInputStr = `
                     <div style="display: flex; align-items: center; gap: 5px;">
@@ -245,7 +245,7 @@ window.ImportWizard = {
                     </div>
                 `;
             } else {
-                catInputStr = `<span style="color: var(--text-muted); font-size: 12px; font-style: italic;">Déjà en base</span><input type="hidden" class="import-cat" value="">`;
+                catInputStr = `<span style="color: var(--text-muted); font-size: 12px; font-style: italic;">${window.i18n.t('import_already_in_db')}</span><input type="hidden" class="import-cat" value="">`;
             }
             
             const tr = document.createElement('tr');
@@ -365,17 +365,17 @@ window.ImportWizard = {
         if (this.fileBalance === null) {
             box.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
             box.style.borderColor = 'var(--border-color)';
-            box.innerHTML = `<strong>ℹ️ Information de solde</strong><br>Le fichier ne contient pas de solde pour vérification.<br>Solde calculé après import : <strong>${formatCurrency(finalDbBalance)}</strong>`;
+            box.innerHTML = window.i18n.tp('msg_balance_info', {balance: formatCurrency(finalDbBalance)});
         } else {
             const diff = Math.abs(finalDbBalance - this.fileBalance);
             if (diff < 0.05) {
                 box.style.backgroundColor = 'rgba(46, 204, 113, 0.1)';
                 box.style.borderColor = 'rgba(46, 204, 113, 0.5)';
-                box.innerHTML = `<strong style="color: #2ecc71;">✅ Le solde correspond</strong><br>Solde trouvé dans le fichier : <strong>${formatCurrency(this.fileBalance)}</strong><br>Le compte sera bien à jour après import.`;
+                box.innerHTML = window.i18n.tp('msg_balance_ok', {fileBalance: formatCurrency(this.fileBalance)});
             } else {
                 box.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
                 box.style.borderColor = 'rgba(231, 76, 60, 0.5)';
-                box.innerHTML = `<strong style="color: #e74c3c;">⚠️ Écart de solde détecté</strong><br>Solde du fichier : <strong>${formatCurrency(this.fileBalance)}</strong><br>Solde calculé après import : <strong>${formatCurrency(finalDbBalance)}</strong><br>Écart : <strong>${formatCurrency(diff)}</strong>`;
+                box.innerHTML = window.i18n.tp('msg_balance_diff', {fileBalance: formatCurrency(this.fileBalance), dbBalance: formatCurrency(finalDbBalance), diff: formatCurrency(diff)});
             }
         }
     },
@@ -411,7 +411,7 @@ window.ImportWizard = {
         });
         
         if (rows.length === 0) {
-            showInlineMessage("Info", "Toutes les nouvelles opérations sont déjà catégorisées.");
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_all_categorized'));
             return;
         }
         
@@ -436,7 +436,7 @@ window.ImportWizard = {
             }
         } catch (e) {
             console.error("Erreur IA Batch", e);
-            showInlineMessage("Erreur", "L'IA a échoué.");
+            showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_ai_failed'));
         } finally {
             btnAll.innerHTML = originalHtml;
             btnAll.disabled = false;
@@ -472,13 +472,13 @@ window.ImportWizard = {
         });
         
         if (txs.length === 0) {
-            showInlineMessage("Info", "Aucune transaction à importer.");
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_no_transactions'));
             return;
         }
         
         const accountId = document.getElementById('importAccountSelect')?.value || null;
         if (!accountId) {
-            showInlineMessage("Erreur", "Veuillez sélectionner un compte bancaire avant de valider l'import.");
+            showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_select_account'));
             return;
         }
         
@@ -486,7 +486,7 @@ window.ImportWizard = {
         const txsWithAttachments = txs.filter(t => t.attachments);
         
         if (importAttachments && txsWithAttachments.length > 0) {
-            showInlineMessage("Info", "Veuillez sélectionner le dossier contenant les pièces jointes.");
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_select_attachment_folder'));
             const input = document.createElement('input');
             input.type = 'file';
             input.webkitdirectory = true;
@@ -511,7 +511,7 @@ window.ImportWizard = {
                 if (paths.length > 0) {
                     formData.append("relative_paths", JSON.stringify(paths));
                     try {
-                        document.getElementById('importDataDesc').textContent = "Upload des pièces jointes...";
+                        document.getElementById('importDataDesc').textContent = window.i18n.t('msg_uploading_attachments');
                         document.getElementById('importDataDesc').style.display = 'block';
                         const res = await fetch('/api/csv/upload_attachments', {
                             method: 'POST',
@@ -543,12 +543,12 @@ window.ImportWizard = {
     async finalizeSave(txs, accountId) {
         try {
             const res = await API.post('/api/csv/save_batch', { transactions: txs, account_id: accountId });
-            showInlineMessage("Info", `Import réussi ! ${res.imported} opérations traitées.`);
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.tp('msg_import_done', {count: res.imported}));
             document.getElementById('importDataModal').style.display = 'none';
             window.location.reload();
         } catch (e) {
             console.error(e);
-            showInlineMessage("Info", "Erreur lors de la sauvegarde.");
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error'));
         }
     }
 };

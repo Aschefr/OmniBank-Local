@@ -12,19 +12,19 @@ window.BudgetsView = {
         return `
         <div>
             <div class="view-header" style="position:sticky;top:-32px;z-index:10;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                <h2 style="margin:0;">🎯 Budgets par Enveloppe</h2>
+                <h2 style="margin:0;" data-i18n="budget_title">${window.i18n.t('budget_title')}</h2>
                 <div class="history-filters" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                     <input type="month" id="budgetMonth" class="inline-input" style="flex:1;min-width:140px;" onchange="window.BudgetsView.loadStatus()">
-                    <button id="budgetAiBtn" class="btn btn-secondary" style="white-space:nowrap; ${aiDisp}" onclick="window.BudgetsView.requestAiSuggestions()">✨ Suggestions IA</button>
-                    <button class="btn btn-primary" style="white-space:nowrap;" onclick="window.BudgetsView.showAddForm()">+ Nouvelle enveloppe</button>
+                    <button id="budgetAiBtn" class="btn btn-secondary" style="white-space:nowrap; ${aiDisp}" onclick="window.BudgetsView.requestAiSuggestions()" data-i18n="budget_btn_suggestions">${window.i18n.t('budget_btn_suggestions')}</button>
+                    <button class="btn btn-primary" style="white-space:nowrap;" onclick="window.BudgetsView.showAddForm()" data-i18n="budget_btn_new">${window.i18n.t('budget_btn_new')}</button>
                 </div>
             </div>
 
             <!-- AI Suggestions panel -->
             <div id="budgetAiPanel" style="display:none;margin-bottom:24px;background:var(--bg-surface);border:1px solid var(--accent);border-radius:12px;padding:20px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                    <strong style="color:var(--accent);">✨ Propositions de l'IA</strong>
-                    <button class="btn btn-secondary" style="padding:3px 10px;font-size:11px;" onclick="window.BudgetsView.closeAiPanel()">✕ Fermer</button>
+                    <strong style="color:var(--accent);" data-i18n="budget_ai_proposals">${window.i18n.t('budget_ai_proposals')}</strong>
+                    <button class="btn btn-secondary" style="padding:3px 10px;font-size:11px;" onclick="window.BudgetsView.closeAiPanel()" data-i18n="budget_ai_close">${window.i18n.t('budget_ai_close')}</button>
                 </div>
                 <div id="budgetAiProposals" style="display:flex;flex-direction:column;gap:12px;"></div>
             </div>
@@ -39,9 +39,9 @@ window.BudgetsView = {
                 <div class="modal" style="width:95vw;max-width:1100px;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);padding:30px;background:var(--bg-surface);border:1px solid var(--accent);height:max-content;">
                     
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
-                        <h4 id="budgetUnifiedTitle" style="margin:0;font-size:16px;">Titre de la modale</h4>
+                        <h4 id="budgetUnifiedTitle" style="margin:0;font-size:16px;" data-i18n="budget_modal_title">${window.i18n.t('budget_modal_title')}</h4>
                         <div style="display:flex;gap:8px;">
-                            <button id="budgetUnifiedEditBtn" class="btn btn-secondary" style="display:none;padding:4px 8px;font-size:12px;" onclick="window.BudgetsView.showEditSection()">✏️ Éditer</button>
+                            <button id="budgetUnifiedEditBtn" class="btn btn-secondary" style="display:none;padding:4px 8px;font-size:12px;" onclick="window.BudgetsView.showEditSection()" data-i18n="budget_btn_edit">${window.i18n.t('budget_btn_edit')}</button>
                             <button class="btn btn-secondary" onclick="window.BudgetsView.closeUnifiedModal()" style="padding:4px 8px;font-size:12px;">✕</button>
                         </div>
                     </div>
@@ -59,28 +59,28 @@ window.BudgetsView = {
                         <div style="display:flex;flex-direction:column;gap:14px;">
                             <!-- Name -->
                             <div>
-                                <label style="font-size:12px;color:var(--text-muted);">Nom de l'enveloppe</label>
+                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_label_name">${window.i18n.t('budget_label_name')}</label>
                                 <input type="text" id="newBudgetName" class="inline-input" placeholder="Ex: Courses, Vacances St Malo..." style="width:100%;margin-top:4px;">
                             </div>
 
                             <!-- Type toggle -->
                             <div style="display:flex;align-items:center;gap:12px;width:100%;">
-                                <label style="font-size:12px;color:var(--text-muted);white-space:nowrap;">Type :</label>
+                                <label style="font-size:12px;color:var(--text-muted);white-space:nowrap;" data-i18n="budget_type_label">${window.i18n.t('budget_type_label')}</label>
                                 <div style="display:flex; flex:1; background:var(--bg-base); padding:4px; border-radius:8px; border:1px solid var(--border-color);">
                                     <label id="tabLabelCat" style="flex:1; text-align:center; cursor:pointer; padding:8px 12px; font-size:13px; border-radius:6px; transition:all 0.2s;">
                                         <input type="radio" name="budgetType" value="category" id="budgetTypeCategory" checked onchange="window.BudgetsView.toggleType()" style="display:none;">
-                                        📁 Par catégorie(s)
+                                        <span data-i18n="budget_type_category">${window.i18n.t('budget_type_category')}</span>
                                     </label>
                                     <label id="tabLabelProj" style="flex:1; text-align:center; cursor:pointer; padding:8px 12px; font-size:13px; border-radius:6px; transition:all 0.2s;">
                                         <input type="radio" name="budgetType" value="project" id="budgetTypeProject" onchange="window.BudgetsView.toggleType()" style="display:none;">
-                                        🗂️ Projet libre
+                                        <span data-i18n="budget_type_project">${window.i18n.t('budget_type_project')}</span>
                                     </label>
                                 </div>
                             </div>
 
                             <!-- Category selector (hidden for project type) -->
                             <div id="budgetCatSection">
-                                <label style="font-size:12px;color:var(--text-muted);">Catégories incluses (0 = toutes les dépenses du mois)</label>
+                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_cat_included">${window.i18n.t('budget_cat_included')}</label>
                                 <div id="budgetCatCheckboxes" style="display:block;margin-top:8px;max-height:450px;overflow-y:auto;padding:12px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border-color);">
                                     <!-- Filled dynamically -->
                                 </div>
@@ -89,23 +89,23 @@ window.BudgetsView = {
                             <!-- Amount + period -->
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                                 <div>
-                                    <label style="font-size:12px;color:var(--text-muted);">Montant cible (€)</label>
+                                    <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_target_amount">${window.i18n.t('budget_target_amount')}</label>
                                     <input type="number" id="newBudgetAmount" class="inline-input" placeholder="0.00" style="width:100%;margin-top:4px;" min="0" step="0.01">
                                 </div>
                                 <div>
-                                    <label style="font-size:12px;color:var(--text-muted);">Période</label>
+                                    <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_label_period">${window.i18n.t('budget_label_period')}</label>
                                     <select id="newBudgetPeriod" class="inline-input" style="width:100%;margin-top:4px;" onchange="window.BudgetsView.renderCatCheckboxes(window.BudgetsView.getSelectedCats())">
-                                        <option value="monthly">Mensuel</option>
-                                        <option value="yearly">Annuel</option>
-                                        <option value="indefinite">Indéfini (projet long terme)</option>
+                                        <option value="monthly" data-i18n="budget_opt_monthly">${window.i18n.t('budget_opt_monthly')}</option>
+                                        <option value="yearly" data-i18n="budget_opt_yearly">${window.i18n.t('budget_opt_yearly')}</option>
+                                        <option value="indefinite" data-i18n="budget_opt_indefinite">${window.i18n.t('budget_opt_indefinite')}</option>
                                     </select>
                                 </div>
                             </div>
 
                             <!-- Buttons -->
                             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
-                                <button class="btn btn-primary" style="flex:1;" onclick="window.BudgetsView.saveForm()">Enregistrer</button>
-                                <button class="btn btn-secondary" style="flex:1;" onclick="window.BudgetsView.hideEditSection()">Annuler</button>
+                                <button class="btn btn-primary" style="flex:1;" onclick="window.BudgetsView.saveForm()" data-i18n="budget_btn_save">${window.i18n.t('budget_btn_save')}</button>
+                                <button class="btn btn-secondary" style="flex:1;" onclick="window.BudgetsView.hideEditSection()" data-i18n="budget_btn_cancel">${window.i18n.t('budget_btn_cancel')}</button>
                             </div>
                         </div>
                     </div>
@@ -165,7 +165,7 @@ window.BudgetsView = {
             'expense_var': { title: window.app.getTypeLabel('expense_var'), cats: [] },
             'income': { title: window.app.getTypeLabel('income'), cats: [] },
             'neutral': { title: window.app.getTypeLabel('neutral'), cats: [] },
-            'other': { title: 'Autres', cats: [] }
+            'other': { title: window.i18n.t('budget_cat_other'), cats: [] }
         };
 
         for (const c of this.categories) {
@@ -194,15 +194,15 @@ window.BudgetsView = {
                 if (catAvg) {
                     if (period === 'monthly' || period === 'indefinite') {
                         avgValue = catAvg.yearly_average; // Use the 12-month smoothed monthly average
-                        avgLabel = 'ce mois';
+                        avgLabel = window.i18n.t('budget_cat_this_month');
                     } else if (period === 'yearly') {
                         avgValue = catAvg.yearly_average * 12; // Revert to total annual average
-                        avgLabel = 'par an';
+                        avgLabel = window.i18n.t('budget_cat_per_year');
                     }
                 }
                 
                 const avgText = avgValue > 0 ? `<span style="font-size:10px;color:var(--text-muted);background:rgba(128,128,128,0.1);padding:1px 4px;border-radius:4px;">~${formatCurrency(avgValue)} ${avgLabel}</span>` : '';
-                const overlapText = overlap ? `<span style="font-size:10px;color:#f59e0b;background:rgba(245,158,11,0.15);padding:1px 4px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="Utilisé dans: ${overlap}">⚠️ ${overlap}</span>` : '';
+                const overlapText = overlap ? `<span style="font-size:10px;color:#f59e0b;background:rgba(245,158,11,0.15);padding:1px 4px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${window.i18n.t('budget_cat_used_in')}: ${overlap}">⚠️ ${overlap}</span>` : '';
 
                 html += `
                     <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:var(--bg-surface);padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};transition:all 0.2s;">
@@ -266,26 +266,26 @@ window.BudgetsView = {
             this.renderStatus();
         } catch(e) {
             document.getElementById('budgetStatusContainer').innerHTML =
-                `<p style="color:#ff5630;">Erreur : ${e.message}</p>`;
+                `<p style="color:#ff5630;">${window.i18n.t('title_error')} : ${e.message}</p>`;
         }
     },
 
     renderStatus() {
         const container = document.getElementById('budgetStatusContainer');
         if (!this.statusData || this.statusData.budgets.length === 0) {
-            container.innerHTML = '<p style="color:var(--text-muted);padding:10px 0;">Aucune enveloppe active. Créez-en une pour commencer.</p>';
+            container.innerHTML = `<p style="color:var(--text-muted);padding:10px 0;">${window.i18n.t('budget_no_active')}</p>`;
             return;
         }
 
         const monthVal = document.getElementById('budgetMonth')?.value || '';
         const [y, m] = monthVal.split('-');
-        const label = new Date(parseInt(y), parseInt(m)-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+        const label = new Date(parseInt(y), parseInt(m)-1, 1).toLocaleDateString(window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR', {month:'long', year:'numeric'});
 
         // Group budgets by period
         const groups = {
-            'monthly': { title: 'Mensuel', budgets: [] },
-            'yearly': { title: 'Annuel', budgets: [] },
-            'indefinite': { title: 'Indéfini', budgets: [] }
+            'monthly': { title: window.i18n.t('period_monthly'), budgets: [] },
+            'yearly': { title: window.i18n.t('period_yearly'), budgets: [] },
+            'indefinite': { title: window.i18n.t('budget_period_indefinite'), budgets: [] }
         };
 
         for (const b of this.statusData.budgets) {
@@ -318,16 +318,16 @@ window.BudgetsView = {
             const globalRemaining = totalTarget - totalSpent;
 
             let html = `<div style="margin-bottom:40px;">
-                <h3 style="margin:0 0 16px;font-size:16px;color:var(--text-color);border-bottom:1px solid var(--border-color);padding-bottom:8px;">Enveloppes — ${group.title}</h3>
+                <h3 style="margin:0 0 16px;font-size:16px;color:var(--text-color);border-bottom:1px solid var(--border-color);padding-bottom:8px;">${window.i18n.t('budget_envelopes_title')} — ${group.title}</h3>
                 
                 <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:24px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
                 <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
                     <div>
-                        <h4 style="margin:0 0 4px;font-size:14px;color:var(--text-color);">Résumé Global — ${group.title}</h4>
+                        <h4 style="margin:0 0 4px;font-size:14px;color:var(--text-color);">${window.i18n.t('budget_summary_global')} — ${group.title}</h4>
                         <span style="font-size:12px;color:var(--text-muted);">${label}</span>
                     </div>
                     <div style="text-align:right;">
-                        <strong class="privacy-blur" style="font-size:18px;color:var(--text-color);">${formatCurrency(totalTarget)}</strong><span style="font-size:12px;color:var(--text-muted);"> budgeté</span>
+                        <strong class="privacy-blur" style="font-size:18px;color:var(--text-color);">${formatCurrency(totalTarget)}</strong><span style="font-size:12px;color:var(--text-muted);"> ${window.i18n.t('budget_budgeted')}</span>
                     </div>
                 </div>
                 <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:12px;overflow:hidden;margin-bottom:12px;border:1px solid rgba(255,255,255,0.05);">
@@ -336,10 +336,10 @@ window.BudgetsView = {
                 </div>
                 <div style="display:flex;justify-content:space-between;font-size:14px;flex-wrap:wrap;gap:4px;">
                     <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                        <span class="privacy-blur" style="color:${totalBarColor};font-weight:600;">${formatCurrency(totalRecSpent)} rapprochés</span>
-                        <span class="privacy-blur" style="color:var(--text-muted);font-size:12px;align-self:flex-end;">(${formatCurrency(totalSpent)} engagés)</span>
+                        <span class="privacy-blur" style="color:${totalBarColor};font-weight:600;">${formatCurrency(totalRecSpent)} ${window.i18n.t('budget_reconciled')}</span>
+                        <span class="privacy-blur" style="color:var(--text-muted);font-size:12px;align-self:flex-end;">(${formatCurrency(totalSpent)} ${window.i18n.t('budget_committed')})</span>
                     </div>
-                    <span style="color:${globalOver ? '#ff5630' : 'var(--text-muted)'};font-weight:600;">${globalOver ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(globalRemaining))}</span> ${globalOver ? 'de dépassement global' : 'restants au global'}</span>
+                    <span style="color:${globalOver ? '#ff5630' : 'var(--text-muted)'};font-weight:600;">${globalOver ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(globalRemaining))}</span> ${globalOver ? window.i18n.t('budget_global_exceeded') : window.i18n.t('budget_global_remaining')}</span>
                 </div>
             </div>`;
 
@@ -351,21 +351,21 @@ window.BudgetsView = {
                 const barColor = b.reconciled_percent > 100 ? '#ff5630' : b.reconciled_percent >= 80 ? '#f59e0b' : '#10b981';
                 const overBudget = b.remaining < 0;
                 const typeTag = b.is_project
-                    ? `<span style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">PROJET</span>`
+                    ? `<span style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">${window.i18n.t('budget_project_tag')}</span>`
                     : '';
                 const catTags = (b.categories || []).map(c =>
                     `<span style="background:var(--bg-base);padding:2px 6px;border-radius:4px;font-size:10px;color:var(--text-muted);">${c}</span>`
                 ).join(' ');
 
                 const incomeHtml = b.income > 0
-                    ? `<div style="font-size:11px;color:#10b981;margin-top:3px;">↑ <span class="privacy-blur">${formatCurrency(b.income)}</span> reçus</div>`
+                    ? `<div style="font-size:11px;color:#10b981;margin-top:3px;">↑ <span class="privacy-blur">${formatCurrency(b.income)}</span> ${window.i18n.t('budget_received')}</div>`
                     : '';
 
                 const safeName = b.name.replace(/'/g, "\\'");
-                const periodLabel = b.period === 'monthly' ? 'Mensuel' : b.period === 'yearly' ? 'Annuel' : 'Indéfini';
+                const periodLabel = b.period === 'monthly' ? window.i18n.t('period_monthly') : b.period === 'yearly' ? window.i18n.t('period_yearly') : window.i18n.t('period_undefined');
                 const closedStyle = b.is_closed ? 'opacity:0.6;' : '';
                 const closedTag = b.is_closed
-                    ? `<span style="background:rgba(239,68,68,0.15);color:#ff5630;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">CLÔTURÉ</span>`
+                    ? `<span style="background:rgba(239,68,68,0.15);color:#ff5630;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">${window.i18n.t('budget_closed_tag')}</span>`
                     : '';
 
                 html += `<div onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" style="background:var(--bg-body);border:1px solid ${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'};border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.2s;${closedStyle}" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)'" onmouseout="this.style.borderColor='${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'}'">
@@ -375,9 +375,9 @@ window.BudgetsView = {
                             <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">${typeTag}${catTags}</div>
                         </div>
                         <div style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation()">
-                            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.editBudget(${b.id})" title="Modifier">✏️</button>
-                            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.toggleClose(${b.id})" title="${b.is_closed ? 'Réouvrir' : 'Clôturer'}">${b.is_closed ? '🔓' : '🔒'}</button>
-                            <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.deleteBudget(${b.id})" title="Supprimer">✕</button>
+                            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.editBudget(${b.id})" title=\"${window.i18n.t('tooltip_edit')}\">✏️</button>
+                            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.toggleClose(${b.id})" title="${b.is_closed ? window.i18n.t('budget_reopen_action') : window.i18n.t('budget_close_action')}">${b.is_closed ? '🔓' : '🔒'}</button>
+                            <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.deleteBudget(${b.id})" title=\"${window.i18n.t('tooltip_delete')}\">✕</button>
                         </div>
                     </div>
 
@@ -394,11 +394,11 @@ window.BudgetsView = {
                     </div>
                     <div style="display:flex;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:4px;">
                         <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                            <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(b.reconciled_spent || 0)} rapprochés</span>
-                            <span class="privacy-blur" style="color:var(--text-muted);font-size:11px;align-self:flex-end;">(${formatCurrency(b.spent)} engagés)</span>
+                            <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(b.reconciled_spent || 0)} ${window.i18n.t('budget_reconciled')}</span>
+                            <span class="privacy-blur" style="color:var(--text-muted);font-size:11px;align-self:flex-end;">(${formatCurrency(b.spent)} ${window.i18n.t('budget_committed')})</span>
                             ${incomeHtml}
                         </div>
-                        <span style="color:${overBudget ? '#ff5630' : 'var(--text-muted)'}">${overBudget ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(b.remaining))}</span> ${overBudget ? 'de dépassement' : 'restants'}</span>
+                        <span style="color:${overBudget ? '#ff5630' : 'var(--text-muted)'}">${overBudget ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(b.remaining))}</span> ${overBudget ? window.i18n.t('budget_exceeded_label') : window.i18n.t('budget_remaining_label')}</span>
                     </div>
                 </div>`;
             }
@@ -429,7 +429,7 @@ window.BudgetsView = {
         detailSec.style.display = 'block';
         formSec.style.display = 'none';
         
-        graph.innerHTML = '<p style="color:var(--text-muted);font-size:12px;">Chargement...</p>';
+        graph.innerHTML = `<p style="color:var(--text-muted);font-size:12px;">${window.i18n.t('budget_loading')}</p>`;
         list.innerHTML = '';
         modal.style.display = 'flex';
 
@@ -437,7 +437,7 @@ window.BudgetsView = {
             const txs = await API.get(`/api/budgets/${budgetId}/transactions?year=${year}&month=${month}`);
 
             if (!txs.length) {
-                graph.innerHTML = '<p style="color:var(--text-muted);font-size:12px;">Aucune opération dans cette enveloppe.</p>';
+                graph.innerHTML = `<p style="color:var(--text-muted);font-size:12px;">${window.i18n.t('budget_no_operations')}</p>`;
                 return;
             }
 
@@ -478,18 +478,18 @@ window.BudgetsView = {
             const recExpColor = pct > 100 ? '#ff5630' : pct >= 80 ? '#f59e0b' : '#10b981';
 
             graph.innerHTML =
-                barHtml(totalExp, null, '💸 Dépenses', `${formatCurrency(totalRecExp)} rapprochés / ${formatCurrency(totalExp)} engagés`, totalRecExp, recExpColor) +
+                barHtml(totalExp, null, window.i18n.t('budget_expenses'), `${formatCurrency(totalRecExp)} ${window.i18n.t('budget_reconciled')} / ${formatCurrency(totalExp)} ${window.i18n.t('budget_committed')}`, totalRecExp, recExpColor) +
                 (totalInc > 0 ? barHtml(totalInc, '#10b981', '↑ ' + window.app.getTypeLabel('income'), formatCurrency(totalInc)) : '') +
-                barHtml(target, 'rgba(99,102,241,0.6)', '🎯 Objectif', formatCurrency(target));
+                barHtml(target, 'rgba(99,102,241,0.6)', window.i18n.t('budget_objective'), formatCurrency(target));
 
             // ── Transactions list ─────────────────────────────────────────
-            list.innerHTML = `<h4 style="margin:0 0 10px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">Opérations (${txs.length})</h4>` +
+            list.innerHTML = `<h4 style="margin:0 0 10px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">${window.i18n.tp('budget_operations_count', {count: txs.length})}</h4>` +
                 txs.map(tx => `
                 <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);flex-wrap:wrap;${tx.is_reconciled ? 'opacity:0.55;' : ''}">
                     <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${tx.date}</span>
                     <span style="flex:1;font-size:12px;min-width:100px;">
                         ${tx.description}
-                        ${tx.is_reconciled ? '<span style="font-size:10px;color:var(--text-muted);font-style:italic;margin-left:8px;">Rapproché</span>' : ''}
+                        ${tx.is_reconciled ? `<span style="font-size:10px;color:var(--text-muted);font-style:italic;margin-left:8px;">${window.i18n.t('budget_reconciled_label')}</span>` : ''}
                     </span>
                     ${tx.category ? `<span style="background:var(--bg-base);padding:1px 5px;border-radius:4px;font-size:10px;color:var(--text-muted);">${tx.category}</span>` : ''}
                     <span class="privacy-blur" style="font-size:13px;font-weight:600;color:${tx.is_income ? '#10b981' : '#ff5630'};white-space:nowrap;">
@@ -497,12 +497,12 @@ window.BudgetsView = {
                     </span>
                 </div>`).join('');
         } catch(e) {
-            graph.innerHTML = `<p style="color:#ff5630;">Erreur : ${e.message}</p>`;
+            graph.innerHTML = `<p style="color:#ff5630;">${window.i18n.t('title_error')} : ${e.message}</p>`;
         }
     },
 
     showAddForm() {
-        document.getElementById('budgetUnifiedTitle').textContent = 'Nouvelle enveloppe';
+        document.getElementById('budgetUnifiedTitle').textContent = window.i18n.t('budget_new');
         document.getElementById('budgetUnifiedEditBtn').style.display = 'none';
         document.getElementById('budgetDetailSection').style.display = 'none';
         
@@ -565,7 +565,7 @@ window.BudgetsView = {
         const b = this.budgets.find(x => x.id === id);
         if (!b) return;
 
-        document.getElementById('budgetUnifiedTitle').textContent = `Modifier l'enveloppe`;
+        document.getElementById('budgetUnifiedTitle').textContent = window.i18n.t('budget_edit_envelope');
         document.getElementById('budgetUnifiedEditBtn').style.display = 'none';
         document.getElementById('budgetDetailSection').style.display = 'none';
         document.getElementById('budgetEditId').value = id;
@@ -594,8 +594,8 @@ window.BudgetsView = {
         const isProject = document.getElementById('budgetTypeProject').checked;
         const categories = isProject ? [] : this.getSelectedCats();
 
-        if (!name) return showInlineMessage('Info', 'Nom requis.');
-        if (isNaN(amount) || amount <= 0) return showInlineMessage('Info', 'Montant invalide.');
+        if (!name) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_name_required'));
+        if (isNaN(amount) || amount <= 0) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
 
         const payload = { name, monthly_amount: amount, period, is_project: isProject, categories };
 
@@ -603,13 +603,13 @@ window.BudgetsView = {
             let savedId = id;
             if (id) {
                 await API.put(`/api/budgets/${id}`, payload);
-                showInlineMessage('Succès', 'Enveloppe mise à jour.');
+                showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_envelope_updated'));
             } else {
                 const res = await API.post('/api/budgets/', payload);
                 savedId = res.id;
                 document.getElementById('budgetEditId').value = savedId;
-                document.getElementById('budgetUnifiedTitle').textContent = `Modifier l'enveloppe`;
-                showInlineMessage('Succès', 'Enveloppe créée.');
+                document.getElementById('budgetUnifiedTitle').textContent = window.i18n.t('budget_edit_envelope');
+                showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_envelope_created'));
             }
             
             await this.loadBudgets();
@@ -628,7 +628,7 @@ window.BudgetsView = {
                 }
             }
         } catch(e) {
-            showInlineMessage('Erreur', 'Erreur : ' + (e.message || e));
+            showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_error_generic', {error: e.message || e}));
         }
     },
 
@@ -639,32 +639,32 @@ window.BudgetsView = {
             await API.put(`/api/budgets/${id}`, { monthly_amount: amount });
             await this.loadStatus();
         } catch(e) {
-            showInlineMessage('Info', 'Erreur mise à jour : ' + e.message);
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.tp('msg_update_error', {error: e.message}));
         }
     },
 
     async toggleClose(id) {
         const b = this.budgets.find(x => x.id === id);
         if (!b) return;
-        const action = b.is_closed ? 'réouvrir' : 'clôturer';
-        if (!await showInlineConfirm('Confirmation', `Voulez-vous vraiment ${action} cette enveloppe ?`)) return;
+        const action = b.is_closed ? window.i18n.t('budget_reopen_action') : window.i18n.t('budget_close_action');
+        if (!await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.tp('budget_confirm_toggle', {action}))) return;
         try {
             await API.put(`/api/budgets/${id}`, { is_closed: !b.is_closed });
             await this.loadBudgets();
             await this.loadStatus();
         } catch(e) {
-            showInlineMessage('Erreur', e.message);
+            showInlineMessage(window.i18n.t('title_error'), e.message);
         }
     },
 
     async deleteBudget(id) {
-        if (!await showInlineConfirm('Suppression', 'Supprimer cette enveloppe définitivement ?')) return;
+        if (!await showInlineConfirm(window.i18n.t('title_deletion'), window.i18n.t('confirm_delete_envelope'))) return;
         try {
             await API.del(`/api/budgets/${id}`);
             await this.loadBudgets();
             await this.loadStatus();
         } catch(e) {
-            showInlineMessage('Info', 'Erreur suppression : ' + e.message);
+            showInlineMessage(window.i18n.t('title_info'), e.message);
         }
     },
 
@@ -676,20 +676,20 @@ window.BudgetsView = {
         btn.innerHTML = `<svg class="animate-spin" style="width:14px;height:14px;margin-right:6px;display:inline-block;vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg> Analyse en cours...`;
+        </svg> ${window.i18n.t('budget_ai_analyzing')}`;
         try {
             const result = await API.post('/api/budgets/ai_suggest', {});
             this.renderAiProposals(result.proposals || []);
         } catch(e) {
             const msg = e.message || '';
             if (msg.includes('non activ') || msg.includes('400')) {
-                showInlineMessage('Info', '✨ L\'IA n\'est pas activée. Activez-la dans Paramètres → Ollama pour utiliser cette fonctionnalité.');
+                showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_ai_not_enabled'));
             } else {
-                showInlineMessage('Erreur', msg || 'L\'IA n\'a pas pu générer de propositions.');
+                showInlineMessage(window.i18n.t('title_error'), msg || window.i18n.t('budget_ai_error'));
             }
         } finally {
             btn.disabled = false;
-            btn.textContent = '✨ Suggestions IA';
+            btn.textContent = window.i18n.t('budget_btn_suggestions');
         }
     },
 
@@ -700,7 +700,7 @@ window.BudgetsView = {
         panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         if (!proposals.length) {
-            container.innerHTML = '<p style="color:var(--text-muted);">Aucune proposition disponible.</p>';
+            container.innerHTML = `<p style="color:var(--text-muted);">${window.i18n.t('budget_ai_no_proposals')}</p>`;
             return;
         }
 
@@ -713,11 +713,11 @@ window.BudgetsView = {
                         ${(p.categories || []).length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${(p.categories).map(c => `<span style="background:var(--bg-surface);padding:2px 6px;border-radius:4px;font-size:10px;color:var(--text-muted);">${c}</span>`).join('')}</div>` : ''}
                     </div>
                     <div style="text-align:right;flex-shrink:0;">
-                        <div style="font-size:18px;font-weight:700;color:var(--accent);">${formatCurrency(p.suggested_amount)}<span style="font-size:11px;font-weight:400;color:var(--text-muted);">/mois</span></div>
+                        <div style="font-size:18px;font-weight:700;color:var(--accent);">${formatCurrency(p.suggested_amount)}<span style="font-size:11px;font-weight:400;color:var(--text-muted);">${window.i18n.t('budget_ai_per_month')}</span></div>
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:12px;">
-                    <button class="btn btn-primary" style="flex:1;" onclick="window.BudgetsView.acceptProposal(${i}, ${JSON.stringify(p).replace(/"/g, '&quot;')})">✅ Créer cette enveloppe</button>
+                    <button class="btn btn-primary" style="flex:1;" onclick="window.BudgetsView.acceptProposal(${i}, ${JSON.stringify(p).replace(/"/g, '&quot;')})" data-i18n="btn_create_envelope">✅ Créer cette enveloppe</button>
                     <button class="btn btn-secondary" style="padding:6px 12px;" onclick="document.getElementById('aiProposal_${i}').style.display='none'">✕</button>
                 </div>
             </div>
@@ -728,7 +728,7 @@ window.BudgetsView = {
         const btn = document.querySelector(`#aiProposal_${idx} button.btn-primary`);
         if(btn) {
             btn.disabled = true;
-            btn.innerHTML = `<svg class="animate-spin" style="width:14px;height:14px;margin-right:6px;display:inline-block;vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Création...`;
+            btn.innerHTML = `<svg class="animate-spin" style="width:14px;height:14px;margin-right:6px;display:inline-block;vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ${window.i18n.t('budget_ai_creating')}`;
         }
 
         try {
@@ -744,7 +744,7 @@ window.BudgetsView = {
             await this.loadStatus();
             
             if(btn) {
-                btn.innerHTML = '✅ Enveloppe créée !';
+                btn.innerHTML = window.i18n.t('msg_envelope_created_badge');
                 btn.style.backgroundColor = '#10b981';
                 btn.style.borderColor = '#10b981';
                 btn.style.color = 'white';
@@ -763,9 +763,9 @@ window.BudgetsView = {
         } catch(e) {
             if(btn) {
                 btn.disabled = false;
-                btn.innerHTML = '❌ Erreur';
+                btn.innerHTML = window.i18n.t('budget_ai_create_error');
             }
-            showInlineMessage('Erreur', e.message || 'Impossible de créer l\'enveloppe.');
+            showInlineMessage(window.i18n.t('title_error'), e.message || window.i18n.t('budget_ai_create_fail'));
         }
     },
 

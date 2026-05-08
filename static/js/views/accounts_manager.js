@@ -4,16 +4,16 @@ window.AccountsView = {
     render() {
         return `
             <div class="view-header" style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                <h2>🏦 Comptes & Livrets</h2>
+                <h2 data-i18n="acc_title">${window.i18n.t('acc_title')}</h2>
             </div>
             
             <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
-                <h3>Nouveau Compte</h3>
+                <h3 data-i18n="acc_new_account">${window.i18n.t('acc_new_account')}</h3>
                 <div class="accounts-add-form" style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
-                    <input type="text" id="acc_name" class="inline-input" placeholder="Nom du compte" style="border:1px solid var(--border-color); padding: 5px; flex: 2;">
-                    <input type="text" id="acc_type" class="inline-input" placeholder="Type (Ex: Courant, Livret...)" style="border:1px solid var(--border-color); padding: 5px; flex: 1;">
-                    <input type="number" id="acc_balance" class="inline-input" placeholder="Solde Initial (€)" step="0.01" style="border:1px solid var(--border-color); padding: 5px; flex: 1;">
-                    <button class="btn btn-secondary" onclick="window.AccountsView.addAccount()">Ajouter</button>
+                    <input type="text" id="acc_name" class="inline-input" data-i18n-placeholder="acc_ph_name" placeholder="Nom du compte" style="border:1px solid var(--border-color); padding: 5px; flex: 2;">
+                    <input type="text" id="acc_type" class="inline-input" data-i18n-placeholder="acc_ph_type" placeholder="Type (Ex: Courant, Livret...)" style="border:1px solid var(--border-color); padding: 5px; flex: 1;">
+                    <input type="number" id="acc_balance" class="inline-input" data-i18n-placeholder="ph_initial_balance" placeholder="Solde Initial (€)" step="0.01" style="border:1px solid var(--border-color); padding: 5px; flex: 1;">
+                    <button class="btn btn-secondary" onclick="window.AccountsView.addAccount()" data-i18n="btn_add_account">${window.i18n.t('btn_add_account')}</button>
                 </div>
             </div>
 
@@ -21,10 +21,10 @@ window.AccountsView = {
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Nom</th>
-                            <th>Type</th>
-                            <th>Solde Initial</th>
-                            <th style="width: 50px;">Actions</th>
+                            <th data-i18n="acc_th_name">${window.i18n.t('acc_th_name')}</th>
+                            <th data-i18n="acc_th_type">${window.i18n.t('acc_th_type')}</th>
+                            <th data-i18n="acc_th_initial_balance">${window.i18n.t('acc_th_initial_balance')}</th>
+                            <th style="width: 50px;" data-i18n="acc_th_actions">${window.i18n.t('acc_th_actions')}</th>
                         </tr>
                     </thead>
                     <tbody id="accountsBody">
@@ -61,9 +61,9 @@ window.AccountsView = {
                 <td>${acc.type}</td>
                 <td><span class="privacy-blur">${formatCurrency(acc.initial_balance)}</span></td>
                 <td style="white-space: nowrap;">
-                    <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-right: 5px;" onclick="window.AccountsView.edit(${acc.id})" title="Modifier">✏️</button>
-                    <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-right: 5px;" onclick="window.AccountsView.toggleClose(${acc.id})" title="${acc.is_closed ? 'Réouvrir' : 'Clôturer'}">${acc.is_closed ? '🔓' : '🔒'}</button>
-                    <button class="btn btn-danger" style="padding: 2px 6px; font-size: 10px;" onclick="window.AccountsView.delete(${acc.id})" title="Supprimer">X</button>
+                    <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-right: 5px;" onclick="window.AccountsView.edit(${acc.id})" title=\"${window.i18n.t('tooltip_edit')}\">✏️</button>
+                    <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-right: 5px;" onclick="window.AccountsView.toggleClose(${acc.id})" title="${acc.is_closed ? window.i18n.t('acc_reopen_action') : window.i18n.t('acc_close_action')}">${acc.is_closed ? '🔓' : '🔒'}</button>
+                    <button class="btn btn-danger" style="padding: 2px 6px; font-size: 10px;" onclick="window.AccountsView.delete(${acc.id})" title=\"${window.i18n.t('tooltip_delete')}\">X</button>
                 </td>
             </tr>
         `).join('');
@@ -77,11 +77,11 @@ window.AccountsView = {
         try {
             const data = {
                 name: document.getElementById('acc_name').value,
-                type: document.getElementById('acc_type').value || 'Compte courant',
+                type: document.getElementById('acc_type').value || window.i18n.t('default_account_type'),
                 initial_balance: parseFloat(document.getElementById('acc_balance').value) || 0,
                 is_closed: false
             };
-            if (!data.name) return await showInlineMessage("Info", "Nom requis");
+            if (!data.name) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_name_required'));
             
             await API.post('/api/accounts/', data);
             
@@ -93,19 +93,19 @@ window.AccountsView = {
             window.app.refreshSidebar(); // Refresh left sidebar
         } catch (e) {
             console.error(e);
-            showInlineMessage("Info", "Erreur: Impossible de créer le compte");
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_create_error'));
         }
     },
 
     async delete(id) {
-        if (await showInlineConfirm('Confirmation', 'Supprimer ce compte ? (Impossible si des opérations existent)')) {
+        if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.t('confirm_delete_account'))) {
             try {
                 await API.del(`/api/accounts/${id}`);
                 await this.loadData();
                 window.app.refreshSidebar();
             } catch (e) {
                 console.error(e);
-                showInlineMessage("Erreur", "Impossible de supprimer ce compte. S'il contient des opérations, veuillez plutôt le clôturer (🔒).");
+                showInlineMessage(window.i18n.t('title_error'), window.i18n.t('acc_delete_error'));
             }
         }
     },
@@ -114,8 +114,8 @@ window.AccountsView = {
         const acc = this.accounts.find(a => a.id === id);
         if (!acc) return;
         
-        const action = acc.is_closed ? "réouvrir" : "clôturer";
-        if (await showInlineConfirm('Confirmation', `Voulez-vous vraiment ${action} ce compte ?`)) {
+        const action = acc.is_closed ? window.i18n.t('acc_reopen_action') : window.i18n.t('acc_close_action');
+        if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.tp('acc_confirm_toggle', {action}))) {
             try {
                 await API.put(`/api/accounts/${id}`, {
                     name: acc.name,
@@ -127,7 +127,7 @@ window.AccountsView = {
                 window.app.refreshSidebar();
             } catch (e) {
                 console.error(e);
-                showInlineMessage("Erreur", "Une erreur est survenue.");
+                showInlineMessage(window.i18n.t('title_error'), window.i18n.t('acc_toggle_error'));
             }
         }
     },
@@ -136,12 +136,12 @@ window.AccountsView = {
         const acc = this.accounts.find(a => a.id === id);
         if (!acc) return;
         
-        const newBalanceStr = await showInlinePrompt(`Nouveau solde initial pour ${acc.name} (€) :`, acc.initial_balance);
+        const newBalanceStr = await showInlinePrompt(window.i18n.tp('prompt_new_balance', {name: acc.name}), acc.initial_balance);
         if (newBalanceStr === null || newBalanceStr.trim() === '') return; // Annulé ou vide
         
         // Remplacer la virgule par un point pour le parsing
         const newBalance = parseFloat(newBalanceStr.replace(',', '.'));
-        if (isNaN(newBalance)) return await showInlineMessage("Info", "Montant invalide");
+        if (isNaN(newBalance)) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
         
         try {
             await API.put(`/api/accounts/${id}`, {
@@ -154,7 +154,7 @@ window.AccountsView = {
             window.app.refreshSidebar();
         } catch (e) {
             console.error(e);
-            showInlineMessage("Info", "Erreur lors de la modification");
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_edit_error'));
         }
     }
 };

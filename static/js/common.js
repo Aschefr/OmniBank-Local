@@ -72,8 +72,12 @@ function showInlineMessage(titleText, messageText) {
         const btnOk = document.getElementById('confirmOk');
         const btnCancel = document.getElementById('confirmCancel');
 
-        titleEl.textContent = titleText;
-        messageEl.textContent = messageText;
+        const resolveText = (keyOrText) => {
+            const translated = window.i18n.t(keyOrText);
+            return translated === keyOrText ? keyOrText : translated;
+        };
+        titleEl.textContent = resolveText(titleText);
+        messageEl.textContent = resolveText(messageText);
         
         btnCancel.style.display = 'none';
 

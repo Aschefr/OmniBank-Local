@@ -163,7 +163,7 @@ window.FormView = {
             if (!optBimonthly) {
                 optBimonthly = document.createElement('option');
                 optBimonthly.value = 'Bi-Monthly';
-                optBimonthly.textContent = 'Bi-mensuelle';
+                optBimonthly.textContent = window.i18n.t('opt_freq_bimonthly');
                 selectFreq.insertBefore(optBimonthly, selectFreq.firstChild);
             }
         } else {
@@ -204,11 +204,11 @@ window.FormView = {
                 document.getElementById('op_attachments').value = newVal;
                 this.renderAttachmentsList(newVal);
             } else {
-                showInlineMessage("Erreur", "L'envoi du fichier a échoué.");
+                showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_upload_failed'));
             }
         } catch(e) {
             console.error(e);
-            showInlineMessage("Erreur", "Erreur réseau lors de l'envoi.");
+            showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_upload_network_error'));
         }
         input.value = '';
     },
@@ -388,7 +388,7 @@ window.FormView = {
         
         if (!name) return;
         if (!type || type === 'neutral') {
-            showInlineMessage("Info", 'Veuillez s\u00e9lectionner des comptes (Depuis/Vers) pour d\u00e9finir un Type de transaction avant de cr\u00e9er une cat\u00e9gorie.');
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_select_accounts_first'));
             return;
         }
 
@@ -399,7 +399,7 @@ window.FormView = {
             document.getElementById('op_category').value = newCat.name;
             this.hideNewCatInput();
         } catch (e) {
-            showInlineMessage("Info", "Erreur création catégorie");
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_category_create_error'));
         }
     },
 
@@ -407,7 +407,7 @@ window.FormView = {
         const desc = document.getElementById('op_desc').value;
         const amount = document.getElementById('op_amount').value;
         if (!desc) {
-            showInlineMessage('Info', 'Saisissez une description avant de demander une catégorisation.');
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_enter_desc_first'));
             return;
         }
         const btn = document.getElementById('op_autocat_btn');
@@ -437,7 +437,7 @@ window.FormView = {
                 }
             }
         } catch(e) {
-            showInlineMessage('Info', 'Erreur auto-catégorisation : ' + e.message);
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.tp('msg_autocategorize_error', {error: e.message}));
         } finally {
             btn.disabled = false;
             btn.textContent = '✨ IA';
@@ -458,7 +458,7 @@ window.FormView = {
         
         const isRecurrent = document.getElementById('op_is_recurrent').checked;
 
-        if (!desc || !dateOp) return await showInlineMessage("Info", "Description et Date requises");
+        if (!desc || !dateOp) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_desc_date_required'));
 
         this.pendingSaveData = {
             date_operation: dateOp,
@@ -562,7 +562,7 @@ window.FormView = {
 
         } catch (e) {
             console.error(e);
-            showInlineMessage("Info", "Erreur lors de l'enregistrement");
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error_generic'));
         }
     }
 };

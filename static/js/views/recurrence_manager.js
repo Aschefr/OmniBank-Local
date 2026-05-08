@@ -19,7 +19,7 @@ window.RecurrenceView = {
                     
                     <div style="display: flex; justify-content: center;">
                         <select id="recTemplateSelect" class="inline-input" style="width: 100%; max-width: 400px; font-size: 16px; padding: 10px;" onchange="window.RecurrenceView.selectTemplate(this.value)">
-                            <option value="">Sélectionner l'opération récurrente</option>
+                            <option value="" data-i18n="rec_select_recurrence">${window.i18n.t('rec_select_recurrence')}</option>
                         </select>
                     </div>
                 </div>
@@ -27,10 +27,10 @@ window.RecurrenceView = {
 
             <div id="recDetailsContainer" style="display: none; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); flex-wrap: wrap; gap: 40px;">
                 <div style="flex: 2; min-width: 300px;">
-                    <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--text-muted); text-align: center;">Détails des opérations de l'année</h4>
+                    <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--text-muted); text-align: center;" data-i18n="rec_year_details_title">${window.i18n.t('rec_year_details_title')}</h4>
                     <div style="display: grid; grid-template-columns: 1fr 1fr 140px; gap: 10px; margin-bottom: 10px; padding: 0 10px; font-weight: bold; color: var(--text-muted); text-align: center; font-size: 14px;">
-                        <div>Date opération</div>
-                        <div>Montant</div>
+                        <div data-i18n="rec_col_date">${window.i18n.t('rec_col_date')}</div>
+                        <div data-i18n="rec_col_amount">${window.i18n.t('rec_col_amount')}</div>
                         <div></div>
                     </div>
                     <div id="recInstancesBody" style="display: flex; flex-direction: column; gap: 8px;">
@@ -39,10 +39,10 @@ window.RecurrenceView = {
                 </div>
                 
                 <div style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 15px; justify-content: center; padding-left: 20px; border-left: 1px dashed var(--border-color);">
-                    <button class="btn btn-danger" style="padding: 15px;" onclick="window.RecurrenceView.deleteOperations()">Supprimer les opérations</button>
+                    <button class="btn btn-danger" style="padding: 15px;" onclick="window.RecurrenceView.deleteOperations()" data-i18n="btn_delete_recurrence">${window.i18n.t('btn_delete_recurrence')}</button>
                     <div style="flex: 1; min-height: 50px;"></div>
-                    <button class="btn btn-primary" style="padding: 15px; font-weight: bold;" onclick="window.RecurrenceView.saveAll()">Enregistrer</button>
-                    <button class="btn btn-secondary" style="padding: 15px;" onclick="window.app.loadView('timeline')">Fermer</button>
+                    <button class="btn btn-primary" style="padding: 15px; font-weight: bold;" onclick="window.RecurrenceView.saveAll()" data-i18n="btn_save_changes">${window.i18n.t('btn_save_changes')}</button>
+                    <button class="btn btn-secondary" style="padding: 15px;" onclick="window.app.loadView('timeline')" data-i18n="btn_close">${window.i18n.t('btn_close')}</button>
                 </div>
             </div>
         `;
@@ -79,7 +79,7 @@ window.RecurrenceView = {
             const select = document.getElementById('recTemplateSelect');
             if (select) {
                 const currentVal = this.selectedTemplateId || "";
-                select.innerHTML = '<option value="">Sélectionner l\'opération récurrente</option>' + 
+                select.innerHTML = `<option value="" data-i18n="rec_select_recurrence">${window.i18n.t('rec_select_recurrence')}</option>` + 
                     this.templates
                         .filter(t => activeTemplateIds.has(t.id))
                         .sort((a,b) => a.description.localeCompare(b.description))
@@ -161,7 +161,7 @@ window.RecurrenceView = {
         container.style.display = 'flex';
         
         if (this.transactions.length === 0) {
-            body.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);">Aucune opération générée pour cette année.</div>`;
+            body.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);">${window.i18n.t('msg_no_operations_this_year')}</div>`;
             return;
         }
         
@@ -183,7 +183,7 @@ window.RecurrenceView = {
                 const oldAmtStr = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(this.lastPropagate.oldAmount);
                 actionBtn = `<button class="btn btn-danger" style="padding: 5px; font-size: 11px; width: 100%; white-space: normal;" onclick="window.RecurrenceView.undoPropagate()">Annuler (Retour à ${oldAmtStr})</button>`;
             } else if (isModified && !isReconciled) {
-                actionBtn = `<button class="btn btn-primary" style="padding: 5px; font-size: 11px; width: 100%; white-space: normal;" onclick="window.RecurrenceView.propagate(${tx.id})">Propager vers le bas ⬇️</button>`;
+                actionBtn = `<button class="btn btn-primary" style="padding: 5px; font-size: 11px; width: 100%; white-space: normal;" onclick="window.RecurrenceView.propagate(${tx.id})" data-i18n="btn_propagate_down">Propager vers le bas ⬇️</button>`;
             }
 
             return `
@@ -213,12 +213,12 @@ window.RecurrenceView = {
                     amount: amountVal
                 });
             }
-            await showInlineMessage("Succès", "Modifications enregistrées !");
+            await showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_changes_saved'));
             window.app.refreshSidebar();
             await this.refreshTransactions();
         } catch (e) {
             console.error("Save error", e);
-            await showInlineMessage("Erreur", "Erreur lors de l'enregistrement");
+            await showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_save_error_generic'));
         }
     },
     
@@ -269,7 +269,7 @@ window.RecurrenceView = {
             
         } catch (e) {
             console.error("Propagate error", e);
-            await showInlineMessage("Erreur", "Erreur lors de la propagation");
+            await showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_propagation_error'));
         }
     },
     
@@ -287,17 +287,17 @@ window.RecurrenceView = {
             await this.refreshTransactions();
         } catch (e) {
             console.error("Undo error", e);
-            await showInlineMessage("Erreur", "Erreur lors de l'annulation");
+            await showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_cancel_error'));
         }
     },
 
     async deleteOperations() {
         if (!this.selectedTemplateId) return;
         
-        if (await showInlineConfirm('Suppression', 'Supprimer le modèle ET toutes les opérations futures associées ? Les opérations déjà rapprochées seront conservées.')) {
+        if (await showInlineConfirm(window.i18n.t('title_deletion'), window.i18n.t('confirm_delete_template'))) {
             try {
                 await API.del(`/api/recurrences/${this.selectedTemplateId}`);
-                await showInlineMessage("Succès", "Modèle et prévisions supprimés.");
+                await showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_template_deleted'));
                 this.selectedTemplateId = null;
                 window.app.refreshSidebar();
                 await this.loadData();

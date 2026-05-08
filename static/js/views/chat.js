@@ -7,11 +7,11 @@ window.ChatView = {
                 <h2>💬 <span data-i18n="nav_chat">Chat IA (Ollama RAG)</span></h2>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <select id="chatRoleSelect" class="inline-input" style="padding: 6px 12px; border-radius: 6px; font-weight: 500;">
-                        <option value="advisor">Conseiller financier</option>
-                        <option value="simulator">Simulateur de projets</option>
-                        <option value="alerts">Analyste (Alertes)</option>
+                        <option value="advisor" data-i18n="chat_role_advisor">${window.i18n.t('chat_role_advisor')}</option>
+                        <option value="simulator" data-i18n="chat_role_simulator">${window.i18n.t('chat_role_simulator')}</option>
+                        <option value="alerts" data-i18n="chat_role_alerts">${window.i18n.t('chat_role_alerts')}</option>
                     </select>
-                    <button class="btn btn-secondary" onclick="window.ChatView.askDefaultQuestion()" title="Demander le rapport automatique de ce rôle">⚡ Rapport</button>
+                    <button class="btn btn-secondary" onclick="window.ChatView.askDefaultQuestion()" data-i18n-title="tooltip_auto_report" title="Demander le rapport automatique de ce rôle" data-i18n="chat_btn_report">${window.i18n.t('chat_btn_report')}</button>
                 </div>
             </div>
             
@@ -19,17 +19,17 @@ window.ChatView = {
                 
                 <div id="chatMessages" style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;">
                     <div style="text-align: center; color: var(--text-muted); font-size: 12px; margin-bottom: 10px;">
-                        L'assistant a automatiquement accès à vos données financières et statistiques du jour.
+                        ${window.i18n.t('chat_intro')}
                     </div>
                 </div>
 
                 <div style="padding: 15px; border-top: 1px solid var(--border-color); background: var(--bg-sidebar); display: flex; gap: 10px;">
-                    <textarea id="chatInput" class="inline-input" placeholder="Posez une question sur vos finances..." 
+                    <textarea id="chatInput" class="inline-input" data-i18n-placeholder="chat_ph_message" placeholder="Posez une question sur vos finances..." 
                         style="flex: 1; resize: none; border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; min-height: 44px; max-height: 120px;" 
                         onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); window.ChatView.sendMessage(); }"></textarea>
                     
-                    <button class="btn btn-primary" id="chatSendBtn" onclick="window.ChatView.sendMessage()" style="padding: 0 20px;">
-                        Envoyer
+                    <button class="btn btn-primary" id="chatSendBtn" onclick="window.ChatView.sendMessage()" style="padding: 0 20px;" data-i18n="chat_btn_send">
+                        ${window.i18n.t('chat_btn_send')}
                     </button>
                 </div>
             </div>
@@ -87,9 +87,9 @@ window.ChatView = {
                     window.ChatView.pendingActions[actionObj.id] = actionObj;
                     
                     displayContent += `<div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
-                        <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">✨ Recommandation de l'IA</div>
-                        <div style="font-size: 12px; margin-bottom: 12px;">L'IA propose de modifier la transaction #${actionObj.id}.</div>
-                        <button class="btn btn-primary" data-action-id="${actionObj.id}" style="padding: 6px 12px; font-size: 12px;">Examiner la proposition</button>
+                        <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
+                        <div style="font-size: 12px; margin-bottom: 12px;">${window.i18n.t('chat_ai_propose_modify')} #${actionObj.id}.</div>
+                        <button class="btn btn-primary" data-action-id="${actionObj.id}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review')}</button>
                     </div>`;
                 }
             }
@@ -97,7 +97,7 @@ window.ChatView = {
             return `
                 <div style="display: flex; flex-direction: column; align-items: ${isUser ? 'flex-end' : 'flex-start'};">
                     <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; padding: 0 4px;">
-                        ${isUser ? 'Vous' : 'Ollama OmniBank'}
+                        ${isUser ? window.i18n.t('chat_label_you') : 'Ollama OmniBank'}
                     </div>
                     <div class="chat-bubble ${isUser ? 'user' : 'ai'}" id="msg-${index}">
                         ${displayContent}
@@ -157,15 +157,15 @@ window.ChatView = {
             if (resp.ok) currentTx = await resp.json();
         } catch(e) {}
 
-        const fieldLabels = { category: 'Catégorie', description: 'Description', amount: 'Montant', date_operation: 'Date' };
+        const fieldLabels = { category: window.i18n.t('field_label_category'), description: window.i18n.t('field_label_description'), amount: window.i18n.t('field_label_amount'), date_operation: window.i18n.t('field_label_date') };
 
         let detailsHtml = `<strong>Transaction #${actionObj.id}</strong>`;
         if (currentTx?.description) detailsHtml += ` — <em>${currentTx.description}</em>`;
         detailsHtml += `<table style="width:100%; margin-top:12px; border-collapse:collapse; font-size:12px;">`;
         detailsHtml += `<thead><tr>
-            <th style="text-align:left; padding:4px 8px; color:var(--text-muted);">Champ</th>
-            <th style="text-align:left; padding:4px 8px; color:var(--text-muted);">Avant</th>
-            <th style="text-align:left; padding:4px 8px; color:var(--text-muted);">Après</th>
+            <th style="text-align:left; padding:4px 8px; color:var(--text-muted);" data-i18n="chat_th_field">${window.i18n.t('chat_th_field')}</th>
+            <th style="text-align:left; padding:4px 8px; color:var(--text-muted);" data-i18n="chat_th_before">${window.i18n.t('chat_th_before')}</th>
+            <th style="text-align:left; padding:4px 8px; color:var(--text-muted);" data-i18n="chat_th_after">${window.i18n.t('chat_th_after')}</th>
         </tr></thead><tbody>`;
 
         for (const [key, newVal] of Object.entries(actionObj.updates || {})) {
@@ -191,7 +191,7 @@ window.ChatView = {
     async applyAiAction(actionObj) {
         const btn = document.getElementById('aiActionConfirmBtn');
         btn.disabled = true;
-        btn.innerText = "Application...";
+        btn.innerText = window.i18n.t('msg_applying');
 
         try {
             const response = await fetch(`/api/transactions/${actionObj.id}`, {
@@ -213,10 +213,10 @@ window.ChatView = {
             this.renderHistory();
 
         } catch (error) {
-            alert("Erreur lors de la modification : " + error.message);
+            showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_edit_error', {error: error.message}));
         } finally {
             btn.disabled = false;
-            btn.innerText = "Valider la modification";
+            btn.innerText = window.i18n.t('btn_validate_edit');
         }
     },
 
@@ -309,7 +309,7 @@ window.ChatView = {
 
         } catch (e) {
             console.error(e);
-            this.history[aiMsgIndex].content = `*Erreur de connexion avec l'assistant: ${e.message}*`;
+            this.history[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection')}: ${e.message}*`;
         } finally {
             // Re-render full history once stream is done — parses action blocks & cleans JSON
             this.renderHistory();

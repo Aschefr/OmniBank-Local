@@ -17,20 +17,20 @@ window.AnalyticsView = {
         return `
         <div style="padding:0;">
             <div class="view-header" style="position:sticky;top:-32px;z-index:50;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                <h2 style="margin:0;">📊 Synthèse</h2>
+                <h2 style="margin:0;" data-i18n="analytics_title">${window.i18n.t('analytics_title')}</h2>
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <button class="btn btn-secondary" onclick="window.print()" style="padding: 6px 12px; font-size: 13px;" title="Générer un PDF du rapport">📥 Exporter en PDF</button>
+                    <button class="btn btn-secondary" onclick="window.print()" style="padding: 6px 12px; font-size: 13px;" data-i18n-title="tooltip_export_pdf" title="Générer un PDF du rapport" data-i18n="btn_export_pdf">📥 Exporter en PDF</button>
                     <select id="analyticsReconciled" class="inline-input" style="width:210px;" onchange="window.AnalyticsView.changeFilter('reconciled', this.value)">
-                        <option value="all">Tous les montants</option>
-                        <option value="reconciled">Rapprochés uniquement</option>
-                        <option value="unreconciled">Non rapprochés uniquement</option>
+                        <option value="all" data-i18n="analytics_all_amounts">${window.i18n.t('analytics_all_amounts')}</option>
+                        <option value="reconciled" data-i18n="analytics_reconciled_only">${window.i18n.t('analytics_reconciled_only')}</option>
+                        <option value="unreconciled" data-i18n="analytics_unreconciled_only">${window.i18n.t('analytics_unreconciled_only')}</option>
                     </select>
                     <select id="analyticsPeriod" class="inline-input" style="width:190px;" onchange="window.AnalyticsView.changeFilter('period', this.value)">
-                        <option value="m3">3 mois glissants</option>
-                        <option value="m6">6 mois glissants</option>
-                        <option value="m12">12 mois glissants</option>
-                        <option value="m24">24 mois glissants</option>
-                        <option disabled>─── Années ───</option>
+                        <option value="m3" data-i18n="analytics_rolling_3m">${window.i18n.t('analytics_rolling_3m')}</option>
+                        <option value="m6" data-i18n="analytics_rolling_6m">${window.i18n.t('analytics_rolling_6m')}</option>
+                        <option value="m12" data-i18n="analytics_rolling_12m">${window.i18n.t('analytics_rolling_12m')}</option>
+                        <option value="m24" data-i18n="analytics_rolling_24m">${window.i18n.t('analytics_rolling_24m')}</option>
+                        <option disabled data-i18n="analytics_years_separator">${window.i18n.t('analytics_years_separator')}</option>
                     </select>
                 </div>
             </div>
@@ -70,7 +70,7 @@ window.AnalyticsView = {
         years.forEach(yr => {
             const opt = document.createElement('option');
             opt.value = `y${yr}`;
-            opt.textContent = `Année ${yr}`;
+            opt.textContent = window.i18n.tp('label_year', {year: yr});
             if (this.selectedYear === parseInt(yr)) opt.selected = true;
             sel.appendChild(opt);
         });
@@ -119,20 +119,20 @@ window.AnalyticsView = {
             this.renderAll();
         } catch(e) {
             document.getElementById('analyticsContainer').innerHTML =
-                `<p style="color:var(--color-expense);padding:20px;">Erreur : ${e.message}</p>`;
+                `<p style="color:var(--color-expense);padding:20px;">${window.i18n.t('title_error')} : ${e.message}</p>`;
         }
     },
 
     formatShortMonth(mk) {
         const [y, m] = mk.split('-');
         const d = new Date(parseInt(y), parseInt(m) - 1, 1);
-        return d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+        return d.toLocaleDateString(window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR', { month: 'short', year: '2-digit' });
     },
 
     renderAll() {
         const container = document.getElementById('analyticsContainer');
         if (!this.data || !this.data.by_type || Object.keys(this.data.by_type).length === 0) {
-            container.innerHTML = '<p style="color:var(--text-muted);padding:20px;">Aucune donnée trouvée sur cette période.</p>';
+            container.innerHTML = `<p style="color:var(--text-muted);padding:20px;">${window.i18n.t('analytics_no_data')}</p>`;
             return;
         }
 
@@ -175,12 +175,12 @@ window.AnalyticsView = {
         <div style="border:1px solid ${hbd};border-radius:12px;display:flex;flex-direction:column;max-height:75vh;">
             <div style="background:${hb};padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${hbd};flex-shrink:0;">
                 <span style="font-weight:700;font-size:15px;color:${cfg.color};">${cfg.emoji} ${translatedType}</span>
-                <span class="privacy-blur" style="font-size:13px;font-weight:600;color:${cfg.color};">Total période : ${cfg.sign}${formatCurrency(grand_total)}</span>
+                <span class="privacy-blur" style="font-size:13px;font-weight:600;color:${cfg.color};">${window.i18n.t('analytics_total_period')} : ${cfg.sign}${formatCurrency(grand_total)}</span>
             </div>
             <div style="overflow:auto;flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
             <table class="data-table" style="min-width:${220 + months.length * 80 + years.length * 90}px;border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
             <thead><tr style="background:var(--bg-surface);">
-                <th style="text-align:left;min-width:100px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:sticky;left:0;top:0;background:var(--bg-surface);z-index:20;box-shadow:3px 0 6px rgba(0,0,0,0.2);">Catégorie</th>
+                <th style="text-align:left;min-width:100px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:sticky;left:0;top:0;background:var(--bg-surface);z-index:20;box-shadow:3px 0 6px rgba(0,0,0,0.2);" data-i18n="analytics_th_category">${window.i18n.t('analytics_th_category')}</th>
                 ${monthHeaders}
                 ${yearHeaders}
             </tr></thead>

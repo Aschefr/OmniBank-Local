@@ -23,7 +23,7 @@ window.ConfigView = {
                 
                 <div id="ollamaSettings">
                     <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;">
-                        Renseignez l'URL de votre serveur Ollama local (ex: http://localhost:11434 ou http://192.168.1.50:11434).
+                        ${window.i18n.t('config_ai_desc')}
                     </p>
                 
                 <div class="flex-row-mobile-col" style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -40,9 +40,9 @@ window.ConfigView = {
                     <div style="flex: 1;">
                         <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_model">Modèle Sélectionné</label>
                         <select id="conf_ollama_model" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px;" onchange="window.ConfigView.save()">
-                            <option value="">-- Aucun modèle chargé --</option>
+                            <option value="" data-i18n="config_ai_no_model">${window.i18n.t('config_ai_no_model')}</option>
                         </select>
-                        <p style="font-size: 10px; color: var(--color-expense); margin-top: 5px;">⚠️ Attention : pour l'extraction CSV intelligente et l'usage d'outils, un modèle récent (ex: gemma4:e4b, llama3.1) est fortement recommandé.</p>
+                        <p style="font-size: 10px; color: var(--color-expense); margin-top: 5px;" data-i18n="config_ai_model_warning">${window.i18n.t('config_ai_model_warning')}</p>
                     </div>
                 </div>
 
@@ -53,7 +53,7 @@ window.ConfigView = {
                             <input type="range" id="conf_ollama_temp_slider" min="0" max="1" step="0.1" value="0.3" style="flex: 1;" oninput="document.getElementById('conf_ollama_temp').value = this.value" onchange="window.ConfigView.save()">
                             <input type="number" id="conf_ollama_temp" class="inline-input" min="0" max="1" step="0.1" value="0.3" style="width: 60px; border: 1px solid var(--border-color); padding: 5px; text-align: center;" oninput="document.getElementById('conf_ollama_temp_slider').value = this.value" onchange="window.ConfigView.save()">
                         </div>
-                        <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;">Basse (0.1-0.3) pour l'analyse stricte, Haute (0.7-1.0) pour la conversation.</p>
+                        <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_temp_hint">${window.i18n.t('config_ai_temp_hint')}</p>
                     </div>
                     <div style="flex: 1;">
                         <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_ctx">Taille du Contexte</label>
@@ -66,7 +66,7 @@ window.ConfigView = {
                                 <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='32768'; window.ConfigView.save()">32K</button>
                             </div>
                         </div>
-                        <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;">8K recommandé pour le Chat, 32K requis pour les gros imports CSV.</p>
+                        <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_ctx_hint">${window.i18n.t('config_ai_ctx_hint')}</p>
                     </div>
                 </div>
 
@@ -74,9 +74,9 @@ window.ConfigView = {
             </div>
 
             <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                <h3 style="display:flex; align-items:center; gap:8px;">✨ Fonctionnalités Optionnelles</h3>
+                <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_opt_title">${window.i18n.t('config_opt_title')}</h3>
                 <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;">
-                    Activez ou désactivez des modules spécifiques dans le formulaire d'ajout d'opérations.
+                    ${window.i18n.t('config_opt_desc')}
                 </p>
                 <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
@@ -121,7 +121,7 @@ window.ConfigView = {
             <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_data_mgmt">Gestion des données</h3>
                 <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;">
-                    Importez, exportez ou réinitialisez les données de votre application.
+                    ${window.i18n.t('config_data_desc')}
                 </p>
                 
                 <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
@@ -216,7 +216,7 @@ window.ConfigView = {
     async fetchModels(silent = false) {
         const url = document.getElementById('conf_ollama_url').value;
         if (!url) {
-            if (!silent) showInlineMessage("Info", "Veuillez saisir une URL Ollama valide.");
+            if (!silent) showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_ollama_url_invalid'));
             return;
         }
 
@@ -235,13 +235,13 @@ window.ConfigView = {
                 if (this.configData.ollama_model) {
                     select.value = this.configData.ollama_model;
                 }
-                if (!silent) showInlineMessage("Info", "Modèles récupérés avec succès !");
+                if (!silent) showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_ollama_models_ok'));
             } else {
-                if (!silent) showInlineMessage("Info", "Aucun modèle trouvé sur ce serveur Ollama.");
+                if (!silent) showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_ollama_no_models'));
             }
         } catch (e) {
             console.error(e);
-            if (!silent) showInlineMessage("Info", "Erreur de connexion à Ollama. Vérifiez l'URL ou lancez 'ollama serve'.");
+            if (!silent) showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_ollama_connect_error'));
         }
     },
 
@@ -276,7 +276,7 @@ window.ConfigView = {
             if (btn) {
                 const originalText = btn.textContent;
                 const originalBg = btn.style.backgroundColor;
-                btn.textContent = "✓ Enregistré";
+                btn.textContent = window.i18n.t('btn_saved');
                 btn.style.backgroundColor = "var(--color-income)";
                 btn.style.transition = "all 0.3s";
                 
@@ -287,7 +287,7 @@ window.ConfigView = {
             }
         } catch (e) {
             console.error(e);
-            showInlineMessage("Info", "Erreur lors de la sauvegarde.");
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error'));
         }
     },
 
@@ -318,7 +318,7 @@ window.ConfigView = {
         const selectedCols = Array.from(checkboxes).map(cb => cb.value).join(',');
         
         if (!selectedCols) {
-            showInlineMessage("Info", "Veuillez sélectionner au moins une colonne.");
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_select_columns'));
             return;
         }
         
@@ -364,11 +364,11 @@ window.ConfigView = {
                 modal.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
                 
                 const title = document.createElement('h3');
-                title.textContent = "Pièces jointes manquantes";
+                title.textContent = window.i18n.t('title_missing_attachments');
                 title.style.marginTop = '0';
                 
                 const text = document.createElement('p');
-                text.textContent = `L'import nécessite ${data.attachments_needed.length} pièces jointes. Veuillez sélectionner le dossier les contenant ("Data-Import" par exemple).`;
+                text.textContent = window.i18n.tp('msg_attachments_needed', {count: data.attachments_needed.length});
                 
                 const btnContainer = document.createElement('div');
                 btnContainer.style.marginTop = '20px';
@@ -378,17 +378,17 @@ window.ConfigView = {
                 
                 const btnCancel = document.createElement('button');
                 btnCancel.className = 'btn btn-secondary';
-                btnCancel.textContent = "Ignorer";
+                btnCancel.textContent = window.i18n.t('btn_ignore');
                 btnCancel.onclick = () => {
                     document.body.removeChild(overlay);
-                    showInlineMessage("Succès", `Import réussi ! ${data.imported} opérations ajoutées (sans les pièces jointes).`);
+                    showInlineMessage(window.i18n.t('title_success'), window.i18n.tp('msg_import_success_no_attach', {count: data.imported}));
                     setTimeout(() => window.location.reload(), 2000);
                 };
                 
                 const label = document.createElement('label');
                 label.className = 'btn btn-primary';
                 label.style.cursor = 'pointer';
-                label.textContent = "Sélectionner le dossier";
+                label.textContent = window.i18n.t('btn_select_folder');
                 
                 const input = document.createElement('input');
                 input.type = 'file';
@@ -406,13 +406,13 @@ window.ConfigView = {
                 document.body.appendChild(overlay);
 
                 input.onchange = async (e) => {
-                    label.textContent = "Chargement...";
+                    label.textContent = window.i18n.t('label_loading');
                     label.style.pointerEvents = "none";
                     btnCancel.disabled = true;
                     
                     if (!e.target.files.length) {
                         document.body.removeChild(overlay);
-                        showInlineMessage("Succès", `Import réussi ! ${data.imported} opérations ajoutées (sans les pièces jointes).`);
+                        showInlineMessage(window.i18n.t('title_success'), window.i18n.tp('msg_import_success_no_attach', {count: data.imported}));
                         setTimeout(() => window.location.reload(), 2000);
                         return;
                     }
@@ -451,31 +451,31 @@ window.ConfigView = {
                     }
                     
                     document.body.removeChild(overlay);
-                    showInlineMessage("Succès", `Import réussi ! ${data.imported} opérations ajoutées et pièces jointes liées.`);
+                    showInlineMessage(window.i18n.t('title_success'), window.i18n.tp('msg_import_success_with_attach', {count: data.imported}));
                     setTimeout(() => window.location.reload(), 2000);
                 };
             } else {
-                showInlineMessage("Succès", `Import réussi ! ${data.imported} opérations ajoutées, ${data.skipped} ignorées.`);
+                showInlineMessage(window.i18n.t('title_success'), window.i18n.tp('msg_import_success_skipped', {count: data.imported, skipped: data.skipped}));
                 setTimeout(() => window.location.reload(), 2000);
             }
         } catch (e) {
             console.error(e);
-            showInlineMessage("Erreur", "L'import a échoué : " + e.message);
+            showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_import_failed', {error: e.message}));
         } finally {
             event.target.value = '';
         }
     },
 
     async clearDB() {
-        const i18nMsg = (window.i18n && window.i18n.t) ? window.i18n.t('alert_clear_db') : "Êtes-vous sûr de vouloir supprimer TOUTES vos opérations ? Cette action est irréversible.";
-        if (await showInlineConfirm("Confirmation", i18nMsg)) {
+        const i18nMsg = (window.i18n && window.i18n.t) ? window.i18n.t('alert_clear_db') : window.i18n.t('alert_clear_db');
+        if (await showInlineConfirm(window.i18n.t('title_confirmation'), i18nMsg)) {
             try {
                 await API.del('/api/transactions/all/clear');
-                showInlineMessage("Info", "Base de données vidée avec succès.");
+                showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_db_cleared'));
                 window.location.reload();
             } catch (e) {
                 console.error(e);
-                showInlineMessage("Info", "Erreur lors de la suppression.");
+                showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_db_clear_error'));
             }
         }
     },
@@ -484,8 +484,8 @@ window.ConfigView = {
         const file = event.target.files[0];
         if (!file) return;
 
-        const confirmMsg = (window.i18n && window.i18n.t) ? window.i18n.t('alert_restore_backup') : "⚠️ ATTENTION : La restauration écrasera la base de données actuelle de manière irréversible. Êtes-vous sûr de vouloir continuer ?";
-        if (!await showInlineConfirm("Restauration critique", confirmMsg)) {
+        const confirmMsg = (window.i18n && window.i18n.t) ? window.i18n.t('alert_restore_backup') : window.i18n.t('alert_restore_backup');
+        if (!await showInlineConfirm(window.i18n.t('title_restore_critical'), confirmMsg)) {
             event.target.value = '';
             return;
         }
@@ -504,11 +504,11 @@ window.ConfigView = {
                 throw new Error(err.detail || "Upload failed");
             }
 
-            showInlineMessage("Succès", "Backup restauré avec succès. L'application va redémarrer.");
+            showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_restore_success'));
             setTimeout(() => window.location.reload(), 1500);
         } catch (e) {
             console.error(e);
-            showInlineMessage("Erreur", "La restauration a échoué : " + e.message);
+            showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_restore_failed', {error: e.message}));
         } finally {
             event.target.value = '';
         }

@@ -16,27 +16,27 @@ window.TrendsView = {
             <div class="view-header" style="position:sticky;top:-32px;z-index:10;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <h2 style="margin:0;">📉 <span data-i18n="nav_trends">Tendances</span></h2>
                 <div style="display:flex;gap:10px;align-items:center; flex-wrap: wrap;">
-                    <label style="font-size:13px;color:var(--text-muted);">Compte :</label>
+                    <label style="font-size:13px;color:var(--text-muted);" data-i18n="trends_label_account">${window.i18n.t('trends_label_account')}</label>
                     <select id="trendsAccountSelect" class="inline-input" style="width:160px;" onchange="window.TrendsView.onAccountChange(this.value)">
-                        <option value="">Chargement…</option>
+                        <option value="" data-i18n="trends_opt_loading">${window.i18n.t('trends_opt_loading')}</option>
                     </select>
                     
-                    <label style="font-size:13px;color:var(--text-muted);margin-left:10px;">Période :</label>
+                    <label style="font-size:13px;color:var(--text-muted);margin-left:10px;" data-i18n="trends_label_period">${window.i18n.t('trends_label_period')}</label>
                     <select id="trendsTimeframeSelect" class="inline-input" style="width:100px;" onchange="window.TrendsView.onTimeframeChange(this.value)">
-                        <option value="1">1 mois</option>
-                        <option value="3">3 mois</option>
-                        <option value="6">6 mois</option>
-                        <option value="9">9 mois</option>
-                        <option value="12" selected>1 an</option>
+                        <option value="1" data-i18n="trends_1m">${window.i18n.t('trends_1m')}</option>
+                        <option value="3" data-i18n="trends_3m">${window.i18n.t('trends_3m')}</option>
+                        <option value="6" data-i18n="trends_6m">${window.i18n.t('trends_6m')}</option>
+                        <option value="9" data-i18n="trends_9m">${window.i18n.t('trends_9m')}</option>
+                        <option value="12" selected data-i18n="trends_1y">${window.i18n.t('trends_1y')}</option>
                     </select>
                     
                     <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);margin-left:10px;cursor:pointer;">
                         <input type="checkbox" id="trendsOtherYearsCheck" onchange="window.TrendsView.onOtherYearsChange(this.checked)">
-                        Autres années
+                        <span data-i18n="trends_other_years">${window.i18n.t('trends_other_years')}</span>
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);margin-left:10px;cursor:pointer;">
                         <input type="checkbox" id="trendsOtherMonthsCheck" onchange="window.TrendsView.onOtherMonthsChange(this.checked)">
-                        Autres mois
+                        <span data-i18n="trends_other_months">${window.i18n.t('trends_other_months')}</span>
                     </label>
                 </div>
             </div>
@@ -58,7 +58,7 @@ window.TrendsView = {
             const mainAcc = await API.get('/api/stats/main_account');
 
             const sel = document.getElementById('trendsAccountSelect');
-            let options = `<option value="total" style="font-weight:bold;">Total (Tous les comptes)</option>`;
+            let options = `<option value="total" style="font-weight:bold;" data-i18n="trends_opt_total">${window.i18n.t('trends_opt_total')}</option>`;
             options += this.accounts.map(a =>
                 `<option value="${a.id}">${a.name}</option>`
             ).join('');
@@ -160,7 +160,7 @@ window.TrendsView = {
             });
             
             datasets.push({
-                label: 'Solde (€)',
+                label: window.i18n.t('chart_label_balance'),
                 data: filteredData.map(d => d.balance),
                 borderColor: colors[0],
                 backgroundColor: 'rgba(51, 102, 255, 0.1)',
@@ -237,7 +237,7 @@ window.TrendsView = {
                 
                 // Check if the entire array is null
                 if (periodData.some(val => val !== null)) {
-                    let label = offset === 0 ? 'Période actuelle' : (this.showOtherYears ? `Il y a ${offset} an(s)` : `Il y a ${offset} mois`);
+                    let label = offset === 0 ? window.i18n.t('chart_current_period') : (this.showOtherYears ? window.i18n.tp('chart_years_ago', {offset}) : window.i18n.tp('chart_months_ago', {offset}));
                     datasets.push({
                         label: label,
                         data: periodData,

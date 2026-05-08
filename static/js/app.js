@@ -213,7 +213,7 @@ class App {
             if (stats.next_pay_date && !isOrgMode) {
                 if (nextPayBox) nextPayBox.style.display = '';
                 payAmtSpan.textContent = formatCurrency(stats.next_pay_amount);
-                payDateDiv.textContent = formatDate(stats.next_pay_date) + (stats.is_pay_override ? ' (Manuel)' : '');
+                payDateDiv.textContent = formatDate(stats.next_pay_date) + (stats.is_pay_override ? ' ' + window.i18n.t('msg_manual') : '');
                 
                 // Store globally for timeline filtering and history modal
                 window.app.nextPayDate = stats.next_pay_date;
@@ -230,10 +230,10 @@ class App {
             const restLabel = document.getElementById('restToLiveLabel');
             if (restLabel) {
                 if (isOrgMode) {
-                    restLabel.textContent = 'Peut-être dépenser';
+                    restLabel.textContent = window.i18n.t('stat_can_spend');
                     restLabel.removeAttribute('data-i18n'); // prevent i18n from overriding
                 } else {
-                    restLabel.textContent = 'Reste à vivre';
+                    restLabel.textContent = window.i18n.t('stat_rest_to_live');
                     restLabel.setAttribute('data-i18n', 'stat_rest_to_live');
                 }
             }
@@ -344,7 +344,7 @@ class App {
         tbody.innerHTML = '';
         
         if (!this.payHistory || this.payHistory.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 15px; color: var(--text-muted);">Aucun historique détecté pour le moment.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 15px; color: var(--text-muted);">${window.i18n.t('msg_no_history')}</td></tr>`;
         } else {
             this.payHistory.forEach(tx => {
                 const tr = document.createElement('tr');
@@ -376,14 +376,14 @@ class App {
             }
         } catch (e) {
             console.error("Failed to save override", e);
-            showInlineMessage("Info", "Erreur lors de la sauvegarde.");
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error'));
         }
     }
     
     onQuickPayTypeChange(save = false) {
         const isBimonthly = document.getElementById('quickPayType').value === 'bimonthly';
         document.getElementById('quickPayDay2').style.display = isBimonthly ? 'block' : 'none';
-        document.getElementById('lblQuickPayDay1').textContent = isBimonthly ? 'Jours :' : 'Jour :';
+        document.getElementById('lblQuickPayDay1').textContent = isBimonthly ? window.i18n.t('label_pay_days') : window.i18n.t('label_pay_day');
         if (save) this.saveQuickPay();
     }
     
@@ -455,7 +455,7 @@ class App {
             main.innerHTML = window.TrendsView.render();
             window.TrendsView.init();
         } else {
-            main.innerHTML = `<h2>${window.i18n.t('nav_' + viewName)}</h2><p>En construction...</p>`;
+            main.innerHTML = `<h2>${window.i18n.t('nav_' + viewName)}</h2><p>${window.i18n.t('label_in_construction')}</p>`;
         }
         
         window.i18n.translateDOM(main);

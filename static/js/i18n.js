@@ -30,10 +30,26 @@ class I18nManager {
                 }
             }
         });
+        root.querySelectorAll('[data-i18n-title]').forEach(el => {
+            const key = el.getAttribute('data-i18n-title');
+            if (this.translations[key]) el.setAttribute('title', this.translations[key]);
+        });
+        root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-i18n-placeholder');
+            if (this.translations[key]) el.setAttribute('placeholder', this.translations[key]);
+        });
     }
 
     t(key) {
         return this.translations[key] || key;
+    }
+
+    tp(key, params = {}) {
+        let str = this.translations[key] || key;
+        for (const [k, v] of Object.entries(params)) {
+            str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+        }
+        return str;
     }
 
     async setLang(lang) {
