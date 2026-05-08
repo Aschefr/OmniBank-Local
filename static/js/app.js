@@ -81,6 +81,22 @@ class App {
             });
         }
         
+        // Compact mode toggle
+        const compactToggle = document.getElementById('compactToggle');
+        if (compactToggle) {
+            if (localStorage.getItem('omni_compact') === 'true') {
+                document.body.classList.add('compact-mode');
+                compactToggle.textContent = '☷';
+            }
+            
+            compactToggle.addEventListener('click', () => {
+                document.body.classList.toggle('compact-mode');
+                const isCompact = document.body.classList.contains('compact-mode');
+                compactToggle.textContent = isCompact ? '☷' : '☰';
+                localStorage.setItem('omni_compact', isCompact);
+            });
+        }
+        
         // Language dropdown
         const langToggleBtn = document.getElementById('langToggleBtn');
         const langMenu = document.getElementById('langMenu');

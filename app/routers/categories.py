@@ -17,70 +17,52 @@ def get_categories(db: Session = Depends(get_db)):
 @router.get("/averages")
 def get_categories_averages(db: Session = Depends(get_db)):
     today = date.today()
-    current_month_start = today.replace(day=1)
+
+    # Anchor on the latest PAST transaction (exclude future recurrences)
+    from sqlalchemy import extract
+    latest_past_tx = db.query(Transaction).filter(
+        Transaction.date_operation <= today
+    ).order_by(Transaction.date_operation.desc()).first()
+    anchor = latest_past_tx.date_operation if latest_past_tx else today
+
     try:
-        last_year_start = today.replace(year=today.year - 1)
+        last_year_start = anchor.replace(year=anchor.year - 1)
     except ValueError:
-        last_year_start = today.replace(year=today.year - 1, day=28) # Leap year handling
+        last_year_start = anchor.replace(year=anchor.year - 1, day=28)
 
-    # Calculate last 12 months sum
-    yearly_results = db.query(
-        Transaction.category,
-        func.sum(Transaction.amount)
-    ).filter(
+    current_month_start = today.replace(day=1)
+
+    # Count distinct months with expense data for accurate averaging
+    from collections import defaultdict
+    all_txs = db.query(Transaction).filter(
         Transaction.date_operation >= last_year_start,
+        Transaction.date_operation <= anchor,
         Transaction.category != None,
-        Transaction.type != "income"
-    ).group_by(Transaction.category).all()
-    
-    # Calculate current month sum
-    monthly_results = db.query(
-        Transaction.category,
-        func.sum(Transaction.amount)
-    ).filter(
-        Transaction.date_operation >= current_month_start,
-        Transaction.category != None,
-        Transaction.type != "income"
-    ).group_by(Transaction.category).all()
+    ).all()
 
-    # Aggregate incomes as well
-    yearly_income = db.query(
-        Transaction.category,
-        func.sum(Transaction.amount)
-    ).filter(
-        Transaction.date_operation >= last_year_start,
-        Transaction.category != None,
-        Transaction.type == "income"
-    ).group_by(Transaction.category).all()
+    cat_monthly_sums = defaultdict(lambda: defaultdict(float))
+    cat_current_month = defaultdict(float)
 
-    monthly_income = db.query(
-        Transaction.category,
-        func.sum(Transaction.amount)
-    ).filter(
-        Transaction.date_operation >= current_month_start,
-        Transaction.category != None,
-        Transaction.type == "income"
-    ).group_by(Transaction.category).all()
+    for tx in all_txs:
+        cat = tx.category
+        month_key = tx.date_operation.strftime("%Y-%m")
+        cat_monthly_sums[cat][month_key] += abs(tx.amount)
+        if tx.date_operation >= current_month_start and tx.date_operation <= today:
+            cat_current_month[cat] += abs(tx.amount)
+
+    # Count total distinct months across all data for a global denominator
+    all_months = set()
+    for monthly in cat_monthly_sums.values():
+        all_months.update(monthly.keys())
+    nb_months = max(len(all_months), 1)
 
     averages = {}
-    
-    # Process expenses
-    for cat, total in yearly_results:
-        if cat not in averages: averages[cat] = {"current_month": 0.0, "yearly_average": 0.0}
-        averages[cat]["yearly_average"] = abs(float(total or 0)) / 12.0
-        
-    for cat, total in monthly_results:
-        if cat not in averages: averages[cat] = {"current_month": 0.0, "yearly_average": 0.0}
-        averages[cat]["current_month"] = abs(float(total or 0))
-
-    # Process incomes
-    for cat, total in yearly_income:
-        if cat not in averages: averages[cat] = {"current_month": 0.0, "yearly_average": 0.0}
-        averages[cat]["yearly_average"] = abs(float(total or 0)) / 12.0
-        
-    for cat, total in monthly_income:
-        if cat not in averages: averages[cat] = {"current_month": 0.0, "yearly_average": 0.0}
-        averages[cat]["current_month"] = abs(float(total or 0))
+    for cat, monthly in cat_monthly_sums.items():
+        total = sum(monthly.values())
+        averages[cat] = {
+            "current_month": round(cat_current_month.get(cat, 0.0), 2),
+            "yearly_average": round(total / nb_months, 2),
+        }
 
     return averages
 

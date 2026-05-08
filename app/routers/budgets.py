@@ -257,10 +257,71 @@ def get_budget_transactions(budget_id: int, year: int = None, month: int = None,
 
 # ─── AI Suggestion endpoint ───────────────────────────────────────────────────
 
+def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_date: date) -> dict:
+    """
+    Compute TRUE monthly averages (total_per_cat / nb_months) for the LLM prompt.
+    Uses a 12-month window ending at anchor_date.
+    This is separate from the UI category averages used in the envelope modal badges.
+    Returns {category_name: {"avg": float, "type": str, "top_descs": list[str]}}.
+    """
+    from dateutil.relativedelta import relativedelta
+    from collections import defaultdict
+
+    twelve_months_ago = anchor_date - relativedelta(months=12)
+
+    # Query all transactions in the 12-month window
+    txs = db.query(Transaction).filter(
+        Transaction.date_operation >= twelve_months_ago,
+        Transaction.date_operation <= anchor_date,
+        Transaction.type.in_(["expense_fixed", "expense_var", "income", "neutral"]),
+    ).all()
+
+    # Monthly sums per category + type tracking + description collection
+    cat_monthly: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    cat_type: dict[str, str] = {}
+    cat_descriptions: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+
+    for tx in txs:
+        cat = tx.category or "Sans catégorie"
+        if cat in already_used_cats:
+            continue
+
+        month_key = tx.date_operation.strftime("%Y-%m")
+        cat_monthly[cat][month_key] += abs(tx.amount)
+        cat_type[cat] = tx.type  # Last seen type wins (categories have consistent types)
+
+        desc = (tx.description or "").strip()
+        if desc:
+            cat_descriptions[cat][desc] += 1
+
+    if not cat_monthly:
+        return {}
+
+    # Count how many distinct months had data in the window
+    all_months = set()
+    for monthly in cat_monthly.values():
+        all_months.update(monthly.keys())
+    nb_months = max(len(all_months), 1)
+
+    result = {}
+    for cat, monthly_sums in cat_monthly.items():
+        total = sum(monthly_sums.values())
+        avg = round(total / nb_months, 2)
+        desc_counts = cat_descriptions.get(cat, {})
+        top_descs = [d for d, _ in sorted(desc_counts.items(), key=lambda x: -x[1])[:5]]
+        result[cat] = {
+            "avg": avg,
+            "type": cat_type.get(cat, "expense_var"),
+            "top_descs": top_descs,
+        }
+
+    return result
+
+
 @router.post("/ai_suggest")
 def ai_suggest_budgets(db: Session = Depends(get_db)):
     """
-    Analyse the last 3 months of spending per category and asks Ollama
+    Analyse the last 6 months of spending per category and asks Ollama
     to suggest logical budget envelopes with amounts.
     Returns a list of proposals [{name, categories, suggested_amount}].
     """
@@ -277,75 +338,99 @@ def ai_suggest_budgets(db: Session = Depends(get_db)):
         for c in db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all():
             already_used_cats.add(c.category_name)
 
-    from dateutil.relativedelta import relativedelta
-    
-    # Base the 6-month window on the latest available transaction date, not necessarily today's date
-    latest_tx = db.query(Transaction).order_by(Transaction.date_operation.desc()).first()
-    anchor_date = latest_tx.date_operation if latest_tx else date.today()
-    
-    six_months_ago = anchor_date - relativedelta(months=6)
+    print(f"[AI-SUGGEST] already_used_cats ({len(already_used_cats)}): {sorted(already_used_cats)}")
 
-    txs = db.query(Transaction).filter(
-        Transaction.date_operation >= six_months_ago,
-        Transaction.type.in_(["expense_fixed", "expense_var"]),
-    ).all()
+    # Anchor on the latest PAST transaction (not future recurrences),
+    # so the 12-month window covers actual historical spending.
+    latest_past_tx = db.query(Transaction).filter(
+        Transaction.date_operation <= date.today()
+    ).order_by(Transaction.date_operation.desc()).first()
+    anchor_date = latest_past_tx.date_operation if latest_past_tx else date.today()
+    print(f"[AI-SUGGEST] Anchor date: {anchor_date}")
 
-    monthly_totals: dict[str, list[float]] = {}
-    category_descriptions: dict[str, dict[str, int]] = {}
+    # Debug: show ALL distinct categories in transactions within the window
+    from dateutil.relativedelta import relativedelta as _rd
+    _six = anchor_date - _rd(months=6)
+    all_tx_cats = db.query(Transaction.category, Transaction.type).filter(
+        Transaction.date_operation >= _six,
+        Transaction.date_operation <= anchor_date,
+    ).distinct().all()
+    print(f"[AI-SUGGEST] ALL categories in transactions (6mo): {[(c, t) for c, t in all_tx_cats]}")
 
-    for tx in txs:
-        cat = tx.category or "Sans catégorie"
-        if cat in already_used_cats:
-            continue
-            
-        # Collect descriptions over 6 months
-        desc = (tx.description or "").strip()
-        if desc:
-            if cat not in category_descriptions:
-                category_descriptions[cat] = {}
-            category_descriptions[cat][desc] = category_descriptions[cat].get(desc, 0) + 1
-            
-        # Collect amounts over 6 months
-        monthly_totals.setdefault(cat, []).append(tx.amount)
+    # Compute true monthly averages for the LLM (separate from UI averages)
+    cat_data = _compute_monthly_averages_for_ai(db, already_used_cats, anchor_date)
 
-    if not monthly_totals:
+    if not cat_data:
         raise HTTPException(status_code=400, detail="Toutes vos dépenses sont déjà couvertes par vos enveloppes actuelles, ou aucune donnée suffisante.")
 
-    # Build averages and attach top descriptions
-    averages = {cat: round(sum(vals) / len(vals), 2) for cat, vals in monthly_totals.items()}
-    avg_lines_arr = []
-    for cat, amt in sorted(averages.items(), key=lambda x: -x[1]):
-        desc_counts = category_descriptions.get(cat, {})
-        top_descs = [d for d, c in sorted(desc_counts.items(), key=lambda x: -x[1])[:5]]
-        desc_str = f" (Exemples d'achats : {', '.join(top_descs)})" if top_descs else ""
-        avg_lines_arr.append(f"- {cat}: {amt:.2f}€/mois{desc_str}")
-        
-    avg_lines = "\n".join(avg_lines_arr)
+    # Group by transaction type for the prompt
+    type_labels = {
+        "expense_fixed": "Dépense fixe",
+        "expense_var": "Dépense variable",
+        "income": "Recette",
+        "neutral": "Neutre",
+    }
+    type_groups: dict[str, list[str]] = {}
+    for cat, info in sorted(cat_data.items(), key=lambda x: -x[1]["avg"]):
+        t = info["type"]
+        label = type_labels.get(t, t)
+        if label not in type_groups:
+            type_groups[label] = []
+        desc_str = f" (Exemples : {', '.join(info['top_descs'])})" if info["top_descs"] else ""
+        type_groups[label].append(f"  - {cat}: {info['avg']:.2f}€/mois{desc_str}")
 
-    prompt = f"""Tu es un conseiller financier expert. Voici les dépenses moyennes mensuelles de l'utilisateur sur les 6 derniers mois, UNIQUEMENT pour les catégories qui ne sont PAS encore dans un budget :
+    avg_lines_parts = []
+    for group_label, lines in type_groups.items():
+        avg_lines_parts.append(f"\n### {group_label}")
+        avg_lines_parts.extend(lines)
+    avg_lines = "\n".join(avg_lines_parts)
+
+    nb_cats = len(cat_data)
+
+    # Build explicit list of exact category names for the prompt
+    exact_cat_names = ", ".join(f'"{c}"' for c in cat_data.keys())
+
+    prompt = f"""Tu es un conseiller financier expert. Voici les dépenses moyennes mensuelles de l'utilisateur sur les 12 derniers mois, UNIQUEMENT pour les catégories qui ne sont PAS encore dans un budget. Elles sont regroupées par type de transaction :
 
 {avg_lines}
 
-Propose de NOUVELLES enveloppes budgétaires logiques (au maximum 3 ou 4) pour couvrir ces dépenses. Regroupe les catégories similaires si pertinent. Ne réutilise JAMAIS la même catégorie dans deux enveloppes différentes.
+IMPORTANT : Voici la liste EXACTE des {nb_cats} noms de catégories à utiliser (copie-les EXACTEMENT, sans modifier l'orthographe) :
+{exact_cat_names}
+
+Tu DOIS proposer suffisamment d'enveloppes pour que CHAQUE catégorie ci-dessus soit incluse dans exactement une enveloppe. Regroupe les catégories similaires si pertinent, mais ne laisse AUCUNE catégorie de côté. Ne réutilise JAMAIS la même catégorie dans deux enveloppes. Utilise UNIQUEMENT les noms exacts listés ci-dessus dans le champ "categories".
 Pour chaque enveloppe, réponds UNIQUEMENT en JSON valide, un objet par ligne, avec ce format exact :
 {{"name": "Nom de l'enveloppe", "categories": ["Cat1", "Cat2"], "suggested_amount": 250.00, "reason": "Explication courte"}}
 
 Ne réponds rien d'autre que les lignes JSON. Pas de markdown, pas de texte autour."""
 
-    raw = call_ollama_sync(prompt, cfg)
+    # Request enough output tokens for all categories (num_predict),
+    # without overriding the user's configured context window (num_ctx).
+    print(f"[AI-SUGGEST] Envoi au LLM: {nb_cats} catégories non couvertes")
+    print(f"[AI-SUGGEST] Prompt ({len(prompt)} chars):\n{prompt[:500]}...")
+    
+    raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 4096})
+
+    print(f"[AI-SUGGEST] Réponse brute du LLM ({len(raw)} chars):")
+    print(raw)
+
+    # Strip markdown code fences that some models wrap around JSON
+    import re
+    raw = re.sub(r'```(?:json)?\s*', '', raw)
 
     proposals = []
     used_in_proposals = set()
 
     for line in raw.strip().splitlines():
         line = line.strip()
+        if not line or line.startswith('#'):
+            continue
         if line.startswith("{"):
             try:
                 obj = json.loads(line)
                 if "name" in obj and "suggested_amount" in obj:
                     cats = obj.get("categories", [])
                     # Deduplicate: keep only categories not yet assigned in this batch
-                    clean_cats = [c for c in cats if c not in used_in_proposals and c in averages]
+                    clean_cats = [c for c in cats if c not in used_in_proposals and c in cat_data]
                     
                     if clean_cats: # Only add proposal if it still has valid categories
                         used_in_proposals.update(clean_cats)
@@ -355,10 +440,20 @@ Ne réponds rien d'autre que les lignes JSON. Pas de markdown, pas de texte auto
                             "suggested_amount": float(obj["suggested_amount"]),
                             "reason": obj.get("reason", ""),
                         })
-            except Exception:
-                pass
+                        print(f"[AI-SUGGEST] ✅ Enveloppe acceptée: {obj['name']} → {clean_cats}")
+                    else:
+                        print(f"[AI-SUGGEST] ⚠️ Enveloppe rejetée (cats invalides/doublons): {obj.get('name')} → {cats}")
+            except Exception as e:
+                print(f"[AI-SUGGEST] ❌ Ligne JSON invalide: {line[:100]}... → {e}")
+
+    # Log uncovered categories
+    covered = used_in_proposals
+    uncovered = set(cat_data.keys()) - covered
+    if uncovered:
+        print(f"[AI-SUGGEST] ⚠️ {len(uncovered)} catégories NON couvertes par le LLM: {uncovered}")
 
     if not proposals:
         raise HTTPException(status_code=500, detail="L'IA n'a pas pu générer de propositions valides.")
 
+    print(f"[AI-SUGGEST] ✅ {len(proposals)} enveloppes proposées, {len(covered)}/{nb_cats} catégories couvertes")
     return {"proposals": proposals}

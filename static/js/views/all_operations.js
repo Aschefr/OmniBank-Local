@@ -327,15 +327,10 @@ window.AllOperationsView = {
         tbody.innerHTML = html || `<tr><td colspan="10" style="text-align:center; padding: 20px; color: var(--text-muted)">${window.i18n.t('msg_no_operations_period')}</td></tr>`;
         
         // Fix sticky table headers position
-        setTimeout(() => {
-            const header = document.getElementById('historyHeader');
-            const ths = document.querySelectorAll('.data-table th');
-            if (header && ths.length) {
-                const offset = header.offsetHeight - 32; 
-                ths.forEach(th => th.style.top = offset + 'px');
-            }
-            
-            if (autoScroll) {
+        this._initStickyObserver();
+        
+        if (autoScroll) {
+            setTimeout(() => {
                 const currentPoint = document.getElementById('current-date-row');
                 if (currentPoint) {
                     const main = document.querySelector('.app-main');
@@ -346,8 +341,25 @@ window.AllOperationsView = {
                         });
                     }
                 }
-            }
-        }, 50);
+            }, 50);
+        }
+    },
+
+    _stickyObserver: null,
+    _initStickyObserver() {
+        const header = document.getElementById('historyHeader');
+        const table = document.querySelector('.data-table');
+        if (!header || !table) return;
+
+        const update = () => {
+            const offset = header.offsetHeight - 32;
+            table.style.setProperty('--sticky-top', offset + 'px');
+        };
+        update();
+
+        if (this._stickyObserver) this._stickyObserver.disconnect();
+        this._stickyObserver = new ResizeObserver(update);
+        this._stickyObserver.observe(header);
     },
 
     edit(id) {

@@ -33,20 +33,24 @@ def get_ollama_config(db: Session) -> dict:
     }
 
 
-def call_ollama_sync(prompt: str, cfg: dict) -> str:
-    """Blocking (sync) call to Ollama — use from non-async endpoints only."""
+def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
+    """Blocking (sync) call to Ollama — use from non-async endpoints only.
+    extra_options: additional Ollama options (e.g. num_predict) merged on top of defaults."""
     import httpx as _httpx
     url = (cfg.get("url") or "").rstrip("/")
     model = cfg.get("model") or ""
     if not url or not model:
         raise ValueError("Ollama URL ou modèle non configuré.")
+    options = {"temperature": cfg.get("temperature", 0.3), "num_ctx": cfg.get("num_ctx", 4096)}
+    if extra_options:
+        options.update(extra_options)
     resp = _httpx.post(
         f"{url}/api/chat",
         json={
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
-            "options": {"temperature": cfg.get("temperature", 0.3), "num_ctx": cfg.get("num_ctx", 4096)},
+            "options": options,
         },
         timeout=120.0,
     )

@@ -4,6 +4,7 @@ window.BudgetsView = {
     categories: [],
     statusData: null,
     aiEnabled: false,
+    _directEdit: false, // true when modal was opened directly in edit mode (not via detail)
 
     render() {
         const cfg = window.app && window.app.config ? window.app.config : {};
@@ -14,7 +15,12 @@ window.BudgetsView = {
             <div class="view-header" style="position:sticky;top:-32px;z-index:10;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <h2 style="margin:0;" data-i18n="budget_title">${window.i18n.t('budget_title')}</h2>
                 <div class="history-filters" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <input type="month" id="budgetMonth" class="inline-input" style="flex:1;min-width:140px;" onchange="window.BudgetsView.loadStatus()">
+                    <div style="display:flex;align-items:center;gap:0;">
+                        <button class="btn btn-secondary" style="padding:6px 10px;font-size:14px;border-radius:8px 0 0 8px;border-right:none;" onclick="window.BudgetsView.stepMonth(-1)" title="${window.i18n.t('tooltip_prev_month') || 'Mois précédent'}">◀</button>
+                        <input type="month" id="budgetMonth" class="inline-input" style="min-width:140px;border-radius:0;" onchange="window.BudgetsView.loadStatus()">
+                        <button class="btn btn-secondary" style="padding:6px 10px;font-size:14px;border-radius:0 8px 8px 0;border-left:none;" onclick="window.BudgetsView.stepMonth(1)" title="${window.i18n.t('tooltip_next_month') || 'Mois suivant'}">▶</button>
+                    </div>
+                    <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap;" onclick="window.BudgetsView.goToday()" data-i18n="btn_today">${window.i18n.t('btn_today')}</button>
                     <button id="budgetAiBtn" class="btn btn-secondary" style="white-space:nowrap; ${aiDisp}" onclick="window.BudgetsView.requestAiSuggestions()" data-i18n="budget_btn_suggestions">${window.i18n.t('budget_btn_suggestions')}</button>
                     <button class="btn btn-primary" style="white-space:nowrap;" onclick="window.BudgetsView.showAddForm()" data-i18n="budget_btn_new">${window.i18n.t('budget_btn_new')}</button>
                 </div>
@@ -117,6 +123,21 @@ window.BudgetsView = {
         const now = new Date();
         document.getElementById('budgetMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
         await Promise.all([this.loadBudgets(), this.loadCategories(), this.loadStatus(), this.checkAI()]);
+    },
+
+    stepMonth(delta) {
+        const input = document.getElementById('budgetMonth');
+        if (!input?.value) return;
+        const [y, m] = input.value.split('-').map(Number);
+        const d = new Date(y, m - 1 + delta, 1);
+        input.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        this.loadStatus();
+    },
+
+    goToday() {
+        const now = new Date();
+        document.getElementById('budgetMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        this.loadStatus();
     },
 
     async checkAI() {
@@ -521,19 +542,23 @@ window.BudgetsView = {
     closeUnifiedModal() {
         document.getElementById('budgetUnifiedModal').style.display = 'none';
         document.getElementById('budgetFormSection').style.display = 'none';
+        document.getElementById('budgetDetailSection').style.display = 'none';
+        this._directEdit = false;
     },
     
     hideEditSection() {
-        if (!document.getElementById('budgetEditId').value) {
-            // We were adding a new budget, close the whole modal
+        if (!document.getElementById('budgetEditId').value || this._directEdit) {
+            // Adding new OR direct edit → close the whole modal
             this.closeUnifiedModal();
         } else {
-            // We were editing an existing budget, just hide the form
+            // Editing from detail view → just hide the form, show detail again
             document.getElementById('budgetFormSection').style.display = 'none';
+            document.getElementById('budgetDetailSection').style.display = 'block';
         }
     },
 
     showEditSection() {
+        this._directEdit = false; // Opened from detail view
         const id = document.getElementById('budgetEditId').value;
         const b = this.budgets.find(x => x.id == id);
         if (!b) return;
@@ -565,6 +590,7 @@ window.BudgetsView = {
         const b = this.budgets.find(x => x.id === id);
         if (!b) return;
 
+        this._directEdit = true; // Flag: opened directly, not from detail view
         document.getElementById('budgetUnifiedTitle').textContent = window.i18n.t('budget_edit_envelope');
         document.getElementById('budgetUnifiedEditBtn').style.display = 'none';
         document.getElementById('budgetDetailSection').style.display = 'none';
@@ -603,32 +629,31 @@ window.BudgetsView = {
             let savedId = id;
             if (id) {
                 await API.put(`/api/budgets/${id}`, payload);
-                showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_envelope_updated'));
             } else {
                 const res = await API.post('/api/budgets/', payload);
                 savedId = res.id;
-                document.getElementById('budgetEditId').value = savedId;
-                document.getElementById('budgetUnifiedTitle').textContent = window.i18n.t('budget_edit_envelope');
-                showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_envelope_created'));
             }
             
             await this.loadBudgets();
             await this.loadStatus();
-            
-            // Re-render categories to update any overlaps
-            this.renderCatCheckboxes(categories);
-            
-            // If detail view is open, refresh it
-            const detailSec = document.getElementById('budgetDetailSection');
-            if (detailSec && detailSec.style.display !== 'none') {
+
+            if (this._directEdit || !id) {
+                // Cas 1: direct edit or new → close modal entirely
+                this.closeUnifiedModal();
+            } else {
+                // Cas 2: edit from detail view → hide form, refresh detail
+                document.getElementById('budgetFormSection').style.display = 'none';
                 const monthVal = document.getElementById('budgetMonth')?.value;
                 if (monthVal) {
                     const [y, m] = monthVal.split('-');
-                    this.showDetail(savedId, name, y, m);
+                    await this.showDetail(parseInt(savedId), name, parseInt(y), parseInt(m));
                 }
             }
+
+            // Non-blocking toast
+            showToast(id ? window.i18n.t('msg_envelope_updated') : window.i18n.t('msg_envelope_created'), 'success');
         } catch(e) {
-            showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_error_generic', {error: e.message || e}));
+            showToast(e.message || window.i18n.t('budget_ai_create_fail'), 'error', 5000);
         }
     },
 

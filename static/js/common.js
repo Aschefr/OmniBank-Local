@@ -135,3 +135,42 @@ function formatDate(dateString) {
     const d = new Date(dateString);
     return d.toLocaleDateString('fr-FR');
 }
+
+/**
+ * Non-blocking toast notification — auto-disappears after `duration` ms.
+ * @param {string} message - Text to display
+ * @param {'success'|'error'|'info'} type - Visual style
+ * @param {number} duration - Auto-dismiss in ms (default 3000)
+ */
+function showToast(message, type = 'success', duration = 3000) {
+    const colors = {
+        success: { bg: 'rgba(16,185,129,0.15)', border: '#10b981', text: '#10b981', icon: '✅' },
+        error:   { bg: 'rgba(255,86,48,0.15)',   border: '#ff5630', text: '#ff5630', icon: '❌' },
+        info:    { bg: 'rgba(99,102,241,0.15)',   border: '#6366f1', text: '#6366f1', icon: 'ℹ️' },
+    };
+    const c = colors[type] || colors.info;
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 10000;
+        display: flex; align-items: center; gap: 10px;
+        padding: 14px 20px; border-radius: 10px;
+        background: ${c.bg}; border: 1px solid ${c.border};
+        color: ${c.text}; font-size: 13px; font-weight: 600;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        backdrop-filter: blur(12px);
+        transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        pointer-events: auto; cursor: pointer;
+    `;
+    toast.innerHTML = `<span style="font-size:16px;">${c.icon}</span> ${message}`;
+    toast.onclick = () => dismiss();
+
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { toast.style.transform = 'translateX(0)'; });
+
+    const dismiss = () => {
+        toast.style.transform = 'translateX(120%)';
+        setTimeout(() => toast.remove(), 350);
+    };
+    setTimeout(dismiss, duration);
+}

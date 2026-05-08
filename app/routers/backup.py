@@ -32,7 +32,7 @@ async def download_backup(db: Session = Depends(get_db)):
                 for root, dirs, files in os.walk(attachments_dir):
                     for file in files:
                         file_path = os.path.join(root, file)
-                        arcname = os.path.relpath(file_path, start="data")
+                        arcname = os.path.join("uploads", os.path.relpath(file_path, start=attachments_dir))
                         zipf.write(file_path, arcname=arcname)
                         
         filename = f"omnibank_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"

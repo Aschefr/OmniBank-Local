@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDliM0huOXpTaXArejhOL1NGRmJ5NVJEWXlJYWUwTFRMbG56WWp3cFpwRHAwTHkzY01FWVo1RjFiUUhTSmhncjlOem9QVmc0SXl4OGFsN0hHbzc1Y0E0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjY1NjU5CWZpbGU6T21uaUJhbmtfMS4wLjEyX3g2NF9mci1GUi5tc2kKR3psSlRhbFNRR2NUY3hTOEx2MHkvZ3B5N3h6R08yYmFWaUxGc0tnNEkvZ1l1cVdscEtVNjE5ZFJjazNtQ2Z2WDFXSUJaR3BMSmtHOTFweXVRK1hGQ1E9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.12/OmniBank_1.0.12_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlpb09BU3Q1eHlzSm1LSE5HUUMzVzRDVDNNb2ZIUHNmT2pIaHMvbVBjaU43SnVqcng5VVZGU2NoUDEzQzdPQXRTeHpYcERzVXpCalYvOHY4R3pZU0E0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Mjc3MDUyCWZpbGU6T21uaUJhbmtfMS4wLjEzX3g2NF9mci1GUi5tc2kKcmFvU3M5Q2M1VDliOGo3dS9ubWRsSDVOZGk5d2FwL2lSYytZTzVyMkhNb2t5aHVIOXpqTGVzbXk2cHlPcVA1WVpQVWFZcnRsd2lZS0U2T2lOY3Y1RHc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.13/OmniBank_1.0.13_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-08T18:40:59Z",
-    "version":  "1.0.12",
-    "notes":  "i18n: Complete localization pass - all UI text now fully translatable (budgets, trends, chat, analytics, accounts, sidebar)"
+    "pub_date":  "2026-05-08T21:50:52Z",
+    "version":  "1.0.13",
+    "notes":  "fix: modal budget (cancel/save behavior), toast notifications, month navigation arrows, compact table mode, sticky header fix"
 }

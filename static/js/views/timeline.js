@@ -386,17 +386,10 @@ window.TimelineView = {
         tbody.innerHTML = html || `<tr><td colspan="13" style="text-align:center; padding: 20px; color: var(--text-muted)">${window.i18n.t('msg_no_operations_month')}</td></tr>`;
         
         // Auto-scroll to junction and fix sticky headers
-        setTimeout(() => {
-            // Fix sticky table headers position below the sticky view header
-            const header = document.getElementById('timelineHeader');
-            const ths = document.querySelectorAll('.data-table th');
-            if (header && ths.length) {
-                // offsetHeight of header minus the top negative margin compensation
-                const offset = header.offsetHeight - 32; 
-                ths.forEach(th => th.style.top = offset + 'px');
-            }
-            
-            if (autoScroll) {
+        this._initStickyObserver();
+
+        if (autoScroll) {
+            setTimeout(() => {
                 const firstReconciled = document.getElementById('first-reconciled');
                 if (firstReconciled) {
                     const main = document.querySelector('.app-main');
@@ -407,8 +400,27 @@ window.TimelineView = {
                         });
                     }
                 }
-            }
-        }, 50);
+            }, 50);
+        }
+    },
+
+    _stickyObserver: null,
+    _initStickyObserver() {
+        const header = document.getElementById('timelineHeader');
+        const table = document.querySelector('.data-table');
+        if (!header || !table) return;
+
+        // Set initial value
+        const update = () => {
+            const offset = header.offsetHeight - 32; // minus the negative top margin
+            table.style.setProperty('--sticky-top', offset + 'px');
+        };
+        update();
+
+        // Watch for header size changes (filter wrapping, viewport resize)
+        if (this._stickyObserver) this._stickyObserver.disconnect();
+        this._stickyObserver = new ResizeObserver(update);
+        this._stickyObserver.observe(header);
     },
 
     edit(id) {

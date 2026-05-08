@@ -240,17 +240,8 @@ h3 {
     border-collapse: separate;
     border-spacing: 0;
     background: var(--bg-surface);
-    border-radius: 12px;
+    border-radius: 0 0 12px 12px;
     box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-color);
-}
-
-.data-table th:first-child {
-    /* removed border-radius to prevent scrolling visual bleeding */
-}
-
-.data-table th:last-child {
-    /* removed border-radius to prevent scrolling visual bleeding */
 }
 
 .data-table th, .data-table td {
@@ -268,9 +259,18 @@ h3 {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     position: sticky;
-    top: 0;
+    top: var(--sticky-top, 0px);
     z-index: 2;
     border-bottom: 2px solid var(--border-color);
+    border-top: 1px solid var(--border-color);
+}
+
+.data-table th:first-child {
+    border-top-left-radius: 12px;
+}
+
+.data-table th:last-child {
+    border-top-right-radius: 12px;
 }
 
 .data-table tr:last-child td {
@@ -842,4 +842,21 @@ select.inline-input:focus option:checked {
         color: black !important;
         background-color: transparent !important;
     }
+}
+
+/* Compact Mode */
+body.compact-mode .data-table th,
+body.compact-mode .data-table td {
+    padding: 3px 10px;
+    font-size: 12px;
+    line-height: 1.3;
+}
+
+body.compact-mode .data-table td strong {
+    font-weight: 600;
+}
+
+body.compact-mode .data-table .btn {
+    padding: 2px 6px;
+    font-size: 10px;
 }

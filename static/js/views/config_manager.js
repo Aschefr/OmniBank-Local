@@ -137,7 +137,7 @@ window.ConfigView = {
                     </button>
                     
                     <!-- Backup -->
-                    <button class="btn btn-secondary" onclick="window.open('/api/backup/download', '_blank')" style="display: flex; align-items: center; gap: 5px;">
+                    <button class="btn btn-secondary" onclick="window.ConfigView.downloadBackup()" style="display: flex; align-items: center; gap: 5px;">
                         💾 <span data-i18n="btn_download_backup">Télécharger Sauvegarde Complète (ZIP)</span>
                     </button>
 
@@ -511,6 +511,31 @@ window.ConfigView = {
             showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_restore_failed', {error: e.message}));
         } finally {
             event.target.value = '';
+        }
+    },
+
+    async downloadBackup() {
+        try {
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('label_loading') || 'Préparation...');
+            const resp = await fetch('/api/backup/download');
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.detail || `HTTP ${resp.status}`);
+            }
+            const blob = await resp.blob();
+            const filename = resp.headers.get('content-disposition')?.match(/filename="?([^"]+)"?/)?.[1]
+                || `omnibank_backup_${new Date().toISOString().slice(0,10)}.zip`;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+            showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_error_generic', {error: e.message || e}));
         }
     }
 };
