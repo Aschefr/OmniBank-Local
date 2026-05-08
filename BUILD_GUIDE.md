@@ -56,7 +56,7 @@ Cela garantit la persistance lors des mises à jour/réinstallations.
 | **Node.js** | 20+ | `nodejs.org` |
 | **PyInstaller** | 6.20+ | `pip install pyinstaller` |
 | **Tauri CLI** | 2.x | Via `package.json` (`npx tauri`) |
-| **rsign2** | 0.6+ | `cargo install rsign2` |
+| **rsign2** | 0.6+ | `cargo install rsign2` (optionnel, remplace par `scripts/gen-keys`) |
 
 ### ⚠️ IMPORTANT — Dépendances Python
 
@@ -92,20 +92,24 @@ OmniBank-Local/
 ├── package.json                  # Deps npm (Tauri CLI + plugins)
 ├── latest.json                   # Manifeste updater (GitHub)
 ├── scripts/
-│   └── build_sidecar.ps1         # Script de build PyInstaller
+│   ├── build_sidecar.ps1         # Script de build PyInstaller
+│   ├── release.ps1               # Script de release automatise (build+sign+push)
+│   └── gen-keys/                 # Outil Rust de signature (remplace rsign2)
+│       ├── src/main.rs
+│       └── Cargo.toml
 └── src-tauri/
-    ├── tauri.conf.json           # Configuration Tauri
-    ├── Cargo.toml                # Dépendances Rust
+    ├── tauri.conf.json           # Configuration Tauri (version, updater, etc.)
+    ├── Cargo.toml                # Dependances Rust (version fixe a 1.0.0)
     ├── build.rs                  # Build hook
     ├── src/
-    │   └── main.rs               # Launcher Rust (spawn + kill + update)
+    │   └── main.rs               # Launcher Rust (spawn + kill + update + dialog)
     ├── capabilities/
-    │   └── default.json          # Permissions (shell, updater)
-    ├── icons/                    # Icônes (32px, 128px, 256px, ICO)
-    ├── bin/                      # ⚡ Sidecar compilé (gitignored)
+    │   └── default.json          # Permissions (shell, updater, app, dialog)
+    ├── icons/                    # Icones (32px, 128px, 256px, ICO)
+    ├── bin/                      # Sidecar compile (gitignored)
     │   └── omnibank-api-x86_64-pc-windows-msvc.exe
-    ├── .tauri-private-key        # Clé privée updater (gitignored, NE PAS PERDRE)
-    └── .tauri-public-key         # Clé publique updater
+    ├── .tauri-private-key        # Cle privee updater (gitignored, NE PAS PERDRE)
+    └── .tauri-public-key         # Cle publique updater
 ```
 
 ---
@@ -273,46 +277,63 @@ brut du .sig, mais son encodage base64 complet) :
 
 ---
 
-## Mise à jour (nouvelle version)
+## Mise a jour (nouvelle version)
 
-### Processus complet pas à pas
+### Methode automatisee (RECOMMANDEE)
+
+Le script `scripts/release.ps1` automatise les 8 etapes du process :
 
 ```powershell
-# 1. Bumper la version dans les DEUX fichiers
-#    - src-tauri/tauri.conf.json  →  "version": "X.Y.Z"
-#    - package.json               →  "version": "X.Y.Z"
+# Release complete (sidecar + MSI + signature + push + GitHub release)
+.\scripts\release.ps1 -Version "X.Y.Z" -Notes "Description des changements"
 
-# 2. Rebuild sidecar (si le backend Python a changé)
+# Release sans rebuild sidecar (si seul le frontend/Rust change)
+.\scripts\release.ps1 -Version "X.Y.Z" -Notes "Description" -SkipSidecar
+
+# Dry run (build + signer sans pousser)
+.\scripts\release.ps1 -Version "X.Y.Z" -DryRun
+```
+
+Le script effectue dans l'ordre :
+1. Pre-flight checks (outils, cle privee, etc.)
+2. Bump version dans `package.json` + `tauri.conf.json` (via Python, regle G-07)
+3. Build sidecar PyInstaller (sauf `-SkipSidecar`)
+4. Build MSI via `npx tauri build`
+5. Signature MSI via `scripts/gen-keys`
+6. Mise a jour de `latest.json` avec la signature base64
+7. Git commit + tag + push
+8. Creation de la GitHub Release avec upload du MSI
+
+### Methode manuelle (si le script echoue)
+
+```powershell
+# 1. Bumper la version (via Python, regle G-07)
+python -c "import json; [exec(open(p).read()) or None for p in []]" # voir release.ps1
+
+# 2. Rebuild sidecar (si le backend Python a change)
 powershell -ExecutionPolicy Bypass -File .\scripts\build_sidecar.ps1
 
 # 3. Build le MSI
 npx tauri build
 
-# 4. Signer le MSI manuellement
-rsign sign -s src-tauri\.tauri-private-key -W `
-    src-tauri\target\release\bundle\msi\OmniBank_X.Y.Z_x64_fr-FR.msi
+# 4. Signer le MSI
+.\scripts\gen-keys\target\release\gen-tauri-keys.exe sign `
+    src-tauri\target\release\bundle\msi\OmniBank_X.Y.Z_x64_fr-FR.msi `
+    src-tauri\.tauri-private-key
+# -> copier la signature base64 affichee dans latest.json
 
-# 5. Mettre à jour latest.json
-#    - "version" → nouvelle version
-#    - "signature" → contenu du fichier .minisig généré à l'étape 4
-#    - "url" → URL du MSI dans la GitHub Release
+# 5. Mettre a jour latest.json (version, signature base64, url)
 
 # 6. Commit + push
-git add -A
-git commit -m "release: vX.Y.Z"
-git tag -a vX.Y.Z -m "OmniBank vX.Y.Z"
-git push origin main --tags
+git add -A && git commit -m "release: vX.Y.Z"
+git tag -a vX.Y.Z -m "OmniBank vX.Y.Z" && git push origin main --tags
 
-# 7. Créer la GitHub Release avec le MSI
-gh release create vX.Y.Z `
-    "src-tauri/target/release/bundle/msi/OmniBank_X.Y.Z_x64_fr-FR.msi" `
-    --title "OmniBank vX.Y.Z" `
-    --notes "Description des changements"
+# 7. Creer la GitHub Release avec le MSI
+gh release create vX.Y.Z <msi_path> --title "OmniBank vX.Y.Z" --notes "Changelog"
 ```
 
-> ⚠️ **L'ordre est important** : Le `latest.json` doit être pushé sur `main`
-> **après** que le MSI soit uploadé dans la GitHub Release. Sinon l'updater
-> pointera vers un fichier qui n'existe pas encore.
+> **L'ordre est important** : Le `latest.json` doit etre pushe sur `main`
+> **apres** que le MSI soit uploade dans la GitHub Release.
 
 ---
 
@@ -326,10 +347,10 @@ gh release create vX.Y.Z `
 3. main.rs → boucle health check sur http://127.0.0.1:8434/api/health
    └── 30 tentatives × 500ms = 15s max
 4. Dès que le sidecar répond → window.show()
-5. 3 secondes après → check_for_updates()
-   └── Vérifie latest.json sur GitHub
-   └── Si mise à jour disponible → confirm() JS → download + install + restart
-   └── Les erreurs sont affichées via alert() JS (pas eprintln, invisible en GUI)
+5. 3 secondes apres -> check_for_updates()
+   +-- Verifie latest.json sur GitHub
+   +-- Si mise a jour disponible -> dialogue natif Windows (OK/Annuler)
+   +-- Les erreurs sont affichees via dialogue natif (tauri-plugin-dialog)
 6. L'utilisateur interagit avec l'app via la WebView
 7. Fermeture → RunEvent::Exit → kill_sidecar()
    ├── child.kill() (API Tauri)
@@ -359,15 +380,38 @@ else:
 
 | Paramètre | Valeur | Rôle |
 |-----------|--------|------|
-| `app.windows[0].visible` | `false` | Fenêtre cachée au démarrage (affichée après health check) |
+| `app.withGlobalTauri` | `true` | Expose `window.__TAURI__` dans le webview |
+| `app.windows[0].visible` | `false` | Fenetre cachee au demarrage (affichee apres health check) |
 | `app.windows[0].url` | `http://127.0.0.1:8434` | Pointe vers le sidecar FastAPI |
-| `app.windows[0].width` | `1600` | Largeur par défaut (augmentée pour éviter le retour à la ligne des noms de pages) |
-| `app.windows[0].height` | `900` | Hauteur par défaut |
-| `bundle.externalBin` | `["bin/omnibank-api"]` | Déclare le sidecar à inclure |
+| `app.windows[0].width` | `1600` | Largeur par defaut |
+| `app.windows[0].height` | `900` | Hauteur par defaut |
+| `bundle.externalBin` | `["bin/omnibank-api"]` | Declare le sidecar a inclure |
 | `bundle.targets` | `["msi"]` | Format d'installateur Windows |
-| `bundle.windows.wix.language` | `"fr-FR"` | Installateur en français |
-| `plugins.updater.endpoints` | `[...latest.json]` | URL du manifeste de mise à jour |
-| `plugins.updater.pubkey` | `RWS...` | Clé publique pour vérifier les signatures |
+| `bundle.windows.wix.language` | `"fr-FR"` | Installateur en francais |
+| `plugins.updater.endpoints` | `[...latest.json]` | URL du manifeste de mise a jour |
+| `plugins.updater.pubkey` | `dW50cnVzd...` | Cle publique pour verifier les signatures |
+
+### Dependances Rust (`Cargo.toml`)
+
+| Crate | Usage |
+|-------|-------|
+| `tauri` | Framework desktop |
+| `tauri-plugin-shell` | Spawn/kill du sidecar |
+| `tauri-plugin-updater` | Auto-update |
+| `tauri-plugin-dialog` | Dialogues natifs Windows (confirmation update) |
+| `reqwest` | HTTP blocking (health check) |
+
+> **Note** : La version dans `Cargo.toml` est fixe a `1.0.0`. La version reelle
+> est dans `tauri.conf.json` et lue via `app.config().version` au runtime.
+
+### Permissions (`capabilities/default.json`)
+
+| Permission | Usage |
+|------------|-------|
+| `core:default` | Permissions de base Tauri |
+| `shell:allow-execute/spawn/kill` | Gestion du sidecar |
+| `updater:default` | Auto-update |
+| `core:app:default` | Lecture version app depuis JS |
 
 ---
 
@@ -425,7 +469,7 @@ Get-Process | Where-Object { $_.ProcessName -like "*omnibank*" } | Stop-Process 
 **Cause** : La commande utilise `rpassword` qui lit depuis la console Windows
 (pas stdin). Il est impossible de pipper ou scripter la réponse.
 
-**Solution** : Utiliser `rsign2` à la place (voir section [Signature et Clés](#signature-et-clés-updater)).
+**Solution** : Utiliser `scripts/gen-keys` a la place (voir section [Signature et Cles](#signature-et-cles-updater)).
 
 ### 6. "failed to decode base64 secret key" lors de la signature
 
@@ -440,8 +484,8 @@ de la clé diffère du format attendu par rsign2/Tauri.
 **Cause** : `TAURI_SIGNING_PRIVATE_KEY` n'est pas propagé correctement par
 `npx`. Le bundler WiX ne voit pas la variable d'environnement.
 
-**Solution** : Signer manuellement avec `rsign sign` après le build
-(voir section [Signature et Clés](#signature-et-clés-updater)).
+**Solution** : Signer manuellement avec `scripts/gen-keys` apres le build
+(voir section [Signature et Cles](#signature-et-cles-updater)).
 
 ### 8. Modification des fichiers i18n (fr.json)
 
@@ -495,7 +539,8 @@ et `tokio::time::Duration` ne sont pas disponibles.
 
 **Solution** : Utiliser `std::thread::sleep(Duration::from_secs(N))` à la place.
 Dans le contexte de l'updater (spawned async task), bloquer le thread est acceptable
-car c'est une tâche en arrière-plan.
+car c'est une tache en arriere-plan. Pour les dialogues (`tauri-plugin-dialog`),
+utiliser `std::thread::spawn` pour eviter de deadlock le runtime async (voir #18).
 
 ### 13. L'installeur MSI stalle à "Collecte des informations nécessaires"
 
@@ -560,6 +605,8 @@ npx tauri dev
 # === NETTOYAGE ===
 Get-Process | Where-Object { $_.ProcessName -like "*omnibank*" } | Stop-Process -Force
 ```
+
+---
 
 ### 16. Permission `app:default` not found (Tauri v2)
 
