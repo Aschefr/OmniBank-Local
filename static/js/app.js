@@ -21,16 +21,24 @@ class App {
         // Display app version in header (via Tauri IPC command)
         try {
             let version = null;
-            if (window.__TAURI_INTERNALS__) {
-                version = await window.__TAURI_INTERNALS__.invoke('get_app_version');
-            } else {
-                // Fallback for dev mode without Tauri
+            try {
+                if (window.__TAURI_INTERNALS__) {
+                    version = await window.__TAURI_INTERNALS__.invoke('get_app_version');
+                } else if (window.__TAURI__ && window.__TAURI__.core) {
+                    version = await window.__TAURI__.core.invoke('get_app_version');
+                }
+            } catch (err) {
+                console.warn('[version] Tauri IPC failed, trying backend fallback', err);
+            }
+            
+            if (!version) {
+                // Fallback for dev mode without Tauri or if IPC fails
                 const vData = await API.get('/api/version');
                 version = vData.version;
             }
             const badge = document.getElementById('appVersionBadge');
             if (badge && version) badge.textContent = `v${version}`;
-        } catch (e) { console.warn('[version]', e); }
+        } catch (e) { console.warn('[version] All version checks failed', e); }
         
         // Theme toggle
         const savedTheme = localStorage.getItem('omni_theme');

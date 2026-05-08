@@ -9,5 +9,11 @@
     "shell:allow-kill",
     "updater:default",
     "core:app:default"
-  ]
+  ],
+  "remote": {
+    "urls": [
+      "http://127.0.0.1:8434",
+      "http://127.0.0.1:8434/**"
+    ]
+  }
 }
