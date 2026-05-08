@@ -43,6 +43,13 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            // Kill any orphan omnibank-api.exe from previous session/update
+            let _ = std::process::Command::new("taskkill")
+                .args(["/F", "/IM", "omnibank-api.exe"])
+                .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                .output();
+            std::thread::sleep(Duration::from_millis(300));
+
             // Spawn the FastAPI sidecar
             let sidecar_command = app.shell().sidecar("omnibank-api")
                 .expect("Failed to create sidecar command");

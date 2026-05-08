@@ -1,11 +1,11 @@
 {
-  "version": "1.0.5",
-  "notes": "v1.0.5 — Kill sidecar avant install pour éviter le stall MSI.",
-  "pub_date": "2026-05-08T09:51:00Z",
+  "version": "1.0.6",
+  "notes": "v1.0.6 — Nettoyage sidecar orphelin au démarrage.",
+  "pub_date": "2026-05-08T09:56:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC9ITWdFeTV4MGVJdEtnUEoxTGxWZWFkUHF5VEVQSFgwakNaM21zdnpRaU04WmZNYStpTnQrZnlPSHJVZlcycG9teEZ6ZHNiOXprU3dUeXM5V05CdndZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjMzODc1CWZpbGU6T21uaUJhbmtfMS4wLjVfeDY0X2ZyLUZSLm1zaQp1MmhSM2taTEh2UXJTZkpTc1dnQkZqdFRTYURMcExIcVRVVURKMUlLUEswU2w1MnJuNzhZU3ppM1dxUys1MzdvTDVKVjlXckZ2Y2NQZ1YvQzh1dzZCZz09Cg==",
-      "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.5/OmniBank_1.0.5_x64_fr-FR.msi"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSCs1MG9YRGJnN1FJa3FVREFTTEFWSHpyVDE4QVkyMGpiRGdkVjEydXdRTThaK2lTRkxhU2tIWkNIaThCaDhQeGFPVXdIRkRKdlBRV0d3VEZXcVlDbmcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MjM0NzAyCWZpbGU6T21uaUJhbmtfMS4wLjZfeDY0X2ZyLUZSLm1zaQpuK01Vd3BEN3VHZ2hsYmw3S1R6cGVSR044aEJyLytYZGl5a1MrbnovR2k3bWgzRTRpUGZEU3VFcXNQdWExQ0NEdUpLSDBYUm14ZS9OU2tTc05tTG9Cdz09Cg==",
+      "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.6/OmniBank_1.0.6_x64_fr-FR.msi"
     }
   }
 }
