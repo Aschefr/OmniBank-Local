@@ -497,6 +497,30 @@ et `tokio::time::Duration` ne sont pas disponibles.
 Dans le contexte de l'updater (spawned async task), bloquer le thread est acceptable
 car c'est une tâche en arrière-plan.
 
+### 13. L'installeur MSI stalle à "Collecte des informations nécessaires"
+
+**Cause** : `omnibank-api.exe` (sidecar) tourne encore quand le MSI essaie de
+remplacer les fichiers. Le MSI attend que le fichier soit libéré → stall.
+
+**Solution** : Le callback `on_before_install` de `download_and_install()` doit
+appeler `kill_sidecar()` + `taskkill /F /IM omnibank-api.exe` avant l'install :
+```rust
+move || {
+    kill_sidecar(&state);
+    let _ = Command::new("taskkill").args(["/F", "/IM", "omnibank-api.exe"]).output();
+    std::thread::sleep(Duration::from_millis(500));
+}
+```
+
+### 14. Format de signature Tauri = base64(minisign), pas minisign brut
+
+**Cause** : `tauri-plugin-updater` appelle `base64_to_string()` sur **pubkey** ET
+**signature** avant de les passer à `minisign-verify`. rsign2 produit du minisign
+brut → le décodage base64 échoue ou produit des données corrompues.
+
+**Solution** : Utiliser `scripts/gen-keys` qui produit les clés au format natif
+minisign, puis base64-encoder le résultat pour `tauri.conf.json` et `latest.json`.
+
 ---
 
 ## Commandes rapides
