@@ -202,10 +202,9 @@ window.ConfigView = {
         }
         
         // Toggle Chat Nav Button instantly
-        const chatBtn = document.querySelector('.nav-btn[data-view="chat"]');
-        if (chatBtn) {
-            chatBtn.style.display = enabled ? 'inline-block' : 'none';
-        }
+        document.querySelectorAll('.nav-btn[data-view="chat"]').forEach(btn => {
+            btn.style.display = enabled ? '' : 'none';
+        });
         
         // Ensure app.config is synced so other views know
         if (window.app && window.app.config) {

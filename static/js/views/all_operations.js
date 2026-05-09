@@ -2,6 +2,7 @@ window.AllOperationsView = {
     transactions: [],
     accounts: {},
     pendingFilter: null,  // {category, monthKey} set by AnalyticsView before navigation
+    _vt: null,
 
     budgetsMap: {}, // added for column matching
 
@@ -35,9 +36,10 @@ window.AllOperationsView = {
                     </div>
                 </div>
             </div>
-            <div id="historyHeader" class="view-header" style="position: sticky; top: -32px; z-index: 10; background-color: var(--bg-base); padding: 32px 0 15px 0; margin-top: -32px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div id="historyHeader" class="view-header responsive-header" style="position: sticky; top: -32px; z-index: 10; background-color: var(--bg-base); padding: 32px 0 15px 0; margin-top: -32px;">
                 <h2 style="margin:0;">📋 <span data-i18n="nav_history">Historique</span></h2>
-                <div class="history-filters" style="display:flex; gap:8px; flex:1; max-width:900px; justify-content:flex-end; flex-wrap:wrap;">
+                <div class="responsive-header-controls">
+                    <div class="history-filters" style="display:flex; gap:8px; width:100%; max-width:900px; justify-content:flex-end; flex-wrap:wrap; align-items: center;">
                     <input type="text" id="historySearch" class="inline-input" data-i18n-placeholder="ph_search" placeholder="Rechercher..." style="min-width:0; flex:1; max-width: 180px;" oninput="window.AllOperationsView.applyFilters()">
                     <input type="month" id="historyMonthFilter" class="inline-input" style="min-width:0; flex:1;" onchange="window.AllOperationsView.applyFilters()" title="Filtrer par mois">
                     <select id="historyTypeFilter" class="inline-input" style="min-width:130px; flex:1;" onchange="window.AllOperationsView.applyFilters()">
@@ -64,11 +66,12 @@ window.AllOperationsView = {
                             <span class="slider"></span>
                         </label>
                     </div>
-                </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    </div>
+                <div class="header-buttons" style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
                     <button class="btn btn-secondary" onclick="document.getElementById('historyColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
                     <button class="btn btn-secondary" onclick="window.ImportWizard.open()" data-i18n="btn_import_statement">📥 Importer un relevé</button>
                     <button class="btn btn-primary" onclick="window.TimelineView.showAddRow()">${window.i18n.t('btn_add_operation')}</button>
+                </div>
                 </div>
             </div>
             <div style="padding-bottom: 20px; overflow: clip;">
@@ -102,6 +105,16 @@ window.AllOperationsView = {
 
     async init() {
         this.applyColSettings();
+        // Lazily create VirtualTable
+        if (!this._vt) {
+            this._vt = new VirtualTable({
+                tbodyId: 'allOperationsBody',
+                scrollContainerSelector: '.app-main',
+                rowHeight: 38,
+                bufferRows: 20,
+                emptyHTML: `<tr><td></td><td colspan="13" style="text-align:center; padding: 20px; color: var(--text-muted)">${window.i18n.t('msg_no_operations_period')}</td></tr>`
+            });
+        }
         await this.loadData();
     },
 
@@ -272,7 +285,7 @@ window.AllOperationsView = {
         today.setHours(0,0,0,0);
         let foundCurrent = false;
 
-        const html = filtered.map(tx => {
+        const rowStrings = filtered.map(tx => {
             let idAttr = '';
             if (!foundCurrent) {
                 const txDate = new Date(tx.date_operation);
@@ -326,27 +339,17 @@ window.AllOperationsView = {
                 </td>
             </tr>
             `;
-        }).join('');
+        });
 
-        tbody.innerHTML = html || `<tr><td></td><td colspan="13" style="text-align:center; padding: 20px; color: var(--text-muted)">${window.i18n.t('msg_no_operations_period')}</td></tr>`;
-        
+        // Use virtual table for rendering
+        const scrollOpts = {};
+        if (autoScroll && foundCurrent) {
+            scrollOpts.scrollToId = 'current-date-row';
+        }
+        this._vt.setData(rowStrings, scrollOpts);
+
         // Fix sticky table headers position
         this._initStickyObserver();
-        
-        if (autoScroll) {
-            setTimeout(() => {
-                const currentPoint = document.getElementById('current-date-row');
-                if (currentPoint) {
-                    const main = document.querySelector('.app-main');
-                    if (main) {
-                        main.scrollTo({
-                            top: currentPoint.offsetTop - (main.clientHeight / 2) + (currentPoint.offsetHeight / 2),
-                            behavior: 'smooth'
-                        });
-                    }
-                }
-            }, 50);
-        }
     },
 
     _stickyObserver: null,

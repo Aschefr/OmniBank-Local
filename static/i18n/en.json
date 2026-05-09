@@ -502,5 +502,10 @@
   "acc_edit_error": "Error during modification",
   "btn_today": "Today",
   "tooltip_compact_mode": "Compact view",
-  "msg_backup_browser": "Download opening in your browser..."
+  "msg_backup_browser": "Download opening in your browser...",
+  "filter_period_current": "Current period",
+  "filter_period_plus_5": "+ 5 previous days",
+  "filter_period_plus_15": "+ 15 previous days",
+  "filter_period_plus_30": "+ 30 previous days",
+  "filter_period_all": "Show all"
 }

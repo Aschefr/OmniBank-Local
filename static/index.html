@@ -27,7 +27,7 @@
     <div class="app-container" style="opacity: 0; transition: opacity 0.3s ease;">
         <header class="app-header">
             <div style="display:flex; align-items:center; gap: 10px;">
-                <button id="mobileMenuBtn" class="mobile-only-btn" style="display:none; font-size: 20px; background: none; border: none; color: white; cursor: pointer;">☰</button>
+                <button id="mobileMenuBtn" class="mobile-only-btn" style="display:none; font-size: 20px; background: none; border: none; color: var(--text-main); cursor: pointer;">☰</button>
                 <div class="logo">🏦 <span data-i18n="app_title">OmniBank</span> <span id="appVersionBadge" style="font-size: 10px; background: var(--bg-base); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 600; color: var(--text-muted); vertical-align: middle; letter-spacing: 0.3px;">v…</span></div>
             </div>
             <nav class="main-nav">
@@ -521,6 +521,7 @@
     </div>
 
     <script src="/static/js/i18n.js"></script>
+    <script src="/static/js/virtual_table.js"></script>
     <script src="/static/js/common.js"></script>
     <script src="/static/js/views/timeline.js"></script>
     <script src="/static/js/views/all_operations.js"></script>

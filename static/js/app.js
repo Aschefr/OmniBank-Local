@@ -94,6 +94,13 @@ class App {
                 const isCompact = document.body.classList.contains('compact-mode');
                 compactToggle.textContent = isCompact ? '☷' : '☰';
                 localStorage.setItem('omni_compact', isCompact);
+                // Re-measure row height and refresh active VirtualTable
+                [window.TimelineView, window.AllOperationsView].forEach(v => {
+                    if (v && v._vt) {
+                        v._vt._measured = false;
+                        v._vt.refresh();
+                    }
+                });
             });
         }
         
@@ -148,10 +155,9 @@ class App {
         }
         
         // AI Features Visibility
-        const chatBtn = document.querySelector('.nav-btn[data-view="chat"]');
-        if (chatBtn) {
-            chatBtn.style.display = this.config.enable_ai === 'true' ? 'inline-block' : 'none';
-        }
+        document.querySelectorAll('.nav-btn[data-view="chat"]').forEach(btn => {
+            btn.style.display = this.config.enable_ai === 'true' ? '' : 'none';
+        });
 
         // Navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -439,6 +445,16 @@ class App {
         });
 
         const main = document.getElementById('mainContent');
+
+        // Destroy any active VirtualTable instances before swapping DOM
+        if (window.TimelineView && window.TimelineView._vt) {
+            window.TimelineView._vt.destroy();
+            window.TimelineView._vt = null;
+        }
+        if (window.AllOperationsView && window.AllOperationsView._vt) {
+            window.AllOperationsView._vt.destroy();
+            window.AllOperationsView._vt = null;
+        }
         
         if (viewName === 'dashboard' && window.TimelineView) {
             main.innerHTML = window.TimelineView.render();

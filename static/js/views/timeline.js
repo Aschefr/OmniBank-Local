@@ -1,5 +1,6 @@
 window.TimelineView = {
     transactions: [],
+    _vt: null,
     
     render() {
         const cfg = window.app && window.app.config ? window.app.config : {};
@@ -33,10 +34,18 @@ window.TimelineView = {
                     </div>
                 </div>
             </div>
-            <div id="timelineHeader" class="view-header" style="position: sticky; top: -32px; z-index: 10; background-color: var(--bg-base); padding: 32px 0 15px 0; margin-top: -32px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div id="timelineHeader" class="view-header responsive-header" style="position: sticky; top: -32px; z-index: 10; background-color: var(--bg-base); padding: 32px 0 15px 0; margin-top: -32px;">
                 <h2 style="margin:0;">🏠 <span data-i18n="nav_timeline">Dashboard</span></h2>
-                <div class="history-filters" style="display:flex; gap:8px; flex:1; max-width:950px; justify-content:flex-start; flex-wrap:wrap; align-items: center;">
-                    <div style="display:flex; align-items:center; gap: 6px; flex:1; min-width: 260px; max-width: 320px;">
+                <div class="responsive-header-controls">
+                    <div class="history-filters" style="display:flex; gap:8px; width:100%; max-width:950px; justify-content:flex-end; flex-wrap:wrap; align-items: center;">
+                    <select id="timelineReconciledPeriod" class="inline-input" style="min-width:160px; flex:1; max-width: 220px;" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()">
+                        <option value="current" data-i18n="filter_period_current">${window.i18n.t('filter_period_current')}</option>
+                        <option value="plus_5" data-i18n="filter_period_plus_5">${window.i18n.t('filter_period_plus_5')}</option>
+                        <option value="plus_15" data-i18n="filter_period_plus_15">${window.i18n.t('filter_period_plus_15')}</option>
+                        <option value="plus_30" data-i18n="filter_period_plus_30">${window.i18n.t('filter_period_plus_30')}</option>
+                        <option value="all" data-i18n="filter_period_all">${window.i18n.t('filter_period_all')}</option>
+                    </select>
+                    <div id="timelineDateRange" style="display:none; align-items:center; gap: 6px; flex:1; min-width: 260px; max-width: 320px;">
                         <input type="date" id="timelineStartDate" class="inline-input" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()" style="flex:1; min-width: 110px;">
                         <span style="color:var(--text-muted); font-size:12px; font-weight: 500;">${window.i18n.t('filter_range_to')}</span>
                         <input type="date" id="timelineEndDate" class="inline-input" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()" style="flex:1; min-width: 110px;">
@@ -66,11 +75,12 @@ window.TimelineView = {
                             <span class="slider"></span>
                         </label>
                     </div>
-                </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    </div>
+                <div class="header-buttons" style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
                     <button class="btn btn-secondary" onclick="document.getElementById('timelineColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
                     <button class="btn btn-secondary" onclick="window.ImportWizard.open()" data-i18n="btn_import_statement">📥 Importer un relevé</button>
                     <button class="btn btn-primary" onclick="window.TimelineView.showAddRow()">${window.i18n.t('btn_add_operation')}</button>
+                </div>
                 </div>
             </div>
             <div style="padding-bottom: 20px; overflow: clip;">
@@ -105,36 +115,70 @@ window.TimelineView = {
     transactions: [],
     budgetsMap: {}, // id -> name, for budget column display
 
+    _ensureVT() {
+        if (!this._vt) {
+            this._vt = new VirtualTable({
+                tbodyId: 'timelineBody',
+                scrollContainerSelector: '.app-main',
+                rowHeight: 38,
+                bufferRows: 20,
+                emptyHTML: `<tr><td></td><td colspan="13" style="text-align:center; padding: 20px; color: var(--text-muted)">${window.i18n.t('msg_no_operations_month')}</td></tr>`
+            });
+        }
+        return this._vt;
+    },
+
     async init() {
         this.applyColSettings();
         
-        // Restore date filters or set defaults to current month
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
         
-        // Function to format date to YYYY-MM-DD
-        const fmtDate = (d) => {
+        const periodSelect = document.getElementById('timelineReconciledPeriod');
+        const dateRange = document.getElementById('timelineDateRange');
+        
+        if (isOrgMode) {
+            if (periodSelect) periodSelect.style.display = 'none';
+            if (dateRange) dateRange.style.display = 'flex';
+            
+            const savedStart = localStorage.getItem('timeline_start_date');
+            const savedEnd = localStorage.getItem('timeline_end_date');
+            const startInput = document.getElementById('timelineStartDate');
+            const endInput = document.getElementById('timelineEndDate');
+            
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
             const pad = (n) => n < 10 ? '0'+n : n;
-            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-        };
-
-        const savedStart = localStorage.getItem('timeline_start_date');
-        const savedEnd = localStorage.getItem('timeline_end_date');
-        
-        const startInput = document.getElementById('timelineStartDate');
-        const endInput = document.getElementById('timelineEndDate');
-        
-        if (startInput) startInput.value = savedStart || fmtDate(startOfMonth);
-        if (endInput) endInput.value = savedEnd || ''; // empty end date means up to future
+            const fmtStart = `${startOfMonth.getFullYear()}-${pad(startOfMonth.getMonth()+1)}-${pad(startOfMonth.getDate())}`;
+            
+            if (startInput) startInput.value = savedStart || fmtStart;
+            if (endInput) endInput.value = savedEnd || '';
+        } else {
+            if (periodSelect) periodSelect.style.display = '';
+            if (dateRange) dateRange.style.display = 'none';
+            
+            const savedPeriod = localStorage.getItem('timeline_period_filter');
+            if (periodSelect) {
+                periodSelect.value = savedPeriod || 'current';
+            }
+        }
 
         await this.loadData();
     },
 
     savePeriod() {
-        const startInput = document.getElementById('timelineStartDate');
-        const endInput = document.getElementById('timelineEndDate');
-        if (startInput) localStorage.setItem('timeline_start_date', startInput.value);
-        if (endInput) localStorage.setItem('timeline_end_date', endInput.value);
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
+        
+        if (isOrgMode) {
+            const startInput = document.getElementById('timelineStartDate');
+            const endInput = document.getElementById('timelineEndDate');
+            if (startInput) localStorage.setItem('timeline_start_date', startInput.value);
+            if (endInput) localStorage.setItem('timeline_end_date', endInput.value);
+        } else {
+            const select = document.getElementById('timelineReconciledPeriod');
+            if (select) localStorage.setItem('timeline_period_filter', select.value);
+        }
     },
 
     getColSettings() {
@@ -263,12 +307,47 @@ window.TimelineView = {
         const unrecFilter = document.getElementById('timelineUnreconciledFilter');
         const unrecChecked = unrecFilter ? unrecFilter.checked : false;
         
-        const startInput = document.getElementById('timelineStartDate');
-        const endInput = document.getElementById('timelineEndDate');
-        const startDateStr = startInput ? startInput.value : '';
-        const endDateStr = endInput ? endInput.value : '';
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
+        
+        let startDateStr = '';
+        let endDateStr = '';
 
-        if (unrecChecked && window.app.nextPayDate) {
+        if (isOrgMode) {
+            const startInput = document.getElementById('timelineStartDate');
+            const endInput = document.getElementById('timelineEndDate');
+            startDateStr = startInput ? startInput.value : '';
+            endDateStr = endInput ? endInput.value : '';
+        } else {
+            const periodFilter = document.getElementById('timelineReconciledPeriod');
+            const periodValue = periodFilter ? periodFilter.value : 'current';
+            
+            let baseStartDateStr = '';
+            if (window.app.payHistory && window.app.payHistory.length > 0) {
+                const sortedHistory = [...window.app.payHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
+                baseStartDateStr = sortedHistory[0].date.substring(0, 10);
+            } else {
+                const now = new Date();
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const pad = (n) => n < 10 ? '0'+n : n;
+                baseStartDateStr = `${startOfMonth.getFullYear()}-${pad(startOfMonth.getMonth()+1)}-${pad(startOfMonth.getDate())}`;
+            }
+            
+            if (periodValue !== 'all') {
+                const baseDateObj = new Date(baseStartDateStr);
+                if (periodValue === 'plus_5') {
+                    baseDateObj.setDate(baseDateObj.getDate() - 5);
+                } else if (periodValue === 'plus_15') {
+                    baseDateObj.setDate(baseDateObj.getDate() - 15);
+                } else if (periodValue === 'plus_30') {
+                    baseDateObj.setDate(baseDateObj.getDate() - 30);
+                }
+                const pad = (n) => n < 10 ? '0'+n : n;
+                startDateStr = `${baseDateObj.getFullYear()}-${pad(baseDateObj.getMonth()+1)}-${pad(baseDateObj.getDate())}`;
+            }
+        }
+
+        if (unrecChecked && !isOrgMode && window.app.nextPayDate) {
             const nextPayDate = new Date(window.app.nextPayDate);
             filtered = filtered.filter(tx => {
                 if (tx.reconciliation_date) return false;
@@ -284,8 +363,8 @@ window.TimelineView = {
         let reconciled = filtered.filter(tx => tx.reconciliation_date);
         
         // Hide unreconciled transactions strictly AFTER next pay date
-        const nextPayDate = window.app.nextPayDate ? new Date(window.app.nextPayDate) : null;
-        if (nextPayDate) {
+        if (!isOrgMode && window.app.nextPayDate) {
+            const nextPayDate = new Date(window.app.nextPayDate);
             unreconciled = unreconciled.filter(tx => {
                 const txDate = new Date(tx.date_operation);
                 return txDate <= nextPayDate;
@@ -379,33 +458,24 @@ window.TimelineView = {
             `;
         };
 
-        const html = [
+        // Mark first reconciled for scroll targeting
+        if (reconciled.length > 0) reconciled[0]._isFirstReconciled = true;
+
+        const allRows = [
             ...unreconciled.map(renderRow),
-            ...reconciled.map((tx, idx) => {
-                if (idx === 0) tx._isFirstReconciled = true;
-                return renderRow(tx);
-            })
-        ].join('');
+            ...reconciled.map(renderRow)
+        ];
 
-        tbody.innerHTML = html || `<tr><td></td><td colspan="13" style="text-align:center; padding: 20px; color: var(--text-muted)">${window.i18n.t('msg_no_operations_month')}</td></tr>`;
-        
-        // Auto-scroll to junction and fix sticky headers
-        this._initStickyObserver();
-
-        if (autoScroll) {
-            setTimeout(() => {
-                const firstReconciled = document.getElementById('first-reconciled');
-                if (firstReconciled) {
-                    const main = document.querySelector('.app-main');
-                    if (main) {
-                        main.scrollTo({
-                            top: firstReconciled.offsetTop - (main.clientHeight / 2) + (firstReconciled.offsetHeight / 2),
-                            behavior: 'smooth'
-                        });
-                    }
-                }
-            }, 50);
+        // Use virtual table for rendering
+        const vt = this._ensureVT();
+        const scrollOpts = {};
+        if (autoScroll && reconciled.length > 0) {
+            scrollOpts.scrollToId = 'first-reconciled';
         }
+        vt.setData(allRows, scrollOpts);
+
+        // Fix sticky headers
+        this._initStickyObserver();
     },
 
     _stickyObserver: null,

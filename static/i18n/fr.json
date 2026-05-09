@@ -519,5 +519,10 @@
   "acc_edit_error": "Erreur lors de la modification",
   "btn_today": "Aujourd'hui",
   "tooltip_compact_mode": "Affichage compact",
-  "msg_backup_browser": "Le téléchargement s'ouvre dans votre navigateur..."
+  "msg_backup_browser": "Le téléchargement s'ouvre dans votre navigateur...",
+  "filter_period_current": "Période en cours",
+  "filter_period_plus_5": "+ 5 jours précédents",
+  "filter_period_plus_15": "+ 15 jours précédents",
+  "filter_period_plus_30": "+ 30 jours précédents",
+  "filter_period_all": "Tout afficher"
 }

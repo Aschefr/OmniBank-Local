@@ -22,6 +22,9 @@
 
     --shadow-sm: 0 1px 2px 0 rgba(145, 158, 171, 0.16);
     --shadow-md: 0 4px 8px 0 rgba(145, 158, 171, 0.16);
+
+    --bg-reconciled: #f1f3f5;
+    --text-reconciled: #9aa3af;
 }
 
 .theme-dark {
@@ -48,6 +51,9 @@
 
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.24);
     --shadow-md: 0 8px 16px 0 rgba(0, 0, 0, 0.24);
+
+    --bg-reconciled: #181f2a;
+    --text-reconciled: #6b7685;
 }
 
 * {
@@ -145,6 +151,16 @@ body {
     transition: all 0.2s ease;
 }
 
+.main-nav .nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-align: center;
+    line-height: 1.2;
+}
+
 .nav-btn.active,
 .nav-btn:hover {
     color: var(--accent);
@@ -155,6 +171,39 @@ body {
     display: flex;
     flex: 1;
     overflow: hidden;
+}
+
+.responsive-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.responsive-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 1280px) {
+    .responsive-header {
+        flex-direction: column;
+        justify-content: center;
+    }
+    .responsive-header-controls {
+        flex-direction: column;
+        width: 100%;
+        justify-content: center;
+    }
+    .responsive-header-controls .history-filters,
+    .responsive-header-controls .header-buttons {
+        justify-content: center !important;
+    }
 }
 
 .app-sidebar {
@@ -294,17 +343,31 @@ h3 {
     background-color: rgba(145, 158, 171, 0.04);
 }
 
-/* Reconciled Row Style — explicitly dark background, no opacity trick */
+/* Virtual scroll spacer rows — invisible, height-only */
+.data-table tr.vt-spacer {
+    background: transparent !important;
+    pointer-events: none;
+}
+
+.data-table tr.vt-spacer:hover {
+    background: transparent !important;
+}
+
+.data-table tr.vt-spacer td {
+    border: none !important;
+}
+
+/* Reconciled Row Style — explicitly dimmed background, no opacity trick */
 .reconciled-row {
-    background-color: #181f2a !important;
+    background-color: var(--bg-reconciled) !important;
 }
 
 .reconciled-row td {
-    color: #6b7685 !important;
+    color: var(--text-reconciled) !important;
 }
 
 .reconciled-row input {
-    color: #6b7685 !important;
+    color: var(--text-reconciled) !important;
 }
 
 /* Non-recurrent highlight — variable expenses stand out */
@@ -612,6 +675,22 @@ body.privacy-mode #valNextPayAmount:hover {
         display: inline-block !important;
     }
 
+    .responsive-header {
+        flex-direction: column !important;
+        justify-content: center !important;
+    }
+
+    .responsive-header-controls {
+        flex-direction: column !important;
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    .responsive-header-controls .history-filters,
+    .responsive-header-controls .header-buttons {
+        justify-content: center !important;
+    }
+
     .app-container {
         flex-direction: column;
     }
@@ -740,15 +819,38 @@ body.privacy-mode #valNextPayAmount:hover {
     }
 
     /* History filters wrap on mobile */
+    .view-header {
+        padding: 15px 0 !important;
+        margin-top: -15px !important;
+        gap: 12px !important;
+    }
+
     .history-filters {
         flex-wrap: wrap;
         max-width: 100% !important;
+        gap: 6px !important;
     }
 
     .history-filters input,
     .history-filters select {
         flex: 1 1 140px;
         min-width: 0;
+        max-width: none !important; /* Allow filling the grid */
+        height: 32px !important;
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+    }
+
+    .view-header .btn {
+        height: 32px !important;
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .view-header .btn-primary {
+        font-size: 13px !important;
     }
 
     .modal {
