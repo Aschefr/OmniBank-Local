@@ -287,7 +287,7 @@ Le script `scripts/release.ps1` automatise les 8 etapes du process :
 # Release complete (sidecar + MSI + signature + push + GitHub release)
 .\scripts\release.ps1 -Version "X.Y.Z" -Notes "Description des changements"
 
-# Release sans rebuild sidecar (si seul le frontend/Rust change)
+# Release sans rebuild sidecar (UNIQUEMENT si seul le code Rust change. Si le frontend JS/CSS change, NE PAS utiliser cette option car PyInstaller embarque le dossier static/)
 .\scripts\release.ps1 -Version "X.Y.Z" -Notes "Description" -SkipSidecar
 
 # Dry run (build + signer sans pousser)
@@ -590,7 +590,7 @@ std::thread::sleep(Duration::from_millis(300));
 ```powershell
 # === RELEASE AUTOMATISE (RECOMMANDE) ===
 .\scripts\release.ps1 -Version "X.Y.Z" -Notes "Description"
-# Ajouter -SkipSidecar si seul le frontend/Rust change
+# Ajouter -SkipSidecar UNIQUEMENT si seul le code Rust change (Pas le frontend, car il est dans le sidecar)
 # Ajouter -DryRun pour tester sans git push
 
 # === BUILD COMPLET MANUEL ===

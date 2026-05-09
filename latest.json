@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBjMnJ2dVJOKzZtOE9JYVlZRC84OGFKSGhUTEVuSmsvQ1VSQXBUVEtTOXYvU0E4MjZiYlVSaTBVL2ZjZEZlQnByNUFDMlAwc3ZYbXNVWlFTN002M1FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MzU5ODUzCWZpbGU6T21uaUJhbmtfMS4wLjE2X3g2NF9mci1GUi5tc2kKOVdPNXNrNWRxcFBmNEtsTkcyQWhkNFNiM051YzlDZTNuN3ZiYktQSFoxM2lkSDhOTlZvTTc1cEpQWWNBaHdjeXpvcm9BcHRYT3FSN2R2TmhGZXZzRGc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.16/OmniBank_1.0.16_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBZeFpkcWdEWFMwWWNZT1NSNllCMzRGNDIwcEZTYkYrQitkVUhSaHkzVjJocnkzR3QyZW4yNm9QdlNlVVJnM1RxUnpReW82ODlXWllnSVVTNUJaaHdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MzYwNjQ4CWZpbGU6T21uaUJhbmtfMS4wLjE3X3g2NF9mci1GUi5tc2kKZFl4d3grUnlKNkRaRGNBZVdrNnU5YWNCVkdDQjNXQi91SDJyWmR2Q2tkenA0Z29aemdqblgzdFNiVHJzRUVzYTBIYlBDTVN3RzFSYWNkOU5YaXluQmc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.17/OmniBank_1.0.17_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-09T20:50:53Z",
-    "version":  "1.0.16",
-    "notes":  "UI fixes: Burger button visibility in light theme and responsive Dashboard/Historique headers."
+    "pub_date":  "2026-05-09T21:04:09Z",
+    "version":  "1.0.17",
+    "notes":  "Fix: Re-packaged UI changes missing from 1.0.16 build"
 }
