@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHdBOUpSY0FlS0FsRFJWTlo3UERLcTRUeU1rd2NTTUxNYmw3eFNKeS9qeXIvVnlqa1orRjA0aU13NUlDNEUxMUxQcUt3VDF4dk5lNUI3NG9sN1E3aUFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MzA4NTI4CWZpbGU6T21uaUJhbmtfMS4wLjE1X3g2NF9mci1GUi5tc2kKOHdiRkV2NFNCdFI5RnBDeFNqSUZCOFV1ZVdJM21CVjRZei9FblZDWVp2dFFIWTdZbGtNQWc1ZUJUaHdZdVRPN29wQWswMHBKNW1Jc2s4a1k2ZXpQQ1E9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.15/OmniBank_1.0.15_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBjMnJ2dVJOKzZtOE9JYVlZRC84OGFKSGhUTEVuSmsvQ1VSQXBUVEtTOXYvU0E4MjZiYlVSaTBVL2ZjZEZlQnByNUFDMlAwc3ZYbXNVWlFTN002M1FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MzU5ODUzCWZpbGU6T21uaUJhbmtfMS4wLjE2X3g2NF9mci1GUi5tc2kKOVdPNXNrNWRxcFBmNEtsTkcyQWhkNFNiM051YzlDZTNuN3ZiYktQSFoxM2lkSDhOTlZvTTc1cEpQWWNBaHdjeXpvcm9BcHRYT3FSN2R2TmhGZXZzRGc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.16/OmniBank_1.0.16_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-09T06:35:28Z",
-    "version":  "1.0.15",
-    "notes":  "fix: backup ZIP download now opens in system browser (WebView2 blob download workaround)"
+    "pub_date":  "2026-05-09T20:50:53Z",
+    "version":  "1.0.16",
+    "notes":  "UI fixes: Burger button visibility in light theme and responsive Dashboard/Historique headers."
 }
