@@ -73,10 +73,11 @@ window.TimelineView = {
                     <button class="btn btn-primary" onclick="window.TimelineView.showAddRow()">${window.i18n.t('btn_add_operation')}</button>
                 </div>
             </div>
-            <div style="padding-bottom: 20px;">
+            <div style="padding-bottom: 20px; overflow: clip;">
                 <table class="data-table timeline-table mobile-card-table">
                     <thead>
                         <tr>
+                            <th class="col-marker"></th>
                             <th class="col-dateSaisie" style="width: 100px;" data-i18n="col_date_entry">${window.i18n.t('col_date_entry')}</th>
                             <th class="col-date" style="width: 100px;" data-i18n="col_date_op">${window.i18n.t('col_date_op')}</th>
                             <th class="col-desc" data-i18n="col_description">${window.i18n.t('col_description')}</th>
@@ -322,6 +323,8 @@ window.TimelineView = {
             const isRecurrent = tx.recurrence_id || tx.is_monthly || tx.is_yearly;
             if (!isRecurrent) {
                 rowClass += ' non-recurrent-row';
+            } else {
+                rowClass += ' recurrent-row';
             }
             
             const idAttr = tx._isFirstReconciled ? 'id="first-reconciled"' : '';
@@ -348,9 +351,10 @@ window.TimelineView = {
 
             return `
             <tr data-id="${tx.id}" class="${rowClass}" ${idAttr}>
+                <td class="row-marker"></td>
                 <td class="col-dateSaisie" data-label="${window.i18n.t('dl_date_entry')}">${formatDate(tx.date_saisie)}</td>
                 <td class="col-date" data-label="${window.i18n.t('dl_date_op')}">${formatDate(tx.date_operation)}</td>
-                <td class="col-desc" data-label="${window.i18n.t('dl_description')}"><strong>${tx.description}</strong></td>
+                <td class="col-desc" data-label="${window.i18n.t('dl_description')}"><span class="desc-text">${tx.description}</span></td>
                 <td class="col-type" data-label="${window.i18n.t('dl_type')}">${window.app.getTypeLabel(tx.type) || '-'}</td>
                 <td class="col-cat" data-label="${window.i18n.t('dl_category')}" style="white-space: nowrap;"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
                 <td class="col-amount" data-label="${window.i18n.t('dl_amount')}">
@@ -383,7 +387,7 @@ window.TimelineView = {
             })
         ].join('');
 
-        tbody.innerHTML = html || `<tr><td colspan="13" style="text-align:center; padding: 20px; color: var(--text-muted)">${window.i18n.t('msg_no_operations_month')}</td></tr>`;
+        tbody.innerHTML = html || `<tr><td></td><td colspan="13" style="text-align:center; padding: 20px; color: var(--text-muted)">${window.i18n.t('msg_no_operations_month')}</td></tr>`;
         
         // Auto-scroll to junction and fix sticky headers
         this._initStickyObserver();

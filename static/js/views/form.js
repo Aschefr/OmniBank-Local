@@ -256,7 +256,7 @@ window.FormView = {
         const renderAcc = (selectId, currentVal) => {
             const select = document.getElementById(selectId);
             if (!select) return;
-            select.innerHTML = '<option value="">--</option>' + this.accounts
+            select.innerHTML = this.accounts
                 .filter(a => !a.is_closed || a.id == currentVal)
                 .map(a => `<option value="${a.id}">${a.name}${a.is_closed ? ' (Fermé)' : ''}</option>`).join('');
         };
