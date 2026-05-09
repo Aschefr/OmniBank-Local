@@ -355,7 +355,7 @@ def ai_suggest_budgets(db: Session = Depends(get_db)):
         Transaction.date_operation >= _six,
         Transaction.date_operation <= anchor_date,
     ).distinct().all()
-    print(f"[AI-SUGGEST] ALL categories in transactions (6mo): {[(c, t) for c, t in all_tx_cats]}")
+    print(f"[AI-SUGGEST] ALL categories in transactions (6mo): {len(all_tx_cats)} found")
 
     # Compute true monthly averages for the LLM (separate from UI averages)
     cat_data = _compute_monthly_averages_for_ai(db, already_used_cats, anchor_date)
@@ -405,13 +405,16 @@ Ne réponds rien d'autre que les lignes JSON. Pas de markdown, pas de texte auto
 
     # Request enough output tokens for all categories (num_predict),
     # without overriding the user's configured context window (num_ctx).
-    print(f"[AI-SUGGEST] Envoi au LLM: {nb_cats} catégories non couvertes")
-    print(f"[AI-SUGGEST] Prompt ({len(prompt)} chars):\n{prompt[:500]}...")
+    print(f"[AI-SUGGEST] Envoi au LLM: {nb_cats} categories non couvertes")
+    print(f"[AI-SUGGEST] Prompt ({len(prompt)} chars)")
     
     raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 4096})
 
-    print(f"[AI-SUGGEST] Réponse brute du LLM ({len(raw)} chars):")
-    print(raw)
+    print(f"[AI-SUGGEST] Reponse brute du LLM ({len(raw)} chars)")
+    try:
+        print(raw)
+    except UnicodeEncodeError:
+        print(raw.encode('ascii', 'replace').decode())
 
     # Strip markdown code fences that some models wrap around JSON
     import re
@@ -440,20 +443,20 @@ Ne réponds rien d'autre que les lignes JSON. Pas de markdown, pas de texte auto
                             "suggested_amount": float(obj["suggested_amount"]),
                             "reason": obj.get("reason", ""),
                         })
-                        print(f"[AI-SUGGEST] ✅ Enveloppe acceptée: {obj['name']} → {clean_cats}")
+                        print(f"[AI-SUGGEST] [OK] Enveloppe acceptee: {obj['name']} -> {clean_cats}")
                     else:
-                        print(f"[AI-SUGGEST] ⚠️ Enveloppe rejetée (cats invalides/doublons): {obj.get('name')} → {cats}")
+                        print(f"[AI-SUGGEST] [WARN] Enveloppe rejetee (cats invalides/doublons): {obj.get('name')} -> {cats}")
             except Exception as e:
-                print(f"[AI-SUGGEST] ❌ Ligne JSON invalide: {line[:100]}... → {e}")
+                print(f"[AI-SUGGEST] [ERR] Ligne JSON invalide: {line[:100]}... -> {e}")
 
     # Log uncovered categories
     covered = used_in_proposals
     uncovered = set(cat_data.keys()) - covered
     if uncovered:
-        print(f"[AI-SUGGEST] ⚠️ {len(uncovered)} catégories NON couvertes par le LLM: {uncovered}")
+        print(f"[AI-SUGGEST] [WARN] {len(uncovered)} categories NON couvertes par le LLM: {uncovered}")
 
     if not proposals:
         raise HTTPException(status_code=500, detail="L'IA n'a pas pu générer de propositions valides.")
 
-    print(f"[AI-SUGGEST] ✅ {len(proposals)} enveloppes proposées, {len(covered)}/{nb_cats} catégories couvertes")
+    print(f"[AI-SUGGEST] [OK] {len(proposals)} enveloppes proposees, {len(covered)}/{nb_cats} categories couvertes")
     return {"proposals": proposals}

@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlpb09BU3Q1eHlzSm1LSE5HUUMzVzRDVDNNb2ZIUHNmT2pIaHMvbVBjaU43SnVqcng5VVZGU2NoUDEzQzdPQXRTeHpYcERzVXpCalYvOHY4R3pZU0E0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Mjc3MDUyCWZpbGU6T21uaUJhbmtfMS4wLjEzX3g2NF9mci1GUi5tc2kKcmFvU3M5Q2M1VDliOGo3dS9ubWRsSDVOZGk5d2FwL2lSYytZTzVyMkhNb2t5aHVIOXpqTGVzbXk2cHlPcVA1WVpQVWFZcnRsd2lZS0U2T2lOY3Y1RHc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.13/OmniBank_1.0.13_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSCtrTG9xMlc0M2ZwRDRrV0krWkhvOUlINU0rYmdGd1BwRy9Eb1V4VHU3dmlwYjlFcVUvQzZZalJnSDMzc2VOeTIzZ3kxMzlyS3JNUTNKbml3WmVYUFFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MzA3OTYzCWZpbGU6T21uaUJhbmtfMS4wLjE0X3g2NF9mci1GUi5tc2kKWUJRaW5QbSsrdWs0QXFSdXlybnh2SGZTRm5tRzBmWTdmVXB2dTJrNVdua1dmS041bUJ6dmhHNEJLdmhyQkJSMHQrVjJPYm5NQkdPRFhSSk53QVgzRGc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.14/OmniBank_1.0.14_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-08T21:50:52Z",
-    "version":  "1.0.13",
-    "notes":  "fix: modal budget (cancel/save behavior), toast notifications, month navigation arrows, compact table mode, sticky header fix"
+    "pub_date":  "2026-05-09T06:26:03Z",
+    "version":  "1.0.14",
+    "notes":  "fix: AI suggestions crash (UnicodeEncodeError), backup download modal blocking"
 }

@@ -516,7 +516,7 @@ window.ConfigView = {
 
     async downloadBackup() {
         try {
-            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('label_loading') || 'Préparation...');
+            showToast(window.i18n.t('label_loading') || 'Préparation...', 'info', 5000);
             const resp = await fetch('/api/backup/download');
             if (!resp.ok) {
                 const err = await resp.json().catch(() => ({}));
