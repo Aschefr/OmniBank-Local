@@ -518,5 +518,6 @@
   "acc_toggle_error": "Une erreur est survenue.",
   "acc_edit_error": "Erreur lors de la modification",
   "btn_today": "Aujourd'hui",
-  "tooltip_compact_mode": "Affichage compact"
+  "tooltip_compact_mode": "Affichage compact",
+  "msg_backup_browser": "Le téléchargement s'ouvre dans votre navigateur..."
 }

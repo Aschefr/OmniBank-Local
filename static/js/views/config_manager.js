@@ -516,6 +516,16 @@ window.ConfigView = {
 
     async downloadBackup() {
         try {
+            const downloadUrl = `${window.location.origin}/api/backup/download`;
+
+            // In Tauri WebView, blob downloads don't work — open in system browser
+            if (window.__TAURI_INTERNALS__) {
+                showToast(window.i18n.t('msg_backup_browser') || 'Le téléchargement s\'ouvre dans votre navigateur...', 'info', 4000);
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: downloadUrl });
+                return;
+            }
+
+            // Fallback for regular browser (dev mode)
             showToast(window.i18n.t('label_loading') || 'Préparation...', 'info', 5000);
             const resp = await fetch('/api/backup/download');
             if (!resp.ok) {

@@ -501,5 +501,6 @@
   "acc_toggle_error": "An error occurred.",
   "acc_edit_error": "Error during modification",
   "btn_today": "Today",
-  "tooltip_compact_mode": "Compact view"
+  "tooltip_compact_mode": "Compact view",
+  "msg_backup_browser": "Download opening in your browser..."
 }
