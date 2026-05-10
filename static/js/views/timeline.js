@@ -231,12 +231,12 @@ window.TimelineView = {
             if (!cols[k]) {
                 css += `.timeline-table .col-${k} { display: none !important; }\n`;
             } else {
-                const pct = ((colWeights[k] || 1) / totalWeight * 96).toFixed(1);
+                const pct = ((colWeights[k] || 1) / totalWeight * 92).toFixed(1);
                 css += `.timeline-table .col-${k} { width: ${pct}%; }\n`;
             }
         });
-        // Actions column fixed
-        css += `.timeline-table .col-actions { width: 3%; }\n`;
+        // Actions column — enough room for Edit + Delete buttons
+        css += `.timeline-table .col-actions { width: 8%; }\n`;
         
         const styleTag = document.getElementById('timelineColsStyle');
         if (styleTag) styleTag.innerHTML = css;
@@ -433,9 +433,17 @@ window.TimelineView = {
             }
 
             const accounts = window.app.accounts || [];
-            const getAccName = (id) => { const a = accounts.find(x => x.id === id); return a ? a.name : '-'; };
-            const depuis = tx.from_account_id ? getAccName(tx.from_account_id) : '-';
-            const vers = tx.to_account_id ? getAccName(tx.to_account_id) : '-';
+            const getAcc = (id) => accounts.find(x => x.id === id);
+            const getAccBadge = (id) => {
+                const a = getAcc(id);
+                if (!a) return '-';
+                const c = a.color || '#3366ff';
+                return `<span class="account-badge" style="background:${c}20;color:${c};border-color:${c}40;">${a.name}</span>`;
+            };
+            const depuis = tx.from_account_id ? getAccBadge(tx.from_account_id) : '-';
+            const vers = tx.to_account_id ? getAccBadge(tx.to_account_id) : '-';
+            const depuisTitle = tx.from_account_id ? (getAcc(tx.from_account_id)?.name || '') : '';
+            const versTitle = tx.to_account_id ? (getAcc(tx.to_account_id)?.name || '') : '';
             
             let recText = '-';
             if (tx.is_monthly) recText = window.i18n.t('rec_monthly');
@@ -459,8 +467,8 @@ window.TimelineView = {
                     ${reconcileHTML}
                 </td>
                 <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${tx.budget_id && window.TimelineView.budgetsMap[tx.budget_id] ? `<span onclick="window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title=\"${window.i18n.t('tooltip_view_envelope')}\">🗂️ ${window.TimelineView.budgetsMap[tx.budget_id]}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</td>
-                <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuis.replace(/"/g, '&quot;')}">${depuis}</td>
-                <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${vers.replace(/"/g, '&quot;')}">${vers}</td>
+                <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuisTitle}">${depuis}</td>
+                <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${vers}</td>
                 <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}">${recText}</td>
                 <td class="col-slip" data-label="${window.i18n.t('dl_slip')}">${tx.check_slip_number || '-'}</td>
                 <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${attachHtml}</td>

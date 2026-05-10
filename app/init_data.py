@@ -32,6 +32,11 @@ def init_db():
         except Exception:
             pass
 
+        try:
+            conn.execute(text("ALTER TABLE accounts ADD COLUMN color TEXT"))
+        except Exception:
+            pass  # Column likely already exists
+
             
         conn.commit()
 

@@ -248,7 +248,11 @@ window.SetupWizard = {
         }
 
         try {
-            const created = await API.post('/api/accounts/', { name, type, initial_balance: balance, is_closed: false });
+            // Auto-assign color from palette (uses ACCOUNT_COLORS from accounts_manager.js)
+            const palette = (typeof ACCOUNT_COLORS !== 'undefined') ? ACCOUNT_COLORS : ['#3366ff','#36b37e','#ff5630','#ffab00','#00b8d9','#6554c0','#ff8a65','#e91e8a','#8bc34a','#795548'];
+            const usedColors = this.createdAccounts.map(a => a.color).filter(Boolean);
+            let color = palette.find(c => !usedColors.includes(c)) || palette[this.createdAccounts.length % palette.length];
+            const created = await API.post('/api/accounts/', { name, type, initial_balance: balance, is_closed: false, color });
             this.createdAccounts.push(created);
             // Re-render accounts list + clear fields
             document.getElementById('wizAccountsList').innerHTML = this._renderAccountsList();

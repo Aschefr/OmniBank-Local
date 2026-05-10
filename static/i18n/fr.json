@@ -628,5 +628,12 @@
     "ph_rec_limit": "Nbr max (opt.)",
     "tooltip_rec_limit": "Nombre limité d'occurrences",
     "hint_recurrence_edit": "Pour supprimer ou gérer cette récurrence, utilisez la page Récurrences.",
-    "btn_go_recurrences": "Recurrences"
+    "btn_go_recurrences": "Recurrences",
+    "acc_type_free": "Libre",
+    "acc_ph_custom_suffix": "Precision (ex: Boursorama, Pro...)",
+    "acc_preview_label": "Resultat :",
+    "acc_th_color": "Couleur",
+    "acc_color_label": "Couleur du badge",
+    "analytics_all_accounts": "Tous",
+    "export_modal_accounts": "Comptes"
 }

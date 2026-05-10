@@ -91,6 +91,7 @@ class AccountBase(BaseModel):
     type: str
     initial_balance: float
     is_closed: bool = False
+    color: Optional[str] = None
 
 class AccountOut(AccountBase):
     id: int

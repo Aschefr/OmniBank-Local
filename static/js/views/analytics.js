@@ -4,6 +4,7 @@ window.AnalyticsView = {
     months: null,
     reconciled: 'all',
     selectedYear: new Date().getFullYear(),
+    selectedAccountIds: null,  // null = all accounts
 
     TYPE_CONFIG: {
         'expense_var':   { emoji: '🛍️', color: '#f59e0b', sign: '-' },
@@ -34,6 +35,7 @@ window.AnalyticsView = {
                     </select>
                 </div>
             </div>
+            <div id="analyticsAccountBar" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px;"></div>
             <div id="analyticsContainer" style="overflow-x:auto;display:flex;flex-direction:column;gap:28px;">
                 <div style="text-align:center;padding:40px;color:var(--text-muted);">Chargement…</div>
             </div>
@@ -55,8 +57,75 @@ window.AnalyticsView = {
             }
         }
         
+        // Reset account filter (all selected)
+        this.selectedAccountIds = null;
+        
         // First load to discover available years, then populate selector
         await this.loadData();
+        this.renderAccountBar();
+    },
+
+    async renderAccountBar() {
+        const bar = document.getElementById('analyticsAccountBar');
+        if (!bar) return;
+        // Ensure accounts are loaded (may not be on F5 due to race with refreshSidebar)
+        if (!window.app.accounts || window.app.accounts.length === 0) {
+            try {
+                window.app.accounts = await API.get('/api/stats/accounts');
+            } catch(e) { /* silent */ }
+        }
+        const accounts = (window.app.accounts || []).filter(a => !a.is_closed);
+        if (accounts.length <= 1) { bar.innerHTML = ''; return; }
+        
+        const allSelected = !this.selectedAccountIds;
+        
+        let html = `<button class="account-badge" style="cursor:pointer;font-size:12px;padding:4px 12px;
+            background:${allSelected ? 'var(--accent)' : 'var(--bg-surface)'};
+            color:${allSelected ? '#fff' : 'var(--text-muted)'};
+            border:1px solid ${allSelected ? 'var(--accent)' : 'var(--border-color)'};"
+            onclick="window.AnalyticsView.toggleAllAccounts()">${window.i18n.t('analytics_all_accounts')}</button>`;
+        
+        accounts.forEach(acc => {
+            const c = acc.color || '#3366ff';
+            const isActive = allSelected || (this.selectedAccountIds && this.selectedAccountIds.includes(acc.id));
+            html += `<button class="account-badge" style="cursor:pointer;font-size:12px;padding:4px 12px;
+                background:${isActive ? c + '20' : 'var(--bg-surface)'};
+                color:${isActive ? c : 'var(--text-muted)'};
+                border:1px solid ${isActive ? c + '60' : 'var(--border-color)'};
+                opacity:${isActive ? '1' : '0.5'};"
+                onclick="window.AnalyticsView.toggleAccount(${acc.id})">${acc.name}</button>`;
+        });
+        
+        bar.innerHTML = html;
+    },
+
+    toggleAllAccounts() {
+        this.selectedAccountIds = null;
+        this.renderAccountBar();
+        this.loadData();
+    },
+
+    toggleAccount(id) {
+        const accounts = (window.app.accounts || []).filter(a => !a.is_closed);
+        const allIds = accounts.map(a => a.id);
+        
+        if (!this.selectedAccountIds) {
+            // Was "all" — switch to just this one deselected (= all others selected)
+            this.selectedAccountIds = allIds.filter(i => i !== id);
+        } else if (this.selectedAccountIds.includes(id)) {
+            // Deselect this account
+            this.selectedAccountIds = this.selectedAccountIds.filter(i => i !== id);
+            // If none left, go back to all
+            if (this.selectedAccountIds.length === 0) this.selectedAccountIds = null;
+        } else {
+            // Select this account
+            this.selectedAccountIds.push(id);
+            // If all are selected, switch to "all" mode
+            if (this.selectedAccountIds.length >= allIds.length) this.selectedAccountIds = null;
+        }
+        
+        this.renderAccountBar();
+        this.loadData();
     },
 
     populatePeriodSelector() {
@@ -109,6 +178,9 @@ window.AnalyticsView = {
     async loadData() {
         try {
             let url = `/api/stats/categories_by_month?reconciled=${this.reconciled}`;
+            if (this.selectedAccountIds) {
+                url += `&account_ids=${this.selectedAccountIds.join(',')}`;
+            }
             if (this.selectedYear) {
                 url += `&year=${this.selectedYear}`;
             } else {
@@ -335,6 +407,10 @@ window.AnalyticsView = {
                         </div>
                     </div>
                     <div style="margin-bottom: 20px;">
+                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_modal_accounts')}</h4>
+                        <div id="exportAccountBadges" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+                    </div>
+                    <div style="margin-bottom: 20px;">
                         <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_modal_tables')}</h4>
                         ${typesHtml}
                     </div>
@@ -361,6 +437,52 @@ window.AnalyticsView = {
         </div>`;
         
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+        this._exportAccountIds = this.selectedAccountIds ? [...this.selectedAccountIds] : null;
+        this._renderExportAccountBadges();
+    },
+
+    _renderExportAccountBadges() {
+        const container = document.getElementById('exportAccountBadges');
+        if (!container) return;
+        const accounts = (window.app.accounts || []).filter(a => !a.is_closed);
+        if (accounts.length <= 1) { container.innerHTML = ''; return; }
+
+        const allSelected = !this._exportAccountIds;
+        let html = `<button class="account-badge" style="cursor:pointer;font-size:12px;padding:4px 12px;
+            background:${allSelected ? 'var(--accent)' : 'var(--bg-surface)'};
+            color:${allSelected ? '#fff' : 'var(--text-muted)'};
+            border:1px solid ${allSelected ? 'var(--accent)' : 'var(--border-color)'};" 
+            onclick="window.AnalyticsView._toggleExportAccount(null)">${window.i18n.t('analytics_all_accounts')}</button>`;
+
+        accounts.forEach(acc => {
+            const c = acc.color || '#3366ff';
+            const isActive = allSelected || (this._exportAccountIds && this._exportAccountIds.includes(acc.id));
+            html += `<button class="account-badge" style="cursor:pointer;font-size:12px;padding:4px 12px;
+                background:${isActive ? c + '20' : 'var(--bg-surface)'};
+                color:${isActive ? c : 'var(--text-muted)'};
+                border:1px solid ${isActive ? c + '60' : 'var(--border-color)'};
+                opacity:${isActive ? '1' : '0.5'};" 
+                onclick="window.AnalyticsView._toggleExportAccount(${acc.id})">${acc.name}</button>`;
+        });
+        container.innerHTML = html;
+    },
+
+    _toggleExportAccount(id) {
+        const accounts = (window.app.accounts || []).filter(a => !a.is_closed);
+        const allIds = accounts.map(a => a.id);
+
+        if (id === null) {
+            this._exportAccountIds = null;
+        } else if (!this._exportAccountIds) {
+            this._exportAccountIds = allIds.filter(i => i !== id);
+        } else if (this._exportAccountIds.includes(id)) {
+            this._exportAccountIds = this._exportAccountIds.filter(i => i !== id);
+            if (this._exportAccountIds.length === 0) this._exportAccountIds = null;
+        } else {
+            this._exportAccountIds.push(id);
+            if (this._exportAccountIds.length >= allIds.length) this._exportAccountIds = null;
+        }
+        this._renderExportAccountBadges();
     },
 
     async executePrint() {
@@ -374,6 +496,9 @@ window.AnalyticsView = {
         const selectedCols = Array.from(modal.querySelectorAll('.export-col-cb:checked')).map(cb => cb.value);
         const includeDetails = modal.querySelector('#exportIncludeDetails')?.checked ?? true;
         
+        // Gather account filter from modal
+        const exportAccIds = this._exportAccountIds;
+        
         // Determine primary year (most recent selected)
         const primaryYear = selectedYears.slice().sort().reverse()[0] || null;
         
@@ -385,7 +510,9 @@ window.AnalyticsView = {
         // Fetch full data for the primary year to get its months offline, and fetch transactions
         try {
             if (primaryYear) {
-                printData = await API.get(`/api/stats/categories_by_month?reconciled=${this.reconciled}&year=${primaryYear}`);
+                let printUrl = `/api/stats/categories_by_month?reconciled=${this.reconciled}&year=${primaryYear}`;
+                if (exportAccIds) printUrl += `&account_ids=${exportAccIds.join(',')}`;
+                printData = await API.get(printUrl);
             }
             allTx = await API.get('/api/transactions/?limit=10000');
             const accs = await API.get('/api/accounts/');
@@ -422,6 +549,12 @@ window.AnalyticsView = {
             const yr = (tx.date_operation || '').split('-')[0];
             if (!selectedYears.includes(yr)) return false;
             if (!selectedTypes.includes(tx.type)) return false;
+            
+            // Account filter from modal
+            if (exportAccIds) {
+                const accIds = exportAccIds;
+                if (!accIds.includes(tx.from_account_id) && !accIds.includes(tx.to_account_id)) return false;
+            }
             
             let catMatches = false;
             if (tx.category && selectedCats.includes(tx.category)) catMatches = true;

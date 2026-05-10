@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDQyYlQrRk1ITkY1VnlqU25Ub3BHR0xUL2tYTm9VaFJqYy9ESk1PK0tWMS9ydnJ2M1lCZWJ3Kyt1Rk1qOWlsOUtiZjdNWWZzbjhlejViY0NBcVFPUHdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NDE1NTE0CWZpbGU6T21uaUJhbmtfMS4wLjE4X3g2NF9mci1GUi5tc2kKNDBXSFBoM0lkcHloNm55eGtZN0xoelJmak4yaC9LeW1rYkY2Zk9FRzU5MC9pYitpYUd4d0owaEh6cTBORyt0TFArQldNQmZ5Z2lwZHhsU0Q3WlRMQnc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.18/OmniBank_1.0.18_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHlEeHZ4SzZVOXZRY3hhUzd3MitlRXRnRGRwUVcrQTNxUWRIMXFjK2hYdkJoSTZDOFBhRmwwU1gzOGZlcXNnRE5JaDg0aDdhNFo4MlkyVDU2bGRwR3dBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NDI0NDI5CWZpbGU6T21uaUJhbmtfMS4wLjE5X3g2NF9mci1GUi5tc2kKMHZ3eklOMHVaYnJqZmtNMVI1RGxHS0xPTnJiYXpGVU95c2VBY3lBNENRMUxyWmU1N0NqYUlFTGJFelliZWd4TVdUY29xamg5aDRLWTZkWmxXYnZQQVE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.19/OmniBank_1.0.19_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-10T12:18:34Z",
-    "version":  "1.0.18",
-    "notes":  "Recurrence: fix propagation of max_occurrences on edit, add navigation button to recurrences page. Budgets: sidebar badge updates dynamically. UI: header icons redesign, compact mode SVG icons, pay day badge rename."
+    "pub_date":  "2026-05-10T14:47:09Z",
+    "version":  "1.0.19",
+    "notes":  "Badges de couleurs pour les comptes, filtrage par compte dans Synthese et export PDF"
 }

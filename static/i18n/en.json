@@ -612,5 +612,12 @@
     "tooltip_rec_limit": "Limited number of occurrences",
     "tooltip_edit": "Edit",
     "hint_recurrence_edit": "To delete or manage this recurrence, use the Recurrences page.",
-    "btn_go_recurrences": "Recurrences"
+    "btn_go_recurrences": "Recurrences",
+    "acc_type_free": "Custom",
+    "acc_ph_custom_suffix": "Detail (e.g. Chase, Business...)",
+    "acc_preview_label": "Result:",
+    "acc_th_color": "Color",
+    "acc_color_label": "Badge color",
+    "analytics_all_accounts": "All",
+    "export_modal_accounts": "Accounts"
 }

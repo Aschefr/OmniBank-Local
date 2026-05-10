@@ -9,6 +9,7 @@ class Account(Base):
     type = Column(String) # "Compte courant", "Livret", etc.
     initial_balance = Column(Float, default=0.0)
     is_closed = Column(Boolean, default=False)
+    color = Column(String, nullable=True)  # Hex color for badge display (e.g. "#3366ff")
 
 class Transaction(Base):
     __tablename__ = "transactions"

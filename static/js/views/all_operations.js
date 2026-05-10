@@ -168,12 +168,12 @@ window.AllOperationsView = {
             if (!cols[k]) {
                 css += `.timeline-table .col-${k} { display: none !important; }\n`;
             } else {
-                const pct = ((colWeights[k] || 1) / totalWeight * 96).toFixed(1);
+                const pct = ((colWeights[k] || 1) / totalWeight * 92).toFixed(1);
                 css += `.timeline-table .col-${k} { width: ${pct}%; }\n`;
             }
         });
-        // Actions column fixed
-        css += `.timeline-table .col-actions { width: 3%; }\n`;
+        // Actions column — enough room for Edit + Delete buttons
+        css += `.timeline-table .col-actions { width: 8%; }\n`;
         
         const styleTag = document.getElementById('historyColsStyle');
         if (styleTag) styleTag.innerHTML = css;
@@ -188,10 +188,11 @@ window.AllOperationsView = {
                 budgets.forEach(b => { this.budgetsMap[b.id] = b.name; });
             } catch(e) { this.budgetsMap = {}; }
 
-            // Load accounts to map IDs to names
+            // Load accounts to map IDs to full objects (name + color)
             const accs = await API.get('/api/accounts/');
             this.accounts = {};
-            accs.forEach(a => { this.accounts[a.id] = a.name; });
+            this.accountNames = {};
+            accs.forEach(a => { this.accounts[a.id] = a; this.accountNames[a.id] = a.name; });
 
             // Get all operations
             const allTx = await API.get('/api/transactions/?limit=10000');
@@ -269,8 +270,8 @@ window.AllOperationsView = {
                 (tx.description || '').toLowerCase().includes(q) ||
                 (tx.category || '').toLowerCase().includes(q) ||
                 (tx.amount || '').toString().includes(q) ||
-                (this.accounts[tx.from_account_id] || '').toLowerCase().includes(q) ||
-                (this.accounts[tx.to_account_id] || '').toLowerCase().includes(q) ||
+                (this.accountNames[tx.from_account_id] || '').toLowerCase().includes(q) ||
+                (this.accountNames[tx.to_account_id] || '').toLowerCase().includes(q) ||
                 (tx.date_operation || '').includes(q)
             );
         }
@@ -326,8 +327,17 @@ window.AllOperationsView = {
                 rowClass += ' recurrent-row';
             }
 
-            const depuis = this.accounts[tx.from_account_id] || '';
-            const vers = this.accounts[tx.to_account_id] || '';
+            const fromAcc = this.accounts[tx.from_account_id];
+            const toAcc = this.accounts[tx.to_account_id];
+            const depuisTitle = fromAcc ? fromAcc.name : '';
+            const versTitle = toAcc ? toAcc.name : '';
+            const depuisBadge = fromAcc ? `<span class="account-badge" style="background:${fromAcc.color || '#3366ff'}20;color:${fromAcc.color || '#3366ff'};border-color:${fromAcc.color || '#3366ff'}40;">${fromAcc.name}</span>` : '-';
+            const versBadge = toAcc ? `<span class="account-badge" style="background:${toAcc.color || '#3366ff'}20;color:${toAcc.color || '#3366ff'};border-color:${toAcc.color || '#3366ff'}40;">${toAcc.name}</span>` : '-';
+
+            let recText = '-';
+            if (tx.is_monthly) recText = window.i18n.t('rec_monthly');
+            if (tx.is_yearly) recText = window.i18n.t('rec_yearly');
+            if (tx.is_bimonthly) recText = window.i18n.t('rec_bimonthly');
 
             return `
             <tr data-id="${tx.id}" class="${rowClass}" ${idAttr}>
@@ -342,9 +352,9 @@ window.AllOperationsView = {
                 </td>
                 <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}">${formatDate(tx.reconciliation_date) || '-'}</td>
                 <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${tx.budget_id && this.budgetsMap[tx.budget_id] ? `<span onclick="window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title=\"${window.i18n.t('tooltip_view_envelope')}\">🗂️ ${this.budgetsMap[tx.budget_id]}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</td>
-                <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuis.replace(/"/g, '&quot;')}">${depuis}</td>
-                <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${vers.replace(/"/g, '&quot;')}">${vers}</td>
-                <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}">${isRecurrent ? '🔄' : '-'}</td>
+                <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuisTitle}">${depuisBadge}</td>
+                <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${versBadge}</td>
+                <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}">${recText}</td>
                 <td class="col-slip" data-label="${window.i18n.t('dl_slip')}">${tx.slip_number ? '<span style="background: rgba(255,152,0,0.15); color: #ff9800; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">' + tx.slip_number + '</span>' : '-'}</td>
                 <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}">📎</span>` : '-'}</td>
                 <td class="col-actions mobile-card-actions">

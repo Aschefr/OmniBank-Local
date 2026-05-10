@@ -23,6 +23,7 @@ def get_accounts(db: Session = Depends(get_db)):
             "name": acc.name,
             "type": acc.type,
             "is_closed": acc.is_closed,
+            "color": acc.color,
             "balance": balances.get(acc.id, 0.0)
         })
     return result
@@ -145,7 +146,7 @@ def set_main_account(account_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/categories_by_month")
-def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int = None, db: Session = Depends(get_db)):
+def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int = None, account_ids: str = None, db: Session = Depends(get_db)):
     """Returns spending per category per month for the last N months (or a specific year), grouped by transaction type.
     reconciled: 'all' | 'reconciled' | 'unreconciled'
     year: if provided, show Jan-Dec of that year instead of rolling months
@@ -180,6 +181,17 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
         query = query.filter(Transaction.reconciliation_date != None)
     elif reconciled == "unreconciled":
         query = query.filter(Transaction.reconciliation_date == None)
+
+    # Account filter
+    acc_ids_list = None
+    if account_ids:
+        acc_ids_list = [int(x) for x in account_ids.split(',') if x.strip()]
+        if acc_ids_list:
+            from sqlalchemy import or_
+            query = query.filter(or_(
+                Transaction.from_account_id.in_(acc_ids_list),
+                Transaction.to_account_id.in_(acc_ids_list)
+            ))
 
     txs = query.all()
 
@@ -224,6 +236,10 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
     elif reconciled == "unreconciled":
         all_query = all_query.filter(Transaction.reconciliation_date == None)
     all_txs = all_query.all()
+    
+    # Apply same account filter to annual totals
+    if acc_ids_list:
+        all_txs = [tx for tx in all_txs if (tx.from_account_id in acc_ids_list or tx.to_account_id in acc_ids_list)]
 
     # Collect distinct years
     years_set = set()
