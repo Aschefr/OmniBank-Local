@@ -47,8 +47,12 @@ window.SetupWizard = {
                 this.overlay.remove();
                 this.overlay = null;
                 // Reload app state
-                window.app.refreshSidebar();
-                window.app.loadView('dashboard');
+                if (window.app && typeof window.app._initUI === 'function' && !window.app._uiInitialized) {
+                    window.app._initUI();
+                } else if (window.app) {
+                    window.app.refreshSidebar();
+                    window.app.loadView('dashboard');
+                }
             }, 350);
         }
     },
@@ -159,13 +163,15 @@ window.SetupWizard = {
 
     async _saveOrgMode() {
         this._orgMode = document.getElementById('wizOrgToggle')?.checked || false;
-        if (this._orgMode) {
-            try {
-                await API.post('/api/config/', { enable_org_mode: 'true' });
-                if (window.app) window.app.config.enable_org_mode = 'true';
-            } catch (e) {
-                console.error('[SetupWizard] Erreur sauvegarde mode org', e);
+        try {
+            const val = this._orgMode ? 'true' : 'false';
+            await API.post('/api/config/', { enable_org_mode: val });
+            if (window.app) {
+                if (!window.app.config) window.app.config = {};
+                window.app.config.enable_org_mode = val;
             }
+        } catch (e) {
+            console.error('[SetupWizard] Erreur sauvegarde mode org', e);
         }
         this._nav(1);
     },

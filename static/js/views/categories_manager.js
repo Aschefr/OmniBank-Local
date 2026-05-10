@@ -139,7 +139,7 @@ window.CategoriesView = {
                         <tr>
                             <th data-i18n="th_name">Nom</th>
                             <th data-i18n="th_status">Statut</th>
-                            <th style="width: 80px; text-align: right;" data-i18n="th_actions">Actions</th>
+                            <th style="width: 120px; text-align: right;" data-i18n="th_actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -154,7 +154,7 @@ window.CategoriesView = {
                 <tr style="${rowStyle}">
                     <td style="padding-left: 10px;"><strong>${cat.name}</strong></td>
                     <td>${statusBadge}</td>
-                    <td style="text-align: right; white-space: nowrap;">
+                    <td style="text-align: right; white-space: nowrap; overflow: visible;">
                         <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.openEdit(${cat.id})" title="${window.i18n.t('tooltip_edit') || 'Modifier'}">✏️</button>
                         <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.toggleClose(${cat.id})" title="${isClosed ? (window.i18n.t('tooltip_reopen') || 'Réouvrir') : (window.i18n.t('tooltip_close') || 'Clôturer')}">${isClosed ? '🔓' : '🔒'}</button>
                         <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.openDelete(${cat.id})" title="${window.i18n.t('tooltip_delete') || 'Supprimer'}">✕</button>

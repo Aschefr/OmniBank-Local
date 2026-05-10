@@ -66,6 +66,8 @@ class App {
     }
 
     _initUI() {
+        if (this._uiInitialized) return;
+        this._uiInitialized = true;
         // Theme toggle
         const savedTheme = localStorage.getItem('omni_theme');
         if (savedTheme === 'dark') {
