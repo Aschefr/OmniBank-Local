@@ -26,7 +26,7 @@ class I18nManager {
                 if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
                     el.setAttribute('placeholder', this.translations[key]);
                 } else {
-                    el.textContent = this.translations[key];
+                    el.innerHTML = this.translations[key];
                 }
             }
         });

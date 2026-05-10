@@ -51,16 +51,18 @@ window.FormView = {
         document.getElementById('op_attachments_list').innerHTML = '';
         document.getElementById('op_rec_day_1').value = '';
         document.getElementById('op_rec_day_2').value = '';
+        document.getElementById('op_rec_limit').value = '';
         const budgetSel = document.getElementById('op_budget_id');
         if (budgetSel) budgetSel.value = '';
         
         this.applyConfigVisibility();
         
         this.toggleRecurrenceFields();
+        document.getElementById('op_rec_edit_hint').style.display = 'none';
         this.hideNewCatInput();
         
-        // Load data if not already loaded
-        if (this.accounts.length === 0) await this.init();
+        // Always reload fresh data (accounts, categories, descriptions)
+        await this.init();
         
         this.renderAccountsDropdowns(null, null);
         
@@ -72,6 +74,7 @@ window.FormView = {
     async openEdit(tx) {
         this.currentTxId = tx.id;
         this.currentTxBase = tx;
+        this._pendingRecId = tx.recurrence_id || null;
         
         document.getElementById('op_desc').value = tx.description;
         document.getElementById('op_amount').value = tx.amount;
@@ -105,8 +108,21 @@ window.FormView = {
             document.getElementById('op_rec_freq').value = 'Yearly';
         }
         
+        // Reset limit field — fetch from template if exists
+        document.getElementById('op_rec_limit').value = '';
+        if (tx.recurrence_id) {
+            try {
+                const templates = await API.get('/api/recurrences/');
+                const tpl = templates.find(t => t.id === tx.recurrence_id);
+                if (tpl && tpl.max_occurrences) {
+                    document.getElementById('op_rec_limit').value = tpl.max_occurrences;
+                }
+            } catch(e) { /* non-critical */ }
+        }
+        
         this.applyConfigVisibility();
         this.toggleRecurrenceFields();
+        document.getElementById('op_rec_edit_hint').style.display = isRecurrent ? 'flex' : 'none';
         this.hideNewCatInput();
         
         // This will update the type listbox and filter categories
@@ -131,7 +147,7 @@ window.FormView = {
 
     toggleRecurrenceFields() {
         const isRecurrent = document.getElementById('op_is_recurrent').checked;
-        document.getElementById('op_rec_freq').style.display = isRecurrent ? 'block' : 'none';
+        document.getElementById('op_rec_options').style.display = isRecurrent ? 'flex' : 'none';
         this.onFreqChange();
         this.updateInferredType();
     },
@@ -313,6 +329,8 @@ window.FormView = {
         const fromAcc = document.getElementById('op_from_account').value;
         const toAcc = document.getElementById('op_to_account').value;
         const isRecurrent = document.getElementById('op_is_recurrent').checked;
+        const limitStr = document.getElementById('op_rec_limit').value;
+        const isLimited = limitStr && parseInt(limitStr) > 0;
         
         let type = 'neutral';
         if (fromAcc && toAcc) {
@@ -320,7 +338,7 @@ window.FormView = {
         } else if (!fromAcc && toAcc) {
             type = 'income';
         } else if (fromAcc && !toAcc) {
-            type = isRecurrent ? 'expense_fixed' : 'expense_var';
+            type = (isRecurrent && !isLimited) ? 'expense_fixed' : 'expense_var';
         } else {
             type = 'neutral';
         }
@@ -493,6 +511,14 @@ window.FormView = {
                 this.pendingSaveData.is_yearly = (freq === 'Yearly');
                 this.pendingSaveData.is_bimonthly = (freq === 'Bi-Monthly');
                 
+                const limitStr = document.getElementById('op_rec_limit').value;
+                if (limitStr) {
+                    const limitVal = parseInt(limitStr);
+                    if (!isNaN(limitVal) && limitVal > 0) {
+                        this.pendingSaveData.max_occurrences = limitVal;
+                    }
+                }
+                
                 if (freq === 'Bi-Monthly') {
                     this.pendingSaveData.recurrence_day_1 = parseInt(document.getElementById('op_rec_day_1').value) || dateObj.getDate();
                     this.pendingSaveData.recurrence_day_2 = parseInt(document.getElementById('op_rec_day_2').value) || null;
@@ -515,6 +541,22 @@ window.FormView = {
             if (this.currentTxId) {
                 // UPDATE
                 await API.put(`/api/transactions/${this.currentTxId}?propagate=${propagate}`, this.pendingSaveData);
+                
+                // If propagating and recurrence limit changed, update template and regenerate
+                if (propagate && this.currentTxBase && this.currentTxBase.recurrence_id) {
+                    const limitStr = document.getElementById('op_rec_limit').value;
+                    const newLimit = limitStr ? parseInt(limitStr) : null;
+                    if (!isNaN(newLimit) && newLimit > 0) {
+                        // Update template max_occurrences via PATCH-like PUT
+                        const templates = await API.get('/api/recurrences/');
+                        const tpl = templates.find(t => t.id === this.currentTxBase.recurrence_id);
+                        if (tpl && tpl.max_occurrences !== newLimit) {
+                            tpl.max_occurrences = newLimit;
+                            await API.put(`/api/recurrences/${tpl.id}`, tpl);
+                            await API.post('/api/recurrences/generate_to_end_of_year', {});
+                        }
+                    }
+                }
             } else {
                 // CREATE
                 if (document.getElementById('op_is_recurrent').checked) {
@@ -525,6 +567,7 @@ window.FormView = {
                         category: this.pendingSaveData.category,
                         frequency: this.pendingSaveData.frequency,
                         day_of_month: this.pendingSaveData.day_of_month,
+                        max_occurrences: this.pendingSaveData.max_occurrences,
                         from_account_id: this.pendingSaveData.from_account_id,
                         to_account_id: this.pendingSaveData.to_account_id
                     };

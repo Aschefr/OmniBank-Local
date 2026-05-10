@@ -174,7 +174,6 @@ window.AllOperationsView = {
         });
         // Actions column fixed
         css += `.timeline-table .col-actions { width: 3%; }\n`;
-        css += `.timeline-table .col-marker { width: 4px; }\n`;
         
         const styleTag = document.getElementById('historyColsStyle');
         if (styleTag) styleTag.innerHTML = css;

@@ -470,8 +470,13 @@ window.ConfigView = {
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), i18nMsg)) {
             try {
                 await API.del('/api/transactions/all/clear');
-                showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_db_cleared'));
-                window.location.reload();
+                showToast(window.i18n.t('msg_db_cleared'), 'success');
+                // Trigger setup wizard instead of full reload
+                if (window.SetupWizard) {
+                    window.SetupWizard.show();
+                } else {
+                    window.location.reload();
+                }
             } catch (e) {
                 console.error(e);
                 showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_db_clear_error'));

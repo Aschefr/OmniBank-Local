@@ -27,6 +27,12 @@ def init_db():
         except Exception:
             pass # Column likely already exists
             
+        try:
+            conn.execute(text("ALTER TABLE recurrence_templates ADD COLUMN max_occurrences INTEGER"))
+        except Exception:
+            pass
+
+            
         conn.commit()
 
 def wipe_db(db: Session):

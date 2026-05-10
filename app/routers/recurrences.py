@@ -24,6 +24,19 @@ def create_template(tpl: RecurrenceTemplateCreate, db: Session = Depends(get_db)
     db.refresh(db_tpl)
     return db_tpl
 
+@router.put("/{tpl_id}", response_model=RecurrenceTemplateOut)
+def update_template(tpl_id: int, tpl_update: RecurrenceTemplateCreate, db: Session = Depends(get_db)):
+    db_tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+    if not db_tpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    update_data = tpl_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        if hasattr(db_tpl, key):
+            setattr(db_tpl, key, value)
+    db.commit()
+    db.refresh(db_tpl)
+    return db_tpl
+
 @router.delete("/{tpl_id}")
 def delete_template(tpl_id: int, db: Session = Depends(get_db)):
     db_tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
@@ -86,13 +99,25 @@ def propagate_recurrence(tpl_id: int, req: PropagateRequest, db: Session = Depen
         current_date += relativedelta(years=1)
     elif tpl.frequency == "Bi-Weekly":
         current_date += relativedelta(weeks=2)
-        
-    while current_date <= end_of_year:
+
+    existing_count = 0
+    if tpl.max_occurrences:
+        existing_count = db.query(Transaction).filter(
+            Transaction.recurrence_id == tpl.id
+        ).count()
+    tpl_generated = 0
+    
+    while True:
+        if tpl.max_occurrences and (existing_count + tpl_generated) >= tpl.max_occurrences:
+            break
+        if not tpl.max_occurrences and current_date > end_of_year:
+            break
+            
         exists = db.query(Transaction).filter(
             Transaction.description == tpl.description,
             Transaction.date_operation == current_date
         ).first()
-        
+    
         if not exists:
             new_tx = Transaction(
                 date_saisie=date.today(),
@@ -109,6 +134,7 @@ def propagate_recurrence(tpl_id: int, req: PropagateRequest, db: Session = Depen
             )
             db.add(new_tx)
             updated_count += 1
+            tpl_generated += 1
             
         if tpl.frequency == "Monthly":
             current_date += relativedelta(months=1)
@@ -142,7 +168,19 @@ def generate_recurrences(db: Session = Depends(get_db)):
             else:
                 current_date += relativedelta(months=1)
             
-        while current_date <= end_of_year:
+        existing_count = 0
+        if tpl.max_occurrences:
+            existing_count = db.query(Transaction).filter(
+                Transaction.recurrence_id == tpl.id
+            ).count()
+        tpl_generated = 0
+            
+        while True:
+            if tpl.max_occurrences and (existing_count + tpl_generated) >= tpl.max_occurrences:
+                break
+            if not tpl.max_occurrences and current_date > end_of_year:
+                break
+                
             # Check if this exact recurrent transaction already exists to avoid duplicates
             # A simple heuristic: same description and same date
             exists = db.query(Transaction).filter(
@@ -166,6 +204,7 @@ def generate_recurrences(db: Session = Depends(get_db)):
                 )
                 db.add(new_tx)
                 generated_count += 1
+                tpl_generated += 1
                 
             if tpl.frequency == "Monthly":
                 current_date += relativedelta(months=1)

@@ -68,6 +68,7 @@ class RecurrenceTemplateBase(BaseModel):
     frequency: str
     day_of_month: Optional[int] = None
     month_of_year: Optional[int] = None
+    max_occurrences: Optional[int] = None
     from_account_id: Optional[int] = None
     to_account_id: Optional[int] = None
 

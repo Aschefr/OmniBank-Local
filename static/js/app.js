@@ -29,6 +29,17 @@ class App {
             this.config = {};
         }
         
+        // ── Phase 8: Check if first launch / empty DB ──
+        if (window.SetupWizard) {
+            const wizardShown = await window.SetupWizard.checkAndShow();
+            if (wizardShown) {
+                // Reveal UI behind wizard (for theme consistency)
+                const container = document.querySelector('.app-container');
+                if (container) container.style.opacity = '1';
+                return; // Wizard handles the rest
+            }
+        }
+        
         // Display app version in header (via Tauri IPC command)
         try {
             let version = null;
@@ -51,6 +62,10 @@ class App {
             if (badge && version) badge.textContent = `v${version}`;
         } catch (e) { console.warn('[version] All version checks failed', e); }
         
+        this._initUI();
+    }
+
+    _initUI() {
         // Theme toggle
         const savedTheme = localStorage.getItem('omni_theme');
         if (savedTheme === 'dark') {
@@ -71,28 +86,34 @@ class App {
             if (localStorage.getItem('omni_privacy') === 'true') {
                 document.body.classList.add('privacy-mode');
                 privacyToggle.textContent = '🙈';
+                privacyToggle.classList.add('toggle-active');
             }
             
             privacyToggle.addEventListener('click', () => {
                 document.body.classList.toggle('privacy-mode');
                 const isPrivate = document.body.classList.contains('privacy-mode');
                 privacyToggle.textContent = isPrivate ? '🙈' : '👁️';
+                privacyToggle.classList.toggle('toggle-active', isPrivate);
                 localStorage.setItem('omni_privacy', isPrivate);
             });
         }
         
         // Compact mode toggle
         const compactToggle = document.getElementById('compactToggle');
+        const svgNormal = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect y="2" width="16" height="2.5" rx="1"/><rect y="7" width="16" height="2.5" rx="1"/><rect y="12" width="16" height="2.5" rx="1"/></svg>';
+        const svgCompact = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect y="1" width="16" height="1.5" rx=".75"/><rect y="5" width="16" height="1.5" rx=".75"/><rect y="9" width="16" height="1.5" rx=".75"/><rect y="13" width="16" height="1.5" rx=".75"/></svg>';
         if (compactToggle) {
             if (localStorage.getItem('omni_compact') === 'true') {
                 document.body.classList.add('compact-mode');
-                compactToggle.textContent = '☷';
+                compactToggle.innerHTML = svgCompact;
+                compactToggle.classList.add('toggle-active');
             }
             
             compactToggle.addEventListener('click', () => {
                 document.body.classList.toggle('compact-mode');
                 const isCompact = document.body.classList.contains('compact-mode');
-                compactToggle.textContent = isCompact ? '☷' : '☰';
+                compactToggle.innerHTML = isCompact ? svgCompact : svgNormal;
+                compactToggle.classList.toggle('toggle-active', isCompact);
                 localStorage.setItem('omni_compact', isCompact);
                 // Re-measure row height and refresh active VirtualTable
                 [window.TimelineView, window.AllOperationsView].forEach(v => {
@@ -167,7 +188,7 @@ class App {
         });
 
         // Initial Load
-        await this.refreshSidebar();
+        this.refreshSidebar();
         
         // Restore view from localStorage
         const savedView = localStorage.getItem('omni_current_view') || this.currentView;

@@ -42,7 +42,6 @@ window.RecurrenceView = {
                     <button class="btn btn-danger" style="padding: 15px;" onclick="window.RecurrenceView.deleteOperations()" data-i18n="btn_delete_recurrence">${window.i18n.t('btn_delete_recurrence')}</button>
                     <div style="flex: 1; min-height: 50px;"></div>
                     <button class="btn btn-primary" style="padding: 15px; font-weight: bold;" onclick="window.RecurrenceView.saveAll()" data-i18n="btn_save_changes">${window.i18n.t('btn_save_changes')}</button>
-                    <button class="btn btn-secondary" style="padding: 15px;" onclick="window.app.loadView('timeline')" data-i18n="btn_close">${window.i18n.t('btn_close')}</button>
                 </div>
             </div>
         `;
@@ -200,11 +199,20 @@ window.RecurrenceView = {
 
     async saveAll() {
         if (this.modifiedRows.size === 0) {
-            window.app.loadView('timeline');
             return;
         }
         
+        const btn = document.querySelector('[data-i18n="btn_save_changes"]');
+        const originalText = btn ? btn.textContent : '';
+        
         try {
+            // Visual: saving state
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳ ...';
+                btn.style.opacity = '0.7';
+            }
+            
             for (let id of this.modifiedRows) {
                 const dateVal = document.getElementById(`rec_date_${id}`).value;
                 const amountVal = parseFloat(document.getElementById(`rec_amount_${id}`).value);
@@ -213,11 +221,34 @@ window.RecurrenceView = {
                     amount: amountVal
                 });
             }
-            await showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_changes_saved'));
+            
+            // Visual: success state
+            if (btn) {
+                btn.textContent = '✅ ' + window.i18n.t('btn_saved');
+                btn.style.opacity = '1';
+                btn.style.transition = 'background 0.3s';
+                btn.style.background = 'var(--success, #2ecc71)';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                    btn.disabled = false;
+                }, 2000);
+            }
+            
             window.app.refreshSidebar();
             await this.refreshTransactions();
         } catch (e) {
             console.error("Save error", e);
+            if (btn) {
+                btn.textContent = '❌ ' + window.i18n.t('title_error');
+                btn.style.background = 'var(--danger, #e74c3c)';
+                btn.style.opacity = '1';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                    btn.disabled = false;
+                }, 2000);
+            }
             await showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_save_error_generic'));
         }
     },

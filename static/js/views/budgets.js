@@ -636,6 +636,7 @@ window.BudgetsView = {
             
             await this.loadBudgets();
             await this.loadStatus();
+            window.app.refreshSidebar();
 
             if (this._directEdit || !id) {
                 // Cas 1: direct edit or new → close modal entirely
@@ -663,6 +664,7 @@ window.BudgetsView = {
         try {
             await API.put(`/api/budgets/${id}`, { monthly_amount: amount });
             await this.loadStatus();
+            window.app.refreshSidebar();
         } catch(e) {
             showInlineMessage(window.i18n.t('title_info'), window.i18n.tp('msg_update_error', {error: e.message}));
         }
@@ -677,6 +679,7 @@ window.BudgetsView = {
             await API.put(`/api/budgets/${id}`, { is_closed: !b.is_closed });
             await this.loadBudgets();
             await this.loadStatus();
+            window.app.refreshSidebar();
         } catch(e) {
             showInlineMessage(window.i18n.t('title_error'), e.message);
         }
@@ -688,6 +691,7 @@ window.BudgetsView = {
             await API.del(`/api/budgets/${id}`);
             await this.loadBudgets();
             await this.loadStatus();
+            window.app.refreshSidebar();
         } catch(e) {
             showInlineMessage(window.i18n.t('title_info'), e.message);
         }
@@ -767,6 +771,7 @@ window.BudgetsView = {
             
             await this.loadBudgets();
             await this.loadStatus();
+            window.app.refreshSidebar();
             
             if(btn) {
                 btn.innerHTML = window.i18n.t('msg_envelope_created_badge');
