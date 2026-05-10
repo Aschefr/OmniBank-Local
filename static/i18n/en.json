@@ -619,5 +619,7 @@
     "acc_th_color": "Color",
     "acc_color_label": "Badge color",
     "analytics_all_accounts": "All",
-    "export_modal_accounts": "Accounts"
+    "export_modal_accounts": "Accounts",
+    "msg_saved": "Saved",
+    "btn_relaunch_wizard": "Relaunch Setup Wizard"
 }

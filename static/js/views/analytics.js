@@ -110,15 +110,15 @@ window.AnalyticsView = {
         const allIds = accounts.map(a => a.id);
         
         if (!this.selectedAccountIds) {
-            // Was "all" — switch to just this one deselected (= all others selected)
-            this.selectedAccountIds = allIds.filter(i => i !== id);
+            // Was "all" — select only this one
+            this.selectedAccountIds = [id];
         } else if (this.selectedAccountIds.includes(id)) {
             // Deselect this account
             this.selectedAccountIds = this.selectedAccountIds.filter(i => i !== id);
             // If none left, go back to all
             if (this.selectedAccountIds.length === 0) this.selectedAccountIds = null;
         } else {
-            // Select this account
+            // Add this account to selection
             this.selectedAccountIds.push(id);
             // If all are selected, switch to "all" mode
             if (this.selectedAccountIds.length >= allIds.length) this.selectedAccountIds = null;
@@ -474,7 +474,8 @@ window.AnalyticsView = {
         if (id === null) {
             this._exportAccountIds = null;
         } else if (!this._exportAccountIds) {
-            this._exportAccountIds = allIds.filter(i => i !== id);
+            // Was "all" — select only this one
+            this._exportAccountIds = [id];
         } else if (this._exportAccountIds.includes(id)) {
             this._exportAccountIds = this._exportAccountIds.filter(i => i !== id);
             if (this._exportAccountIds.length === 0) this._exportAccountIds = null;
@@ -506,6 +507,7 @@ window.AnalyticsView = {
         let allTx = [];
         let accountsMap = {};
         let budgetsMap = {};
+        let categoryToBudgetMap = {};
         
         // Fetch full data for the primary year to get its months offline, and fetch transactions
         try {
@@ -518,7 +520,12 @@ window.AnalyticsView = {
             const accs = await API.get('/api/accounts/');
             accs.forEach(a => { accountsMap[a.id] = a.name; });
             const budgets = await API.get('/api/budgets/');
-            budgets.forEach(b => { budgetsMap[b.id] = b.name; });
+            budgets.forEach(b => {
+                budgetsMap[b.id] = b.name;
+                if (!b.is_project && b.categories) {
+                    b.categories.forEach(cat => { categoryToBudgetMap[cat] = b.name; });
+                }
+            });
         } catch (e) {
             console.error("Error fetching print data", e);
             // We can continue with partial data
@@ -598,7 +605,7 @@ window.AnalyticsView = {
                 }
                 
                 if (selectedCols.includes('recon')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${formatDate(tx.reconciliation_date) || '-'}</td>`;
-                if (selectedCols.includes('budget')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.budget_id && budgetsMap[tx.budget_id] ? budgetsMap[tx.budget_id] : '-'}</td>`;
+                if (selectedCols.includes('budget')) { const bName = (tx.budget_id && budgetsMap[tx.budget_id]) ? budgetsMap[tx.budget_id] : (tx.category && categoryToBudgetMap[tx.category]) ? categoryToBudgetMap[tx.category] : null; tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${bName || '-'}</td>`; }
                 if (selectedCols.includes('depuis')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${accountsMap[tx.from_account_id] || ''}</td>`;
                 if (selectedCols.includes('vers')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${accountsMap[tx.to_account_id] || ''}</td>`;
                 if (selectedCols.includes('recurrence')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.recurrence_id || tx.is_monthly || tx.is_yearly ? '🔄' : '-'}</td>`;

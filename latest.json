@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHlEeHZ4SzZVOXZRY3hhUzd3MitlRXRnRGRwUVcrQTNxUWRIMXFjK2hYdkJoSTZDOFBhRmwwU1gzOGZlcXNnRE5JaDg0aDdhNFo4MlkyVDU2bGRwR3dBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NDI0NDI5CWZpbGU6T21uaUJhbmtfMS4wLjE5X3g2NF9mci1GUi5tc2kKMHZ3eklOMHVaYnJqZmtNMVI1RGxHS0xPTnJiYXpGVU95c2VBY3lBNENRMUxyWmU1N0NqYUlFTGJFelliZWd4TVdUY29xamg5aDRLWTZkWmxXYnZQQVE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.19/OmniBank_1.0.19_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlIQUk4dFczUlgzSkNHeEZtUXVtK0J3enc2anRKMjVUMTF3Mi9PUktuUnRrMlFkcE5qT2VZN0o4OFRxZ055TEVMQmxuR3NseGFDYXh1Rk82LzBPREFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NDI5MjM2CWZpbGU6T21uaUJhbmtfMS4wLjIwX3g2NF9mci1GUi5tc2kKcitOSkxKNWtuYWtVeTJCZk93RVBRUjN3ZnpNdGJXVlpzMldIVTRyMGNYNmk0OFM3NE12SUNNUVBYNWtVZy8rNC9LWWt1a1ZKdE80azhsQklIL1FWQWc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.20/OmniBank_1.0.20_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-10T14:47:09Z",
-    "version":  "1.0.19",
-    "notes":  "Badges de couleurs pour les comptes, filtrage par compte dans Synthese et export PDF"
+    "pub_date":  "2026-05-10T16:07:16Z",
+    "version":  "1.0.20",
+    "notes":  "Fix bug erreur fausse renommage Types, animation bouton sauvegarde, bouton relancer wizard, pre-remplissage wizard, etoile compte principal wizard, filtre budgets mensuels sidebar, inversion logique filtres comptes Synthese, fix export PDF scope, fix export CSV Tauri"
 }

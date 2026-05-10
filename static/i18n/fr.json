@@ -635,5 +635,7 @@
     "acc_th_color": "Couleur",
     "acc_color_label": "Couleur du badge",
     "analytics_all_accounts": "Tous",
-    "export_modal_accounts": "Comptes"
+    "export_modal_accounts": "Comptes",
+    "msg_saved": "Sauvegardé",
+    "btn_relaunch_wizard": "Relancer l’assistant de configuration"
 }

@@ -171,7 +171,7 @@ window.CategoriesView = {
         });
         
         container.innerHTML = html;
-        window.app.applyI18n(); // Ensure headers get translated
+        window.i18n.translateDOM(container);
     },
 
     async saveTypeLabels() {
@@ -184,14 +184,40 @@ window.CategoriesView = {
             }
         });
         
+        const btn = document.querySelector('[onclick="window.CategoriesView.saveTypeLabels()"]');
         try {
             await API.post('/api/config/', payload);
-            showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_type_names_saved'));
             // Update app config locally
             for(let k in payload) window.app.config[k] = payload[k];
             this.renderTable();
+            // Animate button: green success flash
+            if (btn) {
+                const origText = btn.textContent;
+                const origBg = btn.style.background;
+                btn.textContent = '✓ ' + window.i18n.t('msg_saved');
+                btn.style.background = 'rgba(16,185,129,0.25)';
+                btn.style.color = '#10b981';
+                btn.style.transition = 'all 0.3s';
+                setTimeout(() => {
+                    btn.textContent = origText;
+                    btn.style.background = origBg;
+                    btn.style.color = '';
+                }, 2000);
+            }
         } catch (e) {
-            showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_cannot_save'));
+            // Animate button: red error shake
+            if (btn) {
+                const origBg = btn.style.background;
+                btn.style.background = 'rgba(255,86,48,0.25)';
+                btn.style.color = '#ff5630';
+                btn.style.animation = 'none';
+                btn.offsetHeight; // reflow
+                btn.style.animation = 'shake 0.4s ease';
+                setTimeout(() => {
+                    btn.style.background = origBg;
+                    btn.style.color = '';
+                }, 2000);
+            }
         }
     },
 

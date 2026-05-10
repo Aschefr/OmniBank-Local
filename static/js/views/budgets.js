@@ -389,7 +389,7 @@ window.BudgetsView = {
                     ? `<span style="background:rgba(239,68,68,0.15);color:#ff5630;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">${window.i18n.t('budget_closed_tag')}</span>`
                     : '';
 
-                html += `<div onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" style="background:var(--bg-body);border:1px solid ${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'};border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.2s;${closedStyle}" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)'" onmouseout="this.style.borderColor='${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'}'">
+                html += `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" style="background:var(--bg-body);border:1px solid ${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'};border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.3s, box-shadow 0.3s;${closedStyle}" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)'" onmouseout="this.style.borderColor='${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'}'">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px;">
                         <div style="flex:1;">
                             <strong style="font-size:13px;">${b.name} ${closedTag}</strong>
@@ -430,6 +430,30 @@ window.BudgetsView = {
         let html = fullHtml;
 
         container.innerHTML = html;
+
+        // Highlight a specific budget card if requested from another view
+        if (this._pendingHighlightName) {
+            const name = this._pendingHighlightName;
+            this._pendingHighlightName = null;
+            setTimeout(() => this._highlightByName(name), 100);
+        }
+    },
+
+    _highlightByName(budgetName) {
+        const cards = document.querySelectorAll('[data-budget-id]');
+        for (const card of cards) {
+            const nameEl = card.querySelector('strong');
+            if (nameEl && nameEl.textContent.trim().startsWith(budgetName)) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.style.boxShadow = '0 0 0 2px var(--accent), 0 0 20px rgba(99,102,241,0.4)';
+                card.style.borderColor = 'var(--accent)';
+                setTimeout(() => {
+                    card.style.boxShadow = '';
+                    card.style.borderColor = '';
+                }, 3000);
+                break;
+            }
+        }
     },
 
     async showDetail(budgetId, budgetName, year, month) {

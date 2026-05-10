@@ -185,8 +185,15 @@ window.AllOperationsView = {
             try {
                 const budgets = await API.get('/api/budgets/');
                 this.budgetsMap = {};
-                budgets.forEach(b => { this.budgetsMap[b.id] = b.name; });
-            } catch(e) { this.budgetsMap = {}; }
+                this.categoryToBudgetMap = {}; // category name → budget name (for category-based envelopes)
+                budgets.forEach(b => {
+                    this.budgetsMap[b.id] = b.name;
+                    // For category-based budgets, map each category to the budget name
+                    if (!b.is_project && b.categories) {
+                        b.categories.forEach(cat => { this.categoryToBudgetMap[cat] = b.name; });
+                    }
+                });
+            } catch(e) { this.budgetsMap = {}; this.categoryToBudgetMap = {}; }
 
             // Load accounts to map IDs to full objects (name + color)
             const accs = await API.get('/api/accounts/');
@@ -345,16 +352,16 @@ window.AllOperationsView = {
                 <td class="col-dateSaisie" data-label="${window.i18n.t('dl_date_entry')}">${formatDate(tx.date_saisie)}</td>
                 <td class="col-date" data-label="${window.i18n.t('dl_date_op')}">${formatDate(tx.date_operation)}</td>
                 <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${(tx.description || '').replace(/"/g, '&quot;')}"><span class="desc-text">${tx.description}</span></td>
-                <td class="col-type" data-label="${window.i18n.t('dl_type')}">${window.app.getTypeLabel(tx.type)}</td>
+                <td class="col-type" data-label="${window.i18n.t('dl_type')}" title="${window.app.getTypeLabel(tx.type)}">${window.app.getTypeLabel(tx.type)}</td>
                 <td class="col-cat" data-label="${window.i18n.t('dl_category')}" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
                 <td class="col-amount" data-label="${window.i18n.t('dl_amount')}">
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>
                 </td>
                 <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}">${formatDate(tx.reconciliation_date) || '-'}</td>
-                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${tx.budget_id && this.budgetsMap[tx.budget_id] ? `<span onclick="window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title=\"${window.i18n.t('tooltip_view_envelope')}\">🗂️ ${this.budgetsMap[tx.budget_id]}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</td>
+                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && this.budgetsMap[tx.budget_id]) ? this.budgetsMap[tx.budget_id] : (tx.category && this.categoryToBudgetMap && this.categoryToBudgetMap[tx.category]) ? this.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
                 <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuisTitle}">${depuisBadge}</td>
                 <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${versBadge}</td>
-                <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}">${recText}</td>
+                <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}" title="${recText}">${recText}</td>
                 <td class="col-slip" data-label="${window.i18n.t('dl_slip')}">${tx.slip_number ? '<span style="background: rgba(255,152,0,0.15); color: #ff9800; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">' + tx.slip_number + '</span>' : '-'}</td>
                 <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}">📎</span>` : '-'}</td>
                 <td class="col-actions mobile-card-actions">

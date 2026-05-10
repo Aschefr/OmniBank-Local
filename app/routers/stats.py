@@ -70,12 +70,13 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         if warning["date"] > next_pay_date:
             warning = None
             
-    # Calculate global budget summary
+    # Calculate global budget summary (monthly budgets only for sidebar)
     from app.routers.budgets import get_budget_status
     budget_data = get_budget_status(today.year, today.month, db)
-    total_budgeted = sum(b["budget_amount"] for b in budget_data["budgets"])
-    total_spent = sum(b["expenses"] for b in budget_data["budgets"])
-    reconciled_spent = sum(b["reconciled_expenses"] for b in budget_data["budgets"])
+    monthly_budgets = [b for b in budget_data["budgets"] if b.get("period") == "monthly"]
+    total_budgeted = sum(b["budget_amount"] for b in monthly_budgets)
+    total_spent = sum(b["expenses"] for b in monthly_budgets)
+    reconciled_spent = sum(b["reconciled_expenses"] for b in monthly_budgets)
     
     return {
         "net_worth": net_worth,

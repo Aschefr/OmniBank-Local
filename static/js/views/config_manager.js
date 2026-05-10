@@ -146,6 +146,15 @@ window.ConfigView = {
                     <button class="btn btn-warning" onclick="document.getElementById('restoreBackupInput').click()" style="display: flex; align-items: center; gap: 5px; background-color: var(--color-expense); color: white;">
                         📂 <span data-i18n="btn_restore_backup">Restaurer Sauvegarde (ZIP)</span>
                     </button>
+                </div>
+
+                <hr style="border:none; border-top:1px solid var(--border-color); margin:18px 0;">
+
+                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <!-- Re-launch Wizard -->
+                    <button class="btn btn-secondary" onclick="window.SetupWizard.show()" style="display: flex; align-items: center; gap: 5px;">
+                        🧙 <span data-i18n="btn_relaunch_wizard">${window.i18n.t('btn_relaunch_wizard')}</span>
+                    </button>
 
                     <!-- Clear DB -->
                     <button class="btn btn-danger" onclick="window.ConfigView.clearDB()" style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
@@ -308,7 +317,7 @@ window.ConfigView = {
             `).join('');
             document.getElementById('exportConfigModal').style.display = 'flex';
         } else {
-            window.open('/api/csv/export', '_blank');
+            this._downloadCSV('/api/csv/export');
         }
     },
     
@@ -322,7 +331,25 @@ window.ConfigView = {
         }
         
         document.getElementById('exportConfigModal').style.display = 'none';
-        window.open('/api/csv/export?cols=' + encodeURIComponent(selectedCols), '_blank');
+        this._downloadCSV('/api/csv/export?cols=' + encodeURIComponent(selectedCols));
+    },
+
+    async _downloadCSV(endpoint) {
+        const downloadUrl = `${window.location.origin}${endpoint}`;
+
+        // In Tauri WebView, blob downloads don't work — open in system browser
+        if (window.__TAURI_INTERNALS__) {
+            showToast(window.i18n.t('msg_backup_browser') || 'Le t\u00e9l\u00e9chargement s\'ouvre dans votre navigateur...', 'info', 4000);
+            try {
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: downloadUrl });
+            } catch (e) {
+                console.error(e);
+            }
+            return;
+        }
+
+        // Fallback for regular browser (dev mode)
+        window.open(endpoint, '_blank');
     },
 
     async importRawCSV(event) {

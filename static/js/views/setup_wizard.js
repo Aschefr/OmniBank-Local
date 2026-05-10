@@ -3,6 +3,7 @@ window.SetupWizard = {
     currentStep: 0,
     totalSteps: 6,
     createdAccounts: [],
+    _mainAccountId: null,
     overlay: null,
 
     async checkAndShow() {
@@ -18,9 +19,23 @@ window.SetupWizard = {
         return false;
     },
 
-    show() {
+    async show() {
         this.currentStep = 0;
-        this.createdAccounts = [];
+        // Pre-load existing accounts so re-launch doesn't start empty
+        try {
+            const accounts = await API.get('/api/accounts/');
+            this.createdAccounts = (accounts || []).filter(a => !a.is_closed);
+        } catch (e) {
+            this.createdAccounts = [];
+        }
+        // Sync org mode from existing config
+        const cfg = window.app?.config || {};
+        this._orgMode = cfg.enable_org_mode === 'true';
+        // Pre-load main account
+        try {
+            const mainAcc = await API.get('/api/stats/main_account');
+            this._mainAccountId = mainAcc?.id || null;
+        } catch (e) { this._mainAccountId = null; }
         this._buildOverlay();
         this._renderStep();
     },
@@ -220,8 +235,11 @@ window.SetupWizard = {
         if (this.createdAccounts.length === 0) {
             return `<p class="wizard-empty-hint" data-i18n="wizard_no_accounts">${window.i18n.t('wizard_no_accounts')}</p>`;
         }
-        return this.createdAccounts.map((acc, i) => `
+        return this.createdAccounts.map((acc, i) => {
+            const isMain = acc.id === this._mainAccountId;
+            return `
             <div class="wizard-account-card">
+                <button class="wizard-star-btn ${isMain ? 'active' : ''}" onclick="window.SetupWizard._setMainAccount(${acc.id})" title="${window.i18n.t('acc_set_main')}">${isMain ? '⭐' : '☆'}</button>
                 <div class="wizard-account-info">
                     <strong>${acc.name}</strong>
                     <span class="wizard-account-type">${acc.type}</span>
@@ -229,7 +247,8 @@ window.SetupWizard = {
                 <div class="wizard-account-balance">${formatCurrency(acc.initial_balance)}</div>
                 <button class="wizard-btn-remove" onclick="window.SetupWizard._removeAccount(${i})">✕</button>
             </div>
-        `).join('');
+        `;
+        }).join('');
     },
 
     async _addAccount() {
@@ -262,6 +281,10 @@ window.SetupWizard = {
             // Enable next button
             const nextBtn = document.querySelector('.wizard-nav .wizard-btn-primary');
             if (nextBtn) nextBtn.disabled = false;
+            // Auto-set first account as main
+            if (this.createdAccounts.length === 1 && !this._mainAccountId) {
+                this._setMainAccount(created.id);
+            }
             showToast(window.i18n.t('wizard_toast_account_added'), 'success');
         } catch (e) {
             console.error('[SetupWizard] Erreur creation du compte', e);
@@ -288,6 +311,16 @@ window.SetupWizard = {
             return;
         }
         this._nav(1);
+    },
+
+    async _setMainAccount(id) {
+        try {
+            await API.post(`/api/stats/main_account/${id}`);
+            this._mainAccountId = id;
+            document.getElementById('wizAccountsList').innerHTML = this._renderAccountsList();
+        } catch (e) {
+            console.error('[SetupWizard] Erreur définition compte principal', e);
+        }
     },
 
     // ── Step 2: Pay Day ──────────────────────────────────
@@ -326,6 +359,20 @@ window.SetupWizard = {
                 </div>
             </div>
         `;
+        // Pre-fill from existing config
+        const cfg = window.app?.config || {};
+        if (cfg.base_pay_day) {
+            const el = document.getElementById('wizPayDay');
+            if (el) el.value = cfg.base_pay_day;
+        }
+        if (cfg.base_pay_type === 'bimonthly') {
+            const toggle = document.getElementById('wizBimonthlyToggle');
+            if (toggle) { toggle.checked = true; this._toggleBimonthly(); }
+            if (cfg.base_pay_day_2) {
+                const el2 = document.getElementById('wizPayDay2');
+                if (el2) el2.value = cfg.base_pay_day_2;
+            }
+        }
     },
 
     _toggleBimonthly() {
@@ -532,6 +579,25 @@ window.SetupWizard = {
                 </div>
             </div>
         `;
+        // Pre-fill from existing config
+        const cfg = window.app?.config || {};
+        if (cfg.enable_ai === 'true') {
+            const toggle = document.getElementById('wizAIToggle');
+            if (toggle) { toggle.checked = true; this._toggleAIFields(); }
+            if (cfg.ollama_url) {
+                const urlEl = document.getElementById('wizAIUrl');
+                if (urlEl) urlEl.value = cfg.ollama_url;
+            }
+            // Auto-fetch models to populate the dropdown
+            if (cfg.ollama_url) {
+                this._testOllama().then(() => {
+                    if (cfg.ollama_model) {
+                        const sel = document.getElementById('wizAIModel');
+                        if (sel) sel.value = cfg.ollama_model;
+                    }
+                });
+            }
+        }
     },
 
     _toggleAIFields() {
