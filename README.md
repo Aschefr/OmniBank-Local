@@ -43,24 +43,16 @@ Dès le premier lancement, un **Assistant d'Initialisation** vous guide pour con
 *   **Historique Virtualisé** : Gérez des milliers de transactions avec une fluidité parfaite grâce au rendu ultra-rapide.
 *   **Rapprochement Intelligent** : Un système visuel pour pointer vos opérations. Comparez d'un coup d'œil vos relevés bancaires (avant) et votre comptabilité propre (après).
 
-````carousel
-![Saisie d'opération](screenshots/02_dashboard_saisie_operation.png)
-<!-- slide -->
-![Historique des transactions](screenshots/03_historique.png)
-<!-- slide -->
-![Dashboard avec rapprochement](screenshots/02_dashboard_après_rapprochement.png)
-````
+| Saisie d'opération | Historique | Rapprochement |
+| :---: | :---: | :---: |
+| ![Saisie d'opération](screenshots/02_dashboard_saisie_operation.png) | ![Historique des transactions](screenshots/03_historique.png) | ![Dashboard avec rapprochement](screenshots/02_dashboard_après_rapprochement.png) |
 
 ### 🎯 Budget & Enveloppes
 Suivez vos dépenses par catégories ou par projets avec un système d'enveloppes visuel. L'IA peut même vous suggérer des budgets basés sur vos habitudes.
 
-````carousel
-![Vue Budget](screenshots/05_budgets.png)
-<!-- slide -->
-![Détail d'un budget](screenshots/05_budgets_detail.png)
-<!-- slide -->
-![Suggestions IA pour budgets](screenshots/05_budgets_suggestion_ia.png)
-````
+| Vue Budget | Détail Budget | Suggestions IA |
+| :---: | :---: | :---: |
+| ![Vue Budget](screenshots/05_budgets.png) | ![Détail d'un budget](screenshots/05_budgets_detail.png) | ![Suggestions IA pour budgets](screenshots/05_budgets_suggestion_ia.png) |
 
 ### 🤖 Intelligence Artificielle Locale
 Interagissez avec votre assistant financier personnel via Ollama. Grâce au RAG (Retrieval-Augmented Generation), l'IA accède à vos données pour répondre précisément. Elle peut même vous soumettre des **propositions d'actions interactives** directement dans le chat.
@@ -70,28 +62,18 @@ Interagissez avec votre assistant financier personnel via Ollama. Grâce au RAG 
 ### 📊 Synthèse & Tendances
 Visualisez l'évolution de votre patrimoine et générez des **rapports PDF haute fidélité**, parfaits pour un suivi comptable rigoureux ou un partage sécurisé.
 
-````carousel
-![Synthèse mensuelle](screenshots/04_synthèse.png)
-<!-- slide -->
-![Tendances long terme](screenshots/06_tendances.png)
-<!-- slide -->
-![Export PDF](screenshots/04_synthèse_export_pdf.png)
-````
+| Synthèse | Tendances | Export PDF |
+| :---: | :---: | :---: |
+| ![Synthèse mensuelle](screenshots/04_synthèse.png) | ![Tendances long terme](screenshots/06_tendances.png) | ![Export PDF](screenshots/04_synthèse_export_pdf.png) |
 
 ### 🛠️ Administration & Personnalisation
 Prenez le contrôle total de votre structure financière avec des outils de gestion flexibles.
 
-````carousel
-![Gestion des comptes](screenshots/10_comptes.png)
-<!-- slide -->
-![Gestion des catégories](screenshots/09_catégories.png)
-<!-- slide -->
-![Opérations récurrentes](screenshots/08_recurrences.png)
-<!-- slide -->
+| Comptes | Catégories | Récurrences | Configuration |
+| :---: | :---: | :---: | :---: |
+| ![Gestion des comptes](screenshots/10_comptes.png) | ![Gestion des catégories](screenshots/09_catégories.png) | ![Opérations récurrentes](screenshots/08_recurrences.png) | ![Configuration globale](screenshots/11_configuration.png) |
+
 ![Propagation des changements](screenshots/08_recurrences_modification_propagé.png)
-<!-- slide -->
-![Configuration globale](screenshots/11_configuration.png)
-````
 
 ---
 
@@ -162,24 +144,16 @@ From the very first launch, an **Initialization Assistant** guides you through c
 *   **Virtualized History**: Manage thousands of transactions with perfect fluidity thanks to ultra-fast rendering.
 *   **Smart Reconciliation**: A visual system to check your operations. Compare bank statements (before) and your clean accounting (after) at a glance.
 
-````carousel
-![Transaction entry](screenshots/02_dashboard_saisie_operation.png)
-<!-- slide -->
-![Transaction history](screenshots/03_historique.png)
-<!-- slide -->
-![Dashboard with reconciliation](screenshots/02_dashboard_après_rapprochement.png)
-````
+| Transaction entry | History | Reconciliation |
+| :---: | :---: | :---: |
+| ![Transaction entry](screenshots/02_dashboard_saisie_operation.png) | ![Transaction history](screenshots/03_historique.png) | ![Dashboard with reconciliation](screenshots/02_dashboard_après_rapprochement.png) |
 
 ### 🎯 Budget & Envelopes
 Track your spending by categories or projects with a visual envelope system. The AI can even suggest budgets based on your habits.
 
-````carousel
-![Budget View](screenshots/05_budgets.png)
-<!-- slide -->
-![Budget Detail](screenshots/05_budgets_detail.png)
-<!-- slide -->
-![AI Budget Suggestions](screenshots/05_budgets_suggestion_ia.png)
-````
+| Budget View | Budget Detail | AI Suggestions |
+| :---: | :---: | :---: |
+| ![Budget View](screenshots/05_budgets.png) | ![Budget Detail](screenshots/05_budgets_detail.png) | ![AI Budget Suggestions](screenshots/05_budgets_suggestion_ia.png) |
 
 ### 🤖 Local AI Assistant
 Interact with your personal financial assistant via Ollama. Using RAG (Retrieval-Augmented Generation), the AI accesses your data to provide precise answers. It can even submit **interactive action proposals** directly in the chat.
@@ -189,28 +163,18 @@ Interact with your personal financial assistant via Ollama. Using RAG (Retrieval
 ### 📊 Synthesis & Trends
 Visualize the evolution of your wealth and generate **high-fidelity PDF reports**, perfect for rigorous accounting tracking or secure sharing.
 
-````carousel
-![Monthly synthesis](screenshots/04_synthèse.png)
-<!-- slide -->
-![Long term trends](screenshots/06_tendances.png)
-<!-- slide -->
-![PDF Export](screenshots/04_synthèse_export_pdf.png)
-````
+| Synthesis | Trends | PDF Export |
+| :---: | :---: | :---: |
+| ![Monthly synthesis](screenshots/04_synthèse.png) | ![Long term trends](screenshots/06_tendances.png) | ![PDF Export](screenshots/04_synthèse_export_pdf.png) |
 
 ### 🛠️ Administration & Customization
 Take full control of your financial structure with flexible management tools.
 
-````carousel
-![Account management](screenshots/10_comptes.png)
-<!-- slide -->
-![Category management](screenshots/09_catégories.png)
-<!-- slide -->
-![Recurring operations](screenshots/08_recurrences.png)
-<!-- slide -->
+| Accounts | Categories | Recurrences | Configuration |
+| :---: | :---: | :---: | :---: |
+| ![Account management](screenshots/10_comptes.png) | ![Category management](screenshots/09_catégories.png) | ![Recurring operations](screenshots/08_recurrences.png) | ![Global configuration](screenshots/11_configuration.png) |
+
 ![Propagation of changes](screenshots/08_recurrences_modification_propagé.png)
-<!-- slide -->
-![Global configuration](screenshots/11_configuration.png)
-````
 
 ---
 
