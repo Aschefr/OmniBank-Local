@@ -127,8 +127,6 @@ body {
     height: 100vh;
 }
 
-}
-
 .logo {
     font-size: 1.25rem;
     font-weight: 700;
@@ -171,6 +169,24 @@ body {
     display: flex;
     flex: 1;
     overflow: hidden;
+}
+
+.app-sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border-color);
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-main {
+    flex: 1;
+    min-width: 0; /* critical: allows content to shrink below intrinsic size */
+    overflow-y: auto;
+    padding: 20px;
 }
 
 .responsive-header {
@@ -294,6 +310,7 @@ h3 {
 
 .data-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
     background: var(--bg-surface);
@@ -307,7 +324,22 @@ h3 {
     border-bottom: 1px solid var(--border-color);
     text-align: left;
     vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
+
+/* Fixed micro-column */
+.data-table th.col-marker,
+.data-table td.col-marker { width: 4px; padding: 0; }
+
+.data-table th.col-actions,
+.data-table td.col-actions { overflow: visible; text-overflow: clip; }
+
+.data-table th.col-recon,
+.data-table td.col-recon { overflow: visible; text-overflow: clip; }
+
+/* Column widths are computed dynamically in JS via applyColSettings() */
 
 .data-table th {
     background: var(--bg-surface);
@@ -720,12 +752,13 @@ body.privacy-mode #valNextPayAmount:hover {
         -webkit-overflow-scrolling: touch;
     }
 
-    .data-table th,
-    .data-table td {
-        padding: 8px 12px;
-    }
+
 
     /* Card layout for operation table */
+    .mobile-card-table {
+        table-layout: auto !important;
+    }
+
     .mobile-card-table,
     .mobile-card-table thead,
     .mobile-card-table tbody,
@@ -733,8 +766,11 @@ body.privacy-mode #valNextPayAmount:hover {
     .mobile-card-table td,
     .mobile-card-table tr {
         display: block;
-        width: 100%;
+        width: 100% !important;
+        max-width: none !important;
         white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
     }
 
     .mobile-card-table thead {
@@ -1010,6 +1046,16 @@ select.inline-input:focus option:checked {
 
 /* Print / PDF Export Styles */
 @media print {
+    /* Force Light Theme */
+    :root, .theme-dark, body {
+        --bg-base: #f4f6f8 !important;
+        --bg-surface: #ffffff !important;
+        --bg-input: #f0f2f5 !important;
+        --bg-sidebar: #ffffff !important;
+        --text-main: #212b36 !important;
+        --text-muted: #637381 !important;
+        --border-color: #dfe3e8 !important;
+    }
 
     /* Hide non-essential UI elements */
     .app-sidebar,
@@ -1032,27 +1078,59 @@ select.inline-input:focus option:checked {
         margin: 0;
         padding: 0;
         overflow: visible;
-        background: white;
+        background: white !important;
+    }
+
+    body.printing-offline .app-container {
+        display: none !important;
+    }
+
+    #printContainer {
+        display: block !important;
+    }
+
+    .print-page-break {
+        page-break-after: always;
+        break-after: page;
     }
 
     /* Force background colors to print */
     * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
-        color: black;
     }
 
     /* Basic typography adjustments for print */
     body {
         background-color: white !important;
+        color: black !important;
         font-size: 10pt;
     }
 
-    /* Keep table formatting clean */
+    /* Keep table formatting clean, force compact and fit width */
     .data-table {
         border: 1px solid #ddd !important;
         box-shadow: none !important;
         page-break-inside: auto;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    #printContainer div {
+        overflow: visible !important;
+        max-height: none !important;
+    }
+
+    #printContainer .data-table {
+        min-width: 0 !important;
+    }
+
+    #printContainer .data-table th,
+    #printContainer .data-table td {
+        min-width: 0 !important;
+        white-space: normal !important;
+        font-size: 10px !important;
+        padding: 4px 4px !important;
     }
 
     .data-table tr {
@@ -1060,11 +1138,18 @@ select.inline-input:focus option:checked {
         page-break-after: auto;
     }
 
+    /* Compact padding and smaller font to fit landscape width */
     .data-table th,
     .data-table td {
         border-bottom: 1px solid #ddd !important;
-        color: black !important;
-        background-color: transparent !important;
+        padding: 4px 6px !important;
+        font-size: 11px !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Utilitaires d'impression dynamique */
+    .no-print {
+        display: none !important;
     }
 }
 

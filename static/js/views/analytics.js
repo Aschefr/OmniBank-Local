@@ -19,7 +19,7 @@ window.AnalyticsView = {
             <div class="view-header" style="position:sticky;top:-32px;z-index:50;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <h2 style="margin:0;" data-i18n="analytics_title">${window.i18n.t('analytics_title')}</h2>
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <button class="btn btn-secondary" onclick="window.print()" style="padding: 6px 12px; font-size: 13px;" data-i18n-title="tooltip_export_pdf" title="Générer un PDF du rapport" data-i18n="btn_export_pdf">📥 Exporter en PDF</button>
+                    <button class="btn btn-secondary" onclick="window.AnalyticsView.showExportModal()" style="padding: 6px 12px; font-size: 13px;" data-i18n-title="tooltip_export_pdf" title="Générer un PDF du rapport" data-i18n="btn_export_pdf">📥 Exporter en PDF</button>
                     <select id="analyticsReconciled" class="inline-input" style="width:210px;" onchange="window.AnalyticsView.changeFilter('reconciled', this.value)">
                         <option value="all" data-i18n="analytics_all_amounts">${window.i18n.t('analytics_all_amounts')}</option>
                         <option value="reconciled" data-i18n="analytics_reconciled_only">${window.i18n.t('analytics_reconciled_only')}</option>
@@ -164,15 +164,15 @@ window.AnalyticsView = {
         const annualSep = '3px solid rgba(255,255,255,0.15)';
 
         const monthHeaders = months.map(mk =>
-            `<th style="text-align:right;min-width:80px;white-space:nowrap;border-bottom:1px solid ${hbd};position:sticky;top:0;background:var(--bg-surface);z-index:20;">${this.formatShortMonth(mk)}</th>`
+            `<th data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;min-width:80px;white-space:nowrap;border-bottom:1px solid ${hbd};position:sticky;top:0;background:var(--bg-surface);z-index:20;">${this.formatShortMonth(mk)}</th>`
         ).join('');
 
         const yearHeaders = years.map(yr =>
-            `<th style="text-align:right;min-width:90px;white-space:nowrap;border-left:${annualSep};border-bottom:1px solid ${hbd};color:${cfg.color};background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);">Total ${yr}</th>`
+            `<th data-year="${yr}" data-col-type="year" style="text-align:right;min-width:90px;white-space:nowrap;border-left:${annualSep};border-bottom:1px solid ${hbd};color:${cfg.color};background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);">Total ${yr}</th>`
         ).join('');
 
         let html = `
-        <div style="border:1px solid ${hbd};border-radius:12px;display:flex;flex-direction:column;max-height:75vh;">
+        <div data-type="${txType}" style="border:1px solid ${hbd};border-radius:12px;display:flex;flex-direction:column;max-height:75vh;">
             <div style="background:${hb};padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${hbd};flex-shrink:0;">
                 <span style="font-weight:700;font-size:15px;color:${cfg.color};">${cfg.emoji} ${translatedType}</span>
                 <span class="privacy-blur" style="font-size:13px;font-weight:600;color:${cfg.color};">${window.i18n.t('analytics_total_period')} : ${cfg.sign}${formatCurrency(grand_total)}</span>
@@ -195,7 +195,7 @@ window.AnalyticsView = {
                 const intensity = maxVal > 0 ? v / maxVal : 0;
                 const alpha = Math.round(intensity * 0.55 * 100) / 100;
                 const bg = v > 0 ? (isExpense ? `rgba(239,68,68,${alpha})` : isIncome ? `rgba(16,185,129,${alpha})` : `rgba(99,102,241,${alpha})`) : 'transparent';
-                return `<td style="text-align:right;background:${bg};transition:opacity 0.2s;cursor:pointer;"
+                return `<td data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;background:${bg};transition:opacity 0.2s;cursor:pointer;"
                     onclick="window.AnalyticsView.drillDown('${cat.replace(/'/g,"\\'")}','${mk}')"
                     title="🔍 ${cat} — ${this.formatShortMonth(mk)} — Voir les opérations">
                     <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</span>
@@ -204,14 +204,14 @@ window.AnalyticsView = {
 
             const yearCells = years.map(yr => {
                 const v = annCat[yr] || 0;
-                return `<td style="text-align:right;border-left:${annualSep};background:${hb};font-weight:500;cursor:pointer;"
+                return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};background:${hb};font-weight:500;cursor:pointer;"
                     onclick="window.AnalyticsView.drillDownYear('${cat.replace(/'/g,"\\'")}','${yr}')"
                     title="🔍 ${cat} — ${yr}">
                     <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</span>
                 </td>`;
             }).join('');
 
-            html += `<tr>
+            html += `<tr data-category="${cat.replace(/"/g, '&quot;')}">
                 <td title="${cat.replace(/"/g, '&quot;')}" style="font-weight:500;min-width:100px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;z-index:5;
                     background:var(--bg-surface);
                     box-shadow:3px 0 8px rgba(0,0,0,0.25);">${cat}</td>
@@ -223,12 +223,12 @@ window.AnalyticsView = {
         // Total row
         const totalMonthCells = months.map(mk => {
             const v = totals_per_month[mk] || 0;
-            return `<td style="text-align:right;color:${cfg.color};background:${hb};position:sticky;bottom:0;z-index:20;border-top:2px solid ${hbd};backdrop-filter:blur(5px);"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
+            return `<td data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;color:${cfg.color};background:${hb};position:sticky;bottom:0;z-index:20;border-top:2px solid ${hbd};backdrop-filter:blur(5px);"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
         }).join('');
 
         const totalYearCells = years.map(yr => {
             const v = (annual_totals_per_year || {})[yr] || 0;
-            return `<td style="text-align:right;border-left:${annualSep};color:${cfg.color};background:${hb};position:sticky;bottom:0;z-index:20;border-top:2px solid ${hbd};backdrop-filter:blur(5px);"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
+            return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};color:${cfg.color};background:${hb};position:sticky;bottom:0;z-index:20;border-top:2px solid ${hbd};backdrop-filter:blur(5px);"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
         }).join('');
 
         html += `<tr style="font-weight:700;">
@@ -252,5 +252,281 @@ window.AnalyticsView = {
     drillDownYear(category, year) {
         window.AllOperationsView.pendingFilter = { category, monthKey: '', year };
         window.app.loadView('all_operations');
+    },
+
+    showExportModal() {
+        if (!this.data || !this.data.by_type) return;
+        
+        // Extract years safely as strings
+        const yearsSet = new Set();
+        (this.data.years || []).forEach(y => yearsSet.add(y.toString()));
+        if (this.data.months) {
+            this.data.months.forEach(m => yearsSet.add(m.split('-')[0]));
+        }
+        const availableYears = Array.from(yearsSet).sort().reverse();
+        
+        // Extract types and categories
+        const types = Object.keys(this.data.by_type);
+        const currentYear = (this.selectedYear || new Date().getFullYear()).toString();
+        
+        let yearsHtml = availableYears.map(y => `
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" class="export-year-cb" value="${y}" ${y === currentYear ? 'checked' : ''}> ${y}
+            </label>
+        `).join('');
+        
+        let typesHtml = types.map(type => {
+            const translatedType = window.app.getTypeLabel(type);
+            const cats = Object.keys(this.data.by_type[type].categories || {}).sort();
+            const catsHtml = cats.map(cat => `
+                <label style="display:flex;align-items:center;gap:8px;margin-left:20px;cursor:pointer;font-size:12px;">
+                    <input type="checkbox" class="export-cat-cb" data-type="${type}" value="${cat.replace(/"/g, '&quot;')}" checked> ${cat}
+                </label>
+            `).join('');
+            
+            return `
+            <div style="margin-bottom: 12px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 8px;">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;margin-bottom:6px;">
+                    <input type="checkbox" class="export-type-cb" value="${type}" checked onchange="
+                        const cbs = this.parentElement.parentElement.querySelectorAll('.export-cat-cb');
+                        cbs.forEach(cb => cb.checked = this.checked);
+                    "> ${translatedType}
+                </label>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:6px;">
+                    ${catsHtml}
+                </div>
+            </div>`;
+        }).join('');
+        
+        const colSettings = window.AllOperationsView ? window.AllOperationsView.getColSettings() : 
+            { date: true, desc: true, type: false, cat: true, amount: true, recon: true };
+
+        const allCols = [
+            { id: 'dateSaisie', label: window.i18n.t('col_date_entry') },
+            { id: 'date', label: window.i18n.t('col_date_op') },
+            { id: 'desc', label: window.i18n.t('col_description') },
+            { id: 'type', label: window.i18n.t('col_type') },
+            { id: 'cat', label: window.i18n.t('col_category') },
+            { id: 'amount', label: window.i18n.t('col_amount') },
+            { id: 'recon', label: window.i18n.t('col_reconciled') },
+            { id: 'budget', label: window.i18n.t('col_envelope') },
+            { id: 'depuis', label: window.i18n.t('col_from') },
+            { id: 'vers', label: window.i18n.t('col_to') },
+            { id: 'recurrence', label: window.i18n.t('col_recurrence') },
+            { id: 'slip', label: window.i18n.t('col_slip') },
+            { id: 'attachments', label: window.i18n.t('col_attachments') }
+        ];
+
+        let colsHtml = allCols.map(c => `
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
+                <input type="checkbox" class="export-col-cb" value="${c.id}" ${colSettings[c.id] ? 'checked' : ''}> ${c.label}
+            </label>
+        `).join('');
+
+        const modalHtml = `
+        <div id="exportPdfModal" class="modal-overlay" style="display:flex;z-index:9999;">
+            <div class="modal" style="width:700px; max-width:90vw; max-height:90vh; display:flex; flex-direction:column;">
+                <h3 style="margin-bottom: 16px;">${window.i18n.t('export_modal_title')}</h3>
+                <div style="flex:1; overflow-y:auto; padding-right:10px;">
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_modal_years')}</h4>
+                        <div style="display:flex;gap:15px;flex-wrap:wrap;">
+                            ${yearsHtml}
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_modal_tables')}</h4>
+                        ${typesHtml}
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:13px;padding:10px;background:rgba(0,0,0,0.02);border-radius:8px;">
+                            <input type="checkbox" id="exportIncludeDetails" checked onchange="
+                                document.getElementById('exportColsSection').style.display = this.checked ? 'block' : 'none';
+                            " style="accent-color: var(--accent); width: 16px; height: 16px;">
+                            ${window.i18n.t('export_include_details')}
+                        </label>
+                    </div>
+                    <div id="exportColsSection">
+                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_cols_title')}</h4>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:10px;background:rgba(0,0,0,0.02);padding:10px;border-radius:8px;">
+                            ${colsHtml}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions" style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border-color);">
+                    <button class="btn btn-secondary" onclick="document.getElementById('exportPdfModal').remove()">${window.i18n.t('export_modal_cancel')}</button>
+                    <button class="btn btn-primary" onclick="window.AnalyticsView.executePrint()">${window.i18n.t('export_modal_print')}</button>
+                </div>
+            </div>
+        </div>`;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    async executePrint() {
+        const modal = document.getElementById('exportPdfModal');
+        if (!modal) return;
+        
+        // Gather selections
+        const selectedYears = Array.from(modal.querySelectorAll('.export-year-cb:checked')).map(cb => cb.value);
+        const selectedTypes = Array.from(modal.querySelectorAll('.export-type-cb:checked')).map(cb => cb.value);
+        const selectedCats = Array.from(modal.querySelectorAll('.export-cat-cb:checked')).map(cb => cb.value);
+        const selectedCols = Array.from(modal.querySelectorAll('.export-col-cb:checked')).map(cb => cb.value);
+        const includeDetails = modal.querySelector('#exportIncludeDetails')?.checked ?? true;
+        
+        // Determine primary year (most recent selected)
+        const primaryYear = selectedYears.slice().sort().reverse()[0] || null;
+        
+        let printData = this.data;
+        let allTx = [];
+        let accountsMap = {};
+        let budgetsMap = {};
+        
+        // Fetch full data for the primary year to get its months offline, and fetch transactions
+        try {
+            if (primaryYear) {
+                printData = await API.get(`/api/stats/categories_by_month?reconciled=${this.reconciled}&year=${primaryYear}`);
+            }
+            allTx = await API.get('/api/transactions/?limit=10000');
+            const accs = await API.get('/api/accounts/');
+            accs.forEach(a => { accountsMap[a.id] = a.name; });
+            const budgets = await API.get('/api/budgets/');
+            budgets.forEach(b => { budgetsMap[b.id] = b.name; });
+        } catch (e) {
+            console.error("Error fetching print data", e);
+            // We can continue with partial data
+        }
+        
+        // Create an offline container
+        let printContainer = document.getElementById('printContainer');
+        if (!printContainer) {
+            printContainer = document.createElement('div');
+            printContainer.id = 'printContainer';
+            printContainer.style.cssText = 'display: none;';
+            document.body.appendChild(printContainer);
+        }
+        
+        // Render data into offline container
+        const { months, years, by_type } = printData;
+        const revYears = (years || []).slice().reverse();
+        const sections = [];
+        
+        if (by_type) {
+            for (const [txType, typeData] of Object.entries(by_type)) {
+                sections.push('<div class="print-page-break">' + this.renderTypeTable(txType, typeData, months, revYears) + '</div>');
+            }
+        }
+        
+        // Build transactions list
+        let filteredTx = allTx.filter(tx => {
+            const yr = (tx.date_operation || '').split('-')[0];
+            if (!selectedYears.includes(yr)) return false;
+            if (!selectedTypes.includes(tx.type)) return false;
+            
+            let catMatches = false;
+            if (tx.category && selectedCats.includes(tx.category)) catMatches = true;
+            if (!tx.category && (selectedCats.includes('Sans catégorie') || selectedCats.includes('Uncategorized') || selectedCats.includes('—') || selectedCats.includes(''))) catMatches = true;
+            if (!catMatches) return false;
+            
+            return true;
+        });
+
+        filteredTx.sort((a, b) => new Date(b.date_operation) - new Date(a.date_operation));
+        
+        let txHtml = '';
+        if (includeDetails && filteredTx.length > 0) {
+            let ths = '';
+            if (selectedCols.includes('dateSaisie')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_date_entry')}</th>`;
+            if (selectedCols.includes('date')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_date_op')}</th>`;
+            if (selectedCols.includes('desc')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_description')}</th>`;
+            if (selectedCols.includes('type')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_type')}</th>`;
+            if (selectedCols.includes('cat')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_category')}</th>`;
+            if (selectedCols.includes('amount')) ths += `<th style="text-align:right;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_amount')}</th>`;
+            if (selectedCols.includes('recon')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_reconciled')}</th>`;
+            if (selectedCols.includes('budget')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_envelope')}</th>`;
+            if (selectedCols.includes('depuis')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_from')}</th>`;
+            if (selectedCols.includes('vers')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_to')}</th>`;
+            if (selectedCols.includes('recurrence')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_recurrence')}</th>`;
+            if (selectedCols.includes('slip')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_slip')}</th>`;
+            if (selectedCols.includes('attachments')) ths += `<th style="text-align:left;padding:4px;border-bottom:1px solid var(--border-color);">${window.i18n.t('col_attachments')}</th>`;
+
+            let trs = filteredTx.map(tx => {
+                let tds = '';
+                if (selectedCols.includes('dateSaisie')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${formatDate(tx.date_saisie)}</td>`;
+                if (selectedCols.includes('date')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${formatDate(tx.date_operation)}</td>`;
+                if (selectedCols.includes('desc')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.description || ''}</td>`;
+                if (selectedCols.includes('type')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${window.app.getTypeLabel(tx.type)}</td>`;
+                if (selectedCols.includes('cat')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.category || '-'}</td>`;
+                
+                if (selectedCols.includes('amount')) {
+                    const amountColor = tx.type === 'income' ? 'var(--color-income)' : 
+                                       (tx.type === 'transfer' ? 'var(--color-transfer)' : 'inherit');
+                    tds += `<td style="text-align:right;color:${amountColor};font-weight:bold;padding:4px;border-bottom:1px solid #eee;">${formatCurrency(tx.amount)}</td>`;
+                }
+                
+                if (selectedCols.includes('recon')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${formatDate(tx.reconciliation_date) || '-'}</td>`;
+                if (selectedCols.includes('budget')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.budget_id && budgetsMap[tx.budget_id] ? budgetsMap[tx.budget_id] : '-'}</td>`;
+                if (selectedCols.includes('depuis')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${accountsMap[tx.from_account_id] || ''}</td>`;
+                if (selectedCols.includes('vers')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${accountsMap[tx.to_account_id] || ''}</td>`;
+                if (selectedCols.includes('recurrence')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.recurrence_id || tx.is_monthly || tx.is_yearly ? '🔄' : '-'}</td>`;
+                if (selectedCols.includes('slip')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.slip_number || '-'}</td>`;
+                if (selectedCols.includes('attachments')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.attachments ? '📎' : '-'}</td>`;
+                
+                return `<tr>${tds}</tr>`;
+            }).join('');
+
+            txHtml = `
+            <h3 style="margin-top:20px;margin-bottom:15px;color:var(--text-main);">Détail des opérations (${filteredTx.length})</h3>
+            <table class="data-table" style="width:100%; border-collapse:collapse; font-size:10px;">
+                <thead><tr style="background:var(--bg-surface);">${ths}</tr></thead>
+                <tbody>${trs}</tbody>
+            </table>
+            `;
+        }
+        
+        const titleHtml = `<h2 style="margin-bottom: 20px;">${window.i18n.t('analytics_title')}</h2>`;
+        printContainer.innerHTML = titleHtml + sections.join('') + txHtml;
+        
+        // Handle Types
+        printContainer.querySelectorAll('[data-type]').forEach(el => {
+            if (!selectedTypes.includes(el.getAttribute('data-type'))) {
+                el.classList.add('no-print');
+            } else {
+                // Handle Categories within this type
+                el.querySelectorAll('tr[data-category]').forEach(tr => {
+                    if (!selectedCats.includes(tr.getAttribute('data-category'))) {
+                        tr.classList.add('no-print');
+                    }
+                });
+            }
+        });
+        
+        // Handle Years (columns)
+        printContainer.querySelectorAll('[data-year]').forEach(el => {
+            const yr = el.getAttribute('data-year');
+            const colType = el.getAttribute('data-col-type');
+            
+            if (!selectedYears.includes(yr)) {
+                el.classList.add('no-print');
+            } else if (colType === 'month' && yr !== primaryYear) {
+                // Hide month columns if not primary year
+                el.classList.add('no-print');
+            }
+        });
+        
+        // Print
+        document.body.classList.add('printing-offline');
+        
+        // Allow DOM to update before printing
+        setTimeout(() => {
+            window.print();
+            
+            // Cleanup
+            setTimeout(() => {
+                document.body.classList.remove('printing-offline');
+                printContainer.remove();
+                modal.remove();
+            }, 500);
+        }, 100);
     }
 };

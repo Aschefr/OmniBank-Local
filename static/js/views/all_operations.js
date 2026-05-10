@@ -74,25 +74,25 @@ window.AllOperationsView = {
                 </div>
                 </div>
             </div>
-            <div style="padding-bottom: 20px; overflow: clip;">
+            <div style="padding-bottom: 20px;">
                 <table class="data-table timeline-table mobile-card-table">
                     <thead>
                         <tr>
                             <th class="col-marker"></th>
-                            <th class="col-dateSaisie" style="width: 100px;" data-i18n="col_date_entry">${window.i18n.t('col_date_entry')}</th>
-                            <th class="col-date" style="width: 100px;" data-i18n="col_date_op">${window.i18n.t('col_date_op')}</th>
+                            <th class="col-dateSaisie" data-i18n="col_date_entry">${window.i18n.t('col_date_entry')}</th>
+                            <th class="col-date" data-i18n="col_date_op">${window.i18n.t('col_date_op')}</th>
                             <th class="col-desc" data-i18n="col_description">${window.i18n.t('col_description')}</th>
-                            <th class="col-type" style="width: 120px;" data-i18n="col_type">${window.i18n.t('col_type')}</th>
-                            <th class="col-cat" style="width: 160px; white-space: nowrap;" data-i18n="col_category">${window.i18n.t('col_category')}</th>
-                            <th class="col-amount" style="width: 100px;" data-i18n="col_amount">${window.i18n.t('col_amount')}</th>
-                            <th class="col-recon" style="width: 120px;" data-i18n="col_reconciled">${window.i18n.t('col_reconciled')}</th>
-                            <th class="col-budget" style="width: 110px;" data-i18n="col_envelope">${window.i18n.t('col_envelope')}</th>
-                            <th class="col-depuis" style="width: 120px;" data-i18n="col_from">${window.i18n.t('col_from')}</th>
-                            <th class="col-vers" style="width: 120px;" data-i18n="col_to">${window.i18n.t('col_to')}</th>
-                            <th class="col-recurrence" style="width: 100px;" data-i18n="col_recurrence">${window.i18n.t('col_recurrence')}</th>
-                            <th class="col-slip" style="width: 120px;" data-i18n="col_slip">${window.i18n.t('col_slip')}</th>
-                            <th class="col-attachments" style="width: 100px;" data-i18n="col_attachments">${window.i18n.t('col_attachments')}</th>
-                            <th class="col-actions" style="width: 50px;"></th>
+                            <th class="col-type" data-i18n="col_type">${window.i18n.t('col_type')}</th>
+                            <th class="col-cat" data-i18n="col_category">${window.i18n.t('col_category')}</th>
+                            <th class="col-amount" data-i18n="col_amount">${window.i18n.t('col_amount')}</th>
+                            <th class="col-recon" data-i18n="col_reconciled">${window.i18n.t('col_reconciled')}</th>
+                            <th class="col-budget" data-i18n="col_envelope">${window.i18n.t('col_envelope')}</th>
+                            <th class="col-depuis" data-i18n="col_from">${window.i18n.t('col_from')}</th>
+                            <th class="col-vers" data-i18n="col_to">${window.i18n.t('col_to')}</th>
+                            <th class="col-recurrence" data-i18n="col_recurrence">${window.i18n.t('col_recurrence')}</th>
+                            <th class="col-slip" data-i18n="col_slip">${window.i18n.t('col_slip')}</th>
+                            <th class="col-attachments" data-i18n="col_attachments">${window.i18n.t('col_attachments')}</th>
+                            <th class="col-actions"></th>
                         </tr>
                     </thead>
                     <tbody id="allOperationsBody">
@@ -151,13 +151,30 @@ window.AllOperationsView = {
             if (el) el.checked = cols[k];
         });
         
-        // Inject CSS using classes
+        // Column weight map (higher = more space)
+        const colWeights = {
+            dateSaisie: 1.5, date: 1.5, desc: 4, type: 1.8,
+            cat: 2.5, amount: 1.5, recon: 1.8, budget: 1.5,
+            depuis: 1.5, vers: 1.5, recurrence: 1.2, slip: 1.2, attachments: 1
+        };
+        
+        // Calculate total weight of visible columns
+        let totalWeight = 0;
+        Object.keys(cols).forEach(k => { if (cols[k]) totalWeight += (colWeights[k] || 1); });
+        
+        // Build CSS: hide invisible cols + set dynamic widths on visible ones
         let css = '';
         Object.keys(cols).forEach(k => {
             if (!cols[k]) {
                 css += `.timeline-table .col-${k} { display: none !important; }\n`;
+            } else {
+                const pct = ((colWeights[k] || 1) / totalWeight * 96).toFixed(1);
+                css += `.timeline-table .col-${k} { width: ${pct}%; }\n`;
             }
         });
+        // Actions column fixed
+        css += `.timeline-table .col-actions { width: 3%; }\n`;
+        css += `.timeline-table .col-marker { width: 4px; }\n`;
         
         const styleTag = document.getElementById('historyColsStyle');
         if (styleTag) styleTag.innerHTML = css;
@@ -318,16 +335,16 @@ window.AllOperationsView = {
                 <td class="row-marker"></td>
                 <td class="col-dateSaisie" data-label="${window.i18n.t('dl_date_entry')}">${formatDate(tx.date_saisie)}</td>
                 <td class="col-date" data-label="${window.i18n.t('dl_date_op')}">${formatDate(tx.date_operation)}</td>
-                <td class="col-desc" data-label="${window.i18n.t('dl_description')}"><span class="desc-text">${tx.description}</span></td>
+                <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${(tx.description || '').replace(/"/g, '&quot;')}"><span class="desc-text">${tx.description}</span></td>
                 <td class="col-type" data-label="${window.i18n.t('dl_type')}">${window.app.getTypeLabel(tx.type)}</td>
-                <td class="col-cat" data-label="${window.i18n.t('dl_category')}" style="white-space: nowrap;"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
+                <td class="col-cat" data-label="${window.i18n.t('dl_category')}" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
                 <td class="col-amount" data-label="${window.i18n.t('dl_amount')}">
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>
                 </td>
                 <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}">${formatDate(tx.reconciliation_date) || '-'}</td>
                 <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${tx.budget_id && this.budgetsMap[tx.budget_id] ? `<span onclick="window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title=\"${window.i18n.t('tooltip_view_envelope')}\">🗂️ ${this.budgetsMap[tx.budget_id]}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</td>
-                <td class="col-depuis" data-label="${window.i18n.t('dl_from')}">${depuis}</td>
-                <td class="col-vers" data-label="${window.i18n.t('dl_to')}">${vers}</td>
+                <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuis.replace(/"/g, '&quot;')}">${depuis}</td>
+                <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${vers.replace(/"/g, '&quot;')}">${vers}</td>
                 <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}">${isRecurrent ? '🔄' : '-'}</td>
                 <td class="col-slip" data-label="${window.i18n.t('dl_slip')}">${tx.slip_number ? '<span style="background: rgba(255,152,0,0.15); color: #ff9800; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">' + tx.slip_number + '</span>' : '-'}</td>
                 <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}">📎</span>` : '-'}</td>
