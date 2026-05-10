@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDZNZGNBWk03SlozWDI4V3MvanNUYlAzcmRZbXVnUUZZSDRONWdjZUdVOWFQUWE4T1ZuNEFZdk9rOXJtRmZsYXNKZVFMTXJXajVQYi9YcmdxeWp6d3dnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NDQyNDY4CWZpbGU6T21uaUJhbmtfMS4wLjIxX3g2NF9mci1GUi5tc2kKVERMTzRYNE9Gbys5b2xPWFlGdWxTNnVaTUJXUmRnMy94R3ordWs4dENlamV0TVUveDErMmg2aTRRakcrcWxuU0lSVlcvcmtsUWxvOXY0VjlidllaQVE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.21/OmniBank_1.0.21_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHdpYTJWR1IxbHBiMEk2Wm5tVEtWWkZheStndmpXZUZYUHdKU0NtaVlXV2xIdFI3TkVVaElEODRkZWdxb0NNQ3Mva1IvQzNIMzBRc1lEaFU5U21uU3dzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NDQzNDc2CWZpbGU6T21uaUJhbmtfMS4wLjIyX3g2NF9mci1GUi5tc2kKbmhPeGVIUTV3a09PSFlzMm5jaHU5M0pKM28yL21zSjYwZzdqWGZMRi9HSERLVGRvbEkxZVNla3dEOS9QODQwK3B5VFJpK0ZYOGdwUnpaOUJ4eUxnREE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.22/OmniBank_1.0.22_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-10T19:47:48Z",
-    "version":  "1.0.21",
-    "notes":  "Fix Categories buttons cutoff and Setup Wizard start empty bug"
+    "pub_date":  "2026-05-10T20:04:36Z",
+    "version":  "1.0.22",
+    "notes":  "Fix ValueError backend crash when base_pay_day is corrupted, preventing UI rendering"
 }

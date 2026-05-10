@@ -146,7 +146,10 @@ def predict_next_paycheck(db: Session):
     
     # 1. Get Base Pay Day from config
     conf_day = db.query(GlobalConfig).filter(GlobalConfig.key == "base_pay_day").first()
-    base_pay_day = int(conf_day.value) if conf_day and conf_day.value else 28
+    try:
+        base_pay_day = int(conf_day.value) if conf_day and conf_day.value else 28
+    except ValueError:
+        base_pay_day = 28
     
     # 3. Analyze last 12 months history
     historical_amounts = []
