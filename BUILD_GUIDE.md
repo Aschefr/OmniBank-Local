@@ -645,3 +645,32 @@ Forcer l'écriture sans BOM en utilisant les classes natives .NET dans PowerShel
 $utf8NoBom = New-Object System.Text.UTF8Encoding $False
 [System.IO.File]::WriteAllText("latest.json", $latestJson, $utf8NoBom)
 ```
+
+### 20. ⚠️ IMPORTANT — Pas de migration de schéma DB automatique
+
+**Risque** : SQLAlchemy utilise `Base.metadata.create_all()` qui **crée** les tables
+manquantes mais **ne modifie jamais** les tables existantes. Si une mise à jour ajoute
+une nouvelle colonne à une table existante (ex: `Transaction`, `Account`, `Budget`),
+les utilisateurs existants **ne recevront pas** cette colonne → crash ou données manquantes.
+
+**Pourquoi c'est critique** : L'updater Tauri permet de sauter plusieurs versions d'un coup
+(ex: v1.0.15 → v1.0.25). Il n'y a pas de migrations incrémentales.
+
+**Aujourd'hui** : Aucune migration n'est nécessaire (pas de changement de schéma récent).
+
+**Si un jour vous devez ajouter/modifier une colonne** :
+1. Ajouter un script de migration au démarrage du sidecar (`run_server.py`)
+2. Utiliser `ALTER TABLE ... ADD COLUMN` avec `IF NOT EXISTS` (SQLite 3.35+)
+3. Ou intégrer **Alembic** pour des migrations versionnées
+4. **Tester** en ouvrant une ancienne DB avec le nouveau code
+
+```python
+# Exemple de migration manuelle au démarrage (run_server.py) :
+from sqlalchemy import text, inspect
+def migrate_db(engine):
+    insp = inspect(engine)
+    cols = [c['name'] for c in insp.get_columns('transactions')]
+    with engine.begin() as conn:
+        if 'new_column' not in cols:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN new_column TEXT"))
+```

@@ -29,6 +29,12 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+# ⚠️ ATTENTION — MIGRATION DE SCHÉMA :
+# Base.metadata.create_all() crée les tables manquantes mais NE MODIFIE PAS
+# les tables existantes. Si vous ajoutez une colonne à un modèle existant,
+# les utilisateurs en mise à jour ne la recevront pas automatiquement.
+# → Voir BUILD_GUIDE.md section #20 pour la procédure de migration.
+
 
 def get_db():
     db = SessionLocal()
