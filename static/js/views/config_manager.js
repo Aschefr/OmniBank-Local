@@ -156,6 +156,11 @@ window.ConfigView = {
                         🧙 <span data-i18n="btn_relaunch_wizard">${window.i18n.t('btn_relaunch_wizard')}</span>
                     </button>
 
+                    <!-- Fix type mismatch -->
+                    <button class="btn btn-secondary" id="btnFixTypeMismatch" onclick="window.ConfigView.fixTypeMismatch()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(245,158,11,0.5); color: #f59e0b;">
+                        🔧 <span data-i18n="maintenance_fix_types">${window.i18n.t('maintenance_fix_types') || 'Corriger les types incohérents'}</span>
+                    </button>
+
                     <!-- Clear DB -->
                     <button class="btn btn-danger" onclick="window.ConfigView.clearDB()" style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
                         ⚠️ <span data-i18n="btn_clear_db">Vider la base de données</span>
@@ -339,7 +344,7 @@ window.ConfigView = {
 
         // In Tauri WebView, blob downloads don't work — open in system browser
         if (window.__TAURI_INTERNALS__) {
-            showToast(window.i18n.t('msg_backup_browser') || 'Le t\u00e9l\u00e9chargement s\'ouvre dans votre navigateur...', 'info', 4000);
+            showToast(window.i18n.t('msg_backup_browser') || 'Le téléchargement s\'ouvre dans votre navigateur...', 'info', 4000);
             try {
                 await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: downloadUrl });
             } catch (e) {
@@ -578,5 +583,137 @@ window.ConfigView = {
             console.error(e);
             showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_error_generic', {error: e.message || e}));
         }
+    },
+
+    async fixTypeMismatch() {
+        const btn = document.getElementById('btnFixTypeMismatch');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse...'; }
+        try {
+            const preview = await API.get('/api/maintenance/fix_type_mismatch/preview');
+            if (btn) { btn.disabled = false; btn.innerHTML = '🔧 ' + (window.i18n.t('maintenance_fix_types') || 'Corriger les types incohérents'); }
+
+            if (preview.count === 0) {
+                showInlineMessage('✅', window.i18n.t('maintenance_no_fix_needed') || 'Aucune incohérence détectée. Tout est en ordre !');
+                return;
+            }
+
+            // Build a clear, user-friendly preview
+            const sharedCats = preview.affected_categories.filter(c => c.shared);
+            const nonSharedCats = preview.affected_categories.filter(c => !c.shared);
+
+            // Summary section
+            let summaryHtml = `
+                <div style="background:var(--bg-surface);border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid var(--border-color);">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <span style="font-size:20px;">🔍</span>
+                        <strong style="font-size:14px;">${window.i18n.t('maintenance_summary') || "Résumé de l'analyse"}</strong>
+                    </div>
+                    <p style="margin:0;font-size:13px;color:var(--text-muted);line-height:1.5;">
+                        <strong style="color:var(--text-main);">${preview.count}</strong>
+                        ${window.i18n.t('maintenance_summary_desc') || "opération(s) récurrentes sont classées comme « Dépense variable » alors qu'elles devraient être en « Charge fixe ». Cette correction mettra à jour leur type automatiquement."}
+                    </p>
+                </div>`;
+
+            // Sample transactions table
+            let sampleHtml = '';
+            if (preview.sample && preview.sample.length > 0) {
+                const rows = preview.sample.slice(0, 5).map(tx => `
+                    <tr>
+                        <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;">${tx.date_operation || '-'}</td>
+                        <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;">${tx.description || '-'}</td>
+                        <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;">${tx.category || '-'}</td>
+                        <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;text-align:right;">${formatCurrency(tx.amount)}</td>
+                        <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;color:var(--color-expense);">variable → <span style="color:#10b981;">fixe</span></td>
+                    </tr>
+                `).join('');
+
+                sampleHtml = `
+                <div style="margin-bottom:14px;">
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;">
+                        ${window.i18n.t('maintenance_sample') || "Exemples d'opérations concernées"}
+                        ${preview.count > 5 ? '<span style="font-weight:400;text-transform:none;"> (5 sur ' + preview.count + ')</span>' : ''}
+                    </div>
+                    <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border-color);">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead><tr style="background:var(--bg-surface);">
+                                <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_date_op') || 'Date'}</th>
+                                <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_description') || 'Description'}</th>
+                                <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_category') || 'Catégorie'}</th>
+                                <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_amount') || 'Montant'}</th>
+                                <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('maintenance_correction') || 'Correction'}</th>
+                            </tr></thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+            }
+
+            // Category choices (shared categories need user decision)
+            let catChoicesHtml = '';
+            if (sharedCats.length > 0) {
+                catChoicesHtml = `
+                <div style="padding:12px;background:rgba(245,158,11,0.06);border-radius:10px;border:1px solid rgba(245,158,11,0.25);margin-bottom:14px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                        <span style="font-size:16px;">⚠️</span>
+                        <strong style="font-size:13px;color:#f59e0b;">${window.i18n.t('maintenance_cat_choice') || 'Catégories partagées'}</strong>
+                    </div>
+                    <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;line-height:1.4;">
+                        ${window.i18n.t('maintenance_cat_choice_desc') || "Ces catégories sont utilisées par des opérations récurrentes ET des dépenses variables ponctuelles. Choisissez l'action pour chaque :"}
+                    </p>
+                    ${sharedCats.map(c => `
+                        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:4px;background:var(--bg-surface);border-radius:8px;">
+                            <span style="flex:1;font-weight:600;font-size:13px;">${c.name}</span>
+                            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);">
+                                <input type="radio" name="cat_${c.name}" value="move" checked> ${window.i18n.t('maintenance_cat_move') || 'Déplacer vers Charges fixes'}
+                            </label>
+                            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);">
+                                <input type="radio" name="cat_${c.name}" value="keep"> ${window.i18n.t('maintenance_cat_keep') || 'Conserver en Variables'}
+                            </label>
+                        </div>`).join('')}
+                </div>`;
+            }
+
+            // Auto-moved categories (informational)
+            let autoMovedHtml = '';
+            if (nonSharedCats.length > 0) {
+                autoMovedHtml = `
+                <div style="padding:10px;background:rgba(16,185,129,0.06);border-radius:8px;border:1px solid rgba(16,185,129,0.25);">
+                    <div style="font-size:12px;color:#10b981;margin-bottom:4px;font-weight:600;">✅ ${window.i18n.t('maintenance_auto_move') || 'Catégories déplacées automatiquement'}</div>
+                    <p style="font-size:11px;color:var(--text-muted);margin:0;">
+                        ${nonSharedCats.map(c => '<span style="background:var(--bg-surface);padding:2px 8px;border-radius:4px;margin-right:4px;font-weight:500;">' + c.name + '</span>').join('')}
+                    </p>
+                </div>`;
+            }
+
+            const msgHtml = '<div style="max-height:60vh;overflow-y:auto;">' + summaryHtml + sampleHtml + catChoicesHtml + autoMovedHtml + '</div>';
+
+            const ok = await showInlineConfirm(
+                window.i18n.t('maintenance_fix_preview') || 'Aper\u00e7u de la correction',
+                msgHtml
+            );
+            if (!ok) return;
+
+            // Gather cat_moves decisions
+            const toMove = sharedCats
+                .filter(c => {
+                    const radio = document.querySelector(`input[name="cat_${c.name}"][value="move"]`);
+                    return radio && radio.checked;
+                })
+                .map(c => c.name);
+            const allMoves = [...nonSharedCats.map(c => c.name), ...toMove];
+
+            const result = await API.post(`/api/maintenance/fix_type_mismatch/apply?cat_moves=${encodeURIComponent(allMoves.join(','))}`);
+            showToast(
+                (window.i18n.t('maintenance_fix_result') || 'Migration terminée : {tx} opérations, {cat} catégories corrigées.')
+                    .replace('{tx}', result.tx_fixed)
+                    .replace('{cat}', result.cat_fixed),
+                'success', 4000
+            );
+        } catch(e) {
+            console.error(e);
+            if (btn) { btn.disabled = false; }
+            showInlineMessage(window.i18n.t('title_error'), e.message);
+        }
     }
 };
+

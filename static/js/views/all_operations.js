@@ -238,6 +238,14 @@ window.AllOperationsView = {
             }
 
             this.renderTable();
+
+            // Check if we need to highlight a specific transaction (e.g. overdraft locate)
+            if (this._pendingHighlightTxId) {
+                const txId = this._pendingHighlightTxId;
+                this._pendingHighlightTxId = null;
+                // Small delay to let VirtualTable finish initial render
+                setTimeout(() => this.scrollToAndHighlight(txId), 200);
+            }
         } catch (e) {
             console.error("Failed to load operations", e);
         }
@@ -419,5 +427,34 @@ window.AllOperationsView = {
                 console.error(e);
             }
         }
+    },
+
+    /**
+     * Scroll to a transaction by ID and flash-highlight it.
+     * Injects a CSS class into the VirtualTable raw HTML so the
+     * highlight survives re-renders triggered by scrolling.
+     */
+    scrollToAndHighlight(txId) {
+        if (!this._vt || !this._vt._rows.length) return;
+
+        const needle = `data-id="${txId}"`;
+        const idx = this._vt._rows.findIndex(r => r.includes(needle));
+        if (idx < 0) return;
+
+        // Inject highlight class into the raw HTML string
+        const original = this._vt._rows[idx];
+        this._vt._rows[idx] = original.replace(
+            /class="([^"]*)"/,
+            (m, cls) => `class="${cls} overdraft-flash"`
+        );
+
+        // Scroll to the row
+        this._vt._scrollToIndex(idx);
+
+        // Remove the highlight after 3 seconds
+        setTimeout(() => {
+            this._vt._rows[idx] = original; // restore original HTML
+            this._vt.refresh();
+        }, 3500);
     }
 };

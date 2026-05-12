@@ -1,10 +1,11 @@
-// budgets.js â€” Enveloppes v2 : multi-catégories, projets, suggestions IA
+// budgets.js — Enveloppes v2 : multi-catégories, projets, suggestions IA
 window.BudgetsView = {
     budgets: [],
     categories: [],
     statusData: null,
     aiEnabled: false,
     _directEdit: false, // true when modal was opened directly in edit mode (not via detail)
+    customPeriod: { enabled: false, start: null, end: null }, // custom period with toggle
 
     render() {
         const cfg = window.app && window.app.config ? window.app.config : {};
@@ -19,6 +20,21 @@ window.BudgetsView = {
                         <button class="btn btn-secondary" style="padding:6px 10px;font-size:14px;border-radius:8px 0 0 8px;border-right:none;" onclick="window.BudgetsView.stepMonth(-1)" title="${window.i18n.t('tooltip_prev_month') || 'Mois précédent'}">◀</button>
                         <input type="month" id="budgetMonth" class="inline-input" style="min-width:140px;border-radius:0;" onchange="window.BudgetsView.loadStatus()">
                         <button class="btn btn-secondary" style="padding:6px 10px;font-size:14px;border-radius:0 8px 8px 0;border-left:none;" onclick="window.BudgetsView.stepMonth(1)" title="${window.i18n.t('tooltip_next_month') || 'Mois suivant'}">▶</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
+                            <div style="position:relative;width:36px;height:20px;">
+                                <input type="checkbox" id="budgetCustomPeriodToggle" class="global-toggle" style="opacity:0;width:0;height:0;position:absolute;" onchange="window.BudgetsView.onCustomPeriodToggle(this.checked)">
+                                <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--border-color);transition:.4s;border-radius:34px;"></span>
+                                <span class="slider-knob" style="position:absolute;height:14px;width:14px;left:3px;bottom:3px;background-color:white;transition:.4s;border-radius:50%;"></span>
+                            </div>
+                            <span data-i18n="budget_custom_period">${window.i18n.t('budget_custom_period') || 'Période'}</span>
+                        </label>
+                        <div id="budgetCustomPeriodInputs" style="display:none;align-items:center;gap:4px;">
+                            <input type="date" id="budgetCustomStart" class="inline-input" style="width:145px;" onchange="window.BudgetsView.onCustomPeriodChange()">
+                            <span style="color:var(--text-muted);font-size:11px;">→</span>
+                            <input type="date" id="budgetCustomEnd" class="inline-input" style="width:145px;" onchange="window.BudgetsView.onCustomPeriodChange()">
+                        </div>
                     </div>
                     <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap;" onclick="window.BudgetsView.goToday()" data-i18n="btn_today">${window.i18n.t('btn_today')}</button>
                     <button id="budgetAiBtn" class="btn btn-secondary" style="white-space:nowrap; ${aiDisp}" onclick="window.BudgetsView.requestAiSuggestions()" data-i18n="budget_btn_suggestions">${window.i18n.t('budget_btn_suggestions')}</button>
@@ -87,6 +103,11 @@ window.BudgetsView = {
                             <!-- Category selector (hidden for project type) -->
                             <div id="budgetCatSection">
                                 <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_cat_included">${window.i18n.t('budget_cat_included')}</label>
+                                <input type="text" id="budgetCatSearch" class="inline-input" 
+                                    data-i18n-placeholder="budget_cat_search_placeholder"
+                                    placeholder="${window.i18n.t('budget_cat_search_placeholder') || 'Rechercher une catégorie...'}"
+                                    style="width:100%;margin-top:6px;margin-bottom:4px;font-size:12px;padding:6px 10px;border-radius:6px;"
+                                    oninput="window.BudgetsView.renderCatCheckboxes(window.BudgetsView.getSelectedCats())">
                                 <div id="budgetCatCheckboxes" style="display:block;margin-top:8px;max-height:450px;overflow-y:auto;padding:12px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border-color);">
                                     <!-- Filled dynamically -->
                                 </div>
@@ -122,6 +143,36 @@ window.BudgetsView = {
     async init() {
         const now = new Date();
         document.getElementById('budgetMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+        // Restore custom period from localStorage
+        const savedEnabled = localStorage.getItem('budget_custom_enabled') === 'true';
+        const savedStart = localStorage.getItem('budget_custom_start');
+        const savedEnd   = localStorage.getItem('budget_custom_end');
+        this.customPeriod = { enabled: savedEnabled, start: savedStart, end: savedEnd };
+
+        // Apply toggle state to UI
+        const toggle = document.getElementById('budgetCustomPeriodToggle');
+        const inputs = document.getElementById('budgetCustomPeriodInputs');
+        const monthControls = document.querySelector('#budgetMonth')?.parentElement;
+        if (toggle && savedEnabled) {
+            toggle.checked = true;
+            if (inputs) inputs.style.display = 'flex';
+            if (monthControls) monthControls.style.opacity = '0.4';
+            if (monthControls) monthControls.style.pointerEvents = 'none';
+            if (savedStart) document.getElementById('budgetCustomStart').value = savedStart;
+            if (savedEnd)   document.getElementById('budgetCustomEnd').value   = savedEnd;
+        }
+        // Default dates if enabled but no dates saved
+        if (savedEnabled && !savedStart) {
+            const firstDay = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+            const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0);
+            const endDay = `${lastDay.getFullYear()}-${String(lastDay.getMonth()+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
+            document.getElementById('budgetCustomStart').value = firstDay;
+            document.getElementById('budgetCustomEnd').value   = endDay;
+            this.customPeriod.start = firstDay;
+            this.customPeriod.end = endDay;
+        }
+
         await Promise.all([this.loadBudgets(), this.loadCategories(), this.loadStatus(), this.checkAI()]);
     },
 
@@ -137,6 +188,43 @@ window.BudgetsView = {
     goToday() {
         const now = new Date();
         document.getElementById('budgetMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        this.loadStatus();
+    },
+
+    onCustomPeriodToggle(enabled) {
+        this.customPeriod.enabled = enabled;
+        localStorage.setItem('budget_custom_enabled', enabled);
+        const inputs = document.getElementById('budgetCustomPeriodInputs');
+        const monthControls = document.querySelector('#budgetMonth')?.parentElement;
+        if (inputs) inputs.style.display = enabled ? 'flex' : 'none';
+        if (monthControls) {
+            monthControls.style.opacity = enabled ? '0.4' : '1';
+            monthControls.style.pointerEvents = enabled ? 'none' : 'auto';
+        }
+
+        if (enabled && !this.customPeriod.start) {
+            // Default: first to last day of current month
+            const now = new Date();
+            const firstDay = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+            const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0);
+            const endDay = `${lastDay.getFullYear()}-${String(lastDay.getMonth()+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
+            document.getElementById('budgetCustomStart').value = firstDay;
+            document.getElementById('budgetCustomEnd').value   = endDay;
+            this.customPeriod.start = firstDay;
+            this.customPeriod.end = endDay;
+            localStorage.setItem('budget_custom_start', firstDay);
+            localStorage.setItem('budget_custom_end', endDay);
+        }
+        this.loadStatus();
+    },
+
+    onCustomPeriodChange() {
+        const start = document.getElementById('budgetCustomStart')?.value || null;
+        const end   = document.getElementById('budgetCustomEnd')?.value   || null;
+        this.customPeriod.start = start;
+        this.customPeriod.end = end;
+        if (start) localStorage.setItem('budget_custom_start', start);
+        if (end)   localStorage.setItem('budget_custom_end',   end);
         this.loadStatus();
     },
 
@@ -195,8 +283,14 @@ window.BudgetsView = {
         }
 
         let html = '';
+        const searchTerm = (document.getElementById('budgetCatSearch')?.value || '').toLowerCase();
+
         for (const key of ['expense_fixed', 'expense_var', 'income', 'neutral', 'other']) {
-            if (groups[key].cats.length === 0) continue;
+            const visibleCats = searchTerm
+                ? groups[key].cats.filter(c => c.name.toLowerCase().includes(searchTerm))
+                : groups[key].cats;
+            if (visibleCats.length === 0) continue;
+
             
             html += `<div style="margin-bottom:12px;">
                 <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid var(--border-color);padding-bottom:4px;">
@@ -204,7 +298,7 @@ window.BudgetsView = {
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:6px;">`;
                 
-            for (const c of groups[key].cats) {
+            for (const c of visibleCats) {
                 const isSelected = selected.includes(c.name);
                 const overlap = catToBudget[c.name] ? catToBudget[c.name].join(', ') : null;
                 
@@ -279,11 +373,28 @@ window.BudgetsView = {
     },
 
     async loadStatus() {
-        const monthVal = document.getElementById('budgetMonth')?.value;
-        if (!monthVal) return;
-        const [y, m] = monthVal.split('-');
+        if (this.customPeriod.enabled && this.customPeriod.start && this.customPeriod.end) {
+            // Custom date range (day granularity)
+            await this._loadStatusCustomPeriod(this.customPeriod.start, this.customPeriod.end);
+        } else {
+            const monthVal = document.getElementById('budgetMonth')?.value;
+            if (!monthVal) return;
+            const [y, m] = monthVal.split('-');
+            try {
+                this.statusData = await API.get(`/api/budgets/status?year=${y}&month=${m}`);
+                this.renderStatus();
+            } catch(e) {
+                document.getElementById('budgetStatusContainer').innerHTML =
+                    `<p style="color:#ff5630;">${window.i18n.t('title_error')} : ${e.message}</p>`;
+            }
+        }
+    },
+
+    async _loadStatusCustomPeriod(start, end) {
+        // Single API call with date_start/date_end (day granularity)
+        if (!start || !end) return;
         try {
-            this.statusData = await API.get(`/api/budgets/status?year=${y}&month=${m}`);
+            this.statusData = await API.get(`/api/budgets/status?date_start=${start}&date_end=${end}`);
             this.renderStatus();
         } catch(e) {
             document.getElementById('budgetStatusContainer').innerHTML =

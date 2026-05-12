@@ -5,8 +5,22 @@ window.FormView = {
     projectBudgets: [],
     currentTxId: null,
     currentTxBase: null,
+    keepOpen: false,
+    lastSavedId: null,
+
+    _setupCategoriesListener() {
+        if (this._categoriesListenerBound) return;
+        this._categoriesListenerBound = true;
+        window.addEventListener('categoriesUpdated', () => {
+            // Reload categories if the modal is currently open
+            if (document.getElementById('operationModal')?.style.display === 'flex') {
+                this.loadCategories();
+            }
+        });
+    },
 
     async init() {
+        this._setupCategoriesListener();
         await this.loadAccounts();
         await this.loadCategories();
         await this.loadDescriptions();
@@ -69,6 +83,39 @@ window.FormView = {
         this.updateInferredType();
         
         document.getElementById('operationModal').style.display = 'flex';
+    },
+
+    onKeepOpenToggle() {
+        this.keepOpen = document.getElementById('op_keep_open').checked;
+        if (!this.keepOpen) {
+            this.lastSavedId = null;
+            const undoBtn = document.getElementById('op_undo_last_btn');
+            if (undoBtn) undoBtn.style.display = 'none';
+        }
+    },
+
+    async undoLastEntry() {
+        if (!this.lastSavedId) return;
+        try {
+            await API.del(`/api/transactions/${this.lastSavedId}`);
+            this.lastSavedId = null;
+            const undoBtn = document.getElementById('op_undo_last_btn');
+            if (undoBtn) undoBtn.style.display = 'none';
+            window.app.refreshSidebar();
+            if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) window.TimelineView.loadData();
+            if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) window.AllOperationsView.loadData();
+            showToast(window.i18n.t('form_undo_done') || 'Derni\u00e8re saisie supprim\u00e9e', 'success');
+        } catch(e) {
+            showInlineMessage(window.i18n.t('title_error'), e.message);
+        }
+    },
+    
+    // Helper: fetch the most recently created transaction id for undo support
+    async _getLastCreatedId() {
+        try {
+            const txs = await API.get('/api/transactions/?limit=1&sort=desc');
+            return (txs && txs.length > 0) ? txs[0].id : null;
+        } catch(e) { return null; }
     },
 
     async openEdit(tx) {
@@ -377,7 +424,9 @@ window.FormView = {
         let html = '<option value="">-- Sans cat\u00e9gorie --</option>';
         this.categories.forEach(c => {
             if (c.is_closed && c.name !== currentVal) return;
-            if (!currentType || currentType === 'neutral' || c.type === currentType) {
+            // Show all categories when type is neutral/empty (no account selected yet)
+            const typeMatch = !currentType || currentType === 'neutral' || c.type === currentType;
+            if (typeMatch) {
                 if (!search || c.name.toLowerCase().includes(search)) {
                     html += `<option value="${c.name}">${c.name}</option>`;
                 }
@@ -587,11 +636,33 @@ window.FormView = {
                 }
             }
 
-            this.close();
-            
+            // Determine if we should keep modal open
+            const isCreate = !this.currentTxId;
+            const savedRes = isCreate ? await this._getLastCreatedId() : null;
+
+            if (this.keepOpen && isCreate) {
+                // Animate save button
+                const saveBtn = document.getElementById('op_save_btn');
+                if (saveBtn) {
+                    saveBtn.classList.add('btn-save-confirm');
+                    setTimeout(() => saveBtn.classList.remove('btn-save-confirm'), 700);
+                }
+                // Store last saved id for undo
+                this.lastSavedId = savedRes;
+                const undoBtn = document.getElementById('op_undo_last_btn');
+                if (undoBtn) undoBtn.style.display = 'inline-flex';
+                // Reset form but keep modal open
+                await this.open();
+                // Re-apply keep-open state (open() does init which resets nothing about keepOpen flag)
+                document.getElementById('op_keep_open').checked = true;
+                this.keepOpen = true;
+            } else {
+                this.close();
+            }
+
             // Reload descriptions on save
             this.loadDescriptions();
-            
+
             if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) {
                 window.TimelineView.loadData();
             }
@@ -602,6 +673,7 @@ window.FormView = {
                 window.RecurrenceView.loadData();
             }
             window.app.refreshSidebar();
+
 
         } catch (e) {
             console.error(e);

@@ -5,6 +5,9 @@ window.AnalyticsView = {
     reconciled: 'all',
     selectedYear: new Date().getFullYear(),
     selectedAccountIds: null,  // null = all accounts
+    _catColWidth: null,        // persisted category column width (px)
+    _resizing: false,
+    customRange: { enabled: false, start: null, end: null },  // day-granularity custom period
 
     TYPE_CONFIG: {
         'expense_var':   { emoji: '🛍️', color: '#f59e0b', sign: '-' },
@@ -33,6 +36,21 @@ window.AnalyticsView = {
                         <option value="m24" data-i18n="analytics_rolling_24m">${window.i18n.t('analytics_rolling_24m')}</option>
                         <option disabled data-i18n="analytics_years_separator">${window.i18n.t('analytics_years_separator')}</option>
                     </select>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
+                            <div style="position:relative;width:36px;height:20px;">
+                                <input type="checkbox" id="analyticsCustomRangeToggle" class="global-toggle" style="opacity:0;width:0;height:0;position:absolute;" onchange="window.AnalyticsView.onCustomRangeToggle(this.checked)">
+                                <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--border-color);transition:.4s;border-radius:34px;"></span>
+                                <span class="slider-knob" style="position:absolute;height:14px;width:14px;left:3px;bottom:3px;background-color:white;transition:.4s;border-radius:50%;"></span>
+                            </div>
+                            <span data-i18n="analytics_custom_range_toggle">${window.i18n.t('analytics_custom_range_toggle') || 'P\u00e9riode'}</span>
+                        </label>
+                        <div id="analyticsCustomRangeInputs" style="display:none;align-items:center;gap:4px;">
+                            <input type="date" id="analyticsCustomStart" class="inline-input" style="width:145px;" onchange="window.AnalyticsView.onCustomRangeChange()">
+                            <span style="color:var(--text-muted);font-size:11px;">→</span>
+                            <input type="date" id="analyticsCustomEnd" class="inline-input" style="width:145px;" onchange="window.AnalyticsView.onCustomRangeChange()">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="analyticsAccountBar" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px;"></div>
@@ -57,12 +75,34 @@ window.AnalyticsView = {
             }
         }
         
+        // Restore saved category column width
+        const savedColWidth = localStorage.getItem('analytics_cat_col_width');
+        this._catColWidth = savedColWidth ? parseInt(savedColWidth) : 160;
+
+        // Restore custom range state
+        const crEnabled = localStorage.getItem('analytics_custom_range_enabled') === 'true';
+        const crStart = localStorage.getItem('analytics_custom_range_start');
+        const crEnd = localStorage.getItem('analytics_custom_range_end');
+        this.customRange = { enabled: crEnabled, start: crStart, end: crEnd };
+        
         // Reset account filter (all selected)
         this.selectedAccountIds = null;
         
         // First load to discover available years, then populate selector
         await this.loadData();
         this.renderAccountBar();
+
+        // Apply custom range toggle state to UI
+        const crToggle = document.getElementById('analyticsCustomRangeToggle');
+        const crInputs = document.getElementById('analyticsCustomRangeInputs');
+        const periodSel = document.getElementById('analyticsPeriod');
+        if (crToggle && this.customRange.enabled) {
+            crToggle.checked = true;
+            if (crInputs) crInputs.style.display = 'flex';
+            if (periodSel) periodSel.disabled = true;
+            if (this.customRange.start) document.getElementById('analyticsCustomStart').value = this.customRange.start;
+            if (this.customRange.end) document.getElementById('analyticsCustomEnd').value = this.customRange.end;
+        }
     },
 
     async renderAccountBar() {
@@ -175,13 +215,48 @@ window.AnalyticsView = {
         await this.loadData();
     },
 
+    onCustomRangeToggle(enabled) {
+        this.customRange.enabled = enabled;
+        localStorage.setItem('analytics_custom_range_enabled', enabled);
+        const inputs = document.getElementById('analyticsCustomRangeInputs');
+        const periodSel = document.getElementById('analyticsPeriod');
+        if (inputs) inputs.style.display = enabled ? 'flex' : 'none';
+        if (periodSel) periodSel.disabled = enabled;
+
+        if (enabled && !this.customRange.start) {
+            // Default: first day of year to today
+            const now = new Date();
+            const startDate = `${now.getFullYear()}-01-01`;
+            const endDate = now.toISOString().split('T')[0];
+            document.getElementById('analyticsCustomStart').value = startDate;
+            document.getElementById('analyticsCustomEnd').value = endDate;
+            this.customRange.start = startDate;
+            this.customRange.end = endDate;
+            localStorage.setItem('analytics_custom_range_start', startDate);
+            localStorage.setItem('analytics_custom_range_end', endDate);
+        }
+        this.loadData();
+    },
+
+    onCustomRangeChange() {
+        const start = document.getElementById('analyticsCustomStart')?.value || null;
+        const end = document.getElementById('analyticsCustomEnd')?.value || null;
+        this.customRange.start = start;
+        this.customRange.end = end;
+        if (start) localStorage.setItem('analytics_custom_range_start', start);
+        if (end) localStorage.setItem('analytics_custom_range_end', end);
+        this.loadData();
+    },
+
     async loadData() {
         try {
             let url = `/api/stats/categories_by_month?reconciled=${this.reconciled}`;
             if (this.selectedAccountIds) {
                 url += `&account_ids=${this.selectedAccountIds.join(',')}`;
             }
-            if (this.selectedYear) {
+            if (this.customRange.enabled && this.customRange.start && this.customRange.end) {
+                url += `&date_start=${this.customRange.start}&date_end=${this.customRange.end}`;
+            } else if (this.selectedYear) {
                 url += `&year=${this.selectedYear}`;
             } else {
                 url += `&months=${this.months}`;
@@ -243,6 +318,9 @@ window.AnalyticsView = {
             `<th data-year="${yr}" data-col-type="year" style="text-align:right;min-width:90px;white-space:nowrap;border-left:${annualSep};border-bottom:1px solid ${hbd};color:${cfg.color};background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);">Total ${yr}</th>`
         ).join('');
 
+        const catW = this._catColWidth || 160;
+        const catStyle = `text-align:left;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:sticky;left:0;top:0;background:var(--bg-surface);z-index:20;box-shadow:3px 0 6px rgba(0,0,0,0.2);box-sizing:border-box;position:sticky;`;
+
         let html = `
         <div data-type="${txType}" style="border:1px solid ${hbd};border-radius:12px;display:flex;flex-direction:column;max-height:75vh;">
             <div style="background:${hb};padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${hbd};flex-shrink:0;">
@@ -252,7 +330,7 @@ window.AnalyticsView = {
             <div style="overflow:auto;flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
             <table class="data-table" style="min-width:${220 + months.length * 80 + years.length * 90}px;border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
             <thead><tr style="background:var(--bg-surface);">
-                <th style="text-align:left;min-width:100px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:sticky;left:0;top:0;background:var(--bg-surface);z-index:20;box-shadow:3px 0 6px rgba(0,0,0,0.2);" data-i18n="analytics_th_category">${window.i18n.t('analytics_th_category')}</th>
+                <th data-col-type="cat" style="${catStyle}position:relative;" data-i18n="analytics_th_category">${window.i18n.t('analytics_th_category')}<span class="col-resize-handle" onmousedown="window.AnalyticsView._startResize(event)"></span></th>
                 ${monthHeaders}
                 ${yearHeaders}
             </tr></thead>
@@ -284,7 +362,7 @@ window.AnalyticsView = {
             }).join('');
 
             html += `<tr data-category="${cat.replace(/"/g, '&quot;')}">
-                <td title="${cat.replace(/"/g, '&quot;')}" style="font-weight:500;min-width:100px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;z-index:5;
+                <td title="${cat.replace(/"/g, '&quot;')}" style="font-weight:500;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;z-index:5;
                     background:var(--bg-surface);
                     box-shadow:3px 0 8px rgba(0,0,0,0.25);">${cat}</td>
                 ${monthCells}
@@ -306,7 +384,7 @@ window.AnalyticsView = {
         html += `<tr style="font-weight:700;">
             <td style="color:${cfg.color};font-weight:700;position:sticky;left:0;bottom:0;z-index:25;padding-left:16px;
                 background:var(--bg-surface);border-top:2px solid ${hbd};
-                box-shadow:inset 0 0 0 999px ${hb}, 3px 0 8px rgba(0,0,0,0.3);">TOTAL ${translatedType.toUpperCase()}</td>
+                box-shadow:inset 0 0 0 999px ${hb}, 3px 0 8px rgba(0,0,0,0.3);width:${catW}px;">TOTAL ${translatedType.toUpperCase()}</td>
             ${totalMonthCells}
             ${totalYearCells}
         </tr>`;
@@ -326,6 +404,35 @@ window.AnalyticsView = {
         window.app.loadView('all_operations');
     },
 
+    // ── Column resize logic ────────────────────────────────────────────
+    _startResize(e) {
+        e.preventDefault();
+        this._resizing = true;
+        const startX = e.clientX;
+        const startW = this._catColWidth || 160;
+        const handle = e.target;
+        handle.classList.add('resizing');
+
+        const onMove = (ev) => {
+            if (!this._resizing) return;
+            const newW = Math.max(60, Math.min(500, startW + ev.clientX - startX));
+            this._catColWidth = newW;
+            // Update all sticky category cells live
+            document.querySelectorAll('[data-col-type="cat"], td:first-child').forEach(el => {
+                el.style.width = newW + 'px';
+            });
+        };
+        const onUp = () => {
+            this._resizing = false;
+            handle.classList.remove('resizing');
+            localStorage.setItem('analytics_cat_col_width', this._catColWidth);
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    },
+
     showExportModal() {
         if (!this.data || !this.data.by_type) return;
         
@@ -340,6 +447,10 @@ window.AnalyticsView = {
         // Extract types and categories
         const types = Object.keys(this.data.by_type);
         const currentYear = (this.selectedYear || new Date().getFullYear()).toString();
+        // Default export date range: inherit from custom range or default to current year
+        const hasCustomRange = this.customRange.enabled && this.customRange.start && this.customRange.end;
+        const defaultStart = hasCustomRange ? this.customRange.start : `${currentYear}-01-01`;
+        const defaultEnd   = hasCustomRange ? this.customRange.end   : `${currentYear}-12-31`;
         
         let yearsHtml = availableYears.map(y => `
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -404,6 +515,17 @@ window.AnalyticsView = {
                         <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_modal_years')}</h4>
                         <div style="display:flex;gap:15px;flex-wrap:wrap;">
                             ${yearsHtml}
+                        </div>
+                        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-color);">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text-muted);margin-bottom:8px;">
+                                <input type="checkbox" id="exportCustomRange" ${hasCustomRange ? 'checked' : ''} onchange="document.getElementById('exportCustomRangeInputs').style.display=this.checked?'flex':'none';">
+                                ${window.i18n.t('export_custom_period') || 'P\u00e9riode personnalis\u00e9e'}
+                            </label>
+                            <div id="exportCustomRangeInputs" style="display:${hasCustomRange ? 'flex' : 'none'};gap:10px;align-items:center;flex-wrap:wrap;">
+                                <input type="date" id="exportDateStart" class="inline-input" value="${defaultStart}" style="width:160px;">
+                                <span style="color:var(--text-muted);font-size:12px;">→</span>
+                                <input type="date" id="exportDateEnd" class="inline-input" value="${defaultEnd}" style="width:160px;">
+                            </div>
                         </div>
                     </div>
                     <div style="margin-bottom: 20px;">
@@ -497,6 +619,11 @@ window.AnalyticsView = {
         const selectedCols = Array.from(modal.querySelectorAll('.export-col-cb:checked')).map(cb => cb.value);
         const includeDetails = modal.querySelector('#exportIncludeDetails')?.checked ?? true;
         
+        // Custom date range
+        const useCustomRange = modal.querySelector('#exportCustomRange')?.checked ?? false;
+        const customStart = useCustomRange ? (modal.querySelector('#exportDateStart')?.value || null) : null;
+        const customEnd   = useCustomRange ? (modal.querySelector('#exportDateEnd')?.value || null) : null;
+        
         // Gather account filter from modal
         const exportAccIds = this._exportAccountIds;
         
@@ -511,7 +638,7 @@ window.AnalyticsView = {
         
         // Fetch full data for the primary year to get its months offline, and fetch transactions
         try {
-            if (primaryYear) {
+            if (primaryYear && !useCustomRange) {
                 let printUrl = `/api/stats/categories_by_month?reconciled=${this.reconciled}&year=${primaryYear}`;
                 if (exportAccIds) printUrl += `&account_ids=${exportAccIds.join(',')}`;
                 printData = await API.get(printUrl);
@@ -553,8 +680,17 @@ window.AnalyticsView = {
         
         // Build transactions list
         let filteredTx = allTx.filter(tx => {
-            const yr = (tx.date_operation || '').split('-')[0];
-            if (!selectedYears.includes(yr)) return false;
+            const dateStr = tx.date_operation || '';
+            const yr = dateStr.split('-')[0];
+            
+            if (useCustomRange && customStart && customEnd) {
+                // Custom range: compare full YYYY-MM-DD date string
+                const txDate = dateStr.substring(0, 10); // YYYY-MM-DD
+                if (txDate < customStart || txDate > customEnd) return false;
+            } else {
+                if (!selectedYears.includes(yr)) return false;
+            }
+            
             if (!selectedTypes.includes(tx.type)) return false;
             
             // Account filter from modal
@@ -572,6 +708,7 @@ window.AnalyticsView = {
         });
 
         filteredTx.sort((a, b) => new Date(b.date_operation) - new Date(a.date_operation));
+
         
         let txHtml = '';
         if (includeDetails && filteredTx.length > 0) {

@@ -283,44 +283,49 @@ class App {
                 }
             }
             
-            // Budget Summary (Always hide if no budgets are set, even in org mode)
-            if (stats.budget_summary && stats.budget_summary.target > 0) {
-                const box = document.getElementById('sidebarBudgetBox');
-                const spent = document.getElementById('sidebarBudgetSpent');
-                const target = document.getElementById('sidebarBudgetTarget');
-                const bar = document.getElementById('sidebarBudgetBar');
-                const totalBar = document.getElementById('sidebarBudgetTotalBar');
-                
-                const targetVal = stats.budget_summary.target || 0;
-                const totalSpent = stats.budget_summary.spent || 0;
-                const recSpent = stats.budget_summary.reconciled_spent || 0;
-                
-                const totalPct = targetVal > 0 ? Math.min((totalSpent / targetVal) * 100, 100) : 0;
-                const recPct = targetVal > 0 ? Math.min((recSpent / targetVal) * 100, 100) : 0;
-                
-                const over = targetVal > 0 && recSpent > targetVal;
-                const color = over ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
-                
-                box.style.display = 'block';
-                box.style.borderColor = color + '66';
-                box.style.backgroundColor = color + '1a';
-                
-                box.querySelector('.stat-label').style.color = color;
-                
-                spent.textContent = formatCurrency(recSpent);
-                spent.style.color = color;
-                target.textContent = "/ " + formatCurrency(targetVal);
-                
-                bar.style.width = recPct + '%';
-                bar.style.backgroundColor = color;
-                
-                if (totalBar) {
-                    totalBar.style.width = totalPct + '%';
+            // Budget Summary — multiple bars per period type
+            const barsContainer = document.getElementById('sidebarBudgetBars');
+            if (barsContainer) {
+                const summary = stats.budget_summary || {};
+                const periodLabels = {
+                    'monthly': window.i18n.t('stat_budgets_monthly') || '🎯 Budgets (Mensuel)',
+                    'yearly': window.i18n.t('stat_budgets_yearly') || '🎯 Budgets (Annuel)',
+                    'indefinite': window.i18n.t('stat_budgets_indefinite') || '🎯 Budgets (Indéfini)'
+                };
+                const orderedPeriods = ['monthly', 'yearly', 'indefinite'];
+                let barsHtml = '';
+
+                for (const period of orderedPeriods) {
+                    const data = summary[period];
+                    if (!data || data.target <= 0) continue;
+
+                    const targetVal = data.target || 0;
+                    const totalSpent = data.spent || 0;
+                    const recSpent = data.reconciled_spent || 0;
+
+                    const totalPct = targetVal > 0 ? Math.min((totalSpent / targetVal) * 100, 100) : 0;
+                    const recPct = targetVal > 0 ? Math.min((recSpent / targetVal) * 100, 100) : 0;
+
+                    const over = targetVal > 0 && recSpent > targetVal;
+                    const color = over ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
+
+                    barsHtml += `
+                    <div class="stat-box" style="display:block; border-color:${color}66; background-color:${color}1a; cursor:pointer; margin-bottom:6px;" onclick="window.app.loadView('budgets')">
+                        <span class="stat-label" style="color:${color}; font-weight:600;">${periodLabels[period] || period}</span>
+                        <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:6px;overflow:hidden;margin:8px 0;border:1px solid rgba(255,255,255,0.05);">
+                            <div style="position:absolute;top:0;left:0;width:${totalPct}%;height:100%;background:rgba(128,128,128,0.4);border-radius:999px;transition:width 0.3s;"></div>
+                            <div style="position:absolute;top:0;left:0;width:${recPct}%;height:100%;background:${color};border-radius:999px;transition:width 0.3s;"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:12px;">
+                            <span class="privacy-blur" style="color:${color}; font-weight:600;">${formatCurrency(recSpent)}</span>
+                            <span class="privacy-blur" style="color:var(--text-muted);">/ ${formatCurrency(targetVal)}</span>
+                        </div>
+                    </div>`;
                 }
-            } else {
-                const box = document.getElementById('sidebarBudgetBox');
-                if (box) box.style.display = 'none';
+
+                barsContainer.innerHTML = barsHtml;
             }
+
             
             const quickSettingsBox = document.getElementById('quickSettingsBox');
             if (quickSettingsBox) quickSettingsBox.style.display = isOrgMode ? 'none' : 'block';
@@ -358,18 +363,12 @@ class App {
                 const btnLocate = document.getElementById('btnLocateOverdraft');
                 if (btnLocate) {
                     btnLocate.onclick = () => {
+                        const txId = stats.overdraft_warning.transaction_id;
+                        // Set pending highlight for AllOperationsView to pick up after data load
+                        if (window.AllOperationsView) {
+                            window.AllOperationsView._pendingHighlightTxId = txId;
+                        }
                         window.app.loadView('all_operations');
-                        // Wait for rendering, then scroll and highlight
-                        setTimeout(() => {
-                            const row = document.querySelector(`tr[data-id="${stats.overdraft_warning.transaction_id}"]`);
-                            if (row) {
-                                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                row.style.transition = 'background-color 0.5s';
-                                const oldBg = row.style.backgroundColor;
-                                row.style.backgroundColor = 'rgba(255, 86, 48, 0.2)';
-                                setTimeout(() => row.style.backgroundColor = oldBg, 3000);
-                            }
-                        }, 500);
                     };
                 }
             } else {

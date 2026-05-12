@@ -49,7 +49,13 @@ function showInlineConfirm(titleKey, messageKey) {
             return translated === keyOrText ? keyOrText : translated;
         };
         titleEl.textContent = resolveText(titleKey);
-        messageEl.textContent = resolveText(messageKey);
+        const msgContent = resolveText(messageKey);
+        // Support HTML content (e.g. maintenance preview with radio buttons)
+        if (msgContent.includes('<') && msgContent.includes('>')) {
+            messageEl.innerHTML = msgContent;
+        } else {
+            messageEl.textContent = msgContent;
+        }
 
         modal.style.display = 'flex';
 
@@ -77,7 +83,12 @@ function showInlineMessage(titleText, messageText) {
             return translated === keyOrText ? keyOrText : translated;
         };
         titleEl.textContent = resolveText(titleText);
-        messageEl.textContent = resolveText(messageText);
+        const msgContent = resolveText(messageText);
+        if (msgContent.includes('<') && msgContent.includes('>')) {
+            messageEl.innerHTML = msgContent;
+        } else {
+            messageEl.textContent = msgContent;
+        }
         
         btnCancel.style.display = 'none';
 

@@ -70,13 +70,17 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         if warning["date"] > next_pay_date:
             warning = None
             
-    # Calculate global budget summary (monthly budgets only for sidebar)
+    # Calculate global budget summary grouped by period type for sidebar bars
     from app.routers.budgets import get_budget_status
-    budget_data = get_budget_status(today.year, today.month, db)
-    monthly_budgets = [b for b in budget_data["budgets"] if b.get("period") == "monthly"]
-    total_budgeted = sum(b["budget_amount"] for b in monthly_budgets)
-    total_spent = sum(b["expenses"] for b in monthly_budgets)
-    reconciled_spent = sum(b["reconciled_expenses"] for b in monthly_budgets)
+    budget_data = get_budget_status(today.year, today.month, db=db)
+    period_groups = {}
+    for b in budget_data["budgets"]:
+        p = b.get("period", "monthly")
+        if p not in period_groups:
+            period_groups[p] = {"target": 0, "spent": 0, "reconciled_spent": 0}
+        period_groups[p]["target"] += b["budget_amount"]
+        period_groups[p]["spent"] += b["expenses"]
+        period_groups[p]["reconciled_spent"] += b["reconciled_expenses"]
     
     return {
         "net_worth": net_worth,
@@ -88,11 +92,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "overdraft_warning": warning,
         "unreconciled_expenses": unreconciled_expenses,
         "total_unreconciled_expenses": total_unreconciled_expenses,
-        "budget_summary": {
-            "target": total_budgeted,
-            "spent": total_spent,
-            "reconciled_spent": reconciled_spent
-        }
+        "budget_summary": period_groups
     }
 
 from pydantic import BaseModel
@@ -147,15 +147,39 @@ def set_main_account(account_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/categories_by_month")
-def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int = None, account_ids: str = None, db: Session = Depends(get_db)):
+def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int = None, account_ids: str = None, date_start: str = None, date_end: str = None, db: Session = Depends(get_db)):
     """Returns spending per category per month for the last N months (or a specific year), grouped by transaction type.
     reconciled: 'all' | 'reconciled' | 'unreconciled'
     year: if provided, show Jan-Dec of that year instead of rolling months
+    date_start/date_end: YYYY-MM-DD, overrides year and months params for day-granularity custom range
     """
     import calendar
     today = date.today()
 
-    if year:
+    # Custom date range takes priority
+    if date_start and date_end:
+        try:
+            d_start = date.fromisoformat(date_start)
+            d_end = date.fromisoformat(date_end)
+        except ValueError:
+            d_start = date(today.year, 1, 1)
+            d_end = today
+
+        # Generate month_keys spanning the range
+        month_keys = []
+        cur_y, cur_m = d_start.year, d_start.month
+        while (cur_y, cur_m) <= (d_end.year, d_end.month):
+            month_keys.append(f"{cur_y:04d}-{cur_m:02d}")
+            cur_m += 1
+            if cur_m > 12:
+                cur_m = 1
+                cur_y += 1
+
+        query = db.query(Transaction).filter(
+            Transaction.date_operation >= d_start,
+            Transaction.date_operation <= d_end
+        )
+    elif year:
         # Specific year: all 12 months (including future — unreconciled ops may exist)
         month_keys = [f"{year:04d}-{m:02d}" for m in range(1, 13)]
         date_from = date(year, 1, 1)

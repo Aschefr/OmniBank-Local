@@ -108,11 +108,23 @@ def delete_budget(budget_id: int, db: Session = Depends(get_db)):
 # ─── Status endpoint ──────────────────────────────────────────────────────────
 
 @router.get("/status")
-def get_budget_status(year: int = None, month: int = None, db: Session = Depends(get_db)):
-    """Returns spending vs budget for each envelope."""
+def get_budget_status(year: int = None, month: int = None, date_start: str = None, date_end: str = None, db: Session = Depends(get_db)):
+    """Returns spending vs budget for each envelope.
+    Supports day-granularity via date_start/date_end (YYYY-MM-DD) or month-level via year/month.
+    """
     today = date.today()
     y = year or today.year
     m = month or today.month
+
+    # Parse custom date range if provided
+    custom_start = None
+    custom_end = None
+    if date_start and date_end:
+        try:
+            custom_start = date.fromisoformat(date_start)
+            custom_end = date.fromisoformat(date_end)
+        except ValueError:
+            pass
 
     budgets = db.query(Budget).filter(Budget.is_closed == False).all()
     result = []
@@ -151,6 +163,24 @@ def get_budget_status(year: int = None, month: int = None, db: Session = Depends
                     expenses += abs(tx.amount)
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
+        elif custom_start and custom_end:
+            # Day-granularity custom range
+            txs = db.query(Transaction).filter(
+                Transaction.date_operation >= custom_start,
+                Transaction.date_operation <= custom_end,
+                Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
+            ).all()
+            for tx in txs:
+                if cats and (tx.category or "Sans catégorie") not in cats:
+                    continue
+                if tx.type == "income":
+                    income += abs(tx.amount)
+                    if tx.reconciliation_date:
+                        reconciled_income += abs(tx.amount)
+                else:
+                    expenses += abs(tx.amount)
+                    if tx.reconciliation_date:
+                        reconciled_expenses += abs(tx.amount)
         else:
             txs = db.query(Transaction).filter(
                 extract('year', Transaction.date_operation) == y,
@@ -169,6 +199,7 @@ def get_budget_status(year: int = None, month: int = None, db: Session = Depends
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
 
+
         expenses = round(expenses, 2)
         income = round(income, 2)
         spent = round(expenses - income, 2)  # net: can be negative if income > expenses
@@ -177,11 +208,7 @@ def get_budget_status(year: int = None, month: int = None, db: Session = Depends
         reconciled_income = round(reconciled_income, 2)
         reconciled_spent = round(reconciled_expenses - reconciled_income, 2)
 
-        budget_amount = (
-            b.monthly_amount if b.period == "monthly"
-            else round(b.monthly_amount / 12, 2) if b.period == "yearly"
-            else b.monthly_amount
-        )
+        budget_amount = b.monthly_amount  # User enters exact cap, no auto-division
         pct = round((max(spent, 0) / budget_amount * 100) if budget_amount > 0 else 0, 1)
         reconciled_pct = round((max(reconciled_spent, 0) / budget_amount * 100) if budget_amount > 0 else 0, 1)
 

@@ -2291,3 +2291,53 @@ body.compact-mode .data-table .btn {
     60% { transform: translateX(-3px); }
     80% { transform: translateX(2px); }
 }
+
+/* ── Keep-open save confirmation animation ────────────────────────── */
+@keyframes saveConfirm {
+    0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); background: var(--accent); }
+    30%  { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.3); background: #10b981; }
+    60%  { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15); background: #10b981; }
+    100% { box-shadow: 0 4px 14px rgba(0, 112, 243, 0.4); background: var(--accent); }
+}
+
+.btn-save-confirm {
+    animation: saveConfirm 0.7s ease forwards;
+}
+
+/* ── Analytics category column resize handle ──────────────────────── */
+.col-resize-handle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    z-index: 30;
+    background: transparent;
+    transition: background 0.15s;
+}
+
+.col-resize-handle:hover,
+.col-resize-handle.resizing {
+    background: rgba(99, 102, 241, 0.4);
+}
+
+/* ── Global toggle switch ─────────────────────────────────────────── */
+.global-toggle:checked ~ .slider {
+    background-color: var(--accent) !important;
+}
+.global-toggle:checked ~ .slider-knob {
+    transform: translateX(16px);
+}
+
+/* ── Overdraft flash highlight ────────────────────────────────────── */
+@keyframes overdraftPulse {
+    0%   { background-color: rgba(255, 86, 48, 0.35); }
+    50%  { background-color: rgba(255, 86, 48, 0.08); }
+    100% { background-color: rgba(255, 86, 48, 0.35); }
+}
+tr.overdraft-flash,
+tr.overdraft-flash td {
+    animation: overdraftPulse 1s ease-in-out 3 !important;
+    background-color: rgba(255, 86, 48, 0.35) !important;
+}

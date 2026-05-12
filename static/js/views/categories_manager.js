@@ -232,6 +232,7 @@ window.CategoriesView = {
             await API.post('/api/categories/', data);
             document.getElementById('cat_name').value = '';
             await this.loadData();
+            window.dispatchEvent(new Event('categoriesUpdated'));
             showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_category_added'));
         } catch (e) {
             console.error(e);
@@ -261,6 +262,7 @@ window.CategoriesView = {
             await API.put(`/api/categories/${id}`, { name, type, is_closed });
             document.getElementById('catEditModal').style.display = 'none';
             await this.loadData();
+            window.dispatchEvent(new Event('categoriesUpdated'));
             showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_category_updated'));
         } catch(e) {
             showInlineMessage(window.i18n.t('title_error'), e.message || window.i18n.t('msg_cannot_update'));
@@ -315,6 +317,7 @@ window.CategoriesView = {
             await API.del(url);
             document.getElementById('catDeleteModal').style.display = 'none';
             await this.loadData();
+            window.dispatchEvent(new Event('categoriesUpdated'));
             showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_category_deleted'));
         } catch (e) {
             console.error(e);
