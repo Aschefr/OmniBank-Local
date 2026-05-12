@@ -178,6 +178,22 @@ window.SetupWizard = {
 
     async _saveOrgMode() {
         this._orgMode = document.getElementById('wizOrgToggle')?.checked || false;
+
+        // Phase 10: License check when enabling org mode
+        if (this._orgMode) {
+            const status = await window.LicenseManager.getStatus();
+            if (!status.active) {
+                const activated = await window.LicenseManager.open();
+                if (!activated) {
+                    // User cancelled → uncheck org mode
+                    this._orgMode = false;
+                    const chk = document.getElementById('wizOrgToggle');
+                    if (chk) chk.checked = false;
+                    return;
+                }
+            }
+        }
+
         try {
             const val = this._orgMode ? 'true' : 'false';
             await API.post('/api/config/', { enable_org_mode: val });

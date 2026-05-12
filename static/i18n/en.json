@@ -671,5 +671,19 @@
   "label_active": "Active",
   "label_inactive": "Inactive",
   "btn_deactivate": "Deactivate",
-  "btn_reactivate": "Reactivate"
+  "btn_reactivate": "Reactivate",
+  "license_title": "Organisation Mode License",
+  "license_desc": "Organisation mode requires a license. Enter your key below.",
+  "license_email": "Email address",
+  "license_key": "License key",
+  "license_ph_email": "your@email.com",
+  "license_ph_key": "OMNI-XXXXX-XXXXX-XXXXX",
+  "license_btn_activate": "Activate license",
+  "license_btn_deactivate": "Deactivate license",
+  "license_active": "License active",
+  "license_inactive": "No license",
+  "license_invalid": "Invalid license key. Check your email and key.",
+  "license_activated": "License activated successfully!",
+  "license_deactivated": "License deactivated",
+  "license_required": "A license is required to activate organisation mode."
 }

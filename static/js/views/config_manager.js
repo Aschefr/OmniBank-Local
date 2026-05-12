@@ -105,12 +105,13 @@ window.ConfigView = {
                     </label>
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
                         <div style="position: relative; width: 40px; height: 24px;">
-                            <input type="checkbox" id="conf_enable_org_mode" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
+                            <input type="checkbox" id="conf_enable_org_mode" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView._onOrgModeToggle()">
                             <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
                             <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
                         </div>
                         <span data-i18n="config_opt_org_mode">Activer le mode Organisation (Association/CSE)</span>
                     </label>
+                    <div id="configLicenseStatus" style="margin-top: 8px; display: none;"></div>
                 </div>
                 <style>
                     .global-toggle:checked ~ .slider { background-color: var(--accent) !important; }
@@ -215,6 +216,8 @@ window.ConfigView = {
             
             // Phase 9: Show org users panel if enabled
             this._refreshOrgUsersPanel();
+            // Phase 10: Show license status badge
+            this._refreshLicenseStatus();
         } catch (e) {
             console.error("Failed to load config", e);
         }
@@ -803,6 +806,57 @@ window.ConfigView = {
         } catch(e) {
             showToast(e.message || 'Error', 'error');
         }
+    },
+
+    // ── Phase 10: License-gated Org Mode ─────────────────────────────
+    async _onOrgModeToggle() {
+        const chk = document.getElementById('conf_enable_org_mode');
+        if (!chk) return;
+
+        if (chk.checked) {
+            // Trying to enable org mode → check license first
+            const status = await window.LicenseManager.getStatus();
+            if (!status.active) {
+                // No license → open license modal
+                const activated = await window.LicenseManager.open();
+                if (!activated) {
+                    // User cancelled → uncheck
+                    chk.checked = false;
+                    return;
+                }
+            }
+        }
+        // License OK (or disabling) → proceed with save
+        this.save();
+        this._refreshLicenseStatus();
+    },
+
+    async _refreshLicenseStatus() {
+        const el = document.getElementById('configLicenseStatus');
+        if (!el) return;
+        const status = await window.LicenseManager.getStatus();
+        if (status.active) {
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.gap = '10px';
+            el.innerHTML = `
+                <span class="license-badge active">✅ ${window.i18n.t('license_active')} — ${status.email}</span>
+                <button class="btn btn-danger" style="padding:3px 10px;font-size:11px;" onclick="window.ConfigView._deactivateLicense()">${window.i18n.t('license_btn_deactivate')}</button>
+            `;
+        } else {
+            const isOrgOn = document.getElementById('conf_enable_org_mode')?.checked;
+            el.style.display = isOrgOn ? 'block' : 'none';
+            el.innerHTML = `<span class="license-badge inactive">❌ ${window.i18n.t('license_inactive')}</span>`;
+        }
+    },
+
+    async _deactivateLicense() {
+        await window.LicenseManager.deactivate();
+        // Also uncheck org mode
+        const chk = document.getElementById('conf_enable_org_mode');
+        if (chk) chk.checked = false;
+        this.save();
+        this._refreshLicenseStatus();
     }
 };
 
