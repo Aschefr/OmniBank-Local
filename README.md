@@ -77,6 +77,18 @@ Prenez le contrôle total de votre structure financière avec des outils de gest
 
 ---
 
+## 🏢 Mode Organisation (Associations / CSE)
+
+OmniBank propose un **mode organisation** conçu pour les associations, comités d'entreprise (CSE) et petites structures ayant besoin d'un suivi multi-utilisateur.
+
+*   **👥 Multi-utilisateur sans mot de passe** : Chaque membre (trésorier, adjoint, secrétaire…) sélectionne son profil au lancement.
+*   **📋 Audit intégré** : Chaque opération enregistre automatiquement qui l'a créée et qui l'a modifiée en dernier.
+*   **🔑 Licence requise** : L'activation du mode organisation nécessite une clé de licence.
+
+> Pour obtenir une licence, ouvrez une **[Issue sur GitHub](https://github.com/Aschefr/OmniBank-Local/issues)**.
+
+---
+
 ## 🚀 Installation
 
 ### 🖥️ Windows (Recommandé)
@@ -175,6 +187,18 @@ Take full control of your financial structure with flexible management tools.
 | ![Account management](screenshots/10_comptes.png) | ![Category management](screenshots/09_catégories.png) | ![Recurring operations](screenshots/08_recurrences.png) | ![Global configuration](screenshots/11_configuration.png) |
 
 ![Propagation of changes](screenshots/08_recurrences_modification_propagé.png)
+
+---
+
+## 🏢 Organisation Mode (Nonprofits / Work Councils)
+
+OmniBank offers an **organisation mode** designed for nonprofits, work councils, and small organizations needing multi-user tracking.
+
+*   **👥 Password-free multi-user**: Each member (treasurer, deputy, secretary…) selects their profile at launch.
+*   **📋 Built-in audit trail**: Every transaction automatically records who created it and who last modified it.
+*   **🔑 License required**: Activating organisation mode requires a license key.
+
+> To obtain a license, open an **[Issue on GitHub](https://github.com/Aschefr/OmniBank-Local/issues)**.
 
 ---
 
