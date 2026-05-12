@@ -19,11 +19,20 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     
-    <link rel="stylesheet" href="/static/css/style.css?v=5">
+    <link rel="stylesheet" href="/static/css/style.css?v=6">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="theme-dark">
+    <!-- Phase 9: User Picker Overlay (org mode) -->
+    <div id="userPickerOverlay" class="user-picker-overlay" style="display:none;">
+        <div class="user-picker-container">
+            <div class="user-picker-logo">🏢</div>
+            <h1 id="userPickerTitle" data-i18n="user_picker_title">Qui êtes-vous ?</h1>
+            <p id="userPickerSubtitle" class="user-picker-subtitle" data-i18n="user_picker_subtitle">Sélectionnez votre profil pour continuer</p>
+            <div id="userPickerBadges" class="user-picker-badges"></div>
+        </div>
+    </div>
     <div class="app-container" style="opacity: 0; transition: opacity 0.3s ease;">
         <header class="app-header">
             <div style="display:flex; align-items:center; gap: 10px;">
@@ -43,6 +52,15 @@
                 <button data-view="config" class="nav-btn">⚙️ <span data-i18n="nav_configuration">Configuration</span></button>
             </nav>
             <div class="header-actions">
+                <!-- Phase 9: User dropdown (org mode, hidden by default) -->
+                <div id="userSwitcher" class="user-switcher" style="display:none;">
+                    <button id="userSwitcherBtn" class="user-switcher-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                        <span id="currentUserLabel" class="user-switcher-name">—</span>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.5;flex-shrink:0;"><path d="M7 10l5 5 5-5z"/></svg>
+                    </button>
+                    <div id="userSwitcherMenu" class="user-switcher-menu" style="display:none;"></div>
+                </div>
                 <button id="compactToggle" data-i18n-title="tooltip_compact_mode" title="Affichage compact" style="font-size:15px; line-height:1;"><svg id="compactIcon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect y="2" width="16" height="2.5" rx="1"/><rect y="7" width="16" height="2.5" rx="1"/><rect y="12" width="16" height="2.5" rx="1"/></svg></button>
                 <button id="privacyToggle" data-i18n-title="tooltip_hide_amounts" title="Masquer les montants">👁️</button>
                 <button id="themeToggle" data-i18n-title="tooltip_change_theme" title="Changer le thème">🌓</button>

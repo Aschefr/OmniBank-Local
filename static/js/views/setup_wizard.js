@@ -2,8 +2,10 @@
 window.SetupWizard = {
     currentStep: 0,
     totalSteps: 6,
+    _orgTotalSteps: 7,  // Phase 9: extra step for users in org mode
     createdAccounts: [],
     _mainAccountId: null,
+    _orgUsers: [],  // Phase 9: loaded org users
     overlay: null,
 
     async checkAndShow() {
@@ -82,10 +84,8 @@ window.SetupWizard = {
     _renderProgress() {
         const bar = document.getElementById('wizardProgress');
         if (!bar) return;
-        const icons = ['👋', '🏦', '💰', '📝', '🤖', '🚀'];
+        const icons = this._orgMode ? ['👋', '🏦', '👥', '💰', '📝', '🤖', '🚀'] : ['👋', '🏦', '💰', '📝', '🤖', '🚀'];
         bar.innerHTML = icons.map((ic, i) => {
-            if (this._orgMode && i === 2) return '';
-            const adjustedStep = (this._orgMode && this.currentStep > 2) ? this.currentStep : this.currentStep;
             return `
             <div class="wizard-step-dot ${i < this.currentStep ? 'done' : ''} ${i === this.currentStep ? 'active' : ''}">
                 <span class="wizard-dot-icon">${ic}</span>
@@ -103,22 +103,37 @@ window.SetupWizard = {
         void body.offsetWidth; // force reflow
         body.classList.add('wizard-step-enter');
 
-        switch (this.currentStep) {
-            case 0: this._stepWelcome(body); break;
-            case 1: this._stepAccounts(body); break;
-            case 2: this._stepPayDay(body); break;
-            case 3: this._stepGuide(body); break;
-            case 4: this._stepAI(body); break;
-            case 5: this._stepConfirm(body); break;
+        if (this._orgMode) {
+            // Org mode: 7 steps (0:Welcome, 1:Accounts, 2:Users, 3:PayDay, 4:Guide, 5:AI, 6:Confirm)
+            switch (this.currentStep) {
+                case 0: this._stepWelcome(body); break;
+                case 1: this._stepAccounts(body); break;
+                case 2: this._stepUsers(body); break;
+                case 3: this._stepPayDay(body); break;
+                case 4: this._stepGuide(body); break;
+                case 5: this._stepAI(body); break;
+                case 6: this._stepConfirm(body); break;
+            }
+        } else {
+            // Non-org mode: 6 steps (skip Users, skip PayDay is handled in _nav)
+            switch (this.currentStep) {
+                case 0: this._stepWelcome(body); break;
+                case 1: this._stepAccounts(body); break;
+                case 2: this._stepPayDay(body); break;
+                case 3: this._stepGuide(body); break;
+                case 4: this._stepAI(body); break;
+                case 5: this._stepConfirm(body); break;
+            }
         }
 
         window.i18n.translateDOM(body);
     },
 
     _nav(direction) {
-        this.currentStep = Math.max(0, Math.min(this.totalSteps - 1, this.currentStep + direction));
-        // Skip pay day step in org mode
-        if (this._orgMode && this.currentStep === 2) {
+        const maxStep = this._orgMode ? (this._orgTotalSteps - 1) : (this.totalSteps - 1);
+        this.currentStep = Math.max(0, Math.min(maxStep, this.currentStep + direction));
+        // Skip pay day step in org mode (step 3 in org, step 2 in non-org is already PayDay)
+        if (this._orgMode && this.currentStep === 3) {
             this.currentStep += direction > 0 ? 1 : -1;
         }
         this._renderStep();
@@ -329,7 +344,92 @@ window.SetupWizard = {
         }
     },
 
-    // ── Step 2: Pay Day ──────────────────────────────────
+    // ── Step 2 (org mode): Users ─────────────────────────
+    async _stepUsers(body) {
+        // Ensure default user exists
+        try { await API.post('/api/org_users/ensure_default'); } catch(e) {}
+        try { this._orgUsers = await API.get('/api/org_users/'); } catch(e) { this._orgUsers = []; }
+
+        body.innerHTML = `
+            <div class="wizard-step-content">
+                <h2 class="wizard-step-title">👥 ${window.i18n.t('wizard_users_title')}</h2>
+                <p class="wizard-step-desc">${window.i18n.t('wizard_users_desc')}</p>
+
+                <div class="wizard-account-form">
+                    <div class="wizard-form-row">
+                        <div class="wizard-form-field" style="flex:2;">
+                            <label data-i18n="ph_user_name">${window.i18n.t('ph_user_name')}</label>
+                            <input type="text" id="wizUserName" class="wizard-input" placeholder="${window.i18n.t('ph_user_name')}">
+                        </div>
+                    </div>
+                    <button class="wizard-btn-secondary" onclick="window.SetupWizard._addWizUser()">
+                        + ${window.i18n.t('btn_add_user')}
+                    </button>
+                </div>
+
+                <div id="wizUsersList" class="wizard-accounts-list">
+                    ${this._renderWizUsersList()}
+                </div>
+
+                <div class="wizard-nav">
+                    <button class="wizard-btn-ghost" onclick="window.SetupWizard._nav(-1)">← ${window.i18n.t('wizard_btn_back')}</button>
+                    <button class="wizard-btn-primary" onclick="window.SetupWizard._nav(1)">
+                        ${window.i18n.t('wizard_btn_next')} →
+                    </button>
+                </div>
+            </div>
+        `;
+        setTimeout(() => {
+            const el = document.getElementById('wizUserName');
+            if (el) el.focus();
+        }, 100);
+    },
+
+    _renderWizUsersList() {
+        if (!this._orgUsers || this._orgUsers.length === 0) {
+            return '<p class="wizard-empty-hint">—</p>';
+        }
+        return this._orgUsers.filter(u => u.is_active).map(u => `
+            <div class="wizard-account-card">
+                <div class="wizard-account-info">
+                    <strong>👤 ${u.name}</strong>
+                </div>
+                <button class="wizard-btn-remove" onclick="window.SetupWizard._removeWizUser(${u.id})">✕</button>
+            </div>
+        `).join('');
+    },
+
+    async _addWizUser() {
+        const input = document.getElementById('wizUserName');
+        const name = input?.value.trim();
+        if (!name) { showToast(window.i18n.t('wizard_toast_name_required'), 'error'); return; }
+        if (this._orgUsers.some(u => u.name.toLowerCase() === name.toLowerCase())) {
+            showToast(window.i18n.t('wizard_toast_duplicate'), 'error'); return;
+        }
+        try {
+            const created = await API.post('/api/org_users/', { name });
+            this._orgUsers.push(created);
+            document.getElementById('wizUsersList').innerHTML = this._renderWizUsersList();
+            input.value = '';
+            input.focus();
+            showToast(window.i18n.t('toast_user_added'), 'success');
+        } catch(e) {
+            showToast(e.message || 'Error', 'error');
+        }
+    },
+
+    async _removeWizUser(id) {
+        try {
+            await API.put(`/api/org_users/${id}`, { is_active: false });
+            this._orgUsers = this._orgUsers.filter(u => u.id !== id);
+            document.getElementById('wizUsersList').innerHTML = this._renderWizUsersList();
+            showToast(window.i18n.t('toast_user_deactivated'), 'success');
+        } catch(e) {
+            showToast(e.message || 'Error', 'error');
+        }
+    },
+
+    // ── Step 2/3: Pay Day ──────────────────────────────────
     _stepPayDay(body) {
         body.innerHTML = `
             <div class="wizard-step-content wizard-center">

@@ -46,6 +46,10 @@ class Transaction(Base):
     # Budget project assignment (optional — for project-type envelopes)
     budget_id = Column(Integer, ForeignKey("budgets.id"), nullable=True)
 
+    # Phase 9: Multi-user audit (org mode)
+    created_by = Column(String, nullable=True)     # Org user name who created
+    modified_by = Column(String, nullable=True)     # Last org user who modified
+
 class GlobalConfig(Base):
     __tablename__ = "global_config"
     
@@ -93,4 +97,14 @@ class BudgetCategory(Base):
     id = Column(Integer, primary_key=True, index=True)
     budget_id = Column(Integer, ForeignKey("budgets.id"), nullable=False)
     category_name = Column(String, nullable=False)
+
+class OrgUser(Base):
+    """Phase 9: Organisation mode users (passwordless)."""
+    __tablename__ = "org_users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+
 

@@ -118,6 +118,16 @@ window.ConfigView = {
                 </style>
             </div>
 
+            <!-- Phase 9: User management panel (org mode only) -->
+            <div id="configOrgUsersPanel" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); display: none;">
+                <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_org_users">👥 ${window.i18n.t('config_org_users')}</h3>
+                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_org_users_desc">${window.i18n.t('config_org_users_desc')}</p>
+                <div id="orgUsersList" style="margin-bottom: 12px;"></div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" id="newOrgUserName" class="inline-input" data-i18n-placeholder="ph_user_name" placeholder="${window.i18n.t('ph_user_name')}" style="flex: 1; padding: 8px 12px; font-size: 13px;">
+                    <button class="btn btn-primary" style="padding: 8px 16px; font-size: 13px; white-space: nowrap;" onclick="window.ConfigView._addOrgUser()" data-i18n="btn_add_user">+ ${window.i18n.t('btn_add_user')}</button>
+                </div>
+            </div>
             <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_data_mgmt">Gestion des données</h3>
                 <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;">
@@ -203,6 +213,8 @@ window.ConfigView = {
             if (this.configData.enable_check_slips === 'true') document.getElementById('conf_enable_check_slips').checked = true;
             if (this.configData.enable_org_mode === 'true') document.getElementById('conf_enable_org_mode').checked = true;
             
+            // Phase 9: Show org users panel if enabled
+            this._refreshOrgUsersPanel();
         } catch (e) {
             console.error("Failed to load config", e);
         }
@@ -285,6 +297,17 @@ window.ConfigView = {
             }
             
             await API.post('/api/config/', data);
+            
+            // Phase 9: Refresh org users panel + header switcher visibility
+            this._refreshOrgUsersPanel();
+            const switcher = document.getElementById('userSwitcher');
+            if (switcher) {
+                switcher.style.display = data.enable_org_mode === 'true' ? 'block' : 'none';
+            }
+            if (data.enable_org_mode !== 'true') {
+                sessionStorage.removeItem('omni_current_user');
+                if (window.app) window.app.currentUser = null;
+            }
             
             if (btn) {
                 const originalText = btn.textContent;
@@ -713,6 +736,72 @@ window.ConfigView = {
             console.error(e);
             if (btn) { btn.disabled = false; }
             showInlineMessage(window.i18n.t('title_error'), e.message);
+        }
+    },
+
+    // ── Phase 9: Org Users CRUD ──────────────────────────────────
+    async _refreshOrgUsersPanel() {
+        const panel = document.getElementById('configOrgUsersPanel');
+        if (!panel) return;
+        const isOrg = document.getElementById('conf_enable_org_mode')?.checked;
+        panel.style.display = isOrg ? 'block' : 'none';
+        if (!isOrg) return;
+
+        // Ensure default user exists
+        try { await API.post('/api/org_users/ensure_default'); } catch(e) {}
+
+        let users = [];
+        try { users = await API.get('/api/org_users/'); } catch(e) {}
+
+        const list = document.getElementById('orgUsersList');
+        if (!list) return;
+        list.innerHTML = users.map(u => `
+            <div class="org-user-row">
+                <span style="font-size:18px;">👤</span>
+                <span class="org-user-name" id="orgUserName_${u.id}">${u.name}</span>
+                <span class="org-user-status ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? window.i18n.t('label_active') : window.i18n.t('label_inactive')}</span>
+                <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.ConfigView._renameOrgUser(${u.id},'${u.name.replace(/'/g, "\\'")}')" title="Renommer">✏️</button>
+                ${u.is_active
+                    ? `<button class="btn btn-danger" style="padding:3px 8px;font-size:11px;" onclick="window.ConfigView._toggleOrgUser(${u.id},false)">${window.i18n.t('btn_deactivate')}</button>`
+                    : `<button class="btn btn-primary" style="padding:3px 8px;font-size:11px;" onclick="window.ConfigView._toggleOrgUser(${u.id},true)">${window.i18n.t('btn_reactivate')}</button>`
+                }
+            </div>
+        `).join('');
+    },
+
+    async _addOrgUser() {
+        const input = document.getElementById('newOrgUserName');
+        const name = input?.value.trim();
+        if (!name) return;
+        try {
+            await API.post('/api/org_users/', { name });
+            input.value = '';
+            showToast(window.i18n.t('toast_user_added'), 'success');
+            this._refreshOrgUsersPanel();
+        } catch(e) {
+            showToast(e.message || 'Error', 'error');
+        }
+    },
+
+    async _renameOrgUser(id, currentName) {
+        const newName = prompt(window.i18n.t('ph_user_name'), currentName);
+        if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
+        try {
+            await API.put(`/api/org_users/${id}`, { name: newName.trim() });
+            showToast(window.i18n.t('toast_user_updated'), 'success');
+            this._refreshOrgUsersPanel();
+        } catch(e) {
+            showToast(e.message || 'Error', 'error');
+        }
+    },
+
+    async _toggleOrgUser(id, activate) {
+        try {
+            await API.put(`/api/org_users/${id}`, { is_active: activate });
+            showToast(activate ? window.i18n.t('toast_user_reactivated') : window.i18n.t('toast_user_deactivated'), 'success');
+            this._refreshOrgUsersPanel();
+        } catch(e) {
+            showToast(e.message || 'Error', 'error');
         }
     }
 };

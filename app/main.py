@@ -45,7 +45,8 @@ from app.routers import (
     budgets,
     backup,
     setup,
-    maintenance
+    maintenance,
+    org_users
 )
 
 app.include_router(transactions.router)
@@ -61,6 +62,7 @@ app.include_router(ai_helpers.router)
 app.include_router(budgets.router)
 app.include_router(setup.router)
 app.include_router(maintenance.router)
+app.include_router(org_users.router)
 
 
 @app.get("/")

@@ -4,6 +4,7 @@ class App {
     constructor() {
         this.currentView = 'dashboard';
         this.views = {};
+        this.currentUser = null;  // Phase 9: active org user name
     }
 
     getTypeLabel(typeKey) {
@@ -61,6 +62,18 @@ class App {
             const badge = document.getElementById('appVersionBadge');
             if (badge && version) badge.textContent = `v${version}`;
         } catch (e) { console.warn('[version] All version checks failed', e); }
+        
+        // ── Phase 9: Check if org mode needs user selection ──
+        if (this.config.enable_org_mode === 'true') {
+            const savedUser = sessionStorage.getItem('omni_current_user');
+            if (!savedUser) {
+                // Ensure default user exists
+                try { await API.post('/api/org_users/ensure_default'); } catch (e) {}
+                await this._showUserPicker();
+                return; // Blocks until user selected
+            }
+            this.currentUser = savedUser;
+        }
         
         this._initUI();
     }
@@ -199,6 +212,117 @@ class App {
         // Reveal UI after init is complete (prevents FOUC)
         const container = document.querySelector('.app-container');
         if (container) container.style.opacity = '1';
+        
+        // Phase 9: Init user switcher if org mode
+        this._initUserSwitcher();
+    }
+
+    // ── Phase 9: User Picker (full-page splash) ──────────────────
+    async _showUserPicker() {
+        const overlay = document.getElementById('userPickerOverlay');
+        if (!overlay) return;
+
+        // Translate overlay
+        window.i18n.translateDOM(overlay);
+
+        let users = [];
+        try {
+            users = await API.get('/api/org_users/');
+            users = users.filter(u => u.is_active);
+        } catch (e) {
+            console.error('[Phase9] Erreur chargement utilisateurs', e);
+        }
+
+        const badges = document.getElementById('userPickerBadges');
+        badges.innerHTML = users.map(u => `
+            <div class="user-picker-badge" data-user="${u.name}">
+                <div class="user-picker-badge-avatar">👤</div>
+                <div class="user-picker-badge-name">${u.name}</div>
+            </div>
+        `).join('');
+
+        overlay.style.display = 'flex';
+
+        return new Promise(resolve => {
+            badges.querySelectorAll('.user-picker-badge').forEach(badge => {
+                badge.addEventListener('click', () => {
+                    const name = badge.getAttribute('data-user');
+                    this.currentUser = name;
+                    sessionStorage.setItem('omni_current_user', name);
+
+                    // Fade out overlay
+                    overlay.style.transition = 'opacity 0.3s';
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                        overlay.style.opacity = '1';
+                        this._initUI();
+                        resolve();
+                    }, 300);
+                });
+            });
+        });
+    }
+
+    async _initUserSwitcher() {
+        const isOrg = this.config && this.config.enable_org_mode === 'true';
+        const switcher = document.getElementById('userSwitcher');
+        if (!switcher) return;
+
+        if (!isOrg) {
+            switcher.style.display = 'none';
+            return;
+        }
+
+        switcher.style.display = 'block';
+
+        // Set current user label
+        const label = document.getElementById('currentUserLabel');
+        if (label) label.textContent = this.currentUser || '—';
+
+        // Toggle menu
+        const btn = document.getElementById('userSwitcherBtn');
+        const menu = document.getElementById('userSwitcherMenu');
+
+        btn.onclick = async (e) => {
+            e.stopPropagation();
+            if (menu.style.display === 'none') {
+                // Fetch users and populate
+                let users = [];
+                try {
+                    users = await API.get('/api/org_users/');
+                    users = users.filter(u => u.is_active);
+                } catch (e) { console.error(e); }
+
+                menu.innerHTML = users.map(u => `
+                    <div class="user-switcher-item ${u.name === this.currentUser ? 'active' : ''}" data-user="${u.name}">
+                        ${u.name === this.currentUser ? '<span class="user-item-dot"></span>' : '<span style="width:8px"></span>'}
+                        <span>👤 ${u.name}</span>
+                    </div>
+                `).join('');
+
+                menu.querySelectorAll('.user-switcher-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const name = item.getAttribute('data-user');
+                        this.currentUser = name;
+                        sessionStorage.setItem('omni_current_user', name);
+                        label.textContent = name;
+                        menu.style.display = 'none';
+                    });
+                });
+
+                menu.style.display = 'block';
+            } else {
+                menu.style.display = 'none';
+            }
+        };
+
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            if (!switcher.contains(e.target)) {
+                menu.style.display = 'none';
+            }
+        });
     }
 
     showUnreconciledBeforePay() {

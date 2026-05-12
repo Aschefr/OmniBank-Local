@@ -21,6 +21,8 @@ class TransactionBase(BaseModel):
     to_account_id: Optional[int] = None
     recurrence_id: Optional[int] = None
     budget_id: Optional[int] = None  # For project-type budget assignment
+    created_by: Optional[str] = None
+    modified_by: Optional[str] = None
 
 class TransactionCreate(TransactionBase):
     pass
@@ -41,6 +43,7 @@ class TransactionUpdate(BaseModel):
     to_account_id: Optional[int] = None
     recurrence_id: Optional[int] = None
     budget_id: Optional[int] = None  # Assign/unassign to project budget
+    modified_by: Optional[str] = None
 
 class TransactionOut(TransactionBase):
     id: int
@@ -108,3 +111,24 @@ class ChatMessage(BaseModel):
     content: str
     history: List[dict] = []
     role: Optional[str] = "advisor"
+
+# Phase 9: Org Users
+class OrgUserBase(BaseModel):
+    name: str
+    is_active: bool = True
+    sort_order: int = 0
+
+class OrgUserCreate(OrgUserBase):
+    pass
+
+class OrgUserUpdate(BaseModel):
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+class OrgUserOut(OrgUserBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+        from_attributes = True

@@ -10,6 +10,7 @@ window.AllOperationsView = {
         const cfg = window.app && window.app.config ? window.app.config : {};
         const attachDisp = cfg.enable_attachments === 'true' ? '' : 'display: none !important;';
         const slipDisp = cfg.enable_check_slips === 'true' ? '' : 'display: none !important;';
+        const orgDisp = cfg.enable_org_mode === 'true' ? '' : 'display: none !important;';
 
         return `
             <style id="historyColsStyle"></style>
@@ -30,6 +31,8 @@ window.AllOperationsView = {
                         <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_recurrence" onchange="window.AllOperationsView.toggleCol('recurrence')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_recurrence')}</label>
                         <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${slipDisp}"><input type="checkbox" id="chk_history_col_slip" onchange="window.AllOperationsView.toggleCol('slip')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_slip')}</label>
                         <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${attachDisp}"><input type="checkbox" id="chk_history_col_attachments" onchange="window.AllOperationsView.toggleCol('attachments')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_attachments')}</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${orgDisp}"><input type="checkbox" id="chk_history_col_createdBy" onchange="window.AllOperationsView.toggleCol('createdBy')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_created_by')}</label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${orgDisp}"><input type="checkbox" id="chk_history_col_modifiedBy" onchange="window.AllOperationsView.toggleCol('modifiedBy')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_modified_by')}</label>
                     </div>
                     <div style="text-align: center;">
                         <button class="btn btn-primary" style="width: 100%; padding: 10px; font-size: 14px;" onclick="document.getElementById('historyColsModal').style.display='none'" data-i18n="btn_close">${window.i18n.t('btn_close')}</button>
@@ -92,6 +95,8 @@ window.AllOperationsView = {
                             <th class="col-recurrence" data-i18n="col_recurrence">${window.i18n.t('col_recurrence')}</th>
                             <th class="col-slip" data-i18n="col_slip">${window.i18n.t('col_slip')}</th>
                             <th class="col-attachments" data-i18n="col_attachments">${window.i18n.t('col_attachments')}</th>
+                            <th class="col-createdBy" data-i18n="col_created_by">${window.i18n.t('col_created_by')}</th>
+                            <th class="col-modifiedBy" data-i18n="col_modified_by">${window.i18n.t('col_modified_by')}</th>
                             <th class="col-actions"></th>
                         </tr>
                     </thead>
@@ -122,7 +127,7 @@ window.AllOperationsView = {
         const cfg = window.app && window.app.config ? window.app.config : {};
         const showAttachments = cfg.enable_attachments === 'true';
         const showSlips = cfg.enable_check_slips === 'true';
-        const def = { dateSaisie: false, date: true, desc: true, type: false, cat: true, amount: true, recon: true, budget: false, depuis: false, vers: false, recurrence: false, slip: showSlips, attachments: showAttachments };
+        const def = { dateSaisie: false, date: true, desc: true, type: false, cat: true, amount: true, recon: true, budget: false, depuis: false, vers: false, recurrence: false, slip: showSlips, attachments: showAttachments, createdBy: false, modifiedBy: false };
         try {
             const saved = localStorage.getItem('history_cols');
             const parsed = saved ? { ...def, ...JSON.parse(saved) } : def;
@@ -155,7 +160,8 @@ window.AllOperationsView = {
         const colWeights = {
             dateSaisie: 1.5, date: 1.5, desc: 4, type: 1.8,
             cat: 2.5, amount: 1.5, recon: 1.8, budget: 1.5,
-            depuis: 1.5, vers: 1.5, recurrence: 1.2, slip: 1.2, attachments: 1
+            depuis: 1.5, vers: 1.5, recurrence: 1.2, slip: 1.2, attachments: 1,
+            createdBy: 1.5, modifiedBy: 1.5
         };
         
         // Calculate total weight of visible columns
@@ -372,6 +378,8 @@ window.AllOperationsView = {
                 <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}" title="${recText}">${recText}</td>
                 <td class="col-slip" data-label="${window.i18n.t('dl_slip')}">${tx.slip_number ? '<span style="background: rgba(255,152,0,0.15); color: #ff9800; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">' + tx.slip_number + '</span>' : '-'}</td>
                 <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}">📎</span>` : '-'}</td>
+                <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by || '-'}</td>
+                <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by || '-'}</td>
                 <td class="col-actions mobile-card-actions">
                     <div style="display:flex;gap:4px;align-items:center;justify-content:flex-end;">
                         <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;white-space:nowrap;" onclick="window.AllOperationsView.edit(${tx.id})">${window.i18n.t('tooltip_edit')}</button>

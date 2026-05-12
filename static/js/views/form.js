@@ -541,6 +541,15 @@ window.FormView = {
             budget_id: (() => { const v = document.getElementById('op_budget_id')?.value; return v ? parseInt(v) : null; })()
         };
 
+        // Phase 9: Inject org user audit fields
+        if (window.app && window.app.currentUser) {
+            if (this.currentTxId) {
+                this.pendingSaveData.modified_by = window.app.currentUser;
+            } else {
+                this.pendingSaveData.created_by = window.app.currentUser;
+            }
+        }
+
         if (this.currentTxId) {
             // Edit Mode
             if (isRecurrent || (this.currentTxBase && this.currentTxBase.recurrence_id)) {

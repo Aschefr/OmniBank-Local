@@ -37,6 +37,16 @@ def init_db():
         except Exception:
             pass  # Column likely already exists
 
+        # Phase 9: Multi-user audit columns
+        try:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN created_by TEXT"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN modified_by TEXT"))
+        except Exception:
+            pass
+
             
         conn.commit()
 
