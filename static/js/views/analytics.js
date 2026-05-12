@@ -36,7 +36,7 @@ window.AnalyticsView = {
                         <option value="m24" data-i18n="analytics_rolling_24m">${window.i18n.t('analytics_rolling_24m')}</option>
                         <option disabled data-i18n="analytics_years_separator">${window.i18n.t('analytics_years_separator')}</option>
                     </select>
-                    <div style="display:flex;align-items:center;gap:6px;">
+                    <div id="analyticsCustomRangeWrapper" style="display:none;align-items:center;gap:6px;">
                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
                             <div style="position:relative;width:36px;height:20px;">
                                 <input type="checkbox" id="analyticsCustomRangeToggle" class="global-toggle" style="opacity:0;width:0;height:0;position:absolute;" onchange="window.AnalyticsView.onCustomRangeToggle(this.checked)">
@@ -92,6 +92,12 @@ window.AnalyticsView = {
         await this.loadData();
         this.renderAccountBar();
 
+        // Show custom period toggle only if org license is active
+        try {
+            const license = await window.LicenseManager.getStatus();
+            const wrapper = document.getElementById('analyticsCustomRangeWrapper');
+            if (wrapper && license.active) wrapper.style.display = 'flex';
+        } catch (e) { /* no license module — keep hidden */ }
         // Apply custom range toggle state to UI
         const crToggle = document.getElementById('analyticsCustomRangeToggle');
         const crInputs = document.getElementById('analyticsCustomRangeInputs');

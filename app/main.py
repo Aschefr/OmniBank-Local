@@ -9,6 +9,9 @@ from app.database import engine, Base, DATA_DIR
 from app.init_data import init_db
 import app.models # Important: load models before create_all
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def resource_path(relative_path):
     """Get absolute path to bundled resource (PyInstaller-aware)."""
@@ -18,6 +21,7 @@ def resource_path(relative_path):
 
 
 # Create tables if they don't exist + run idempotent migrations
+logger.info(f"[Startup] DATA_DIR = {DATA_DIR}")
 init_db()
 
 app = FastAPI(title="OmniBank Local")
@@ -47,7 +51,8 @@ from app.routers import (
     setup,
     maintenance,
     org_users,
-    license
+    license,
+    shared_mode
 )
 
 app.include_router(transactions.router)
@@ -65,6 +70,7 @@ app.include_router(setup.router)
 app.include_router(maintenance.router)
 app.include_router(org_users.router)
 app.include_router(license.router)
+app.include_router(shared_mode.router)
 
 
 @app.get("/")

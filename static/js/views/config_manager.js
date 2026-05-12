@@ -129,6 +129,13 @@ window.ConfigView = {
                     <button class="btn btn-primary" style="padding: 8px 16px; font-size: 13px; white-space: nowrap;" onclick="window.ConfigView._addOrgUser()" data-i18n="btn_add_user">+ ${window.i18n.t('btn_add_user')}</button>
                 </div>
             </div>
+            <!-- Improvement 03: Shared mode (multi-session Windows) -->
+            <div id="configSharedModePanel" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <h3 style="display:flex; align-items:center; gap:8px;">🖥️ <span data-i18n="config_shared_mode">${window.i18n.t('config_shared_mode')}</span></h3>
+                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_shared_mode_desc">${window.i18n.t('config_shared_mode_desc')}</p>
+                <div id="sharedModeStatus" style="margin-bottom: 12px;"></div>
+                <div id="sharedModeActions" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+            </div>
             <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_data_mgmt">Gestion des données</h3>
                 <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;">
@@ -218,6 +225,8 @@ window.ConfigView = {
             this._refreshOrgUsersPanel();
             // Phase 10: Show license status badge
             this._refreshLicenseStatus();
+            // Improvement 03: Show shared mode status
+            this._refreshSharedModePanel();
         } catch (e) {
             console.error("Failed to load config", e);
         }
@@ -307,7 +316,22 @@ window.ConfigView = {
             if (switcher) {
                 switcher.style.display = data.enable_org_mode === 'true' ? 'block' : 'none';
             }
-            if (data.enable_org_mode !== 'true') {
+            if (data.enable_org_mode === 'true') {
+                // Ensure default user exists and set it as current if none selected
+                if (!sessionStorage.getItem('omni_current_user')) {
+                    try {
+                        const defaultUser = await API.post('/api/org_users/ensure_default');
+                        if (defaultUser && defaultUser.name) {
+                            sessionStorage.setItem('omni_current_user', defaultUser.name);
+                            if (window.app) window.app.currentUser = defaultUser.name;
+                        }
+                    } catch(e) {}
+                }
+                // Update header label
+                const label = document.getElementById('currentUserLabel');
+                const userName = sessionStorage.getItem('omni_current_user');
+                if (label && userName) label.textContent = userName;
+            } else {
                 sessionStorage.removeItem('omni_current_user');
                 if (window.app) window.app.currentUser = null;
             }
@@ -848,6 +872,8 @@ window.ConfigView = {
             el.style.display = isOrgOn ? 'block' : 'none';
             el.innerHTML = `<span class="license-badge inactive">❌ ${window.i18n.t('license_inactive')}</span>`;
         }
+        // Also refresh shared mode panel (depends on license state)
+        this._refreshSharedModePanel();
     },
 
     async _deactivateLicense() {
@@ -857,6 +883,111 @@ window.ConfigView = {
         if (chk) chk.checked = false;
         this.save();
         this._refreshLicenseStatus();
+    },
+
+    // ── Improvement 03: Shared Mode ──────────────────────────────────
+    async _refreshSharedModePanel() {
+        const panel = document.getElementById('configSharedModePanel');
+        const statusEl = document.getElementById('sharedModeStatus');
+        const actionsEl = document.getElementById('sharedModeActions');
+        if (!statusEl || !actionsEl) return;
+
+        // Only show in Tauri desktop app — useless in Docker/browser
+        if (!window.__TAURI__) {
+            if (panel) panel.style.display = 'none';
+            return;
+        }
+
+        // Only show if org license is active
+        const license = await window.LicenseManager.getStatus();
+        if (!license.active) {
+            if (panel) panel.style.display = 'none';
+            return;
+        }
+        if (panel) panel.style.display = '';
+
+        try {
+            const status = await API.get('/api/config/shared-mode');
+
+            if (status.active) {
+                const modeLabel = status.mode === 'custom' ? '📁' : '🖥️';
+                statusEl.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <span class="license-badge active">✅ ${window.i18n.t('config_shared_mode_active')}</span>
+                        <span style="font-size: 12px; color: var(--text-muted);">${modeLabel} ${status.path}</span>
+                    </div>
+                `;
+                actionsEl.innerHTML = `
+                    <button class="btn btn-danger" style="padding: 6px 14px; font-size: 12px;" onclick="window.ConfigView._disableSharedMode()">
+                        ${window.i18n.t('config_shared_mode_deactivate')}
+                    </button>
+                `;
+            } else {
+                statusEl.innerHTML = `
+                    <span class="license-badge inactive">📴 ${window.i18n.t('config_shared_mode_inactive')}</span>
+                `;
+                actionsEl.innerHTML = `
+                    <button class="btn btn-primary" style="padding: 6px 14px; font-size: 12px;" onclick="window.ConfigView._enableSharedMode('programdata')">
+                        🖥️ ${window.i18n.t('config_shared_mode_default_btn')}
+                    </button>
+                    <button class="btn btn-secondary" style="padding: 6px 14px; font-size: 12px;" onclick="window.ConfigView._enableSharedModeCustom()">
+                        📁 ${window.i18n.t('config_shared_mode_custom')}
+                    </button>
+                `;
+            }
+        } catch (e) {
+            statusEl.innerHTML = '<span style="color: var(--text-muted); font-size: 12px;">—</span>';
+            actionsEl.innerHTML = '';
+        }
+    },
+
+    async _enableSharedMode(mode, customPath) {
+        const msg = window.i18n.t('config_shared_mode_confirm');
+        if (!confirm(msg)) return;
+
+        try {
+            const body = { mode };
+            if (customPath) body.custom_path = customPath;
+            const res = await API.post('/api/config/shared-mode', body);
+            if (res.ok) {
+                showToast(window.i18n.t('config_shared_mode_success'), 'success');
+                this._refreshSharedModePanel();
+            }
+        } catch (e) {
+            showToast(e.message || 'Error', 'error');
+        }
+    },
+
+    async _enableSharedModeCustom() {
+        try {
+            const selected = await window.__TAURI__.dialog.open({
+                directory: true,
+                multiple: false,
+                title: window.i18n.t('config_shared_mode_choose_folder')
+            });
+            if (!selected) return; // User cancelled
+            this._enableSharedMode('custom', selected);
+        } catch (e) {
+            // Fallback to prompt if Tauri dialog fails
+            const path = prompt(window.i18n.t('config_shared_mode_choose_folder'), 'C:\\OmniBank-Shared');
+            if (!path || !path.trim()) return;
+            this._enableSharedMode('custom', path.trim());
+        }
+    },
+
+    async _disableSharedMode() {
+        const msg = window.i18n.t('config_shared_mode_confirm_disable');
+        if (!confirm(msg)) return;
+
+        try {
+            const res = await API.del('/api/config/shared-mode');
+            if (res.ok) {
+                showToast(window.i18n.t('config_shared_mode_disabled'), 'success');
+                this._refreshSharedModePanel();
+            }
+        } catch (e) {
+            showToast(e.message || 'Error', 'error');
+        }
     }
 };
 

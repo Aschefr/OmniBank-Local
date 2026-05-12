@@ -685,5 +685,20 @@
   "license_invalid": "Invalid license key. Check your email and key.",
   "license_activated": "License activated successfully!",
   "license_deactivated": "License deactivated",
-  "license_required": "A license is required to activate organisation mode."
+  "license_required": "A license is required to activate organisation mode.",
+  "config_shared_mode": "Multi-session mode",
+  "config_shared_mode_desc": "Share the database between all Windows sessions on this computer.",
+  "config_shared_mode_activate": "Enable shared mode",
+  "config_shared_mode_deactivate": "Disable shared mode",
+  "config_shared_mode_custom": "Custom folder…",
+  "config_shared_mode_active": "Shared mode active",
+  "config_shared_mode_inactive": "Local mode (per session)",
+  "config_shared_mode_path": "Data location",
+  "config_shared_mode_restart": "Restart OmniBank to apply the change.",
+  "config_shared_mode_confirm": "The database will be copied to the shared folder. Other Windows sessions will be able to access it. Continue?",
+  "config_shared_mode_confirm_disable": "Shared mode will be disabled. OmniBank will use the local folder again on next startup. Continue?",
+  "config_shared_mode_success": "Shared mode enabled. Restart OmniBank.",
+  "config_shared_mode_disabled": "Shared mode disabled. Restart OmniBank.",
+  "config_shared_mode_choose_folder": "Choose a folder…",
+  "config_shared_mode_default_btn": "ProgramData (recommended)"
 }

@@ -386,10 +386,30 @@ else:
 | `app.windows[0].width` | `1600` | Largeur par defaut |
 | `app.windows[0].height` | `900` | Hauteur par defaut |
 | `bundle.externalBin` | `["bin/omnibank-api"]` | Declare le sidecar a inclure |
-| `bundle.targets` | `["msi"]` | Format d'installateur Windows |
-| `bundle.windows.wix.language` | `"fr-FR"` | Installateur en francais |
+| `bundle.targets` | `["msi", "nsis"]` | Formats d'installateur Windows (voir section ci-dessous) |
+| `bundle.windows.wix.language` | `"fr-FR"` | Installateur MSI en francais |
+| `bundle.windows.nsis.installMode` | `"perMachine"` | NSIS installe dans `C:\Program Files\` (tous les utilisateurs) |
 | `plugins.updater.endpoints` | `[...latest.json]` | URL du manifeste de mise a jour |
 | `plugins.updater.pubkey` | `dW50cnVzd...` | Cle publique pour verifier les signatures |
+
+#### Deux installateurs Windows
+
+Le build genere **deux** installateurs :
+
+| Fichier | Format | Mode | Emplacement d'installation |
+|---------|--------|------|---------------------------|
+| `OmniBank_x.y.z_x64_fr-FR.msi` | MSI (WiX) | Per-user | `%LOCALAPPDATA%\OmniBank\` |
+| `OmniBank_x.y.z_x64-setup.exe` | NSIS | **Per-machine** | `C:\Program Files\OmniBank\` |
+
+- **MSI** : installation classique par session, sans droits admin.
+- **NSIS** : installation pour tous les utilisateurs Windows, **necessite UAC admin**.
+  Utiliser le `.exe` pour les organisations multi-sessions.
+
+> **Rollback vers MSI seul** : Si le NSIS pose probleme, modifier `tauri.conf.json` :
+> ```json
+> "targets": ["msi"]
+> ```
+> et supprimer le bloc `"nsis": { ... }` dans `bundle.windows`. Puis relancer `npx tauri build`.
 
 ### Dependances Rust (`Cargo.toml`)
 
@@ -399,6 +419,7 @@ else:
 | `tauri-plugin-shell` | Spawn/kill du sidecar |
 | `tauri-plugin-updater` | Auto-update |
 | `tauri-plugin-dialog` | Dialogues natifs Windows (confirmation update) |
+| `tauri-plugin-window-state` | Sauvegarde/restauration taille et position de la fenêtre |
 | `reqwest` | HTTP blocking (health check) |
 
 > **Note** : La version dans `Cargo.toml` est fixe a `1.0.0`. La version reelle
@@ -410,8 +431,10 @@ else:
 |------------|-------|
 | `core:default` | Permissions de base Tauri |
 | `shell:allow-execute/spawn/kill` | Gestion du sidecar |
+| `shell:allow-open` | Ouverture liens externes |
 | `updater:default` | Auto-update |
 | `core:app:default` | Lecture version app depuis JS |
+| `dialog:allow-open` | Explorateur Windows natif (selection dossier mode partage) |
 
 ---
 

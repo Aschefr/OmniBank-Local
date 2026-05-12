@@ -701,5 +701,20 @@
   "license_invalid": "Clé de licence invalide. Vérifiez votre e-mail et votre clé.",
   "license_activated": "Licence activée avec succès !",
   "license_deactivated": "Licence désactivée",
-  "license_required": "Une licence est requise pour activer le mode organisation."
+  "license_required": "Une licence est requise pour activer le mode organisation.",
+  "config_shared_mode": "Mode multi-session",
+  "config_shared_mode_desc": "Partager la base de données entre toutes les sessions Windows de cet ordinateur.",
+  "config_shared_mode_activate": "Activer le mode partagé",
+  "config_shared_mode_deactivate": "Désactiver le mode partagé",
+  "config_shared_mode_custom": "Dossier personnalisé…",
+  "config_shared_mode_active": "Mode partagé actif",
+  "config_shared_mode_inactive": "Mode local (par session)",
+  "config_shared_mode_path": "Emplacement des données",
+  "config_shared_mode_restart": "Redémarrez OmniBank pour appliquer le changement.",
+  "config_shared_mode_confirm": "La base de données sera copiée vers le dossier partagé. Les autres sessions Windows pourront y accéder. Continuer ?",
+  "config_shared_mode_confirm_disable": "Le mode partagé sera désactivé. OmniBank utilisera à nouveau le dossier local au prochain démarrage. Continuer ?",
+  "config_shared_mode_success": "Mode partagé activé. Redémarrez OmniBank.",
+  "config_shared_mode_disabled": "Mode partagé désactivé. Redémarrez OmniBank.",
+  "config_shared_mode_choose_folder": "Choisir un dossier…",
+  "config_shared_mode_default_btn": "ProgramData (recommandé)"
 }

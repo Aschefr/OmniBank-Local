@@ -49,6 +49,7 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .invoke_handler(tauri::generate_handler![get_app_version])
         .setup(|app| {
             // Kill any orphan omnibank-api.exe from previous session/update
@@ -100,8 +101,11 @@ fn main() {
                 for _ in 0..30 {
                     if let Ok(resp) = reqwest::blocking::get("http://127.0.0.1:8434/api/health") {
                         if resp.status().is_success() {
-                            // Server is ready — show the main window
+                            // Server is ready — reload page (clears the ERR_CONNECTION_REFUSED) then show
                             if let Some(window) = app_handle.get_webview_window("main") {
+                                let _ = window.navigate("http://127.0.0.1:8434".parse().unwrap());
+                                // Wait for WebView to fully load the page (window is still hidden)
+                                std::thread::sleep(Duration::from_millis(2000));
                                 let _ = window.show();
                             }
                             // Check for updates after a short delay

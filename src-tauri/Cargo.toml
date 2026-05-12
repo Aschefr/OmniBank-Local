@@ -2,7 +2,7 @@
 name = "omnibank"
 version = "1.0.0"
 description = "OmniBank - Personal Finance Manager"
-authors = ["Aschefr"]
+authors = ["Amify Studio"]
 edition = "2021"
 
 [dependencies]
@@ -10,6 +10,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-window-state = "2"
 reqwest = { version = "0.12", features = ["blocking"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
