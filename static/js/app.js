@@ -414,9 +414,10 @@ class App {
                 const periodLabels = {
                     'monthly': window.i18n.t('stat_budgets_monthly') || '🎯 Budgets (Mensuel)',
                     'yearly': window.i18n.t('stat_budgets_yearly') || '🎯 Budgets (Annuel)',
-                    'indefinite': window.i18n.t('stat_budgets_indefinite') || '🎯 Budgets (Indéfini)'
+                    'indefinite': window.i18n.t('stat_budgets_indefinite') || '🎯 Budgets (Indéfini)',
+                    'custom': window.i18n.t('stat_budgets_custom') || '🎯 Budgets (Défini)'
                 };
-                const orderedPeriods = ['monthly', 'yearly', 'indefinite'];
+                const orderedPeriods = ['monthly', 'yearly', 'indefinite', 'custom'];
                 let barsHtml = '';
 
                 for (const period of orderedPeriods) {

@@ -720,5 +720,6 @@
   "budget_opt_custom": "Défini dans le temps",
   "budget_period_custom": "Défini dans le temps",
   "budget_custom_dates_label": "Période personnalisée",
-  "budget_custom_dates_required": "Veuillez sélectionner les dates de début et de fin."
+  "budget_custom_dates_required": "Veuillez sélectionner les dates de début et de fin.",
+  "stat_budgets_custom": "🎯 Budgets (Défini)"
 }

@@ -704,5 +704,6 @@
   "budget_opt_custom": "Time-bound",
   "budget_period_custom": "Time-bound",
   "budget_custom_dates_label": "Custom period",
-  "budget_custom_dates_required": "Please select start and end dates."
+  "budget_custom_dates_required": "Please select start and end dates.",
+  "stat_budgets_custom": "🎯 Budgets (Time-bound)"
 }
