@@ -161,7 +161,7 @@ window.ConfigView = {
 
                     <!-- Restore Backup -->
                     <input type="file" id="restoreBackupInput" accept=".zip" style="display: none;" onchange="window.ConfigView.restoreBackup(event)">
-                    <button class="btn btn-warning" onclick="document.getElementById('restoreBackupInput').click()" style="display: flex; align-items: center; gap: 5px; background-color: var(--color-expense); color: white;">
+                    <button class="btn btn-warning" onclick="document.getElementById('restoreBackupInput').click()" style="display: flex; align-items: center; gap: 5px; background-color: var(--color-expense-fixed, #ff5630); color: #fff;">
                         📂 <span data-i18n="btn_restore_backup">Restaurer Sauvegarde (ZIP)</span>
                     </button>
                 </div>
