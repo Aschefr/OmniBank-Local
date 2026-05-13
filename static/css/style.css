@@ -56,6 +56,14 @@
     --text-reconciled: #6b7685;
 }
 
+/* Dark mode: make native date/time picker icons visible */
+.theme-dark input[type="date"]::-webkit-calendar-picker-indicator,
+.theme-dark input[type="month"]::-webkit-calendar-picker-indicator,
+.theme-dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+    cursor: pointer;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
