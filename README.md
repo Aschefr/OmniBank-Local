@@ -9,16 +9,16 @@
 
 # 🇫🇷 Français
 
-[![Version](https://img.shields.io/badge/version-1.0.20-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
-[![License](https://img.shields.io/badge/license-Projet_Personnel-green.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.0.22-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
-**OmniBank Local** est une solution de gestion de finances personnelles ultra-privée, conçue pour ceux qui exigent un contrôle total sur leurs données. Alliant la puissance d'un tableur à l'intelligence d'une IA locale, elle transforme votre gestion financière en une expérience fluide et sécurisée.
+**OmniBank Local** est une solution de gestion de finances personnelles et associatives ultra-privée, conçue pour ceux qui exigent un contrôle total sur leurs données. Alliant la puissance d'un tableur à l'intelligence d'une IA locale, elle transforme votre gestion financière en une expérience fluide et sécurisée.
 
 ![Dashboard Overview](screenshots/02_dashboard.png)
 
 > [!CAUTION]
-> **Avertissement de sécurité & Usage** : Ce projet est entièrement "vibe codé" et développé à des fins strictement personnelles. La sécurité du code n'a fait l'objet d'aucun audit indépendant. Utilisez cette application à vos propres risques et uniquement dans un environnement local sécurisé.
+> **Avertissement** : La sécurité du code n'a pas fait l'objet d'un audit indépendant. Utilisez cette application à vos propres risques et uniquement dans un environnement local sécurisé.
 
 ---
 
@@ -92,7 +92,9 @@ OmniBank propose un **mode organisation** conçu pour les associations, comités
 ## 🚀 Installation
 
 ### 🖥️ Windows (Recommandé)
-Téléchargez le dernier installateur `.msi` depuis la page des [Releases](https://github.com/Aschefr/OmniBank-Local/releases).
+Téléchargez le dernier installateur depuis la page des [Releases](https://github.com/Aschefr/OmniBank-Local/releases) :
+*   **`.exe` (NSIS)** — Installation pour tous les utilisateurs Windows (`C:\Program Files\`). Recommandé pour le mode Organisation.
+*   **`.msi` (WiX)** — Installation classique par session utilisateur.
 
 ### 🐳 Docker
 ```bash
@@ -111,27 +113,30 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
-## 🆕 Dernières Mises à Jour (v1.0.20)
+## 🆕 Dernières Mises à Jour (v1.0.22)
 
-*   **Performances** : Défilement virtuel pour une fluidité parfaite.
-*   **UX/UI** : Badges de couleur pour les comptes et filtres persistants.
-*   **Wizard** : Amélioration de l'assistant de configuration.
-*   **Analytics** : Export PDF amélioré.
+*   **🏢 Mode Organisation** : Gestion multi-utilisateurs pour associations et CSE, avec traçabilité des opérations.
+*   **🖥️ Base de données partagée** : Partage de la DB entre sessions Windows via ProgramData.
+*   **📦 Installateur NSIS** : Installation dans `Program Files` pour tous les utilisateurs d'un même PC.
+*   **🎯 Budgets personnalisés** : Nouveau type de période libre avec dates de début/fin.
+*   **📊 Période personnalisée** : Sélection de plage de dates dans la Synthèse.
+*   **🔧 Maintenance** : Outil de correction automatique des incohérences de types.
+*   **🐛 Corrections** : Crash backend, permissions Windows, stabilité générale.
 
 ---
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.20-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
-[![License](https://img.shields.io/badge/license-Personal_Project-green.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.0.22-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
-**OmniBank Local** is an ultra-private personal finance management solution, designed for those who demand total control over their data. Combining spreadsheet-like power with local AI intelligence, it transforms financial management into a smooth and secure experience.
+**OmniBank Local** is an ultra-private personal and organizational finance management solution, designed for those who demand total control over their data. Combining spreadsheet-like power with local AI intelligence, it transforms financial management into a smooth and secure experience.
 
 ![Dashboard Overview](screenshots/02_dashboard.png)
 
 > [!CAUTION]
-> **Security & Usage Warning**: This project is entirely "vibe coded" and developed for strictly personal purposes. The code's security has not undergone any independent audit. Use this application at your own risk and only in a secure local environment.
+> **Disclaimer**: The code's security has not undergone any independent audit. Use this application at your own risk and only in a secure local environment.
 
 ---
 
@@ -205,7 +210,9 @@ OmniBank offers an **organisation mode** designed for nonprofits, work councils,
 ## 🚀 Installation
 
 ### 🖥️ Windows (Recommended)
-Download the latest `.msi` installer from the [Releases](https://github.com/Aschefr/OmniBank-Local/releases) page.
+Download the latest installer from the [Releases](https://github.com/Aschefr/OmniBank-Local/releases) page:
+*   **`.exe` (NSIS)** — System-wide installation (`C:\Program Files\`). Recommended for Organisation mode.
+*   **`.msi` (WiX)** — Classic per-user session installation.
 
 ### 🐳 Docker
 ```bash
@@ -224,12 +231,15 @@ Access the interface at `http://localhost:8434`.
 
 ---
 
-## 🆕 Recent Updates (v1.0.20)
+## 🆕 Recent Updates (v1.0.22)
 
-*   **Performance**: Virtual scrolling for perfect smoothness.
-*   **UX/UI**: Color badges for accounts and persistent filters.
-*   **Wizard**: Improved configuration assistant.
-*   **Analytics**: Enhanced PDF Export.
+*   **🏢 Organisation Mode**: Multi-user management for nonprofits and work councils, with full audit trail.
+*   **🖥️ Shared Database**: Share the DB between Windows sessions via ProgramData.
+*   **📦 NSIS Installer**: System-wide installation in `Program Files` for all users on the same PC.
+*   **🎯 Custom Budgets**: New free-form period type with custom start/end dates.
+*   **📊 Custom Period**: Date range picker in the Synthesis view.
+*   **🔧 Maintenance**: Automatic type-mismatch correction tool.
+*   **🐛 Fixes**: Backend crash fixes, Windows permission issues, general stability.
 
 ---
 
@@ -243,4 +253,4 @@ Access the interface at `http://localhost:8434`.
 ---
 
 ## 📝 License
-Personal project - All rights reserved.
+© 2026 Amify Studio — All rights reserved.
