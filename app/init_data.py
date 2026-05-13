@@ -47,6 +47,16 @@ def init_db():
         except Exception:
             pass
 
+        # Phase 11: Custom period budget envelopes
+        try:
+            conn.execute(text("ALTER TABLE budgets ADD COLUMN start_date DATE"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE budgets ADD COLUMN end_date DATE"))
+        except Exception:
+            pass
+
             
         conn.commit()
 

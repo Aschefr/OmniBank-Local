@@ -121,11 +121,22 @@ window.BudgetsView = {
                                 </div>
                                 <div>
                                     <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_label_period">${window.i18n.t('budget_label_period')}</label>
-                                    <select id="newBudgetPeriod" class="inline-input" style="width:100%;margin-top:4px;" onchange="window.BudgetsView.renderCatCheckboxes(window.BudgetsView.getSelectedCats())">
+                                    <select id="newBudgetPeriod" class="inline-input" style="width:100%;margin-top:4px;" onchange="window.BudgetsView.onPeriodChange()">
                                         <option value="monthly" data-i18n="budget_opt_monthly">${window.i18n.t('budget_opt_monthly')}</option>
                                         <option value="yearly" data-i18n="budget_opt_yearly">${window.i18n.t('budget_opt_yearly')}</option>
                                         <option value="indefinite" data-i18n="budget_opt_indefinite">${window.i18n.t('budget_opt_indefinite')}</option>
+                                        ${(window.app?.config?.enable_org_mode === 'true') ? `<option value="custom" data-i18n="budget_opt_custom">${window.i18n.t('budget_opt_custom') || 'Défini dans le temps'}</option>` : ''}
                                     </select>
+                                </div>
+                            </div>
+
+                            <!-- Custom period date pickers (hidden by default) -->
+                            <div id="budgetCustomDates" style="display:none;">
+                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_custom_dates_label">${window.i18n.t('budget_custom_dates_label') || 'Période personnalisée'}</label>
+                                <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
+                                    <input type="date" id="newBudgetStartDate" class="inline-input" style="flex:1;">
+                                    <span style="color:var(--text-muted);">→</span>
+                                    <input type="date" id="newBudgetEndDate" class="inline-input" style="flex:1;">
                                 </div>
                             </div>
 
@@ -342,6 +353,13 @@ window.BudgetsView = {
         return [...document.querySelectorAll('input[name="budgetCat"]:checked')].map(el => el.value);
     },
 
+    onPeriodChange() {
+        const period = document.getElementById('newBudgetPeriod')?.value;
+        const customDates = document.getElementById('budgetCustomDates');
+        if (customDates) customDates.style.display = period === 'custom' ? 'block' : 'none';
+        this.renderCatCheckboxes(this.getSelectedCats());
+    },
+
     toggleType() {
         const isProject = document.getElementById('budgetTypeProject')?.checked;
         const catSection = document.getElementById('budgetCatSection');
@@ -417,7 +435,8 @@ window.BudgetsView = {
         const groups = {
             'monthly': { title: window.i18n.t('period_monthly'), budgets: [] },
             'yearly': { title: window.i18n.t('period_yearly'), budgets: [] },
-            'indefinite': { title: window.i18n.t('budget_period_indefinite'), budgets: [] }
+            'indefinite': { title: window.i18n.t('budget_period_indefinite'), budgets: [] },
+            'custom': { title: window.i18n.t('budget_period_custom') || 'Défini dans le temps', budgets: [] }
         };
 
         for (const b of this.statusData.budgets) {
@@ -430,7 +449,7 @@ window.BudgetsView = {
 
         let fullHtml = '';
 
-        for (const period of ['monthly', 'yearly', 'indefinite']) {
+        for (const period of ['monthly', 'yearly', 'indefinite', 'custom']) {
             const group = groups[period];
             if (group.budgets.length === 0) continue;
 
@@ -494,7 +513,7 @@ window.BudgetsView = {
                     : '';
 
                 const safeName = b.name.replace(/'/g, "\\'");
-                const periodLabel = b.period === 'monthly' ? window.i18n.t('period_monthly') : b.period === 'yearly' ? window.i18n.t('period_yearly') : window.i18n.t('period_undefined');
+                const periodLabel = b.period === 'monthly' ? window.i18n.t('period_monthly') : b.period === 'yearly' ? window.i18n.t('period_yearly') : b.period === 'custom' ? `${window.i18n.t('budget_period_custom') || 'Défini'} (${b.start_date || '?'} → ${b.end_date || '?'})` : window.i18n.t('period_undefined');
                 const closedStyle = b.is_closed ? 'opacity:0.6;' : '';
                 const closedTag = b.is_closed
                     ? `<span style="background:rgba(239,68,68,0.15);color:#ff5630;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">${window.i18n.t('budget_closed_tag')}</span>`
@@ -666,6 +685,10 @@ window.BudgetsView = {
         document.getElementById('newBudgetName').value = '';
         document.getElementById('newBudgetAmount').value = '';
         document.getElementById('newBudgetPeriod').value = 'monthly';
+        document.getElementById('newBudgetStartDate').value = '';
+        document.getElementById('newBudgetEndDate').value = '';
+        const customDates = document.getElementById('budgetCustomDates');
+        if (customDates) customDates.style.display = 'none';
         document.getElementById('budgetTypeCategory').checked = true;
         this.toggleType();
         this.renderCatCheckboxes([]);
@@ -701,6 +724,10 @@ window.BudgetsView = {
         document.getElementById('newBudgetName').value = b.name;
         document.getElementById('newBudgetAmount').value = b.monthly_amount;
         document.getElementById('newBudgetPeriod').value = b.period;
+        document.getElementById('newBudgetStartDate').value = b.start_date || '';
+        document.getElementById('newBudgetEndDate').value = b.end_date || '';
+        const customDates = document.getElementById('budgetCustomDates');
+        if (customDates) customDates.style.display = b.period === 'custom' ? 'block' : 'none';
 
         if (b.is_project) {
             document.getElementById('budgetTypeProject').checked = true;
@@ -734,6 +761,10 @@ window.BudgetsView = {
         document.getElementById('newBudgetName').value = b.name;
         document.getElementById('newBudgetAmount').value = b.monthly_amount;
         document.getElementById('newBudgetPeriod').value = b.period;
+        document.getElementById('newBudgetStartDate').value = b.start_date || '';
+        document.getElementById('newBudgetEndDate').value = b.end_date || '';
+        const customDates2 = document.getElementById('budgetCustomDates');
+        if (customDates2) customDates2.style.display = b.period === 'custom' ? 'block' : 'none';
 
         if (b.is_project) {
             document.getElementById('budgetTypeProject').checked = true;
@@ -758,7 +789,10 @@ window.BudgetsView = {
         if (!name) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_name_required'));
         if (isNaN(amount) || amount <= 0) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
 
-        const payload = { name, monthly_amount: amount, period, is_project: isProject, categories };
+        const startDate = period === 'custom' ? (document.getElementById('newBudgetStartDate')?.value || null) : null;
+        const endDate = period === 'custom' ? (document.getElementById('newBudgetEndDate')?.value || null) : null;
+        if (period === 'custom' && (!startDate || !endDate)) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_custom_dates_required') || 'Veuillez sélectionner les dates de début et de fin.');
+        const payload = { name, monthly_amount: amount, period, is_project: isProject, categories, start_date: startDate, end_date: endDate };
 
         try {
             let savedId = id;

@@ -86,9 +86,11 @@ class Budget(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)                    # Free label (ex: "Vacances St Malo")
     monthly_amount = Column(Float, nullable=False)
-    period = Column(String, default="monthly")               # monthly / yearly
+    period = Column(String, default="monthly")               # monthly / yearly / indefinite / custom
     is_project = Column(Boolean, default=False)              # True = tracked via budget_id on transactions
     is_closed = Column(Boolean, default=False)               # Manual closure by user
+    start_date = Column(Date, nullable=True)                 # For custom period envelopes
+    end_date = Column(Date, nullable=True)                   # For custom period envelopes
 
 class BudgetCategory(Base):
     """Many-to-many: each row links a budget to one category name."""

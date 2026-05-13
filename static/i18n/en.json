@@ -700,5 +700,9 @@
   "config_shared_mode_success": "Shared mode enabled. Restart OmniBank.",
   "config_shared_mode_disabled": "Shared mode disabled. Restart OmniBank.",
   "config_shared_mode_choose_folder": "Choose a folder…",
-  "config_shared_mode_default_btn": "ProgramData (recommended)"
+  "config_shared_mode_default_btn": "ProgramData (recommended)",
+  "budget_opt_custom": "Time-bound",
+  "budget_period_custom": "Time-bound",
+  "budget_custom_dates_label": "Custom period",
+  "budget_custom_dates_required": "Please select start and end dates."
 }

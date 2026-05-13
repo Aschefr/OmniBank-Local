@@ -20,6 +20,8 @@ class BudgetCreate(BaseModel):
     period: Optional[str] = "monthly"
     is_project: Optional[bool] = False
     categories: Optional[List[str]] = []
+    start_date: Optional[str] = None  # YYYY-MM-DD for custom period
+    end_date: Optional[str] = None
 
 class BudgetUpdate(BaseModel):
     name: Optional[str] = None
@@ -28,6 +30,8 @@ class BudgetUpdate(BaseModel):
     is_project: Optional[bool] = None
     is_closed: Optional[bool] = None
     categories: Optional[List[str]] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -42,6 +46,8 @@ def _budget_to_dict(b: Budget, db: Session) -> dict:
         "is_project": b.is_project,
         "is_closed": b.is_closed,
         "categories": [c.category_name for c in cats],
+        "start_date": b.start_date.isoformat() if b.start_date else None,
+        "end_date": b.end_date.isoformat() if b.end_date else None,
     }
 
 
@@ -55,12 +61,16 @@ def get_budgets(db: Session = Depends(get_db)):
 
 @router.post("/")
 def create_budget(data: BudgetCreate, db: Session = Depends(get_db)):
+    _start = date.fromisoformat(data.start_date) if data.start_date else None
+    _end = date.fromisoformat(data.end_date) if data.end_date else None
     b = Budget(
         name=data.name,
         monthly_amount=data.monthly_amount,
         period=data.period,
         is_project=data.is_project,
         is_closed=False,
+        start_date=_start,
+        end_date=_end,
     )
     db.add(b)
     db.commit()
@@ -82,6 +92,9 @@ def update_budget(budget_id: int, data: BudgetUpdate, db: Session = Depends(get_
     for k, v in data.dict(exclude_unset=True).items():
         if k == "categories":
             continue  # handled below
+        if k in ("start_date", "end_date"):
+            setattr(b, k, date.fromisoformat(v) if v else None)
+            continue
         setattr(b, k, v)
 
     if data.categories is not None:
@@ -163,6 +176,23 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     expenses += abs(tx.amount)
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
+        elif b.period == "custom" and b.start_date and b.end_date:
+            txs_custom = db.query(Transaction).filter(
+                Transaction.date_operation >= b.start_date,
+                Transaction.date_operation <= b.end_date,
+                Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
+            ).all()
+            for tx in txs_custom:
+                if cats and (tx.category or "Sans catégorie") not in cats:
+                    continue
+                if tx.type == "income":
+                    income += abs(tx.amount)
+                    if tx.reconciliation_date:
+                        reconciled_income += abs(tx.amount)
+                else:
+                    expenses += abs(tx.amount)
+                    if tx.reconciliation_date:
+                        reconciled_expenses += abs(tx.amount)
         elif custom_start and custom_end:
             # Day-granularity custom range
             txs = db.query(Transaction).filter(
@@ -229,6 +259,8 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
             "percent": pct,
             "reconciled_percent": reconciled_pct,
             "period": b.period,
+            "start_date": b.start_date.isoformat() if b.start_date else None,
+            "end_date": b.end_date.isoformat() if b.end_date else None,
         })
 
     return {"year": y, "month": m, "budgets": result}
@@ -255,6 +287,15 @@ def get_budget_transactions(budget_id: int, year: int = None, month: int = None,
             .order_by(Transaction.date_operation.desc()).all()
     elif b.period == "indefinite":
         q = db.query(Transaction).filter(
+            Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
+        )
+        if cats:
+            q = q.filter(Transaction.category.in_(cats))
+        txs = q.order_by(Transaction.date_operation.desc()).all()
+    elif b.period == "custom" and b.start_date and b.end_date:
+        q = db.query(Transaction).filter(
+            Transaction.date_operation >= b.start_date,
+            Transaction.date_operation <= b.end_date,
             Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
         )
         if cats:
