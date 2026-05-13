@@ -721,5 +721,8 @@
   "budget_period_custom": "Défini dans le temps",
   "budget_custom_dates_label": "Période personnalisée",
   "budget_custom_dates_required": "Veuillez sélectionner les dates de début et de fin.",
-  "stat_budgets_custom": "🎯 Budgets (Défini)"
+  "stat_budgets_custom": "🎯 Budgets (Défini)",
+  "filter_cat_reset": "Catég.",
+  "filter_reset_categories": "Réinitialiser les catégories",
+  "filter_categories_count": "catégories"
 }

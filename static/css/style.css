@@ -2604,3 +2604,108 @@ tr.overdraft-flash td {
     background: rgba(255, 86, 48, 0.15);
     color: var(--danger);
 }
+
+/* ─── Multi-select dropdown component ─────────────────────────────────────── */
+.multi-select {
+    position: relative;
+    min-width: 140px;
+    flex: 1;
+    max-width: 220px;
+}
+.multi-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: border-color 0.2s;
+    user-select: none;
+    min-height: 32px;
+}
+.multi-select-trigger:hover {
+    border-color: var(--accent);
+}
+.multi-select-trigger .ms-arrow {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+}
+.multi-select.open .ms-arrow {
+    transform: rotate(180deg);
+}
+.multi-select-trigger .ms-badge {
+    background: var(--accent);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+.multi-select-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    min-width: 220px;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: var(--shadow-md);
+    z-index: 999;
+    padding: 4px;
+}
+.multi-select.open .multi-select-dropdown {
+    display: block;
+}
+.multi-select-dropdown .ms-search {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    margin-bottom: 4px;
+    outline: none;
+}
+.multi-select-dropdown .ms-search:focus {
+    border-color: var(--accent);
+}
+.multi-select-dropdown .ms-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: var(--text-main);
+}
+.multi-select-dropdown .ms-item:hover {
+    background: var(--bg-input);
+}
+.multi-select-dropdown .ms-item input[type="checkbox"] {
+    accent-color: var(--accent);
+    flex-shrink: 0;
+}
+.multi-select-dropdown .ms-item.ms-all {
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 2px;
+    padding-bottom: 6px;
+}

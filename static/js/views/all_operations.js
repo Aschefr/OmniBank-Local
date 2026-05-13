@@ -52,9 +52,8 @@ window.AllOperationsView = {
                         <option value="income" data-i18n="type_income">${window.i18n.t('type_income')}</option>
                         <option value="transfer" data-i18n="type_transfer">${window.i18n.t('type_transfer')}</option>
                     </select>
-                    <select id="historyCategoryFilter" class="inline-input" style="min-width:130px; flex:1;" onchange="window.AllOperationsView.applyFilters()">
-                        <option value="">Toutes les catégories</option>
-                    </select>
+                    <div id="historyCategoryFilter" style="min-width:130px; flex:1; max-width:220px;"></div>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px; border-radius:6px;" onclick="window.MultiSelect.reset('historyCategoryFilter')" title="${window.i18n.t('filter_reset_categories') || 'Réinitialiser les catégories'}">✕ ${window.i18n.t('filter_cat_reset') || 'Catég.'}</button>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="font-size:12px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_unreconciled_before_pay">${window.i18n.t('filter_unreconciled_before_pay')}</span>
                         <label class="toggle-switch" style="flex-shrink: 0;" data-i18n-title="tooltip_filter_unreconciled" title="Filtre les dépenses non-rapprochées prévues avant la prochaine paie">
@@ -212,15 +211,17 @@ window.AllOperationsView = {
             // Sort by operation date descending (newest first)
             this.transactions = allTx.sort((a, b) => new Date(b.date_operation) - new Date(a.date_operation));
             
-            // Populate category filter
+            // Populate category multi-select
             const categories = [...new Set(this.transactions.map(t => t.category).filter(Boolean))].sort();
-            const catSelect = document.getElementById('historyCategoryFilter');
-            if (catSelect) {
-                const currentVal = catSelect.value;
-                catSelect.innerHTML = `<option value="" data-i18n="filter_all_categories">${window.i18n.t('filter_all_categories')}</option>` + 
-                    categories.map(c => `<option value="${c}">${c}</option>`).join('');
-                catSelect.value = currentVal;
+            const catContainer = document.getElementById('historyCategoryFilter');
+            if (catContainer && !catContainer.querySelector('.multi-select-trigger')) {
+                window.MultiSelect.create('historyCategoryFilter', {
+                    allLabel: window.i18n.t('filter_all_categories'),
+                    searchPlaceholder: window.i18n.t('ph_search') || 'Rechercher...',
+                    onChange: () => window.AllOperationsView.applyFilters()
+                });
             }
+            window.MultiSelect.populate('historyCategoryFilter', categories);
 
             // Apply pending filter from AnalyticsView drilldown
             if (this.pendingFilter) {
@@ -228,8 +229,7 @@ window.AllOperationsView = {
                 this.pendingFilter = null;
                 // Set category filter
                 if (pf.category) {
-                    const catSelect = document.getElementById('historyCategoryFilter');
-                    if (catSelect) catSelect.value = pf.category;
+                    window.MultiSelect.setSelected('historyCategoryFilter', [pf.category]);
                 }
                 // Set month filter
                 if (pf.monthKey) {
@@ -268,11 +268,10 @@ window.AllOperationsView = {
         // Read filters
         const searchInput = document.getElementById('historySearch');
         const typeFilter = document.getElementById('historyTypeFilter');
-        const catFilter = document.getElementById('historyCategoryFilter');
         
         const q = searchInput ? searchInput.value.toLowerCase() : '';
         const tType = typeFilter ? typeFilter.value : '';
-        const tCat = catFilter ? catFilter.value : '';
+        const selectedCats = window.MultiSelect.getSelected('historyCategoryFilter');
 
         // Month filter (YYYY-MM)
         const monthInput = document.getElementById('historyMonthFilter');
@@ -299,8 +298,8 @@ window.AllOperationsView = {
         if (tType) {
             filtered = filtered.filter(tx => tx.type === tType);
         }
-        if (tCat) {
-            filtered = filtered.filter(tx => tx.category === tCat);
+        if (selectedCats.length > 0) {
+            filtered = filtered.filter(tx => selectedCats.includes(tx.category));
         }
         if (tAttach) {
             filtered = filtered.filter(tx => !!tx.attachments);

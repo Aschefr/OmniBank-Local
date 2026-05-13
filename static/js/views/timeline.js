@@ -61,9 +61,8 @@ window.TimelineView = {
                         <option value="income" data-i18n="type_income">${window.i18n.t('type_income')}</option>
                         <option value="transfer" data-i18n="type_transfer">${window.i18n.t('type_transfer')}</option>
                     </select>
-                    <select id="timelineCategoryFilter" class="inline-input" style="min-width:140px; flex:1; max-width: 180px;" onchange="window.TimelineView.applyFilters()">
-                        <option value="" data-i18n="filter_all_categories">${window.i18n.t('filter_all_categories')}</option>
-                    </select>
+                    <div id="timelineCategoryFilter" style="min-width:140px; flex:1; max-width:220px;"></div>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px; border-radius:6px;" onclick="window.MultiSelect.reset('timelineCategoryFilter')" title="${window.i18n.t('filter_reset_categories') || 'Réinitialiser les catégories'}">✕ ${window.i18n.t('filter_cat_reset') || 'Catég.'}</button>
                     <div style="display:flex; align-items:center; gap:8px; ${unreconciledDisp}">
                         <span style="font-size:12px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_unreconciled_before_pay">${window.i18n.t('filter_unreconciled_before_pay')}</span>
                         <label class="toggle-switch" style="flex-shrink: 0;" data-i18n-title="tooltip_filter_unreconciled" title="Filtre les dépenses non-rapprochées prévues avant la prochaine paie">
@@ -256,15 +255,17 @@ window.TimelineView = {
             // Keep all transactions, filtering will be done in renderTable
             this.transactions = allTransactions;
 
-            // Populate category filter
+            // Populate category multi-select
             const categories = [...new Set(this.transactions.map(t => t.category).filter(Boolean))].sort();
-            const catSelect = document.getElementById('timelineCategoryFilter');
-            if (catSelect) {
-                const currentVal = catSelect.value;
-                catSelect.innerHTML = `<option value="" data-i18n="filter_all_categories">${window.i18n.t('filter_all_categories')}</option>` + 
-                    categories.map(c => `<option value="${c}">${c}</option>`).join('');
-                catSelect.value = currentVal;
+            const catContainer = document.getElementById('timelineCategoryFilter');
+            if (catContainer && !catContainer.querySelector('.multi-select-trigger')) {
+                window.MultiSelect.create('timelineCategoryFilter', {
+                    allLabel: window.i18n.t('filter_all_categories'),
+                    searchPlaceholder: window.i18n.t('ph_search') || 'Rechercher...',
+                    onChange: () => window.TimelineView.applyFilters()
+                });
             }
+            window.MultiSelect.populate('timelineCategoryFilter', categories);
 
             if (this.pendingFilter) {
                 const pf = this.pendingFilter;
@@ -306,12 +307,11 @@ window.TimelineView = {
         // Read filters
         const searchInput = document.getElementById('timelineSearch');
         const typeFilter = document.getElementById('timelineTypeFilter');
-        const catFilter = document.getElementById('timelineCategoryFilter');
         const attachFilter = document.getElementById('timelineAttachmentFilter');
         
         const q = searchInput ? searchInput.value.toLowerCase() : '';
         const tType = typeFilter ? typeFilter.value : '';
-        const tCat = catFilter ? catFilter.value : '';
+        const selectedCats = window.MultiSelect.getSelected('timelineCategoryFilter');
         const tAttach = attachFilter ? attachFilter.checked : false;
 
         // Apply filters
@@ -326,8 +326,8 @@ window.TimelineView = {
         if (tType) {
             filtered = filtered.filter(tx => tx.type === tType);
         }
-        if (tCat) {
-            filtered = filtered.filter(tx => tx.category === tCat);
+        if (selectedCats.length > 0) {
+            filtered = filtered.filter(tx => selectedCats.includes(tx.category));
         }
         if (tAttach) {
             filtered = filtered.filter(tx => !!tx.attachments);

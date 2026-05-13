@@ -705,5 +705,8 @@
   "budget_period_custom": "Time-bound",
   "budget_custom_dates_label": "Custom period",
   "budget_custom_dates_required": "Please select start and end dates.",
-  "stat_budgets_custom": "🎯 Budgets (Time-bound)"
+  "stat_budgets_custom": "🎯 Budgets (Time-bound)",
+  "filter_cat_reset": "Categ.",
+  "filter_reset_categories": "Reset categories",
+  "filter_categories_count": "categories"
 }
