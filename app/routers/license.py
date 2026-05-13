@@ -1,6 +1,7 @@
 """Phase 10 – License validation for Organisation Mode."""
 import hmac
 import hashlib
+import base64
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
