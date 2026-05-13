@@ -62,7 +62,7 @@ window.TimelineView = {
                         <option value="transfer" data-i18n="type_transfer">${window.i18n.t('type_transfer')}</option>
                     </select>
                     <div id="timelineCategoryFilter" style="min-width:140px; flex:1; max-width:220px;"></div>
-                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px; border-radius:6px;" onclick="window.MultiSelect.reset('timelineCategoryFilter')" title="${window.i18n.t('filter_reset_categories') || 'Réinitialiser les catégories'}">✕ ${window.i18n.t('filter_cat_reset') || 'Catég.'}</button>
+                    <button class="btn btn-secondary" style="padding:0 8px; font-size:14px; border-radius:8px; min-height:32px; line-height:32px;" onclick="window.MultiSelect.reset('timelineCategoryFilter')" title="${window.i18n.t('filter_reset_categories') || 'Réinitialiser les catégories'}">&#x21BA;</button>
                     <div style="display:flex; align-items:center; gap:8px; ${unreconciledDisp}">
                         <span style="font-size:12px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_unreconciled_before_pay">${window.i18n.t('filter_unreconciled_before_pay')}</span>
                         <label class="toggle-switch" style="flex-shrink: 0;" data-i18n-title="tooltip_filter_unreconciled" title="Filtre les dépenses non-rapprochées prévues avant la prochaine paie">
