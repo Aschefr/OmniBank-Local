@@ -92,9 +92,7 @@ OmniBank propose un **mode organisation** conçu pour les associations, comités
 ## 🚀 Installation
 
 ### 🖥️ Windows (Recommandé)
-Téléchargez le dernier installateur depuis la page des [Releases](https://github.com/Aschefr/OmniBank-Local/releases) :
-*   **`.exe` (NSIS)** — Installation pour tous les utilisateurs Windows (`C:\Program Files\`). Recommandé pour le mode Organisation.
-*   **`.msi` (WiX)** — Installation classique par session utilisateur.
+Téléchargez le dernier installateur `.msi` depuis la page des [Releases](https://github.com/Aschefr/OmniBank-Local/releases).
 
 ### 🐳 Docker
 ```bash
@@ -210,9 +208,7 @@ OmniBank offers an **organisation mode** designed for nonprofits, work councils,
 ## 🚀 Installation
 
 ### 🖥️ Windows (Recommended)
-Download the latest installer from the [Releases](https://github.com/Aschefr/OmniBank-Local/releases) page:
-*   **`.exe` (NSIS)** — System-wide installation (`C:\Program Files\`). Recommended for Organisation mode.
-*   **`.msi` (WiX)** — Classic per-user session installation.
+Download the latest `.msi` installer from the [Releases](https://github.com/Aschefr/OmniBank-Local/releases) page.
 
 ### 🐳 Docker
 ```bash
