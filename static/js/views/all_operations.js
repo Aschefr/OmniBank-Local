@@ -377,7 +377,7 @@ window.AllOperationsView = {
                 <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${versBadge}</td>
                 <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}" title="${recText}">${recText}</td>
                 <td class="col-slip" data-label="${window.i18n.t('dl_slip')}">${tx.slip_number ? '<span style="background: rgba(255,152,0,0.15); color: #ff9800; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">' + tx.slip_number + '</span>' : '-'}</td>
-                <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}">📎</span>` : '-'}</td>
+                <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}" onclick="window.AllOperationsView._openAttachment('${tx.attachments.replace(/'/g, "\\'")}')">📎</span>` : '-'}</td>
                 <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by || '-'}</td>
                 <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by || '-'}</td>
                 <td class="col-actions mobile-card-actions">
@@ -464,5 +464,16 @@ window.AllOperationsView = {
             this._vt._rows[idx] = original; // restore original HTML
             this._vt.refresh();
         }, 3500);
+    },
+
+    async _openAttachment(path) {
+        const fileUrl = `${window.location.origin}/${path}`;
+        if (window.__TAURI_INTERNALS__) {
+            try {
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: fileUrl });
+            } catch(err) { console.error('Shell open failed', err); }
+        } else {
+            window.open(fileUrl, '_blank');
+        }
     }
 };

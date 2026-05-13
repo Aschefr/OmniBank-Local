@@ -284,14 +284,38 @@ window.FormView = {
         const paths = attachmentsStr.split(',');
         paths.forEach((p, idx) => {
             const name = p.split('/').pop().split('\\').pop();
+            const fileUrl = `${window.location.origin}/${p}`;
             const div = document.createElement('div');
             div.style.display = 'flex';
             div.style.gap = '10px';
             div.style.alignItems = 'center';
-            div.innerHTML = `
-                📄 <a href="/${p}" target="_blank" style="color:var(--accent);text-decoration:none; flex:1;">${name}</a>
-                <span style="cursor:pointer; color:var(--color-expense);" onclick="window.FormView.removeAttachment(${idx})">❌</span>
-            `;
+
+            const link = document.createElement('a');
+            link.href = `/${p}`;
+            link.textContent = name;
+            link.style.cssText = 'color:var(--accent);text-decoration:none;flex:1;';
+
+            // In Tauri WebView, target=_blank doesn't work — open via system browser
+            if (window.__TAURI_INTERNALS__) {
+                link.href = '#';
+                link.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    try {
+                        await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: fileUrl });
+                    } catch(err) { console.error('Shell open failed', err); }
+                });
+            } else {
+                link.target = '_blank';
+            }
+
+            const removeBtn = document.createElement('span');
+            removeBtn.textContent = '❌';
+            removeBtn.style.cssText = 'cursor:pointer;color:var(--color-expense);';
+            removeBtn.onclick = () => window.FormView.removeAttachment(idx);
+
+            div.appendChild(document.createTextNode('📄 '));
+            div.appendChild(link);
+            div.appendChild(removeBtn);
             list.appendChild(div);
         });
     },

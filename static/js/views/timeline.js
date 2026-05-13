@@ -463,7 +463,7 @@ window.TimelineView = {
             if (tx.is_yearly) recText = window.i18n.t('rec_yearly');
             if (tx.is_bimonthly) recText = window.i18n.t('rec_bimonthly');
 
-            const attachHtml = tx.attachments ? `<span title="${tx.attachments}">📎</span>` : '-';
+            const attachHtml = tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}" onclick="window.TimelineView._openAttachment('${tx.attachments.replace(/'/g, "\\'")}')">📎</span>` : '-';
 
             return `
             <tr data-id="${tx.id}" class="${rowClass}" ${idAttr}>
@@ -567,5 +567,16 @@ window.TimelineView = {
     
     showAddRow() {
         if (window.FormView) window.FormView.open();
+    },
+
+    async _openAttachment(path) {
+        const fileUrl = `${window.location.origin}/${path}`;
+        if (window.__TAURI_INTERNALS__) {
+            try {
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: fileUrl });
+            } catch(err) { console.error('Shell open failed', err); }
+        } else {
+            window.open(fileUrl, '_blank');
+        }
     }
 };
