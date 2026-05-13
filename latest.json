@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDg5NnZUQXBnT1RXa1Z3M2JQY2QwT0pvcEpLS2xYQTNPWlErOXpaVG9MTkV6VHRFYlF5RnUxcXRDZnZiVFVBTUc2UUJFOWtjSHFUWDhhanZIZ3Y0UlFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Njc5MjgzCWZpbGU6T21uaUJhbmtfMS4wLjIzX3g2NF9mci1GUi5tc2kKNHdMeHAwNEVmM0RSamw1aWJ0aGZpeHNsMEF5ZDhaQ0YvS1dGZ1pJYWxvbjBHek1Nd09NK1lOU3BEZmxMK0dNbXVYTXphcGo4NW90QjgvRUJXQXpCQnc9PQo=",
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSCtCaGNpRkROV2xPSkNRb1o0Vnl1a3ovVERRaEFab0ZLbFlsNWdnbzYwMWx2WVA2NVcvcmhpQUpIL2NFdkxrZmg5dUFoVEJxc1p5b0ZXZnVtSDkxSmdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Njc5ODE2CWZpbGU6T21uaUJhbmtfMS4wLjIzX3g2NF9mci1GUi5tc2kKK1lKczRjclROYSs0OUx6TURSdDQxZUIvSEc3RXlhNUZFZ2txNnRKTFcycWcycUFmMm0rVzAwZGsrMHQ2YnFoVXdDSENtVWdwa1MyQ0ozVzdXVG9kQlE9PQo=",
                                              "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.23/OmniBank_1.0.23_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-13T13:34:43Z",
+    "pub_date":  "2026-05-13T13:43:36Z",
     "version":  "1.0.23",
-    "notes":  "Fix attachment download in Tauri, restore button light mode, security hardening"
+    "notes":  "Fix attachment download in Tauri, restore button light mode, icon fix, security hardening"
 }
