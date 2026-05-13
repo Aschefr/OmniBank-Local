@@ -86,6 +86,7 @@ if (-not $SkipBuild) {
         --hidden-import "app.routers.ai_helpers" `
         --hidden-import "app.routers.budgets" `
         --hidden-import "app.routers.backup" `
+        --hidden-import "app._license_secret" `
         --collect-submodules "uvicorn" `
         --collect-submodules "fastapi" `
         --collect-submodules "starlette" `

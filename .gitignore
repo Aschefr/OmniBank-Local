@@ -46,4 +46,5 @@ src-tauri/.tauri-private-key
 
 # Sensitive tools (NEVER commit)
 tools/license_generator*
+app/_license_secret.py
 

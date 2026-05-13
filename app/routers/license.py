@@ -1,7 +1,6 @@
 """Phase 10 – License validation for Organisation Mode."""
 import hmac
 import hashlib
-import base64
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -12,11 +11,8 @@ from app.models import GlobalConfig
 
 router = APIRouter(prefix="/api/license", tags=["license"])
 
-# ── HMAC secret (lightly obfuscated, split base64) ──────────────────
-# Reconstruct: b64decode(part_a + part_b)
-_KA = "REDACTED"
-_KB = "REDACTED"
-_SECRET = base64.b64decode(_KA + _KB)  # b'OmniBankLicenseKey2026'
+# ── HMAC secret (loaded from gitignored module) ─────────────────────
+from app._license_secret import SECRET as _SECRET
 
 
 def _generate_key(email: str) -> str:
