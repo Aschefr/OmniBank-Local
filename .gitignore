@@ -44,3 +44,6 @@ src-tauri/target/
 src-tauri/bin/
 src-tauri/.tauri-private-key
 
+# Sensitive tools (NEVER commit)
+tools/license_generator*
+
