@@ -35,6 +35,8 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 uploads_dir = os.path.join(DATA_DIR, "uploads")
 os.makedirs(uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+# Backward compat: old attachments stored as "data/uploads/..." in DB
+app.mount("/data/uploads", StaticFiles(directory=uploads_dir), name="uploads_compat")
 
 from app.routers import (
     transactions,
@@ -104,7 +106,7 @@ async def upload_file(file: UploadFile = File(...)):
     file_location = os.path.join(uploads_dir, file.filename)
     with open(file_location, "wb+") as file_object:
         file_object.write(file.file.read())
-    return {"path": f"data/uploads/{file.filename}"}
+    return {"path": f"/uploads/{file.filename}"}
 
 
 if __name__ == "__main__":
