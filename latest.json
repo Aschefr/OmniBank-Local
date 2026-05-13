@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDhveW1lOEJ2N08zbzArNlpBWTA0MHJuR0ZuS3RjNjFpZFlrTzdBRUdsRWU3alc4UlNCaEtobzFwazY4MGNQeFU4OG1rekhhRkRLbmR5WTNMNXVYV0FZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NjgwMDg2CWZpbGU6T21uaUJhbmtfMS4wLjIzX3g2NF9mci1GUi5tc2kKeGluOGZUTU1hSmF2SnYwcS9tZDBBYWJKNjUxSitjbHhsa3B1dnBRdzRNS0xvaWIyeHZXOURzZlNqY29YR0s0UG8xMjVQZ0x5UUkyOG0vL0hEb3pUQ3c9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.23/OmniBank_1.0.23_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDdwWG8yampsWlE4eDYrQitzV29mVjVtM0hpQlo5TlBhbzBZNy9Ea3EySVYvVExvKzE4YTFtNzNhTGJJMWU3Mk9GM3g2anVZdk9oOFk2UHM4cTZRNlE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NjgzNDU3CWZpbGU6T21uaUJhbmtfMS4wLjI0X3g2NF9mci1GUi5tc2kKRyt0U0xScVptRFc4ajduYjNRZExLckd4UGZNVkl2M0ZwTXJHeVNCZE5neUVMT05sUm9EcHlsQmdwbDRLRStjRDhpbkdtL1hVWkJFQi9vR1JTeVd4RFE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.24/OmniBank_1.0.24_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-13T13:48:06Z",
-    "version":  "1.0.23",
-    "notes":  "Fix attachment download, restore button light mode, icon fix, license key fix (missing base64 import)"
+    "pub_date":  "2026-05-13T14:44:17Z",
+    "version":  "1.0.24",
+    "notes":  "Multi-select category filters, custom budget sidebar fix, attachment download fix, dark mode calendar icon fix, keep-open toggle color fix"
 }
