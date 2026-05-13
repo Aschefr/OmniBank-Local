@@ -50,7 +50,10 @@
       },
       "nsis": {
         "installMode": "perMachine",
-        "languages": ["French", "English"]
+        "languages": [
+          "French",
+          "English"
+        ]
       }
     }
   },
