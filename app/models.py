@@ -49,6 +49,8 @@ class Transaction(Base):
     # Phase 9: Multi-user audit (org mode)
     created_by = Column(String, nullable=True)     # Org user name who created
     modified_by = Column(String, nullable=True)     # Last org user who modified
+    created_at = Column(String, nullable=True)      # ISO timestamp of creation
+    modified_at = Column(String, nullable=True)      # ISO timestamp of last modification
 
 class GlobalConfig(Base):
     __tablename__ = "global_config"
@@ -91,6 +93,7 @@ class Budget(Base):
     is_closed = Column(Boolean, default=False)               # Manual closure by user
     start_date = Column(Date, nullable=True)                 # For custom period envelopes
     end_date = Column(Date, nullable=True)                   # For custom period envelopes
+    account_ids = Column(String, nullable=True)              # JSON list of account IDs (org mode), null = global
 
 class BudgetCategory(Base):
     """Many-to-many: each row links a budget to one category name."""

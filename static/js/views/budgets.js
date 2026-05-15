@@ -100,6 +100,14 @@ window.BudgetsView = {
                                 </div>
                             </div>
 
+                            <!-- Improvement_04: Account Selector (Org Mode only) -->
+                            <div id="budgetAccountSection" style="${(window.app?.config?.enable_org_mode === 'true') ? '' : 'display:none;'}">
+                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_account_filter">${window.i18n.t('budget_account_filter') || 'Périmètre comptes'}</label>
+                                <div id="budgetAccountCheckboxes" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:6px;margin-top:6px;max-height:150px;overflow-y:auto;padding:10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border-color);">
+                                    <!-- Filled dynamically -->
+                                </div>
+                            </div>
+
                             <!-- Category selector (hidden for project type) -->
                             <div id="budgetCatSection">
                                 <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_cat_included">${window.i18n.t('budget_cat_included')}</label>
@@ -184,7 +192,7 @@ window.BudgetsView = {
             this.customPeriod.end = endDay;
         }
 
-        await Promise.all([this.loadBudgets(), this.loadCategories(), this.loadStatus(), this.checkAI()]);
+        await Promise.all([this.loadBudgets(), this.loadAccounts(), this.loadCategories(), this.loadStatus(), this.checkAI()]);
     },
 
     stepMonth(delta) {
@@ -254,10 +262,49 @@ window.BudgetsView = {
         // config is now rendered inside renderStatus
     },
 
+    async loadAccounts() {
+        this.accounts = await API.get('/api/stats/accounts');
+        this.renderAccountCheckboxes();
+    },
+
     async loadCategories() {
-        this.categories = await API.get('/api/categories/');
+        const accIds = this.getSelectedAccounts();
+        if (accIds.length > 0 && window.app?.config?.enable_org_mode === 'true') {
+            this.categories = await API.get(`/api/categories/by_accounts?account_ids=${accIds.join(',')}`);
+        } else {
+            this.categories = await API.get('/api/categories/');
+        }
         this.catAverages = await API.get('/api/categories/averages').catch(() => ({}));
-        this.renderCatCheckboxes();
+        this.renderCatCheckboxes(this.getSelectedCats());
+    },
+
+    renderAccountCheckboxes(selected = []) {
+        const container = document.getElementById('budgetAccountCheckboxes');
+        if (!container || !this.accounts) return;
+
+        container.innerHTML = this.accounts.filter(a => !a.is_closed).map(a => {
+            const isSelected = selected.includes(a.id);
+            return `
+                <label style="display:flex;align-items:center;gap:6px;font-size:11px;background:var(--bg-surface);padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};transition:all 0.2s;">
+                    <input type="checkbox" name="budgetAccount" value="${a.id}" ${isSelected ? 'checked' : ''} onchange="window.BudgetsView.onAccountChange(this)">
+                    <div style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+                        <span style="font-weight:${isSelected ? '600' : 'normal'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${a.name}">${a.name}</span>
+                    </div>
+                </label>
+            `;
+        }).join('');
+    },
+
+    getSelectedAccounts() {
+        return [...document.querySelectorAll('input[name="budgetAccount"]:checked')].map(el => parseInt(el.value));
+    },
+
+    async onAccountChange(el) {
+        if (el) {
+            el.parentElement.style.borderColor = el.checked ? 'var(--accent)' : 'var(--border-color)';
+        }
+        // Refresh categories based on account selection
+        await this.loadCategories();
     },
 
     renderCatCheckboxes(selected = []) {
@@ -449,33 +496,26 @@ window.BudgetsView = {
 
         let fullHtml = '';
 
-        for (const period of ['monthly', 'yearly', 'indefinite', 'custom']) {
-            const group = groups[period];
-            if (group.budgets.length === 0) continue;
-
-            let totalTarget = 0;
-            let totalSpent = 0;
-            let totalRecSpent = 0;
-            for (const b of group.budgets) {
+        // ── Helper: render a summary bar ──────────────────────────────────
+        const renderSummaryBar = (titleText, subtitleText, budgetsList, accentColor) => {
+            let totalTarget = 0, totalSpent = 0, totalRecSpent = 0;
+            for (const b of budgetsList) {
                 totalTarget += b.budget_amount;
                 totalSpent += b.spent;
                 totalRecSpent += b.reconciled_spent || 0;
             }
-            
             const totalPct = totalTarget > 0 ? Math.min((totalSpent / totalTarget) * 100, 100) : 0;
             const recPct = totalTarget > 0 ? Math.min((totalRecSpent / totalTarget) * 100, 100) : 0;
             const totalBarColor = (totalTarget > 0 && (totalRecSpent / totalTarget) * 100 > 100) ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
             const globalOver = totalSpent > totalTarget;
             const globalRemaining = totalTarget - totalSpent;
+            const borderStyle = accentColor ? `border-left:3px solid ${accentColor};` : '';
 
-            let html = `<div style="margin-bottom:40px;">
-                <h3 style="margin:0 0 16px;font-size:16px;color:var(--text-color);border-bottom:1px solid var(--border-color);padding-bottom:8px;">${window.i18n.t('budget_envelopes_title')} — ${group.title}</h3>
-                
-                <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:24px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+            return `<div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);${borderStyle}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
                     <div>
-                        <h4 style="margin:0 0 4px;font-size:14px;color:var(--text-color);">${window.i18n.t('budget_summary_global')} — ${group.title}</h4>
-                        <span style="font-size:12px;color:var(--text-muted);">${label}</span>
+                        <h4 style="margin:0 0 4px;font-size:14px;color:var(--text-color);">${titleText}</h4>
+                        <span style="font-size:12px;color:var(--text-muted);">${subtitleText}</span>
                     </div>
                     <div style="text-align:right;">
                         <strong class="privacy-blur" style="font-size:18px;color:var(--text-color);">${formatCurrency(totalTarget)}</strong><span style="font-size:12px;color:var(--text-muted);"> ${window.i18n.t('budget_budgeted')}</span>
@@ -493,36 +533,51 @@ window.BudgetsView = {
                     <span style="color:${globalOver ? '#ff5630' : 'var(--text-muted)'};font-weight:600;">${globalOver ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(globalRemaining))}</span> ${globalOver ? window.i18n.t('budget_global_exceeded') : window.i18n.t('budget_global_remaining')}</span>
                 </div>
             </div>`;
+        };
 
-            html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">`;
+        // ── Helper: render a single budget card ──────────────────────────
+        const renderBudgetCard = (b) => {
+            const pct = Math.min((b.spent / b.budget_amount) * 100 || 0, 100);
+            const recPct = Math.min(b.reconciled_percent || 0, 100);
+            const barColor = b.reconciled_percent > 100 ? '#ff5630' : b.reconciled_percent >= 80 ? '#f59e0b' : '#10b981';
+            const overBudget = b.remaining < 0;
+            const typeTag = b.is_project
+                ? `<span style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">${window.i18n.t('budget_project_tag')}</span>`
+                : '';
+            const catTags = (b.categories || []).map(c =>
+                `<span style="background:var(--bg-base);padding:2px 6px;border-radius:4px;font-size:10px;color:var(--text-muted);">${c}</span>`
+            ).join(' ');
 
-            for (const b of group.budgets) {
-                const pct = Math.min((b.spent / b.budget_amount) * 100 || 0, 100);
-                const recPct = Math.min(b.reconciled_percent || 0, 100);
-                const barColor = b.reconciled_percent > 100 ? '#ff5630' : b.reconciled_percent >= 80 ? '#f59e0b' : '#10b981';
-                const overBudget = b.remaining < 0;
-                const typeTag = b.is_project
-                    ? `<span style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">${window.i18n.t('budget_project_tag')}</span>`
-                    : '';
-                const catTags = (b.categories || []).map(c =>
-                    `<span style="background:var(--bg-base);padding:2px 6px;border-radius:4px;font-size:10px;color:var(--text-muted);">${c}</span>`
-                ).join(' ');
+            const incomeHtml = b.income > 0
+                ? `<div style="font-size:11px;color:#10b981;margin-top:3px;">↑ <span class="privacy-blur">${formatCurrency(b.income)}</span> ${window.i18n.t('budget_received')}</div>`
+                : '';
 
-                const incomeHtml = b.income > 0
-                    ? `<div style="font-size:11px;color:#10b981;margin-top:3px;">↑ <span class="privacy-blur">${formatCurrency(b.income)}</span> ${window.i18n.t('budget_received')}</div>`
-                    : '';
+            const safeName = b.name.replace(/'/g, "\\'");
+            const periodLabel = b.period === 'monthly' ? window.i18n.t('period_monthly') : b.period === 'yearly' ? window.i18n.t('period_yearly') : b.period === 'custom' ? `${window.i18n.t('budget_period_custom') || 'Défini'} (${b.start_date || '?'} → ${b.end_date || '?'})` : window.i18n.t('period_undefined');
+            const closedStyle = b.is_closed ? 'opacity:0.6;' : '';
+            const closedTag = b.is_closed
+                ? `<span style="background:rgba(239,68,68,0.15);color:#ff5630;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">${window.i18n.t('budget_closed_tag')}</span>`
+                : '';
 
-                const safeName = b.name.replace(/'/g, "\\'");
-                const periodLabel = b.period === 'monthly' ? window.i18n.t('period_monthly') : b.period === 'yearly' ? window.i18n.t('period_yearly') : b.period === 'custom' ? `${window.i18n.t('budget_period_custom') || 'Défini'} (${b.start_date || '?'} → ${b.end_date || '?'})` : window.i18n.t('period_undefined');
-                const closedStyle = b.is_closed ? 'opacity:0.6;' : '';
-                const closedTag = b.is_closed
-                    ? `<span style="background:rgba(239,68,68,0.15);color:#ff5630;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">${window.i18n.t('budget_closed_tag')}</span>`
-                    : '';
+            // Improvement_04: Account badges
+            let accountBadges = '';
+            if (b.account_ids && b.account_ids.length > 0 && window.app?.config?.enable_org_mode === 'true') {
+                accountBadges = b.account_ids.map(aid => {
+                    const acc = this.accounts?.find(a => a.id === aid);
+                    if (!acc) return '';
+                    const color = acc.color || 'var(--accent)';
+                    return `<span style="background:${color}1a; color:${color}; border:1px solid ${color}33; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:600;">${acc.name}</span>`;
+                }).join(' ');
+            }
 
-                html += `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" style="background:var(--bg-body);border:1px solid ${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'};border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.3s, box-shadow 0.3s;${closedStyle}" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)'" onmouseout="this.style.borderColor='${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'}'">
+            return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" style="background:var(--bg-body);border:1px solid ${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'};border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.3s, box-shadow 0.3s;${closedStyle}" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)'" onmouseout="this.style.borderColor='${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'}'">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px;">
                         <div style="flex:1;">
-                            <strong style="font-size:13px;">${b.name} ${closedTag}</strong>
+                            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+                                <strong style="font-size:13px;">${b.name}</strong>
+                                ${closedTag}
+                                ${accountBadges}
+                            </div>
                             <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">${typeTag}${catTags}</div>
                         </div>
                         <div style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation()">
@@ -552,8 +607,60 @@ window.BudgetsView = {
                         <span style="color:${overBudget ? '#ff5630' : 'var(--text-muted)'}">${overBudget ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(b.remaining))}</span> ${overBudget ? window.i18n.t('budget_exceeded_label') : window.i18n.t('budget_remaining_label')}</span>
                     </div>
                 </div>`;
+        };
+
+        // ── Main rendering loop ──────────────────────────────────────────
+        const isOrgMode = window.app?.config?.enable_org_mode === 'true';
+
+        for (const period of ['monthly', 'yearly', 'indefinite', 'custom']) {
+            const group = groups[period];
+            if (group.budgets.length === 0) continue;
+
+            let html = `<div style="margin-bottom:40px;">
+                <h3 style="margin:0 0 16px;font-size:16px;color:var(--text-color);border-bottom:1px solid var(--border-color);padding-bottom:8px;">${window.i18n.t('budget_envelopes_title')} — ${group.title}</h3>`;
+
+            // Sub-group budgets by account scope (Org Mode) or keep flat
+            const hasAnyAccountScope = isOrgMode && group.budgets.some(b => b.account_ids && b.account_ids.length > 0);
+
+            if (hasAnyAccountScope) {
+                // Build sub-groups: key = sorted account_ids joined, or '__global__'
+                const subGroups = {};
+                for (const b of group.budgets) {
+                    const key = (b.account_ids && b.account_ids.length > 0) ? [...b.account_ids].sort((a2,b2) => a2 - b2).join(',') : '__global__';
+                    if (!subGroups[key]) subGroups[key] = [];
+                    subGroups[key].push(b);
+                }
+
+                // Render each sub-group with its own summary
+                for (const [key, budgets] of Object.entries(subGroups)) {
+                    let subTitle, accentColor;
+                    if (key === '__global__') {
+                        subTitle = `${window.i18n.t('budget_summary_global')} — ${group.title}`;
+                        accentColor = null;
+                    } else {
+                        const accNames = key.split(',').map(id => {
+                            const acc = this.accounts?.find(a => a.id === parseInt(id));
+                            return acc ? acc.name : `#${id}`;
+                        });
+                        const firstAcc = this.accounts?.find(a => a.id === parseInt(key.split(',')[0]));
+                        accentColor = firstAcc?.color || 'var(--accent)';
+                        subTitle = accNames.join(' + ');
+                    }
+
+                    html += renderSummaryBar(subTitle, label, budgets, accentColor);
+                    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:24px;">`;
+                    for (const b of budgets) html += renderBudgetCard(b);
+                    html += '</div>';
+                }
+            } else {
+                // No account scoping → single summary for the whole period group (original behavior)
+                html += renderSummaryBar(`${window.i18n.t('budget_summary_global')} — ${group.title}`, label, group.budgets, null);
+                html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">`;
+                for (const b of group.budgets) html += renderBudgetCard(b);
+                html += '</div>';
             }
-            html += '</div></div>';
+
+            html += '</div>';
             fullHtml += html;
         }
 
@@ -691,6 +798,7 @@ window.BudgetsView = {
         if (customDates) customDates.style.display = 'none';
         document.getElementById('budgetTypeCategory').checked = true;
         this.toggleType();
+        this.renderAccountCheckboxes([]);
         this.renderCatCheckboxes([]);
         
         document.getElementById('budgetFormSection').style.display = 'block';
@@ -735,6 +843,7 @@ window.BudgetsView = {
             document.getElementById('budgetTypeCategory').checked = true;
         }
         this.toggleType();
+        this.renderAccountCheckboxes(b.account_ids || []);
         this.renderCatCheckboxes(b.categories || []);
 
         document.getElementById('budgetFormSection').style.display = 'block';
@@ -772,6 +881,7 @@ window.BudgetsView = {
             document.getElementById('budgetTypeCategory').checked = true;
         }
         this.toggleType();
+        this.renderAccountCheckboxes(b.account_ids || []);
         this.renderCatCheckboxes(b.categories || []);
 
         document.getElementById('budgetFormSection').style.display = 'block';
@@ -792,7 +902,9 @@ window.BudgetsView = {
         const startDate = period === 'custom' ? (document.getElementById('newBudgetStartDate')?.value || null) : null;
         const endDate = period === 'custom' ? (document.getElementById('newBudgetEndDate')?.value || null) : null;
         if (period === 'custom' && (!startDate || !endDate)) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_custom_dates_required') || 'Veuillez sélectionner les dates de début et de fin.');
-        const payload = { name, monthly_amount: amount, period, is_project: isProject, categories, start_date: startDate, end_date: endDate };
+        
+        const account_ids = window.app?.config?.enable_org_mode === 'true' ? this.getSelectedAccounts() : null;
+        const payload = { name, monthly_amount: amount, period, is_project: isProject, categories, start_date: startDate, end_date: endDate, account_ids };
 
         try {
             let savedId = id;

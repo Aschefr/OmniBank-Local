@@ -23,6 +23,8 @@ class TransactionBase(BaseModel):
     budget_id: Optional[int] = None  # For project-type budget assignment
     created_by: Optional[str] = None
     modified_by: Optional[str] = None
+    created_at: Optional[str] = None
+    modified_at: Optional[str] = None
 
 class TransactionCreate(TransactionBase):
     pass
@@ -44,6 +46,7 @@ class TransactionUpdate(BaseModel):
     recurrence_id: Optional[int] = None
     budget_id: Optional[int] = None  # Assign/unassign to project budget
     modified_by: Optional[str] = None
+    modified_at: Optional[str] = None
 
 class TransactionOut(TransactionBase):
     id: int

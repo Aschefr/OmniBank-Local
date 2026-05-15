@@ -47,6 +47,16 @@ def init_db():
         except Exception:
             pass
 
+        # Audit timestamps (org mode)
+        try:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN created_at TEXT"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN modified_at TEXT"))
+        except Exception:
+            pass
+
         # Phase 11: Custom period budget envelopes
         try:
             conn.execute(text("ALTER TABLE budgets ADD COLUMN start_date DATE"))
@@ -54,6 +64,12 @@ def init_db():
             pass
         try:
             conn.execute(text("ALTER TABLE budgets ADD COLUMN end_date DATE"))
+        except Exception:
+            pass
+
+        # Improvement_04: Account-scoped budgets (org mode)
+        try:
+            conn.execute(text("ALTER TABLE budgets ADD COLUMN account_ids TEXT"))
         except Exception:
             pass
 

@@ -71,16 +71,42 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             warning = None
             
     # Calculate global budget summary grouped by period type for sidebar bars
-    from app.routers.budgets import get_budget_status
+    from app.routers.budgets import get_budget_status, _parse_account_ids
+    from app.models import Account
     budget_data = get_budget_status(today.year, today.month, db=db)
     period_groups = {}
     for b in budget_data["budgets"]:
         p = b.get("period", "monthly")
         if p not in period_groups:
-            period_groups[p] = {"target": 0, "spent": 0, "reconciled_spent": 0}
+            period_groups[p] = {"target": 0, "spent": 0, "reconciled_spent": 0, "accounts": {}}
         period_groups[p]["target"] += b["budget_amount"]
         period_groups[p]["spent"] += b["expenses"]
         period_groups[p]["reconciled_spent"] += b["reconciled_expenses"]
+
+        # Improvement_04: Sub-group by account scope
+        acc_ids = b.get("account_ids") or []
+        acc_key = ",".join(str(x) for x in sorted(acc_ids)) if acc_ids else "__global__"
+        if acc_key not in period_groups[p]["accounts"]:
+            period_groups[p]["accounts"][acc_key] = {
+                "target": 0, "spent": 0, "reconciled_spent": 0,
+                "account_ids": acc_ids
+            }
+        period_groups[p]["accounts"][acc_key]["target"] += b["budget_amount"]
+        period_groups[p]["accounts"][acc_key]["spent"] += b["expenses"]
+        period_groups[p]["accounts"][acc_key]["reconciled_spent"] += b["reconciled_expenses"]
+
+    # Resolve account names for sidebar display
+    all_acc_ids = set()
+    for pg in period_groups.values():
+        for sub in pg["accounts"].values():
+            all_acc_ids.update(sub.get("account_ids") or [])
+    if all_acc_ids:
+        acc_map = {a.id: {"name": a.name, "color": a.color} for a in db.query(Account).filter(Account.id.in_(list(all_acc_ids))).all()}
+        for pg in period_groups.values():
+            for sub in pg["accounts"].values():
+                sub["account_names"] = [acc_map.get(aid, {}).get("name", f"#{aid}") for aid in (sub.get("account_ids") or [])]
+                first_acc = acc_map.get((sub.get("account_ids") or [None])[0]) if sub.get("account_ids") else None
+                sub["accent_color"] = first_acc["color"] if first_acc and first_acc.get("color") else None
     
     return {
         "net_worth": net_worth,

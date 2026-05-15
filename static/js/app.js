@@ -420,23 +420,18 @@ class App {
                 const orderedPeriods = ['monthly', 'yearly', 'indefinite', 'custom'];
                 let barsHtml = '';
 
-                for (const period of orderedPeriods) {
-                    const data = summary[period];
-                    if (!data || data.target <= 0) continue;
-
-                    const targetVal = data.target || 0;
-                    const totalSpent = data.spent || 0;
-                    const recSpent = data.reconciled_spent || 0;
-
+                // Helper: render a single sidebar budget bar
+                const renderBar = (label, targetVal, recSpent, totalSpent, accentColor, indent) => {
                     const totalPct = targetVal > 0 ? Math.min((totalSpent / targetVal) * 100, 100) : 0;
                     const recPct = targetVal > 0 ? Math.min((recSpent / targetVal) * 100, 100) : 0;
-
                     const over = targetVal > 0 && recSpent > targetVal;
                     const color = over ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
+                    const borderLeft = accentColor ? `border-left:3px solid ${accentColor};` : '';
+                    const marginLeft = indent ? 'margin-left:8px;' : '';
 
-                    barsHtml += `
-                    <div class="stat-box" style="display:block; border-color:${color}66; background-color:${color}1a; cursor:pointer; margin-bottom:6px;" onclick="window.app.loadView('budgets')">
-                        <span class="stat-label" style="color:${color}; font-weight:600;">${periodLabels[period] || period}</span>
+                    return `
+                    <div class="stat-box" style="display:block; border-color:${color}66; background-color:${color}1a; cursor:pointer; margin-bottom:6px; ${borderLeft}${marginLeft}" onclick="window.app.loadView('budgets')">
+                        <span class="stat-label" style="color:${color}; font-weight:600;">${label}</span>
                         <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:6px;overflow:hidden;margin:8px 0;border:1px solid rgba(255,255,255,0.05);">
                             <div style="position:absolute;top:0;left:0;width:${totalPct}%;height:100%;background:rgba(128,128,128,0.4);border-radius:999px;transition:width 0.3s;"></div>
                             <div style="position:absolute;top:0;left:0;width:${recPct}%;height:100%;background:${color};border-radius:999px;transition:width 0.3s;"></div>
@@ -446,6 +441,33 @@ class App {
                             <span class="privacy-blur" style="color:var(--text-muted);">/ ${formatCurrency(targetVal)}</span>
                         </div>
                     </div>`;
+                };
+
+                for (const period of orderedPeriods) {
+                    const data = summary[period];
+                    if (!data || data.target <= 0) continue;
+
+                    const accountSubs = data.accounts || {};
+                    const subKeys = Object.keys(accountSubs);
+                    const hasAccountScope = subKeys.some(k => k !== '__global__');
+
+                    if (hasAccountScope && subKeys.length > 1) {
+                        // Period header (no bar, just label)
+                        barsHtml += `<div style="margin-bottom:2px;">
+                            <span class="stat-label" style="color:var(--text-muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.03em;">${periodLabels[period] || period}</span>
+                        </div>`;
+                        // One bar per account sub-group
+                        for (const [key, sub] of Object.entries(accountSubs)) {
+                            const subLabel = key === '__global__'
+                                ? (window.i18n.t('budget_account_all') || 'Global')
+                                : (sub.account_names || []).join(' + ');
+                            const accent = sub.accent_color || null;
+                            barsHtml += renderBar(subLabel, sub.target, sub.reconciled_spent, sub.spent, accent, true);
+                        }
+                    } else {
+                        // Single bar for the whole period (original behavior)
+                        barsHtml += renderBar(periodLabels[period] || period, data.target, data.reconciled_spent, data.spent, null, false);
+                    }
                 }
 
                 barsContainer.innerHTML = barsHtml;

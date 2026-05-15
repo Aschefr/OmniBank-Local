@@ -708,5 +708,9 @@
   "stat_budgets_custom": "🎯 Budgets (Time-bound)",
   "filter_cat_reset": "Categ.",
   "filter_reset_categories": "Reset categories",
-  "filter_categories_count": "categories"
+  "filter_categories_count": "categories",
+  "budget_account_filter": "Account scope",
+  "budget_account_all": "All accounts",
+  "budget_account_label": "Affected accounts",
+  "budget_account_none": "No account selected (Global)"
 }

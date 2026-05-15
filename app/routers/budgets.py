@@ -22,6 +22,7 @@ class BudgetCreate(BaseModel):
     categories: Optional[List[str]] = []
     start_date: Optional[str] = None  # YYYY-MM-DD for custom period
     end_date: Optional[str] = None
+    account_ids: Optional[List[int]] = None  # Improvement_04: scope to specific accounts (org mode)
 
 class BudgetUpdate(BaseModel):
     name: Optional[str] = None
@@ -32,9 +33,27 @@ class BudgetUpdate(BaseModel):
     categories: Optional[List[str]] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    account_ids: Optional[List[int]] = None  # Improvement_04
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def _parse_account_ids(raw: str) -> list:
+    """Parse JSON string of account IDs from DB column."""
+    if not raw:
+        return []
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
+def _serialize_account_ids(ids: list) -> str:
+    """Serialize account IDs list to JSON string for DB storage."""
+    if not ids:
+        return None
+    return json.dumps(ids)
+
 
 def _budget_to_dict(b: Budget, db: Session) -> dict:
     cats = db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all()
@@ -48,6 +67,7 @@ def _budget_to_dict(b: Budget, db: Session) -> dict:
         "categories": [c.category_name for c in cats],
         "start_date": b.start_date.isoformat() if b.start_date else None,
         "end_date": b.end_date.isoformat() if b.end_date else None,
+        "account_ids": _parse_account_ids(b.account_ids),
     }
 
 
@@ -71,6 +91,7 @@ def create_budget(data: BudgetCreate, db: Session = Depends(get_db)):
         is_closed=False,
         start_date=_start,
         end_date=_end,
+        account_ids=_serialize_account_ids(data.account_ids),
     )
     db.add(b)
     db.commit()
@@ -94,6 +115,9 @@ def update_budget(budget_id: int, data: BudgetUpdate, db: Session = Depends(get_
             continue  # handled below
         if k in ("start_date", "end_date"):
             setattr(b, k, date.fromisoformat(v) if v else None)
+            continue
+        if k == "account_ids":
+            setattr(b, k, _serialize_account_ids(v))
             continue
         setattr(b, k, v)
 
@@ -144,15 +168,24 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
 
     for b in budgets:
         cats = [c.category_name for c in db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all()]
+        acc_ids = _parse_account_ids(b.account_ids)  # Improvement_04
 
         expenses = 0.0
         income = 0.0
         reconciled_expenses = 0.0
         reconciled_income = 0.0
 
+        def _match_account(tx):
+            """Check if transaction involves any of the budget's scoped accounts."""
+            if not acc_ids:
+                return True  # No account filter = global
+            return (tx.from_account_id in acc_ids or tx.to_account_id in acc_ids)
+
         if b.is_project:
             txs = db.query(Transaction).filter(Transaction.budget_id == b.id).all()
             for tx in txs:
+                if not _match_account(tx):
+                    continue
                 if tx.type == "income":
                     income += abs(tx.amount)
                     if tx.reconciliation_date:
@@ -166,6 +199,8 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                 Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
             ).all()
             for tx in txs_all:
+                if not _match_account(tx):
+                    continue
                 if cats and (tx.category or "Sans catégorie") not in cats:
                     continue
                 if tx.type == "income":
@@ -183,6 +218,8 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                 Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
             ).all()
             for tx in txs_custom:
+                if not _match_account(tx):
+                    continue
                 if cats and (tx.category or "Sans catégorie") not in cats:
                     continue
                 if tx.type == "income":
@@ -201,6 +238,8 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                 Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
             ).all()
             for tx in txs:
+                if not _match_account(tx):
+                    continue
                 if cats and (tx.category or "Sans catégorie") not in cats:
                     continue
                 if tx.type == "income":
@@ -218,6 +257,8 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                 Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
             ).all()
             for tx in txs:
+                if not _match_account(tx):
+                    continue
                 if cats and (tx.category or "Sans catégorie") not in cats:
                     continue
                 if tx.type == "income":
@@ -261,6 +302,7 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
             "period": b.period,
             "start_date": b.start_date.isoformat() if b.start_date else None,
             "end_date": b.end_date.isoformat() if b.end_date else None,
+            "account_ids": acc_ids,
         })
 
     return {"year": y, "month": m, "budgets": result}
@@ -281,16 +323,29 @@ def get_budget_transactions(budget_id: int, year: int = None, month: int = None,
         raise HTTPException(status_code=404, detail="Budget non trouvé.")
 
     cats = [c.category_name for c in db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget_id).all()]
+    acc_ids = _parse_account_ids(b.account_ids)  # Improvement_04
+
+    def _apply_account_filter(q):
+        """Apply account scope filter to query if budget has account_ids."""
+        if not acc_ids:
+            return q
+        from sqlalchemy import or_
+        return q.filter(or_(
+            Transaction.from_account_id.in_(acc_ids),
+            Transaction.to_account_id.in_(acc_ids)
+        ))
 
     if b.is_project:
-        txs = db.query(Transaction).filter(Transaction.budget_id == budget_id)\
-            .order_by(Transaction.date_operation.desc()).all()
+        q = db.query(Transaction).filter(Transaction.budget_id == budget_id)
+        q = _apply_account_filter(q)
+        txs = q.order_by(Transaction.date_operation.desc()).all()
     elif b.period == "indefinite":
         q = db.query(Transaction).filter(
             Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
         )
         if cats:
             q = q.filter(Transaction.category.in_(cats))
+        q = _apply_account_filter(q)
         txs = q.order_by(Transaction.date_operation.desc()).all()
     elif b.period == "custom" and b.start_date and b.end_date:
         q = db.query(Transaction).filter(
@@ -300,6 +355,7 @@ def get_budget_transactions(budget_id: int, year: int = None, month: int = None,
         )
         if cats:
             q = q.filter(Transaction.category.in_(cats))
+        q = _apply_account_filter(q)
         txs = q.order_by(Transaction.date_operation.desc()).all()
     else:
         q = db.query(Transaction).filter(
@@ -309,6 +365,7 @@ def get_budget_transactions(budget_id: int, year: int = None, month: int = None,
         )
         if cats:
             q = q.filter(Transaction.category.in_(cats))
+        q = _apply_account_filter(q)
         txs = q.order_by(Transaction.date_operation.desc()).all()
 
     return [{

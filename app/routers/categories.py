@@ -121,3 +121,37 @@ def delete_category(cat_id: int, reallocate_to: str = None, db: Session = Depend
     db.delete(db_cat)
     db.commit()
     return {"ok": True}
+
+
+# ─── Improvement_04: Categories filtered by account scope ─────────────────────
+
+@router.get("/by_accounts")
+def get_categories_by_accounts(account_ids: str, db: Session = Depends(get_db)):
+    """Return categories that have at least one transaction on the given accounts.
+    account_ids: comma-separated list of account IDs (e.g. '1,3').
+    """
+    from sqlalchemy import or_
+
+    acc_ids = [int(x) for x in account_ids.split(',') if x.strip()]
+    if not acc_ids:
+        return db.query(Category).order_by(Category.type, Category.name).all()
+
+    # Find distinct category names from transactions on these accounts
+    cat_names = db.query(Transaction.category).filter(
+        or_(
+            Transaction.from_account_id.in_(acc_ids),
+            Transaction.to_account_id.in_(acc_ids)
+        ),
+        Transaction.category != None,
+    ).distinct().all()
+
+    used_names = {row[0] for row in cat_names if row[0]}
+
+    if not used_names:
+        return []
+
+    cats = db.query(Category).filter(
+        Category.name.in_(used_names)
+    ).order_by(Category.type, Category.name).all()
+
+    return [{"id": c.id, "name": c.name, "type": c.type, "is_closed": c.is_closed} for c in cats]

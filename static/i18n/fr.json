@@ -724,5 +724,9 @@
   "stat_budgets_custom": "🎯 Budgets (Défini)",
   "filter_cat_reset": "Catég.",
   "filter_reset_categories": "Réinitialiser les catégories",
-  "filter_categories_count": "catégories"
+  "filter_categories_count": "catégories",
+  "budget_account_filter": "Périmètre comptes",
+  "budget_account_all": "Tous les comptes",
+  "budget_account_label": "Comptes concernés",
+  "budget_account_none": "Aucun compte sélectionné (Global)"
 }

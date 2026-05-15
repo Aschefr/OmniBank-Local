@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import date
+from datetime import date, datetime
 
 from app.database import get_db
 from app.models import Transaction, Account, RecurrenceTemplate
@@ -47,6 +47,9 @@ def get_unique_descriptions(db: Session = Depends(get_db)):
 @router.post("/", response_model=TransactionOut)
 def create_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
     db_tx = Transaction(**tx.dict())
+    # Auto-set audit timestamp if created_by is present (org mode)
+    if db_tx.created_by:
+        db_tx.created_at = datetime.now().strftime("%Y-%m-%d %H:%M")
     db.add(db_tx)
     db.commit()
     db.refresh(db_tx)
@@ -66,6 +69,9 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
         raise HTTPException(status_code=404, detail="Transaction not found")
         
     update_data = tx_update.dict(exclude_unset=True)
+    # Auto-set audit timestamp if modified_by is present (org mode)
+    if "modified_by" in update_data and update_data["modified_by"]:
+        update_data["modified_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     for key, value in update_data.items():
         setattr(db_tx, key, value)
         
