@@ -65,8 +65,8 @@ class App {
                 this._appVersion = version;
                 // Auto-show changelog after update (one-time per version)
                 const lastSeen = localStorage.getItem('omni_last_seen_version');
-                if (lastSeen && lastSeen !== version) {
-                    // Version changed → show changelog after UI loads
+                if (lastSeen !== version) {
+                    // Version changed (or first time feature is seen) → show changelog after UI loads
                     setTimeout(() => this.showChangelog(), 1500);
                 }
                 localStorage.setItem('omni_last_seen_version', version);
