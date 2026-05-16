@@ -462,11 +462,11 @@ class App {
                                 ? (window.i18n.t('budget_account_all') || 'Global')
                                 : (sub.account_names || []).join(' + ');
                             const accent = sub.accent_color || null;
-                            barsHtml += renderBar(subLabel, sub.target, sub.reconciled_spent, sub.spent, accent, true);
+                            barsHtml += renderBar(subLabel, sub.target, sub.reconciled_expenses, sub.expenses, accent, true);
                         }
                     } else {
                         // Single bar for the whole period (original behavior)
-                        barsHtml += renderBar(periodLabels[period] || period, data.target, data.reconciled_spent, data.spent, null, false);
+                        barsHtml += renderBar(periodLabels[period] || period, data.target, data.reconciled_expenses, data.expenses, null, false);
                     }
                 }
 

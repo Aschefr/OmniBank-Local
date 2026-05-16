@@ -78,22 +78,22 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     for b in budget_data["budgets"]:
         p = b.get("period", "monthly")
         if p not in period_groups:
-            period_groups[p] = {"target": 0, "spent": 0, "reconciled_spent": 0, "accounts": {}}
+            period_groups[p] = {"target": 0, "expenses": 0, "reconciled_expenses": 0, "accounts": {}}
         period_groups[p]["target"] += b["budget_amount"]
-        period_groups[p]["spent"] += b["expenses"]
-        period_groups[p]["reconciled_spent"] += b["reconciled_expenses"]
+        period_groups[p]["expenses"] += b.get("expenses", 0)
+        period_groups[p]["reconciled_expenses"] += b.get("reconciled_expenses", 0)
 
         # Improvement_04: Sub-group by account scope
         acc_ids = b.get("account_ids") or []
         acc_key = ",".join(str(x) for x in sorted(acc_ids)) if acc_ids else "__global__"
         if acc_key not in period_groups[p]["accounts"]:
             period_groups[p]["accounts"][acc_key] = {
-                "target": 0, "spent": 0, "reconciled_spent": 0,
+                "target": 0, "expenses": 0, "reconciled_expenses": 0,
                 "account_ids": acc_ids
             }
         period_groups[p]["accounts"][acc_key]["target"] += b["budget_amount"]
-        period_groups[p]["accounts"][acc_key]["spent"] += b["expenses"]
-        period_groups[p]["accounts"][acc_key]["reconciled_spent"] += b["reconciled_expenses"]
+        period_groups[p]["accounts"][acc_key]["expenses"] += b.get("expenses", 0)
+        period_groups[p]["accounts"][acc_key]["reconciled_expenses"] += b.get("reconciled_expenses", 0)
 
     # Resolve account names for sidebar display
     all_acc_ids = set()

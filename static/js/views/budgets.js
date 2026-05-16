@@ -16,27 +16,6 @@ window.BudgetsView = {
             <div class="view-header" style="position:sticky;top:-32px;z-index:10;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <h2 style="margin:0;" data-i18n="budget_title">${window.i18n.t('budget_title')}</h2>
                 <div class="history-filters" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <div style="display:flex;align-items:center;gap:0;">
-                        <button class="btn btn-secondary" style="padding:6px 10px;font-size:14px;border-radius:8px 0 0 8px;border-right:none;" onclick="window.BudgetsView.stepMonth(-1)" title="${window.i18n.t('tooltip_prev_month') || 'Mois précédent'}">◀</button>
-                        <input type="month" id="budgetMonth" class="inline-input" style="min-width:140px;border-radius:0;" onchange="window.BudgetsView.loadStatus()">
-                        <button class="btn btn-secondary" style="padding:6px 10px;font-size:14px;border-radius:0 8px 8px 0;border-left:none;" onclick="window.BudgetsView.stepMonth(1)" title="${window.i18n.t('tooltip_next_month') || 'Mois suivant'}">▶</button>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px;">
-                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
-                            <div style="position:relative;width:36px;height:20px;">
-                                <input type="checkbox" id="budgetCustomPeriodToggle" class="global-toggle" style="opacity:0;width:0;height:0;position:absolute;" onchange="window.BudgetsView.onCustomPeriodToggle(this.checked)">
-                                <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--border-color);transition:.4s;border-radius:34px;"></span>
-                                <span class="slider-knob" style="position:absolute;height:14px;width:14px;left:3px;bottom:3px;background-color:white;transition:.4s;border-radius:50%;"></span>
-                            </div>
-                            <span data-i18n="budget_custom_period">${window.i18n.t('budget_custom_period') || 'Période'}</span>
-                        </label>
-                        <div id="budgetCustomPeriodInputs" style="display:none;align-items:center;gap:4px;">
-                            <input type="date" id="budgetCustomStart" class="inline-input" style="width:145px;" onchange="window.BudgetsView.onCustomPeriodChange()">
-                            <span style="color:var(--text-muted);font-size:11px;">→</span>
-                            <input type="date" id="budgetCustomEnd" class="inline-input" style="width:145px;" onchange="window.BudgetsView.onCustomPeriodChange()">
-                        </div>
-                    </div>
-                    <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap;" onclick="window.BudgetsView.goToday()" data-i18n="btn_today">${window.i18n.t('btn_today')}</button>
                     <button id="budgetAiBtn" class="btn btn-secondary" style="white-space:nowrap; ${aiDisp}" onclick="window.BudgetsView.requestAiSuggestions()" data-i18n="budget_btn_suggestions">${window.i18n.t('budget_btn_suggestions')}</button>
                     <button class="btn btn-primary" style="white-space:nowrap;" onclick="window.BudgetsView.showAddForm()" data-i18n="budget_btn_new">${window.i18n.t('budget_btn_new')}</button>
                 </div>
@@ -161,80 +140,77 @@ window.BudgetsView = {
 
     async init() {
         const now = new Date();
-        document.getElementById('budgetMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        // Per-type date state from localStorage (or defaults)
+        this.monthlyMonth = localStorage.getItem('budget_monthly_month') || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        this.yearlyYear = parseInt(localStorage.getItem('budget_yearly_year') || now.getFullYear());
 
-        // Restore custom period from localStorage
+        // Restore custom period state for monthly
         const savedEnabled = localStorage.getItem('budget_custom_enabled') === 'true';
         const savedStart = localStorage.getItem('budget_custom_start');
         const savedEnd   = localStorage.getItem('budget_custom_end');
         this.customPeriod = { enabled: savedEnabled, start: savedStart, end: savedEnd };
 
-        // Apply toggle state to UI
-        const toggle = document.getElementById('budgetCustomPeriodToggle');
-        const inputs = document.getElementById('budgetCustomPeriodInputs');
-        const monthControls = document.querySelector('#budgetMonth')?.parentElement;
-        if (toggle && savedEnabled) {
-            toggle.checked = true;
-            if (inputs) inputs.style.display = 'flex';
-            if (monthControls) monthControls.style.opacity = '0.4';
-            if (monthControls) monthControls.style.pointerEvents = 'none';
-            if (savedStart) document.getElementById('budgetCustomStart').value = savedStart;
-            if (savedEnd)   document.getElementById('budgetCustomEnd').value   = savedEnd;
-        }
-        // Default dates if enabled but no dates saved
+        // Default custom period dates if enabled but no dates saved
         if (savedEnabled && !savedStart) {
             const firstDay = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
             const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0);
             const endDay = `${lastDay.getFullYear()}-${String(lastDay.getMonth()+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
-            document.getElementById('budgetCustomStart').value = firstDay;
-            document.getElementById('budgetCustomEnd').value   = endDay;
             this.customPeriod.start = firstDay;
             this.customPeriod.end = endDay;
         }
 
-        await Promise.all([this.loadBudgets(), this.loadAccounts(), this.loadCategories(), this.loadStatus(), this.checkAI()]);
+        // Per-type status data
+        this.statusByType = { monthly: null, yearly: null, indefinite: null, custom: null };
+
+        await Promise.all([this.loadBudgets(), this.loadAccounts(), this.loadCategories(), this.loadAllStatuses(), this.checkAI()]);
     },
 
-    stepMonth(delta) {
-        const input = document.getElementById('budgetMonth');
-        if (!input?.value) return;
-        const [y, m] = input.value.split('-').map(Number);
+    // ── Per-type navigation ────────────────────────────────────────────
+    stepMonthly(delta) {
+        const [y, m] = this.monthlyMonth.split('-').map(Number);
         const d = new Date(y, m - 1 + delta, 1);
-        input.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        this.loadStatus();
+        this.monthlyMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        localStorage.setItem('budget_monthly_month', this.monthlyMonth);
+        this.loadStatusForType('monthly');
     },
 
-    goToday() {
+    goTodayMonthly() {
         const now = new Date();
-        document.getElementById('budgetMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-        this.loadStatus();
+        this.monthlyMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        localStorage.setItem('budget_monthly_month', this.monthlyMonth);
+        // Reset custom period
+        this.customPeriod.enabled = false;
+        localStorage.setItem('budget_custom_enabled', 'false');
+        this.loadStatusForType('monthly');
+    },
+
+    stepYearly(delta) {
+        this.yearlyYear += delta;
+        localStorage.setItem('budget_yearly_year', this.yearlyYear);
+        this.loadStatusForType('yearly');
+    },
+
+    goTodayYearly() {
+        this.yearlyYear = new Date().getFullYear();
+        localStorage.setItem('budget_yearly_year', this.yearlyYear);
+        this.loadStatusForType('yearly');
     },
 
     onCustomPeriodToggle(enabled) {
         this.customPeriod.enabled = enabled;
         localStorage.setItem('budget_custom_enabled', enabled);
-        const inputs = document.getElementById('budgetCustomPeriodInputs');
-        const monthControls = document.querySelector('#budgetMonth')?.parentElement;
-        if (inputs) inputs.style.display = enabled ? 'flex' : 'none';
-        if (monthControls) {
-            monthControls.style.opacity = enabled ? '0.4' : '1';
-            monthControls.style.pointerEvents = enabled ? 'none' : 'auto';
-        }
 
         if (enabled && !this.customPeriod.start) {
-            // Default: first to last day of current month
             const now = new Date();
             const firstDay = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
             const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0);
             const endDay = `${lastDay.getFullYear()}-${String(lastDay.getMonth()+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
-            document.getElementById('budgetCustomStart').value = firstDay;
-            document.getElementById('budgetCustomEnd').value   = endDay;
             this.customPeriod.start = firstDay;
             this.customPeriod.end = endDay;
             localStorage.setItem('budget_custom_start', firstDay);
             localStorage.setItem('budget_custom_end', endDay);
         }
-        this.loadStatus();
+        this.loadStatusForType('monthly');
     },
 
     onCustomPeriodChange() {
@@ -244,8 +220,9 @@ window.BudgetsView = {
         this.customPeriod.end = end;
         if (start) localStorage.setItem('budget_custom_start', start);
         if (end)   localStorage.setItem('budget_custom_end',   end);
-        this.loadStatus();
+        this.loadStatusForType('monthly');
     },
+
 
     async checkAI() {
         try {
@@ -437,35 +414,64 @@ window.BudgetsView = {
         }
     },
 
-    async loadStatus() {
-        if (this.customPeriod.enabled && this.customPeriod.start && this.customPeriod.end) {
-            // Custom date range (day granularity)
-            await this._loadStatusCustomPeriod(this.customPeriod.start, this.customPeriod.end);
-        } else {
-            const monthVal = document.getElementById('budgetMonth')?.value;
-            if (!monthVal) return;
-            const [y, m] = monthVal.split('-');
-            try {
-                this.statusData = await API.get(`/api/budgets/status?year=${y}&month=${m}`);
-                this.renderStatus();
-            } catch(e) {
-                document.getElementById('budgetStatusContainer').innerHTML =
-                    `<p style="color:#ff5630;">${window.i18n.t('title_error')} : ${e.message}</p>`;
+    // ── API loading per type ────────────────────────────────────────────
+
+    _buildStatusUrl(type) {
+        let url = `/api/budgets/status?period_filter=${type}`;
+        if (type === 'monthly') {
+            if (this.customPeriod.enabled && this.customPeriod.start && this.customPeriod.end) {
+                url += `&date_start=${this.customPeriod.start}&date_end=${this.customPeriod.end}`;
+            } else {
+                const [y, m] = this.monthlyMonth.split('-');
+                url += `&year=${y}&month=${m}`;
             }
+        } else if (type === 'yearly') {
+            url += `&year=${this.yearlyYear}`;
         }
+        // indefinite and custom: no date params needed
+        return url;
     },
 
-    async _loadStatusCustomPeriod(start, end) {
-        // Single API call with date_start/date_end (day granularity)
-        if (!start || !end) return;
+    async loadAllStatuses() {
         try {
-            this.statusData = await API.get(`/api/budgets/status?date_start=${start}&date_end=${end}`);
+            const [monthly, yearly, indefinite, custom] = await Promise.all([
+                API.get(this._buildStatusUrl('monthly')),
+                API.get(this._buildStatusUrl('yearly')),
+                API.get(this._buildStatusUrl('indefinite')),
+                API.get(this._buildStatusUrl('custom')),
+            ]);
+            this.statusByType = { monthly, yearly, indefinite, custom };
+            this._mergeStatusData();
             this.renderStatus();
         } catch(e) {
             document.getElementById('budgetStatusContainer').innerHTML =
                 `<p style="color:#ff5630;">${window.i18n.t('title_error')} : ${e.message}</p>`;
         }
     },
+
+    async loadStatusForType(type) {
+        try {
+            this.statusByType[type] = await API.get(this._buildStatusUrl(type));
+            this._mergeStatusData();
+            this.renderStatus();
+        } catch(e) {
+            console.error(`[budget] Error loading ${type}`, e);
+        }
+    },
+
+    _mergeStatusData() {
+        // Merge all per-type results into a single statusData for backward compat
+        const allBudgets = [];
+        for (const type of ['monthly', 'yearly', 'indefinite', 'custom']) {
+            const data = this.statusByType[type];
+            if (data?.budgets) allBudgets.push(...data.budgets);
+        }
+        this.statusData = { budgets: allBudgets };
+    },
+
+    // Keep old loadStatus as alias for full reload
+    async loadStatus() { await this.loadAllStatuses(); },
+
 
     renderStatus() {
         const container = document.getElementById('budgetStatusContainer');
@@ -474,16 +480,17 @@ window.BudgetsView = {
             return;
         }
 
-        const monthVal = document.getElementById('budgetMonth')?.value || '';
-        const [y, m] = monthVal.split('-');
-        const label = new Date(parseInt(y), parseInt(m)-1, 1).toLocaleDateString(window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR', {month:'long', year:'numeric'});
+        // Per-type label and date params
+        const [my, mm] = this.monthlyMonth.split('-').map(Number);
+        const monthLabel = new Date(my, mm-1, 1).toLocaleDateString(window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR', {month:'long', year:'numeric'});
+        const yearLabel = String(this.yearlyYear);
 
         // Group budgets by period
         const groups = {
-            'monthly': { title: window.i18n.t('period_monthly'), budgets: [] },
-            'yearly': { title: window.i18n.t('period_yearly'), budgets: [] },
-            'indefinite': { title: window.i18n.t('budget_period_indefinite'), budgets: [] },
-            'custom': { title: window.i18n.t('budget_period_custom') || 'Défini dans le temps', budgets: [] }
+            'monthly': { title: window.i18n.t('period_monthly'), budgets: [], label: monthLabel, y: my, m: mm },
+            'yearly': { title: window.i18n.t('period_yearly'), budgets: [], label: yearLabel, y: this.yearlyYear, m: 1 },
+            'indefinite': { title: window.i18n.t('budget_period_indefinite'), budgets: [], label: '', y: my, m: mm },
+            'custom': { title: window.i18n.t('budget_period_custom') || 'Défini dans le temps', budgets: [], label: '', y: my, m: mm }
         };
 
         for (const b of this.statusData.budgets) {
@@ -496,20 +503,65 @@ window.BudgetsView = {
 
         let fullHtml = '';
 
+        // ── Helper: per-type date controls ─────────────────────────────────
+        const renderDateControls = (period) => {
+            if (period === 'monthly') {
+                const customEnabled = this.customPeriod.enabled;
+                const monthOpacity = customEnabled ? 'opacity:0.4;pointer-events:none;' : '';
+                const customDisp = customEnabled ? 'display:flex;' : 'display:none;';
+                return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:0;${monthOpacity}">
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:6px 0 0 6px;border-right:none;" onclick="window.BudgetsView.stepMonthly(-1)">◀</button>
+                        <input type="month" id="budgetMonthInput" class="inline-input" style="min-width:130px;border-radius:0;font-size:12px;padding:4px 6px;" value="${this.monthlyMonth}" onchange="window.BudgetsView.monthlyMonth=this.value;localStorage.setItem('budget_monthly_month',this.value);window.BudgetsView.loadStatusForType('monthly')">
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:0 6px 6px 0;border-left:none;" onclick="window.BudgetsView.stepMonthly(1)">▶</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;">
+                            <div style="position:relative;width:32px;height:18px;">
+                                <input type="checkbox" id="budgetCustomPeriodToggle" class="global-toggle" style="opacity:0;width:0;height:0;position:absolute;" ${customEnabled ? 'checked' : ''} onchange="window.BudgetsView.onCustomPeriodToggle(this.checked)">
+                                <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--border-color);transition:.4s;border-radius:34px;"></span>
+                                <span class="slider-knob" style="position:absolute;height:12px;width:12px;left:3px;bottom:3px;background-color:white;transition:.4s;border-radius:50%;"></span>
+                            </div>
+                            <span>${window.i18n.t('budget_custom_period') || 'Période'}</span>
+                        </label>
+                        <div id="budgetCustomPeriodInputs" style="${customDisp}align-items:center;gap:4px;">
+                            <input type="date" id="budgetCustomStart" class="inline-input" style="width:130px;font-size:11px;" value="${this.customPeriod.start || ''}" onchange="window.BudgetsView.onCustomPeriodChange()">
+                            <span style="color:var(--text-muted);font-size:10px;">→</span>
+                            <input type="date" id="budgetCustomEnd" class="inline-input" style="width:130px;font-size:11px;" value="${this.customPeriod.end || ''}" onchange="window.BudgetsView.onCustomPeriodChange()">
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="window.BudgetsView.goTodayMonthly()">${window.i18n.t('btn_today')}</button>
+                </div>`;
+            } else if (period === 'yearly') {
+                return `<div style="display:flex;align-items:center;gap:0;">
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:6px 0 0 6px;border-right:none;" onclick="window.BudgetsView.stepYearly(-1)">◀</button>
+                    <span class="inline-input" style="min-width:60px;text-align:center;border-radius:0;font-size:12px;padding:4px 10px;display:inline-block;">${this.yearlyYear}</span>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:0 6px 6px 0;border-left:none;" onclick="window.BudgetsView.stepYearly(1)">▶</button>
+                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;margin-left:8px;" onclick="window.BudgetsView.goTodayYearly()">${window.i18n.t('btn_today')}</button>
+                </div>`;
+            }
+            return ''; // indefinite & custom: no controls
+        };
+
         // ── Helper: render a summary bar ──────────────────────────────────
         const renderSummaryBar = (titleText, subtitleText, budgetsList, accentColor) => {
-            let totalTarget = 0, totalSpent = 0, totalRecSpent = 0;
+            let totalTarget = 0, totalExpenses = 0, totalRecExpenses = 0, totalIncome = 0, totalSpent = 0, totalRecSpent = 0;
             for (const b of budgetsList) {
                 totalTarget += b.budget_amount;
+                totalExpenses += b.expenses || 0;
+                totalRecExpenses += b.reconciled_expenses || 0;
+                totalIncome += b.income || 0;
                 totalSpent += b.spent;
                 totalRecSpent += b.reconciled_spent || 0;
             }
-            const totalPct = totalTarget > 0 ? Math.min((totalSpent / totalTarget) * 100, 100) : 0;
-            const recPct = totalTarget > 0 ? Math.min((totalRecSpent / totalTarget) * 100, 100) : 0;
-            const totalBarColor = (totalTarget > 0 && (totalRecSpent / totalTarget) * 100 > 100) ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
-            const globalOver = totalSpent > totalTarget;
-            const globalRemaining = totalTarget - totalSpent;
+            const totalPct = totalTarget > 0 ? Math.min((totalExpenses / totalTarget) * 100, 100) : 0;
+            const recPct = totalTarget > 0 ? Math.min((totalRecExpenses / totalTarget) * 100, 100) : 0;
+            const totalBarColor = (totalTarget > 0 && (totalRecExpenses / totalTarget) * 100 > 100) ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
+            const netSpent = totalExpenses - totalIncome;
+            const globalOver = netSpent > totalTarget;
+            const globalRemaining = totalTarget - netSpent;
             const borderStyle = accentColor ? `border-left:3px solid ${accentColor};` : '';
+            const incomeHtml = totalIncome > 0 ? `<span class="privacy-blur" style="color:#10b981;font-size:12px;align-self:flex-end;">↑ ${formatCurrency(totalIncome)} ${window.i18n.t('budget_received')}</span>` : '';
 
             return `<div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);${borderStyle}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
@@ -527,8 +579,9 @@ window.BudgetsView = {
                 </div>
                 <div style="display:flex;justify-content:space-between;font-size:14px;flex-wrap:wrap;gap:4px;">
                     <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                        <span class="privacy-blur" style="color:${totalBarColor};font-weight:600;">${formatCurrency(totalRecSpent)} ${window.i18n.t('budget_reconciled')}</span>
-                        <span class="privacy-blur" style="color:var(--text-muted);font-size:12px;align-self:flex-end;">(${formatCurrency(totalSpent)} ${window.i18n.t('budget_committed')})</span>
+                        <span class="privacy-blur" style="color:${totalBarColor};font-weight:600;">${formatCurrency(totalRecExpenses)} ${window.i18n.t('budget_reconciled')}</span>
+                        <span class="privacy-blur" style="color:var(--text-muted);font-size:12px;align-self:flex-end;">(${formatCurrency(totalExpenses)} ${window.i18n.t('budget_committed')})</span>
+                        ${incomeHtml}
                     </div>
                     <span style="color:${globalOver ? '#ff5630' : 'var(--text-muted)'};font-weight:600;">${globalOver ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(globalRemaining))}</span> ${globalOver ? window.i18n.t('budget_global_exceeded') : window.i18n.t('budget_global_remaining')}</span>
                 </div>
@@ -536,10 +589,10 @@ window.BudgetsView = {
         };
 
         // ── Helper: render a single budget card ──────────────────────────
-        const renderBudgetCard = (b) => {
-            const pct = Math.min((b.spent / b.budget_amount) * 100 || 0, 100);
-            const recPct = Math.min(b.reconciled_percent || 0, 100);
-            const barColor = b.reconciled_percent > 100 ? '#ff5630' : b.reconciled_percent >= 80 ? '#f59e0b' : '#10b981';
+        const renderBudgetCard = (b, y, m) => {
+            const expensesPct = Math.min(((b.expenses || 0) / b.budget_amount) * 100 || 0, 100);
+            const recExpPct = Math.min(((b.reconciled_expenses || 0) / b.budget_amount) * 100 || 0, 100);
+            const barColor = recExpPct > 100 ? '#ff5630' : recExpPct >= 80 ? '#f59e0b' : '#10b981';
             const overBudget = b.remaining < 0;
             const typeTag = b.is_project
                 ? `<span style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">${window.i18n.t('budget_project_tag')}</span>`
@@ -570,7 +623,7 @@ window.BudgetsView = {
                 }).join(' ');
             }
 
-            return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" style="background:var(--bg-body);border:1px solid ${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'};border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.3s, box-shadow 0.3s;${closedStyle}" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)'" onmouseout="this.style.borderColor='${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'}'">
+            return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" style="background:var(--bg-body);border:1px solid ${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'};border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.3s, box-shadow 0.3s;${closedStyle}" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)'" onmouseout="this.style.borderColor='${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'}'">\
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px;">
                         <div style="flex:1;">
                             <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
@@ -595,13 +648,13 @@ window.BudgetsView = {
                     </div>
 
                     <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:8px;overflow:hidden;margin-bottom:8px;border:1px solid rgba(255,255,255,0.05);">
-                        <div style="position:absolute;top:0;left:0;width:${pct}%;height:100%;background:rgba(128,128,128,0.4);border-radius:999px;"></div>
-                        <div style="position:absolute;top:0;left:0;width:${recPct}%;height:100%;background:${barColor};border-radius:999px;"></div>
+                        <div style="position:absolute;top:0;left:0;width:${expensesPct}%;height:100%;background:rgba(128,128,128,0.4);border-radius:999px;"></div>
+                        <div style="position:absolute;top:0;left:0;width:${recExpPct}%;height:100%;background:${barColor};border-radius:999px;"></div>
                     </div>
                     <div style="display:flex;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:4px;">
                         <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                            <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(b.reconciled_spent || 0)} ${window.i18n.t('budget_reconciled')}</span>
-                            <span class="privacy-blur" style="color:var(--text-muted);font-size:11px;align-self:flex-end;">(${formatCurrency(b.spent)} ${window.i18n.t('budget_committed')})</span>
+                            <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(b.reconciled_expenses || 0)} ${window.i18n.t('budget_reconciled')}</span>
+                            <span class="privacy-blur" style="color:var(--text-muted);font-size:11px;align-self:flex-end;">(${formatCurrency(b.expenses || 0)} ${window.i18n.t('budget_committed')})</span>
                             ${incomeHtml}
                         </div>
                         <span style="color:${overBudget ? '#ff5630' : 'var(--text-muted)'}">${overBudget ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(b.remaining))}</span> ${overBudget ? window.i18n.t('budget_exceeded_label') : window.i18n.t('budget_remaining_label')}</span>
@@ -615,15 +668,20 @@ window.BudgetsView = {
         for (const period of ['monthly', 'yearly', 'indefinite', 'custom']) {
             const group = groups[period];
             if (group.budgets.length === 0) continue;
+            const y = group.y;
+            const m = group.m;
+            const label = group.label;
 
             let html = `<div style="margin-bottom:40px;">
-                <h3 style="margin:0 0 16px;font-size:16px;color:var(--text-color);border-bottom:1px solid var(--border-color);padding-bottom:8px;">${window.i18n.t('budget_envelopes_title')} — ${group.title}</h3>`;
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border-color);padding-bottom:8px;">
+                    <h3 style="margin:0;font-size:16px;color:var(--text-color);">${window.i18n.t('budget_envelopes_title')} — ${group.title}</h3>
+                    ${renderDateControls(period)}
+                </div>`;
 
             // Sub-group budgets by account scope (Org Mode) or keep flat
             const hasAnyAccountScope = isOrgMode && group.budgets.some(b => b.account_ids && b.account_ids.length > 0);
 
             if (hasAnyAccountScope) {
-                // Build sub-groups: key = sorted account_ids joined, or '__global__'
                 const subGroups = {};
                 for (const b of group.budgets) {
                     const key = (b.account_ids && b.account_ids.length > 0) ? [...b.account_ids].sort((a2,b2) => a2 - b2).join(',') : '__global__';
@@ -631,32 +689,36 @@ window.BudgetsView = {
                     subGroups[key].push(b);
                 }
 
-                // Render each sub-group with its own summary
                 for (const [key, budgets] of Object.entries(subGroups)) {
                     let subTitle, accentColor;
                     if (key === '__global__') {
                         subTitle = `${window.i18n.t('budget_summary_global')} — ${group.title}`;
                         accentColor = null;
                     } else {
-                        const accNames = key.split(',').map(id => {
-                            const acc = this.accounts?.find(a => a.id === parseInt(id));
-                            return acc ? acc.name : `#${id}`;
-                        });
+                        // Use account_names from API if available, fallback to client lookup
+                        const firstBudget = budgets[0];
+                        if (firstBudget?.account_names?.length > 0) {
+                            subTitle = firstBudget.account_names.join(' + ');
+                        } else {
+                            const accNames = key.split(',').map(id => {
+                                const acc = this.accounts?.find(a => a.id === parseInt(id));
+                                return acc ? acc.name : `#${id}`;
+                            });
+                            subTitle = accNames.join(' + ');
+                        }
                         const firstAcc = this.accounts?.find(a => a.id === parseInt(key.split(',')[0]));
                         accentColor = firstAcc?.color || 'var(--accent)';
-                        subTitle = accNames.join(' + ');
                     }
 
                     html += renderSummaryBar(subTitle, label, budgets, accentColor);
                     html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:24px;">`;
-                    for (const b of budgets) html += renderBudgetCard(b);
+                    for (const b of budgets) html += renderBudgetCard(b, y, m);
                     html += '</div>';
                 }
             } else {
-                // No account scoping → single summary for the whole period group (original behavior)
                 html += renderSummaryBar(`${window.i18n.t('budget_summary_global')} — ${group.title}`, label, group.budgets, null);
                 html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">`;
-                for (const b of group.budgets) html += renderBudgetCard(b);
+                for (const b of group.budgets) html += renderBudgetCard(b, y, m);
                 html += '</div>';
             }
 
@@ -733,36 +795,28 @@ window.BudgetsView = {
             const target   = budget?.budget_amount || 0;
             const maxVal   = Math.max(totalExp, totalInc, target, 1);
 
-            const barHtml = (val, color, label, sublabel, recVal = null, recColor = null) => {
-                const w = Math.max(0, Math.min(val / maxVal * 100, 100));
-                let barContent = '';
-                if (recVal !== null) {
-                    const rw = Math.max(0, Math.min(recVal / maxVal * 100, 100));
-                    barContent = `
-                        <div style="position:absolute;top:0;left:0;width:${w}%;height:100%;background:rgba(128,128,128,0.4);border-radius:999px;"></div>
-                        <div style="position:absolute;top:0;left:0;width:${rw}%;height:100%;background:${recColor || color};border-radius:999px;"></div>
-                    `;
-                } else {
-                    barContent = `<div style="position:absolute;top:0;left:0;width:${w}%;height:100%;background:${color};border-radius:999px;"></div>`;
-                }
-                
-                return `<div style="margin-bottom:10px;">
-                    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:3px;">
-                        <span>${label}</span><span class="privacy-blur">${sublabel}</span>
-                    </div>
-                    <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);">
-                        ${barContent}
-                    </div>
-                </div>`;
-            };
 
             const pct = target > 0 ? (totalRecExp / target) * 100 : 0;
             const recExpColor = pct > 100 ? '#ff5630' : pct >= 80 ? '#f59e0b' : '#10b981';
 
-            graph.innerHTML =
-                barHtml(totalExp, null, window.i18n.t('budget_expenses'), `${formatCurrency(totalRecExp)} ${window.i18n.t('budget_reconciled')} / ${formatCurrency(totalExp)} ${window.i18n.t('budget_committed')}`, totalRecExp, recExpColor) +
-                (totalInc > 0 ? barHtml(totalInc, '#10b981', '↑ ' + window.app.getTypeLabel('income'), formatCurrency(totalInc)) : '') +
-                barHtml(target, 'rgba(99,102,241,0.6)', window.i18n.t('budget_objective'), formatCurrency(target));
+            // Build sublabel with income offset mention
+            let expSublabel = `${formatCurrency(totalRecExp)} ${window.i18n.t('budget_reconciled')} / ${formatCurrency(totalExp)} ${window.i18n.t('budget_committed')}`;
+            if (totalInc > 0) {
+                expSublabel += ` · ↑ ${formatCurrency(totalInc)} ${window.i18n.t('budget_received')}`;
+            }
+
+            const expW = Math.max(0, Math.min(totalExp / maxVal * 100, 100));
+            const recW = Math.max(0, Math.min(totalRecExp / maxVal * 100, 100));
+
+            graph.innerHTML = `<div style="margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:3px;">
+                        <span>${window.i18n.t('budget_expenses')} · <span class="privacy-blur" style="font-weight:600;">${formatCurrency(target)}</span> ${window.i18n.t('budget_objective')}</span><span class="privacy-blur">${expSublabel}</span>
+                    </div>
+                    <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);">
+                        <div style="position:absolute;top:0;left:0;width:${expW}%;height:100%;background:rgba(128,128,128,0.4);border-radius:999px;"></div>
+                        <div style="position:absolute;top:0;left:0;width:${recW}%;height:100%;background:${recExpColor};border-radius:999px;"></div>
+                    </div>
+                </div>`;
 
             // ── Transactions list ─────────────────────────────────────────
             list.innerHTML = `<h4 style="margin:0 0 10px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">${window.i18n.tp('budget_operations_count', {count: txs.length})}</h4>` +

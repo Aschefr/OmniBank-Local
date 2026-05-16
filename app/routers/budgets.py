@@ -7,7 +7,7 @@ from typing import Optional, List
 import json
 
 from app.database import get_db
-from app.models import Budget, BudgetCategory, Transaction, GlobalConfig
+from app.models import Budget, BudgetCategory, Transaction, GlobalConfig, Account
 
 router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 
@@ -145,15 +145,16 @@ def delete_budget(budget_id: int, db: Session = Depends(get_db)):
 # ─── Status endpoint ──────────────────────────────────────────────────────────
 
 @router.get("/status")
-def get_budget_status(year: int = None, month: int = None, date_start: str = None, date_end: str = None, db: Session = Depends(get_db)):
+def get_budget_status(year: int = None, month: int = None, date_start: str = None, date_end: str = None, period_filter: str = None, db: Session = Depends(get_db)):
     """Returns spending vs budget for each envelope.
     Supports day-granularity via date_start/date_end (YYYY-MM-DD) or month-level via year/month.
+    period_filter: optional, one of 'monthly', 'yearly', 'indefinite', 'custom' to return only that type.
     """
     today = date.today()
     y = year or today.year
     m = month or today.month
 
-    # Parse custom date range if provided
+    # Parse custom date range if provided (only used for monthly budgets)
     custom_start = None
     custom_end = None
     if date_start and date_end:
@@ -163,7 +164,17 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
         except ValueError:
             pass
 
-    budgets = db.query(Budget).filter(Budget.is_closed == False).all()
+    q = db.query(Budget).filter(Budget.is_closed == False)
+    if period_filter:
+        if period_filter == "custom":
+            q = q.filter(Budget.period == "custom")
+        elif period_filter == "indefinite":
+            q = q.filter(Budget.period == "indefinite")
+        elif period_filter == "yearly":
+            q = q.filter(Budget.period == "yearly")
+        elif period_filter == "monthly":
+            q = q.filter(Budget.period.in_(["monthly", None]))
+    budgets = q.all()
     result = []
 
     for b in budgets:
@@ -230,8 +241,27 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     expenses += abs(tx.amount)
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
+        elif b.period == "yearly":
+            # Yearly budgets: filter by full year only
+            txs_yearly = db.query(Transaction).filter(
+                extract('year', Transaction.date_operation) == y,
+                Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
+            ).all()
+            for tx in txs_yearly:
+                if not _match_account(tx):
+                    continue
+                if cats and (tx.category or "Sans catégorie") not in cats:
+                    continue
+                if tx.type == "income":
+                    income += abs(tx.amount)
+                    if tx.reconciliation_date:
+                        reconciled_income += abs(tx.amount)
+                else:
+                    expenses += abs(tx.amount)
+                    if tx.reconciliation_date:
+                        reconciled_expenses += abs(tx.amount)
         elif custom_start and custom_end:
-            # Day-granularity custom range
+            # Day-granularity custom range (monthly budgets only)
             txs = db.query(Transaction).filter(
                 Transaction.date_operation >= custom_start,
                 Transaction.date_operation <= custom_end,
@@ -251,6 +281,7 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
         else:
+            # Monthly budgets: filter by year + month
             txs = db.query(Transaction).filter(
                 extract('year', Transaction.date_operation) == y,
                 extract('month', Transaction.date_operation) == m,
@@ -305,6 +336,17 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
             "account_ids": acc_ids,
         })
 
+    # Resolve account names for all budget results
+    all_acc_ids = set()
+    for r in result:
+        all_acc_ids.update(r.get("account_ids") or [])
+    acc_name_map = {}
+    if all_acc_ids:
+        for a in db.query(Account).filter(Account.id.in_(list(all_acc_ids))).all():
+            acc_name_map[a.id] = a.name
+    for r in result:
+        r["account_names"] = [acc_name_map.get(aid, f"#{aid}") for aid in (r.get("account_ids") or [])]
+
     return {"year": y, "month": m, "budgets": result}
 
 
@@ -357,7 +399,18 @@ def get_budget_transactions(budget_id: int, year: int = None, month: int = None,
             q = q.filter(Transaction.category.in_(cats))
         q = _apply_account_filter(q)
         txs = q.order_by(Transaction.date_operation.desc()).all()
+    elif b.period == "yearly":
+        # Yearly budgets: filter by full year only
+        q = db.query(Transaction).filter(
+            extract('year', Transaction.date_operation) == y,
+            Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
+        )
+        if cats:
+            q = q.filter(Transaction.category.in_(cats))
+        q = _apply_account_filter(q)
+        txs = q.order_by(Transaction.date_operation.desc()).all()
     else:
+        # Monthly budgets: filter by year + month
         q = db.query(Transaction).filter(
             extract('year', Transaction.date_operation) == y,
             extract('month', Transaction.date_operation) == m,
