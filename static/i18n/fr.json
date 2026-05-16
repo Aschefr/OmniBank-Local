@@ -728,5 +728,8 @@
   "budget_account_filter": "Périmètre comptes",
   "budget_account_all": "Tous les comptes",
   "budget_account_label": "Comptes concernés",
-  "budget_account_none": "Aucun compte sélectionné (Global)"
+  "budget_account_none": "Aucun compte sélectionné (Global)",
+  "changelog_title": "Nouveautés",
+  "changelog_close": "Fermer",
+  "changelog_no_notes": "Aucune note de version disponible."
 }

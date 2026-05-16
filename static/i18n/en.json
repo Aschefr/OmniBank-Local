@@ -712,5 +712,8 @@
   "budget_account_filter": "Account scope",
   "budget_account_all": "All accounts",
   "budget_account_label": "Affected accounts",
-  "budget_account_none": "No account selected (Global)"
+  "budget_account_none": "No account selected (Global)",
+  "changelog_title": "What's New",
+  "changelog_close": "Close",
+  "changelog_no_notes": "No release notes available."
 }

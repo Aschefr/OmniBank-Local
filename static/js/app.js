@@ -60,7 +60,17 @@ class App {
                 version = vData.version;
             }
             const badge = document.getElementById('appVersionBadge');
-            if (badge && version) badge.textContent = `v${version}`;
+            if (badge && version) {
+                badge.textContent = `v${version}`;
+                this._appVersion = version;
+                // Auto-show changelog after update (one-time per version)
+                const lastSeen = localStorage.getItem('omni_last_seen_version');
+                if (lastSeen && lastSeen !== version) {
+                    // Version changed → show changelog after UI loads
+                    setTimeout(() => this.showChangelog(), 1500);
+                }
+                localStorage.setItem('omni_last_seen_version', version);
+            }
         } catch (e) { console.warn('[version] All version checks failed', e); }
         
         // ── Phase 9: Check if org mode needs user selection ──
@@ -660,6 +670,48 @@ class App {
         }
         
         window.i18n.translateDOM(main);
+    }
+
+    // ── Changelog popup ──────────────────────────────────────────────
+    async showChangelog() {
+        const modal = document.getElementById('changelogModal');
+        const body = document.getElementById('changelogBody');
+        const versionEl = document.getElementById('changelogVersion');
+        if (!modal || !body) return;
+
+        body.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);"><div class="loading-spinner" style="margin:0 auto 10px;"></div></div>`;
+        versionEl.textContent = '';
+        modal.style.display = 'flex';
+
+        try {
+            const version = this._appVersion || null;
+            const url = version ? `/api/changelog?version=${version}` : '/api/changelog';
+            const data = await API.get(url);
+
+            versionEl.textContent = `Version ${data.version || '?'}${data.pub_date ? ' — ' + new Date(data.pub_date).toLocaleDateString() : ''}`;
+
+            if (data.notes) {
+                // Render markdown (marked.js is already loaded)
+                const rawHtml = typeof marked?.parse === 'function' ? marked.parse(data.notes) : data.notes;
+                const safeHtml = typeof DOMPurify?.sanitize === 'function' ? DOMPurify.sanitize(rawHtml) : rawHtml;
+                body.innerHTML = `<div class="changelog-content" style="font-size:13px;line-height:1.8;">${safeHtml}</div>`;
+                // Style markdown elements
+                body.querySelectorAll('h1,h2,h3').forEach(h => { h.style.color = 'var(--text-color)'; h.style.marginTop = '16px'; h.style.marginBottom = '8px'; });
+                body.querySelectorAll('ul').forEach(ul => { ul.style.paddingLeft = '20px'; });
+                body.querySelectorAll('li').forEach(li => { li.style.marginBottom = '4px'; });
+                body.querySelectorAll('code').forEach(c => { c.style.background = 'var(--bg-base)'; c.style.padding = '2px 6px'; c.style.borderRadius = '4px'; c.style.fontSize = '12px'; });
+            } else {
+                body.innerHTML = `<p style="color:var(--text-muted);text-align:center;padding:20px;">${window.i18n.t('changelog_no_notes')}</p>`;
+            }
+        } catch (e) {
+            console.warn('[changelog] Failed to load:', e);
+            body.innerHTML = `<p style="color:var(--text-muted);text-align:center;padding:20px;">${window.i18n.t('changelog_no_notes')}</p>`;
+        }
+    }
+
+    closeChangelog() {
+        const modal = document.getElementById('changelogModal');
+        if (modal) modal.style.display = 'none';
     }
 }
 

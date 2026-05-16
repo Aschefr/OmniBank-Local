@@ -101,6 +101,70 @@ def get_version():
         return {"version": "?"}
 
 
+# In-memory changelog cache to avoid repeated GitHub API calls
+_changelog_cache = {}
+
+@app.get("/api/changelog")
+def get_changelog(version: str = None):
+    """Fetch release notes from GitHub, with local fallback."""
+    import json
+    import urllib.request
+    import urllib.error
+
+    # Determine version
+    if not version:
+        try:
+            pkg_path = resource_path("package.json")
+            if not os.path.exists(pkg_path):
+                pkg_path = os.path.join(os.path.abspath('.'), "package.json")
+            with open(pkg_path, "r", encoding="utf-8") as f:
+                version = json.load(f).get("version", "?")
+        except Exception:
+            version = "?"
+
+    # Check cache
+    if version in _changelog_cache:
+        return _changelog_cache[version]
+
+    # Try GitHub API
+    tag = f"v{version}" if not version.startswith("v") else version
+    gh_url = f"https://api.github.com/repos/Aschefr/OmniBank-Local/releases/tags/{tag}"
+    try:
+        req = urllib.request.Request(gh_url, headers={"Accept": "application/vnd.github.v3+json", "User-Agent": "OmniBank"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        result = {
+            "version": version,
+            "notes": data.get("body", ""),
+            "pub_date": data.get("published_at", ""),
+            "name": data.get("name", f"OmniBank v{version}")
+        }
+        _changelog_cache[version] = result
+        return result
+    except Exception as e:
+        logger.warning(f"[changelog] GitHub API failed: {e}, using local fallback")
+
+    # Fallback: latest.json
+    try:
+        latest_path = resource_path("latest.json")
+        if not os.path.exists(latest_path):
+            latest_path = os.path.join(os.path.abspath('.'), "latest.json")
+        with open(latest_path, "r", encoding="utf-8") as f:
+            latest = json.load(f)
+        result = {
+            "version": latest.get("version", version),
+            "notes": latest.get("notes", ""),
+            "pub_date": latest.get("pub_date", ""),
+            "name": f"OmniBank v{latest.get('version', version)}"
+        }
+        _changelog_cache[version] = result
+        return result
+    except Exception:
+        pass
+
+    return {"version": version, "notes": "", "pub_date": "", "name": f"OmniBank v{version}"}
+
+
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
     file_location = os.path.join(uploads_dir, file.filename)

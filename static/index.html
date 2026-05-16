@@ -37,7 +37,7 @@
         <header class="app-header">
             <div style="display:flex; align-items:center; gap: 10px;">
                 <button id="mobileMenuBtn" class="mobile-only-btn" style="display:none; font-size: 20px; background: none; border: none; color: var(--text-main); cursor: pointer;">☰</button>
-                <div class="logo">🏦 <span data-i18n="app_title">OmniBank</span> <span id="appVersionBadge" style="font-size: 10px; background: var(--bg-base); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 600; color: var(--text-muted); vertical-align: middle; letter-spacing: 0.3px;">v…</span></div>
+                <div class="logo">🏦 <span data-i18n="app_title">OmniBank</span> <span id="appVersionBadge" onclick="window.app.showChangelog()" style="font-size: 10px; background: var(--bg-base); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 600; color: var(--text-muted); vertical-align: middle; letter-spacing: 0.3px; cursor: pointer; transition: background 0.2s, border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.borderColor='var(--border-color)';this.style.background='var(--bg-base)'">v…</span></div>
             </div>
             <nav class="main-nav">
                 <button data-view="dashboard" class="nav-btn active">🏠 <span data-i18n="nav_dashboard">Dashboard</span></button>
@@ -586,6 +586,33 @@
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                 <button class="btn btn-secondary" onclick="window.LicenseManager.close()" data-i18n="btn_cancel">Annuler</button>
                 <button class="btn btn-primary" id="licenseActivateBtn" onclick="window.LicenseManager.activate()" data-i18n="license_btn_activate">Activer la licence</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Changelog Modal -->
+    <div id="changelogModal" class="modal-overlay" style="display: none; z-index: 10002;">
+        <div class="modal" style="max-width: 600px; max-height: 80vh; border-radius: 16px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6); padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+            <!-- Header -->
+            <div style="padding: 24px 28px 16px; border-bottom: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 20px;">🎉</div>
+                        <div>
+                            <h3 id="changelogTitle" style="margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.3px;" data-i18n="changelog_title">Nouveautés</h3>
+                            <span id="changelogVersion" style="font-size: 12px; color: var(--text-muted);"></span>
+                        </div>
+                    </div>
+                    <button onclick="window.app.closeChangelog()" style="background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 8px; transition: background 0.2s;" onmouseover="this.style.background='var(--bg-base)'" onmouseout="this.style.background='none'">✕</button>
+                </div>
+            </div>
+            <!-- Body -->
+            <div id="changelogBody" style="padding: 24px 28px; overflow-y: auto; flex: 1; font-size: 14px; line-height: 1.7; color: var(--text-color);">
+                <p style="color: var(--text-muted);" data-i18n="changelog_no_notes">Aucune note de version disponible.</p>
+            </div>
+            <!-- Footer -->
+            <div style="padding: 14px 28px; border-top: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0; display: flex; justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="window.app.closeChangelog()" style="border-radius: 8px; padding: 8px 24px; font-weight: 600; font-size: 13px;" data-i18n="changelog_close">Fermer</button>
             </div>
         </div>
     </div>
