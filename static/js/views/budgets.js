@@ -163,6 +163,8 @@ window.BudgetsView = {
         this.statusByType = { monthly: null, yearly: null, indefinite: null, custom: null };
 
         await Promise.all([this.loadBudgets(), this.loadAccounts(), this.loadCategories(), this.loadAllStatuses(), this.checkAI()]);
+        // Re-render after all data is loaded to ensure this.accounts is available for colored badges
+        this.renderStatus();
     },
 
     // ── Per-type navigation ────────────────────────────────────────────
@@ -261,11 +263,14 @@ window.BudgetsView = {
 
         container.innerHTML = this.accounts.filter(a => !a.is_closed).map(a => {
             const isSelected = selected.includes(a.id);
+            const accColor = a.color || 'var(--accent)';
+            const borderColor = isSelected ? accColor : 'var(--border-color)';
             return `
-                <label style="display:flex;align-items:center;gap:6px;font-size:11px;background:var(--bg-surface);padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};transition:all 0.2s;">
-                    <input type="checkbox" name="budgetAccount" value="${a.id}" ${isSelected ? 'checked' : ''} onchange="window.BudgetsView.onAccountChange(this)">
+                <label style="display:flex;align-items:center;gap:6px;font-size:11px;background:var(--bg-surface);padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid ${borderColor};transition:all 0.2s;">
+                    <input type="checkbox" name="budgetAccount" value="${a.id}" data-color="${accColor}" ${isSelected ? 'checked' : ''} onchange="window.BudgetsView.onAccountChange(this)">
+                    <span style="width:10px;height:10px;border-radius:50%;background:${accColor};flex-shrink:0;"></span>
                     <div style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
-                        <span style="font-weight:${isSelected ? '600' : 'normal'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${a.name}">${a.name}</span>
+                        <span style="font-weight:${isSelected ? '600' : 'normal'};color:${isSelected ? accColor : 'inherit'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${a.name}">${a.name}</span>
                     </div>
                 </label>
             `;
@@ -278,7 +283,14 @@ window.BudgetsView = {
 
     async onAccountChange(el) {
         if (el) {
-            el.parentElement.style.borderColor = el.checked ? 'var(--accent)' : 'var(--border-color)';
+            const accColor = el.dataset.color || 'var(--accent)';
+            el.parentElement.style.borderColor = el.checked ? accColor : 'var(--border-color)';
+            // Update label text color
+            const nameSpan = el.parentElement.querySelector('div > span');
+            if (nameSpan) {
+                nameSpan.style.fontWeight = el.checked ? '600' : 'normal';
+                nameSpan.style.color = el.checked ? accColor : 'inherit';
+            }
         }
         // Refresh categories based on account selection
         await this.loadCategories();
@@ -619,7 +631,7 @@ window.BudgetsView = {
                     const acc = this.accounts?.find(a => a.id === aid);
                     if (!acc) return '';
                     const color = acc.color || 'var(--accent)';
-                    return `<span style="background:${color}1a; color:${color}; border:1px solid ${color}33; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:600;">${acc.name}</span>`;
+                    return `<span style="background:${color}1a; color:${color}; border:1px solid ${color}33; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:600;">● ${acc.name}</span>`;
                 }).join(' ');
             }
 
@@ -695,18 +707,24 @@ window.BudgetsView = {
                         subTitle = `${window.i18n.t('budget_summary_global')} — ${group.title}`;
                         accentColor = null;
                     } else {
-                        // Use account_names from API if available, fallback to client lookup
-                        const firstBudget = budgets[0];
-                        if (firstBudget?.account_names?.length > 0) {
-                            subTitle = firstBudget.account_names.join(' + ');
+                        // Build colorized account name badges
+                        const accIds = key.split(',').map(id => parseInt(id));
+                        const accObjs = accIds.map(id => this.accounts?.find(a => a.id === id)).filter(Boolean);
+                        if (accObjs.length > 0) {
+                            subTitle = accObjs.map(a => {
+                                const c = a.color || 'var(--accent)';
+                                return `<span style="color:${c};font-weight:600;">● ${a.name}</span>`;
+                            }).join(' <span style="color:var(--text-muted);">+</span> ');
                         } else {
-                            const accNames = key.split(',').map(id => {
-                                const acc = this.accounts?.find(a => a.id === parseInt(id));
-                                return acc ? acc.name : `#${id}`;
-                            });
-                            subTitle = accNames.join(' + ');
+                            // Fallback: use account_names from API
+                            const firstBudget = budgets[0];
+                            if (firstBudget?.account_names?.length > 0) {
+                                subTitle = firstBudget.account_names.join(' + ');
+                            } else {
+                                subTitle = accIds.map(id => `#${id}`).join(' + ');
+                            }
                         }
-                        const firstAcc = this.accounts?.find(a => a.id === parseInt(key.split(',')[0]));
+                        const firstAcc = accObjs[0];
                         accentColor = firstAcc?.color || 'var(--accent)';
                     }
 

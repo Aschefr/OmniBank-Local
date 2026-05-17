@@ -50,6 +50,7 @@ from app.routers import (
     ai_helpers,
     budgets,
     backup,
+    auto_backup,
     setup,
     maintenance,
     org_users,
@@ -65,6 +66,7 @@ app.include_router(accounts.router)
 app.include_router(config.router)
 app.include_router(chat.router)
 app.include_router(backup.router)
+app.include_router(auto_backup.router)
 app.include_router(csv_manager.router)
 app.include_router(ai_helpers.router)
 app.include_router(budgets.router)
@@ -73,6 +75,13 @@ app.include_router(maintenance.router)
 app.include_router(org_users.router)
 app.include_router(license.router)
 app.include_router(shared_mode.router)
+
+
+@app.on_event("startup")
+async def startup_auto_backup():
+    """Lance le scheduler de backup automatique en arrière-plan."""
+    from app.routers.auto_backup import start_scheduler
+    start_scheduler()
 
 
 @app.get("/")

@@ -461,18 +461,30 @@ class App {
                     const subKeys = Object.keys(accountSubs);
                     const hasAccountScope = subKeys.some(k => k !== '__global__');
 
-                    if (hasAccountScope && subKeys.length > 1) {
-                        // Period header (no bar, just label)
-                        barsHtml += `<div style="margin-bottom:2px;">
-                            <span class="stat-label" style="color:var(--text-muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.03em;">${periodLabels[period] || period}</span>
-                        </div>`;
+                    if (hasAccountScope) {
+                        // Period header (no bar, just label) — only if multiple sub-groups
+                        if (subKeys.length > 1) {
+                            barsHtml += `<div style="margin-bottom:2px;">
+                                <span class="stat-label" style="color:var(--text-muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.03em;">${periodLabels[period] || period}</span>
+                            </div>`;
+                        }
                         // One bar per account sub-group
                         for (const [key, sub] of Object.entries(accountSubs)) {
-                            const subLabel = key === '__global__'
-                                ? (window.i18n.t('budget_account_all') || 'Global')
-                                : (sub.account_names || []).join(' + ');
                             const accent = sub.accent_color || null;
-                            barsHtml += renderBar(subLabel, sub.target, sub.reconciled_expenses, sub.expenses, accent, true);
+                            let subLabel;
+                            if (key === '__global__') {
+                                subLabel = window.i18n.t('budget_account_all') || 'Global';
+                            } else {
+                                // Build colorized account names with dots
+                                const names = sub.account_names || [];
+                                const periodSuffix = subKeys.length <= 1 ? ` <span style="font-size:10px;color:var(--text-muted);font-weight:normal;">(${(periodLabels[period] || period).replace(/🎯\s*/, '')})</span>` : '';
+                                if (accent && names.length > 0) {
+                                    subLabel = names.map(n => `<span style="color:${accent};">● </span>${n}`).join(' + ') + periodSuffix;
+                                } else {
+                                    subLabel = (names.join(' + ') || key) + periodSuffix;
+                                }
+                            }
+                            barsHtml += renderBar(subLabel, sub.target, sub.reconciled_expenses, sub.expenses, accent, subKeys.length > 1);
                         }
                     } else {
                         // Single bar for the whole period (original behavior)

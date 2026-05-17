@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDAvbEJkSDRlWlgyVFowblFxcm8zcldZcHMrTzJFaUVMcTY1T3ZiNWFuc3JSdDBKK0JqdzArQWtQZmp3WWJqVjhkSEdsSHJjMTl6dHFRUkkxNzE1UGd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4OTYxNzk2CWZpbGU6T21uaUJhbmtfMS4wLjI2X3g2NF9mci1GUi5tc2kKOVlMMjFBakoxbXZJVUc1bzNaWjV5T0Z0aUxmM0NjK05sQTlNRW1SbjVOUkkwWFFaRmMrL1hOY3VmRGJTY0FGWWFwajg4Tm1QNktmc2V0bnhCRDY3QlE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.26/OmniBank_1.0.26_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDdoajlPWnBKMEEydUV6MWhPUTZqZWppeXRsNkFFOVNMYmQ4ZDdXK0piNis0OGJzUkt3VEk4QWluN2wwRGtTMUZQdEhYT1RpdVpEaS90U25KV05HZFE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MDM5NzI3CWZpbGU6T21uaUJhbmtfMS4wLjI3X3g2NF9mci1GUi5tc2kKVXBhVEFJRExsQVhnL3Z6bVhkbDVMTSs5RmpoenNEQWlvRHdvSW9xQ1NjcFE1VEZ2N2NNTnVsR1hlSUptQk1KNkpjVWxMeFhrOE5IZ0pjNy91YlUyQkE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.27/OmniBank_1.0.27_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-16T20:03:16Z",
-    "version":  "1.0.26",
-    "notes":  "Periodic budgets: independent date navigation per type (monthly/yearly/indefinite/custom). Budget bars now show raw expenses with income offset. Improved French translations. Changelog popup on version update + clickable version badge."
+    "pub_date":  "2026-05-17T17:42:07Z",
+    "version":  "1.0.27",
+    "notes":  "Colorisation des badges de comptes dans les budgets et la sidebar avec les couleurs personnalisées. Modale d\u0027édition de compte complète (nom, type, solde, couleur). Export PDF avec situation des comptes optionnelle."
 }
