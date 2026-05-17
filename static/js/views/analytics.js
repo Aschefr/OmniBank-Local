@@ -543,6 +543,10 @@ window.AnalyticsView = {
                         ${typesHtml}
                     </div>
                     <div style="margin-bottom: 20px;">
+                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_account_balances') || 'Situation des comptes'}</h4>
+                        <div id="exportBalanceCheckboxes" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:6px;background:rgba(0,0,0,0.02);padding:10px;border-radius:8px;"></div>
+                    </div>
+                    <div style="margin-bottom: 20px;">
                         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:13px;padding:10px;background:rgba(0,0,0,0.02);border-radius:8px;">
                             <input type="checkbox" id="exportIncludeDetails" checked onchange="
                                 document.getElementById('exportColsSection').style.display = this.checked ? 'block' : 'none';
@@ -567,6 +571,27 @@ window.AnalyticsView = {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         this._exportAccountIds = this.selectedAccountIds ? [...this.selectedAccountIds] : null;
         this._renderExportAccountBadges();
+        this._renderExportBalanceCheckboxes();
+    },
+
+    _renderExportBalanceCheckboxes() {
+        const container = document.getElementById('exportBalanceCheckboxes');
+        if (!container) return;
+        const accounts = (window.app.accounts || []).filter(a => !a.is_closed);
+        if (accounts.length === 0) { container.innerHTML = ''; return; }
+
+        container.innerHTML = accounts.map(acc => {
+            const c = acc.color || '#3366ff';
+            return `
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:var(--bg-surface);padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid var(--border-color);transition:all 0.2s;"
+                    onchange="this.style.borderColor = this.querySelector('input').checked ? '${c}' : 'var(--border-color)'; this.querySelector('span:last-child').style.color = this.querySelector('input').checked ? '${c}' : 'inherit'; this.querySelector('span:last-child').style.fontWeight = this.querySelector('input').checked ? '600' : 'normal';">
+                    <input type="checkbox" class="export-balance-cb" value="${acc.id}" checked>
+                    <span style="width:10px;height:10px;border-radius:50%;background:${c};flex-shrink:0;"></span>
+                    <span style="color:${c};font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${acc.name}">${acc.name}</span>
+                    <span class="privacy-blur" style="margin-left:auto;font-size:11px;color:var(--text-muted);white-space:nowrap;">${formatCurrency(acc.balance)}</span>
+                </label>
+            `;
+        }).join('');
     },
 
     _renderExportAccountBadges() {
@@ -767,8 +792,47 @@ window.AnalyticsView = {
             `;
         }
         
+        // Build account balances section for print
+        let balancesHtml = '';
+        const balanceCbs = modal.querySelectorAll('.export-balance-cb:checked');
+        if (balanceCbs.length > 0) {
+            const accounts = (window.app.accounts || []).filter(a => !a.is_closed);
+            const selectedBalanceIds = Array.from(balanceCbs).map(cb => parseInt(cb.value));
+            const balanceAccounts = accounts.filter(a => selectedBalanceIds.includes(a.id));
+            const totalBalance = balanceAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
+            
+            let balanceRows = balanceAccounts.map(a => {
+                const c = a.color || '#3366ff';
+                return `<tr>
+                    <td style="padding:6px 12px;border-bottom:1px solid #eee;"><span style="color:${c};font-weight:600;">● ${a.name}</span></td>
+                    <td style="padding:6px 12px;border-bottom:1px solid #eee;color:var(--text-muted);">${a.type}</td>
+                    <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${formatCurrency(a.balance)}</td>
+                </tr>`;
+            }).join('');
+            
+            balancesHtml = `
+            <div style="margin-bottom:24px;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">
+                <div style="background:rgba(99,102,241,0.08);padding:10px 16px;border-bottom:1px solid var(--border-color);">
+                    <strong style="font-size:14px;">${window.i18n.t('export_balance_title') || 'Situation des comptes'}</strong>
+                    <span style="float:right;font-size:12px;color:var(--text-muted);">${new Date().toLocaleDateString(window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR', {day:'numeric', month:'long', year:'numeric'})}</span>
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead><tr style="background:rgba(0,0,0,0.03);">
+                        <th style="text-align:left;padding:6px 12px;border-bottom:1px solid var(--border-color);">${window.i18n.t('acc_th_name')}</th>
+                        <th style="text-align:left;padding:6px 12px;border-bottom:1px solid var(--border-color);">${window.i18n.t('acc_th_type')}</th>
+                        <th style="text-align:right;padding:6px 12px;border-bottom:1px solid var(--border-color);">${window.i18n.t('export_balance_current') || 'Solde actuel'}</th>
+                    </tr></thead>
+                    <tbody>${balanceRows}</tbody>
+                    <tfoot><tr style="font-weight:700;background:rgba(0,0,0,0.03);">
+                        <td colspan="2" style="padding:8px 12px;border-top:2px solid var(--border-color);">Total</td>
+                        <td style="text-align:right;padding:8px 12px;border-top:2px solid var(--border-color);">${formatCurrency(totalBalance)}</td>
+                    </tr></tfoot>
+                </table>
+            </div>`;
+        }
+        
         const titleHtml = `<h2 style="margin-bottom: 20px;">${window.i18n.t('analytics_title')}</h2>`;
-        printContainer.innerHTML = titleHtml + sections.join('') + txHtml;
+        printContainer.innerHTML = titleHtml + balancesHtml + sections.join('') + txHtml;
         
         // Handle Types
         printContainer.querySelectorAll('[data-type]').forEach(el => {

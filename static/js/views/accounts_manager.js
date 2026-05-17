@@ -287,21 +287,97 @@ window.AccountsView = {
     async edit(id) {
         const acc = this.accounts.find(a => a.id === id);
         if (!acc) return;
-        
-        const newBalanceStr = await showInlinePrompt(window.i18n.tp('prompt_new_balance', {name: acc.name}), acc.initial_balance);
-        if (newBalanceStr === null || newBalanceStr.trim() === '') return;
-        
-        const newBalance = parseFloat(newBalanceStr.replace(',', '.'));
-        if (isNaN(newBalance)) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
-        
+        this._showEditModal(acc);
+    },
+
+    _showEditModal(acc) {
+        // Remove any existing edit modal
+        const existing = document.getElementById('accEditModal');
+        if (existing) existing.remove();
+
+        const knownTypes = ['Compte courant', 'Livret', 'PEA', 'Assurance Vie', 'PER'];
+        const isCustomType = !knownTypes.includes(acc.type);
+        const currentColor = acc.color || ACCOUNT_COLORS[0];
+
+        const typeOptions = [
+            { value: 'Compte courant', label: window.i18n.t('wizard_type_checking') },
+            { value: 'Livret', label: window.i18n.t('wizard_type_savings') },
+            { value: 'PEA', label: window.i18n.t('wizard_type_pea') },
+            { value: 'Assurance Vie', label: window.i18n.t('wizard_type_life_ins') },
+            { value: 'PER', label: window.i18n.t('wizard_type_per') },
+            { value: '__other__', label: window.i18n.t('wizard_type_other') }
+        ].map(o => `<option value="${o.value}" ${(isCustomType ? o.value === '__other__' : acc.type === o.value) ? 'selected' : ''}>${o.label}</option>`).join('');
+
+        const modalHtml = `
+        <div id="accEditModal" class="modal-overlay" style="display:flex;z-index:9999;">
+            <div class="modal" style="width:480px; max-width:90vw;">
+                <h3 style="margin-bottom:20px;">${window.i18n.t('acc_edit_title') || 'Modifier le compte'}</h3>
+                <div style="display:flex;flex-direction:column;gap:16px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_name')}</label>
+                        <input type="text" id="accEditName" class="inline-input" value="${acc.name.replace(/"/g, '&quot;')}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_type')}</label>
+                        <select id="accEditType" class="inline-input" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;" onchange="
+                            const custom = document.getElementById('accEditTypeCustom');
+                            if (this.value === '__other__') { custom.style.display='block'; custom.focus(); } else { custom.style.display='none'; custom.value=''; }
+                        ">${typeOptions}</select>
+                        <input type="text" id="accEditTypeCustom" class="inline-input" value="${isCustomType ? acc.type : ''}" placeholder="${window.i18n.t('acc_ph_type')}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;margin-top:6px;display:${isCustomType ? 'block' : 'none'};">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_initial_balance')}</label>
+                        <input type="number" id="accEditBalance" class="inline-input" value="${acc.initial_balance}" step="0.01" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_color')}</label>
+                        <div id="accEditColorPicker" class="acc-color-picker" style="margin-top:4px;">
+                            ${this._renderColorDots('accEditColor', currentColor)}
+                        </div>
+                        <input type="hidden" id="accEditColor" value="${currentColor}">
+                    </div>
+                </div>
+                <div class="modal-actions" style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;gap:10px;">
+                    <button class="btn btn-secondary" onclick="window.AccountsView._closeEditModal()">${window.i18n.t('btn_cancel')}</button>
+                    <button class="btn btn-primary" onclick="window.AccountsView._saveEdit(${acc.id})">${window.i18n.t('btn_confirm')}</button>
+                </div>
+            </div>
+        </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    _closeEditModal() {
+        const modal = document.getElementById('accEditModal');
+        if (modal) modal.remove();
+    },
+
+    async _saveEdit(id) {
+        const acc = this.accounts.find(a => a.id === id);
+        if (!acc) return;
+
+        const name = document.getElementById('accEditName').value.trim();
+        if (!name) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_name_required'));
+
+        const typeSelect = document.getElementById('accEditType').value;
+        const typeCustom = document.getElementById('accEditTypeCustom').value.trim();
+        const type = typeSelect === '__other__' ? (typeCustom || window.i18n.t('default_account_type')) : typeSelect;
+
+        const balanceStr = document.getElementById('accEditBalance').value;
+        const balance = parseFloat(balanceStr.replace(',', '.'));
+        if (isNaN(balance)) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
+
+        const color = document.getElementById('accEditColor').value || ACCOUNT_COLORS[0];
+
         try {
             await API.put(`/api/accounts/${id}`, {
-                name: acc.name,
-                type: acc.type,
-                initial_balance: newBalance,
+                name: name,
+                type: type,
+                initial_balance: balance,
                 is_closed: acc.is_closed,
-                color: acc.color
+                color: color
             });
+            this._closeEditModal();
             await this.loadData();
             window.app.refreshSidebar();
         } catch (e) {

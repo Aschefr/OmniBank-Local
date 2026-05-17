@@ -185,6 +185,50 @@ window.ConfigView = {
                     </button>
                 </div>
             </div>
+
+            <!-- Improvement 05: Auto Backup -->
+            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
+                    <h3 style="display:flex; align-items:center; gap:8px; margin:0;" data-i18n="config_auto_backup_title">${window.i18n.t('config_auto_backup_title')}</h3>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                        <div style="position: relative; width: 40px; height: 24px;">
+                            <input type="checkbox" id="conf_auto_backup_enabled" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
+                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                            <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                        </div>
+                        <span data-i18n="config_auto_backup_enable">${window.i18n.t('config_auto_backup_enable')}</span>
+                    </label>
+                </div>
+                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_auto_backup_desc">${window.i18n.t('config_auto_backup_desc')}</p>
+
+                <div id="autoBackupSettings">
+                    <div class="flex-row-mobile-col" style="display: flex; gap: 15px; margin-bottom: 15px; align-items: flex-end; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 150px;">
+                            <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_auto_backup_frequency">${window.i18n.t('config_auto_backup_frequency')}</label>
+                            <select id="conf_auto_backup_frequency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
+                                <option value="daily" data-i18n="config_auto_backup_freq_daily">${window.i18n.t('config_auto_backup_freq_daily')}</option>
+                                <option value="weekly" data-i18n="config_auto_backup_freq_weekly">${window.i18n.t('config_auto_backup_freq_weekly')}</option>
+                                <option value="monthly" data-i18n="config_auto_backup_freq_monthly">${window.i18n.t('config_auto_backup_freq_monthly')}</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1; min-width: 150px;">
+                            <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_auto_backup_max_count">${window.i18n.t('config_auto_backup_max_count')}</label>
+                            <select id="conf_auto_backup_max_count" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
+                                <option value="3">3</option>
+                                <option value="5" selected>5</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary" id="btnTriggerAutoBackup" onclick="window.ConfigView.triggerAutoBackup()" style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                                ▶️ <span data-i18n="config_auto_backup_trigger">${window.i18n.t('config_auto_backup_trigger')}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="autoBackupStatusPanel"></div>
+                </div>
+            </div>
         `;
     },
 
@@ -227,6 +271,22 @@ window.ConfigView = {
             this._refreshLicenseStatus();
             // Improvement 03: Show shared mode status
             this._refreshSharedModePanel();
+            // Improvement 05: Auto backup status
+            const autoBackupToggle = document.getElementById('conf_auto_backup_enabled');
+            if (autoBackupToggle) {
+                // Default to true if key not set
+                const isEnabled = (this.configData.auto_backup_enabled || 'true') === 'true';
+                autoBackupToggle.checked = isEnabled;
+            }
+            const freqSel = document.getElementById('conf_auto_backup_frequency');
+            if (freqSel && this.configData.auto_backup_frequency) {
+                freqSel.value = this.configData.auto_backup_frequency;
+            }
+            const maxSel = document.getElementById('conf_auto_backup_max_count');
+            if (maxSel && this.configData.auto_backup_max_count) {
+                maxSel.value = this.configData.auto_backup_max_count;
+            }
+            this._refreshAutoBackupStatus();
         } catch (e) {
             console.error("Failed to load config", e);
         }
@@ -293,7 +353,10 @@ window.ConfigView = {
                 enable_bimonthly: document.getElementById('conf_enable_bimonthly').checked ? 'true' : 'false',
                 enable_attachments: document.getElementById('conf_enable_attachments').checked ? 'true' : 'false',
                 enable_check_slips: document.getElementById('conf_enable_check_slips').checked ? 'true' : 'false',
-                enable_org_mode: document.getElementById('conf_enable_org_mode').checked ? 'true' : 'false'
+                enable_org_mode: document.getElementById('conf_enable_org_mode').checked ? 'true' : 'false',
+                auto_backup_enabled: document.getElementById('conf_auto_backup_enabled').checked ? 'true' : 'false',
+                auto_backup_frequency: document.getElementById('conf_auto_backup_frequency').value,
+                auto_backup_max_count: document.getElementById('conf_auto_backup_max_count').value
             };
             
             // Sync to window.app.config immediately
@@ -987,6 +1050,130 @@ window.ConfigView = {
             }
         } catch (e) {
             showToast(e.message || 'Error', 'error');
+        }
+    },
+
+    // ── Improvement 05: Auto Backup ─────────────────────────────────
+    async _refreshAutoBackupStatus() {
+        const panel = document.getElementById('autoBackupStatusPanel');
+        if (!panel) return;
+
+        try {
+            const data = await API.get('/api/backup/auto/status');
+            const status = data.status;
+            const files = data.files || [];
+            const dir = data.backups_dir || '';
+
+            if (!status && files.length === 0) {
+                panel.innerHTML = `<p style="color: var(--text-muted); font-size: 12px; font-style: italic;" data-i18n="config_auto_backup_none_yet">${window.i18n.t('config_auto_backup_none_yet')}</p>`;
+                return;
+            }
+
+            let html = '';
+
+            // Last backup status
+            if (status) {
+                const dateStr = status.last_date ? new Date(status.last_date).toLocaleString() : '-';
+                const sizeStr = status.last_size_bytes ? (status.last_size_bytes / 1024 / 1024).toFixed(2) + ' MB' : '-';
+                const statusIcon = status.success ? '✅' : '❌';
+                const statusLabel = status.success
+                    ? window.i18n.t('config_auto_backup_success')
+                    : (window.i18n.t('config_auto_backup_failed') + (status.error ? ': ' + status.error : ''));
+
+                html += `
+                <div style="background: var(--bg-main); border-radius: 8px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 12px;">
+                        <div>📅 <strong>${window.i18n.t('config_auto_backup_last')} :</strong> ${dateStr} — ${sizeStr}</div>
+                        <div>${statusIcon} ${statusLabel}</div>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                        📂 <strong>${window.i18n.t('config_auto_backup_path')} :</strong>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+                        <input type="text" readonly value="${dir}" id="autoBackupPathInput" style="flex: 1; font-size: 11px; font-family: monospace; padding: 4px 8px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-main); cursor: text; min-width: 0;" onclick="this.select()">
+                        <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 10px; white-space: nowrap;" onclick="navigator.clipboard.writeText(document.getElementById('autoBackupPathInput').value).then(()=>showToast(window.i18n.t('config_auto_backup_copied'),'success',2000))" title="${window.i18n.t('config_auto_backup_copy_path')}">📋 ${window.i18n.t('config_auto_backup_copy_path')}</button>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 5px; font-style: italic;">
+                        🔒 ${window.i18n.t('config_auto_backup_path_hint')}
+                    </div>
+                </div>`;
+            }
+
+            // List available backups
+            if (files.length > 0) {
+                html += `<div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;" data-i18n="config_auto_backup_available">${window.i18n.t('config_auto_backup_available')}</div>`;
+                html += '<div style="display: flex; flex-direction: column; gap: 4px;">';
+                for (const f of files) {
+                    const fDate = new Date(f.created).toLocaleString();
+                    const fSize = (f.size_bytes / 1024 / 1024).toFixed(2) + ' MB';
+                    html += `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--bg-main); border-radius: 6px; border: 1px solid var(--border-color); font-size: 12px;">
+                        <span>📦 ${f.filename} <span style="color: var(--text-muted);">(${fDate} — ${fSize})</span></span>
+                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="window.ConfigView.downloadAutoBackup('${f.filename}')">💾</button>
+                    </div>`;
+                }
+                html += '</div>';
+            }
+
+            panel.innerHTML = html;
+        } catch (e) {
+            console.error('[AutoBackup] Erreur chargement statut', e);
+            panel.innerHTML = '';
+        }
+    },
+
+    async triggerAutoBackup() {
+        const btn = document.getElementById('btnTriggerAutoBackup');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ ' + window.i18n.t('config_auto_backup_triggered'); }
+
+        try {
+            const res = await fetch('/api/backup/auto/trigger', { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || `HTTP ${res.status}`);
+            }
+            showToast(window.i18n.t('config_auto_backup_trigger_ok'), 'success', 3000);
+            await this._refreshAutoBackupStatus();
+        } catch (e) {
+            console.error('[AutoBackup] Trigger failed', e);
+            showToast(window.i18n.t('config_auto_backup_trigger_fail').replace('{error}', e.message), 'error', 4000);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '▶️ <span data-i18n="config_auto_backup_trigger">' + window.i18n.t('config_auto_backup_trigger') + '</span>';
+            }
+        }
+    },
+
+    async downloadAutoBackup(filename) {
+        try {
+            const downloadUrl = `${window.location.origin}/api/backup/auto/download/${encodeURIComponent(filename)}`;
+
+            // Tauri workaround: blob downloads don't work in WebView
+            if (window.__TAURI_INTERNALS__) {
+                showToast(window.i18n.t('msg_backup_browser') || 'Download opening in your browser...', 'info', 4000);
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: downloadUrl });
+                return;
+            }
+
+            // Regular browser download
+            const resp = await fetch(`/api/backup/auto/download/${encodeURIComponent(filename)}`);
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.detail || `HTTP ${resp.status}`);
+            }
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error('[AutoBackup] Download failed', e);
+            showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_error_generic', {error: e.message || e}));
         }
     }
 };
