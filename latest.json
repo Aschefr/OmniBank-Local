@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDdoajlPWnBKMEEydUV6MWhPUTZqZWppeXRsNkFFOVNMYmQ4ZDdXK0piNis0OGJzUkt3VEk4QWluN2wwRGtTMUZQdEhYT1RpdVpEaS90U25KV05HZFE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MDM5NzI3CWZpbGU6T21uaUJhbmtfMS4wLjI3X3g2NF9mci1GUi5tc2kKVXBhVEFJRExsQVhnL3Z6bVhkbDVMTSs5RmpoenNEQWlvRHdvSW9xQ1NjcFE1VEZ2N2NNTnVsR1hlSUptQk1KNkpjVWxMeFhrOE5IZ0pjNy91YlUyQkE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.27/OmniBank_1.0.27_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDZnNkl4ZlFZTWlLbm04WWVFeWVDNnJkYnZPSnJ0VG5PVXRLVCtTbmhURWFSSjR1SE9oRnNSTkxOcndUS1V4blJuc28vSmdXcFF4bGxlR203SVQwOXdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NTYyNjEzCWZpbGU6T21uaUJhbmtfMS4wLjI4X3g2NF9mci1GUi5tc2kKZmE2UDRscTFsa3NOVEtZaVpUbm9ESjVwL0xRRWNOVXM0NjVjZzZxZFljaWc2V2xUK1Vna0JJVHNUTmFzcys2cnFsUjgwY3BhOGJWMG5UbVBEcVlhRFE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.28/OmniBank_1.0.28_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-17T17:42:07Z",
-    "version":  "1.0.27",
-    "notes":  "Colorisation des badges de comptes dans les budgets et la sidebar avec les couleurs personnalisées. Modale d\u0027édition de compte complète (nom, type, solde, couleur). Export PDF avec situation des comptes optionnelle."
+    "pub_date":  "2026-05-23T18:56:54Z",
+    "version":  "1.0.28",
+    "notes":  "Ajout d\u0027un ecran de chargement au demarrage pour masquer le demarrage de l\u0027API et eviter l\u0027erreur 127.0.0.1 unreachable."
 }
