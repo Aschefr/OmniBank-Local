@@ -122,6 +122,7 @@ fn main() {
                 eprintln!("Warning: sidecar health check timed out after 15s");
                 // Show window anyway so the user can see an error
                 if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.navigate("http://127.0.0.1:8434".parse().unwrap());
                     let _ = window.show();
                 }
             });
