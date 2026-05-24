@@ -8,13 +8,17 @@ import calendar
 
 from app.database import get_db
 from app.models import RecurrenceTemplate, Transaction
-from app.schemas.api_schemas import RecurrenceTemplateCreate, RecurrenceTemplateOut, PropagateRequest
+from app.schemas.api_schemas import RecurrenceTemplateCreate, RecurrenceTemplateOut, PropagateRequest, WizardGenerateRequest
 
 router = APIRouter(prefix="/api/recurrences", tags=["recurrences"])
 
 @router.get("/", response_model=List[RecurrenceTemplateOut])
-def get_templates(db: Session = Depends(get_db)):
-    return db.query(RecurrenceTemplate).all()
+def get_templates(include_closed: bool = False, db: Session = Depends(get_db)):
+    if include_closed:
+        return db.query(RecurrenceTemplate).all()
+    return db.query(RecurrenceTemplate).filter(
+        (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed == None)
+    ).all()
 
 @router.post("/", response_model=RecurrenceTemplateOut)
 def create_template(tpl: RecurrenceTemplateCreate, db: Session = Depends(get_db)):
@@ -97,7 +101,7 @@ def propagate_recurrence(tpl_id: int, req: PropagateRequest, db: Session = Depen
         current_date += relativedelta(months=1)
     elif tpl.frequency == "Yearly":
         current_date += relativedelta(years=1)
-    elif tpl.frequency == "Bi-Weekly":
+    elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
         current_date += relativedelta(weeks=2)
 
     existing_count = 0
@@ -140,7 +144,7 @@ def propagate_recurrence(tpl_id: int, req: PropagateRequest, db: Session = Depen
             current_date += relativedelta(months=1)
         elif tpl.frequency == "Yearly":
             current_date += relativedelta(years=1)
-        elif tpl.frequency == "Bi-Weekly":
+        elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
             current_date += relativedelta(weeks=2)
         else:
             break
@@ -160,7 +164,7 @@ def generate_recurrences(db: Session = Depends(get_db)):
     for tpl in templates:
         current_date = date(today.year, today.month, tpl.day_of_month or 1)
         if current_date < today:
-            if tpl.frequency == "Bi-Weekly":
+            if tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
                 while current_date < today:
                     current_date += relativedelta(weeks=2)
             elif tpl.frequency == "Yearly":
@@ -210,10 +214,104 @@ def generate_recurrences(db: Session = Depends(get_db)):
                 current_date += relativedelta(months=1)
             elif tpl.frequency == "Yearly":
                 current_date += relativedelta(years=1)
-            elif tpl.frequency == "Bi-Weekly":
+            elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
                 current_date += relativedelta(weeks=2)
             else:
                 break # safeguard
                 
     db.commit()
     return {"generated_instances": generated_count}
+
+@router.post("/wizard_generate")
+def wizard_generate(req: WizardGenerateRequest, db: Session = Depends(get_db)):
+    """Apply wizard updates, add new templates, and generate for the target year."""
+    # 1. Update existing templates
+    for update in req.updates:
+        tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == update.id).first()
+        if tpl:
+            if not update.renew:
+                tpl.is_closed = True
+            else:
+                if update.amount is not None:
+                    tpl.amount = update.amount
+                if update.day_of_month is not None:
+                    tpl.day_of_month = update.day_of_month
+                if update.category is not None:
+                    tpl.category = update.category
+                if update.frequency is not None:
+                    tpl.frequency = update.frequency
+
+    # 2. Add new templates
+    for new_tpl in req.new_templates:
+        db_tpl = RecurrenceTemplate(**new_tpl.dict())
+        db.add(db_tpl)
+        
+    db.commit()
+
+    # 3. Generate instances for target year
+    generated_count = 0
+    if req.generate_instances:
+        templates = db.query(RecurrenceTemplate).filter(
+            (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed == None)
+        ).all()
+        
+        today = date.today()
+        start_of_year = date(req.target_year, 1, 1)
+        end_of_year = date(req.target_year, 12, 31)
+        
+        for tpl in templates:
+            # Start date for generating
+            current_date = date(req.target_year, 1, tpl.day_of_month or 1)
+            
+            # Adjust if frequency is Yearly and month is specified
+            if tpl.frequency == "Yearly":
+                current_date = date(req.target_year, tpl.month_of_year or 1, tpl.day_of_month or 1)
+                
+            existing_count = 0
+            if tpl.max_occurrences:
+                existing_count = db.query(Transaction).filter(
+                    Transaction.recurrence_id == tpl.id
+                ).count()
+            tpl_generated = 0
+                
+            while True:
+                if tpl.max_occurrences and (existing_count + tpl_generated) >= tpl.max_occurrences:
+                    break
+                if not tpl.max_occurrences and current_date > end_of_year:
+                    break
+                    
+                exists = db.query(Transaction).filter(
+                    Transaction.description == tpl.description,
+                    Transaction.date_operation == current_date
+                ).first()
+                
+                if not exists and current_date >= start_of_year:
+                    new_tx = Transaction(
+                        date_saisie=today,
+                        date_operation=current_date,
+                        description=tpl.description,
+                        amount=tpl.amount,
+                        type=tpl.type,
+                        category=tpl.category,
+                        is_monthly=(tpl.frequency == "Monthly"),
+                        is_yearly=(tpl.frequency == "Yearly"),
+                        from_account_id=tpl.from_account_id,
+                        to_account_id=tpl.to_account_id,
+                        recurrence_id=tpl.id
+                    )
+                    db.add(new_tx)
+                    generated_count += 1
+                    tpl_generated += 1
+                    
+                if tpl.frequency == "Monthly":
+                    current_date += relativedelta(months=1)
+                elif tpl.frequency == "Yearly":
+                    current_date += relativedelta(years=1)
+                elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
+                    current_date += relativedelta(weeks=2)
+                else:
+                    break
+                    
+    db.commit()
+    return {"generated_instances": generated_count}
+

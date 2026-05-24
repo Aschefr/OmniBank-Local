@@ -33,6 +33,11 @@ def init_db():
             pass
 
         try:
+            conn.execute(text("ALTER TABLE recurrence_templates ADD COLUMN is_closed BOOLEAN DEFAULT 0"))
+        except Exception:
+            pass
+
+        try:
             conn.execute(text("ALTER TABLE accounts ADD COLUMN color TEXT"))
         except Exception:
             pass  # Column likely already exists

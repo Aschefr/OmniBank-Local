@@ -75,11 +75,26 @@ class RecurrenceTemplateBase(BaseModel):
     day_of_month: Optional[int] = None
     month_of_year: Optional[int] = None
     max_occurrences: Optional[int] = None
+    is_closed: bool = False
     from_account_id: Optional[int] = None
     to_account_id: Optional[int] = None
 
+class WizardTemplateUpdate(BaseModel):
+    id: int
+    renew: bool
+    amount: Optional[float] = None
+    day_of_month: Optional[int] = None
+    category: Optional[str] = None
+    frequency: Optional[str] = None
+
 class RecurrenceTemplateCreate(RecurrenceTemplateBase):
     pass
+
+class WizardGenerateRequest(BaseModel):
+    target_year: int
+    updates: List[WizardTemplateUpdate]
+    new_templates: List[RecurrenceTemplateCreate]
+    generate_instances: bool = True
 
 class PropagateRequest(BaseModel):
     transaction_id: int
