@@ -85,10 +85,10 @@ class App {
             this.currentUser = savedUser;
         }
         
-        this._initUI();
+        await this._initUI();
     }
 
-    _initUI() {
+    async _initUI() {
         if (this._uiInitialized) return;
         this._uiInitialized = true;
         // Theme toggle
@@ -213,7 +213,7 @@ class App {
         });
 
         // Initial Load
-        this.refreshSidebar();
+        await this.refreshSidebar();
         
         // Restore view from localStorage
         const savedView = localStorage.getItem('omni_current_view') || this.currentView;
@@ -263,10 +263,10 @@ class App {
                     // Fade out overlay
                     overlay.style.transition = 'opacity 0.3s';
                     overlay.style.opacity = '0';
-                    setTimeout(() => {
+                    setTimeout(async () => {
                         overlay.style.display = 'none';
                         overlay.style.opacity = '1';
-                        this._initUI();
+                        await this._initUI();
                         resolve();
                     }, 300);
                 });

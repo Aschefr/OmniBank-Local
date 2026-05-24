@@ -79,7 +79,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         p = b.get("period", "monthly")
         if p not in period_groups:
             period_groups[p] = {"target": 0, "expenses": 0, "reconciled_expenses": 0, "accounts": {}}
-        period_groups[p]["target"] += b["budget_amount"]
+        period_groups[p]["target"] += b["budget_amount"] + b.get("income", 0)
         period_groups[p]["expenses"] += b.get("expenses", 0)
         period_groups[p]["reconciled_expenses"] += b.get("reconciled_expenses", 0)
 
@@ -91,7 +91,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
                 "target": 0, "expenses": 0, "reconciled_expenses": 0,
                 "account_ids": acc_ids
             }
-        period_groups[p]["accounts"][acc_key]["target"] += b["budget_amount"]
+        period_groups[p]["accounts"][acc_key]["target"] += b["budget_amount"] + b.get("income", 0)
         period_groups[p]["accounts"][acc_key]["expenses"] += b.get("expenses", 0)
         period_groups[p]["accounts"][acc_key]["reconciled_expenses"] += b.get("reconciled_expenses", 0)
 
