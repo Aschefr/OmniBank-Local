@@ -78,6 +78,7 @@ class RecurrenceTemplate(Base):
     day_of_month = Column(Integer, nullable=True)
     month_of_year = Column(Integer, nullable=True) # for yearly
     max_occurrences = Column(Integer, nullable=True)
+    is_closed = Column(Boolean, default=False)
     
     from_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     to_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)

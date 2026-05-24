@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDZnNkl4ZlFZTWlLbm04WWVFeWVDNnJkYnZPSnJ0VG5PVXRLVCtTbmhURWFSSjR1SE9oRnNSTkxOcndUS1V4blJuc28vSmdXcFF4bGxlR203SVQwOXdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NTYyNjEzCWZpbGU6T21uaUJhbmtfMS4wLjI4X3g2NF9mci1GUi5tc2kKZmE2UDRscTFsa3NOVEtZaVpUbm9ESjVwL0xRRWNOVXM0NjVjZzZxZFljaWc2V2xUK1Vna0JJVHNUTmFzcys2cnFsUjgwY3BhOGJWMG5UbVBEcVlhRFE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.29/OmniBank_1.0.29_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC9sYjd4VmdVUC9aL3hIRFg5d0p4U1J0MnQ3L3I3LzZMYnFUbHhFOWw1RDVzZE1uSSt0WVZ6QkhCa1RtcXhkZW9pYjlXQU9rL1MwTGhrb0FmS0JtdHcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NjQ0MjIyCWZpbGU6T21uaUJhbmtfMS4wLjMwX3g2NF9mci1GUi5tc2kKbm1KTlVsWkROcCtSQ21RQkZ3TlIvd2ZYcDlSUGtUOHAvSjN1S1NpRHVCWjJzUkFNQ0N3U1ladEsrWXpCWXB3eFlZRkdSM3Z5dHZSbDd5TXhlNWZ0RHc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.30/OmniBank_1.0.30_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-24T08:15:00Z",
-    "version":  "1.0.29",
-    "notes":  "- Correction des barres de budgets de la sidebar pour inclure les recettes.\n- Correction du rafraichissement des operations lors de l'edition d'une enveloppe de budget.\n- Correction de l'affichage des operations futures sur le dashboard (F5)."
+    "pub_date":  "2026-05-24T17:37:02Z",
+    "version":  "1.0.30",
+    "notes":  "Refonte de la page des récurrences en tableau dépliable et ajustements d\u0027animation"
 }
