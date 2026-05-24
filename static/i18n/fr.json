@@ -773,5 +773,18 @@
     "wizard_msg_success": "Modifications enregistrées avec succès.",
     "wizard_opt_new_category": "Nouvelle catégorie...",
     "wizard_prompt_new_category_title": "Nom de la nouvelle catégorie de dépenses fixes :",
-    "msg_no_recurrences_configured_year": "Aucune opération récurrente planifiée pour {year}"
+    "msg_no_recurrences_configured_year": "Aucune opération récurrente planifiée pour {year}",
+    "msg_analyzing_hint": "Le fichier est lu et les colonnes sont détectées automatiquement. Cette opération est rapide.",
+    "msg_ai_analyzing_hint": "Le fichier est envoyé à votre IA locale (Ollama) pour extraction intelligente. Cela peut prendre 10 à 60 secondes selon la taille du fichier et la puissance de votre machine.",
+    "msg_ai_error_title": "Échec de l'analyse IA",
+    "msg_heuristic_error_title": "Échec de l'analyse directe",
+    "msg_unknown_error": "Une erreur inconnue est survenue.",
+    "msg_ai_error_tip": "Vérifiez que votre serveur Ollama est accessible et que le modèle est chargé. Si le fichier est très volumineux, essayez d'augmenter la taille du contexte dans les paramètres Ollama, ou utilisez l'Analyse Directe qui ne nécessite pas d'IA.",
+    "msg_heuristic_error_tip": "Vérifiez que votre fichier est un relevé bancaire valide au format CSV (séparateur point-virgule) ou Excel (.xlsx). Les colonnes Date et Montant doivent être présentes.",
+    "modal_import_title": "Vérification de l’Import",
+    "msg_ai_background": "L’analyse IA continue en arrière-plan. Vous serez notifié lorsqu’elle sera terminée.",
+    "msg_ai_ready": "Analyse IA terminée !",
+    "msg_ai_ready_click": "Cliquez pour voir les résultats",
+    "btn_hide": "Masquer",
+    "ph_search_recurrence": "Filtrer les récurrences..."
 }

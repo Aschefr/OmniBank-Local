@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, date
 from app.models import Transaction
 
 def heuristic_parse(df):
@@ -144,7 +144,8 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None):
             # Only consider already-reconciled transactions as duplicates if they are within 7 days.
             # Otherwise, it's likely a distinct transaction (e.g., same amount next month)
             # and we should treat the incoming transaction as a NEW transaction.
-            diff_days = abs((match.date_operation - tx_date.date()).days)
+            tx_date_native = tx_date.date() if hasattr(tx_date, 'date') and callable(getattr(tx_date, 'date')) and type(tx_date) is not date else tx_date
+            diff_days = abs((match.date_operation - tx_date_native).days)
             if diff_days > 7:
                 return None
 

@@ -9,7 +9,7 @@
 
 # 🇫🇷 Français
 
-[![Version](https://img.shields.io/badge/version-1.0.31-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.32-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,6 +110,14 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **IA** : Ollama (Support Texte & Vision).
 
 ---
+
+## 🆕 Dernières Mises à Jour (v1.0.32)
+
+*   **🤖 Import IA en arrière-plan** : L'analyse IA des relevés bancaires peut désormais s'exécuter en arrière-plan. Si l'analyse dépasse 5 secondes, la modale se masque automatiquement et un toast notifie l'utilisateur une fois terminé. Le bouton d'import affiche une animation pendant l'analyse et pulse en vert quand le résultat est prêt.
+*   **🎨 Polish visuel** : Header sticky corrigé (le tableau ne « glisse » plus sous les filtres), scrollbar fine et discrète sur la zone principale, animation du bouton IA sans changement de largeur.
+*   **📱 Fix mobile** : Virtualisation du tableau désactivée sur mobile (≤768px) pour éliminer les saccades de scroll en mode carte.
+*   **🔍 Filtre Récurrences** : Ajout d'un champ de recherche dans la page des récurrences.
+*   **🌍 Traductions** : Corrections de phrases non traduites en anglais.
 
 ## 🆕 Dernières Mises à Jour (v1.0.31)
 
@@ -240,6 +248,14 @@ Access the interface at `http://localhost:8434`.
 *   **🐛 Fixes**: Backend crash fixes, Windows permission issues, general stability.
 
 ---
+
+## 🆕 Recent Updates (v1.0.32)
+
+*   **🤖 Background AI Import**: Bank statement AI analysis now runs in the background. If analysis takes more than 5 seconds, the modal auto-hides and a toast notification alerts you when results are ready. The import button shows a sweep animation during analysis and pulses green when complete.
+*   **🎨 Visual Polish**: Fixed sticky header (table rows no longer slide under filters), thin discreet scrollbar on main content area, button animation without width change.
+*   **📱 Mobile Fix**: Virtual table scrolling disabled on mobile (≤768px) to eliminate scroll jank in card layout mode.
+*   **🔍 Recurrence Filter**: Added a search field to the recurrences management page.
+*   **🌍 Translations**: Fixed untranslated phrases in English.
 
 ## 🆕 Recent Updates (v1.0.31)
 

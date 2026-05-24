@@ -522,7 +522,8 @@
                     <span style="font-size: 14px;">🧠</span> Catégoriser tout (IA)
                 </button>
                 <div id="importAnalysisButtons" style="display: flex; gap: 10px; margin-left: auto;">
-                    <button class="btn btn-secondary" onclick="document.getElementById('importDataModal').style.display='none'" data-i18n="btn_cancel">Annuler</button>
+                    <button class="btn btn-secondary" id="btnImportCancel" onclick="window.ImportWizard.cancelAI ? window.ImportWizard.cancelAI() : document.getElementById('importDataModal').style.display='none'" data-i18n="btn_cancel">Annuler</button>
+                    <button class="btn btn-secondary" id="btnImportHide" onclick="window.ImportWizard.hideImportModal()" style="display: none;" data-i18n="btn_hide">Masquer</button>
                     <button class="btn btn-secondary" onclick="window.ImportWizard.analyzeAI()" id="btnAnalyzeAI" style="display: none;" data-i18n="btn_analyze_ai">🧠 Analyse IA</button>
                     <button class="btn btn-primary" onclick="window.ImportWizard.analyzeHeuristic()" id="btnAnalyzeDirect" data-i18n="btn_analyze_direct">⚡ Analyse Directe</button>
                 </div>

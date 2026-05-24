@@ -31,6 +31,12 @@ window.VirtualTable = class VirtualTable {
         this._scrollHandler = null;
         this._rafId = null;
         this._pendingScroll = null;
+        this._mobileBreakpoint = 768;
+    }
+
+    /** @returns {boolean} true when viewport is in mobile card-layout mode */
+    _isMobile() {
+        return window.innerWidth <= this._mobileBreakpoint;
     }
 
     /**
@@ -50,6 +56,19 @@ window.VirtualTable = class VirtualTable {
         if (this._rows.length === 0) {
             tbody.innerHTML = this.emptyHTML;
             this._detachScroll();
+            return;
+        }
+
+        // On mobile: render all rows directly, no virtual scrolling
+        if (this._isMobile()) {
+            this._detachScroll();
+            tbody.innerHTML = this._rows.join('');
+            if (opts.scrollToId) {
+                requestAnimationFrame(() => {
+                    const el = document.getElementById(opts.scrollToId);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+            }
             return;
         }
 
@@ -97,6 +116,11 @@ window.VirtualTable = class VirtualTable {
 
     /** Force a re-render at current scroll position (e.g., after column toggle). */
     refresh() {
+        if (this._isMobile()) {
+            const tbody = document.getElementById(this.tbodyId);
+            if (tbody) tbody.innerHTML = this._rows.join('');
+            return;
+        }
         this._lastStart = -1;
         this._lastEnd = -1;
         this._render(true);
@@ -211,3 +235,4 @@ window.VirtualTable = class VirtualTable {
         }
     }
 };
+

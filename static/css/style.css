@@ -207,6 +207,34 @@ body {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+}
+
+.app-sidebar:hover {
+    scrollbar-color: rgba(145, 158, 171, 0.3) transparent;
+}
+
+.app-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.app-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.app-sidebar::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+    transition: background 0.3s;
+}
+
+.app-sidebar:hover::-webkit-scrollbar-thumb {
+    background: rgba(145, 158, 171, 0.3);
+}
+
+.app-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(145, 158, 171, 0.5);
 }
 
 .app-main {
@@ -214,6 +242,25 @@ body {
     min-width: 0; /* critical: allows content to shrink below intrinsic size */
     overflow-y: auto;
     padding: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(145, 158, 171, 0.2) transparent;
+}
+
+.app-main::-webkit-scrollbar {
+    width: 6px;
+}
+
+.app-main::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.app-main::-webkit-scrollbar-thumb {
+    background: rgba(145, 158, 171, 0.2);
+    border-radius: 3px;
+}
+
+.app-main::-webkit-scrollbar-thumb:hover {
+    background: rgba(145, 158, 171, 0.4);
 }
 
 .responsive-header {
@@ -222,6 +269,16 @@ body {
     align-items: center;
     flex-wrap: wrap;
     gap: 15px;
+}
+
+/* Sticky view headers: extend into parent padding to fully cover scrolling content */
+#timelineHeader,
+#historyHeader {
+    margin-left: -20px;
+    margin-right: -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .responsive-header-controls {
@@ -508,6 +565,7 @@ h3 {
 /* Blue line + glow via pseudo-element on the row itself */
 .data-table tr.non-recurrent-row {
     position: relative;
+    z-index: 0;
 }
 
 .data-table tr.non-recurrent-row::after {
@@ -823,6 +881,17 @@ body.privacy-mode #valNextPayAmount:hover {
 
     .app-main {
         padding: 15px !important;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(145, 158, 171, 0.12) transparent;
+    }
+
+    .app-main::-webkit-scrollbar {
+        width: 3px;
+    }
+
+    .app-main::-webkit-scrollbar-thumb {
+        background: rgba(145, 158, 171, 0.15);
+        border-radius: 3px;
     }
 
     .main-nav {
@@ -2708,4 +2777,118 @@ tr.overdraft-flash td {
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 2px;
     padding-bottom: 6px;
+}
+
+/* ── Import Wizard: Loading & Error States ────────────────────────── */
+@keyframes importSpin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes importPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+
+.import-loading-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.import-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(99, 102, 241, 0.15);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: importSpin 0.8s linear infinite;
+}
+
+.import-loading-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+    animation: importPulse 1.8s ease-in-out infinite;
+}
+
+.import-loading-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    max-width: 360px;
+    line-height: 1.5;
+}
+
+.import-error-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+    border-radius: 10px;
+    background: rgba(255, 86, 48, 0.06);
+    border: 1px solid rgba(255, 86, 48, 0.25);
+}
+
+.import-error-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #ff5630;
+}
+
+.import-error-detail {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.import-error-tip {
+    font-size: 12px;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px dashed var(--border-color);
+    line-height: 1.5;
+}
+
+/* AI import button states */
+@keyframes btnAiSweep {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+
+@keyframes btnAiPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+    50% { box-shadow: 0 0 12px 4px rgba(16, 185, 129, 0.35); }
+}
+
+.btn-ai-working {
+    position: relative;
+    pointer-events: auto;
+    opacity: 1 !important;
+    border-color: var(--accent) !important;
+    background-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(99, 102, 241, 0.25) 40%,
+        rgba(99, 102, 241, 0.35) 50%,
+        rgba(99, 102, 241, 0.25) 60%,
+        transparent 100%
+    ) !important;
+    background-size: 200% 100%;
+    animation: btnAiSweep 1.8s ease-in-out infinite;
+}
+
+.btn-ai-ready {
+    background: linear-gradient(135deg, #059669, #10b981) !important;
+    color: white !important;
+    border-color: #10b981 !important;
+    animation: btnAiPulse 1.5s ease-in-out infinite;
+    font-weight: 700;
 }

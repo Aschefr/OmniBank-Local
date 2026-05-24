@@ -22,7 +22,6 @@ def resource_path(relative_path):
 
 # Create tables if they don't exist + run idempotent migrations
 logger.info(f"[Startup] DATA_DIR = {DATA_DIR}")
-init_db()
 
 app = FastAPI(title="OmniBank Local")
 
@@ -78,8 +77,9 @@ app.include_router(shared_mode.router)
 
 
 @app.on_event("startup")
-async def startup_auto_backup():
-    """Lance le scheduler de backup automatique en arrière-plan."""
+async def startup_init():
+    """Initialise la base de données et lance le scheduler de backup automatique."""
+    init_db()
     from app.routers.auto_backup import start_scheduler
     start_scheduler()
 

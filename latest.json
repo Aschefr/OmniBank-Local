@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHphZm9tanYrSkFGT0xVVkVoTXVNcjJXVUh6NGNJU1JQMXRkRzRTQ1VIVzFhQVBSYjR4N2FuNnZTTmlvaHkyNStQOENTcS8yY0lyNHdlZnBiNklTNWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NjQ1MDM2CWZpbGU6T21uaUJhbmtfMS4wLjMxX3g2NF9mci1GUi5tc2kKcUdDcUJDMHZtaFE0bTZrYjBSc1BKc2NyUFBtNDkxWmhwcTRuYTcvUWRNbjg1YUhRVkhBUnNTVVp4NG03bEpZVmh3SGxnQndtQWhtdHhrRVY0OEZ4QUE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.31/OmniBank_1.0.31_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC9ETDFYZGFWbXlMc1RicmJTT2RrQkMzRkNkWXlVRy9tQVFaNTBqWjVEWEVnZFN0MlFiaW9QeGlIblRHTThXSkQ5U09DMFl5VGlHN2FEQzdFU01PM0FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NjU2MzUwCWZpbGU6T21uaUJhbmtfMS4wLjMyX3g2NF9mci1GUi5tc2kKMmppK2dmdVVXWlFXVGN0RU1UNm9PY21KK0d3dlNJRUNCMFVHbncrYXZCYXlDYWdpKzFoYTlLRGlUNGkwb1lHWlV0RGt2SzZUK2U0MWZ2ZzVja1N3RHc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.32/OmniBank_1.0.32_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-24T17:50:37Z",
-    "version":  "1.0.31",
-    "notes":  "Optimisation du temps de démarrage (imports différés, migrations DB optimisées, réduction du délai de transition Tauri)"
+    "pub_date":  "2026-05-24T20:59:10Z",
+    "version":  "1.0.32",
+    "notes":  "Import IA en arriere-plan, fix header sticky, fix scroll mobile, filtre recurrences, polish visuel"
 }
