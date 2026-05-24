@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC9sYjd4VmdVUC9aL3hIRFg5d0p4U1J0MnQ3L3I3LzZMYnFUbHhFOWw1RDVzZE1uSSt0WVZ6QkhCa1RtcXhkZW9pYjlXQU9rL1MwTGhrb0FmS0JtdHcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NjQ0MjIyCWZpbGU6T21uaUJhbmtfMS4wLjMwX3g2NF9mci1GUi5tc2kKbm1KTlVsWkROcCtSQ21RQkZ3TlIvd2ZYcDlSUGtUOHAvSjN1S1NpRHVCWjJzUkFNQ0N3U1ladEsrWXpCWXB3eFlZRkdSM3Z5dHZSbDd5TXhlNWZ0RHc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.30/OmniBank_1.0.30_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHphZm9tanYrSkFGT0xVVkVoTXVNcjJXVUh6NGNJU1JQMXRkRzRTQ1VIVzFhQVBSYjR4N2FuNnZTTmlvaHkyNStQOENTcS8yY0lyNHdlZnBiNklTNWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NjQ1MDM2CWZpbGU6T21uaUJhbmtfMS4wLjMxX3g2NF9mci1GUi5tc2kKcUdDcUJDMHZtaFE0bTZrYjBSc1BKc2NyUFBtNDkxWmhwcTRuYTcvUWRNbjg1YUhRVkhBUnNTVVp4NG03bEpZVmh3SGxnQndtQWhtdHhrRVY0OEZ4QUE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.31/OmniBank_1.0.31_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-24T17:37:02Z",
-    "version":  "1.0.30",
-    "notes":  "Refonte de la page des récurrences en tableau dépliable et ajustements d\u0027animation"
+    "pub_date":  "2026-05-24T17:50:37Z",
+    "version":  "1.0.31",
+    "notes":  "Optimisation du temps de démarrage (imports différés, migrations DB optimisées, réduction du délai de transition Tauri)"
 }
