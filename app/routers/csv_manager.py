@@ -1,9 +1,7 @@
-import pandas as pd
 from io import StringIO, BytesIO
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.orm import Session
 from fastapi.responses import StreamingResponse
-import numpy as np
 
 from app.database import get_db
 from app.models import Transaction, Account, Category
@@ -25,6 +23,7 @@ TYPE_KEY_TO_FR = {v: k for k, v in TYPE_FR_TO_KEY.items()}
 
 @router.post("/import")
 async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    import pandas as pd
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Only CSV files are allowed")
 
@@ -280,6 +279,7 @@ def update_imported_attachments(data: dict, db: Session = Depends(get_db)):
 
 @router.get("/export")
 def export_csv(db: Session = Depends(get_db), cols: str = Query(None, description="Comma-separated list of columns to export")):
+    import pandas as pd
     txs = db.query(Transaction).order_by(Transaction.date_operation.asc()).all()
     accounts = {acc.id: acc.name for acc in db.query(Account).all()}
     
@@ -324,6 +324,7 @@ def export_csv(db: Session = Depends(get_db), cols: str = Query(None, descriptio
 
 @router.post("/analyze_heuristic")
 async def analyze_heuristic(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    import pandas as pd
     content = await file.read()
     
     if file.filename.endswith('.xlsx'):
@@ -475,6 +476,7 @@ async def analyze_heuristic(file: UploadFile = File(...), db: Session = Depends(
 
 @router.post("/save_batch")
 async def save_batch(data: dict, db: Session = Depends(get_db)):
+    import pandas as pd
     txs = data.get("transactions", [])
     account_id = data.get("account_id")
     csv_absolute_path = data.get("csv_absolute_path")

@@ -105,7 +105,7 @@ fn main() {
                             if let Some(window) = app_handle.get_webview_window("main") {
                                 let _ = window.navigate("http://127.0.0.1:8434".parse().unwrap());
                                 // Wait for WebView to fully load the page (window is still hidden)
-                                std::thread::sleep(Duration::from_millis(2000));
+                                std::thread::sleep(Duration::from_millis(500));
                                 let _ = window.show();
                             }
                             // Check for updates after a short delay

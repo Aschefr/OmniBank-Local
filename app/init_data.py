@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 from sqlalchemy.orm import Session
 from app.database import engine, Base, SessionLocal
 from app.models import Account, Transaction, GlobalConfig
@@ -7,79 +6,94 @@ from app.models import Account, Transaction, GlobalConfig
 def init_db():
     Base.metadata.create_all(bind=engine)
 
-    # --- Idempotent migration: French type strings → universal technical keys ---
-    TYPE_MIGRATION = {
-        "Dépenses fixes": "expense_fixed",
-        "Dépenses variables": "expense_var",
-        "Recettes": "income",
-        "Transfert": "transfer",
-        "Neutre": "neutral",
-    }
     from sqlalchemy import text
     with engine.connect() as conn:
-        for old_val, new_val in TYPE_MIGRATION.items():
-            conn.execute(text("UPDATE transactions SET type = :new WHERE type = :old"), {"new": new_val, "old": old_val})
-            conn.execute(text("UPDATE categories SET type = :new WHERE type = :old"), {"new": new_val, "old": old_val})
-            conn.execute(text("UPDATE recurrence_templates SET type = :new WHERE type = :old"), {"new": new_val, "old": old_val})
-            
+        # Check current schema version to avoid repeating slow migrations on every startup
+        schema_version = 0
         try:
-            conn.execute(text("ALTER TABLE categories ADD COLUMN is_closed BOOLEAN DEFAULT 0"))
-        except Exception:
-            pass # Column likely already exists
-            
-        try:
-            conn.execute(text("ALTER TABLE recurrence_templates ADD COLUMN max_occurrences INTEGER"))
+            row = conn.execute(text("SELECT value FROM global_config WHERE key = 'schema_version'")).fetchone()
+            if row:
+                schema_version = int(row[0])
         except Exception:
             pass
 
-        try:
-            conn.execute(text("ALTER TABLE recurrence_templates ADD COLUMN is_closed BOOLEAN DEFAULT 0"))
-        except Exception:
-            pass
+        if schema_version < 2:
+            # --- Idempotent migration: French type strings → universal technical keys ---
+            TYPE_MIGRATION = {
+                "Dépenses fixes": "expense_fixed",
+                "Dépenses variables": "expense_var",
+                "Recettes": "income",
+                "Transfert": "transfer",
+                "Neutre": "neutral",
+            }
+            for old_val, new_val in TYPE_MIGRATION.items():
+                conn.execute(text("UPDATE transactions SET type = :new WHERE type = :old"), {"new": new_val, "old": old_val})
+                conn.execute(text("UPDATE categories SET type = :new WHERE type = :old"), {"new": new_val, "old": old_val})
+                conn.execute(text("UPDATE recurrence_templates SET type = :new WHERE type = :old"), {"new": new_val, "old": old_val})
+                
+            try:
+                conn.execute(text("ALTER TABLE categories ADD COLUMN is_closed BOOLEAN DEFAULT 0"))
+            except Exception:
+                pass # Column likely already exists
+                
+            try:
+                conn.execute(text("ALTER TABLE recurrence_templates ADD COLUMN max_occurrences INTEGER"))
+            except Exception:
+                pass
 
-        try:
-            conn.execute(text("ALTER TABLE accounts ADD COLUMN color TEXT"))
-        except Exception:
-            pass  # Column likely already exists
+            try:
+                conn.execute(text("ALTER TABLE recurrence_templates ADD COLUMN is_closed BOOLEAN DEFAULT 0"))
+            except Exception:
+                pass
 
-        # Phase 9: Multi-user audit columns
-        try:
-            conn.execute(text("ALTER TABLE transactions ADD COLUMN created_by TEXT"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE transactions ADD COLUMN modified_by TEXT"))
-        except Exception:
-            pass
+            try:
+                conn.execute(text("ALTER TABLE accounts ADD COLUMN color TEXT"))
+            except Exception:
+                pass  # Column likely already exists
 
-        # Audit timestamps (org mode)
-        try:
-            conn.execute(text("ALTER TABLE transactions ADD COLUMN created_at TEXT"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE transactions ADD COLUMN modified_at TEXT"))
-        except Exception:
-            pass
+            # Phase 9: Multi-user audit columns
+            try:
+                conn.execute(text("ALTER TABLE transactions ADD COLUMN created_by TEXT"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE transactions ADD COLUMN modified_by TEXT"))
+            except Exception:
+                pass
 
-        # Phase 11: Custom period budget envelopes
-        try:
-            conn.execute(text("ALTER TABLE budgets ADD COLUMN start_date DATE"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE budgets ADD COLUMN end_date DATE"))
-        except Exception:
-            pass
+            # Audit timestamps (org mode)
+            try:
+                conn.execute(text("ALTER TABLE transactions ADD COLUMN created_at TEXT"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE transactions ADD COLUMN modified_at TEXT"))
+            except Exception:
+                pass
 
-        # Improvement_04: Account-scoped budgets (org mode)
-        try:
-            conn.execute(text("ALTER TABLE budgets ADD COLUMN account_ids TEXT"))
-        except Exception:
-            pass
+            # Phase 11: Custom period budget envelopes
+            try:
+                conn.execute(text("ALTER TABLE budgets ADD COLUMN start_date DATE"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE budgets ADD COLUMN end_date DATE"))
+            except Exception:
+                pass
 
-            
-        conn.commit()
+            # Improvement_04: Account-scoped budgets (org mode)
+            try:
+                conn.execute(text("ALTER TABLE budgets ADD COLUMN account_ids TEXT"))
+            except Exception:
+                pass
+
+            # Record schema version as done
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '2')"))
+            except Exception:
+                pass
+                
+            conn.commit()
 
 def wipe_db(db: Session):
     """Delete all data to start fresh."""
@@ -90,6 +104,7 @@ def wipe_db(db: Session):
 
 def load_initial_balances(db: Session, data_dir: str = "."):
     """Load initial balances if the accounts table is empty."""
+    import pandas as pd
     if db.query(Account).first():
         return # Already initialized
         

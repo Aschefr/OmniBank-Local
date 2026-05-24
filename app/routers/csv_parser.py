@@ -1,4 +1,3 @@
-import pandas as pd
 from datetime import timedelta
 from app.models import Transaction
 
@@ -6,6 +5,7 @@ def heuristic_parse(df):
     """
     Attempts to find date, description, and amount columns in a generic DataFrame.
     """
+    import pandas as pd
     date_col, amount_col, desc_col = None, None, None
     
     # 1. Find Date Column
@@ -106,6 +106,7 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None):
     Checks if a transaction with the exact amount exists within +/- 15 days.
     Returns dict with matched DB transaction ID and description, or None.
     """
+    import pandas as pd
     if pd.isna(tx_date) or pd.isna(tx_amount):
         return None
         

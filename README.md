@@ -9,7 +9,7 @@
 
 # 🇫🇷 Français
 
-[![Version](https://img.shields.io/badge/version-1.0.30-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.31-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -111,6 +111,11 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
+## 🆕 Dernières Mises à Jour (v1.0.31)
+
+*   **⚡ Optimisation du temps de démarrage** : Accélération majeure du lancement de l'application grâce au chargement différé (lazy loading) des dépendances lourdes (comme Pandas), suppression d'imports inutilisés dans le backend, et division par 4 de l'attente artificielle d'affichage de la WebView Tauri (de 2000ms à 500ms).
+*   **🗄️ Initialisation & migrations DB intelligentes** : Mise en place d'un mécanisme de version de schéma de base de données permettant de contourner les multiples vérifications et requêtes d'initialisation répétitives sur les lancements ultérieurs, sans aucun compromis sur la sécurité des données.
+
 ## 🆕 Dernières Mises à Jour (v1.0.30)
 
 *   **✨ Assistant de transition annuelle (Year-End Wizard)** : Interface complète sous forme de tableur pour préparer et générer en masse les opérations récurrentes d'une année sur l'autre (avec sélection d'année de référence, réinitialisation de valeurs, et création en ligne de catégories/récurrences).
@@ -122,7 +127,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.30-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.31-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -235,6 +240,11 @@ Access the interface at `http://localhost:8434`.
 *   **🐛 Fixes**: Backend crash fixes, Windows permission issues, general stability.
 
 ---
+
+## 🆕 Recent Updates (v1.0.31)
+
+*   **⚡ Startup Time Optimization**: Drastically reduced application launch delays by implementing lazy loading for large Python dependencies (such as Pandas), cleaning up unused backend imports, and reducing the hardcoded Tauri WebView transition delay from 2000ms to 500ms.
+*   **🗄️ Smart DB Schema & Initialization**: Introduced database schema version checking to bypass redundant verification and column updates on subsequent starts, keeping your startup ultra-fast and data fully secure.
 
 ## 🆕 Recent Updates (v1.0.30)
 
