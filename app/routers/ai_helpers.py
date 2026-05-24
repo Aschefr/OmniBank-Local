@@ -97,47 +97,95 @@ async def categorize_batch(data: dict, db: Session = Depends(get_db)):
 
 @router.post("/import_csv")
 async def import_csv_ai(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    import logging
+    logger = logging.getLogger(__name__)
+
     content = await file.read()
     if file.filename.endswith('.xlsx'):
         import pandas as pd
         from io import BytesIO
         df = pd.read_excel(BytesIO(content), dtype=str)
         text = df.to_csv(sep=';', index=False)
+
+        # Extract balance from raw xlsx data (metadata rows before the real header)
+        raw_data = [df.columns.tolist()] + df.values.tolist()
+        header_idx = -1
+        for i, row in enumerate(raw_data):
+            valid_cols = sum(1 for x in row if pd.notna(x) and not str(x).startswith('Unnamed:') and str(x).strip() != '')
+            if valid_cols >= 3:
+                header_idx = i
+                break
+
+        file_balance = None
+        for row in raw_data[:max(0, header_idx)]:
+            for cell in row:
+                cell_str = str(cell).lower()
+                if 'solde' in cell_str:
+                    for val in row:
+                        try:
+                            val_str = str(val).replace('€', '').replace('\u202f', '').replace('\xa0', '').replace(' ', '').replace(',', '.').strip()
+                            if val_str.lower() != 'nan':
+                                potential_amt = float(val_str)
+                                import math
+                                if potential_amt != 0 and not math.isnan(potential_amt):
+                                    file_balance = potential_amt
+                                    break
+                        except:
+                            pass
+                    if file_balance is not None:
+                        break
+            if file_balance is not None:
+                break
     else:
         try:
             text = content.decode('utf-8-sig')
         except UnicodeDecodeError:
             text = content.decode('latin-1')
+
+        file_balance = None
         
     # Limite le texte pour ne pas exploser le contexte par defaut
     text_sample = text[:25000] 
     
-    # Extract file balance if present
-    file_balance = None
-    for line in text_sample.split('\n')[:30]:
-        if 'solde' in line.lower():
-            parts = line.split(';') if ';' in line else line.split(',')
-            for part in parts:
-                clean = part.replace('€', '').replace('\u202f', '').replace(' ', '').replace(',', '.').strip()
-                if clean.lower() != 'nan':
-                    try:
-                        amt = float(clean)
-                        import math
-                        if amt != 0 and not math.isnan(amt):
-                            file_balance = amt
-                            break
-                    except:
-                        pass
-            if file_balance is not None:
-                break
+    # Extract file balance from CSV text (only if not already found from xlsx)
+    if file_balance is None:
+        for line in text_sample.split('\n')[:30]:
+            if 'solde' in line.lower():
+                parts = line.split(';') if ';' in line else line.split(',')
+                for part in parts:
+                    clean = part.replace('€', '').replace('\u202f', '').replace(' ', '').replace(',', '.').strip()
+                    if clean.lower() != 'nan':
+                        try:
+                            amt = float(clean)
+                            import math
+                            if amt != 0 and not math.isnan(amt):
+                                file_balance = amt
+                                break
+                        except:
+                            pass
+                if file_balance is not None:
+                    break
     
     sys_prompt = load_sys_prompt('sys_prompt_csv_extractor')
     prompt = f"Texte brut:\n{text_sample}"
     
     try:
         res = await call_ollama(db, prompt, sys_prompt, format_json=True)
+        # Guard: Ollama may return an empty response if the input is too large
+        if not res or not res.strip():
+            raise HTTPException(
+                status_code=500,
+                detail="L'IA a renvoyé une réponse vide. Le fichier est peut-être trop volumineux pour le contexte configuré. Essayez avec un fichier plus petit ou augmentez le contexte Ollama dans les paramètres."
+            )
         # Parse JSON
-        parsed_txs = json.loads(res)
+        try:
+            parsed_txs = json.loads(res)
+        except json.JSONDecodeError as je:
+            logger.error("[AI Import] Réponse Ollama non-JSON (%d chars) : %s", len(res), res[:500])
+            raise HTTPException(
+                status_code=500,
+                detail=f"L'IA n'a pas renvoyé un JSON valide. Réessayez ou utilisez l'Analyse Directe."
+            )
         if not isinstance(parsed_txs, list):
             # Try to wrap it if it returned a single dict
             if isinstance(parsed_txs, dict) and "transactions" in parsed_txs:
@@ -178,4 +226,6 @@ async def import_csv_ai(file: UploadFile = File(...), db: Session = Depends(get_
             
         return {"transactions": results, "file_balance": file_balance}
     except Exception as e:
+        logger.error("[AI Import] Échec de l'analyse IA : %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+

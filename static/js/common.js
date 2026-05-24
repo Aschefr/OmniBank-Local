@@ -163,7 +163,7 @@ function showToast(message, type = 'success', duration = 3000) {
 
     const toast = document.createElement('div');
     toast.style.cssText = `
-        position: fixed; top: 20px; right: 20px; z-index: 10000;
+        position: fixed; bottom: 20px; right: 20px; z-index: 10000;
         display: flex; align-items: center; gap: 10px;
         padding: 14px 20px; border-radius: 10px;
         background: ${c.bg}; border: 1px solid ${c.border};

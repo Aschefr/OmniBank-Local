@@ -1,16 +1,16 @@
-import pandas as pd
-import chardet
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models import Account, Transaction
 
 def detect_encoding(file_path: str) -> str:
+    import chardet
     with open(file_path, "rb") as f:
         raw_data = f.read()
         result = chardet.detect(raw_data)
         return result['encoding'] or 'utf-8'
 
 def clean_amount(val) -> float:
+    import pandas as pd
     if pd.isna(val) or val == "":
         return 0.0
     if isinstance(val, str):
@@ -23,6 +23,7 @@ def clean_amount(val) -> float:
         return 0.0
 
 def parse_date(val):
+    import pandas as pd
     if pd.isna(val) or val == "":
         return None
     try:
@@ -32,12 +33,15 @@ def parse_date(val):
         return None
 
 def parse_bool(val):
+    import pandas as pd
     if pd.isna(val):
         return False
     val_str = str(val).strip().upper()
     return val_str == "VRAI"
 
 def import_csv(db: Session, file_path: str, mode: str = "fusion"):
+    import pandas as pd
+    import chardet
     """
     Import transactions from CSV.
     Modes: 

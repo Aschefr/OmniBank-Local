@@ -682,6 +682,15 @@ class App {
         }
         
         window.i18n.translateDOM(main);
+
+        // Re-apply import button AI state after view re-render
+        if (window.ImportWizard && window.ImportWizard._setImportBtnState) {
+            if (window.ImportWizard._pendingAIResult) {
+                window.ImportWizard._setImportBtnState('ready');
+            } else if (window.ImportWizard._aiAbortController && !window.ImportWizard._aiAborted) {
+                window.ImportWizard._setImportBtnState('working');
+            }
+        }
     }
 
     // ── Changelog popup ──────────────────────────────────────────────

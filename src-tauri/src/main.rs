@@ -57,7 +57,7 @@ fn main() {
                 .args(["/F", "/IM", "omnibank-api.exe"])
                 .creation_flags(0x08000000) // CREATE_NO_WINDOW
                 .output();
-            std::thread::sleep(Duration::from_millis(300));
+            std::thread::sleep(Duration::from_millis(100));
 
             // Spawn the FastAPI sidecar
             let sidecar_command = app.shell().sidecar("omnibank-api")
@@ -105,7 +105,7 @@ fn main() {
                             if let Some(window) = app_handle.get_webview_window("main") {
                                 let _ = window.navigate("http://127.0.0.1:8434".parse().unwrap());
                                 // Wait for WebView to fully load the page (window is still hidden)
-                                std::thread::sleep(Duration::from_millis(500));
+                                std::thread::sleep(Duration::from_millis(200));
                                 let _ = window.show();
                             }
                             // Check for updates after a short delay
@@ -117,7 +117,7 @@ fn main() {
                             return;
                         }
                     }
-                    std::thread::sleep(Duration::from_millis(500));
+                    std::thread::sleep(Duration::from_millis(200));
                 }
                 eprintln!("Warning: sidecar health check timed out after 15s");
                 // Show window anyway so the user can see an error

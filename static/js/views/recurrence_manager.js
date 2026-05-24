@@ -7,9 +7,12 @@ window.RecurrenceView = {
     
     render() {
         return `
-            <div class="view-header" style="margin-bottom:20px; display: flex; justify-content: space-between; align-items: center;">
+            <div class="view-header" style="margin-bottom:20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                 <h2>🔄 <span data-i18n="nav_recurrences">Récurrences</span></h2>
-                <button class="btn btn-primary" style="padding: 10px 20px; font-weight: bold; background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; border: none; box-shadow: 0 4px 6px rgba(108, 92, 231, 0.2);" onclick="window.RecurrenceView.showWizard()" data-i18n="rec_wizard_btn">${window.i18n.t('rec_wizard_btn')}</button>
+                <div style="display: flex; align-items: center; gap: 10px; flex: 1; justify-content: flex-end;">
+                    <input type="text" id="recurrenceSearch" class="inline-input" data-i18n-placeholder="ph_search_recurrence" placeholder="${window.i18n.t('ph_search_recurrence')}" style="min-width: 180px; max-width: 300px; flex: 1;" oninput="window.RecurrenceView.applyFilter()">
+                    <button class="btn btn-primary" style="padding: 10px 20px; font-weight: bold; background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; border: none; box-shadow: 0 4px 6px rgba(108, 92, 231, 0.2);" onclick="window.RecurrenceView.showWizard()" data-i18n="rec_wizard_btn">${window.i18n.t('rec_wizard_btn')}</button>
+                </div>
             </div>
             
             <div style="background: var(--bg-surface); padding: 20px; border-radius: 12px; margin-top: 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
@@ -122,6 +125,28 @@ window.RecurrenceView = {
     
     async refreshTransactions() {
         await this.loadData();
+    },
+
+    applyFilter() {
+        const input = document.getElementById('recurrenceSearch');
+        const q = input ? input.value.toLowerCase().trim() : '';
+        const container = document.getElementById('recurrencesTableContainer');
+        if (!container) return;
+        const rows = container.querySelectorAll('tbody > tr');
+        for (let i = 0; i < rows.length; i += 2) {
+            const mainRow = rows[i];
+            const detailRow = rows[i + 1];
+            if (!mainRow) continue;
+            const text = mainRow.textContent.toLowerCase();
+            const match = !q || text.includes(q);
+            mainRow.style.display = match ? '' : 'none';
+            if (detailRow && detailRow.id && detailRow.id.startsWith('details_row_')) {
+                if (!match) {
+                    detailRow.style.display = 'none';
+                }
+                // If match, keep its current display state (expanded/collapsed)
+            }
+        }
     },
 
     changeYear(delta) {

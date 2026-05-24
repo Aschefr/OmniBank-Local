@@ -757,5 +757,18 @@
     "wizard_msg_success": "Changes saved successfully.",
     "wizard_opt_new_category": "New category...",
     "wizard_prompt_new_category_title": "Name of the new fixed expense category:",
-    "msg_no_recurrences_configured_year": "No recurring operations planned for {year}"
+    "msg_no_recurrences_configured_year": "No recurring operations planned for {year}",
+    "msg_analyzing_hint": "The file is being read and columns are automatically detected. This operation is fast.",
+    "msg_ai_analyzing_hint": "The file is being sent to your local AI (Ollama) for intelligent extraction. This may take 10 to 60 seconds depending on file size and your machine's power.",
+    "msg_ai_error_title": "AI analysis failed",
+    "msg_heuristic_error_title": "Direct analysis failed",
+    "msg_unknown_error": "An unknown error occurred.",
+    "msg_ai_error_tip": "Check that your Ollama server is accessible and the model is loaded. If the file is very large, try increasing the context size in Ollama settings, or use Direct Analysis which doesn't require AI.",
+    "msg_heuristic_error_tip": "Check that your file is a valid bank statement in CSV format (semicolon separator) or Excel (.xlsx). Date and Amount columns must be present.",
+    "modal_import_title": "Import Verification",
+    "msg_ai_background": "AI analysis continues in the background. You will be notified when it’s done.",
+    "msg_ai_ready": "AI analysis complete!",
+    "msg_ai_ready_click": "Click to view results",
+    "btn_hide": "Hide",
+    "ph_search_recurrence": "Filter recurrences..."
 }

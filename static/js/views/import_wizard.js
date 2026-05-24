@@ -32,6 +32,16 @@ window.ImportWizard = {
     },
 
     open() {
+        if (this._pendingAIResult) {
+            this._openWithPendingAI();
+            return;
+        }
+        // If AI analysis is in progress, re-open modal with loading view
+        if (this._aiAbortController && !this._aiAborted) {
+            this._aiDismissed = false;
+            document.getElementById('importDataModal').style.display = 'flex';
+            return;
+        }
         document.getElementById('globalCsvFileInput').click();
     },
 
@@ -60,6 +70,7 @@ window.ImportWizard = {
         
         const analysisBtns = document.getElementById('importAnalysisButtons');
         if (analysisBtns) analysisBtns.style.display = 'flex';
+        this._setAnalysisButtonsEnabled(true);
         const saveBtns = document.getElementById('importSaveButtons');
         if (saveBtns) saveBtns.style.display = 'none';
         
@@ -67,7 +78,7 @@ window.ImportWizard = {
         
         const accSelect = document.getElementById('importAccountSelect');
         if (accSelect) {
-            accSelect.innerHTML = '<option value="">-- Aucun compte sélectionné --</option>';
+            accSelect.innerHTML = `<option value="">${window.i18n.t('opt_no_account')}</option>`;
             if (window.app && window.app.accounts) {
                 window.app.accounts.filter(a => !a.is_closed).forEach(acc => {
                     const opt = document.createElement('option');
@@ -82,13 +93,52 @@ window.ImportWizard = {
         event.target.value = ''; // reset
     },
 
+    _setAnalysisButtonsEnabled(enabled) {
+        const btns = document.querySelectorAll('#importAnalysisButtons button:not([data-i18n="btn_cancel"]):not([data-i18n="btn_hide"])');
+        btns.forEach(btn => { btn.disabled = !enabled; btn.style.opacity = enabled ? '' : '0.5'; });
+    },
+
+    showImportLoading(mode) {
+        const descEl = document.getElementById('importDataDesc');
+        const isAI = mode === 'ai';
+        descEl.style.display = 'block';
+        descEl.style.color = '';
+        descEl.innerHTML = `
+            <div class="import-loading-box">
+                <div class="import-spinner"></div>
+                <div class="import-loading-text">${isAI ? window.i18n.t('msg_ai_analyzing') : window.i18n.t('msg_analyzing')}</div>
+                <div class="import-loading-hint">${isAI ? window.i18n.t('msg_ai_analyzing_hint') : window.i18n.t('msg_analyzing_hint')}</div>
+            </div>
+        `;
+        this._setAnalysisButtonsEnabled(false);
+        // Show hide button during AI analysis
+        const hideBtn = document.getElementById('btnImportHide');
+        if (hideBtn) hideBtn.style.display = isAI ? 'inline-block' : 'none';
+    },
+
+    showImportError(mode, detail) {
+        const descEl = document.getElementById('importDataDesc');
+        const isAI = mode === 'ai';
+        const tipKey = isAI ? 'msg_ai_error_tip' : 'msg_heuristic_error_tip';
+        descEl.style.display = 'block';
+        descEl.style.color = '';
+        descEl.innerHTML = `
+            <div class="import-error-box">
+                <div class="import-error-title">⚠️ ${isAI ? window.i18n.t('msg_ai_error_title') : window.i18n.t('msg_heuristic_error_title')}</div>
+                <div class="import-error-detail">${detail || window.i18n.t('msg_unknown_error')}</div>
+                <div class="import-error-tip">💡 ${window.i18n.t(tipKey)}</div>
+            </div>
+        `;
+        this._setAnalysisButtonsEnabled(true);
+    },
+
     async analyzeHeuristic() {
         if (!this.selectedFile) return;
         
         const formData = new FormData();
         formData.append("file", this.selectedFile);
         
-        document.getElementById('importDataDesc').textContent = window.i18n.t('msg_analyzing');
+        this.showImportLoading('direct');
         
         try {
             const res = await fetch('/api/csv/analyze_heuristic', {
@@ -100,11 +150,11 @@ window.ImportWizard = {
                 this.fileBalance = result.file_balance || null;
                 await this.renderImportTable(result.transactions || []);
             } else {
-                document.getElementById('importDataDesc').textContent = window.i18n.tp('msg_error_prefix', {detail: result.detail});
+                this.showImportError('direct', result.detail);
             }
         } catch (e) {
             console.error(e);
-            document.getElementById('importDataDesc').textContent = window.i18n.t('msg_network_error');
+            this.showImportError('direct', window.i18n.t('msg_network_error'));
         }
     },
     
@@ -114,24 +164,109 @@ window.ImportWizard = {
         const formData = new FormData();
         formData.append("file", this.selectedFile);
         
-        document.getElementById('importDataDesc').textContent = window.i18n.t('msg_ai_analyzing');
+        this.showImportLoading('ai');
+        this._aiDismissed = false;
+        this._aiAborted = false;
+        this._aiAbortController = new AbortController();
+        this._setImportBtnState('working');
+        
+        // Auto-hide modal after 5s if still open
+        this._bgTimer = setTimeout(() => {
+            const modal = document.getElementById('importDataModal');
+            if (modal && modal.style.display !== 'none' && !this._aiAborted) {
+                this.hideImportModal();
+            }
+        }, 5000);
         
         try {
             const res = await fetch('/api/ai/import_csv', { 
                 method: 'POST',
-                body: formData
+                body: formData,
+                signal: this._aiAbortController.signal
             });
             const result = await res.json();
+            
             if (res.ok) {
-                this.fileBalance = result.file_balance || null;
-                await this.renderImportTable(result.transactions || []);
+                if (this._aiDismissed) {
+                    this._pendingAIResult = result;
+                    this._setImportBtnState('ready');
+                    showToast(window.i18n.t('msg_ai_ready'), 'success', 8000);
+                } else {
+                    this._setImportBtnState('idle');
+                    this.fileBalance = result.file_balance || null;
+                    await this.renderImportTable(result.transactions || []);
+                }
             } else {
-                document.getElementById('importDataDesc').textContent = window.i18n.tp('msg_ai_error_prefix', {detail: result.detail});
+                this._setImportBtnState('idle');
+                if (this._aiDismissed) {
+                    showToast(window.i18n.t('msg_ai_error_title') + ' : ' + (result.detail || ''), 'error', 6000);
+                } else {
+                    this.showImportError('ai', result.detail);
+                }
             }
         } catch (e) {
+            if (e.name === 'AbortError') {
+                // User cancelled — no action needed
+                return;
+            }
             console.error(e);
-            document.getElementById('importDataDesc').textContent = window.i18n.t('msg_ai_network_error');
+            this._setImportBtnState('idle');
+            if (this._aiDismissed) {
+                showToast(window.i18n.t('msg_ai_error_title'), 'error', 5000);
+            } else {
+                this.showImportError('ai', window.i18n.t('msg_ai_network_error'));
+            }
+        } finally {
+            clearTimeout(this._bgTimer);
+            this._aiAbortController = null;
+            const hideBtn = document.getElementById('btnImportHide');
+            if (hideBtn) hideBtn.style.display = 'none';
         }
+    },
+
+    cancelAI() {
+        clearTimeout(this._bgTimer);
+        if (this._aiAbortController) {
+            this._aiAborted = true;
+            this._aiAbortController.abort();
+            this._aiAbortController = null;
+        }
+        this._setImportBtnState('idle');
+        this._pendingAIResult = null;
+        const hideBtn = document.getElementById('btnImportHide');
+        if (hideBtn) hideBtn.style.display = 'none';
+        document.getElementById('importDataModal').style.display = 'none';
+    },
+
+    hideImportModal() {
+        this._aiDismissed = true;
+        document.getElementById('importDataModal').style.display = 'none';
+        if (!this._aiAborted) {
+            showToast(window.i18n.t('msg_ai_background'), 'info', 5000);
+        }
+    },
+
+    _setImportBtnState(state) {
+        const btn = document.getElementById('btnImportStatement');
+        if (!btn) return;
+        btn.classList.remove('btn-ai-working', 'btn-ai-ready');
+        if (state === 'working') {
+            btn.classList.add('btn-ai-working');
+        } else if (state === 'ready') {
+            btn.classList.add('btn-ai-ready');
+        }
+    },
+
+    async _openWithPendingAI() {
+        const result = this._pendingAIResult;
+        if (!result) return;
+        this._pendingAIResult = null;
+        this._setImportBtnState('idle');
+        
+        // Re-open the modal
+        document.getElementById('importDataModal').style.display = 'flex';
+        this.fileBalance = result.file_balance || null;
+        await this.renderImportTable(result.transactions || []);
     },
 
     async renderImportTable(txs) {
