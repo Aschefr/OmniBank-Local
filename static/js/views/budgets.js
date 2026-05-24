@@ -566,9 +566,10 @@ window.BudgetsView = {
                 totalSpent += b.spent;
                 totalRecSpent += b.reconciled_spent || 0;
             }
-            const totalPct = totalTarget > 0 ? Math.min((totalExpenses / totalTarget) * 100, 100) : 0;
-            const recPct = totalTarget > 0 ? Math.min((totalRecExpenses / totalTarget) * 100, 100) : 0;
-            const totalBarColor = (totalTarget > 0 && (totalRecExpenses / totalTarget) * 100 > 100) ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
+            const effectiveTarget = totalTarget + totalIncome;
+            const totalPct = effectiveTarget > 0 ? Math.min((totalExpenses / effectiveTarget) * 100, 100) : 0;
+            const recPct = effectiveTarget > 0 ? Math.min((totalRecExpenses / effectiveTarget) * 100, 100) : 0;
+            const totalBarColor = (effectiveTarget > 0 && (totalRecExpenses / effectiveTarget) * 100 > 100) ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
             const netSpent = totalExpenses - totalIncome;
             const globalOver = netSpent > totalTarget;
             const globalRemaining = totalTarget - netSpent;
@@ -602,9 +603,10 @@ window.BudgetsView = {
 
         // ── Helper: render a single budget card ──────────────────────────
         const renderBudgetCard = (b, y, m) => {
-            const expensesPct = Math.min(((b.expenses || 0) / b.budget_amount) * 100 || 0, 100);
-            const recExpPct = Math.min(((b.reconciled_expenses || 0) / b.budget_amount) * 100 || 0, 100);
-            const barColor = recExpPct > 100 ? '#ff5630' : recExpPct >= 80 ? '#f59e0b' : '#10b981';
+            const effectiveBudget = b.budget_amount + (b.income || 0);
+            const expensesPct = effectiveBudget > 0 ? Math.min(((b.expenses || 0) / effectiveBudget) * 100 || 0, 100) : 0;
+            const recExpPct = effectiveBudget > 0 ? Math.min(((b.reconciled_expenses || 0) / effectiveBudget) * 100 || 0, 100) : 0;
+            const barColor = (effectiveBudget > 0 && ((b.reconciled_expenses || 0) / effectiveBudget) * 100 > 100) ? '#ff5630' : recExpPct >= 80 ? '#f59e0b' : '#10b981';
             const overBudget = b.remaining < 0;
             const typeTag = b.is_project
                 ? `<span style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">${window.i18n.t('budget_project_tag')}</span>`
@@ -774,6 +776,8 @@ window.BudgetsView = {
     },
 
     async showDetail(budgetId, budgetName, year, month) {
+        this._currentDetailYear = year;
+        this._currentDetailMonth = month;
         const modal = document.getElementById('budgetUnifiedModal');
         const title = document.getElementById('budgetUnifiedTitle');
         const graph = document.getElementById('budgetDetailGraph');
@@ -997,10 +1001,16 @@ window.BudgetsView = {
             } else {
                 // Cas 2: edit from detail view → hide form, refresh detail
                 document.getElementById('budgetFormSection').style.display = 'none';
-                const monthVal = document.getElementById('budgetMonth')?.value;
-                if (monthVal) {
-                    const [y, m] = monthVal.split('-');
-                    await this.showDetail(parseInt(savedId), name, parseInt(y), parseInt(m));
+                const y = this._currentDetailYear;
+                const m = this._currentDetailMonth;
+                if (y && m) {
+                    await this.showDetail(parseInt(savedId), name, y, m);
+                } else {
+                    const monthVal = document.getElementById('budgetMonthInput')?.value || this.monthlyMonth;
+                    if (monthVal) {
+                        const [yyyy, mm] = monthVal.split('-');
+                        await this.showDetail(parseInt(savedId), name, parseInt(yyyy), parseInt(mm));
+                    }
                 }
             }
 
