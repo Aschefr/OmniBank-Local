@@ -9,7 +9,7 @@
 
 # 🇫🇷 Français
 
-[![Version](https://img.shields.io/badge/version-1.0.22-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.30-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -111,21 +111,18 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
-## 🆕 Dernières Mises à Jour (v1.0.22)
+## 🆕 Dernières Mises à Jour (v1.0.30)
 
-*   **🏢 Mode Organisation** : Gestion multi-utilisateurs pour associations et CSE, avec traçabilité des opérations.
-*   **🖥️ Base de données partagée** : Partage de la DB entre sessions Windows via ProgramData.
-*   **📦 Installateur NSIS** : Installation dans `Program Files` pour tous les utilisateurs d'un même PC.
-*   **🎯 Budgets personnalisés** : Nouveau type de période libre avec dates de début/fin.
-*   **📊 Période personnalisée** : Sélection de plage de dates dans la Synthèse.
-*   **🔧 Maintenance** : Outil de correction automatique des incohérences de types.
-*   **🐛 Corrections** : Crash backend, permissions Windows, stabilité générale.
+*   **✨ Assistant de transition annuelle (Year-End Wizard)** : Interface complète sous forme de tableur pour préparer et générer en masse les opérations récurrentes d'une année sur l'autre (avec sélection d'année de référence, réinitialisation de valeurs, et création en ligne de catégories/récurrences).
+*   **🔄 Tableau dépliable des récurrences** : Redesign complet de la page principale des récurrences en un tableau interactif, où chaque ligne de récurrence peut être dépliée pour modifier et propager individuellement ses occurrences pour l'année.
+*   **🌍 Traduction intégrale (FR/EN)** : Support complet de l'anglais et du français sur l'ensemble de l'interface de gestion et de transition des récurrences.
+*   **🏢 Mode Organisation & Améliorations** : Mode multi-utilisateurs pour associations/CSE, DB partagée, et installateur NSIS pour tous les utilisateurs Windows.
 
 ---
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.22-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.30-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -239,7 +236,14 @@ Access the interface at `http://localhost:8434`.
 
 ---
 
-## ⚙️ Development
+## 🆕 Recent Updates (v1.0.30)
+
+*   **✨ Year-End Wizard**: A full spreadsheet-like assistant to review, adjust, and mass-generate recurring transactions for the next year (with reference year selection, value resets, and inline category/recurrence creation).
+*   **🔄 Collapsible Recurrence Table**: Complete redesign of the main recurrences page into an interactive table, where each template can be expanded to modify and propagate individual occurrences for the year inline.
+*   **🌍 Multi-language Support (EN/FR)** : Complete English and French localization for the year-end wizard and the main recurrences table.
+*   **🏢 Organisation Mode & Enhancements**: Password-free multi-user mode for nonprofits/work councils, shared database support, and NSIS installer for system-wide Windows installation.
+
+---
 
 1. `python -m venv venv`
 2. `.\venv\Scripts\activate`
