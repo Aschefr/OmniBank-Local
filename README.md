@@ -111,11 +111,24 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
+## 🆕 Dernières Mises à Jour (v1.0.36)
+
+*   **📦 Correctif de publication** : Correction d'un problème dans le script de build qui empaquetait d'anciens fichiers (mode onedir) au lieu des fichiers à jour.
+
 ## 🆕 Dernières Mises à Jour (v1.0.35)
 
 *   **⚙️ Paramètres de sauvegarde intelligents** : L'encart de configuration des sauvegardes automatiques se replie dynamiquement lorsque la fonctionnalité est désactivée, allégeant ainsi l'interface des paramètres.
 *   **🔙 Navigation fluide (Drill-down)** : Ajout d'un bouton "Retour" contextuel dans l'Historique qui n'apparaît que lors de l'accès depuis une cellule du tableau de Synthèse, permettant de revenir instantanément à vos analyses.
 *   **📊 Affichage Synthèse optimisé** : Correction du tronquage (points de suspension) des en-têtes d'année ("TOT. 2026"). L'année est désormais toujours visible, s'adaptant sur deux lignes en mode normal et restant strictement sur une seule ligne en mode compact.
+
+## 🆕 Dernières Mises à Jour (v1.0.34)
+
+*   **⚡ Démarrage Instantané (onedir)** : Optimisation majeure du temps de lancement de l'application. Le backend Python n'a plus besoin de s'extraire à chaque démarrage, rendant l'ouverture d'OmniBank quasi instantanée.
+
+## 🆕 Dernières Mises à Jour (v1.0.33)
+
+*   **🧹 Nettoyage de Base de Données** : Ajout d'un outil de maintenance permettant de nettoyer les récurrences orphelines avec une validation granulaire (opération par opération).
+*   **🐛 Correctif** : Résolution d'une régression liée à la gestion des opérations récurrentes.
 
 ## 🆕 Dernières Mises à Jour (v1.0.32)
 
@@ -124,18 +137,6 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **📱 Fix mobile** : Virtualisation du tableau désactivée sur mobile (≤768px) pour éliminer les saccades de scroll en mode carte.
 *   **🔍 Filtre Récurrences** : Ajout d'un champ de recherche dans la page des récurrences.
 *   **🌍 Traductions** : Corrections de phrases non traduites en anglais.
-
-## 🆕 Dernières Mises à Jour (v1.0.31)
-
-*   **⚡ Optimisation du temps de démarrage** : Accélération majeure du lancement de l'application grâce au chargement différé (lazy loading) des dépendances lourdes (comme Pandas), suppression d'imports inutilisés dans le backend, et division par 4 de l'attente artificielle d'affichage de la WebView Tauri (de 2000ms à 500ms).
-*   **🗄️ Initialisation & migrations DB intelligentes** : Mise en place d'un mécanisme de version de schéma de base de données permettant de contourner les multiples vérifications et requêtes d'initialisation répétitives sur les lancements ultérieurs, sans aucun compromis sur la sécurité des données.
-
-## 🆕 Dernières Mises à Jour (v1.0.30)
-
-*   **✨ Assistant de transition annuelle (Year-End Wizard)** : Interface complète sous forme de tableur pour préparer et générer en masse les opérations récurrentes d'une année sur l'autre (avec sélection d'année de référence, réinitialisation de valeurs, et création en ligne de catégories/récurrences).
-*   **🔄 Tableau dépliable des récurrences** : Redesign complet de la page principale des récurrences en un tableau interactif, où chaque ligne de récurrence peut être dépliée pour modifier et propager individuellement ses occurrences pour l'année.
-*   **🌍 Traduction intégrale (FR/EN)** : Support complet de l'anglais et du français sur l'ensemble de l'interface de gestion et de transition des récurrences.
-*   **🏢 Mode Organisation & Améliorations** : Mode multi-utilisateurs pour associations/CSE, DB partagée, et installateur NSIS pour tous les utilisateurs Windows.
 
 ---
 
@@ -243,23 +244,24 @@ Access the interface at `http://localhost:8434`.
 
 ---
 
-## 🆕 Recent Updates (v1.0.22)
+## 🆕 Recent Updates (v1.0.36)
 
-*   **🏢 Organisation Mode**: Multi-user management for nonprofits and work councils, with full audit trail.
-*   **🖥️ Shared Database**: Share the DB between Windows sessions via ProgramData.
-*   **📦 NSIS Installer**: System-wide installation in `Program Files` for all users on the same PC.
-*   **🎯 Custom Budgets**: New free-form period type with custom start/end dates.
-*   **📊 Custom Period**: Date range picker in the Synthesis view.
-*   **🔧 Maintenance**: Automatic type-mismatch correction tool.
-*   **🐛 Fixes**: Backend crash fixes, Windows permission issues, general stability.
-
----
+*   **📦 Release Hotfix**: Fixed a bug in the automated release script where older backend files (onedir bundle) were packaged instead of the latest code.
 
 ## 🆕 Recent Updates (v1.0.35)
 
 *   **⚙️ Smart Backup Settings**: The auto-backup configuration section now dynamically hides when the feature is disabled, reducing visual clutter in the settings.
 *   **🔙 History Drill-down Navigation**: Added a contextual "Back" button in the History view that appears exclusively when drilling down from the Synthesis table, allowing for seamless return to your analytics.
 *   **📊 Synthesis Table Polish**: Fixed the truncation of the "Total Year" column headers. The year is now always fully visible, intelligently adapting to two lines in normal mode and remaining strictly on one line in compact mode.
+
+## 🆕 Recent Updates (v1.0.34)
+
+*   **⚡ Instant Startup (onedir)**: Major optimization of the application's launch time. The Python backend no longer needs to extract itself on every startup, making OmniBank open almost instantly.
+
+## 🆕 Recent Updates (v1.0.33)
+
+*   **🧹 Database Cleanup**: Added a maintenance tool to clean up orphaned recurring operations with granular, per-operation validation.
+*   **🐛 Bug Fix**: Fixed a regression related to the handling of recurring operations.
 
 ## 🆕 Recent Updates (v1.0.32)
 
@@ -268,18 +270,6 @@ Access the interface at `http://localhost:8434`.
 *   **📱 Mobile Fix**: Virtual table scrolling disabled on mobile (≤768px) to eliminate scroll jank in card layout mode.
 *   **🔍 Recurrence Filter**: Added a search field to the recurrences management page.
 *   **🌍 Translations**: Fixed untranslated phrases in English.
-
-## 🆕 Recent Updates (v1.0.31)
-
-*   **⚡ Startup Time Optimization**: Drastically reduced application launch delays by implementing lazy loading for large Python dependencies (such as Pandas), cleaning up unused backend imports, and reducing the hardcoded Tauri WebView transition delay from 2000ms to 500ms.
-*   **🗄️ Smart DB Schema & Initialization**: Introduced database schema version checking to bypass redundant verification and column updates on subsequent starts, keeping your startup ultra-fast and data fully secure.
-
-## 🆕 Recent Updates (v1.0.30)
-
-*   **✨ Year-End Wizard**: A full spreadsheet-like assistant to review, adjust, and mass-generate recurring transactions for the next year (with reference year selection, value resets, and inline category/recurrence creation).
-*   **🔄 Collapsible Recurrence Table**: Complete redesign of the main recurrences page into an interactive table, where each template can be expanded to modify and propagate individual occurrences for the year inline.
-*   **🌍 Multi-language Support (EN/FR)** : Complete English and French localization for the year-end wizard and the main recurrences table.
-*   **🏢 Organisation Mode & Enhancements**: Password-free multi-user mode for nonprofits/work councils, shared database support, and NSIS installer for system-wide Windows installation.
 
 ---
 
