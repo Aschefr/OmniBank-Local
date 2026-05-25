@@ -1,0 +1,68 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "productName": "OmniBank",
+  "version": "1.0.33",
+  "identifier": "com.amifystudio.omnibank",
+  "build": {
+    "frontendDist": "../static",
+    "devUrl": "http://127.0.0.1:8434",
+    "beforeBuildCommand": "",
+    "beforeDevCommand": ""
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "OmniBank",
+        "url": "loading.html",
+        "width": 1600,
+        "height": 900,
+        "resizable": true,
+        "decorations": true,
+        "center": true,
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "publisher": "Amify Studio",
+    "targets": [
+      "msi",
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "bin/omnibank-api"
+    ],
+    "windows": {
+      "wix": {
+        "language": "fr-FR"
+      },
+      "nsis": {
+        "installMode": "perMachine",
+        "languages": [
+          "French",
+          "English"
+        ]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://raw.githubusercontent.com/Aschefr/OmniBank-Local/main/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFGRDQyQjAzODQwMzY1MUUKUldRZVpRT0VBeXZVSDZNeDhMZTV3UDJqTWxORFV2c0FwRDIyQ2RadEkxUE8yZjRqZVNOR2Jwd0oK"
+    }
+  }
+}

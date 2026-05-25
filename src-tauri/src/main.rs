@@ -10,14 +10,17 @@ use std::sync::Mutex;
 use std::os::windows::process::CommandExt;
 
 struct SidecarState {
-    child: Mutex<Option<tauri_plugin_shell::process::CommandChild>>,
+    // OLD WAY (ONEFILE)
+    // child: Mutex<Option<tauri_plugin_shell::process::CommandChild>>,
+    // NEW WAY (ONEDIR)
+    child: Mutex<Option<std::process::Child>>,
     pid: Mutex<Option<u32>>,
 }
 
 fn kill_sidecar(state: &SidecarState) {
-    // First, try the Tauri child.kill() method
+    // First, try the child.kill() method
     if let Ok(mut guard) = state.child.lock() {
-        if let Some(child) = guard.take() {
+        if let Some(mut child) = guard.take() {
             let _ = child.kill();
         }
     }
@@ -60,6 +63,8 @@ fn main() {
             std::thread::sleep(Duration::from_millis(100));
 
             // Spawn the FastAPI sidecar
+            
+            /* OLD WAY (ONEFILE)
             let sidecar_command = app.shell().sidecar("omnibank-api")
                 .expect("Failed to create sidecar command");
 
@@ -91,6 +96,49 @@ fn main() {
                             break;
                         }
                         _ => {}
+                    }
+                }
+            });
+            */
+            
+            // NEW WAY (ONEDIR)
+            use std::process::Stdio;
+            let resource_dir = app.path().resource_dir().expect("Failed to get resource dir");
+            let exe_path = resource_dir.join("resources").join("omnibank-api").join("omnibank-api.exe");
+            
+            let mut child = std::process::Command::new(exe_path)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                .spawn()
+                .expect("Failed to spawn sidecar from resources");
+                
+            let pid = child.id();
+            
+            let stdout = child.stdout.take();
+            let stderr = child.stderr.take();
+            
+            app.manage(SidecarState {
+                child: Mutex::new(Some(child)),
+                pid: Mutex::new(Some(pid)),
+            });
+            
+            // Log sidecar output in a background thread
+            std::thread::spawn(move || {
+                use std::io::{BufRead, BufReader};
+                if let Some(out) = stdout {
+                    let reader = BufReader::new(out);
+                    for line in reader.lines() {
+                        if let Ok(l) = line { println!("[sidecar:out] {}", l); }
+                    }
+                }
+            });
+            std::thread::spawn(move || {
+                use std::io::{BufRead, BufReader};
+                if let Some(err) = stderr {
+                    let reader = BufReader::new(err);
+                    for line in reader.lines() {
+                        if let Ok(l) = line { eprintln!("[sidecar:err] {}", l); }
                     }
                 }
             });
