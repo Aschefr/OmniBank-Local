@@ -321,7 +321,7 @@ window.AnalyticsView = {
         ).join('');
 
         const yearHeaders = years.map(yr =>
-            `<th data-year="${yr}" data-col-type="year" style="text-align:right;min-width:90px;white-space:nowrap;border-left:${annualSep};border-bottom:1px solid ${hbd};color:${cfg.color};background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);">Total ${yr}</th>`
+            `<th data-year="${yr}" data-col-type="year" style="text-align:right;min-width:90px;white-space:normal;line-height:1.2;padding-top:8px;padding-bottom:8px;border-left:${annualSep};border-bottom:1px solid ${hbd};color:${cfg.color};background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);">TOT.<span class="year-br"></span>${yr}</th>`
         ).join('');
 
         const catW = this._catColWidth || 160;
@@ -390,7 +390,7 @@ window.AnalyticsView = {
         html += `<tr style="font-weight:700;">
             <td style="color:${cfg.color};font-weight:700;position:sticky;left:0;bottom:0;z-index:25;padding-left:16px;
                 background:var(--bg-surface);border-top:2px solid ${hbd};
-                box-shadow:inset 0 0 0 999px ${hb}, 3px 0 8px rgba(0,0,0,0.3);width:${catW}px;">TOTAL ${translatedType.toUpperCase()}</td>
+                box-shadow:inset 0 0 0 999px ${hb}, 3px 0 8px rgba(0,0,0,0.3);width:${catW}px;">TOT. ${translatedType.toUpperCase()}</td>
             ${totalMonthCells}
             ${totalYearCells}
         </tr>`;
@@ -401,12 +401,12 @@ window.AnalyticsView = {
 
     drillDown(category, monthKey) {
         // Set pending filter before navigating
-        window.AllOperationsView.pendingFilter = { category, monthKey };
+        window.AllOperationsView.pendingFilter = { category, monthKey, backToView: 'analytics' };
         window.app.loadView('all_operations');
     },
 
     drillDownYear(category, year) {
-        window.AllOperationsView.pendingFilter = { category, monthKey: '', year };
+        window.AllOperationsView.pendingFilter = { category, monthKey: '', year, backToView: 'analytics' };
         window.app.loadView('all_operations');
     },
 

@@ -555,6 +555,7 @@ class App {
                         // Set pending highlight for AllOperationsView to pick up after data load
                         if (window.AllOperationsView) {
                             window.AllOperationsView._pendingHighlightTxId = txId;
+                            window.AllOperationsView._pendingHighlightCssClass = 'overdraft-flash';
                         }
                         window.app.loadView('all_operations');
                     };

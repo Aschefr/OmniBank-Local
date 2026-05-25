@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDQrKzNlNFVzdVV3V0RsUHlUbTY2R0FKWmV6THVSUk0rRXA1ZjVwTmhGTURQTHhIUDBpZDdZOVFSYlE0b2RiejcyRHU5OFE4NkhlY0htc3cyRE56YmdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NzI0OTEzCWZpbGU6T21uaUJhbmtfMS4wLjM0X3g2NF9mci1GUi5tc2kKNlY1RU1aSEdFaElTSWk0bDNPdU83YkJ6ZmNIQWJwVlFka2FsOTVncDA1Q24ycE02bW1mOTdYaDB4RjdSdFE2QTRQR1Z5SzlvSnBZNkFvS2RPOWU5Qmc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.34/OmniBank_1.0.34_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDVDVUpzVmdZd05sT00yVzg4blZWZTdzZ0sydE1WTlVTTkFKdlk4cVduZjdLNVc1NzRIa01IUUdWR3pSUU9NK3luOFVKdTJpUndSMm1SMUQvMUVNTEFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NzMwMTUzCWZpbGU6T21uaUJhbmtfMS4wLjM1X3g2NF9mci1GUi5tc2kKcms2NHdDNmYyM3dkd2N4a0ZiN21VRU1Wa2gzUVQwb3BVU0FSSmRGK0VjWjY4akcyNFpZUG93d2FLZ0tTdldHNDIxOEx2L0QzYWV5ZVIvRVFhMktMQ2c9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.35/OmniBank_1.0.35_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-25T16:01:53Z",
-    "version":  "1.0.34",
-    "notes":  "Optimisation majeure du temps de démarrage de l\u0027application locale (Passage de l\u0027API en mode onedir)."
+    "pub_date":  "2026-05-25T17:29:13Z",
+    "version":  "1.0.35",
+    "notes":  "Améliorations UI : Masquage automatique des paramètres de sauvegarde, ajout d\u0027un bouton de retour depuis l\u0027historique, ajustement de l\u0027en-tête annuel dans le tableau de synthèse (mode normal et compact)."
 }

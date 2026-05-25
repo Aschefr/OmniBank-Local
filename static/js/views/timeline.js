@@ -291,6 +291,13 @@ window.TimelineView = {
             } catch(e) { this.budgetsMap = {}; this.categoryToBudgetMap = {}; }
 
             this.renderTable();
+
+            if (this._pendingHighlightTxId) {
+                const txId = this._pendingHighlightTxId;
+                this._pendingHighlightTxId = null;
+                // Use rAF to ensure DOM is painted before highlight
+                requestAnimationFrame(() => this.highlightRow(txId));
+            }
         } catch (e) {
             console.error("Failed to load timeline", e);
         }
@@ -546,6 +553,7 @@ window.TimelineView = {
     async toggleReconciliation(id) {
         try {
             await API.post(`/api/transactions/${id}/toggle_reconciliation`);
+            this._pendingHighlightTxId = id;
             await this.loadData();
             window.app.refreshSidebar();
         } catch (e) {
@@ -567,6 +575,73 @@ window.TimelineView = {
     
     showAddRow() {
         if (window.FormView) window.FormView.open();
+    },
+
+    scrollToAndHighlight(txId) {
+        // Legacy entry point — just delegates
+        this.highlightRow(txId);
+    },
+
+    highlightRow(txId) {
+        const tbody = document.getElementById('timelineBody');
+        if (!tbody) return;
+
+        let vtIdx = -1;
+        let originalRowHtml = null;
+
+        // If using VirtualTable desktop mode, scroll to the row first
+        if (this._vt && this._vt._rows && this._vt._rows.length && !this._vt._isMobile()) {
+            const needle = `data-id="${txId}"`;
+            vtIdx = this._vt._rows.findIndex(r => r.includes(needle));
+            if (vtIdx >= 0) {
+                originalRowHtml = this._vt._rows[vtIdx];
+                // Inject inline style into raw HTML so it survives VT scroll re-renders
+                this._vt._rows[vtIdx] = originalRowHtml.replace(
+                    /(<tr\s)/,
+                    '$1style="background-color: rgba(99,102,241,0.35) !important;" '
+                );
+                this._vt._scrollToIndex(vtIdx);
+            }
+        }
+
+        // Wait for DOM to settle after potential scroll/render
+        requestAnimationFrame(() => {
+            const row = tbody.querySelector(`tr[data-id="${txId}"]`);
+            if (!row) { console.log('[Highlight] Row not found in DOM for tx', txId); return; }
+
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Apply highlight via inline styles (beats any CSS specificity)
+            const highlightColor = 'rgba(99, 102, 241, 0.35)';
+            row.style.setProperty('background-color', highlightColor, 'important');
+            row.querySelectorAll('td').forEach(td => {
+                td.style.setProperty('background-color', highlightColor, 'important');
+            });
+
+            // Fade out after 2 seconds
+            setTimeout(() => {
+                row.style.transition = 'background-color 1s ease-out';
+                row.style.setProperty('background-color', 'transparent', 'important');
+                row.querySelectorAll('td').forEach(td => {
+                    td.style.transition = 'background-color 1s ease-out';
+                    td.style.setProperty('background-color', 'transparent', 'important');
+                });
+
+                // Clean up inline styles after fade
+                setTimeout(() => {
+                    row.style.removeProperty('background-color');
+                    row.style.removeProperty('transition');
+                    row.querySelectorAll('td').forEach(td => {
+                        td.style.removeProperty('background-color');
+                        td.style.removeProperty('transition');
+                    });
+                    // Restore original VT HTML
+                    if (vtIdx >= 0 && originalRowHtml && this._vt && this._vt._rows) {
+                        this._vt._rows[vtIdx] = originalRowHtml;
+                    }
+                }, 1100);
+            }, 2000);
+        });
     },
 
     async _openAttachment(path) {
