@@ -7,7 +7,7 @@ from typing import Optional, List
 import json
 
 from app.database import get_db
-from app.models import Budget, BudgetCategory, Transaction, GlobalConfig, Account
+from app.models import Budget, BudgetCategory, BudgetAllocation, Transaction, GlobalConfig, Account
 
 router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 
@@ -23,6 +23,7 @@ class BudgetCreate(BaseModel):
     start_date: Optional[str] = None  # YYYY-MM-DD for custom period
     end_date: Optional[str] = None
     account_ids: Optional[List[int]] = None  # Improvement_04: scope to specific accounts (org mode)
+    envelope_type: Optional[str] = "spending"  # "spending" or "savings" (tirelire)
 
 class BudgetUpdate(BaseModel):
     name: Optional[str] = None
@@ -34,6 +35,12 @@ class BudgetUpdate(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     account_ids: Optional[List[int]] = None  # Improvement_04
+    envelope_type: Optional[str] = None
+
+class AllocationCreate(BaseModel):
+    amount: float
+    date: Optional[str] = None  # YYYY-MM-DD, defaults to today
+    note: Optional[str] = None
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -68,6 +75,7 @@ def _budget_to_dict(b: Budget, db: Session) -> dict:
         "start_date": b.start_date.isoformat() if b.start_date else None,
         "end_date": b.end_date.isoformat() if b.end_date else None,
         "account_ids": _parse_account_ids(b.account_ids),
+        "envelope_type": b.envelope_type or "spending",
     }
 
 
@@ -83,15 +91,20 @@ def get_budgets(db: Session = Depends(get_db)):
 def create_budget(data: BudgetCreate, db: Session = Depends(get_db)):
     _start = date.fromisoformat(data.start_date) if data.start_date else None
     _end = date.fromisoformat(data.end_date) if data.end_date else None
+    # Tirelire: force period to indefinite
+    period = data.period
+    if data.envelope_type == "savings":
+        period = "indefinite"
     b = Budget(
         name=data.name,
         monthly_amount=data.monthly_amount,
-        period=data.period,
+        period=period,
         is_project=data.is_project,
         is_closed=False,
         start_date=_start,
         end_date=_end,
         account_ids=_serialize_account_ids(data.account_ids),
+        envelope_type=data.envelope_type or "spending",
     )
     db.add(b)
     db.commit()
@@ -137,6 +150,7 @@ def delete_budget(budget_id: int, db: Session = Depends(get_db)):
     if not b:
         raise HTTPException(status_code=404, detail="Budget non trouvé.")
     db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget_id).delete()
+    db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == budget_id).delete()
     db.delete(b)
     db.commit()
     return {"ok": True}
@@ -192,6 +206,59 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                 return True  # No account filter = global
             return (tx.from_account_id in acc_ids or tx.to_account_id in acc_ids)
 
+        # ── Tirelire (savings) mode: track via budget_id + manual allocations ──
+        if (b.envelope_type or "spending") == "savings":
+            txs = db.query(Transaction).filter(Transaction.budget_id == b.id).all()
+            for tx in txs:
+                if not _match_account(tx):
+                    continue
+                if tx.type == "income":
+                    income += abs(tx.amount)
+                    if tx.reconciliation_date:
+                        reconciled_income += abs(tx.amount)
+                else:
+                    expenses += abs(tx.amount)
+                    if tx.reconciliation_date:
+                        reconciled_expenses += abs(tx.amount)
+
+            # Manual allocations
+            allocs = db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == b.id).all()
+            alloc_deposits = sum(a.amount for a in allocs if a.amount > 0)
+            alloc_withdrawals = sum(abs(a.amount) for a in allocs if a.amount < 0)
+
+            funded = round(income + alloc_deposits, 2)
+            withdrawn = round(expenses + alloc_withdrawals, 2)
+            balance = round(funded - withdrawn, 2)
+            budget_amount = b.monthly_amount
+            pct = round((balance / budget_amount * 100) if budget_amount > 0 else 0, 1)
+
+            result.append({
+                "id": b.id,
+                "name": b.name,
+                "categories": cats,
+                "is_project": b.is_project,
+                "is_closed": b.is_closed,
+                "envelope_type": "savings",
+                "budget_amount": budget_amount,
+                "funded": funded,
+                "withdrawn": withdrawn,
+                "balance": balance,
+                "percent": min(pct, 999),
+                "remaining": round(budget_amount - balance, 2),
+                # Backward-compat fields for summary bars
+                "expenses": withdrawn,
+                "reconciled_expenses": round(reconciled_expenses + alloc_withdrawals, 2),
+                "income": funded,
+                "spent": max(withdrawn - funded, 0),
+                "reconciled_spent": 0,
+                "net": round(withdrawn - funded, 2),
+                "period": b.period,
+                "start_date": b.start_date.isoformat() if b.start_date else None,
+                "end_date": b.end_date.isoformat() if b.end_date else None,
+                "account_ids": acc_ids,
+            })
+            continue
+
         if b.is_project:
             txs = db.query(Transaction).filter(Transaction.budget_id == b.id).all()
             for tx in txs:
@@ -242,7 +309,6 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
         elif b.period == "yearly":
-            # Yearly budgets: filter by full year only
             txs_yearly = db.query(Transaction).filter(
                 extract('year', Transaction.date_operation) == y,
                 Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
@@ -261,7 +327,6 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
         elif custom_start and custom_end:
-            # Day-granularity custom range (monthly budgets only)
             txs = db.query(Transaction).filter(
                 Transaction.date_operation >= custom_start,
                 Transaction.date_operation <= custom_end,
@@ -281,7 +346,6 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
         else:
-            # Monthly budgets: filter by year + month
             txs = db.query(Transaction).filter(
                 extract('year', Transaction.date_operation) == y,
                 extract('month', Transaction.date_operation) == m,
@@ -304,13 +368,13 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
 
         expenses = round(expenses, 2)
         income = round(income, 2)
-        spent = round(expenses - income, 2)  # net: can be negative if income > expenses
+        spent = round(expenses - income, 2)
         
         reconciled_expenses = round(reconciled_expenses, 2)
         reconciled_income = round(reconciled_income, 2)
         reconciled_spent = round(reconciled_expenses - reconciled_income, 2)
 
-        budget_amount = b.monthly_amount  # User enters exact cap, no auto-division
+        budget_amount = b.monthly_amount
         pct = round((max(spent, 0) / budget_amount * 100) if budget_amount > 0 else 0, 1)
         reconciled_pct = round((max(reconciled_spent, 0) / budget_amount * 100) if budget_amount > 0 else 0, 1)
 
@@ -320,13 +384,14 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
             "categories": cats,
             "is_project": b.is_project,
             "is_closed": b.is_closed,
+            "envelope_type": b.envelope_type or "spending",
             "budget_amount": budget_amount,
             "expenses": expenses,
             "reconciled_expenses": reconciled_expenses,
             "income": income,
-            "spent": max(spent, 0),    # display: never negative
+            "spent": max(spent, 0),
             "reconciled_spent": max(reconciled_spent, 0),
-            "net": spent,              # raw net value
+            "net": spent,
             "remaining": round(budget_amount - spent, 2),
             "percent": pct,
             "reconciled_percent": reconciled_pct,
@@ -377,7 +442,8 @@ def get_budget_transactions(budget_id: int, year: int = None, month: int = None,
             Transaction.to_account_id.in_(acc_ids)
         ))
 
-    if b.is_project:
+    if (b.envelope_type or "spending") == "savings" or b.is_project:
+        # Savings (tirelire) and project envelopes: only transactions assigned via budget_id
         q = db.query(Transaction).filter(Transaction.budget_id == budget_id)
         q = _apply_account_filter(q)
         txs = q.order_by(Transaction.date_operation.desc()).all()
@@ -638,3 +704,65 @@ Ne réponds rien d'autre que les lignes JSON. Pas de markdown, pas de texte auto
 
     print(f"[AI-SUGGEST] [OK] {len(proposals)} enveloppes proposees, {len(covered)}/{nb_cats} categories couvertes")
     return {"proposals": proposals}
+
+
+# ─── Allocation CRUD (for savings / tirelire envelopes) ───────────────────────
+
+@router.get("/{budget_id}/allocations")
+def get_allocations(budget_id: int, db: Session = Depends(get_db)):
+    b = db.query(Budget).filter(Budget.id == budget_id).first()
+    if not b:
+        raise HTTPException(status_code=404, detail="Budget non trouvé.")
+    allocs = db.query(BudgetAllocation).filter(
+        BudgetAllocation.budget_id == budget_id
+    ).order_by(BudgetAllocation.date.desc()).all()
+    return [
+        {
+            "id": a.id,
+            "budget_id": a.budget_id,
+            "amount": a.amount,
+            "date": a.date.isoformat() if a.date else None,
+            "note": a.note,
+            "created_at": a.created_at,
+        }
+        for a in allocs
+    ]
+
+
+@router.post("/{budget_id}/allocations")
+def create_allocation(budget_id: int, data: AllocationCreate, db: Session = Depends(get_db)):
+    b = db.query(Budget).filter(Budget.id == budget_id).first()
+    if not b:
+        raise HTTPException(status_code=404, detail="Budget non trouvé.")
+    from datetime import datetime
+    alloc = BudgetAllocation(
+        budget_id=budget_id,
+        amount=data.amount,
+        date=date.fromisoformat(data.date) if data.date else date.today(),
+        note=data.note,
+        created_at=datetime.now().isoformat(),
+    )
+    db.add(alloc)
+    db.commit()
+    db.refresh(alloc)
+    return {
+        "id": alloc.id,
+        "budget_id": alloc.budget_id,
+        "amount": alloc.amount,
+        "date": alloc.date.isoformat() if alloc.date else None,
+        "note": alloc.note,
+        "created_at": alloc.created_at,
+    }
+
+
+@router.delete("/{budget_id}/allocations/{alloc_id}")
+def delete_allocation(budget_id: int, alloc_id: int, db: Session = Depends(get_db)):
+    alloc = db.query(BudgetAllocation).filter(
+        BudgetAllocation.id == alloc_id,
+        BudgetAllocation.budget_id == budget_id
+    ).first()
+    if not alloc:
+        raise HTTPException(status_code=404, detail="Allocation non trouvée.")
+    db.delete(alloc)
+    db.commit()
+    return {"ok": True}

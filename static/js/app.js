@@ -455,7 +455,7 @@ class App {
 
                 for (const period of orderedPeriods) {
                     const data = summary[period];
-                    if (!data || data.target <= 0) continue;
+                    if (!data) continue;
 
                     const accountSubs = data.accounts || {};
                     const subKeys = Object.keys(accountSubs);
@@ -493,6 +493,25 @@ class App {
                 }
 
                 barsContainer.innerHTML = barsHtml;
+
+                // ── Savings (Tirelire) sidebar bar ──
+                const savingsSummary = stats.savings_summary;
+                if (savingsSummary && savingsSummary.count > 0) {
+                    const savPct = savingsSummary.goal > 0 ? Math.min((savingsSummary.balance / savingsSummary.goal) * 100, 100) : 0;
+                    const savColor = savPct >= 100 ? '#f59e0b' : savPct >= 50 ? '#10b981' : 'rgba(128,128,128,0.6)';
+                    const savingsBarHtml = `
+                    <div class="stat-box" style="display:block; border-color:#f59e0b66; background-color:#f59e0b1a; cursor:pointer; margin-top:8px; border-left:3px solid #f59e0b;" onclick="window.app.loadView('budgets')">
+                        <span class="stat-label" style="color:#f59e0b; font-weight:600;">🏦 ${window.i18n.t('budget_savings_summary')}</span>
+                        <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:6px;overflow:hidden;margin:8px 0;border:1px solid rgba(255,255,255,0.05);">
+                            <div style="position:absolute;top:0;left:0;width:${savPct}%;height:100%;background:${savColor};border-radius:999px;transition:width 0.3s;"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:12px;">
+                            <span class="privacy-blur" style="color:${savColor}; font-weight:600;">${formatCurrency(savingsSummary.balance)}</span>
+                            <span class="privacy-blur" style="color:var(--text-muted);">/ ${formatCurrency(savingsSummary.goal)}</span>
+                        </div>
+                    </div>`;
+                    barsContainer.innerHTML += savingsBarHtml;
+                }
             }
 
             

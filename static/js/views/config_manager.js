@@ -179,6 +179,11 @@ window.ConfigView = {
                         🔧 <span data-i18n="maintenance_fix_types">${window.i18n.t('maintenance_fix_types') || 'Corriger les types incohérents'}</span>
                     </button>
 
+                    <!-- Orphan recurrence cleanup -->
+                    <button class="btn btn-secondary" id="btnCleanOrphanRecurrences" onclick="window.ConfigView.cleanOrphanRecurrences()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(239,68,68,0.5); color: #ef4444;">
+                        🧹 <span data-i18n="maintenance_orphan_btn">${window.i18n.t('maintenance_orphan_btn') || 'Nettoyer les récurrences orphelines'}</span>
+                    </button>
+
                     <!-- Clear DB -->
                     <button class="btn btn-danger" onclick="window.ConfigView.clearDB()" style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
                         ⚠️ <span data-i18n="btn_clear_db">Vider la base de données</span>
@@ -822,6 +827,115 @@ window.ConfigView = {
                     .replace('{cat}', result.cat_fixed),
                 'success', 4000
             );
+        } catch(e) {
+            console.error(e);
+            if (btn) { btn.disabled = false; }
+            showInlineMessage(window.i18n.t('title_error'), e.message);
+        }
+    },
+
+    async cleanOrphanRecurrences() {
+        const btn = document.getElementById('btnCleanOrphanRecurrences');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse...'; }
+        try {
+            const preview = await API.get('/api/maintenance/orphan_recurrences/preview');
+            if (btn) { btn.disabled = false; btn.innerHTML = '🧹 ' + (window.i18n.t('maintenance_orphan_btn') || 'Nettoyer les récurrences orphelines'); }
+
+            if (preview.count === 0) {
+                showInlineMessage('✅', window.i18n.t('maintenance_orphan_none') || 'Aucune récurrence orpheline détectée. Tout est en ordre !');
+                return;
+            }
+
+            // Build per-transaction review modal with checkboxes
+            let contentHtml = `
+                <div style="max-height:60vh;overflow-y:auto;">
+                    <div style="background:var(--bg-surface);border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid var(--border-color);">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                            <span style="font-size:20px;">🔍</span>
+                            <strong style="font-size:14px;">${window.i18n.t('maintenance_orphan_summary') || "Résumé de l'analyse"}</strong>
+                        </div>
+                        <p style="margin:0;font-size:13px;color:var(--text-muted);line-height:1.5;">
+                            <strong style="color:var(--text-main);">${preview.count}</strong>
+                            ${window.i18n.t('maintenance_orphan_summary_desc') || "opération(s) générées automatiquement pour des récurrences qui n'ont aucune transaction rapprochée la même année. Ces opérations ont probablement été créées par erreur."}
+                        </p>
+                    </div>
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;">
+                            ${window.i18n.t('maintenance_orphan_select_label') || 'Sélectionnez les opérations à supprimer'}
+                        </span>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--primary-color);">
+                            <input type="checkbox" id="orphanSelectAll" checked onchange="document.querySelectorAll('.orphan-tx-cb').forEach(cb => { cb.checked = this.checked; })">
+                            ${window.i18n.t('wizard_tooltip_select_all') || 'Tout sélectionner'}
+                        </label>
+                    </div>`;
+
+            preview.groups.forEach(group => {
+                const closedBadge = group.is_closed
+                    ? `<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;margin-left:8px;">${window.i18n.t('badge_closed') || 'Fermé'}</span>`
+                    : '';
+
+                contentHtml += `
+                    <div style="margin-bottom:12px;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">
+                        <div style="padding:10px 14px;background:var(--bg-surface);border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:14px;">🔄</span>
+                            <strong style="font-size:13px;">${group.template_description}</strong>
+                            ${closedBadge}
+                            <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">${group.transactions.length} op.</span>
+                        </div>
+                        <div style="padding:0;">`;
+
+                group.transactions.forEach(tx => {
+                    const dateStr = tx.date_operation.split('T')[0];
+                    contentHtml += `
+                            <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border-color);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='rgba(239,68,68,0.04)'" onmouseout="this.style.background=''">
+                                <input type="checkbox" class="orphan-tx-cb" value="${tx.id}" checked style="width:16px;height:16px;flex-shrink:0;">
+                                <span style="flex:1;font-size:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                                    <span style="color:var(--text-muted);min-width:85px;">${dateStr}</span>
+                                    <span style="font-weight:500;flex:1;min-width:120px;">${tx.description}</span>
+                                    <span style="color:var(--text-muted);font-size:11px;">${tx.category || ''}</span>
+                                    <span style="font-weight:700;min-width:80px;text-align:right;">${formatCurrency(tx.amount)}</span>
+                                </span>
+                            </label>`;
+                });
+
+                contentHtml += `
+                        </div>
+                    </div>`;
+            });
+
+            contentHtml += `
+                    <div style="padding:10px;background:rgba(239,68,68,0.06);border-radius:8px;border:1px solid rgba(239,68,68,0.2);margin-top:8px;">
+                        <p style="font-size:12px;color:#ef4444;margin:0;font-weight:500;">
+                            ⚠️ ${window.i18n.t('maintenance_orphan_warning') || 'Les opérations cochées seront définitivement supprimées. Les opérations rapprochées ne peuvent jamais être supprimées.'}
+                        </p>
+                    </div>
+                </div>`;
+
+            const ok = await showInlineConfirm(
+                window.i18n.t('maintenance_orphan_preview_title') || 'Nettoyage des récurrences orphelines',
+                contentHtml
+            );
+            if (!ok) return;
+
+            // Gather selected IDs
+            const selectedIds = Array.from(document.querySelectorAll('.orphan-tx-cb:checked')).map(cb => parseInt(cb.value));
+
+            if (selectedIds.length === 0) {
+                showToast(window.i18n.t('maintenance_orphan_none_selected') || 'Aucune opération sélectionnée.', 'info');
+                return;
+            }
+
+            const result = await API.post('/api/maintenance/orphan_recurrences/cleanup', selectedIds);
+            showToast(
+                (window.i18n.t('maintenance_orphan_result') || '{count} opération(s) supprimée(s).')
+                    .replace('{count}', result.deleted),
+                'success', 4000
+            );
+
+            // Refresh sidebar to update balances
+            if (window.app && window.app.refreshSidebar) window.app.refreshSidebar();
+
         } catch(e) {
             console.error(e);
             if (btn) { btn.disabled = false; }

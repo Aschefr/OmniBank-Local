@@ -75,7 +75,16 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     from app.models import Account
     budget_data = get_budget_status(today.year, today.month, db=db)
     period_groups = {}
+    savings_summary = {"funded": 0, "goal": 0, "balance": 0, "count": 0}
     for b in budget_data["budgets"]:
+        # Separate savings (tirelire) from spending
+        if (b.get("envelope_type") or "spending") == "savings":
+            savings_summary["funded"] += b.get("funded", 0)
+            savings_summary["goal"] += b.get("budget_amount", 0)
+            savings_summary["balance"] += b.get("balance", 0)
+            savings_summary["count"] += 1
+            continue
+
         p = b.get("period", "monthly")
         if p not in period_groups:
             period_groups[p] = {"target": 0, "expenses": 0, "reconciled_expenses": 0, "accounts": {}}
@@ -118,7 +127,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "overdraft_warning": warning,
         "unreconciled_expenses": unreconciled_expenses,
         "total_unreconciled_expenses": total_unreconciled_expenses,
-        "budget_summary": period_groups
+        "budget_summary": period_groups,
+        "savings_summary": savings_summary,
     }
 
 from pydantic import BaseModel

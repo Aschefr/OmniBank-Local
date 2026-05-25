@@ -76,6 +76,10 @@ window.BudgetsView = {
                                         <input type="radio" name="budgetType" value="project" id="budgetTypeProject" onchange="window.BudgetsView.toggleType()" style="display:none;">
                                         <span data-i18n="budget_type_project">${window.i18n.t('budget_type_project')}</span>
                                     </label>
+                                    <label id="tabLabelSavings" style="flex:1; text-align:center; cursor:pointer; padding:8px 12px; font-size:13px; border-radius:6px; transition:all 0.2s;">
+                                        <input type="radio" name="budgetType" value="savings" id="budgetTypeSavings" onchange="window.BudgetsView.toggleType()" style="display:none;">
+                                        <span data-i18n="budget_type_savings">${window.i18n.t('budget_type_savings')}</span>
+                                    </label>
                                 </div>
                             </div>
 
@@ -398,30 +402,32 @@ window.BudgetsView = {
 
     toggleType() {
         const isProject = document.getElementById('budgetTypeProject')?.checked;
+        const isSavings = document.getElementById('budgetTypeSavings')?.checked;
         const catSection = document.getElementById('budgetCatSection');
-        if (catSection) catSection.style.display = isProject ? 'none' : 'block';
+        const periodRow = document.getElementById('newBudgetPeriod')?.closest('div');
+        if (catSection) catSection.style.display = (isProject || isSavings) ? 'none' : 'block';
+        // Hide period selector for savings (always indefinite)
+        if (periodRow) periodRow.style.display = isSavings ? 'none' : '';
+        if (isSavings) {
+            document.getElementById('newBudgetPeriod').value = 'indefinite';
+        }
 
         const tabCat = document.getElementById('tabLabelCat');
         const tabProj = document.getElementById('tabLabelProj');
-        if (tabCat && tabProj) {
-            if (isProject) {
-                tabProj.style.background = 'var(--bg-surface)';
-                tabProj.style.fontWeight = '700';
-                tabProj.style.color = 'var(--accent)';
-                tabProj.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
-                tabCat.style.background = 'transparent';
-                tabCat.style.fontWeight = 'normal';
-                tabCat.style.color = 'inherit';
-                tabCat.style.boxShadow = 'none';
+        const tabSavings = document.getElementById('tabLabelSavings');
+        const allTabs = [tabCat, tabProj, tabSavings].filter(Boolean);
+        const activeTab = isSavings ? tabSavings : isProject ? tabProj : tabCat;
+        for (const tab of allTabs) {
+            if (tab === activeTab) {
+                tab.style.background = 'var(--bg-surface)';
+                tab.style.fontWeight = '700';
+                tab.style.color = 'var(--accent)';
+                tab.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
             } else {
-                tabCat.style.background = 'var(--bg-surface)';
-                tabCat.style.fontWeight = '700';
-                tabCat.style.color = 'var(--accent)';
-                tabCat.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
-                tabProj.style.background = 'transparent';
-                tabProj.style.fontWeight = 'normal';
-                tabProj.style.color = 'inherit';
-                tabProj.style.boxShadow = 'none';
+                tab.style.background = 'transparent';
+                tab.style.fontWeight = 'normal';
+                tab.style.color = 'inherit';
+                tab.style.boxShadow = 'none';
             }
         }
     },
@@ -657,7 +663,7 @@ window.BudgetsView = {
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:11px;color:var(--text-muted);">
                         <span>${periodLabel}</span>
                         <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
-                            <input type="number" class="inline-input" style="width:80px;text-align:right;padding:2px 6px;font-size:12px;border-radius:4px;" value="${b.budget_amount}" onchange="window.BudgetsView.updateAmount(${b.id}, this.value)"> €
+                            <input type="number" class="inline-input" style="width:80px;text-align:right;padding:2px 6px;font-size:12px;border-radius:4px;" value="${b.budget_amount}" min="0" step="0.01" onchange="window.BudgetsView.updateAmount(${b.id}, this.value)"> €
                         </div>
                     </div>
 
@@ -676,15 +682,94 @@ window.BudgetsView = {
                 </div>`;
         };
 
+        // ── Helper: render a single savings (tirelire) card ──────────────
+        const renderSavingsCard = (b, y, m) => {
+            const balance = b.balance || 0;
+            const goal = b.budget_amount || 0;
+            const pct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
+            const goalReached = balance >= goal && goal > 0;
+            const barColor = goalReached ? '#f59e0b' : pct >= 50 ? '#10b981' : 'rgba(128,128,128,0.6)';
+            const funded = b.funded || 0;
+            const withdrawn = b.withdrawn || 0;
+
+            const safeName = b.name.replace(/'/g, "\\'");
+            const closedStyle = b.is_closed ? 'opacity:0.6;' : '';
+            const closedTag = b.is_closed
+                ? `<span style="background:rgba(239,68,68,0.15);color:#ff5630;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">${window.i18n.t('budget_closed_tag')}</span>`
+                : '';
+            const typeTag = `<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">${window.i18n.t('budget_savings_tag')}</span>`;
+
+            // Improvement_04: Account badges
+            let accountBadges = '';
+            if (b.account_ids && b.account_ids.length > 0 && window.app?.config?.enable_org_mode === 'true') {
+                accountBadges = b.account_ids.map(aid => {
+                    const acc = this.accounts?.find(a => a.id === aid);
+                    if (!acc) return '';
+                    const color = acc.color || 'var(--accent)';
+                    return `<span style="background:${color}1a; color:${color}; border:1px solid ${color}33; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:600;">● ${acc.name}</span>`;
+                }).join(' ');
+            }
+
+            const withdrawnHtml = withdrawn > 0
+                ? `<span class="privacy-blur" style="color:#ff5630;font-size:11px;">↓ ${formatCurrency(withdrawn)} ${window.i18n.t('budget_savings_withdrawn')}</span>`
+                : '';
+
+            return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" style="background:var(--bg-body);border:1px solid ${goalReached ? 'rgba(245,158,11,0.4)' : 'var(--border-color)'};border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.3s, box-shadow 0.3s;${closedStyle}" onmouseover="this.style.borderColor='rgba(245,158,11,0.5)'" onmouseout="this.style.borderColor='${goalReached ? 'rgba(245,158,11,0.4)' : 'var(--border-color)'}'">\
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px;">
+                        <div style="flex:1;">
+                            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+                                <strong style="font-size:13px;">${b.name}</strong>
+                                ${closedTag}
+                                ${accountBadges}
+                            </div>
+                            <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">${typeTag}</div>
+                        </div>
+                        <div style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation()">
+                            ${!b.is_closed ? `<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.showAllocationForm(${b.id})" title="${window.i18n.t('budget_savings_add_funds')}">➕</button>` : ''}
+                            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.editBudget(${b.id})" title="${window.i18n.t('tooltip_edit')}">✏️</button>
+                            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.${b.is_closed ? 'toggleClose' : 'breakPiggyBank'}(${b.id})" title="${b.is_closed ? window.i18n.t('budget_reopen_action') : window.i18n.t('budget_savings_break_action')}">${b.is_closed ? '🔓' : '🔨'}</button>
+                            <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.deleteBudget(${b.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:11px;color:var(--text-muted);">
+                        <span>${window.i18n.t('budget_savings_goal')}</span>
+                        <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
+                            <input type="number" class="inline-input" style="width:80px;text-align:right;padding:2px 6px;font-size:12px;border-radius:4px;" value="${b.budget_amount}" min="0" step="0.01" onchange="window.BudgetsView.updateAmount(${b.id}, this.value)"> €
+                        </div>
+                    </div>
+
+                    <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:8px;overflow:hidden;margin-bottom:8px;border:1px solid rgba(255,255,255,0.05);">
+                        <div style="position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${barColor};border-radius:999px;transition:width 0.5s ease;"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:4px;">
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                            <span class="privacy-blur" style="color:${barColor};font-weight:600;">↑ ${formatCurrency(funded)} ${window.i18n.t('budget_savings_funded')}</span>
+                            ${withdrawnHtml}
+                        </div>
+                        <span style="color:${goalReached ? '#f59e0b' : 'var(--text-muted)'};font-weight:600;">${goalReached ? '🎯 ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(b.remaining || 0))}</span> ${goalReached ? window.i18n.t('budget_savings_goal_reached') : window.i18n.t('budget_savings_remaining')}</span>
+                    </div>
+                </div>`;
+        };
+
         // ── Main rendering loop ──────────────────────────────────────────
         const isOrgMode = window.app?.config?.enable_org_mode === 'true';
 
+        // Separate savings from spending budgets
+        const savingsBudgets = [];
         for (const period of ['monthly', 'yearly', 'indefinite', 'custom']) {
             const group = groups[period];
             if (group.budgets.length === 0) continue;
             const y = group.y;
             const m = group.m;
             const label = group.label;
+
+            // Separate savings from spending in this group
+            const spendingBudgets = group.budgets.filter(b => (b.envelope_type || 'spending') !== 'savings');
+            const groupSavings = group.budgets.filter(b => (b.envelope_type || 'spending') === 'savings');
+            savingsBudgets.push(...groupSavings.map(b => ({ ...b, _y: y, _m: m })));
+
+            if (spendingBudgets.length === 0) continue;
 
             let html = `<div style="margin-bottom:40px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border-color);padding-bottom:8px;">
@@ -693,11 +778,11 @@ window.BudgetsView = {
                 </div>`;
 
             // Sub-group budgets by account scope (Org Mode) or keep flat
-            const hasAnyAccountScope = isOrgMode && group.budgets.some(b => b.account_ids && b.account_ids.length > 0);
+            const hasAnyAccountScope = isOrgMode && spendingBudgets.some(b => b.account_ids && b.account_ids.length > 0);
 
             if (hasAnyAccountScope) {
                 const subGroups = {};
-                for (const b of group.budgets) {
+                for (const b of spendingBudgets) {
                     const key = (b.account_ids && b.account_ids.length > 0) ? [...b.account_ids].sort((a2,b2) => a2 - b2).join(',') : '__global__';
                     if (!subGroups[key]) subGroups[key] = [];
                     subGroups[key].push(b);
@@ -709,7 +794,6 @@ window.BudgetsView = {
                         subTitle = `${window.i18n.t('budget_summary_global')} — ${group.title}`;
                         accentColor = null;
                     } else {
-                        // Build colorized account name badges
                         const accIds = key.split(',').map(id => parseInt(id));
                         const accObjs = accIds.map(id => this.accounts?.find(a => a.id === id)).filter(Boolean);
                         if (accObjs.length > 0) {
@@ -718,7 +802,6 @@ window.BudgetsView = {
                                 return `<span style="color:${c};font-weight:600;">● ${a.name}</span>`;
                             }).join(' <span style="color:var(--text-muted);">+</span> ');
                         } else {
-                            // Fallback: use account_names from API
                             const firstBudget = budgets[0];
                             if (firstBudget?.account_names?.length > 0) {
                                 subTitle = firstBudget.account_names.join(' + ');
@@ -736,14 +819,51 @@ window.BudgetsView = {
                     html += '</div>';
                 }
             } else {
-                html += renderSummaryBar(`${window.i18n.t('budget_summary_global')} — ${group.title}`, label, group.budgets, null);
+                html += renderSummaryBar(`${window.i18n.t('budget_summary_global')} — ${group.title}`, label, spendingBudgets, null);
                 html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">`;
-                for (const b of group.budgets) html += renderBudgetCard(b, y, m);
+                for (const b of spendingBudgets) html += renderBudgetCard(b, y, m);
                 html += '</div>';
             }
 
             html += '</div>';
             fullHtml += html;
+        }
+
+        // ── Savings (Tirelire) section ───────────────────────────────────
+        if (savingsBudgets.length > 0) {
+            let savingsHtml = `<div style="margin-bottom:40px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;border-bottom:2px solid rgba(245,158,11,0.3);padding-bottom:8px;">
+                    <h3 style="margin:0;font-size:16px;color:#f59e0b;">🏦 ${window.i18n.t('budget_savings_section')}</h3>
+                </div>`;
+
+            // Summary bar for savings
+            const totalGoal = savingsBudgets.reduce((s, b) => s + (b.budget_amount || 0), 0);
+            const totalBalance = savingsBudgets.reduce((s, b) => s + (b.balance || 0), 0);
+            const savingsPct = totalGoal > 0 ? Math.min((totalBalance / totalGoal) * 100, 100) : 0;
+            const savingsBarColor = savingsPct >= 100 ? '#f59e0b' : savingsPct >= 50 ? '#10b981' : 'rgba(128,128,128,0.6)';
+            savingsHtml += `<div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);border-left:3px solid #f59e0b;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                    <div>
+                        <h4 style="margin:0 0 4px;font-size:14px;color:var(--text-color);">🏦 ${window.i18n.t('budget_savings_summary')}</h4>
+                        <span style="font-size:12px;color:var(--text-muted);">${savingsBudgets.length} ${window.i18n.t('budget_savings_tag').toLowerCase()}${savingsBudgets.length > 1 ? 's' : ''}</span>
+                    </div>
+                    <div style="text-align:right;">
+                        <strong class="privacy-blur" style="font-size:18px;color:var(--text-color);">${formatCurrency(totalBalance)}</strong><span style="font-size:12px;color:var(--text-muted);"> / ${formatCurrency(totalGoal)}</span>
+                    </div>
+                </div>
+                <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:12px;overflow:hidden;margin-bottom:12px;border:1px solid rgba(255,255,255,0.05);">
+                    <div style="position:absolute;top:0;left:0;width:${savingsPct}%;height:100%;background:${savingsBarColor};border-radius:999px;transition:width 0.3s;"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:14px;">
+                    <span class="privacy-blur" style="color:${savingsBarColor};font-weight:600;">${formatCurrency(totalBalance)} ${window.i18n.t('budget_savings_funded')}</span>
+                    <span style="color:var(--text-muted);font-weight:600;"><span class="privacy-blur">${formatCurrency(Math.abs(totalGoal - totalBalance))}</span> ${totalBalance >= totalGoal ? window.i18n.t('budget_savings_goal_reached') : window.i18n.t('budget_savings_remaining')}</span>
+                </div>
+            </div>`;
+
+            savingsHtml += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">`;
+            for (const b of savingsBudgets) savingsHtml += renderSavingsCard(b, b._y, b._m);
+            savingsHtml += '</div></div>';
+            fullHtml += savingsHtml;
         }
 
         let html = fullHtml;
@@ -800,8 +920,85 @@ window.BudgetsView = {
         modal.style.display = 'flex';
 
         try {
+            const budget = this.statusData?.budgets.find(b => b.id === budgetId);
+            const isSavings = (budget?.envelope_type || 'spending') === 'savings';
             const txs = await API.get(`/api/budgets/${budgetId}/transactions?year=${year}&month=${month}`);
 
+            // ── Savings (Tirelire) detail ────────────────────────────────
+            if (isSavings) {
+                // Load allocations
+                let allocs = [];
+                try { allocs = await API.get(`/api/budgets/${budgetId}/allocations`); } catch(e) {}
+
+                const funded = budget?.funded || 0;
+                const withdrawn = budget?.withdrawn || 0;
+                const balance = budget?.balance || 0;
+                const goal = budget?.budget_amount || 0;
+                const pct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
+                const goalReached = balance >= goal && goal > 0;
+                const barColor = goalReached ? '#f59e0b' : pct >= 50 ? '#10b981' : 'rgba(128,128,128,0.6)';
+
+                title.textContent = `🏦 ${budgetName}`;
+                const safeName = budgetName.replace(/'/g, "\\'");
+
+                graph.innerHTML = `<div style="margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:3px;">
+                        <span>${window.i18n.t('budget_expenses')} · <span class="privacy-blur" style="font-weight:600;">${formatCurrency(goal)}</span> ${window.i18n.t('budget_savings_goal')}</span>
+                        <span class="privacy-blur">↑ ${formatCurrency(funded)} ${window.i18n.t('budget_savings_funded')}${withdrawn > 0 ? ` · ↓ ${formatCurrency(withdrawn)} ${window.i18n.t('budget_savings_withdrawn')}` : ''}</span>
+                    </div>
+                    <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);">
+                        <div style="position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${barColor};border-radius:999px;transition:width 0.5s ease;"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px;">
+                        <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(balance)} ${window.i18n.t('budget_savings_balance')}</span>
+                        <span style="color:${goalReached ? '#f59e0b' : 'var(--text-muted)'};font-weight:600;">${goalReached ? '🎯 ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(goal - balance))}</span> ${goalReached ? window.i18n.t('budget_savings_goal_reached') : window.i18n.t('budget_savings_remaining')}</span>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;padding:12px;background:var(--bg-surface);border:1px solid rgba(245,158,11,0.3);border-radius:8px;flex-wrap:wrap;margin-bottom:8px;">
+                    <input type="number" id="detailAllocAmount" class="inline-input" placeholder="${window.i18n.t('budget_savings_add_placeholder')}" step="0.01" style="width:100px;font-size:12px;padding:6px 10px;border-radius:6px;">
+                    <input type="text" id="detailAllocNote" class="inline-input" placeholder="${window.i18n.t('budget_savings_note_placeholder')}" style="flex:1;min-width:120px;font-size:12px;padding:6px 10px;border-radius:6px;">
+                    <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, 1, '${safeName}', ${year}, ${month})">↑ ${window.i18n.t('budget_savings_deposit')}</button>
+                    <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, -1, '${safeName}', ${year}, ${month})">↓ ${window.i18n.t('budget_savings_withdrawal')}</button>
+                </div>`;
+
+                // Merge txs and allocs into a single list sorted by date
+                const items = [];
+                for (const tx of txs) {
+                    items.push({
+                        type: 'tx', date: tx.date, description: tx.description, amount: tx.amount,
+                        isIncome: tx.is_income, category: tx.category, isReconciled: tx.is_reconciled
+                    });
+                }
+                for (const a of allocs) {
+                    items.push({
+                        type: 'alloc', id: a.id, date: a.date, description: a.note || (a.amount > 0 ? window.i18n.t('budget_savings_deposit') : window.i18n.t('budget_savings_withdrawal')),
+                        amount: Math.abs(a.amount), isIncome: a.amount > 0
+                    });
+                }
+                items.sort((a, b) => b.date.localeCompare(a.date));
+
+                if (items.length === 0) {
+                    list.innerHTML = `<p style="color:var(--text-muted);font-size:12px;">${window.i18n.t('budget_no_operations')}</p>`;
+                } else {
+                    list.innerHTML = `<h4 style="margin:0 0 10px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">${window.i18n.tp('budget_operations_count', {count: items.length})}</h4>` +
+                        items.map(it => `
+                        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);flex-wrap:wrap;${it.isReconciled ? 'opacity:0.55;' : ''}">
+                            <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${it.date}</span>
+                            <span style="flex:1;font-size:12px;min-width:100px;">
+                                ${it.type === 'alloc' ? '💰 ' : ''}${it.description}
+                                ${it.isReconciled ? `<span style="font-size:10px;color:var(--text-muted);font-style:italic;margin-left:8px;">${window.i18n.t('budget_reconciled_label')}</span>` : ''}
+                            </span>
+                            ${it.category ? `<span style="background:var(--bg-base);padding:1px 5px;border-radius:4px;font-size:10px;color:var(--text-muted);">${it.category}</span>` : ''}
+                            <span class="privacy-blur" style="font-size:13px;font-weight:600;color:${it.isIncome ? '#10b981' : '#ff5630'};white-space:nowrap;">
+                                ${it.isIncome ? '↑ +' : '↓ -'}${formatCurrency(it.amount)}
+                            </span>
+                            ${it.type === 'alloc' ? `<button class="btn btn-secondary" style="padding:2px 6px;font-size:10px;" onclick="event.stopPropagation();window.BudgetsView.deleteAllocation(${budgetId},${it.id},'${budgetName}',${year},${month})">✕</button>` : ''}
+                        </div>`).join('');
+                }
+                return;
+            }
+
+            // ── Standard spending detail ─────────────────────────────────
             if (!txs.length) {
                 graph.innerHTML = `<p style="color:var(--text-muted);font-size:12px;">${window.i18n.t('budget_no_operations')}</p>`;
                 return;
@@ -813,7 +1010,6 @@ window.BudgetsView = {
             const totalExp = expenses.reduce((s, t) => s + Math.abs(t.amount), 0);
             const totalRecExp = expenses.filter(t => t.is_reconciled).reduce((s, t) => s + Math.abs(t.amount), 0);
             const totalInc = incomes.reduce((s,  t) => s + Math.abs(t.amount), 0);
-            const budget   = this.statusData?.budgets.find(b => b.id === budgetId);
             const target   = budget?.budget_amount || 0;
             const maxVal   = Math.max(totalExp, totalInc, target, 1);
 
@@ -953,6 +1149,8 @@ window.BudgetsView = {
 
         if (b.is_project) {
             document.getElementById('budgetTypeProject').checked = true;
+        } else if ((b.envelope_type || 'spending') === 'savings') {
+            document.getElementById('budgetTypeSavings').checked = true;
         } else {
             document.getElementById('budgetTypeCategory').checked = true;
         }
@@ -970,17 +1168,19 @@ window.BudgetsView = {
         const amount = parseFloat(document.getElementById('newBudgetAmount').value);
         const period = document.getElementById('newBudgetPeriod').value;
         const isProject = document.getElementById('budgetTypeProject').checked;
-        const categories = isProject ? [] : this.getSelectedCats();
+        const isSavings = document.getElementById('budgetTypeSavings')?.checked;
+        const categories = (isProject || isSavings) ? [] : this.getSelectedCats();
 
         if (!name) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_name_required'));
-        if (isNaN(amount) || amount <= 0) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
+        if (isNaN(amount) || amount < 0) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
 
         const startDate = period === 'custom' ? (document.getElementById('newBudgetStartDate')?.value || null) : null;
         const endDate = period === 'custom' ? (document.getElementById('newBudgetEndDate')?.value || null) : null;
         if (period === 'custom' && (!startDate || !endDate)) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_custom_dates_required') || 'Veuillez sélectionner les dates de début et de fin.');
         
+        const envelope_type = isSavings ? 'savings' : 'spending';
         const account_ids = window.app?.config?.enable_org_mode === 'true' ? this.getSelectedAccounts() : null;
-        const payload = { name, monthly_amount: amount, period, is_project: isProject, categories, start_date: startDate, end_date: endDate, account_ids };
+        const payload = { name, monthly_amount: amount, period, is_project: isProject, categories, start_date: startDate, end_date: endDate, account_ids, envelope_type };
 
         try {
             let savedId = id;
@@ -1023,7 +1223,7 @@ window.BudgetsView = {
 
     async updateAmount(id, val) {
         const amount = parseFloat(val);
-        if (isNaN(amount)) return;
+        if (isNaN(amount) || amount < 0) return;
         try {
             await API.put(`/api/budgets/${id}`, { monthly_amount: amount });
             await this.loadStatus();
@@ -1057,6 +1257,99 @@ window.BudgetsView = {
             window.app.refreshSidebar();
         } catch(e) {
             showInlineMessage(window.i18n.t('title_info'), e.message);
+        }
+    },
+
+    // ── Piggy Bank (Tirelire) methods ─────────────────────────────────────────
+
+    showAllocationForm(budgetId) {
+        // Remove any existing allocation form
+        const existing = document.getElementById('allocationInlineForm');
+        if (existing) existing.remove();
+
+        const card = document.querySelector(`[data-budget-id="${budgetId}"]`);
+        if (!card) return;
+
+        const form = document.createElement('div');
+        form.id = 'allocationInlineForm';
+        form.style.cssText = 'display:flex;gap:8px;align-items:center;padding:12px;margin-top:8px;background:var(--bg-surface);border:1px solid rgba(245,158,11,0.3);border-radius:8px;flex-wrap:wrap;';
+        form.onclick = (e) => e.stopPropagation();
+        form.innerHTML = `
+            <input type="number" id="allocAmount" class="inline-input" placeholder="${window.i18n.t('budget_savings_add_placeholder')}" step="0.01" style="width:100px;font-size:12px;padding:4px 8px;border-radius:4px;">
+            <input type="text" id="allocNote" class="inline-input" placeholder="${window.i18n.t('budget_savings_note_placeholder')}" style="flex:1;min-width:120px;font-size:12px;padding:4px 8px;border-radius:4px;">
+            <button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="window.BudgetsView.addAllocation(${budgetId}, 1)">↑ ${window.i18n.t('budget_savings_deposit')}</button>
+            <button class="btn btn-secondary" style="padding:4px 12px;font-size:11px;" onclick="window.BudgetsView.addAllocation(${budgetId}, -1)">↓ ${window.i18n.t('budget_savings_withdrawal')}</button>
+            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="document.getElementById('allocationInlineForm')?.remove()">✕</button>
+        `;
+        card.appendChild(form);
+        document.getElementById('allocAmount')?.focus();
+    },
+
+    async addAllocation(budgetId, sign) {
+        const amountInput = document.getElementById('allocAmount');
+        const noteInput = document.getElementById('allocNote');
+        const amount = parseFloat(amountInput?.value);
+        if (isNaN(amount) || amount <= 0) return;
+
+        try {
+            await API.post(`/api/budgets/${budgetId}/allocations`, {
+                amount: amount * sign,
+                note: noteInput?.value || null,
+                date: new Date().toISOString().split('T')[0],
+            });
+            document.getElementById('allocationInlineForm')?.remove();
+            await this.loadStatus();
+            window.app.refreshSidebar();
+            showToast(sign > 0 ? `↑ ${formatCurrency(amount)} ${window.i18n.t('budget_savings_deposit').toLowerCase()}` : `↓ ${formatCurrency(amount)} ${window.i18n.t('budget_savings_withdrawal').toLowerCase()}`, 'success');
+        } catch(e) {
+            showInlineMessage(window.i18n.t('title_error'), e.message);
+        }
+    },
+
+    async breakPiggyBank(id) {
+        if (!await showInlineConfirm('🔨 ' + window.i18n.t('budget_savings_break_action'), window.i18n.t('budget_savings_break_confirm'))) return;
+        try {
+            await API.put(`/api/budgets/${id}`, { is_closed: true });
+            await this.loadBudgets();
+            await this.loadStatus();
+            window.app.refreshSidebar();
+            showToast('🏦 ' + window.i18n.t('budget_savings_broken'), 'success', 4000);
+        } catch(e) {
+            showInlineMessage(window.i18n.t('title_error'), e.message);
+        }
+    },
+
+    async deleteAllocation(budgetId, allocId, budgetName, year, month) {
+        try {
+            await API.del(`/api/budgets/${budgetId}/allocations/${allocId}`);
+            await this.loadStatus();
+            window.app.refreshSidebar();
+            // Refresh detail view
+            await this.showDetail(budgetId, budgetName, year, month);
+        } catch(e) {
+            showInlineMessage(window.i18n.t('title_error'), e.message);
+        }
+    },
+
+    async addAllocationFromDetail(budgetId, sign, budgetName, year, month) {
+        const amountInput = document.getElementById('detailAllocAmount');
+        const noteInput = document.getElementById('detailAllocNote');
+        const amount = parseFloat(amountInput?.value);
+        if (isNaN(amount) || amount <= 0) return;
+
+        try {
+            await API.post(`/api/budgets/${budgetId}/allocations`, {
+                amount: amount * sign,
+                note: noteInput?.value || null,
+                date: new Date().toISOString().split('T')[0],
+            });
+            await this.loadStatus();
+            window.app.refreshSidebar();
+            showToast(sign > 0 ? `↑ ${formatCurrency(amount)} ${window.i18n.t('budget_savings_deposit').toLowerCase()}` : `↓ ${formatCurrency(amount)} ${window.i18n.t('budget_savings_withdrawal').toLowerCase()}`, 'success');
+            // Refresh detail view in place
+            await this.showDetail(budgetId, budgetName, year, month);
+        } catch(e) {
+            showInlineMessage(window.i18n.t('title_error'), e.message);
         }
     },
 

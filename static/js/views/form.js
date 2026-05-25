@@ -30,7 +30,9 @@ window.FormView = {
     async loadProjectBudgets() {
         try {
             const all = await API.get('/api/budgets/');
-            this.projectBudgets = all.filter(b => b.is_project && !b.is_closed);
+            const projects = all.filter(b => b.is_project && !b.is_closed);
+            const savings = all.filter(b => (b.envelope_type || 'spending') === 'savings' && !b.is_closed);
+            this.projectBudgets = [...projects, ...savings];
             const container = document.getElementById('op_budget_container');
             const select = document.getElementById('op_budget_id');
             if (!container || !select) return;
@@ -39,8 +41,18 @@ window.FormView = {
                 return;
             }
             container.style.display = 'block';
-            select.innerHTML = '<option value="">-- Aucune enveloppe --</option>' +
-                this.projectBudgets.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+            let optionsHtml = '<option value="">-- Aucune enveloppe --</option>';
+            if (projects.length > 0) {
+                optionsHtml += `<optgroup label="${window.i18n.t('budget_optgroup_projects')}">`;
+                optionsHtml += projects.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+                optionsHtml += '</optgroup>';
+            }
+            if (savings.length > 0) {
+                optionsHtml += `<optgroup label="🏦 ${window.i18n.t('budget_optgroup_savings')}">`;
+                optionsHtml += savings.map(b => `<option value="${b.id}">🏦 ${b.name}</option>`).join('');
+                optionsHtml += '</optgroup>';
+            }
+            select.innerHTML = optionsHtml;
         } catch(e) { /* budgets endpoint not critical */ }
     },
 

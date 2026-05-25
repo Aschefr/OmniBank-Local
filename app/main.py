@@ -84,9 +84,74 @@ async def startup_init():
     start_scheduler()
 
 
+# ── Cache-busting: compute a short hash from all local static assets ──────────
+import hashlib, re
+_asset_hash = None
+
+def _compute_asset_hash():
+    """Compute a short hash from the contents of all local JS/CSS files."""
+    global _asset_hash
+    if _asset_hash:
+        return _asset_hash
+    h = hashlib.md5()
+    for root, dirs, files in os.walk(static_dir):
+        for fn in sorted(files):
+            if fn.endswith(('.js', '.css')):
+                fpath = os.path.join(root, fn)
+                try:
+                    h.update(open(fpath, 'rb').read())
+                except Exception:
+                    pass
+    # Also mix in the version from package.json for extra safety
+    try:
+        import json as _json
+        pkg = os.path.join(os.path.abspath('.'), "package.json")
+        if not os.path.exists(pkg):
+            pkg = resource_path("package.json")
+        with open(pkg, "r") as f:
+            h.update(_json.load(f).get("version", "0").encode())
+    except Exception:
+        pass
+    _asset_hash = h.hexdigest()[:10]
+    logger.info(f"[Cache-Bust] Asset hash: {_asset_hash}")
+    return _asset_hash
+
+_spa_html_cache = None
+
+def _get_spa_html():
+    """Read index.html and inject cache-busting query strings into local asset URLs."""
+    global _spa_html_cache
+    if _spa_html_cache:
+        return _spa_html_cache
+    
+    index_path = os.path.join(resource_path("static"), "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        html = f.read()
+    
+    asset_hash = _compute_asset_hash()
+    
+    # Replace existing ?v=xxx or add ?v=hash to all local /static/ asset references
+    # Matches: src="/static/..." or href="/static/..." with optional existing ?v=...
+    def _replace_asset_url(match):
+        prefix = match.group(1)  # src=" or href="
+        path = match.group(2)    # /static/path/to/file.ext
+        suffix = match.group(4)  # closing quote
+        return f'{prefix}{path}?v={asset_hash}{suffix}'
+    
+    html = re.sub(
+        r'((?:src|href)=["\'])(/static/[^"\'?]+)(\?[^"\']*)?(["\'])',
+        _replace_asset_url,
+        html
+    )
+    
+    _spa_html_cache = html
+    return html
+
+
 @app.get("/")
 def serve_spa():
-    return FileResponse(os.path.join(resource_path("static"), "index.html"))
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=_get_spa_html(), media_type="text/html")
 
 
 @app.get("/api/health")

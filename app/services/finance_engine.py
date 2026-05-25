@@ -93,8 +93,25 @@ def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date)
     ).all()
     
     expenses_sum = sum(t.amount for t in future_tx) + sum(t.amount for t in future_transfers)
-    
-    return round(current_balance - expenses_sum, 2)
+
+    # Subtract active piggy bank (tirelire) balances — reserved funds
+    from app.models import Budget, BudgetAllocation
+    savings_budgets = db.query(Budget).filter(
+        Budget.envelope_type == "savings",
+        Budget.is_closed == False
+    ).all()
+    savings_total = 0.0
+    for sb in savings_budgets:
+        # Manual allocations
+        allocs = db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == sb.id).all()
+        alloc_balance = sum(a.amount for a in allocs)  # positive = deposit, negative = withdrawal
+        # Transactions assigned via budget_id
+        txs = db.query(Transaction).filter(Transaction.budget_id == sb.id).all()
+        tx_income = sum(abs(t.amount) for t in txs if t.type == "income")
+        tx_expenses = sum(abs(t.amount) for t in txs if t.type != "income")
+        savings_total += (tx_income - tx_expenses) + alloc_balance
+
+    return round(current_balance - expenses_sum - max(savings_total, 0), 2)
 
 def get_overdraft_warning(db: Session, account_id: int = None, current_date: date = None):
     """
