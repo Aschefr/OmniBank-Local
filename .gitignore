@@ -50,3 +50,5 @@ tools/license_generator*
 app/_license_secret.py
 
 CLAUDE.md
+
+src-tauri/resources/
