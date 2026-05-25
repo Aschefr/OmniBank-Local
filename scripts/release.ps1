@@ -93,14 +93,15 @@ Write-Host "  tauri.conf.json: $Version" -ForegroundColor Green
 # --- Step 2: Build sidecar ---
 if (-not $SkipSidecar) {
     Write-Host "`n[2/8] Building sidecar (PyInstaller)..." -ForegroundColor Yellow
-    & powershell -ExecutionPolicy Bypass -File ".\scripts\build_sidecar.ps1"
-    $sidecarPath = "src-tauri\bin\omnibank-api-x86_64-pc-windows-msvc.exe"
+    & powershell -ExecutionPolicy Bypass -File ".\scripts\build_sidecar_onedir.ps1"
+    $sidecarPath = "src-tauri\resources\omnibank-api"
     if (-not (Test-Path $sidecarPath)) {
         Write-Host "ERROR: Sidecar not found at $sidecarPath" -ForegroundColor Red
         exit 1
     }
-    $sidecarSize = [math]::Round((Get-Item $sidecarPath).Length / 1MB, 1)
-    Write-Host "  Sidecar: $sidecarSize MB" -ForegroundColor Green
+    # Calculate folder size
+    $sidecarSize = [math]::Round(((Get-ChildItem $sidecarPath -Recurse | Measure-Object -Property Length -Sum).Sum) / 1MB, 1)
+    Write-Host "  Sidecar Dir: $sidecarSize MB" -ForegroundColor Green
 } else {
     Write-Host "`n[2/8] Skipping sidecar build (-SkipSidecar)" -ForegroundColor DarkGray
 }
