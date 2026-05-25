@@ -197,7 +197,7 @@ window.ConfigView = {
                     <h3 style="display:flex; align-items:center; gap:8px; margin:0;" data-i18n="config_auto_backup_title">${window.i18n.t('config_auto_backup_title')}</h3>
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
                         <div style="position: relative; width: 40px; height: 24px;">
-                            <input type="checkbox" id="conf_auto_backup_enabled" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
+                            <input type="checkbox" id="conf_auto_backup_enabled" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.toggleAutoBackup(this.checked); window.ConfigView.save()">
                             <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
                             <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
                         </div>
@@ -282,6 +282,7 @@ window.ConfigView = {
                 // Default to true if key not set
                 const isEnabled = (this.configData.auto_backup_enabled || 'true') === 'true';
                 autoBackupToggle.checked = isEnabled;
+                this.toggleAutoBackup(isEnabled);
             }
             const freqSel = document.getElementById('conf_auto_backup_frequency');
             if (freqSel && this.configData.auto_backup_frequency) {
@@ -312,6 +313,13 @@ window.ConfigView = {
         // Ensure app.config is synced so other views know
         if (window.app && window.app.config) {
             window.app.config.enable_ai = enabled ? 'true' : 'false';
+        }
+    },
+
+    toggleAutoBackup(enabled) {
+        const settings = document.getElementById('autoBackupSettings');
+        if (settings) {
+            settings.style.display = enabled ? 'block' : 'none';
         }
     },
 

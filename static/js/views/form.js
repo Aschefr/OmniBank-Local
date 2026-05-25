@@ -666,24 +666,34 @@ window.FormView = {
                         to_account_id: this.pendingSaveData.to_account_id
                     };
                     
+                    let createdTxId = null;
                     const newTpl = await API.post('/api/recurrences/', tplData);
                     
                     const txData = { ...this.pendingSaveData, date_saisie: new Date().toISOString().split('T')[0] };
                     delete txData.frequency; delete txData.day_of_month;
                     txData.recurrence_id = newTpl.id;
                     
-                    await API.post('/api/transactions/', txData);
+                    const newTx = await API.post('/api/transactions/', txData);
+                    if (newTx && newTx.id) createdTxId = newTx.id;
                     await API.post('/api/recurrences/generate_to_end_of_year', {});
                     
+                    this._recentlyCreatedId = createdTxId;
                 } else {
                     const txData = { ...this.pendingSaveData, date_saisie: new Date().toISOString().split('T')[0] };
-                    await API.post('/api/transactions/', txData);
+                    const newTx = await API.post('/api/transactions/', txData);
+                    this._recentlyCreatedId = (newTx && newTx.id) ? newTx.id : null;
                 }
             }
 
             // Determine if we should keep modal open
             const isCreate = !this.currentTxId;
-            const savedRes = isCreate ? await this._getLastCreatedId() : null;
+            const savedRes = isCreate ? this._recentlyCreatedId : null;
+
+            const highlightId = this.currentTxId || savedRes;
+            if (highlightId) {
+                if (window.TimelineView) window.TimelineView._pendingHighlightTxId = highlightId;
+                if (window.AllOperationsView) window.AllOperationsView._pendingHighlightTxId = highlightId;
+            }
 
             if (this.keepOpen && isCreate) {
                 // Animate save button

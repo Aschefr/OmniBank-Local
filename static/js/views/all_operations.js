@@ -40,7 +40,10 @@ window.AllOperationsView = {
                 </div>
             </div>
             <div id="historyHeader" class="view-header responsive-header" style="position: sticky; top: -32px; z-index: 10; background-color: var(--bg-base); padding: 32px 0 15px 0; margin-top: -32px;">
-                <h2 style="margin:0;">📋 <span data-i18n="nav_history">Historique</span></h2>
+                <h2 style="margin:0; display:flex; align-items:center; gap:10px;">
+                    📋 <span data-i18n="nav_history">Historique</span>
+                    <button id="btnHistoryBackToAnalytics" class="btn btn-secondary" style="display:none; padding: 4px 10px; font-size: 13px; font-weight: 500; align-items: center; gap: 4px;" onclick="window.app.loadView('analytics')" title="Retour">⬅️ Retour</button>
+                </h2>
                 <div class="responsive-header-controls">
                     <div class="history-filters" style="display:flex; gap:8px; width:100%; max-width:900px; justify-content:flex-end; flex-wrap:wrap; align-items: center;">
                     <input type="text" id="historySearch" class="inline-input" data-i18n-placeholder="ph_search" placeholder="Rechercher..." style="min-width:0; flex:1; max-width: 180px;" oninput="window.AllOperationsView.applyFilters()">
@@ -103,6 +106,9 @@ window.AllOperationsView = {
                         <!-- Rendered dynamically -->
                     </tbody>
                 </table>
+                <div id="historyTotalsFooter" class="view-footer" style="position: sticky; bottom: -32px; margin: 0 -32px -32px -32px; background: var(--bg-surface); padding: 12px 32px 32px 32px; border-top: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); z-index: 50; font-weight: 500;">
+                    <!-- Rendered dynamically -->
+                </div>
             </div>
         `;
     },
@@ -227,6 +233,13 @@ window.AllOperationsView = {
             if (this.pendingFilter) {
                 const pf = this.pendingFilter;
                 this.pendingFilter = null;
+                
+                if (pf.backToView === 'analytics') {
+                    this.isDrillDown = true;
+                } else {
+                    this.isDrillDown = false;
+                }
+
                 // Set category filter
                 if (pf.category) {
                     window.MultiSelect.setSelected('historyCategoryFilter', [pf.category]);
@@ -241,6 +254,13 @@ window.AllOperationsView = {
                     const searchInput = document.getElementById('historySearch');
                     if (searchInput) searchInput.value = pf.year;
                 }
+            } else {
+                this.isDrillDown = false;
+            }
+
+            const backBtn = document.getElementById('btnHistoryBackToAnalytics');
+            if (backBtn) {
+                backBtn.style.display = this.isDrillDown ? 'flex' : 'none';
             }
 
             this.renderTable();
@@ -248,9 +268,11 @@ window.AllOperationsView = {
             // Check if we need to highlight a specific transaction (e.g. overdraft locate)
             if (this._pendingHighlightTxId) {
                 const txId = this._pendingHighlightTxId;
+                const cssClass = this._pendingHighlightCssClass || 'highlight-flash';
                 this._pendingHighlightTxId = null;
+                this._pendingHighlightCssClass = null;
                 // Small delay to let VirtualTable finish initial render
-                setTimeout(() => this.scrollToAndHighlight(txId), 200);
+                setTimeout(() => this.scrollToAndHighlight(txId, cssClass), 250);
             }
         } catch (e) {
             console.error("Failed to load operations", e);
@@ -321,6 +343,27 @@ window.AllOperationsView = {
         const today = new Date();
         today.setHours(0,0,0,0);
         let foundCurrent = false;
+
+        let sumIncome = 0;
+        let sumExpense = 0;
+        filtered.forEach(tx => {
+            if (tx.type === 'income') sumIncome += tx.amount || 0;
+            else if (tx.type && tx.type.startsWith('expense_')) sumExpense += tx.amount || 0;
+        });
+
+        const footer = document.getElementById('historyTotalsFooter');
+        if (footer) {
+            const net = sumIncome - sumExpense;
+            const netColor = net > 0 ? 'var(--color-income)' : (net < 0 ? 'var(--color-expense)' : 'inherit');
+            footer.innerHTML = `
+                <div style="display:flex; gap: 20px; flex-wrap: wrap; width: 100%; align-items: center;">
+                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">Opérations</span> <br/> <strong>${filtered.length}</strong></div>
+                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">Dépenses</span> <br/> <strong style="color:var(--color-expense);">${formatCurrency(sumExpense)}</strong></div>
+                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">Recettes</span> <br/> <strong style="color:var(--color-income);">${formatCurrency(sumIncome)}</strong></div>
+                    <div style="flex:1; text-align:right;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">Total Affiché</span> <br/> <strong style="font-size:16px; color:${netColor};">${formatCurrency(net)}</strong></div>
+                </div>
+            `;
+        }
 
         const rowStrings = filtered.map(tx => {
             let idAttr = '';
@@ -441,28 +484,71 @@ window.AllOperationsView = {
      * Injects a CSS class into the VirtualTable raw HTML so the
      * highlight survives re-renders triggered by scrolling.
      */
-    scrollToAndHighlight(txId) {
-        if (!this._vt || !this._vt._rows.length) return;
+    scrollToAndHighlight(txId, cssClass) {
+        cssClass = cssClass || 'highlight-flash';
+        const tbody = document.getElementById('allOperationsBody');
+        if (!tbody) return;
 
-        const needle = `data-id="${txId}"`;
-        const idx = this._vt._rows.findIndex(r => r.includes(needle));
-        if (idx < 0) return;
+        // Pick color based on highlight type
+        const highlightColor = cssClass === 'overdraft-flash'
+            ? 'rgba(255, 86, 48, 0.35)'
+            : 'rgba(99, 102, 241, 0.35)';
 
-        // Inject highlight class into the raw HTML string
-        const original = this._vt._rows[idx];
-        this._vt._rows[idx] = original.replace(
-            /class="([^"]*)"/,
-            (m, cls) => `class="${cls} overdraft-flash"`
-        );
+        let vtIdx = -1;
+        let originalRowHtml = null;
 
-        // Scroll to the row
-        this._vt._scrollToIndex(idx);
+        // If using VirtualTable desktop mode, inject inline style into raw HTML
+        // so it survives scroll-triggered re-renders
+        if (this._vt && this._vt._rows && this._vt._rows.length && !this._vt._isMobile()) {
+            const needle = `data-id="${txId}"`;
+            vtIdx = this._vt._rows.findIndex(r => r.includes(needle));
+            if (vtIdx >= 0) {
+                originalRowHtml = this._vt._rows[vtIdx];
+                this._vt._rows[vtIdx] = originalRowHtml.replace(
+                    /(<tr\s)/,
+                    `$1style="background-color: ${highlightColor} !important;" `
+                );
+                this._vt._scrollToIndex(vtIdx);
+            }
+        }
 
-        // Remove the highlight after 3 seconds
-        setTimeout(() => {
-            this._vt._rows[idx] = original; // restore original HTML
-            this._vt.refresh();
-        }, 3500);
+        // Wait for DOM to settle after potential scroll/render
+        requestAnimationFrame(() => {
+            const row = tbody.querySelector(`tr[data-id="${txId}"]`);
+            if (!row) { console.log('[Highlight] Row not found in DOM for tx', txId); return; }
+
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Apply highlight via inline styles (beats any CSS specificity)
+            row.style.setProperty('background-color', highlightColor, 'important');
+            row.querySelectorAll('td').forEach(td => {
+                td.style.setProperty('background-color', highlightColor, 'important');
+            });
+
+            // Fade out after 2 seconds
+            setTimeout(() => {
+                row.style.transition = 'background-color 1s ease-out';
+                row.style.setProperty('background-color', 'transparent', 'important');
+                row.querySelectorAll('td').forEach(td => {
+                    td.style.transition = 'background-color 1s ease-out';
+                    td.style.setProperty('background-color', 'transparent', 'important');
+                });
+
+                // Clean up inline styles after fade
+                setTimeout(() => {
+                    row.style.removeProperty('background-color');
+                    row.style.removeProperty('transition');
+                    row.querySelectorAll('td').forEach(td => {
+                        td.style.removeProperty('background-color');
+                        td.style.removeProperty('transition');
+                    });
+                    // Restore original VT HTML
+                    if (vtIdx >= 0 && originalRowHtml && this._vt && this._vt._rows) {
+                        this._vt._rows[vtIdx] = originalRowHtml;
+                    }
+                }, 1100);
+            }, 2000);
+        });
     },
 
     async _openAttachment(path) {
