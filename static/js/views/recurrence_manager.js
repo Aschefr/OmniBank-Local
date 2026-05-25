@@ -49,9 +49,9 @@ window.RecurrenceView = {
                      .map(tx => tx.recurrence_id)
             );
             
-            // Filter templates: only show those that are NOT closed OR have transactions in the selected year
+            // Filter templates: only show those that have transactions in the selected year
             const displayTemplates = this.templates.filter(t => 
-                !t.is_closed || activeTemplateIds.has(t.id)
+                activeTemplateIds.has(t.id)
             );
             
             const tableContainer = document.getElementById('recurrencesTableContainer');

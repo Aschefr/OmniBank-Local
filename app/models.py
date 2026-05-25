@@ -95,6 +95,7 @@ class Budget(Base):
     start_date = Column(Date, nullable=True)                 # For custom period envelopes
     end_date = Column(Date, nullable=True)                   # For custom period envelopes
     account_ids = Column(String, nullable=True)              # JSON list of account IDs (org mode), null = global
+    envelope_type = Column(String, default="spending")        # "spending" (classic) or "savings" (piggy bank / tirelire)
 
 class BudgetCategory(Base):
     """Many-to-many: each row links a budget to one category name."""
@@ -103,6 +104,17 @@ class BudgetCategory(Base):
     id = Column(Integer, primary_key=True, index=True)
     budget_id = Column(Integer, ForeignKey("budgets.id"), nullable=False)
     category_name = Column(String, nullable=False)
+
+class BudgetAllocation(Base):
+    """Manual fund allocations for savings-type envelopes (piggy banks)."""
+    __tablename__ = "budget_allocations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    budget_id = Column(Integer, ForeignKey("budgets.id"), nullable=False)
+    amount = Column(Float, nullable=False)         # Positive = deposit, Negative = withdrawal
+    date = Column(Date, nullable=False)
+    note = Column(String, nullable=True)            # Ex: "Mise de côté mars"
+    created_at = Column(String, nullable=True)      # ISO timestamp
 
 class OrgUser(Base):
     """Phase 9: Organisation mode users (passwordless)."""

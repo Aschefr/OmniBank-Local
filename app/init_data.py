@@ -95,6 +95,35 @@ def init_db():
                 
             conn.commit()
 
+        if schema_version < 3:
+            # Schema v3: Tirelire (savings piggy bank envelopes)
+            try:
+                conn.execute(text("ALTER TABLE budgets ADD COLUMN envelope_type TEXT DEFAULT 'spending'"))
+            except Exception:
+                pass  # Column likely already exists
+
+            # Create budget_allocations table for manual fund deposits/withdrawals
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS budget_allocations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        budget_id INTEGER NOT NULL REFERENCES budgets(id),
+                        amount REAL NOT NULL,
+                        date DATE NOT NULL,
+                        note TEXT,
+                        created_at TEXT
+                    )
+                """))
+            except Exception:
+                pass
+
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '3')"))
+            except Exception:
+                pass
+
+            conn.commit()
+
 def wipe_db(db: Session):
     """Delete all data to start fresh."""
     db.query(Transaction).delete()
