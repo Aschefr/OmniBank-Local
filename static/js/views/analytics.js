@@ -10,11 +10,11 @@ window.AnalyticsView = {
     customRange: { enabled: false, start: null, end: null },  // day-granularity custom period
 
     TYPE_CONFIG: {
-        'expense_var':   { emoji: '🛍️', color: '#f59e0b', sign: '-' },
+        'expense_var': { emoji: '🛍️', color: '#f59e0b', sign: '-' },
         'expense_fixed': { emoji: '📋', color: '#ef4444', sign: '-' },
-        'income':        { emoji: '💰', color: '#10b981', sign: '+' },
-        'transfer':      { emoji: '🔁', color: '#6366f1', sign: '±' },
-        'neutral':       { emoji: '⚪', color: '#6b7280', sign: '' },
+        'income': { emoji: '💰', color: '#10b981', sign: '+' },
+        'transfer': { emoji: '🔁', color: '#6366f1', sign: '±' },
+        'neutral': { emoji: '⚪', color: '#6b7280', sign: '' },
     },
 
     render() {
@@ -63,7 +63,7 @@ window.AnalyticsView = {
     async init() {
         const savedReconciled = localStorage.getItem('analytics_reconciled');
         if (savedReconciled) this.reconciled = savedReconciled;
-        
+
         const savedPeriod = localStorage.getItem('analytics_period');
         if (savedPeriod) {
             if (savedPeriod.startsWith('y')) {
@@ -74,7 +74,7 @@ window.AnalyticsView = {
                 this.months = parseInt(savedPeriod.slice(1));
             }
         }
-        
+
         // Restore saved category column width
         const savedColWidth = localStorage.getItem('analytics_cat_col_width');
         this._catColWidth = savedColWidth ? parseInt(savedColWidth) : 160;
@@ -84,10 +84,10 @@ window.AnalyticsView = {
         const crStart = localStorage.getItem('analytics_custom_range_start');
         const crEnd = localStorage.getItem('analytics_custom_range_end');
         this.customRange = { enabled: crEnabled, start: crStart, end: crEnd };
-        
+
         // Reset account filter (all selected)
         this.selectedAccountIds = null;
-        
+
         // First load to discover available years, then populate selector
         await this.loadData();
         this.renderAccountBar();
@@ -118,19 +118,19 @@ window.AnalyticsView = {
         if (!window.app.accounts || window.app.accounts.length === 0) {
             try {
                 window.app.accounts = await API.get('/api/stats/accounts');
-            } catch(e) { /* silent */ }
+            } catch (e) { /* silent */ }
         }
         const accounts = (window.app.accounts || []).filter(a => !a.is_closed);
         if (accounts.length <= 1) { bar.innerHTML = ''; return; }
-        
+
         const allSelected = !this.selectedAccountIds;
-        
+
         let html = `<button class="account-badge" style="cursor:pointer;font-size:12px;padding:4px 12px;
             background:${allSelected ? 'var(--accent)' : 'var(--bg-surface)'};
             color:${allSelected ? '#fff' : 'var(--text-muted)'};
             border:1px solid ${allSelected ? 'var(--accent)' : 'var(--border-color)'};"
             onclick="window.AnalyticsView.toggleAllAccounts()">${window.i18n.t('analytics_all_accounts')}</button>`;
-        
+
         accounts.forEach(acc => {
             const c = acc.color || '#3366ff';
             const isActive = allSelected || (this.selectedAccountIds && this.selectedAccountIds.includes(acc.id));
@@ -141,7 +141,7 @@ window.AnalyticsView = {
                 opacity:${isActive ? '1' : '0.5'};"
                 onclick="window.AnalyticsView.toggleAccount(${acc.id})">${acc.name}</button>`;
         });
-        
+
         bar.innerHTML = html;
     },
 
@@ -154,7 +154,7 @@ window.AnalyticsView = {
     toggleAccount(id) {
         const accounts = (window.app.accounts || []).filter(a => !a.is_closed);
         const allIds = accounts.map(a => a.id);
-        
+
         if (!this.selectedAccountIds) {
             // Was "all" — select only this one
             this.selectedAccountIds = [id];
@@ -169,7 +169,7 @@ window.AnalyticsView = {
             // If all are selected, switch to "all" mode
             if (this.selectedAccountIds.length >= allIds.length) this.selectedAccountIds = null;
         }
-        
+
         this.renderAccountBar();
         this.loadData();
     },
@@ -185,7 +185,7 @@ window.AnalyticsView = {
         years.forEach(yr => {
             const opt = document.createElement('option');
             opt.value = `y${yr}`;
-            opt.textContent = window.i18n.tp('label_year', {year: yr});
+            opt.textContent = window.i18n.tp('label_year', { year: yr });
             if (this.selectedYear === parseInt(yr)) opt.selected = true;
             sel.appendChild(opt);
         });
@@ -204,8 +204,8 @@ window.AnalyticsView = {
     },
 
     async changeFilter(key, val) {
-        if (key === 'reconciled') { 
-            this.reconciled = val; 
+        if (key === 'reconciled') {
+            this.reconciled = val;
             localStorage.setItem('analytics_reconciled', val);
         }
         if (key === 'period') {
@@ -229,17 +229,22 @@ window.AnalyticsView = {
         if (inputs) inputs.style.display = enabled ? 'flex' : 'none';
         if (periodSel) periodSel.disabled = enabled;
 
-        if (enabled && !this.customRange.start) {
-            // Default: first day of year to today
-            const now = new Date();
-            const startDate = `${now.getFullYear()}-01-01`;
-            const endDate = now.toISOString().split('T')[0];
-            document.getElementById('analyticsCustomStart').value = startDate;
-            document.getElementById('analyticsCustomEnd').value = endDate;
-            this.customRange.start = startDate;
-            this.customRange.end = endDate;
-            localStorage.setItem('analytics_custom_range_start', startDate);
-            localStorage.setItem('analytics_custom_range_end', endDate);
+        if (enabled) {
+            if (!this.customRange.start) {
+                // Default: first day of year to today
+                const now = new Date();
+                const startDate = `${now.getFullYear()}-01-01`;
+                const endDate = now.toISOString().split('T')[0];
+                this.customRange.start = startDate;
+                this.customRange.end = endDate;
+                localStorage.setItem('analytics_custom_range_start', startDate);
+                localStorage.setItem('analytics_custom_range_end', endDate);
+            }
+            // Mettre à jour la valeur des inputs
+            const startInput = document.getElementById('analyticsCustomStart');
+            const endInput = document.getElementById('analyticsCustomEnd');
+            if (startInput) startInput.value = this.customRange.start;
+            if (endInput) endInput.value = this.customRange.end;
         }
         this.loadData();
     },
@@ -278,7 +283,7 @@ window.AnalyticsView = {
             this.data = await API.get(url);
             this.populatePeriodSelector();
             this.renderAll();
-        } catch(e) {
+        } catch (e) {
             document.getElementById('analyticsContainer').innerHTML =
                 `<p style="color:var(--color-expense);padding:20px;">${window.i18n.t('title_error')} : ${e.message}</p>`;
         }
@@ -360,7 +365,7 @@ window.AnalyticsView = {
                 const alpha = Math.round(intensity * 0.55 * 100) / 100;
                 const bg = v > 0 ? (isExpense ? `rgba(239,68,68,${alpha})` : isIncome ? `rgba(16,185,129,${alpha})` : `rgba(99,102,241,${alpha})`) : 'transparent';
                 return `<td data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;background:${bg};transition:opacity 0.2s;cursor:pointer;"
-                    onclick="window.AnalyticsView.drillDown('${cat.replace(/'/g,"\\'")}','${mk}')"
+                    onclick="window.AnalyticsView.drillDown('${cat.replace(/'/g, "\\'")}','${mk}')"
                     title="🔍 ${cat} — ${this.formatShortMonth(mk)} — Voir les opérations">
                     <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</span>
                 </td>`;
@@ -369,7 +374,7 @@ window.AnalyticsView = {
             const yearCells = years.map(yr => {
                 const v = annCat[yr] || 0;
                 return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};background:${hb};font-weight:500;cursor:pointer;"
-                    onclick="window.AnalyticsView.drillDownYear('${cat.replace(/'/g,"\\'")}','${yr}')"
+                    onclick="window.AnalyticsView.drillDownYear('${cat.replace(/'/g, "\\'")}','${yr}')"
                     title="🔍 ${cat} — ${yr}">
                     <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</span>
                 </td>`;
@@ -449,7 +454,7 @@ window.AnalyticsView = {
 
     showExportModal() {
         if (!this.data || !this.data.by_type) return;
-        
+
         // Extract years safely as strings
         const yearsSet = new Set();
         (this.data.years || []).forEach(y => yearsSet.add(y.toString()));
@@ -457,23 +462,21 @@ window.AnalyticsView = {
             this.data.months.forEach(m => yearsSet.add(m.split('-')[0]));
         }
         const availableYears = Array.from(yearsSet).sort().reverse();
-        
+
         // Extract types and categories
         const types = Object.keys(this.data.by_type);
         const currentYear = (this.selectedYear || new Date().getFullYear()).toString();
 
-        // Bug #3 : Calculer les dates de début/fin pour TOUS les modes de période,
-        // pas seulement le custom range — pour que la modale reflète toujours ce qui est affiché
+        // Bug #3 : Calculer les dates de début/fin par défaut
         const hasCustomRange = this.customRange.enabled && this.customRange.start && this.customRange.end;
         let defaultStart, defaultEnd;
         if (hasCustomRange) {
             defaultStart = this.customRange.start;
-            defaultEnd   = this.customRange.end;
+            defaultEnd = this.customRange.end;
         } else if (this.selectedPeriod && this.selectedPeriod !== 'year') {
-            // Rolling period : calculer les bornes réelles
             const now = new Date();
             const pad = n => n < 10 ? '0' + n : '' + n;
-            const toYMD = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+            const toYMD = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
             defaultEnd = toYMD(now);
             const rollMap = { m1: 1, m3: 3, m6: 6, m12: 12, m24: 24 };
             const months = rollMap[this.selectedPeriod] || 12;
@@ -481,30 +484,59 @@ window.AnalyticsView = {
             defaultStart = toYMD(start);
         } else {
             defaultStart = `${currentYear}-01-01`;
-            defaultEnd   = `${currentYear}-12-31`;
+            defaultEnd = `${currentYear}-12-31`;
         }
-        // La case "Période personnalisée" est pré-cochée si custom range ou rolling period actifs
-        const exportRangeChecked = hasCustomRange || (this.selectedPeriod && this.selectedPeriod !== 'year');
-        
-        let yearsHtml = availableYears.map(y => `
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                <input type="checkbox" class="export-year-cb" value="${y}" ${y === currentYear ? 'checked' : ''}> ${y}
-            </label>
-        `).join('');
-        
+
+        // Charger les préférences mémorisées
+        const savedTabMode = localStorage.getItem('print_settings_tab_mode') || (hasCustomRange ? 'custom' : 'year');
+        this._exportTabMode = savedTabMode;
+
+        const savedSelectedYear = localStorage.getItem('print_settings_selected_year') || currentYear;
+        const savedCustomStart = localStorage.getItem('print_settings_custom_start') || defaultStart;
+        const savedCustomEnd = localStorage.getItem('print_settings_custom_end') || defaultEnd;
+
+        let savedYearsTotals;
+        try { savedYearsTotals = JSON.parse(localStorage.getItem('print_settings_years_totals')); } catch (e) { }
+        if (!Array.isArray(savedYearsTotals)) {
+            savedYearsTotals = [currentYear];
+        }
+
+        let savedTypes;
+        try { savedTypes = JSON.parse(localStorage.getItem('print_settings_types')); } catch (e) { }
+        if (!Array.isArray(savedTypes)) savedTypes = types;
+
+        let savedCats;
+        try { savedCats = JSON.parse(localStorage.getItem('print_settings_cats')); } catch (e) { }
+
+        const colSettings = window.AllOperationsView ? window.AllOperationsView.getColSettings() :
+            { date: true, desc: true, type: false, cat: true, amount: true, recon: true };
+
+        let savedCols;
+        try { savedCols = JSON.parse(localStorage.getItem('print_settings_cols')); } catch (e) { }
+        if (!Array.isArray(savedCols)) savedCols = Object.keys(colSettings).filter(k => colSettings[k]);
+
+        const savedIncludeDetails = localStorage.getItem('print_settings_include_details') !== 'false';
+        const savedForcePageBreak = localStorage.getItem('print_settings_force_page_break') === 'true';
+        const savedTitleFontSize = localStorage.getItem('print_settings_title_font_size') || 'medium';
+        const savedTableFontSize = localStorage.getItem('print_settings_table_font_size') || 'medium';
+
         let typesHtml = types.map(type => {
             const translatedType = window.app.getTypeLabel(type);
             const cats = Object.keys(this.data.by_type[type].categories || {}).sort();
-            const catsHtml = cats.map(cat => `
+            const typeChecked = savedTypes.includes(type);
+
+            const catsHtml = cats.map(cat => {
+                const catChecked = !savedCats || savedCats.includes(cat);
+                return `
                 <label style="display:flex;align-items:center;gap:8px;margin-left:20px;cursor:pointer;font-size:12px;">
-                    <input type="checkbox" class="export-cat-cb" data-type="${type}" value="${cat.replace(/"/g, '&quot;')}" checked> ${cat}
-                </label>
-            `).join('');
-            
+                    <input type="checkbox" class="export-cat-cb" data-type="${type}" value="${cat.replace(/"/g, '&quot;')}" ${catChecked ? 'checked' : ''}> ${cat}
+                </label>`;
+            }).join('');
+
             return `
             <div style="margin-bottom: 12px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 8px;">
                 <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;margin-bottom:6px;">
-                    <input type="checkbox" class="export-type-cb" value="${type}" checked onchange="
+                    <input type="checkbox" class="export-type-cb" value="${type}" ${typeChecked ? 'checked' : ''} onchange="
                         const cbs = this.parentElement.parentElement.querySelectorAll('.export-cat-cb');
                         cbs.forEach(cb => cb.checked = this.checked);
                     "> ${translatedType}
@@ -514,9 +546,6 @@ window.AnalyticsView = {
                 </div>
             </div>`;
         }).join('');
-        
-        const colSettings = window.AllOperationsView ? window.AllOperationsView.getColSettings() : 
-            { date: true, desc: true, type: false, cat: true, amount: true, recon: true };
 
         const allCols = [
             { id: 'dateSaisie', label: window.i18n.t('col_date_entry') },
@@ -536,7 +565,7 @@ window.AnalyticsView = {
 
         let colsHtml = allCols.map(c => `
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
-                <input type="checkbox" class="export-col-cb" value="${c.id}" ${colSettings[c.id] ? 'checked' : ''}> ${c.label}
+                <input type="checkbox" class="export-col-cb" value="${c.id}" ${savedCols.includes(c.id) ? 'checked' : ''}> ${c.label}
             </label>
         `).join('');
 
@@ -549,7 +578,7 @@ window.AnalyticsView = {
         <div style="margin-bottom: 20px; padding: 14px; background: rgba(99,102,241,0.06); border-radius: 10px; border: 1px solid rgba(99,102,241,0.2);">
             <h4 style="margin:0 0 12px 0;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_header_section') || 'En-tête du document'}</h4>
             <div style="display:flex;flex-direction:column;gap:10px;">
-                <input type="text" id="exportHeaderTitle" class="inline-input" placeholder="${window.i18n.t('export_header_title_placeholder') || 'Titre du document'}" value="${savedHeaderTitle.replace(/"/g,'&quot;')}" style="width:100%;" oninput="localStorage.setItem('print_header_title', this.value)">
+                <input type="text" id="exportHeaderTitle" class="inline-input" placeholder="${window.i18n.t('export_header_title_placeholder') || 'Titre du document'}" value="${savedHeaderTitle.replace(/"/g, '&quot;')}" style="width:100%;" oninput="localStorage.setItem('print_header_title', this.value)">
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                     <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px;" onclick="document.getElementById('exportLogoFileInput').click()">${window.i18n.t('export_header_logo_import') || 'Importer un logo'}</button>
                     <input type="file" id="exportLogoFileInput" accept="image/*" style="display:none;" onchange="window.AnalyticsView._handleLogoUpload(this)">
@@ -576,19 +605,35 @@ window.AnalyticsView = {
                 <div style="flex:1; overflow-y:auto; padding-right:10px;">
                     ${orgHeaderHtml}
                     <div style="margin-bottom: 20px;">
-                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_modal_years')}</h4>
-                        <div style="display:flex;gap:15px;flex-wrap:wrap;">
-                            ${yearsHtml}
+                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_detailed_period') || 'Période détaillée (mois par mois)'}</h4>
+                        <div style="display:flex; border-bottom:1px solid var(--border-color); margin-bottom:12px; gap:8px;">
+                            <button type="button" class="tab-btn" id="tabYear" onclick="window.AnalyticsView.switchExportTab('year')" style="padding:8px 16px; border:none; background:none; cursor:pointer; font-size:13px; outline:none; transition:all 0.2s;">${window.i18n.t('export_full_year') || 'Année complète'}</button>
+                            <button type="button" class="tab-btn" id="tabCustom" onclick="window.AnalyticsView.switchExportTab('custom')" style="padding:8px 16px; border:none; background:none; cursor:pointer; font-size:13px; outline:none; transition:all 0.2s;">${window.i18n.t('export_custom_range') || 'Période personnalisée'}</button>
                         </div>
-                        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-color);">
-                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text-muted);margin-bottom:8px;">
-                                <input type="checkbox" id="exportCustomRange" ${exportRangeChecked ? 'checked' : ''} onchange="document.getElementById('exportCustomRangeInputs').style.display=this.checked?'flex':'none';">
-                                ${window.i18n.t('export_custom_period') || 'Période personnalisée'}
+                        
+                        <div id="exportTabContentYear" style="margin-bottom: 12px; display:none;">
+                            <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
+                                <span>${window.i18n.t('export_year_label') || 'Année :'}</span>
+                                <select id="exportSelectYear" class="inline-input" style="width:120px;" onchange="localStorage.setItem('print_settings_selected_year', this.value)">
+                                    ${availableYears.map(y => `<option value="${y}" ${y === savedSelectedYear ? 'selected' : ''}>${y}</option>`).join('')}
+                                </select>
                             </label>
-                            <div id="exportCustomRangeInputs" style="display:${exportRangeChecked ? 'flex' : 'none'};gap:10px;align-items:center;flex-wrap:wrap;">
-                                <input type="date" id="exportDateStart" class="inline-input" value="${defaultStart}" style="width:160px;">
-                                <span style="color:var(--text-muted);font-size:12px;">→</span>
-                                <input type="date" id="exportDateEnd" class="inline-input" value="${defaultEnd}" style="width:160px;">
+                        </div>
+                        
+                        <div id="exportTabContentCustom" style="display:none; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom: 12px;">
+                            <input type="date" id="exportDateStart" class="inline-input" value="${savedCustomStart}" style="width:160px;" onchange="localStorage.setItem('print_settings_custom_start', this.value)">
+                            <span style="color:var(--text-muted);font-size:12px;">→</span>
+                            <input type="date" id="exportDateEnd" class="inline-input" value="${savedCustomEnd}" style="width:160px;" onchange="localStorage.setItem('print_settings_custom_end', this.value)">
+                        </div>
+
+                        <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
+                            <h4 style="margin-bottom:8px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_annual_totals_section') || 'Colonnes de Totaux Annuels (à droite)'}</h4>
+                            <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                                ${availableYears.map(y => `
+                                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+                                        <input type="checkbox" class="export-year-total-cb" value="${y}" ${savedYearsTotals.includes(y) ? 'checked' : ''}> ${y}
+                                    </label>
+                                `).join('')}
                             </div>
                         </div>
                     </div>
@@ -606,13 +651,13 @@ window.AnalyticsView = {
                     </div>
                     <div style="margin-bottom: 20px;">
                         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:13px;padding:10px;background:rgba(0,0,0,0.02);border-radius:8px;">
-                            <input type="checkbox" id="exportIncludeDetails" checked onchange="
+                            <input type="checkbox" id="exportIncludeDetails" ${savedIncludeDetails ? 'checked' : ''} onchange="
                                 document.getElementById('exportColsSection').style.display = this.checked ? 'block' : 'none';
                             " style="accent-color: var(--accent); width: 16px; height: 16px;">
                             ${window.i18n.t('export_include_details')}
                         </label>
                     </div>
-                    <div id="exportColsSection">
+                    <div id="exportColsSection" style="display:${savedIncludeDetails ? 'block' : 'none'};">
                         <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_cols_title')}</h4>
                         <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:10px;background:rgba(0,0,0,0.02);padding:10px;border-radius:8px;">
                             ${colsHtml}
@@ -621,9 +666,33 @@ window.AnalyticsView = {
 
                     <div style="margin-top:12px;">
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text-muted);">
-                            <input type="checkbox" id="exportForcePageBreak" style="accent-color:var(--accent);">
+                            <input type="checkbox" id="exportForcePageBreak" ${savedForcePageBreak ? 'checked' : ''} style="accent-color:var(--accent);">
                             ${window.i18n.t('export_force_page_break') || 'Forcer un saut de page entre chaque tableau'}
                         </label>
+                    </div>
+
+                    <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
+                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_font_sizes_section') || 'Taille des polices'}</h4>
+                        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                            ${isOrgMode ? `
+                            <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
+                                <span>${window.i18n.t('export_title_font_size') || 'Taille du titre'} :</span>
+                                <select id="exportTitleFontSize" class="inline-input" style="width:150px;">
+                                    <option value="small" ${savedTitleFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Petit'}</option>
+                                    <option value="medium" ${savedTitleFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Moyen (Par défaut)'}</option>
+                                    <option value="large" ${savedTitleFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Grand'}</option>
+                                </select>
+                            </label>
+                            ` : ''}
+                            <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
+                                <span>${window.i18n.t('export_table_font_size') || 'Taille des tableaux et montants'} :</span>
+                                <select id="exportTableFontSize" class="inline-input" style="width:150px;">
+                                    <option value="small" ${savedTableFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Petit'}</option>
+                                    <option value="medium" ${savedTableFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Moyen (Par défaut)'}</option>
+                                    <option value="large" ${savedTableFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Grand'}</option>
+                                </select>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-actions" style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border-color);">
@@ -632,11 +701,46 @@ window.AnalyticsView = {
                 </div>
             </div>
         </div>`;
-        
+
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Initialiser l'affichage de l'onglet actif
+        this.switchExportTab(savedTabMode);
+
         this._exportAccountIds = this.selectedAccountIds ? [...this.selectedAccountIds] : null;
         this._renderExportAccountBadges();
         this._renderExportBalanceCheckboxes();
+    },
+
+    switchExportTab(mode) {
+        this._exportTabMode = mode;
+        localStorage.setItem('print_settings_tab_mode', mode);
+        const tabYear = document.getElementById('tabYear');
+        const tabCustom = document.getElementById('tabCustom');
+        const contentYear = document.getElementById('exportTabContentYear');
+        const contentCustom = document.getElementById('exportTabContentCustom');
+
+        if (!tabYear || !tabCustom || !contentYear || !contentCustom) return;
+
+        if (mode === 'year') {
+            tabYear.style.borderBottom = '2px solid var(--accent)';
+            tabYear.style.color = 'var(--accent)';
+            tabYear.style.fontWeight = '600';
+            tabCustom.style.borderBottom = 'none';
+            tabCustom.style.color = 'var(--text-muted)';
+            tabCustom.style.fontWeight = 'normal';
+            contentYear.style.display = 'block';
+            contentCustom.style.display = 'none';
+        } else {
+            tabCustom.style.borderBottom = '2px solid var(--accent)';
+            tabCustom.style.color = 'var(--accent)';
+            tabCustom.style.fontWeight = '600';
+            tabYear.style.borderBottom = 'none';
+            tabYear.style.color = 'var(--text-muted)';
+            tabYear.style.fontWeight = 'normal';
+            contentYear.style.display = 'none';
+            contentCustom.style.display = 'flex';
+        }
     },
 
     _renderExportBalanceCheckboxes() {
@@ -707,54 +811,77 @@ window.AnalyticsView = {
     async executePrint() {
         const modal = document.getElementById('exportPdfModal');
         if (!modal) return;
-        
+
         // Gather selections
-        const selectedYears = Array.from(modal.querySelectorAll('.export-year-cb:checked')).map(cb => cb.value);
+        const tabMode = this._exportTabMode || 'year';
+        const useCustomRange = tabMode === 'custom';
+        const selectedYear = modal.querySelector('#exportSelectYear')?.value || null;
+        const customStart = useCustomRange ? (modal.querySelector('#exportDateStart')?.value || null) : null;
+        const customEnd = useCustomRange ? (modal.querySelector('#exportDateEnd')?.value || null) : null;
+
+        // Validation
+        if (useCustomRange) {
+            if (!customStart || !customEnd) {
+                showToast("Veuillez saisir les dates de début et de fin pour la période personnalisée.", "error");
+                return;
+            }
+            if (customStart > customEnd) {
+                showToast("La date de début doit être antérieure à la date de fin.", "error");
+                return;
+            }
+        } else {
+            if (!selectedYear) {
+                showToast("Veuillez sélectionner une année à afficher.", "error");
+                return;
+            }
+        }
+
+        const selectedYearsTotals = Array.from(modal.querySelectorAll('.export-year-total-cb:checked')).map(cb => cb.value);
         const selectedTypes = Array.from(modal.querySelectorAll('.export-type-cb:checked')).map(cb => cb.value);
         const selectedCats = Array.from(modal.querySelectorAll('.export-cat-cb:checked')).map(cb => cb.value);
         const selectedCols = Array.from(modal.querySelectorAll('.export-col-cb:checked')).map(cb => cb.value);
         const includeDetails = modal.querySelector('#exportIncludeDetails')?.checked ?? true;
-        
-        // Custom date range — validation avant envoi
-        const useCustomRange = modal.querySelector('#exportCustomRange')?.checked ?? false;
-        let customStart = useCustomRange ? (modal.querySelector('#exportDateStart')?.value || null) : null;
-        let customEnd   = useCustomRange ? (modal.querySelector('#exportDateEnd')?.value || null)   : null;
-        // Swap si end < start
-        if (customStart && customEnd && customStart > customEnd) { [customStart, customEnd] = [customEnd, customStart]; }
-
-
-
-        // Bug #7 : Saut de page forcé
         const forcePageBreak = modal.querySelector('#exportForcePageBreak')?.checked ?? false;
+        const titleFontSize = modal.querySelector('#exportTitleFontSize')?.value || 'medium';
+        const tableFontSize = modal.querySelector('#exportTableFontSize')?.value || 'medium';
+
+        // Mémoriser les choix utilisateur
+        localStorage.setItem('print_settings_tab_mode', tabMode);
+        if (selectedYear) localStorage.setItem('print_settings_selected_year', selectedYear);
+        if (customStart) localStorage.setItem('print_settings_custom_start', customStart);
+        if (customEnd) localStorage.setItem('print_settings_custom_end', customEnd);
+        localStorage.setItem('print_settings_years_totals', JSON.stringify(selectedYearsTotals));
+        localStorage.setItem('print_settings_types', JSON.stringify(selectedTypes));
+        localStorage.setItem('print_settings_cats', JSON.stringify(selectedCats));
+        localStorage.setItem('print_settings_cols', JSON.stringify(selectedCols));
+        localStorage.setItem('print_settings_include_details', includeDetails);
+        localStorage.setItem('print_settings_force_page_break', forcePageBreak);
+        localStorage.setItem('print_settings_title_font_size', titleFontSize);
+        localStorage.setItem('print_settings_table_font_size', tableFontSize);
 
         // Bug #8 : En-tête pro (mode org)
         const headerTitle = modal.querySelector('#exportHeaderTitle')?.value?.trim() || '';
         const headerLogoB64 = localStorage.getItem('print_header_logo') || null;
-        const logoLeft  = modal.querySelector('#exportLogoLeft')?.checked ?? true;
+        const logoLeft = modal.querySelector('#exportLogoLeft')?.checked ?? true;
         const logoRight = modal.querySelector('#exportLogoRight')?.checked ?? true;
-        
+
         // Gather account filter from modal
         const exportAccIds = this._exportAccountIds;
-        
-        // Determine primary year (most recent selected)
-        const primaryYear = selectedYears.slice().sort().reverse()[0] || null;
-        
+
         let printData = this.data;
         let allTx = [];
         let accountsMap = {};
         let budgetsMap = {};
         let categoryToBudgetMap = {};
-        
-        // Bug #4 : Re-fetch les données avec les paramètres exacts (custom range ou année)
-        // pour garantir la cohérence entre synthèse et PDF
+
+        // Bug #4 : Re-fetch les données avec les paramètres exacts
         try {
-            if (useCustomRange && customStart && customEnd) {
-                // Custom range : fetch avec les bornes exactes du PDF
+            if (useCustomRange) {
                 let printUrl = `/api/stats/categories_by_month?reconciled=${this.reconciled}&date_start=${customStart}&date_end=${customEnd}`;
                 if (exportAccIds) printUrl += `&account_ids=${exportAccIds.join(',')}`;
                 printData = await API.get(printUrl);
-            } else if (primaryYear) {
-                let printUrl = `/api/stats/categories_by_month?reconciled=${this.reconciled}&year=${primaryYear}`;
+            } else {
+                let printUrl = `/api/stats/categories_by_month?reconciled=${this.reconciled}&year=${selectedYear}`;
                 if (exportAccIds) printUrl += `&account_ids=${exportAccIds.join(',')}`;
                 printData = await API.get(printUrl);
             }
@@ -771,7 +898,7 @@ window.AnalyticsView = {
         } catch (e) {
             console.error("Error fetching print data", e);
         }
-        
+
         // Create an offline container
         let printContainer = document.getElementById('printContainer');
         if (!printContainer) {
@@ -780,55 +907,52 @@ window.AnalyticsView = {
             printContainer.style.cssText = 'display: none;';
             document.body.appendChild(printContainer);
         }
-        
+
         // Render data into offline container
         const { months, years, by_type } = printData;
         const revYears = (years || []).slice().reverse();
         const sections = [];
-        
+
         if (by_type) {
-            const typeEntries = Object.entries(by_type);
+            // Filtrer avant de générer pour éviter de générer un saut de page sur un tableau masqué (résout le bug de page vide à la fin)
+            const typeEntries = Object.entries(by_type).filter(([txType]) => selectedTypes.includes(txType));
             typeEntries.forEach(([txType, typeData], idx) => {
-                // Bug #6 : Pas de saut sur le DERNIER tableau
-                // Bug #7 : Saut forcé seulement si la checkbox est cochée
                 const isLast = idx === typeEntries.length - 1;
                 const breakClass = (!isLast && forcePageBreak) ? 'print-page-break-forced' : 'print-page-break-auto';
-                sections.push(`<div class="${breakClass}">` + this.renderTypeTable(txType, typeData, months, revYears) + '</div>');
+                const extraSpacing = (!isLast && !forcePageBreak) ? '<br><br>' : '';
+                sections.push(`<div class="${breakClass}">` + this.renderTypeTable(txType, typeData, months, revYears) + '</div>' + extraSpacing);
             });
         }
-        
+
         // Build transactions list
         let filteredTx = allTx.filter(tx => {
             const dateStr = tx.date_operation || '';
             const yr = dateStr.split('-')[0];
-            
-            if (useCustomRange && customStart && customEnd) {
-                // Custom range: compare full YYYY-MM-DD date string
-                const txDate = dateStr.substring(0, 10); // YYYY-MM-DD
+
+            if (useCustomRange) {
+                const txDate = dateStr.substring(0, 10);
                 if (txDate < customStart || txDate > customEnd) return false;
             } else {
-                if (!selectedYears.includes(yr)) return false;
+                if (yr !== selectedYear) return false;
             }
-            
+
             if (!selectedTypes.includes(tx.type)) return false;
-            
-            // Account filter from modal
+
             if (exportAccIds) {
                 const accIds = exportAccIds;
                 if (!accIds.includes(tx.from_account_id) && !accIds.includes(tx.to_account_id)) return false;
             }
-            
+
             let catMatches = false;
             if (tx.category && selectedCats.includes(tx.category)) catMatches = true;
             if (!tx.category && (selectedCats.includes('Sans catégorie') || selectedCats.includes('Uncategorized') || selectedCats.includes('—') || selectedCats.includes(''))) catMatches = true;
             if (!catMatches) return false;
-            
+
             return true;
         });
 
         filteredTx.sort((a, b) => new Date(b.date_operation) - new Date(a.date_operation));
 
-        
         let txHtml = '';
         if (includeDetails && filteredTx.length > 0) {
             let ths = '';
@@ -853,13 +977,13 @@ window.AnalyticsView = {
                 if (selectedCols.includes('desc')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.description || ''}</td>`;
                 if (selectedCols.includes('type')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${window.app.getTypeLabel(tx.type)}</td>`;
                 if (selectedCols.includes('cat')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.category || '-'}</td>`;
-                
+
                 if (selectedCols.includes('amount')) {
-                    const amountColor = tx.type === 'income' ? 'var(--color-income)' : 
-                                       (tx.type === 'transfer' ? 'var(--color-transfer)' : 'inherit');
+                    const amountColor = tx.type === 'income' ? 'var(--color-income)' :
+                        (tx.type === 'transfer' ? 'var(--color-transfer)' : 'inherit');
                     tds += `<td style="text-align:right;color:${amountColor};font-weight:bold;padding:4px;border-bottom:1px solid #eee;">${formatCurrency(tx.amount)}</td>`;
                 }
-                
+
                 if (selectedCols.includes('recon')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${formatDate(tx.reconciliation_date) || '-'}</td>`;
                 if (selectedCols.includes('budget')) { const bName = (tx.budget_id && budgetsMap[tx.budget_id]) ? budgetsMap[tx.budget_id] : (tx.category && categoryToBudgetMap[tx.category]) ? categoryToBudgetMap[tx.category] : null; tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${bName || '-'}</td>`; }
                 if (selectedCols.includes('depuis')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${accountsMap[tx.from_account_id] || ''}</td>`;
@@ -867,7 +991,7 @@ window.AnalyticsView = {
                 if (selectedCols.includes('recurrence')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.recurrence_id || tx.is_monthly || tx.is_yearly ? '🔄' : '-'}</td>`;
                 if (selectedCols.includes('slip')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.slip_number || '-'}</td>`;
                 if (selectedCols.includes('attachments')) tds += `<td style="padding:4px;border-bottom:1px solid #eee;">${tx.attachments ? '📎' : '-'}</td>`;
-                
+
                 return `<tr>${tds}</tr>`;
             }).join('');
 
@@ -879,7 +1003,7 @@ window.AnalyticsView = {
             </table>
             `;
         }
-        
+
         // Build account balances section for print
         let balancesHtml = '';
         const balanceCbs = modal.querySelectorAll('.export-balance-cb:checked');
@@ -888,7 +1012,7 @@ window.AnalyticsView = {
             const selectedBalanceIds = Array.from(balanceCbs).map(cb => parseInt(cb.value));
             const balanceAccounts = accounts.filter(a => selectedBalanceIds.includes(a.id));
             const totalBalance = balanceAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
-            
+
             let balanceRows = balanceAccounts.map(a => {
                 const c = a.color || '#3366ff';
                 return `<tr>
@@ -897,16 +1021,16 @@ window.AnalyticsView = {
                     <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${formatCurrency(a.balance)}</td>
                 </tr>`;
             }).join('');
-            
+
             balancesHtml = `
             <div style="margin-bottom:24px;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">
                 <div style="background:rgba(99,102,241,0.08);padding:10px 16px;border-bottom:1px solid var(--border-color);">
                     <strong style="font-size:14px;">${window.i18n.t('export_balance_title') || 'Situation des comptes'}</strong>
-                    <span style="float:right;font-size:12px;color:var(--text-muted);">${new Date().toLocaleDateString(window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR', {day:'numeric', month:'long', year:'numeric'})}</span>
+                    <span style="float:right;font-size:12px;color:var(--text-muted);">${new Date().toLocaleDateString(window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                 </div>
                 <table style="width:100%;border-collapse:collapse;font-size:12px;">
                     <thead><tr style="background:rgba(0,0,0,0.03);">
-                        <th style="text-align:left;padding:6px 12px;border-bottom:1px solid var(--border-color);">${window.i18n.t('acc_th_name')}</th>
+                         <th style="text-align:left;padding:6px 12px;border-bottom:1px solid var(--border-color);">${window.i18n.t('acc_th_name')}</th>
                         <th style="text-align:left;padding:6px 12px;border-bottom:1px solid var(--border-color);">${window.i18n.t('acc_th_type')}</th>
                         <th style="text-align:right;padding:6px 12px;border-bottom:1px solid var(--border-color);">${window.i18n.t('export_balance_current') || 'Solde actuel'}</th>
                     </tr></thead>
@@ -918,14 +1042,14 @@ window.AnalyticsView = {
                 </table>
             </div>`;
         }
-        
+
         // Bug #8 : En-tête professionnel (mode org)
         let orgHeaderBlockHtml = '';
         if (headerTitle || headerLogoB64) {
             const logoHtml = headerLogoB64
                 ? `<img src="${headerLogoB64}" style="max-height:80px;max-width:180px;object-fit:contain;">`
                 : `<span style="width:80px;"></span>`;
-            const leftLogo  = (headerLogoB64 && logoLeft)  ? logoHtml : `<span style="min-width:80px;"></span>`;
+            const leftLogo = (headerLogoB64 && logoLeft) ? logoHtml : `<span style="min-width:80px;"></span>`;
             const rightLogo = (headerLogoB64 && logoRight) ? logoHtml : `<span style="min-width:80px;"></span>`;
             orgHeaderBlockHtml = `
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border-color);gap:12px;">
@@ -937,13 +1061,50 @@ window.AnalyticsView = {
             </div>`;
         }
 
+        // CSS dynamique pour ajuster les tailles de police de manière homogène
+        const titleSizeMap = { small: '20px', medium: '24px', large: '28px' };
+        const tableSizeMap = { small: '9px', medium: '11px', large: '13px' };
+
+        const titleSizeVal = titleSizeMap[titleFontSize] || '24px';
+        const tableSizeVal = tableSizeMap[tableFontSize] || '11px';
+
+        const styleBlock = `
+            <style>
+                #printContainer {
+                    --print-title-size: ${titleSizeVal};
+                    --print-table-size: ${tableSizeVal};
+                }
+                #printContainer, #printContainer * {
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+                }
+                #printContainer h1, #printContainer h1 * { font-size: var(--print-title-size) !important; }
+                #printContainer h2, #printContainer h2 * { font-size: var(--print-title-size) !important; }
+                #printContainer h3, #printContainer h3 * { font-size: calc(var(--print-title-size) * 0.8) !important; }
+                #printContainer th, 
+                #printContainer td, 
+                #printContainer span, 
+                #printContainer div { 
+                    font-size: var(--print-table-size) !important; 
+                }
+                /* Noms de catégories légèrement plus grands */
+                #printContainer .data-table td:first-child { 
+                    font-size: calc(var(--print-table-size) + 0.5px) !important; 
+                    font-weight: 600 !important;
+                }
+                /* En-têtes de section de tableaux (ex: Dépenses variables) */
+                #printContainer [data-type] > div > span { 
+                    font-size: calc(var(--print-table-size) + 3px) !important; 
+                }
+            </style>
+        `;
+
         const titleHtml = `<h2 style="margin-bottom: 20px;">${window.i18n.t('analytics_title')}</h2>`;
-        printContainer.innerHTML = orgHeaderBlockHtml + balancesHtml + sections.join('') + txHtml;
+        printContainer.innerHTML = styleBlock + orgHeaderBlockHtml + balancesHtml + sections.join('') + txHtml;
         // Titre uniquement si pas d'en-tête org
         if (!orgHeaderBlockHtml) {
             printContainer.insertAdjacentHTML('afterbegin', titleHtml);
         }
-        
+
         // Handle Types
         printContainer.querySelectorAll('[data-type]').forEach(el => {
             if (!selectedTypes.includes(el.getAttribute('data-type'))) {
@@ -957,32 +1118,35 @@ window.AnalyticsView = {
                 });
             }
         });
-        
-        // Handle Years (columns)
+
+        // Handle Columns (months and years)
         printContainer.querySelectorAll('[data-year]').forEach(el => {
             const yr = el.getAttribute('data-year');
             const colType = el.getAttribute('data-col-type');
-            
-            if (!selectedYears.includes(yr)) {
-                el.classList.add('no-print');
-            } else if (colType === 'month' && yr !== primaryYear) {
-                // Hide month columns if not primary year
-                el.classList.add('no-print');
+
+            if (colType === 'month') {
+                if (tabMode === 'year') {
+                    if (yr !== selectedYear) el.classList.add('no-print');
+                }
+            } else if (colType === 'year') {
+                if (!selectedYearsTotals.includes(yr)) {
+                    el.classList.add('no-print');
+                }
             }
         });
-        
+
         // Print
         document.body.classList.add('printing-offline');
-        
+
         // Allow DOM to update before printing
         setTimeout(() => {
             window.print();
-            
+
             // Cleanup
             setTimeout(() => {
                 document.body.classList.remove('printing-offline');
                 printContainer.remove();
-                modal.remove();
+                // Ne pas remove() le modal pour le laisser ouvert
             }, 500);
         }, 100);
     },

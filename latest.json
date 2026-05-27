@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDNWQWlId2dwejMrOGtXK2VZLzdNZGNMYXg5MVN5OElWakl4NXFMSktUd3BIUHJrVGpHd0ptUTFhd1Y4NUJBS1pHUFRUSnRURS9iWmNmUXdwTFVCVmdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5ODk3MjQzCWZpbGU6T21uaUJhbmtfMS4wLjM4X3g2NF9mci1GUi5tc2kKRW5lblhYS3dXSklaaytMSUtaY1lDRzV1TkhkYm56WUNGTlVaMVNPc3pGbXJ0cVJkYU9WeWFHSTBJbHJEbzFwcVNUMVVNZHVnUDN6cFRRM0RKOEJYQ2c9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.38/OmniBank_1.0.38_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDFsc1FiZG42Ymgvb0hiWFlpaXRjTVlQOVZ4Z3ZOdFZtb0pnSGpHODFtQmhDazNGSm44aWVFNWgyMGYxZ2JyaG9KM2YwckNJQmdRRzhVZU54OXpWT1E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5OTAyODcyCWZpbGU6T21uaUJhbmtfMS4wLjM5X3g2NF9mci1GUi5tc2kKb0cvVk51Q1k2S1lHbGZXWmdraG56RWZleTlpTk84ZXg3aytQQzdqcjN5Z29WTnR4N092WnZMZkZVS2dSakM0VStiWnV0YlFWZHFPYWxINjZOK1NNQ2c9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.39/OmniBank_1.0.39_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-27T15:54:03Z",
-    "version":  "1.0.38",
-    "notes":  "OmniBank v1.0.38 - Corrections de mise en page PDF et traduction i18n"
+    "pub_date":  "2026-05-27T17:27:52Z",
+    "version":  "1.0.39",
+    "notes":  "OmniBank v1.0.39 - Refonte export PDF, onglets periodes, totaux annuels et reglage des tailles de police"
 }

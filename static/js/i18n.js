@@ -6,7 +6,7 @@ class I18nManager {
 
     async init() {
         try {
-            const response = await fetch(`/static/i18n/${this.lang}.json`);
+            const response = await fetch(`/static/i18n/${this.lang}.json?v=${Date.now()}`);
             if (response.ok) {
                 this.translations = await response.json();
                 this.translateDOM();
