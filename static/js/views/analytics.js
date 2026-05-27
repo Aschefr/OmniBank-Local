@@ -618,15 +618,7 @@ window.AnalyticsView = {
                             ${colsHtml}
                         </div>
                     </div>
-                    <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border-color);display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-                        <h4 style="margin:0;color:var(--text-muted);font-size:12px;text-transform:uppercase;white-space:nowrap;">${window.i18n.t('export_page_format') || 'Format papier'}</h4>
-                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
-                            <input type="radio" name="exportPageFormat" value="A4" checked style="accent-color:var(--accent);"> A4 Paysage
-                        </label>
-                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
-                            <input type="radio" name="exportPageFormat" value="A3" style="accent-color:var(--accent);"> A3 Paysage
-                        </label>
-                    </div>
+
                     <div style="margin-top:12px;">
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text-muted);">
                             <input type="checkbox" id="exportForcePageBreak" style="accent-color:var(--accent);">
@@ -730,8 +722,7 @@ window.AnalyticsView = {
         // Swap si end < start
         if (customStart && customEnd && customStart > customEnd) { [customStart, customEnd] = [customEnd, customStart]; }
 
-        // Bug #5 : Format papier
-        const pageFormat = modal.querySelector('input[name="exportPageFormat"]:checked')?.value || 'A4';
+
 
         // Bug #7 : Saut de page forcé
         const forcePageBreak = modal.querySelector('#exportForcePageBreak')?.checked ?? false;
@@ -946,11 +937,8 @@ window.AnalyticsView = {
             </div>`;
         }
 
-        // Bug #5 : Injection du format papier et orientation via <style> dans printContainer
-        const pageStyleTag = `<style id="printPageStyle">@page { size: ${pageFormat} landscape; margin: 10mm; }</style>`;
-
         const titleHtml = `<h2 style="margin-bottom: 20px;">${window.i18n.t('analytics_title')}</h2>`;
-        printContainer.innerHTML = pageStyleTag + orgHeaderBlockHtml + balancesHtml + sections.join('') + txHtml;
+        printContainer.innerHTML = orgHeaderBlockHtml + balancesHtml + sections.join('') + txHtml;
         // Titre uniquement si pas d'en-tête org
         if (!orgHeaderBlockHtml) {
             printContainer.insertAdjacentHTML('afterbegin', titleHtml);
