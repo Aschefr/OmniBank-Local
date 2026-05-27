@@ -247,11 +247,19 @@ window.AnalyticsView = {
     onCustomRangeChange() {
         const start = document.getElementById('analyticsCustomStart')?.value || null;
         const end = document.getElementById('analyticsCustomEnd')?.value || null;
+        // Validation : ne pas envoyer si l'une des dates est absente ou si end < start
+        if (start && end) {
+            if (start > end) {
+                showToast(window.i18n.t('error_date_range_invalid') || 'La date de fin doit être après la date de début.', 'error');
+                return;
+            }
+        }
         this.customRange.start = start;
         this.customRange.end = end;
         if (start) localStorage.setItem('analytics_custom_range_start', start);
         if (end) localStorage.setItem('analytics_custom_range_end', end);
-        this.loadData();
+        // Ne charger que si les deux dates sont présentes (sinon attendre la deuxième saisie)
+        if (start && end) this.loadData();
     },
 
     async loadData() {
@@ -453,10 +461,30 @@ window.AnalyticsView = {
         // Extract types and categories
         const types = Object.keys(this.data.by_type);
         const currentYear = (this.selectedYear || new Date().getFullYear()).toString();
-        // Default export date range: inherit from custom range or default to current year
+
+        // Bug #3 : Calculer les dates de début/fin pour TOUS les modes de période,
+        // pas seulement le custom range — pour que la modale reflète toujours ce qui est affiché
         const hasCustomRange = this.customRange.enabled && this.customRange.start && this.customRange.end;
-        const defaultStart = hasCustomRange ? this.customRange.start : `${currentYear}-01-01`;
-        const defaultEnd   = hasCustomRange ? this.customRange.end   : `${currentYear}-12-31`;
+        let defaultStart, defaultEnd;
+        if (hasCustomRange) {
+            defaultStart = this.customRange.start;
+            defaultEnd   = this.customRange.end;
+        } else if (this.selectedPeriod && this.selectedPeriod !== 'year') {
+            // Rolling period : calculer les bornes réelles
+            const now = new Date();
+            const pad = n => n < 10 ? '0' + n : '' + n;
+            const toYMD = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+            defaultEnd = toYMD(now);
+            const rollMap = { m1: 1, m3: 3, m6: 6, m12: 12, m24: 24 };
+            const months = rollMap[this.selectedPeriod] || 12;
+            const start = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+            defaultStart = toYMD(start);
+        } else {
+            defaultStart = `${currentYear}-01-01`;
+            defaultEnd   = `${currentYear}-12-31`;
+        }
+        // La case "Période personnalisée" est pré-cochée si custom range ou rolling period actifs
+        const exportRangeChecked = hasCustomRange || (this.selectedPeriod && this.selectedPeriod !== 'year');
         
         let yearsHtml = availableYears.map(y => `
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -512,11 +540,41 @@ window.AnalyticsView = {
             </label>
         `).join('');
 
+        const isOrgMode = window.app && window.app.config && (window.app.config.enable_org_mode === 'true' || window.app.config.enable_org_mode === true);
+        const savedHeaderTitle = localStorage.getItem('print_header_title') || '';
+        const savedLogoB64 = localStorage.getItem('print_header_logo') || null;
+        const savedLogoLeft = localStorage.getItem('print_logo_left') !== 'false';
+        const savedLogoRight = localStorage.getItem('print_logo_right') !== 'false';
+        const orgHeaderHtml = isOrgMode ? `
+        <div style="margin-bottom: 20px; padding: 14px; background: rgba(99,102,241,0.06); border-radius: 10px; border: 1px solid rgba(99,102,241,0.2);">
+            <h4 style="margin:0 0 12px 0;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_header_section') || 'En-tête du document'}</h4>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <input type="text" id="exportHeaderTitle" class="inline-input" placeholder="${window.i18n.t('export_header_title_placeholder') || 'Titre du document'}" value="${savedHeaderTitle.replace(/"/g,'&quot;')}" style="width:100%;" oninput="localStorage.setItem('print_header_title', this.value)">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px;" onclick="document.getElementById('exportLogoFileInput').click()">${window.i18n.t('export_header_logo_import') || 'Importer un logo'}</button>
+                    <input type="file" id="exportLogoFileInput" accept="image/*" style="display:none;" onchange="window.AnalyticsView._handleLogoUpload(this)">
+                    ${savedLogoB64 ? `<button class="btn btn-danger" style="font-size:12px;padding:6px 14px;" onclick="localStorage.removeItem('print_header_logo');this.previousElementSibling.previousElementSibling.previousElementSibling.style.display='none';this.remove()">${window.i18n.t('export_header_logo_remove') || 'Supprimer le logo'}</button>` : ''}
+                </div>
+                ${savedLogoB64 ? `<img id="exportLogoPreview" src="${savedLogoB64}" style="max-height:60px;max-width:200px;border-radius:6px;border:1px solid var(--border-color);object-fit:contain;">` : '<div id="exportLogoPreview"></div>'}
+                <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
+                        <input type="checkbox" id="exportLogoLeft" ${savedLogoLeft ? 'checked' : ''} style="accent-color:var(--accent);" onchange="localStorage.setItem('print_logo_left', this.checked)">
+                        ${window.i18n.t('export_logo_position_left') || 'Logo à gauche'}
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
+                        <input type="checkbox" id="exportLogoRight" ${savedLogoRight ? 'checked' : ''} style="accent-color:var(--accent);" onchange="localStorage.setItem('print_logo_right', this.checked)">
+                        ${window.i18n.t('export_logo_position_right') || 'Logo à droite'}
+                    </label>
+                </div>
+            </div>
+        </div>` : '';
+
         const modalHtml = `
         <div id="exportPdfModal" class="modal-overlay" style="display:flex;z-index:9999;">
             <div class="modal" style="width:700px; max-width:90vw; max-height:90vh; display:flex; flex-direction:column;">
                 <h3 style="margin-bottom: 16px;">${window.i18n.t('export_modal_title')}</h3>
                 <div style="flex:1; overflow-y:auto; padding-right:10px;">
+                    ${orgHeaderHtml}
                     <div style="margin-bottom: 20px;">
                         <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_modal_years')}</h4>
                         <div style="display:flex;gap:15px;flex-wrap:wrap;">
@@ -524,10 +582,10 @@ window.AnalyticsView = {
                         </div>
                         <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-color);">
                             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text-muted);margin-bottom:8px;">
-                                <input type="checkbox" id="exportCustomRange" ${hasCustomRange ? 'checked' : ''} onchange="document.getElementById('exportCustomRangeInputs').style.display=this.checked?'flex':'none';">
-                                ${window.i18n.t('export_custom_period') || 'P\u00e9riode personnalis\u00e9e'}
+                                <input type="checkbox" id="exportCustomRange" ${exportRangeChecked ? 'checked' : ''} onchange="document.getElementById('exportCustomRangeInputs').style.display=this.checked?'flex':'none';">
+                                ${window.i18n.t('export_custom_period') || 'Période personnalisée'}
                             </label>
-                            <div id="exportCustomRangeInputs" style="display:${hasCustomRange ? 'flex' : 'none'};gap:10px;align-items:center;flex-wrap:wrap;">
+                            <div id="exportCustomRangeInputs" style="display:${exportRangeChecked ? 'flex' : 'none'};gap:10px;align-items:center;flex-wrap:wrap;">
                                 <input type="date" id="exportDateStart" class="inline-input" value="${defaultStart}" style="width:160px;">
                                 <span style="color:var(--text-muted);font-size:12px;">→</span>
                                 <input type="date" id="exportDateEnd" class="inline-input" value="${defaultEnd}" style="width:160px;">
@@ -559,6 +617,21 @@ window.AnalyticsView = {
                         <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:10px;background:rgba(0,0,0,0.02);padding:10px;border-radius:8px;">
                             ${colsHtml}
                         </div>
+                    </div>
+                    <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border-color);display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                        <h4 style="margin:0;color:var(--text-muted);font-size:12px;text-transform:uppercase;white-space:nowrap;">${window.i18n.t('export_page_format') || 'Format papier'}</h4>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+                            <input type="radio" name="exportPageFormat" value="A4" checked style="accent-color:var(--accent);"> A4 Paysage
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+                            <input type="radio" name="exportPageFormat" value="A3" style="accent-color:var(--accent);"> A3 Paysage
+                        </label>
+                    </div>
+                    <div style="margin-top:12px;">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text-muted);">
+                            <input type="checkbox" id="exportForcePageBreak" style="accent-color:var(--accent);">
+                            ${window.i18n.t('export_force_page_break') || 'Forcer un saut de page entre chaque tableau'}
+                        </label>
                     </div>
                 </div>
                 <div class="modal-actions" style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border-color);">
@@ -650,10 +723,24 @@ window.AnalyticsView = {
         const selectedCols = Array.from(modal.querySelectorAll('.export-col-cb:checked')).map(cb => cb.value);
         const includeDetails = modal.querySelector('#exportIncludeDetails')?.checked ?? true;
         
-        // Custom date range
+        // Custom date range — validation avant envoi
         const useCustomRange = modal.querySelector('#exportCustomRange')?.checked ?? false;
-        const customStart = useCustomRange ? (modal.querySelector('#exportDateStart')?.value || null) : null;
-        const customEnd   = useCustomRange ? (modal.querySelector('#exportDateEnd')?.value || null) : null;
+        let customStart = useCustomRange ? (modal.querySelector('#exportDateStart')?.value || null) : null;
+        let customEnd   = useCustomRange ? (modal.querySelector('#exportDateEnd')?.value || null)   : null;
+        // Swap si end < start
+        if (customStart && customEnd && customStart > customEnd) { [customStart, customEnd] = [customEnd, customStart]; }
+
+        // Bug #5 : Format papier
+        const pageFormat = modal.querySelector('input[name="exportPageFormat"]:checked')?.value || 'A4';
+
+        // Bug #7 : Saut de page forcé
+        const forcePageBreak = modal.querySelector('#exportForcePageBreak')?.checked ?? false;
+
+        // Bug #8 : En-tête pro (mode org)
+        const headerTitle = modal.querySelector('#exportHeaderTitle')?.value?.trim() || '';
+        const headerLogoB64 = localStorage.getItem('print_header_logo') || null;
+        const logoLeft  = modal.querySelector('#exportLogoLeft')?.checked ?? true;
+        const logoRight = modal.querySelector('#exportLogoRight')?.checked ?? true;
         
         // Gather account filter from modal
         const exportAccIds = this._exportAccountIds;
@@ -667,9 +754,15 @@ window.AnalyticsView = {
         let budgetsMap = {};
         let categoryToBudgetMap = {};
         
-        // Fetch full data for the primary year to get its months offline, and fetch transactions
+        // Bug #4 : Re-fetch les données avec les paramètres exacts (custom range ou année)
+        // pour garantir la cohérence entre synthèse et PDF
         try {
-            if (primaryYear && !useCustomRange) {
+            if (useCustomRange && customStart && customEnd) {
+                // Custom range : fetch avec les bornes exactes du PDF
+                let printUrl = `/api/stats/categories_by_month?reconciled=${this.reconciled}&date_start=${customStart}&date_end=${customEnd}`;
+                if (exportAccIds) printUrl += `&account_ids=${exportAccIds.join(',')}`;
+                printData = await API.get(printUrl);
+            } else if (primaryYear) {
                 let printUrl = `/api/stats/categories_by_month?reconciled=${this.reconciled}&year=${primaryYear}`;
                 if (exportAccIds) printUrl += `&account_ids=${exportAccIds.join(',')}`;
                 printData = await API.get(printUrl);
@@ -686,7 +779,6 @@ window.AnalyticsView = {
             });
         } catch (e) {
             console.error("Error fetching print data", e);
-            // We can continue with partial data
         }
         
         // Create an offline container
@@ -704,9 +796,14 @@ window.AnalyticsView = {
         const sections = [];
         
         if (by_type) {
-            for (const [txType, typeData] of Object.entries(by_type)) {
-                sections.push('<div class="print-page-break">' + this.renderTypeTable(txType, typeData, months, revYears) + '</div>');
-            }
+            const typeEntries = Object.entries(by_type);
+            typeEntries.forEach(([txType, typeData], idx) => {
+                // Bug #6 : Pas de saut sur le DERNIER tableau
+                // Bug #7 : Saut forcé seulement si la checkbox est cochée
+                const isLast = idx === typeEntries.length - 1;
+                const breakClass = (!isLast && forcePageBreak) ? 'print-page-break-forced' : 'print-page-break-auto';
+                sections.push(`<div class="${breakClass}">` + this.renderTypeTable(txType, typeData, months, revYears) + '</div>');
+            });
         }
         
         // Build transactions list
@@ -831,8 +928,33 @@ window.AnalyticsView = {
             </div>`;
         }
         
+        // Bug #8 : En-tête professionnel (mode org)
+        let orgHeaderBlockHtml = '';
+        if (headerTitle || headerLogoB64) {
+            const logoHtml = headerLogoB64
+                ? `<img src="${headerLogoB64}" style="max-height:80px;max-width:180px;object-fit:contain;">`
+                : `<span style="width:80px;"></span>`;
+            const leftLogo  = (headerLogoB64 && logoLeft)  ? logoHtml : `<span style="min-width:80px;"></span>`;
+            const rightLogo = (headerLogoB64 && logoRight) ? logoHtml : `<span style="min-width:80px;"></span>`;
+            orgHeaderBlockHtml = `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border-color);gap:12px;">
+                ${leftLogo}
+                <div style="flex:1;text-align:center;">
+                    <h1 style="font-size:20px;font-weight:800;margin:0;color:var(--text-main);letter-spacing:-0.5px;">${headerTitle}</h1>
+                </div>
+                ${rightLogo}
+            </div>`;
+        }
+
+        // Bug #5 : Injection du format papier et orientation via <style> dans printContainer
+        const pageStyleTag = `<style id="printPageStyle">@page { size: ${pageFormat} landscape; margin: 10mm; }</style>`;
+
         const titleHtml = `<h2 style="margin-bottom: 20px;">${window.i18n.t('analytics_title')}</h2>`;
-        printContainer.innerHTML = titleHtml + balancesHtml + sections.join('') + txHtml;
+        printContainer.innerHTML = pageStyleTag + orgHeaderBlockHtml + balancesHtml + sections.join('') + txHtml;
+        // Titre uniquement si pas d'en-tête org
+        if (!orgHeaderBlockHtml) {
+            printContainer.insertAdjacentHTML('afterbegin', titleHtml);
+        }
         
         // Handle Types
         printContainer.querySelectorAll('[data-type]').forEach(el => {
@@ -875,5 +997,49 @@ window.AnalyticsView = {
                 modal.remove();
             }, 500);
         }, 100);
+    },
+
+    /** Bug #8 : Gestion de l'import de logo — conversion en base64 et sauvegarde dans localStorage */
+    _handleLogoUpload(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        // Vérification type
+        if (!file.type.startsWith('image/')) {
+            showToast('Fichier non supporté. Veuillez importer une image (PNG, JPG, SVG…).', 'error');
+            return;
+        }
+        // Vérification taille (max 2 Mo)
+        if (file.size > 2 * 1024 * 1024) {
+            showToast('Logo trop volumineux (max 2 Mo). Veuillez réduire la taille du fichier.', 'error');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const b64 = e.target.result;
+            // Resize via canvas pour garantir max-height:80px sur le print
+            const img = new Image();
+            img.onload = () => {
+                const maxH = 200; // pixels max en storage (réduit la taille base64)
+                let { width, height } = img;
+                if (height > maxH) {
+                    width = Math.round(width * maxH / height);
+                    height = maxH;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                const resizedB64 = canvas.toDataURL('image/png');
+                localStorage.setItem('print_header_logo', resizedB64);
+                // Mettre à jour le preview dans la modale
+                const preview = document.getElementById('exportLogoPreview');
+                if (preview) {
+                    preview.outerHTML = `<img id="exportLogoPreview" src="${resizedB64}" style="max-height:60px;max-width:200px;border-radius:6px;border:1px solid var(--border-color);object-fit:contain;">`;
+                }
+                showToast('Logo importé et enregistré ✅', 'success');
+            };
+            img.src = b64;
+        };
+        reader.readAsDataURL(file);
     }
 };

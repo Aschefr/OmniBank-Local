@@ -12,6 +12,25 @@ from app.models import Budget, BudgetCategory, BudgetAllocation, Transaction, Gl
 router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 
 
+def _safe_parse_budget_date(s: str, field_name: str) -> Optional[date]:
+    """Parse une date YYYY-MM-DD pour les budgets — HTTPException 400 si invalide."""
+    if not s:
+        return None
+    try:
+        d = date.fromisoformat(s.strip())
+        if d.year < 1900 or d.year > 2200:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Champ '{field_name}' invalide : année hors plage (1900-2200)."
+            )
+        return d
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Champ '{field_name}' invalide : '{s}'. Format attendu YYYY-MM-DD."
+        )
+
+
 # ─── Schemas ──────────────────────────────────────────────────────────────────
 
 class BudgetCreate(BaseModel):
@@ -89,8 +108,8 @@ def get_budgets(db: Session = Depends(get_db)):
 
 @router.post("/")
 def create_budget(data: BudgetCreate, db: Session = Depends(get_db)):
-    _start = date.fromisoformat(data.start_date) if data.start_date else None
-    _end = date.fromisoformat(data.end_date) if data.end_date else None
+    _start = _safe_parse_budget_date(data.start_date, "start_date") if data.start_date else None
+    _end = _safe_parse_budget_date(data.end_date, "end_date") if data.end_date else None
     # Tirelire: force period to indefinite
     period = data.period
     if data.envelope_type == "savings":
@@ -127,7 +146,7 @@ def update_budget(budget_id: int, data: BudgetUpdate, db: Session = Depends(get_
         if k == "categories":
             continue  # handled below
         if k in ("start_date", "end_date"):
-            setattr(b, k, date.fromisoformat(v) if v else None)
+            setattr(b, k, _safe_parse_budget_date(v, k) if v else None)
             continue
         if k == "account_ids":
             setattr(b, k, _serialize_account_ids(v))
@@ -173,10 +192,12 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
     custom_end = None
     if date_start and date_end:
         try:
-            custom_start = date.fromisoformat(date_start)
-            custom_end = date.fromisoformat(date_end)
-        except ValueError:
-            pass
+            custom_start = _safe_parse_budget_date(date_start, "date_start")
+            custom_end = _safe_parse_budget_date(date_end, "date_end")
+            if custom_start and custom_end and custom_start > custom_end:
+                custom_start, custom_end = custom_end, custom_start
+        except HTTPException:
+            pass  # Dates invalides = pas de filtre custom (fallback mensuel)
 
     q = db.query(Budget).filter(Budget.is_closed == False)
     if period_filter:
@@ -738,7 +759,7 @@ def create_allocation(budget_id: int, data: AllocationCreate, db: Session = Depe
     alloc = BudgetAllocation(
         budget_id=budget_id,
         amount=data.amount,
-        date=date.fromisoformat(data.date) if data.date else date.today(),
+        date=_safe_parse_budget_date(data.date, "date") if data.date else date.today(),
         note=data.note,
         created_at=datetime.now().isoformat(),
     )

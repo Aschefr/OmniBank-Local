@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import date
 import calendar
@@ -9,6 +9,33 @@ from app.schemas.api_schemas import AccountOut
 from app.services.finance_engine import calculate_balances, get_net_worth, calculate_rest_to_live, get_overdraft_warning, predict_next_paycheck, get_main_account
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
+
+
+def _safe_date(s: str, fallback: date = None) -> date:
+    """Parse une date YYYY-MM-DD en toute sécurité.
+    Si la chaîne est invalide ou absurde, retourne `fallback`.
+    En contexte API, appeler avec raise_on_error=True pour renvoyer un 400 propre.
+    """
+    if not s:
+        return fallback
+    try:
+        d = date.fromisoformat(s.strip())
+        if d.year < 1900 or d.year > 2200:
+            return fallback
+        return d
+    except (ValueError, AttributeError):
+        return fallback
+
+
+def _require_date(s: str, param_name: str) -> date:
+    """Parse une date et lève HTTPException 400 si invalide."""
+    d = _safe_date(s)
+    if d is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Paramètre '{param_name}' invalide : '{s}'. Format attendu : YYYY-MM-DD (ex: 2025-01-15)."
+        )
+    return d
 
 @router.get("/accounts")
 def get_accounts(db: Session = Depends(get_db)):
@@ -194,12 +221,11 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
 
     # Custom date range takes priority
     if date_start and date_end:
-        try:
-            d_start = date.fromisoformat(date_start)
-            d_end = date.fromisoformat(date_end)
-        except ValueError:
-            d_start = date(today.year, 1, 1)
-            d_end = today
+        d_start = _require_date(date_start, "date_start")
+        d_end = _require_date(date_end, "date_end")
+        # Garantir que start <= end (échange silencieux si inversés)
+        if d_start > d_end:
+            d_start, d_end = d_end, d_start
 
         # Generate month_keys spanning the range
         month_keys = []
