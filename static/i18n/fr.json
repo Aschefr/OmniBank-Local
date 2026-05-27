@@ -825,5 +825,16 @@
     "export_header_logo_import": "Importer un logo",
     "export_header_logo_remove": "Supprimer le logo",
     "export_logo_position_left": "Logo à gauche",
-    "export_logo_position_right": "Logo à droite"
+    "export_logo_position_right": "Logo à droite",
+    "export_detailed_period": "Période détaillée (mois par mois)",
+    "export_full_year": "Année complète",
+    "export_custom_range": "Période personnalisée",
+    "export_year_label": "Année :",
+    "export_annual_totals_section": "Colonnes de Totaux Annuels (à droite)",
+    "export_font_sizes_section": "Taille des polices",
+    "export_title_font_size": "Taille du titre",
+    "export_table_font_size": "Taille des tableaux et montants",
+    "export_font_size_small": "Petit",
+    "export_font_size_medium": "Moyen (Par défaut)",
+    "export_font_size_large": "Grand"
 }
