@@ -1226,9 +1226,7 @@ select.inline-input:focus option:checked {
         --border-color: #dfe3e8 !important;
     }
 
-    /* Bug #5 : Format par défaut A4 paysage (peut être overridé par la balise <style> injectée dans #printContainer) */
     @page {
-        size: A4 landscape;
         margin: 10mm;
     }
 
