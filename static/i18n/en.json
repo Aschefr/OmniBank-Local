@@ -800,5 +800,14 @@
     "maintenance_orphan_warning": "Checked transactions will be permanently deleted. Reconciled transactions can never be deleted.",
     "maintenance_orphan_preview_title": "Orphan recurrence cleanup",
     "maintenance_orphan_none_selected": "No transaction selected.",
-    "maintenance_orphan_result": "{count} transaction(s) deleted."
+    "maintenance_orphan_result": "{count} transaction(s) deleted.",
+    "error_date_range_invalid": "End date must be after start date.",
+    "export_page_format": "Page format",
+    "export_force_page_break": "Force page break between each table",
+    "export_header_section": "Document header",
+    "export_header_title_placeholder": "Document title",
+    "export_header_logo_import": "Import logo",
+    "export_header_logo_remove": "Remove logo",
+    "export_logo_position_left": "Logo on left",
+    "export_logo_position_right": "Logo on right"
 }

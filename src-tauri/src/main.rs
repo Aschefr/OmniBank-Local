@@ -5,6 +5,7 @@ use tauri_plugin_shell::ShellExt;
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind, MessageDialogButtons};
 use std::time::Duration;
 use std::sync::Mutex;
+use std::path::PathBuf;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -42,6 +43,70 @@ fn kill_sidecar(state: &SidecarState) {
         .output();
 }
 
+/// Nettoie silencieusement les résidus des mises à jour précédentes.
+/// N'efface QUE les fichiers générés par le mécanisme d'update Tauri/WiX :
+///   - Fichiers .msi.partial dans %TEMP% liés à OmniBank
+///   - Caches d'extraction PyInstaller --onefile (_MEI* avec marqueur omnibank-api.exe)
+///   - Fichiers update*.msi téléchargés par tauri-plugin-updater dans %TEMP%
+///   - Fichiers OmniBank*.msi dans %LOCALAPPDATA%\Temp
+///
+/// JAMAIS touchés : base de données, licence, configuration utilisateur.
+fn cleanup_old_update_artifacts() {
+    let temp_dir = match std::env::var("TEMP").or_else(|_| std::env::var("TMP")) {
+        Ok(t) => PathBuf::from(t),
+        Err(_) => return,
+    };
+
+    // 1. Résidus PyInstaller --onefile (_MEI*) des anciennes versions
+    //    Ces dossiers sont créés à chaque lancement et non nettoyés si crash/update
+    if let Ok(entries) = std::fs::read_dir(&temp_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str.starts_with("_MEI") && entry.path().is_dir() {
+                // Vérifier marqueur omnibank-api pour éviter de supprimer d'autres apps
+                let api_marker = entry.path().join("omnibank-api.exe");
+                if api_marker.exists() {
+                    eprintln!("[cleanup] Suppression résidu PyInstaller: {:?}", entry.path());
+                    let _ = std::fs::remove_dir_all(entry.path());
+                }
+            }
+        }
+    }
+
+    // 2. Fichiers .msi partiels ou MSI OmniBank résiduels dans %TEMP%
+    if let Ok(entries) = std::fs::read_dir(&temp_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy().to_lowercase();
+            let is_omnibank_msi = name_str.contains("omnibank") &&
+                (name_str.ends_with(".msi") || name_str.ends_with(".msi.partial"));
+            if is_omnibank_msi && entry.path().is_file() {
+                eprintln!("[cleanup] Suppression MSI résidu: {:?}", entry.path());
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+
+    // 3. Cache WiX dans %LOCALAPPDATA%\Temp (uniquement fichiers OmniBank)
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        let wix_temp = PathBuf::from(&local_app_data).join("Temp");
+        if let Ok(entries) = std::fs::read_dir(&wix_temp) {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                let name_str = name.to_string_lossy().to_lowercase();
+                if name_str.contains("omnibank") && entry.path().is_file() {
+                    eprintln!("[cleanup] Suppression cache LOCALAPPDATA\\Temp: {:?}", entry.path());
+                    let _ = std::fs::remove_file(entry.path());
+                }
+            }
+        }
+    }
+
+    eprintln!("[cleanup] Nettoyage post-MAJ terminé.");
+}
+
+
 #[tauri::command]
 fn get_app_version(app: tauri::AppHandle) -> String {
     app.config().version.clone().unwrap_or_else(|| "?".into())
@@ -54,7 +119,11 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .invoke_handler(tauri::generate_handler![get_app_version])
+
         .setup(|app| {
+            // Nettoyage silencieux des résidus de mises à jour précédentes (thread background)
+            std::thread::spawn(cleanup_old_update_artifacts);
+
             // Kill any orphan omnibank-api.exe from previous session/update
             let _ = std::process::Command::new("taskkill")
                 .args(["/F", "/IM", "omnibank-api.exe"])
@@ -63,6 +132,7 @@ fn main() {
             std::thread::sleep(Duration::from_millis(100));
 
             // Spawn the FastAPI sidecar
+
             
             /* OLD WAY (ONEFILE)
             let sidecar_command = app.shell().sidecar("omnibank-api")

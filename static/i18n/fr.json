@@ -816,5 +816,14 @@
     "maintenance_orphan_warning": "Les opérations cochées seront définitivement supprimées. Les opérations rapprochées ne peuvent jamais être supprimées.",
     "maintenance_orphan_preview_title": "Nettoyage des récurrences orphelines",
     "maintenance_orphan_none_selected": "Aucune opération sélectionnée.",
-    "maintenance_orphan_result": "{count} opération(s) supprimée(s)."
+    "maintenance_orphan_result": "{count} opération(s) supprimée(s).",
+    "error_date_range_invalid": "La date de fin doit être postérieure à la date de début.",
+    "export_page_format": "Format papier",
+    "export_force_page_break": "Forcer un saut de page entre chaque tableau",
+    "export_header_section": "En-tête du document",
+    "export_header_title_placeholder": "Titre du document",
+    "export_header_logo_import": "Importer un logo",
+    "export_header_logo_remove": "Supprimer le logo",
+    "export_logo_position_left": "Logo à gauche",
+    "export_logo_position_right": "Logo à droite"
 }

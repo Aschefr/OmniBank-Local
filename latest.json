@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDdVVlV3QkFjaG5SWTYwMnNRNUVXRG9sTzBkTWVvdHRKZEdkSFFLV2pyOXhyRW5hNjU3M0lZbG5GR1VKQ0hxaE9kYjNBUHd0UExmV3UxN0pBbDk4NWcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NzMwODUyCWZpbGU6T21uaUJhbmtfMS4wLjM2X3g2NF9mci1GUi5tc2kKbFRCVjR1QlI2TTVmbUF6a25iUlp0SHF0cXpzaTZXZGFJaWpzNzdPSE1majlDUjRmb0h4dlpMczcvUzR3QVppZ091Q0psV1NFM1I5b1kzRCtjQU9GREE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.36/OmniBank_1.0.36_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDhCck0zY1kxdWdIOU5DbnlsZTdDcWNJQ3hSekhkZGhGS1pPeC94UVBydEd0MnBxenYzVWlwTDR2czFvOXlrYWc3aVl6WGIyaExQdVF0cERPOXJJeFF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5ODk2MzcyCWZpbGU6T21uaUJhbmtfMS4wLjM3X3g2NF9mci1GUi5tc2kKOTE1d3M4TWdUMmJ1WW5UNmg3YTU1QWUrVXRUaTg5Ulpta0R1N3RNcG1UZWxQZll4eDJ2WkxFWmJNaDFRaWhkRFJpTm91cVVOdzd1Z292dFFjbkwxREE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.37/OmniBank_1.0.37_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-25T17:40:52Z",
-    "version":  "1.0.36",
-    "notes":  "Correctif de build (inclut les correctifs UI manquants de la 1.0.35 et le passage complet en mode onedir)"
+    "pub_date":  "2026-05-27T15:39:32Z",
+    "version":  "1.0.37",
+    "notes":  "OmniBank v1.0.37 - Corrections de bugs et ameliorations PDF"
 }

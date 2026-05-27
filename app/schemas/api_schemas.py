@@ -1,6 +1,15 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional, List
 from datetime import date
+
+
+def _validate_date_range(v: Optional[date]) -> Optional[date]:
+    """Rejette les dates absurdes (avant 1900 ou après 2200)."""
+    if v is None:
+        return v
+    if v.year < 1900 or v.year > 2200:
+        raise ValueError(f"Date invalide : {v} — l'année doit être comprise entre 1900 et 2200.")
+    return v
 
 class TransactionBase(BaseModel):
     date_saisie: date
@@ -26,6 +35,10 @@ class TransactionBase(BaseModel):
     created_at: Optional[str] = None
     modified_at: Optional[str] = None
 
+    _val_date_saisie = validator('date_saisie', allow_reuse=True)(_validate_date_range)
+    _val_date_op = validator('date_operation', allow_reuse=True)(_validate_date_range)
+    _val_recon = validator('reconciliation_date', allow_reuse=True)(_validate_date_range)
+
 class TransactionCreate(TransactionBase):
     pass
 
@@ -39,6 +52,9 @@ class TransactionUpdate(BaseModel):
     is_bimonthly: Optional[bool] = None
     recurrence_day_1: Optional[int] = None
     recurrence_day_2: Optional[int] = None
+
+    _val_date_op = validator('date_operation', allow_reuse=True)(_validate_date_range)
+    _val_recon = validator('reconciliation_date', allow_reuse=True)(_validate_date_range)
     attachments: Optional[str] = None
     check_slip_number: Optional[str] = None
     from_account_id: Optional[int] = None

@@ -1226,6 +1226,12 @@ select.inline-input:focus option:checked {
         --border-color: #dfe3e8 !important;
     }
 
+    /* Bug #5 : Format par défaut A4 paysage (peut être overridé par la balise <style> injectée dans #printContainer) */
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
+
     /* Hide non-essential UI elements */
     .app-sidebar,
     .app-header,
@@ -1258,9 +1264,23 @@ select.inline-input:focus option:checked {
         display: block !important;
     }
 
-    .print-page-break {
+    /* Bug #6 & #7 : Deux classes de saut de page
+       - print-page-break-forced : saut de page après (uniquement entre tableaux, jamais sur le dernier)
+       - print-page-break-auto   : le navigateur décide — évite la page vide en fin de document */
+    .print-page-break-forced {
         page-break-after: always;
         break-after: page;
+    }
+
+    .print-page-break-auto {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    /* Rétro-compatibilité — ancienne classe (non utilisée pour les nouveaux exports) */
+    .print-page-break {
+        page-break-after: auto;
+        break-after: auto;
     }
 
     /* Force background colors to print */
