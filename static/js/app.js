@@ -212,6 +212,11 @@ class App {
             });
         });
 
+        // Prevent mouse back/forward buttons & keyboard shortcuts to avoid app navigation bug in Tauri
+        window.addEventListener('mousedown', (e) => { if (e.button === 3 || e.button === 4) e.preventDefault(); });
+        window.addEventListener('mouseup', (e) => { if (e.button === 3 || e.button === 4) e.preventDefault(); });
+        window.addEventListener('keydown', (e) => { if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) e.preventDefault(); });
+
         // Initial Load
         await this.refreshSidebar();
         
