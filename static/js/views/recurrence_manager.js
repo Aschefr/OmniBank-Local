@@ -479,6 +479,7 @@ window.RecurrenceView = {
             if (this.expandedTemplateIds.has(templateId)) {
                 this.expandedTemplateIds.delete(templateId);
             }
+            await window.app.refreshSidebar();
             await this.loadData();
         } catch (e) {
             console.error(e);
