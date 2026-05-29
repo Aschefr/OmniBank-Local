@@ -471,8 +471,8 @@ window.AllOperationsView = {
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.t('confirm_delete_operation'))) {
             try {
                 await API.del(`/api/transactions/${id}`);
+                await window.app.refreshSidebar();
                 await this.loadData();
-                window.app.refreshSidebar();
             } catch (e) {
                 console.error(e);
             }

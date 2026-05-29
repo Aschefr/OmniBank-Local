@@ -113,9 +113,9 @@ window.FormView = {
             this.lastSavedId = null;
             const undoBtn = document.getElementById('op_undo_last_btn');
             if (undoBtn) undoBtn.style.display = 'none';
-            window.app.refreshSidebar();
-            if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) window.TimelineView.loadData();
-            if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) window.AllOperationsView.loadData();
+            await window.app.refreshSidebar();
+            if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) await window.TimelineView.loadData();
+            if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) await window.AllOperationsView.loadData();
             showToast(window.i18n.t('form_undo_done') || 'Derni\u00e8re saisie supprim\u00e9e', 'success');
         } catch(e) {
             showInlineMessage(window.i18n.t('title_error'), e.message);
@@ -146,7 +146,7 @@ window.FormView = {
         document.getElementById('op_is_recurrent').checked = isRecurrent;
         document.getElementById('op_is_recurrent').disabled = true; // Cannot toggle an existing one
         
-        if (this.accounts.length === 0) await this.init();
+        await this.init();
         
         this.renderAccountsDropdowns(tx.from_account_id, tx.to_account_id);
         
@@ -444,6 +444,29 @@ window.FormView = {
             badge.style.backgroundColor = 'var(--text-muted)';
         }
         
+        // Update recurrence limit badge
+        const badgeEl = document.getElementById('op_rec_limit_badge');
+        if (badgeEl) {
+            if (isRecurrent) {
+                badgeEl.style.display = 'inline-block';
+                if (isLimited) {
+                    badgeEl.setAttribute('data-i18n', 'rec_limit_limited');
+                    badgeEl.textContent = window.i18n.t('rec_limit_limited') || 'Limitée dans le temps';
+                    badgeEl.style.backgroundColor = 'rgba(245,158,11,0.15)';
+                    badgeEl.style.color = '#f59e0b';
+                    badgeEl.style.borderColor = 'rgba(245,158,11,0.25)';
+                } else {
+                    badgeEl.setAttribute('data-i18n', 'rec_limit_unlimited');
+                    badgeEl.textContent = window.i18n.t('rec_limit_unlimited') || 'Illimitée dans le temps';
+                    badgeEl.style.backgroundColor = 'rgba(16,185,129,0.15)';
+                    badgeEl.style.color = '#10b981';
+                    badgeEl.style.borderColor = 'rgba(16,185,129,0.25)';
+                }
+            } else {
+                badgeEl.style.display = 'none';
+            }
+        }
+        
         this.renderCategories();
     },
 
@@ -502,7 +525,34 @@ window.FormView = {
             document.getElementById('op_category').value = newCat.name;
             this.hideNewCatInput();
         } catch (e) {
-            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_category_create_error'));
+            let isConflict = false;
+            let msg = e.message;
+            try {
+                const parsed = JSON.parse(e.message);
+                msg = parsed.detail || e.message;
+                if (msg.includes("already exists") && msg.includes("currently in use")) {
+                    isConflict = true;
+                }
+            } catch(err) {}
+
+            if (isConflict) {
+                const confirmMsg = `La catégorie '${name}' existe déjà en tant que dépense variable. Voulez-vous la déplacer définitivement vers les charges fixes ?`;
+                if (await showInlineConfirm("Conflit de catégorie", confirmMsg)) {
+                    try {
+                        const newCat = await API.post('/api/categories/?force_move=true', { name, type });
+                        await this.loadCategories();
+                        this.updateInferredType();
+                        document.getElementById('op_category').value = newCat.name;
+                        this.hideNewCatInput();
+                        return;
+                    } catch(err2) {
+                        showInlineMessage(window.i18n.t('title_info'), "Erreur lors du déplacement de la catégorie.");
+                        return;
+                    }
+                }
+            } else {
+                showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_category_create_error'));
+            }
         }
     },
 
@@ -718,16 +768,17 @@ window.FormView = {
             // Reload descriptions on save
             this.loadDescriptions();
 
+            await window.app.refreshSidebar();
+
             if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) {
-                window.TimelineView.loadData();
+                await window.TimelineView.loadData();
             }
             if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) {
-                window.AllOperationsView.loadData();
+                await window.AllOperationsView.loadData();
             }
             if (window.app.currentView === 'recurrences' && window.RecurrenceView.loadData) {
-                window.RecurrenceView.loadData();
+                await window.RecurrenceView.loadData();
             }
-            window.app.refreshSidebar();
 
 
         } catch (e) {

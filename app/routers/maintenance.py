@@ -14,11 +14,13 @@ router = APIRouter(prefix="/api/maintenance", tags=["Maintenance"])
 def _find_mismatch_rows(db: Session):
     """Return transactions with type=expense_var but having recurrence."""
     result = db.execute(text("""
-        SELECT id, description, amount, type, date_operation, category, recurrence_id, is_monthly
-        FROM transactions
-        WHERE type = 'expense_var'
-          AND (is_monthly = 1 OR recurrence_id IS NOT NULL)
-        ORDER BY date_operation DESC
+        SELECT t.id, t.description, t.amount, t.type, t.date_operation, t.category, t.recurrence_id, t.is_monthly
+        FROM transactions t
+        LEFT JOIN recurrence_templates rt ON t.recurrence_id = rt.id
+        WHERE t.type = 'expense_var'
+          AND (t.is_monthly = 1 OR t.recurrence_id IS NOT NULL)
+          AND (rt.id IS NULL OR rt.type = 'expense_fixed')
+        ORDER BY t.date_operation DESC
     """))
     return [dict(r._mapping) for r in result]
 
