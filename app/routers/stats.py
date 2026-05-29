@@ -155,6 +155,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "is_pay_validated": is_pay_validated,
         "validated_pay_date": validated_pay_date,
         "pay_history": pay_history,
+        "logical_period": pay_info.get("logical_period"),
         "overdraft_warning": warning,
         "unreconciled_expenses": unreconciled_expenses,
         "total_unreconciled_expenses": total_unreconciled_expenses,

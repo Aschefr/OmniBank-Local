@@ -1,6 +1,7 @@
 window.TimelineView = {
     transactions: [],
     _vt: null,
+    currentPeriodIndex: parseInt(localStorage.getItem('timeline_period_index')) || 0,
     
     render() {
         const cfg = window.app && window.app.config ? window.app.config : {};
@@ -184,30 +185,97 @@ window.TimelineView = {
         }
 
         container.style.display = 'block';
-        const isManualSkip = stats.is_pay_validated;
-        const payDateStr = formatDate(stats.next_pay_date);
         
+        if (this.currentPeriodIndex > 0 && (!window.app.payHistory || this.currentPeriodIndex - 1 >= window.app.payHistory.length)) {
+            this.currentPeriodIndex = 0;
+            localStorage.setItem('timeline_period_index', 0);
+        }
+
+        const isHistory = this.currentPeriodIndex > 0;
+        let isManualSkip = false;
+        let payDateStr = '';
+        let payAmount = 0;
+        let periodStartStr = '';
+
+        if (isHistory) {
+            const hIndex = this.currentPeriodIndex - 1;
+            const historyItem = window.app.payHistory[hIndex];
+            
+            payDateStr = formatDate(historyItem.date);
+            payAmount = historyItem.amount;
+            
+            if (historyItem.validated_pay_date) {
+                const d = new Date(historyItem.validated_pay_date);
+                d.setDate(d.getDate() + 1);
+                periodStartStr = formatDate(d.toISOString().split('T')[0]);
+            } else if (historyItem.logical_period) {
+                const parts = historyItem.logical_period.split('-');
+                const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                periodStartStr = formatDate(d.toISOString().split('T')[0]);
+            }
+        } else {
+            isManualSkip = window.app.isPayValidated || (stats && stats.is_pay_validated);
+            payDateStr = formatDate(window.app.nextPayDate);
+            payAmount = window.app.nextPayAmount;
+            
+            if (window.app.validatedPayDate) {
+                const d = new Date(window.app.validatedPayDate);
+                d.setDate(d.getDate() + 1);
+                periodStartStr = formatDate(d.toISOString().split('T')[0]);
+            } else if (stats && stats.logical_period) {
+                const parts = stats.logical_period.split('-');
+                const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                periodStartStr = formatDate(d.toISOString().split('T')[0]);
+            }
+        }
+
         let statusTitle = '';
         let statusClass = '';
         let actionBtnHtml = '';
         let statusDesc = '';
 
-        if (isManualSkip) {
+        if (isHistory) {
+            statusTitle = window.i18n.t('paycheck_widget_status_history') || 'Période historique';
+            statusClass = 'background: rgba(107, 114, 128, 0.12); border: 1px solid rgba(107, 114, 128, 0.3); color: #9ca3af;';
+            statusDesc = window.i18n.tp('paycheck_widget_history_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartStr });
+            
+            const disabledTitle = window.i18n.t('tooltip_historical_disabled') || 'Action impossible pour une période passée';
+            actionBtnHtml = `
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="btn btn-secondary" style="padding: 5px 12px; font-weight: 600; font-size: 12px; border-radius: 8px; white-space: nowrap; opacity: 0.5; cursor: not-allowed;" title="${disabledTitle}">✏️ ${window.i18n.t('paycheck_widget_btn_correct')}</button>
+                    <button class="btn btn-primary" style="padding: 5px 14px; font-weight: 700; font-size: 12px; border-radius: 8px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); border: none; box-shadow: 0 4px 10px rgba(108, 92, 231, 0.2); white-space: nowrap; opacity: 0.5; cursor: not-allowed;" title="${disabledTitle}"><span style="margin-right:4px;">⏩</span>${window.i18n.t('paycheck_widget_btn_force')}</button>
+                </div>
+            `;
+        } else if (isManualSkip) {
             statusTitle = window.i18n.t('paycheck_widget_status_skipped');
             statusClass = 'background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); color: #10b981;';
-            statusDesc = window.i18n.tp('paycheck_widget_skipped_desc', { date: payDateStr, amount: formatCurrency(stats.next_pay_amount) });
+            statusDesc = window.i18n.tp('paycheck_widget_skipped_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartStr });
             actionBtnHtml = `<button class="btn btn-secondary" style="padding: 5px 12px; font-weight: 600; font-size: 12px; border-color: rgba(245, 158, 11, 0.4); color: #f59e0b; background: transparent; border-radius: 8px; white-space: nowrap;" onclick="window.app.skipPayPeriod()"><span style="margin-right:4px;">⏪</span>${window.i18n.t('paycheck_widget_btn_cancel')}</button>`;
         } else {
             statusTitle = window.i18n.t('paycheck_widget_status_active');
             statusClass = 'background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.3); color: var(--accent);';
-            statusDesc = window.i18n.tp('paycheck_widget_active_desc', { date: payDateStr, amount: formatCurrency(stats.next_pay_amount) });
+            statusDesc = window.i18n.tp('paycheck_widget_active_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartStr });
             actionBtnHtml = `
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <button class="btn btn-secondary" style="padding: 5px 12px; font-weight: 600; font-size: 12px; border-radius: 8px; white-space: nowrap;" onclick="window.app.showPayOverrideModal()">✏️ ${window.i18n.t('paycheck_widget_btn_correct')}</button>
-                    <button class="btn btn-primary" style="padding: 5px 14px; font-weight: 700; font-size: 12px; border-radius: 8px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); border: none; box-shadow: 0 4px 10px rgba(108, 92, 231, 0.2); white-space: nowrap;" onclick="window.app.skipPayPeriod()"><span style="margin-right:4px;">⏭️</span>${window.i18n.t('paycheck_widget_btn_force')}</button>
+                    <button class="btn btn-primary" style="padding: 5px 14px; font-weight: 700; font-size: 12px; border-radius: 8px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); border: none; box-shadow: 0 4px 10px rgba(108, 92, 231, 0.2); white-space: nowrap;" onclick="window.app.skipPayPeriod()"><span style="margin-right:4px;">⏩</span>${window.i18n.t('paycheck_widget_btn_force')}</button>
                 </div>
             `;
         }
+
+        const hasPrev = window.app.payHistory && this.currentPeriodIndex < window.app.payHistory.length;
+        const hasNext = this.currentPeriodIndex > 0;
+        
+        const prevDisabled = !hasPrev ? 'opacity: 0.3; cursor: not-allowed;' : 'cursor: pointer;';
+        const nextDisabled = !hasNext ? 'opacity: 0.3; cursor: not-allowed;' : 'cursor: pointer;';
+        
+        const navArrowsHtml = `
+            <div style="display: flex; gap: 4px; align-items: center; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 8px; margin-right: 8px;">
+                <button class="btn btn-sm" style="padding: 2px 8px; border: none; background: transparent; color: var(--text-main); ${prevDisabled}" onclick="if(${hasPrev}) window.TimelineView.navigatePeriod('prev')" title="${window.i18n.t('tooltip_prev_period')}">◀</button>
+                <button class="btn btn-sm" style="padding: 2px 8px; border: none; background: transparent; color: var(--text-main); font-size: 11px; font-weight: 600;" onclick="window.TimelineView.navigatePeriod('current')" title="${window.i18n.t('btn_current_period')}">📅</button>
+                <button class="btn btn-sm" style="padding: 2px 8px; border: none; background: transparent; color: var(--text-main); ${nextDisabled}" onclick="if(${hasNext}) window.TimelineView.navigatePeriod('next')" title="${window.i18n.t('tooltip_next_period')}">▶</button>
+            </div>
+        `;
 
         container.style.position = 'sticky';
         container.style.bottom = '15px';
@@ -222,10 +290,11 @@ window.TimelineView = {
                     <div style="font-size: 20px; background: rgba(255,255,255,0.08); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; box-shadow: inset 0 0 6px rgba(0,0,0,0.05);">📅</div>
                     <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; flex: 1;">
                         <span style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; opacity: 0.85; white-space: nowrap;">${statusTitle}</span>
-                        <span style="font-size: 13px; color: var(--text-main); font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; flex: 1; min-width: 100px;">${statusDesc}</span>
+                        <span id="paycheckWidgetDesc" style="font-size: 13px; color: var(--text-main); font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; flex: 1; min-width: 100px;">${statusDesc}</span>
                     </div>
                 </div>
-                <div style="flex-shrink: 0;">
+                <div style="flex-shrink: 0; display: flex; align-items: center;">
+                    ${navArrowsHtml}
                     ${actionBtnHtml}
                 </div>
             </div>
@@ -245,6 +314,28 @@ window.TimelineView = {
             const select = document.getElementById('timelineReconciledPeriod');
             if (select) localStorage.setItem('timeline_period_filter', select.value);
         }
+        localStorage.setItem('timeline_period_index', this.currentPeriodIndex);
+    },
+
+    navigatePeriod(direction) {
+        if (direction === 'current') {
+            this.currentPeriodIndex = 0;
+        } else if (direction === 'prev') {
+            if (window.app.payHistory && this.currentPeriodIndex < window.app.payHistory.length) {
+                this.currentPeriodIndex++;
+            }
+        } else if (direction === 'next') {
+            if (this.currentPeriodIndex > 0) {
+                this.currentPeriodIndex--;
+            }
+        }
+        this.savePeriod();
+        this.renderPaycheckWidget({
+            next_pay_date: window.app.nextPayDate,
+            next_pay_amount: window.app.nextPayAmount,
+            is_pay_validated: window.app.isPayValidated
+        });
+        this.applyFilters();
     },
 
     getColSettings() {
@@ -427,27 +518,47 @@ window.TimelineView = {
             const periodValue = periodFilter ? periodFilter.value : 'current';
             
             let baseStartDateStr = '';
-            if (window.app.payHistory && window.app.payHistory.length > 0) {
-                const detectedHistory = window.app.payHistory.filter(h => !h.is_override);
-                const sortedHistory = [...detectedHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
-                baseStartDateStr = sortedHistory.length > 0 ? sortedHistory[0].date.substring(0, 10) : '';
-            }
-            // If the pay period has been manually validated (forced), shift baseStartDateStr to the first day of the current month
-            // of that validation so that reconciled operations from the previous period are properly hidden/masked.
-            if (window.app.isPayValidated) {
+            
+            const isHistory = this.currentPeriodIndex > 0;
+            if (isHistory) {
+                const hIndex = this.currentPeriodIndex - 1;
+                const historyItem = window.app.payHistory[hIndex];
+                endDateStr = historyItem.date;
+                
+                if (historyItem.validated_pay_date) {
+                    const d = new Date(historyItem.validated_pay_date);
+                    d.setDate(d.getDate() + 1);
+                    baseStartDateStr = d.toISOString().split('T')[0];
+                } else if (historyItem.logical_period) {
+                    const parts = historyItem.logical_period.split('-');
+                    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                    baseStartDateStr = d.toISOString().split('T')[0];
+                }
+            } else {
                 if (window.app.validatedPayDate) {
-                    baseStartDateStr = window.app.validatedPayDate;
-                } else {
-                    const now = new Date();
-                    const pad = (n) => n < 10 ? '0'+n : n;
-                    baseStartDateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
+                    const d = new Date(window.app.validatedPayDate);
+                    d.setDate(d.getDate() + 1);
+                    baseStartDateStr = d.toISOString().split('T')[0];
+                } else if (window.app.payPeriod) {
+                    const parts = window.app.payPeriod.split('-');
+                    if (parts.length === 2) {
+                        baseStartDateStr = `${parts[0]}-${parts[1]}-01`;
+                    }
+                } else if (window.app.payHistory && window.app.payHistory.length > 0) {
+                    const detectedHistory = window.app.payHistory.filter(h => !h.is_override);
+                    const sortedHistory = [...detectedHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
+                    if (sortedHistory.length > 0) {
+                        const d = new Date(sortedHistory[0].date);
+                        d.setDate(d.getDate() + 1);
+                        baseStartDateStr = d.toISOString().split('T')[0];
+                    }
                 }
             }
+            
             if (!baseStartDateStr) {
                 const now = new Date();
-                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
                 const pad = (n) => n < 10 ? '0'+n : n;
-                baseStartDateStr = `${startOfMonth.getFullYear()}-${pad(startOfMonth.getMonth()+1)}-${pad(startOfMonth.getDate())}`;
+                baseStartDateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
             }
             
             if (periodValue !== 'all') {
@@ -461,6 +572,34 @@ window.TimelineView = {
                 }
                 const pad = (n) => n < 10 ? '0'+n : n;
                 startDateStr = `${baseDateObj.getFullYear()}-${pad(baseDateObj.getMonth()+1)}-${pad(baseDateObj.getDate())}`;
+            }
+        }
+        
+        if (!isOrgMode && startDateStr) {
+            const descSpan = document.getElementById('paycheckWidgetDesc');
+            if (descSpan) {
+                const isHistory = this.currentPeriodIndex > 0;
+                let payDateStr = '';
+                let payAmount = 0;
+                
+                if (isHistory) {
+                    const hIndex = this.currentPeriodIndex - 1;
+                    const historyItem = window.app.payHistory[hIndex];
+                    payDateStr = formatDate(historyItem.date);
+                    payAmount = historyItem.amount;
+                    const periodStartFormatted = formatDate(startDateStr);
+                    descSpan.innerHTML = window.i18n.tp('paycheck_widget_history_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartFormatted });
+                } else if (window.app.nextPayDate) {
+                    payDateStr = formatDate(window.app.nextPayDate);
+                    payAmount = window.app.nextPayAmount;
+                    const periodStartFormatted = formatDate(startDateStr);
+                    const isManualSkip = window.app.isPayValidated;
+                    if (isManualSkip) {
+                        descSpan.innerHTML = window.i18n.tp('paycheck_widget_skipped_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartFormatted });
+                    } else {
+                        descSpan.innerHTML = window.i18n.tp('paycheck_widget_active_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartFormatted });
+                    }
+                }
             }
         }
 
@@ -481,11 +620,15 @@ window.TimelineView = {
         
         // Hide unreconciled transactions strictly AFTER next pay date
         if (!isOrgMode && window.app.nextPayDate) {
-            const nextPayDate = new Date(window.app.nextPayDate);
-            unreconciled = unreconciled.filter(tx => {
-                const txDate = new Date(tx.date_operation);
-                return txDate <= nextPayDate;
-            });
+            if (this.currentPeriodIndex > 0) {
+                unreconciled = []; // Hide all unreconciled if viewing history
+            } else {
+                const nextPayDate = new Date(window.app.nextPayDate);
+                unreconciled = unreconciled.filter(tx => {
+                    const txDate = new Date(tx.date_operation);
+                    return txDate <= nextPayDate;
+                });
+            }
         }
         
         // Filter reconciled transactions based on start and end dates

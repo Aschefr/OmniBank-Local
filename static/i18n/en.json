@@ -827,12 +827,18 @@
   "rec_limit_limited": "Limited in time",
   "paycheck_widget_status_active": "Active period",
   "paycheck_widget_status_skipped": "Period closed (Next month)",
-  "paycheck_widget_active_desc": "Showing expenses until estimated pay day on {date} ({amount}).",
-  "paycheck_widget_skipped_desc": "Next month forced manually. Next estimated pay on {date} ({amount}).",
+  "paycheck_widget_active_desc": "Period from {period_start} to {date}. Estimated next pay: {amount}.",
+  "paycheck_widget_skipped_desc": "The next period was forced manually. Period from {period_start} to {date} ({amount}).",
   "paycheck_widget_btn_correct": "Correct pay",
   "paycheck_widget_btn_force": "Force next month",
   "paycheck_widget_btn_cancel": "Cancel force",
   "pay_history_override_label": "Manual correction",
   "btn_restore_default": "Restore",
-  "msg_date_out_of_bounds": "The entered date is out of allowed bounds."
+  "msg_date_out_of_bounds": "The entered date is out of allowed bounds.",
+  "paycheck_widget_status_history": "Historical Period",
+  "paycheck_widget_history_desc": "Period from {period_start} to {date}. Pay: {amount}.",
+  "tooltip_prev_period": "Previous period",
+  "tooltip_next_period": "Next period",
+  "tooltip_historical_disabled": "Action not available for past periods",
+  "btn_current_period": "Current period"
 }
