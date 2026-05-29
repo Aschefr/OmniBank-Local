@@ -702,7 +702,7 @@ window.FormView = {
                         if (tpl && tpl.max_occurrences !== newLimit) {
                             tpl.max_occurrences = newLimit;
                             await API.put(`/api/recurrences/${tpl.id}`, tpl);
-                            await API.post('/api/recurrences/generate_to_end_of_year', {});
+                            await API.post(`/api/recurrences/generate_to_end_of_year?template_id=${tpl.id}`, {});
                         }
                     }
                 }
@@ -730,7 +730,7 @@ window.FormView = {
                     
                     const newTx = await API.post('/api/transactions/', txData);
                     if (newTx && newTx.id) createdTxId = newTx.id;
-                    await API.post('/api/recurrences/generate_to_end_of_year', {});
+                    await API.post(`/api/recurrences/generate_to_end_of_year?template_id=${newTpl.id}`, {});
                     
                     this._recentlyCreatedId = createdTxId;
                 } else {
