@@ -67,15 +67,35 @@ def get_categories_averages(db: Session = Depends(get_db)):
     return averages
 
 @router.post("/", response_model=CategoryOut)
-def create_category(cat: CategoryBase, db: Session = Depends(get_db)):
+def create_category(cat: CategoryBase, force_move: bool = False, db: Session = Depends(get_db)):
     db_cat = db.query(Category).filter(Category.name == cat.name).first()
     if db_cat:
-        raise HTTPException(status_code=400, detail="Category already exists")
+        if db_cat.type == cat.type:
+            return db_cat
+            
+        # Type mismatch! Check if it's currently used in transactions or recurrence templates
+        tx_count = db.query(Transaction).filter(Transaction.category == cat.name).count()
+        tpl_count = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.category == cat.name).count()
+        is_used = (tx_count > 0 or tpl_count > 0)
+        
+        if not is_used or force_move:
+            db_cat.type = cat.type
+            db_cat.is_closed = False # Ensure open
+            db.commit()
+            db.refresh(db_cat)
+            return db_cat
+        else:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Category '{cat.name}' already exists as a '{db_cat.type}' category and is currently in use."
+            )
+            
     new_cat = Category(**cat.dict())
     db.add(new_cat)
     db.commit()
     db.refresh(new_cat)
     return new_cat
+
 
 @router.put("/{cat_id}", response_model=CategoryOut)
 def update_category(cat_id: int, cat: CategoryBase, db: Session = Depends(get_db)):

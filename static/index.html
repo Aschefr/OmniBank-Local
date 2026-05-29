@@ -239,6 +239,7 @@
             </div>
             
             <div class="modal-actions" style="margin-top:0;">
+                <button class="btn btn-secondary" onclick="window.app.deletePayOverride()" data-i18n="btn_restore_default">Restaurer</button>
                 <button class="btn btn-secondary" onclick="document.getElementById('payOverrideModal').style.display='none'" data-i18n="btn_cancel">Annuler</button>
                 <button class="btn btn-primary" onclick="window.app.savePayOverride()" data-i18n="btn_apply">Appliquer</button>
             </div>
@@ -321,6 +322,45 @@
                     </div>
                 </div>
 
+                <!-- Annex: Recurrence Toggle -->
+                <div style="background: var(--bg-input); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+                    <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; cursor: pointer; margin: 0; color: var(--text-main);">
+                        <!-- Custom Toggle Switch -->
+                        <div style="position: relative; width: 36px; height: 20px;">
+                            <input type="checkbox" id="op_is_recurrent" onchange="window.FormView.toggleRecurrenceFields()" style="opacity: 0; width: 0; height: 0; position: absolute;">
+                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                            <span class="slider-knob" style="position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                        </div>
+                        <span data-i18n="label_recurring_op">Opération récurrente</span>
+                    </label>
+                    <div id="op_rec_options" style="display: none; align-items: center; gap: 8px;">
+                        <span id="op_rec_limit_badge" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; font-weight: bold; background: rgba(16,185,129,0.15); color: #10b981; min-width: 60px; text-align: center; border: 1px solid rgba(16,185,129,0.25);" data-i18n="rec_limit_unlimited">Illimitée dans le temps</span>
+                        <input type="number" id="op_rec_limit" class="inline-input" data-i18n-placeholder="ph_rec_limit" placeholder="Nbr max (opt.)" min="1" data-i18n-title="tooltip_rec_limit" title="Nombre limité d'occurrences" style="width: 100px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-input);" oninput="window.FormView.updateInferredType()">
+                        <select id="op_rec_freq" class="inline-input" style="width: 130px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-input);" onchange="window.FormView.onFreqChange()">
+                            <option value="Monthly" data-i18n="opt_freq_monthly">Mensuelle</option>
+                            <option value="Yearly" data-i18n="opt_freq_yearly">Annuelle</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="op_rec_edit_hint" style="display: none; align-items: center; gap: 8px; margin: -8px 0 0 0; padding: 6px 14px;">
+                    <p style="font-size: 10px; color: var(--text-muted); margin: 0; line-height: 1.3; flex: 1;" data-i18n="hint_recurrence_edit">Pour supprimer ou gérer cette récurrence, utilisez la page Récurrences.</p>
+                    <button type="button" onclick="window.FormView.close(); window.app.loadView('recurrences'); setTimeout(() => { const sel = document.getElementById('recTemplateSelect'); if(sel) { sel.value = window.FormView._pendingRecId; window.RecurrenceView.selectTemplate(window.FormView._pendingRecId); } }, 300);" style="white-space: nowrap; font-size: 10px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; font-weight: 600;" data-i18n="btn_go_recurrences">🔄 Récurrences</button>
+                </div>
+                
+                <!-- Bimonthly Day Inputs -->
+                <div id="op_bimonthly_days_container" style="display: none; background: var(--bg-sidebar); padding: 15px; border-radius: 12px; margin-top: -10px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label class="input-label" style="display:block; font-size:12px; font-weight: 600; margin-bottom:6px;" data-i18n="label_day_1">Jour 1</label>
+                            <input type="number" id="op_rec_day_1" class="inline-input" min="1" max="31" style="width: 100%; border-radius: 8px; padding: 8px; border: 1px solid var(--border-color); background-color: var(--bg-surface);" oninput="window.FormView.calculateDay2()">
+                        </div>
+                        <div>
+                            <label class="input-label" style="display:block; font-size:12px; font-weight: 600; margin-bottom:6px;" data-i18n="label_day_2">Jour 2</label>
+                            <input type="number" id="op_rec_day_2" class="inline-input" min="1" max="31" style="width: 100%; border-radius: 8px; padding: 8px; border: 1px solid var(--border-color); background-color: var(--bg-surface);">
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 4. Catégorie -->
                 <div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -389,43 +429,7 @@
                     </div>
                 </div>
 
-                <!-- Annex: Recurrence Toggle -->
-                <div style="background: var(--bg-input); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
-                    <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; cursor: pointer; margin: 0; color: var(--text-main);">
-                        <!-- Custom Toggle Switch -->
-                        <div style="position: relative; width: 36px; height: 20px;">
-                            <input type="checkbox" id="op_is_recurrent" onchange="window.FormView.toggleRecurrenceFields()" style="opacity: 0; width: 0; height: 0; position: absolute;">
-                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                            <span class="slider-knob" style="position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                        </div>
-                        <span data-i18n="label_recurring_op">Opération récurrente</span>
-                    </label>
-                    <div id="op_rec_options" style="display: none; align-items: center; gap: 8px;">
-                        <input type="number" id="op_rec_limit" class="inline-input" data-i18n-placeholder="ph_rec_limit" placeholder="Nbr max (opt.)" min="1" data-i18n-title="tooltip_rec_limit" title="Nombre limité d'occurrences" style="width: 100px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-input);" oninput="window.FormView.updateInferredType()">
-                        <select id="op_rec_freq" class="inline-input" style="width: 130px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-input);" onchange="window.FormView.onFreqChange()">
-                            <option value="Monthly" data-i18n="opt_freq_monthly">Mensuelle</option>
-                            <option value="Yearly" data-i18n="opt_freq_yearly">Annuelle</option>
-                        </select>
-                    </div>
-                </div>
-                <div id="op_rec_edit_hint" style="display: none; align-items: center; gap: 8px; margin: -8px 0 0 0; padding: 6px 14px;">
-                    <p style="font-size: 10px; color: var(--text-muted); margin: 0; line-height: 1.3; flex: 1;" data-i18n="hint_recurrence_edit">Pour supprimer ou gérer cette récurrence, utilisez la page Récurrences.</p>
-                    <button type="button" onclick="window.FormView.close(); window.app.loadView('recurrences'); setTimeout(() => { const sel = document.getElementById('recTemplateSelect'); if(sel) { sel.value = window.FormView._pendingRecId; window.RecurrenceView.selectTemplate(window.FormView._pendingRecId); } }, 300);" style="white-space: nowrap; font-size: 10px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; font-weight: 600;" data-i18n="btn_go_recurrences">🔄 Récurrences</button>
-                </div>
-                
-                <!-- Bimonthly Day Inputs -->
-                <div id="op_bimonthly_days_container" style="display: none; background: var(--bg-sidebar); padding: 15px; border-radius: 12px; margin-top: -10px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div>
-                            <label class="input-label" style="display:block; font-size:12px; font-weight: 600; margin-bottom:6px;" data-i18n="label_day_1">Jour 1</label>
-                            <input type="number" id="op_rec_day_1" class="inline-input" min="1" max="31" style="width: 100%; border-radius: 8px; padding: 8px; border: 1px solid var(--border-color); background-color: var(--bg-surface);" oninput="window.FormView.calculateDay2()">
-                        </div>
-                        <div>
-                            <label class="input-label" style="display:block; font-size:12px; font-weight: 600; margin-bottom:6px;" data-i18n="label_day_2">Jour 2</label>
-                            <input type="number" id="op_rec_day_2" class="inline-input" min="1" max="31" style="width: 100%; border-radius: 8px; padding: 8px; border: 1px solid var(--border-color); background-color: var(--bg-surface);">
-                        </div>
-                    </div>
-                </div>
+
                 <!-- Inline style for the custom toggle -->
                 <style>
                     #op_is_recurrent:checked ~ .slider { background-color: var(--accent); }

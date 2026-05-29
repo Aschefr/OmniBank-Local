@@ -162,15 +162,32 @@ def generate_recurrences(db: Session = Depends(get_db)):
     generated_count = 0
     
     for tpl in templates:
-        current_date = date(today.year, today.month, tpl.day_of_month or 1)
-        if current_date < today:
-            if tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
-                while current_date < today:
-                    current_date += relativedelta(weeks=2)
+        # Anchor on the latest existing transaction belonging to this template
+        latest_tx = db.query(Transaction).filter(
+            Transaction.recurrence_id == tpl.id
+        ).order_by(Transaction.date_operation.desc()).first()
+        
+        if latest_tx:
+            current_date = latest_tx.date_operation
+            # Advance by one interval before generating new occurrences
+            if tpl.frequency == "Monthly":
+                current_date += relativedelta(months=1)
             elif tpl.frequency == "Yearly":
                 current_date += relativedelta(years=1)
+            elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
+                current_date += relativedelta(weeks=2)
             else:
-                current_date += relativedelta(months=1)
+                continue
+        else:
+            current_date = date(today.year, today.month, tpl.day_of_month or 1)
+            if current_date < today:
+                if tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
+                    while current_date < today:
+                        current_date += relativedelta(weeks=2)
+                elif tpl.frequency == "Yearly":
+                    current_date += relativedelta(years=1)
+                else:
+                    current_date += relativedelta(months=1)
             
         existing_count = 0
         if tpl.max_occurrences:
@@ -314,4 +331,30 @@ def wizard_generate(req: WizardGenerateRequest, db: Session = Depends(get_db)):
                     
     db.commit()
     return {"generated_instances": generated_count}
+
+
+from pydantic import BaseModel
+from typing import Optional
+
+class RecurrenceCategoryUpdate(BaseModel):
+    category: Optional[str] = None
+
+@router.patch("/{tpl_id}/category", response_model=RecurrenceTemplateOut)
+def update_recurrence_category(tpl_id: int, req: RecurrenceCategoryUpdate, db: Session = Depends(get_db)):
+    db_tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+    if not db_tpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+        
+    db_tpl.category = req.category
+    
+    # Cascade to unreconciled transactions of this template
+    db.query(Transaction).filter(
+        Transaction.recurrence_id == tpl_id,
+        Transaction.reconciliation_date == None
+    ).update({"category": req.category}, synchronize_session=False)
+    
+    db.commit()
+    db.refresh(db_tpl)
+    return db_tpl
+
 

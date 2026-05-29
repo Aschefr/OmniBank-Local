@@ -170,6 +170,9 @@ class App {
                     currentLangFlag.className = `fi fi-${l === 'en' ? 'gb' : 'fr'}`;
                     langMenu.style.display = 'none';
                     await window.i18n.setLang(l);
+                    // Rerender active view and refresh sidebar in real-time
+                    await window.app.refreshSidebar();
+                    window.app.loadView(window.app.currentView);
                 });
             });
             
@@ -366,6 +369,8 @@ class App {
             });
 
             const stats = await API.get('/api/stats/dashboard');
+            this.isPayValidated = stats.is_pay_validated;
+            this.validatedPayDate = stats.validated_pay_date;
             document.getElementById('valNetWorth').textContent = formatCurrency(stats.net_worth);
             document.getElementById('valRestToLive').textContent = formatCurrency(stats.rest_to_live);
             // Load base config early to check Org Mode
@@ -397,7 +402,22 @@ class App {
             if (stats.next_pay_date && !isOrgMode) {
                 if (nextPayBox) nextPayBox.style.display = '';
                 payAmtSpan.textContent = formatCurrency(stats.next_pay_amount);
+                
+                const isManualSkip = stats.is_pay_validated;
                 payDateDiv.textContent = formatDate(stats.next_pay_date) + (stats.is_pay_override ? ' ' + window.i18n.t('msg_manual') : '');
+                
+                const btnSkip = document.getElementById('btnSkipPayPeriod');
+                if (btnSkip) {
+                    if (isManualSkip) {
+                        btnSkip.textContent = '⏪';
+                        btnSkip.setAttribute('data-i18n-title', 'tooltip_cancel_skip_pay_period');
+                        btnSkip.setAttribute('title', window.i18n.t('tooltip_cancel_skip_pay_period') || 'Annuler le passage à la période suivante');
+                    } else {
+                        btnSkip.textContent = '⏭️';
+                        btnSkip.setAttribute('data-i18n-title', 'tooltip_skip_pay_period');
+                        btnSkip.setAttribute('title', window.i18n.t('tooltip_skip_pay_period') || 'Passer à la période suivante');
+                    }
+                }
                 
                 // Store globally for timeline filtering and history modal
                 window.app.nextPayDate = stats.next_pay_date;
@@ -574,6 +594,29 @@ class App {
     }
     
     showPayOverrideModal() {
+        const dateInput = document.getElementById('overridePayDate');
+        const amountInput = document.getElementById('overridePayAmount');
+        
+        // Initialize with currently predicted date and amount if available
+        if (this.nextPayDate) {
+            const d = new Date(this.nextPayDate);
+            dateInput.value = this.nextPayDate;
+            
+            // Set scope +/- 45 days from predicted date
+            const minDate = new Date(d);
+            minDate.setDate(d.getDate() - 45);
+            const maxDate = new Date(d);
+            maxDate.setDate(d.getDate() + 45);
+            
+            const pad = n => n < 10 ? '0'+n : n;
+            dateInput.min = `${minDate.getFullYear()}-${pad(minDate.getMonth()+1)}-${pad(minDate.getDate())}`;
+            dateInput.max = `${maxDate.getFullYear()}-${pad(maxDate.getMonth()+1)}-${pad(maxDate.getDate())}`;
+        }
+        
+        if (this.nextPayAmount) {
+            amountInput.value = this.nextPayAmount;
+        }
+        
         document.getElementById('payOverrideModal').style.display = 'flex';
     }
     
@@ -587,11 +630,28 @@ class App {
             this.payHistory.forEach(tx => {
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = "1px solid var(--border-color)";
-                tr.innerHTML = `
-                    <td style="padding: 8px;">${formatDate(tx.date)}</td>
-                    <td style="padding: 8px;"><strong>${tx.description}</strong></td>
-                    <td style="padding: 8px; text-align: right; color: var(--color-income); font-weight: bold;">${formatCurrency(tx.amount)}</td>
-                `;
+                if (tx.is_override) {
+                    const overrideLabel = window.i18n.t('pay_history_override_label') || 'Correction Manuelle';
+                    const restoreLabel = window.i18n.t('btn_restore_default') || 'Restaurer';
+                    tr.innerHTML = `
+                        <td style="padding: 8px;">
+                            ${formatDate(tx.date)} 
+                            <span style="display:inline-block; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; vertical-align: middle; margin-left: 4px;">🔧 ${overrideLabel}</span>
+                        </td>
+                        <td style="padding: 8px; color: var(--text-muted); font-style: italic;">
+                            <button onclick="window.app.deletePayOverride()" style="cursor:pointer; font-size:11px; background:none; border:1px solid var(--border-color); color:var(--text-main); border-radius:4px; padding:3px 6px;">
+                                🔄 ${restoreLabel}
+                            </button>
+                        </td>
+                        <td style="padding: 8px; text-align: right; color: #f59e0b; font-weight: bold;">${formatCurrency(tx.amount)}</td>
+                    `;
+                } else {
+                    tr.innerHTML = `
+                        <td style="padding: 8px;">${formatDate(tx.date)}</td>
+                        <td style="padding: 8px;"><strong>${tx.description}</strong></td>
+                        <td style="padding: 8px; text-align: right; color: var(--color-income); font-weight: bold;">${formatCurrency(tx.amount)}</td>
+                    `;
+                }
                 tbody.appendChild(tr);
             });
         }
@@ -600,10 +660,21 @@ class App {
     }
     
     async savePayOverride() {
-        const date = document.getElementById('overridePayDate').value;
+        const dateInput = document.getElementById('overridePayDate');
+        const date = dateInput.value;
         const amount = parseFloat(document.getElementById('overridePayAmount').value) || 0;
         
         if (!date) return;
+        
+        // Ensure date is within the allowed min/max range
+        const selectedDate = new Date(date);
+        const minDate = new Date(dateInput.min);
+        const maxDate = new Date(dateInput.max);
+        
+        if (selectedDate < minDate || selectedDate > maxDate) {
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_date_out_of_bounds'));
+            return;
+        }
         
         try {
             await API.post('/api/stats/override_paycheck', { date, amount });
@@ -614,6 +685,21 @@ class App {
             }
         } catch (e) {
             console.error("Failed to save override", e);
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error'));
+        }
+    }
+    
+    async deletePayOverride() {
+        try {
+            await API.del('/api/stats/override_paycheck');
+            document.getElementById('payOverrideModal').style.display = 'none';
+            document.getElementById('payHistoryModal').style.display = 'none';
+            await this.refreshSidebar();
+            if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
+                window.TimelineView.loadData();
+            }
+        } catch (e) {
+            console.error("Failed to delete override", e);
             showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error'));
         }
     }
@@ -638,6 +724,12 @@ class App {
                 base_pay_day: day.toString(),
                 base_pay_day_2: day2.toString()
             });
+            // Update cache to prevent stale config overwriting input fields in refreshSidebar
+            if (this.config) {
+                this.config.base_pay_type = type;
+                this.config.base_pay_day = day.toString();
+                this.config.base_pay_day_2 = day2.toString();
+            }
             await this.refreshSidebar();
             if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
                 window.TimelineView.loadData();
@@ -646,6 +738,23 @@ class App {
             console.error(e);
         }
     }
+
+    async skipPayPeriod() {
+        try {
+            let url = '/api/stats/validate_pay_period';
+            if (this.isPayValidated) {
+                url += '?action=reset';
+            }
+            await API.post(url);
+            await this.refreshSidebar();
+            if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
+                window.TimelineView.loadData();
+            }
+        } catch (e) {
+            console.error("Failed to skip pay period", e);
+        }
+    }
+
 
     loadView(viewName) {
         this.currentView = viewName;

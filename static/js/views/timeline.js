@@ -113,6 +113,7 @@ window.TimelineView = {
                     </tbody>
                 </table>
             </div>
+            <div id="timelinePaycheckWidget" style="display: none;"></div>
         `;
     },
 
@@ -168,6 +169,67 @@ window.TimelineView = {
         }
 
         await this.loadData();
+    },
+
+    renderPaycheckWidget(stats) {
+        const container = document.getElementById('timelinePaycheckWidget');
+        if (!container) return;
+
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
+        if (isOrgMode || !stats.next_pay_date) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+        const isManualSkip = stats.is_pay_validated;
+        const payDateStr = formatDate(stats.next_pay_date);
+        
+        let statusTitle = '';
+        let statusClass = '';
+        let actionBtnHtml = '';
+        let statusDesc = '';
+
+        if (isManualSkip) {
+            statusTitle = window.i18n.t('paycheck_widget_status_skipped');
+            statusClass = 'background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); color: #10b981;';
+            statusDesc = window.i18n.tp('paycheck_widget_skipped_desc', { date: payDateStr, amount: formatCurrency(stats.next_pay_amount) });
+            actionBtnHtml = `<button class="btn btn-secondary" style="padding: 5px 12px; font-weight: 600; font-size: 12px; border-color: rgba(245, 158, 11, 0.4); color: #f59e0b; background: transparent; border-radius: 8px; white-space: nowrap;" onclick="window.app.skipPayPeriod()"><span style="margin-right:4px;">⏪</span>${window.i18n.t('paycheck_widget_btn_cancel')}</button>`;
+        } else {
+            statusTitle = window.i18n.t('paycheck_widget_status_active');
+            statusClass = 'background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.3); color: var(--accent);';
+            statusDesc = window.i18n.tp('paycheck_widget_active_desc', { date: payDateStr, amount: formatCurrency(stats.next_pay_amount) });
+            actionBtnHtml = `
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="btn btn-secondary" style="padding: 5px 12px; font-weight: 600; font-size: 12px; border-radius: 8px; white-space: nowrap;" onclick="window.app.showPayOverrideModal()">✏️ ${window.i18n.t('paycheck_widget_btn_correct')}</button>
+                    <button class="btn btn-primary" style="padding: 5px 14px; font-weight: 700; font-size: 12px; border-radius: 8px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); border: none; box-shadow: 0 4px 10px rgba(108, 92, 231, 0.2); white-space: nowrap;" onclick="window.app.skipPayPeriod()"><span style="margin-right:4px;">⏭️</span>${window.i18n.t('paycheck_widget_btn_force')}</button>
+                </div>
+            `;
+        }
+
+        container.style.position = 'sticky';
+        container.style.bottom = '15px';
+        container.style.zIndex = '100';
+        container.style.width = '100%';
+        container.style.boxSizing = 'border-box';
+        container.style.marginTop = '15px';
+
+        container.innerHTML = `
+            <div style="${statusClass} padding: 8px 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: all 0.3s ease; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                    <div style="font-size: 20px; background: rgba(255,255,255,0.08); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; box-shadow: inset 0 0 6px rgba(0,0,0,0.05);">📅</div>
+                    <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; flex: 1;">
+                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; opacity: 0.85; white-space: nowrap;">${statusTitle}</span>
+                        <span style="font-size: 13px; color: var(--text-main); font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; flex: 1; min-width: 100px;">${statusDesc}</span>
+                    </div>
+                </div>
+                <div style="flex-shrink: 0;">
+                    ${actionBtnHtml}
+                </div>
+            </div>
+        `;
     },
 
     savePeriod() {
@@ -290,6 +352,12 @@ window.TimelineView = {
                 });
             } catch(e) { this.budgetsMap = {}; this.categoryToBudgetMap = {}; }
 
+            // Load dashboard stats for paycheck widget
+            try {
+                const stats = await API.get('/api/stats/dashboard');
+                this.renderPaycheckWidget(stats);
+            } catch(e) { console.error("Failed to load paycheck stats", e); }
+
             this.renderTable();
 
             if (this._pendingHighlightTxId) {
@@ -360,9 +428,22 @@ window.TimelineView = {
             
             let baseStartDateStr = '';
             if (window.app.payHistory && window.app.payHistory.length > 0) {
-                const sortedHistory = [...window.app.payHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
-                baseStartDateStr = sortedHistory[0].date.substring(0, 10);
-            } else {
+                const detectedHistory = window.app.payHistory.filter(h => !h.is_override);
+                const sortedHistory = [...detectedHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
+                baseStartDateStr = sortedHistory.length > 0 ? sortedHistory[0].date.substring(0, 10) : '';
+            }
+            // If the pay period has been manually validated (forced), shift baseStartDateStr to the first day of the current month
+            // of that validation so that reconciled operations from the previous period are properly hidden/masked.
+            if (window.app.isPayValidated) {
+                if (window.app.validatedPayDate) {
+                    baseStartDateStr = window.app.validatedPayDate;
+                } else {
+                    const now = new Date();
+                    const pad = (n) => n < 10 ? '0'+n : n;
+                    baseStartDateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
+                }
+            }
+            if (!baseStartDateStr) {
                 const now = new Date();
                 const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
                 const pad = (n) => n < 10 ? '0'+n : n;
@@ -532,8 +613,8 @@ window.TimelineView = {
 
         // Set initial value
         const update = () => {
-            const offset = header.offsetHeight - 32; // minus the negative top margin
-            table.style.setProperty('--sticky-top', offset + 'px');
+            const offset = header.offsetHeight - 32; // match -32px margin-top
+            table.style.setProperty('--sticky-top', Math.max(0, offset) + 'px');
         };
         update();
 
@@ -554,8 +635,8 @@ window.TimelineView = {
         try {
             await API.post(`/api/transactions/${id}/toggle_reconciliation`);
             this._pendingHighlightTxId = id;
+            await window.app.refreshSidebar();
             await this.loadData();
-            window.app.refreshSidebar();
         } catch (e) {
             console.error(e);
         }
@@ -565,8 +646,8 @@ window.TimelineView = {
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.t('confirm_delete_operation'))) {
             try {
                 await API.del(`/api/transactions/${id}`);
+                await window.app.refreshSidebar();
                 await this.loadData();
-                window.app.refreshSidebar();
             } catch (e) {
                 console.error(e);
             }

@@ -39,6 +39,7 @@ window.RecurrenceView = {
     async loadData() {
         try {
             this.templates = await API.get('/api/recurrences/?include_closed=true');
+            this.categories = await API.get('/api/categories/');
             // Fetch all operations and filter locally
             const allTx = await API.get('/api/transactions/?limit=10000');
             this.allTransactions = allTx;
@@ -63,12 +64,12 @@ window.RecurrenceView = {
                 }
                 
                 let tableHtml = `
-                    <table class="data-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                     <table class="data-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                         <thead>
                             <tr style="text-align: left; background: rgba(0, 0, 0, 0.03); border-bottom: 2px solid var(--border-color);">
                                 <th style="padding: 12px; width: 40px; text-align: center;"></th>
                                 <th style="padding: 12px;">${window.i18n.t('col_description')}</th>
-                                <th style="padding: 12px; width: 180px;">${window.i18n.t('col_category')}</th>
+                                <th style="padding: 12px; width: 200px;">${window.i18n.t('col_category')}</th>
                                 <th style="padding: 12px; width: 120px;">${window.i18n.t('wizard_th_frequency') || 'Fréquence'}</th>
                                 <th style="padding: 12px; width: 100px; text-align: center;">${window.i18n.t('wizard_th_day') || 'Jour'}</th>
                                 <th style="padding: 12px; width: 130px; text-align: right;">${window.i18n.t('col_amount')}</th>
@@ -85,11 +86,22 @@ window.RecurrenceView = {
                     
                     const freqLabel = window.i18n.t('rec_' + t.frequency.toLowerCase()) || t.frequency;
                     
+                    const catOptionsHtml = (this.categories || [])
+                        .filter(c => !c.is_closed || c.name === t.category)
+                        .map(c => `<option value="${c.name}" ${t.category === c.name ? 'selected' : ''}>${c.name}</option>`)
+                        .join('');
+                    
                     tableHtml += `
                         <tr onclick="window.RecurrenceView.toggleRow(${t.id})" style="cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(99,102,241,0.05)'" onmouseout="this.style.backgroundColor=''">
                             <td style="padding: 12px; text-align: center; font-size: 12px; font-weight: bold; color: var(--primary-color);" id="chevron_${t.id}">${chevronChar}</td>
                             <td style="padding: 12px; font-weight: 600;">${t.description}</td>
-                            <td style="padding: 12px;"><span class="badge" style="background: var(--bg-base); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 6px; font-size: 12px;">${t.category || '--'}</span></td>
+                            <td style="padding: 6px 12px;" onclick="event.stopPropagation()">
+                                <select class="inline-input" style="padding: 4px 8px; border-radius: 6px; font-size: 13px; width: 100%; border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;" onchange="window.RecurrenceView.changeTemplateCategory(this, ${t.id})">
+                                    <option value="">-- Sans catégorie --</option>
+                                    ${catOptionsHtml}
+                                    <option value="__new__" style="color: var(--primary-color); font-weight: bold;">+ Nouvelle catégorie...</option>
+                                </select>
+                            </td>
                             <td style="padding: 12px; font-size: 13px;">${freqLabel}</td>
                             <td style="padding: 12px; text-align: center; font-size: 13px;">${t.day_of_month || 1}</td>
                             <td style="padding: 12px; text-align: right; font-weight: 700; color: var(--text-main); font-size: 14px;">${formatCurrency(t.amount)}</td>
@@ -137,14 +149,30 @@ window.RecurrenceView = {
             const mainRow = rows[i];
             const detailRow = rows[i + 1];
             if (!mainRow) continue;
-            const text = mainRow.textContent.toLowerCase();
-            const match = !q || text.includes(q);
+            
+            const selectEl = mainRow.querySelector('select');
+            const descText = mainRow.cells[1] ? mainRow.cells[1].textContent.toLowerCase() : '';
+            const catText = selectEl ? selectEl.value.toLowerCase() : '';
+            const freqText = mainRow.cells[3] ? mainRow.cells[3].textContent.toLowerCase() : '';
+            const dayText = mainRow.cells[4] ? mainRow.cells[4].textContent.toLowerCase() : '';
+            const amountText = mainRow.cells[5] ? mainRow.cells[5].textContent.toLowerCase() : '';
+            
+            const match = !q || 
+                          descText.includes(q) || 
+                          catText.includes(q) || 
+                          freqText.includes(q) || 
+                          dayText.includes(q) || 
+                          amountText.includes(q);
+                          
             mainRow.style.display = match ? '' : 'none';
             if (detailRow && detailRow.id && detailRow.id.startsWith('details_row_')) {
                 if (!match) {
                     detailRow.style.display = 'none';
+                } else {
+                    // Restore expanded state if matching
+                    const templateId = parseInt(detailRow.id.replace('details_row_', ''));
+                    detailRow.style.display = this.expandedTemplateIds.has(templateId) ? 'table-row' : 'none';
                 }
-                // If match, keep its current display state (expanded/collapsed)
             }
         }
     },
@@ -387,6 +415,57 @@ window.RecurrenceView = {
         } catch (e) {
             console.error("Undo error", e);
             await showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_cancel_error'));
+        }
+    },
+
+    async changeTemplateCategory(selectElement, templateId) {
+        const val = selectElement.value;
+        if (val === '__new__') {
+            const title = window.i18n.t('wizard_prompt_new_category_title') || 'Nom de la nouvelle catégorie de dépenses fixes :';
+            const name = await showInlinePrompt(title);
+            if (name && name.trim()) {
+                try {
+                    const newCat = await API.post('/api/categories/', { name: name.trim(), type: 'expense_fixed' });
+                    await API.patch(`/api/recurrences/${templateId}/category`, { category: newCat.name });
+                    showToast(window.i18n.t('msg_category_added') || 'Catégorie ajoutée');
+                } catch (e) {
+                    let isConflict = false;
+                    let msg = e.message;
+                    try {
+                        const parsed = JSON.parse(e.message);
+                        msg = parsed.detail || e.message;
+                        if (msg.includes("already exists") && msg.includes("currently in use")) {
+                            isConflict = true;
+                        }
+                    } catch(err) {}
+
+                    if (isConflict) {
+                        const confirmMsg = `La catégorie '${name}' existe déjà en tant que dépense variable. Voulez-vous la déplacer définitivement vers les charges fixes ?`;
+                        if (await showInlineConfirm("Conflit de catégorie", confirmMsg)) {
+                            try {
+                                const newCat = await API.post('/api/categories/?force_move=true', { name: name.trim(), type: 'expense_fixed' });
+                                await API.patch(`/api/recurrences/${templateId}/category`, { category: newCat.name });
+                                showToast(window.i18n.t('msg_category_added') || 'Catégorie ajoutée');
+                            } catch(err2) {
+                                showToast("Erreur lors du déplacement de la catégorie", "error");
+                            }
+                        }
+                    } else {
+                        console.error("Failed to create category", e);
+                        showToast(window.i18n.t('msg_category_create_error') || 'Erreur lors de la création de la catégorie', 'error');
+                    }
+                }
+            }
+            await this.loadData();
+        } else {
+            try {
+                await API.patch(`/api/recurrences/${templateId}/category`, { category: val || null });
+                showToast("Catégorie mise à jour");
+            } catch (e) {
+                console.error(e);
+                showToast("Erreur lors de la mise à jour de la catégorie", "error");
+            }
+            await this.loadData();
         }
     },
 

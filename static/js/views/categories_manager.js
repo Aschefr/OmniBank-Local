@@ -21,8 +21,9 @@ window.CategoriesView = {
         `).join('');
 
         return `
-            <div class="view-header" style="display:flex; justify-content:space-between; margin-bottom:15px;">
+            <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                 <h2>🏷️ <span data-i18n="nav_categories">Catégories</span></h2>
+                <input type="text" id="categoryViewSearch" class="inline-input" placeholder="Rechercher une catégorie..." style="min-width: 180px; max-width: 300px; padding: 8px 12px; border-radius: 8px;" oninput="window.CategoriesView.applyFilter()">
             </div>
             
             <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
@@ -116,16 +117,25 @@ window.CategoriesView = {
         }
     },
 
+    applyFilter() {
+        this.renderTable();
+    },
+
     renderTable() {
         const container = document.getElementById('categoriesContainer');
         if (!container) return;
         
         let html = '';
+        const searchInput = document.getElementById('categoryViewSearch');
+        const search = searchInput ? searchInput.value.toLowerCase().trim() : '';
         
         const types = ['expense_fixed', 'expense_var', 'income', 'transfer', 'neutral'];
         
         types.forEach(t => {
-            const cats = this.categories.filter(c => c.type === t);
+            let cats = this.categories.filter(c => c.type === t);
+            if (search) {
+                cats = cats.filter(c => c.name.toLowerCase().includes(search));
+            }
             if (cats.length === 0) return;
             
             html += `

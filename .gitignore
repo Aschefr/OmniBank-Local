@@ -52,3 +52,4 @@ app/_license_secret.py
 CLAUDE.md
 
 src-tauri/resources/
+corrections/

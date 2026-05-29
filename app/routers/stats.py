@@ -66,6 +66,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     next_pay_date = pay_info["date"]
     next_pay_amount = pay_info["amount"]
     is_pay_override = pay_info["is_override"]
+    is_pay_validated = pay_info.get("is_period_validated", False)
+    validated_pay_date = pay_info.get("validated_pay_date", None)
     pay_history = pay_info.get("history", [])
         
     rest_to_live = calculate_rest_to_live(db, today, next_pay_date)
@@ -150,6 +152,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "next_pay_date": next_pay_date,
         "next_pay_amount": next_pay_amount,
         "is_pay_override": is_pay_override,
+        "is_pay_validated": is_pay_validated,
+        "validated_pay_date": validated_pay_date,
         "pay_history": pay_history,
         "overdraft_warning": warning,
         "unreconciled_expenses": unreconciled_expenses,
@@ -166,7 +170,11 @@ class PaycheckOverride(BaseModel):
 
 @router.post("/override_paycheck")
 def override_paycheck(data: PaycheckOverride, db: Session = Depends(get_db)):
+    from app.services.finance_engine import predict_next_paycheck
     from app.models import GlobalConfig
+    
+    pay_info = predict_next_paycheck(db)
+    logical_period = pay_info.get("logical_period")
     
     # Save or update date override
     conf_date = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_date").first()
@@ -176,14 +184,94 @@ def override_paycheck(data: PaycheckOverride, db: Session = Depends(get_db)):
         db.add(GlobalConfig(key="override_paycheck_date", value=data.date))
         
     # Save or update amount override
-    conf_amt = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_amount").first()
-    if conf_amt:
-        conf_amt.value = str(data.amount)
+    conf_amount = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_amount").first()
+    if conf_amount:
+        conf_amount.value = str(data.amount)
     else:
         db.add(GlobalConfig(key="override_paycheck_amount", value=str(data.amount)))
         
+    # Save logical period for this override
+    if logical_period:
+        conf_period = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_period").first()
+        if conf_period:
+            conf_period.value = logical_period
+        else:
+            db.add(GlobalConfig(key="override_paycheck_period", value=logical_period))
+            
     db.commit()
     return {"ok": True}
+
+
+@router.post("/validate_pay_period")
+def validate_pay_period(action: str = None, db: Session = Depends(get_db)):
+    from app.models import GlobalConfig
+    from app.services.finance_engine import predict_next_paycheck
+    from datetime import date
+    
+    conf = db.query(GlobalConfig).filter(GlobalConfig.key == "last_validated_pay_period").first()
+    conf_date = db.query(GlobalConfig).filter(GlobalConfig.key == "last_validated_pay_date").first()
+    
+    if action == "reset":
+        if conf:
+            db.delete(conf)
+        if conf_date:
+            db.delete(conf_date)
+        if conf or conf_date:
+            db.commit()
+        return {"ok": True, "period": None, "action": "reset"}
+        
+    # Get the currently predicted next paycheck date to validate that period!
+    pay_info = predict_next_paycheck(db)
+    next_pay_date = pay_info["date"]
+    period_str = pay_info.get("logical_period")
+    if not period_str:
+        period_str = f"{next_pay_date.year:04d}-{next_pay_date.month:02d}"
+        
+    if conf:
+        conf.value = period_str
+    else:
+        db.add(GlobalConfig(key="last_validated_pay_period", value=period_str))
+        
+    if action == "force":
+        # The user forced the month without receiving a paycheck. 
+        # Inject an override with amount 0 for this logical period so it affects history estimations.
+        conf_ov_date = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_date").first()
+        if conf_ov_date:
+            conf_ov_date.value = next_pay_date.isoformat()
+        else:
+            db.add(GlobalConfig(key="override_paycheck_date", value=next_pay_date.isoformat()))
+            
+        conf_ov_amt = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_amount").first()
+        if conf_ov_amt:
+            conf_ov_amt.value = "0.0"
+        else:
+            db.add(GlobalConfig(key="override_paycheck_amount", value="0.0"))
+            
+        conf_ov_per = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_period").first()
+        if conf_ov_per:
+            conf_ov_per.value = period_str
+        else:
+            db.add(GlobalConfig(key="override_paycheck_period", value=period_str))
+        
+    today_str = date.today().isoformat()
+    if conf_date:
+        conf_date.value = today_str
+    else:
+        db.add(GlobalConfig(key="last_validated_pay_date", value=today_str))
+    
+    db.commit()
+    return {"ok": True, "period": period_str, "action": action}
+
+@router.delete("/override_paycheck")
+def delete_override_paycheck(db: Session = Depends(get_db)):
+    from app.models import GlobalConfig
+    for key in ("override_paycheck_date", "override_paycheck_amount", "override_paycheck_period"):
+        override = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
+        if override:
+            db.delete(override)
+    db.commit()
+    return {"ok": True}
+
 
 
 @router.get("/main_account")
