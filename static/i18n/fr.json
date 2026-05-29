@@ -843,12 +843,18 @@
   "rec_limit_limited": "Limitée dans le temps",
   "paycheck_widget_status_active": "Période en cours",
   "paycheck_widget_status_skipped": "Période clôturée (Mois suivant)",
-  "paycheck_widget_active_desc": "Affichage des dépenses jusqu'au jour de paye estimé le {date} ({amount}).",
-  "paycheck_widget_skipped_desc": "Le passage au mois suivant a été forcé manuellement. Prochaine paye estimée le {date} ({amount}).",
+  "paycheck_widget_active_desc": "Période du {period_start} au {date}. Prochaine paye estimée : {amount}.",
+  "paycheck_widget_skipped_desc": "Le passage à la période suivante a été forcé. Période du {period_start} au {date} ({amount}).",
   "paycheck_widget_btn_correct": "Corriger la paye",
   "paycheck_widget_btn_force": "Forcer le mois suivant",
   "paycheck_widget_btn_cancel": "Annuler le forçage",
   "pay_history_override_label": "Correction manuelle",
   "btn_restore_default": "Restaurer",
-  "msg_date_out_of_bounds": "La date saisie est hors des limites autorisées."
+  "msg_date_out_of_bounds": "La date saisie est hors des limites autorisées.",
+  "paycheck_widget_status_history": "Période historique",
+  "paycheck_widget_history_desc": "Période du {period_start} au {date}. Paye : {amount}.",
+  "tooltip_prev_period": "Période précédente",
+  "tooltip_next_period": "Période suivante",
+  "tooltip_historical_disabled": "Action impossible pour une période passée",
+  "btn_current_period": "Période actuelle"
 }

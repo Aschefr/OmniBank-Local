@@ -421,6 +421,7 @@ class App {
                 
                 // Store globally for timeline filtering and history modal
                 window.app.nextPayDate = stats.next_pay_date;
+                window.app.nextPayAmount = stats.next_pay_amount;
                 window.app.payHistory = stats.pay_history || [];
                 
                 // Pre-fill modal

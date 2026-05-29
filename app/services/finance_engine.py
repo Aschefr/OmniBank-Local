@@ -228,7 +228,8 @@ def predict_next_paycheck(db: Session):
                 "date": o_date_str,
                 "amount": o_amount,
                 "description": "",
-                "is_override": True
+                "is_override": True,
+                "logical_period": period_str
             })
             continue # Skip normal DB lookup for this month
             
@@ -248,7 +249,8 @@ def predict_next_paycheck(db: Session):
             history_records.append({
                 "date": largest_income.date_operation.isoformat(),
                 "amount": largest_income.amount,
-                "description": largest_income.description
+                "description": largest_income.description,
+                "logical_period": period_str
             })
         elif val_period and val_period.value == period_str:
             # The period was validated but no paycheck was found, and no override exists.
@@ -261,7 +263,8 @@ def predict_next_paycheck(db: Session):
                 "date": target_date.isoformat(),
                 "amount": 0.0,
                 "description": "Priode force",
-                "is_override": True
+                "is_override": True,
+                "logical_period": period_str
             })
             
     # 4. Compute Predictions (move up to establish logical period)

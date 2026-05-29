@@ -259,6 +259,11 @@ window.FormView = {
         } else {
             document.getElementById('op_attachments_container').style.display = 'none';
         }
+
+        const aiBtn = document.getElementById('op_autocat_btn');
+        if (aiBtn) {
+            aiBtn.style.display = (cfg.enable_ai === 'true' || cfg.enable_ai === true) ? 'inline-block' : 'none';
+        }
     },
     
     async uploadFile(input) {
