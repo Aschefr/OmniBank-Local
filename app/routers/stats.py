@@ -77,12 +77,15 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     warning = get_overdraft_warning(db) if main_acc else None
     
     # Calculate unreconciled expenses before next pay
+    # Transfers (to_account_id IS NOT NULL) are excluded — they are internal movements,
+    # not real expenses. This matches the Historique table filter: !tx.from_account_id || tx.to_account_id
     unreconciled_expenses = 0.0
     if next_pay_date and main_acc:
         unrec_txs = db.query(Transaction).filter(
             Transaction.date_operation <= next_pay_date,
             Transaction.reconciliation_date.is_(None),
-            Transaction.from_account_id == main_acc.id
+            Transaction.from_account_id == main_acc.id,
+            Transaction.to_account_id.is_(None)  # Exclude transfers
         ).all()
         unreconciled_expenses = sum(tx.amount for tx in unrec_txs)
         
@@ -90,7 +93,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     if main_acc:
         all_unrec_txs = db.query(Transaction).filter(
             Transaction.reconciliation_date.is_(None),
-            Transaction.from_account_id == main_acc.id
+            Transaction.from_account_id == main_acc.id,
+            Transaction.to_account_id.is_(None)  # Exclude transfers
         ).all()
         total_unreconciled_expenses = sum(tx.amount for tx in all_unrec_txs)
         
