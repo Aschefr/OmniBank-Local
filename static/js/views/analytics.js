@@ -23,6 +23,10 @@ window.AnalyticsView = {
             <div class="view-header" style="position:sticky;top:-32px;z-index:50;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <h2 style="margin:0;" data-i18n="analytics_title">${window.i18n.t('analytics_title')}</h2>
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <div style="position:relative; display:inline-block;">
+                        <button id="analyticsYearsBtn" class="btn btn-secondary" onclick="window.AnalyticsView.toggleYearsPopover(event)" style="padding: 6px 12px; font-size: 13px;" data-i18n="analytics_btn_years">⚙️ Années</button>
+                        <div id="analyticsYearsPopover" class="years-popover print-hide" style="display:none; position:absolute; right:0; top:calc(100% + 5px); background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; box-shadow:var(--shadow-md); padding:12px; min-width:180px; z-index:100; flex-direction:column; gap:8px;"></div>
+                    </div>
                     <button class="btn btn-secondary" onclick="window.AnalyticsView.showExportModal()" style="padding: 6px 12px; font-size: 13px;" data-i18n-title="tooltip_export_pdf" title="Générer un PDF du rapport" data-i18n="btn_export_pdf">📥 Exporter en PDF</button>
                     <select id="analyticsReconciled" class="inline-input" style="width:210px;" onchange="window.AnalyticsView.changeFilter('reconciled', this.value)">
                         <option value="all" data-i18n="analytics_all_amounts">${window.i18n.t('analytics_all_amounts')}</option>
@@ -78,6 +82,15 @@ window.AnalyticsView = {
         // Restore saved category column width
         const savedColWidth = localStorage.getItem('analytics_cat_col_width');
         this._catColWidth = savedColWidth ? parseInt(savedColWidth) : 160;
+
+        // Restore selected years
+        let savedSelectedYears;
+        try { savedSelectedYears = JSON.parse(localStorage.getItem('analytics_years_totals')); } catch (e) { }
+        if (Array.isArray(savedSelectedYears)) {
+            this.selectedYears = savedSelectedYears.map(String);
+        } else {
+            this.selectedYears = null;
+        }
 
         // Restore custom range state
         const crEnabled = localStorage.getItem('analytics_custom_range_enabled') === 'true';
@@ -304,6 +317,10 @@ window.AnalyticsView = {
 
         const { months, years, by_type } = this.data;
         const revYears = (years || []).slice().reverse();
+
+        // Dynamically build and render years in the popover
+        this.renderYearsPopover(revYears);
+
         const sections = [];
         for (const [txType, typeData] of Object.entries(by_type)) {
             sections.push(this.renderTypeTable(txType, typeData, months, revYears));
@@ -312,12 +329,28 @@ window.AnalyticsView = {
     },
 
     renderTypeTable(txType, typeData, months, years) {
-        const cfg = this.TYPE_CONFIG[txType] || { emoji: '•', color: 'var(--text-muted)', sign: '' };
+        const cfg = { ...(this.TYPE_CONFIG[txType] || { emoji: '•', color: 'var(--text-muted)', sign: '' }) };
+        const savedColor = localStorage.getItem('analytics_color_' + txType);
+        if (savedColor) cfg.color = savedColor;
         const { categories, totals_per_cat, totals_per_month, grand_total, annual_by_cat, annual_totals_per_year } = typeData;
 
         const isExpense = ['expense_fixed', 'expense_var'].includes(txType);
         const isIncome = txType === 'income';
         const translatedType = window.app.getTypeLabel(txType);
+
+        // Load gradient setting (default is 1.0)
+        const sliderVal = parseFloat(localStorage.getItem('analytics_gradient_' + txType) || '1.0');
+        const mappedVal = 2.0 - sliderVal;
+        const p = this.mapSliderToExponent(mappedVal);
+        const isProp = sliderVal >= 0.98 && sliderVal <= 1.02;
+        let currentLabel = '';
+        if (isProp) {
+            currentLabel = window.i18n.t('analytics_gradient_prop') || 'Proportionnel';
+        } else if (sliderVal > 1.02) {
+            currentLabel = `${window.i18n.t('analytics_gradient_log') || 'Logarithmique'} (${p.toFixed(2)})`;
+        } else {
+            currentLabel = `${window.i18n.t('analytics_gradient_exp') || 'Exponentiel'} (${p.toFixed(2)})`;
+        }
 
         // Max for heatmap
         let maxVal = 0;
@@ -329,12 +362,14 @@ window.AnalyticsView = {
         const hbd = `${cfg.color}44`;
         const annualSep = '3px solid rgba(255,255,255,0.15)';
 
+        const displayYears = years.filter(yr => !this.selectedYears || this.selectedYears.includes(yr.toString()));
+
         const monthHeaders = months.map(mk =>
             `<th data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;min-width:80px;white-space:nowrap;border-bottom:1px solid ${hbd};position:sticky;top:0;background:var(--bg-surface);z-index:20;">${this.formatShortMonth(mk)}</th>`
         ).join('');
 
-        const yearHeaders = years.map(yr =>
-            `<th data-year="${yr}" data-col-type="year" style="text-align:right;min-width:90px;white-space:normal;line-height:1.2;padding-top:8px;padding-bottom:8px;border-left:${annualSep};border-bottom:1px solid ${hbd};color:${cfg.color};background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);">TOT.<span class="year-br"></span>${yr}</th>`
+        const yearHeaders = displayYears.map(yr =>
+            `<th data-year="${yr}" data-col-type="year" style="text-align:right;min-width:90px;white-space:normal;line-height:1.2;padding-top:8px;padding-bottom:8px;border-left:${annualSep};border-bottom:1px solid ${hbd};color:var(--text-main);background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);">TOT.<span class="year-br"></span>${yr}</th>`
         ).join('');
 
         const catW = this._catColWidth || 160;
@@ -342,12 +377,31 @@ window.AnalyticsView = {
 
         let html = `
         <div data-type="${txType}" style="border:1px solid ${hbd};border-radius:12px;display:flex;flex-direction:column;max-height:75vh;">
-            <div style="background:${hb};padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${hbd};flex-shrink:0;">
-                <span style="font-weight:700;font-size:15px;color:${cfg.color};">${cfg.emoji} ${translatedType}</span>
-                <span class="privacy-blur" style="font-size:13px;font-weight:600;color:${cfg.color};">${window.i18n.t('analytics_total_period')} : ${cfg.sign}${formatCurrency(grand_total)}</span>
+            <div style="background:${hb};padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${hbd};flex-shrink:0;flex-wrap:wrap;gap:8px;">
+                <span style="font-weight:700;font-size:15px;color:var(--text-main);">${cfg.emoji} ${translatedType}</span>
+                <div class="print-hide" style="display:flex;align-items:center;gap:18px;font-size:12px;color:var(--text-muted);user-select:none;">
+                    <!-- Bloc Gradient -->
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span data-i18n="analytics_gradient_label">${window.i18n.t('analytics_gradient_label') || 'Gradient :'}</span>
+                        <input type="range" min="0.0" max="2.0" value="${sliderVal}" step="0.01" style="width:95px;cursor:pointer;margin:0;" oninput="window.AnalyticsView.onGradientChange('${txType}', this.value)">
+                        <span class="reset-gradient-btn" style="cursor:pointer;opacity:0.6;font-size:11px;transition:opacity 0.2s, visibility 0.2s;visibility:${isProp ? 'hidden' : 'visible'};" title="Réinitialiser (Proportionnel)" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6" onclick="window.AnalyticsView.onGradientChange('${txType}', '1.0'); this.parentElement.querySelector('input[type=range]').value = '1.0';">↺</span>
+                        <span class="gradient-label-value" style="font-weight:600;width:140px;flex-shrink:0;color:var(--text-muted);">${currentLabel}</span>
+                    </div>
+                    
+                    <!-- Séparateur -->
+                    <div style="width:1px;height:14px;background:var(--border-color);opacity:0.5;"></div>
+
+                    <!-- Bloc Couleur -->
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span data-i18n="analytics_color_label">${window.i18n.t('analytics_color_label') || 'Couleur :'}</span>
+                        <input type="color" value="${cfg.color}" style="width:20px;height:20px;border:none;border-radius:50%;cursor:pointer;padding:0;background:none;outline:none;vertical-align:middle;box-shadow:var(--shadow-sm);" title="Changer la couleur du tableau" oninput="window.AnalyticsView.onColorChange('${txType}', this.value)">
+                        <span class="reset-color-btn" style="cursor:pointer;opacity:0.6;font-size:11px;transition:opacity 0.2s, display 0.2s;display:${savedColor ? 'inline' : 'none'};" title="Restaurer la couleur par défaut" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6" onclick="localStorage.removeItem('analytics_color_${txType}'); window.AnalyticsView.renderAll();">⟲</span>
+                    </div>
+                </div>
+                <span class="privacy-blur" style="font-size:13px;font-weight:600;color:var(--text-main);">${window.i18n.t('analytics_total_period')} : ${cfg.sign}${formatCurrency(grand_total)}</span>
             </div>
             <div style="overflow:auto;flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
-            <table class="data-table" style="min-width:${220 + months.length * 80 + years.length * 90}px;border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
+            <table class="data-table" style="min-width:${220 + months.length * 80 + displayYears.length * 90}px;border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
             <thead><tr style="background:var(--bg-surface);">
                 <th data-col-type="cat" style="${catStyle}position:relative;" data-i18n="analytics_th_category">${window.i18n.t('analytics_th_category')}<span class="col-resize-handle" onmousedown="window.AnalyticsView._startResize(event)"></span></th>
                 ${monthHeaders}
@@ -361,17 +415,21 @@ window.AnalyticsView = {
 
             const monthCells = months.map(mk => {
                 const v = catData[mk] || 0;
-                const intensity = maxVal > 0 ? v / maxVal : 0;
+                let intensity = 0;
+                if (maxVal > 0 && v > 0) {
+                    intensity = Math.pow(v / maxVal, p);
+                }
                 const alpha = Math.round(intensity * 0.55 * 100) / 100;
-                const bg = v > 0 ? (isExpense ? `rgba(239,68,68,${alpha})` : isIncome ? `rgba(16,185,129,${alpha})` : `rgba(99,102,241,${alpha})`) : 'transparent';
-                return `<td data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;background:${bg};transition:opacity 0.2s;cursor:pointer;"
+                const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
+                const bg = v > 0 ? `${cfg.color}${alphaHex}` : 'transparent';
+                return `<td data-year="${mk.split('-')[0]}" data-col-type="month" data-val="${v}" style="text-align:right;background:${bg};transition:opacity 0.2s;cursor:pointer;"
                     onclick="window.AnalyticsView.drillDown('${cat.replace(/'/g, "\\'")}','${mk}')"
                     title="🔍 ${cat} — ${this.formatShortMonth(mk)} — Voir les opérations">
                     <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</span>
                 </td>`;
             }).join('');
 
-            const yearCells = years.map(yr => {
+            const yearCells = displayYears.map(yr => {
                 const v = annCat[yr] || 0;
                 return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};background:${hb};font-weight:500;cursor:pointer;"
                     onclick="window.AnalyticsView.drillDownYear('${cat.replace(/'/g, "\\'")}','${yr}')"
@@ -392,16 +450,16 @@ window.AnalyticsView = {
         // Total row
         const totalMonthCells = months.map(mk => {
             const v = totals_per_month[mk] || 0;
-            return `<td data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;color:${cfg.color};background:${hb};position:sticky;bottom:0;z-index:20;border-top:2px solid ${hbd};backdrop-filter:blur(5px);"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
+            return `<td data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;color:var(--text-main);background:${hb};position:sticky;bottom:0;z-index:20;border-top:2px solid ${hbd};backdrop-filter:blur(5px);"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
         }).join('');
 
-        const totalYearCells = years.map(yr => {
+        const totalYearCells = displayYears.map(yr => {
             const v = (annual_totals_per_year || {})[yr] || 0;
-            return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};color:${cfg.color};background:${hb};position:sticky;bottom:0;z-index:20;border-top:2px solid ${hbd};backdrop-filter:blur(5px);"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
+            return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};color:var(--text-main);background:${hb};position:sticky;bottom:0;z-index:20;border-top:2px solid ${hbd};backdrop-filter:blur(5px);"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
         }).join('');
 
         html += `<tr style="font-weight:700;">
-            <td style="color:${cfg.color};font-weight:700;position:sticky;left:0;bottom:0;z-index:25;padding-left:16px;
+            <td style="color:var(--text-main);font-weight:700;position:sticky;left:0;bottom:0;z-index:25;padding-left:16px;
                 background:var(--bg-surface);border-top:2px solid ${hbd};
                 box-shadow:inset 0 0 0 999px ${hb}, 3px 0 8px rgba(0,0,0,0.3);width:${catW}px;">TOT. ${translatedType.toUpperCase()}</td>
             ${totalMonthCells}
@@ -421,6 +479,162 @@ window.AnalyticsView = {
     drillDownYear(category, year) {
         window.AllOperationsView.pendingFilter = { category, monthKey: '', year, backToView: 'analytics' };
         window.app.loadView('all_operations');
+    },
+
+    mapSliderToExponent(s) {
+        const val = parseFloat(s);
+        if (val <= 1.0) {
+            return 0.02 * Math.pow(50.0, val);
+        } else {
+            return 1.0 + (val - 1.0) * 2.0;
+        }
+    },
+
+    onGradientChange(txType, value) {
+        localStorage.setItem('analytics_gradient_' + txType, value);
+        
+        const container = document.querySelector(`[data-type="${txType}"]`);
+        if (!container) return;
+
+        const sliderVal = parseFloat(value);
+        const mappedVal = 2.0 - sliderVal;
+        const p = this.mapSliderToExponent(mappedVal);
+        let currentLabel = '';
+        if (sliderVal >= 0.98 && sliderVal <= 1.02) {
+            currentLabel = window.i18n.t('analytics_gradient_prop') || 'Proportionnel';
+        } else if (sliderVal > 1.02) {
+            currentLabel = `${window.i18n.t('analytics_gradient_log') || 'Logarithmique'} (${p.toFixed(2)})`;
+        } else {
+            currentLabel = `${window.i18n.t('analytics_gradient_exp') || 'Exponentiel'} (${p.toFixed(2)})`;
+        }
+
+        const labelEl = container.querySelector('.gradient-label-value');
+        if (labelEl) {
+            labelEl.textContent = currentLabel;
+        }
+
+        const resetBtn = container.querySelector('.reset-gradient-btn');
+        if (resetBtn) {
+            const isProp = sliderVal >= 0.98 && sliderVal <= 1.02;
+            resetBtn.style.visibility = isProp ? 'hidden' : 'visible';
+        }
+
+        // Calculate maxVal
+        const typeData = this.data?.by_type?.[txType];
+        if (!typeData) return;
+        const categories = typeData.categories || {};
+        let maxVal = 0;
+        for (const cat of Object.keys(categories)) {
+            for (const v of Object.values(categories[cat])) if (v > maxVal) maxVal = v;
+        }
+
+        const savedColor = localStorage.getItem('analytics_color_' + txType);
+        const cfg = { ...(this.TYPE_CONFIG[txType] || { color: '#6b7280' }) };
+        if (savedColor) cfg.color = savedColor;
+        const cells = container.querySelectorAll('td[data-col-type="month"]');
+        cells.forEach(td => {
+            const v = parseFloat(td.getAttribute('data-val') || '0');
+            if (v > 0 && maxVal > 0) {
+                const intensity = Math.pow(v / maxVal, p);
+                const alpha = Math.round(intensity * 0.55 * 100) / 100;
+                const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
+                const bg = `${cfg.color}${alphaHex}`;
+                td.style.backgroundColor = bg;
+            } else {
+                td.style.backgroundColor = 'transparent';
+            }
+        });
+    },
+
+    onColorChange(txType, value) {
+        localStorage.setItem('analytics_color_' + txType, value);
+        
+        const container = document.querySelector(`[data-type="${txType}"]`);
+        if (!container) return;
+
+        const hb = value + '22';
+        const hbd = value + '44';
+
+        // 1. Container border
+        container.style.borderColor = hbd;
+
+        // 2. Header background & border-bottom
+        const headerDiv = container.firstElementChild;
+        if (headerDiv) {
+            headerDiv.style.background = hb;
+            headerDiv.style.borderBottomColor = hbd;
+            
+            // Title color (must remain var(--text-main))
+            const titleSpan = headerDiv.firstElementChild;
+            if (titleSpan) titleSpan.style.color = 'var(--text-main)';
+            
+            // Period total color (must remain var(--text-main))
+            const totalSpan = headerDiv.querySelector('.privacy-blur');
+            if (totalSpan) totalSpan.style.color = 'var(--text-main)';
+            
+            // Reset button & Label colors in header controls (must remain var(--text-muted))
+            const gradientLabel = headerDiv.querySelector('.gradient-label-value');
+            if (gradientLabel) gradientLabel.style.color = 'var(--text-muted)';
+        }
+
+        // 3. Table elements (th & td border bottom, annual column headers background, annual cells background)
+        container.querySelectorAll('th, td').forEach(el => {
+            if (el.style.borderBottomColor) {
+                el.style.borderBottomColor = hbd;
+            }
+            if (el.getAttribute('data-col-type') === 'year') {
+                el.style.color = 'var(--text-main)';
+                el.style.background = hb;
+            }
+        });
+
+        // 4. Total row top border and cell background
+        const totalCells = container.querySelectorAll('tr:last-child td');
+        totalCells.forEach(td => {
+            td.style.borderTopColor = hbd;
+            if (td.getAttribute('data-col-type') === 'month' || td.getAttribute('data-col-type') === 'year') {
+                td.style.color = 'var(--text-main)';
+                td.style.background = hb;
+            }
+        });
+        const firstTotalTd = container.querySelector('tr:last-child td:first-child');
+        if (firstTotalTd) {
+            firstTotalTd.style.color = 'var(--text-main)';
+            firstTotalTd.style.borderTopColor = hbd;
+            firstTotalTd.style.boxShadow = `inset 0 0 0 999px ${hb}, 3px 0 8px rgba(0,0,0,0.3)`;
+        }
+
+        // 5. Month cells gradient background colors
+        const sliderVal = parseFloat(localStorage.getItem('analytics_gradient_' + txType) || '1.0');
+        const mappedVal = 2.0 - sliderVal;
+        const p = this.mapSliderToExponent(mappedVal);
+
+        const typeData = this.data?.by_type?.[txType];
+        if (!typeData) return;
+        const categories = typeData.categories || {};
+        let maxVal = 0;
+        for (const cat of Object.keys(categories)) {
+            for (const v of Object.values(categories[cat])) if (v > maxVal) maxVal = v;
+        }
+
+        const cells = container.querySelectorAll('td[data-col-type="month"]');
+        cells.forEach(td => {
+            const v = parseFloat(td.getAttribute('data-val') || '0');
+            if (v > 0 && maxVal > 0) {
+                const intensity = Math.pow(v / maxVal, p);
+                const alpha = Math.round(intensity * 0.55 * 100) / 100;
+                const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
+                td.style.backgroundColor = `${value}${alphaHex}`;
+            } else {
+                td.style.backgroundColor = 'transparent';
+            }
+        });
+
+        // Show the reset color button dynamically
+        const resetColorBtn = container.querySelector('.reset-color-btn');
+        if (resetColorBtn) {
+            resetColorBtn.style.display = 'inline';
+        }
     },
 
     // ── Column resize logic ────────────────────────────────────────────
@@ -496,7 +710,7 @@ window.AnalyticsView = {
         const savedCustomEnd = localStorage.getItem('print_settings_custom_end') || defaultEnd;
 
         let savedYearsTotals;
-        try { savedYearsTotals = JSON.parse(localStorage.getItem('print_settings_years_totals')); } catch (e) { }
+        try { savedYearsTotals = JSON.parse(localStorage.getItem('analytics_years_totals')); } catch (e) { }
         if (!Array.isArray(savedYearsTotals)) {
             savedYearsTotals = [currentYear];
         }
@@ -850,7 +1064,7 @@ window.AnalyticsView = {
         if (selectedYear) localStorage.setItem('print_settings_selected_year', selectedYear);
         if (customStart) localStorage.setItem('print_settings_custom_start', customStart);
         if (customEnd) localStorage.setItem('print_settings_custom_end', customEnd);
-        localStorage.setItem('print_settings_years_totals', JSON.stringify(selectedYearsTotals));
+        localStorage.setItem('analytics_years_totals', JSON.stringify(selectedYearsTotals));
         localStorage.setItem('print_settings_types', JSON.stringify(selectedTypes));
         localStorage.setItem('print_settings_cats', JSON.stringify(selectedCats));
         localStorage.setItem('print_settings_cols', JSON.stringify(selectedCols));
@@ -913,6 +1127,10 @@ window.AnalyticsView = {
         const revYears = (years || []).slice().reverse();
         const sections = [];
 
+        // Save original selectedYears and temporarily override with PDF selection
+        const originalSelectedYears = this.selectedYears;
+        this.selectedYears = selectedYearsTotals;
+
         if (by_type) {
             // Filtrer avant de générer pour éviter de générer un saut de page sur un tableau masqué (résout le bug de page vide à la fin)
             const typeEntries = Object.entries(by_type).filter(([txType]) => selectedTypes.includes(txType));
@@ -923,6 +1141,9 @@ window.AnalyticsView = {
                 sections.push(`<div class="${breakClass}">` + this.renderTypeTable(txType, typeData, months, revYears) + '</div>' + extraSpacing);
             });
         }
+
+        // Restore original selectedYears
+        this.selectedYears = originalSelectedYears;
 
         // Build transactions list
         let filteredTx = allTx.filter(tx => {
@@ -1193,5 +1414,78 @@ window.AnalyticsView = {
             img.src = b64;
         };
         reader.readAsDataURL(file);
+    },
+
+    renderYearsPopover(revYears) {
+        const popover = document.getElementById('analyticsYearsPopover');
+        if (!popover) return;
+        
+        if (revYears.length === 0) {
+            popover.innerHTML = `<div style="color:var(--text-muted); font-size:12px;">Aucune année disponible</div>`;
+            return;
+        }
+
+        const title = window.i18n.t('analytics_popover_years_title') || 'Années de totaux :';
+        let html = `<div style="font-weight:600; font-size:12px; border-bottom:1px solid var(--border-color); padding-bottom:6px; margin-bottom:6px; color:var(--text-main);">${title}</div>`;
+        
+        revYears.forEach(yr => {
+            const yrStr = yr.toString();
+            const checked = !this.selectedYears || this.selectedYears.includes(yrStr);
+            html += `
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:var(--text-main); user-select:none; margin: 4px 0;">
+                <input type="checkbox" class="analytics-year-cb" value="${yrStr}" ${checked ? 'checked' : ''} onchange="window.AnalyticsView.onYearToggle('${yrStr}', this.checked)" style="accent-color:var(--accent); width:14px; height:14px; cursor:pointer;">
+                <span>${yrStr}</span>
+            </label>`;
+        });
+        
+        popover.innerHTML = html;
+    },
+
+    toggleYearsPopover(e) {
+        e.stopPropagation();
+        const popover = document.getElementById('analyticsYearsPopover');
+        if (!popover) return;
+        
+        const isHidden = popover.style.display === 'none';
+        if (isHidden) {
+            popover.style.display = 'flex';
+            
+            // Add click outside listener
+            const closePopover = (evt) => {
+                if (!popover.contains(evt.target) && evt.target !== document.getElementById('analyticsYearsBtn')) {
+                    popover.style.display = 'none';
+                    document.removeEventListener('click', closePopover);
+                }
+            };
+            // Delay adding to avoid catching this immediate click
+            setTimeout(() => {
+                document.addEventListener('click', closePopover);
+            }, 0);
+        } else {
+            popover.style.display = 'none';
+        }
+    },
+
+    onYearToggle(yr, checked) {
+        // Initialize selectedYears if null (if null, all are selected initially)
+        if (!this.selectedYears) {
+            const yearsSet = new Set();
+            (this.data.years || []).forEach(y => yearsSet.add(y.toString()));
+            if (this.data.months) {
+                this.data.months.forEach(m => yearsSet.add(m.split('-')[0]));
+            }
+            this.selectedYears = Array.from(yearsSet).sort().reverse();
+        }
+
+        if (checked) {
+            if (!this.selectedYears.includes(yr)) {
+                this.selectedYears.push(yr);
+            }
+        } else {
+            this.selectedYears = this.selectedYears.filter(y => y !== yr);
+        }
+
+        localStorage.setItem('analytics_years_totals', JSON.stringify(this.selectedYears));
+        this.renderAll();
     }
 };
