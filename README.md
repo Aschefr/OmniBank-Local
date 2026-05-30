@@ -9,7 +9,7 @@
 
 # 🇫🇷 Français
 
-[![Version](https://img.shields.io/badge/version-1.0.36-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.41-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -111,6 +111,14 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
+## 🆕 Dernières Mises à Jour (v1.0.41)
+
+*   **⚙️ Colonnes de totaux configurables** : Ajout d'un bouton "⚙️ Années" sur la page Synthèse permettant de sélectionner les colonnes de totaux annuels à afficher, avec une synchronisation automatique et bidirectionnelle avec l'export PDF.
+*   **🎨 Contrôle du gradient de couleur** : Ajout d'un slider par tableau sur la page Synthèse pour basculer et ajuster finement le gradient (Logarithmique, Proportionnel, Exponentiel).
+*   **📅 Améliorations de la Paye** :
+    * Le bouton de transition manuelle a été renommé en "Clôturer le mois en cours" pour plus de clarté.
+    * Le bouton superflu "Corriger la paie" a été retiré du bandeau bleu du Dashboard.
+
 ## 🆕 Dernières Mises à Jour (v1.0.36)
 
 *   **📦 Correctif de publication** : Correction d'un problème dans le script de build qui empaquetait d'anciens fichiers (mode onedir) au lieu des fichiers à jour.
@@ -142,7 +150,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.36-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.41-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -243,6 +251,14 @@ Access the interface at `http://localhost:8434`.
 *   **AI**: Ollama (Text & Vision Support).
 
 ---
+
+## 🆕 Recent Updates (v1.0.41)
+
+*   **⚙️ Customizable Totals Columns**: Added a "⚙️ Years" button on the Synthesis page to select which annual totals columns are displayed, with automatic two-way mirroring to the PDF export options.
+*   **🎨 Table Color Gradient Slider**: Added a slider to each Synthesis table header to customize color intensity (Logarithmic, Proportional, Exponential).
+*   **📅 Paycheck Flow Enhancements**:
+    * Renamed the manual skip button to "Close current month" for better clarity.
+    * Removed the duplicate "Correct pay" button from the Dashboard banner.
 
 ## 🆕 Recent Updates (v1.0.36)
 

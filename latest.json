@@ -1,0 +1,11 @@
+{
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDQ0KzVHS3V2QUZ0UVQ4cUxySzhhOWF6VE02Mm5kdFpBbGh4WWwzcHdqakpoR2ZLQXZoRThFRTR5eHVZTitSTTJZZEk0ejY5bzlBdTlKbFhVbERCbWdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTI1MTczCWZpbGU6T21uaUJhbmtfMS4wLjQxX3g2NF9mci1GUi5tc2kKWkQ0N2hIeE44RnlIZnpJbGIwdU1URjR3L3lmbDFEanIvSmFEcmQ3TExKNGlyTGZaTmVKSnlTYW1abldPamk4ZnNZcXVReVNqRVYyaHlpU3BLRnBaRGc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.41/OmniBank_1.0.41_x64_fr-FR.msi"
+                                         }
+                  },
+    "pub_date":  "2026-05-30T07:12:53Z",
+    "version":  "1.0.41",
+    "notes":  "Colonnes de totaux configurables, controle du gradient de couleur et ameliorations de la paye"
+}
