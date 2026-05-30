@@ -856,5 +856,12 @@
   "tooltip_prev_period": "Période précédente",
   "tooltip_next_period": "Période suivante",
   "tooltip_historical_disabled": "Action impossible pour une période passée",
-  "btn_current_period": "Période actuelle"
+  "btn_current_period": "Période actuelle",
+  "analytics_gradient_label": "Gradient :",
+  "analytics_gradient_log": "Logarithmique",
+  "analytics_gradient_prop": "Proportionnel",
+  "analytics_gradient_exp": "Exponentiel",
+  "analytics_color_label": "Couleur :",
+  "analytics_btn_years": "⚙️ Années",
+  "analytics_popover_years_title": "Années de totaux :"
 }

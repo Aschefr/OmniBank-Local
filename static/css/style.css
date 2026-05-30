@@ -1262,6 +1262,10 @@ select.inline-input:focus option:checked {
         display: block !important;
     }
 
+    .print-hide {
+        display: none !important;
+    }
+
     /* Bug #6 & #7 : Deux classes de saut de page
        - print-page-break-forced : saut de page après (uniquement entre tableaux, jamais sur le dernier)
        - print-page-break-auto   : le navigateur décide — évite la page vide en fin de document */
@@ -2935,3 +2939,84 @@ tr.highlight-flash td,
 .mobile-card-table tbody tr.highlight-flash {
     animation: rowHighlightFade 3s ease-out forwards !important;
 }
+
+/* Premium Gradient Slider styling */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--bg-input);
+    border-radius: 5px;
+    height: 6px;
+    outline: none;
+    border: 1px solid var(--border-color);
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.15s, transform 0.15s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+    background: var(--accent-hover);
+    transform: scale(1.1);
+}
+input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.15s, transform 0.15s;
+}
+input[type="range"]::-moz-range-thumb:hover {
+    background: var(--accent-hover);
+    transform: scale(1.1);
+}
+
+/* Years Popover styling */
+.years-popover {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 5px);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    padding: 12px;
+    min-width: 160px;
+    z-index: 100;
+    flex-direction: column;
+    gap: 4px;
+    animation: popoverFadeIn 0.15s ease-out;
+}
+
+@keyframes popoverFadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.years-popover label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-main);
+    user-select: none;
+    padding: 6px 8px;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+}
+
+.years-popover label:hover {
+    background: rgba(145, 158, 171, 0.12);
+}
+
