@@ -311,14 +311,15 @@ def predict_next_paycheck(db: Session):
     if override_date_conf and override_date_conf.value:
         try:
             o_date = date.fromisoformat(override_date_conf.value)
-            
             is_valid_override = False
             if override_period_conf and override_period_conf.value:
                 if override_period_conf.value == logical_period_str:
                     is_valid_override = True
             else:
                 if o_date >= today - timedelta(days=15):
-                    is_valid_override = True
+                    non_override_dates = [date.fromisoformat(h["date"]) for h in history_records if not h.get("is_override")]
+                    if not non_override_dates or o_date > max(non_override_dates):
+                        is_valid_override = True
                     
             if is_valid_override:
                 o_amount = float(override_amount_conf.value) if override_amount_conf and override_amount_conf.value else 0.0

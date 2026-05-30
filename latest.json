@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBlUHJYSW1uRzViZ1J4TkE0TkNTZjNxcDFBN2p4UzlMOUl5Nko5b3l2RUI2STh1cTBOZGhHaTJiejJYV3QxbXBiU3dTZFVOUzFlMzhzU2llOE5LaFFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTI1ODI4CWZpbGU6T21uaUJhbmtfMS4wLjQyX3g2NF9mci1GUi5tc2kKa3RVK01mMmtjdmJDSHVaSWVQckhWZDRGenJBYm1tQysrMzM2bmhIK3FCOGRGOXdOVUZ2YVJYMGh0bWxGUCtRbVRYTW9VNUcxZUJvT0NyL2pobEQyQlE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.42/OmniBank_1.0.42_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDdDZ3hxK1RWWU5JOXR0c1lnSnl1NWRtS2tpQk9JdjZySDF1MDE1KzdacGhpaEk0dzhLMi95RjNGL3d1T1VERHlIaUxuK2ppTkN3Zk5BTWJhNWRvdFFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTI2MjYyCWZpbGU6T21uaUJhbmtfMS4wLjQzX3g2NF9mci1GUi5tc2kKWUQ3MkpMUURoNzJjSzVkUEpGMkZBS2toSEI4YWdGT1krUWoxREZWQmEwOGkzY2dvaFI4RWw0YUR2Rm01TUlZdnladEVBU0lNR2syZ2N2N0Y2M1JMQ3c9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.43/OmniBank_1.0.43_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-30T07:23:48Z",
-    "version":  "1.0.42",
-    "notes":  "Correction du filtrage de la période du Dashboard"
+    "pub_date":  "2026-05-30T07:31:02Z",
+    "version":  "1.0.43",
+    "notes":  "Correction de l\u0027invalidation des overrides de paye obsolètes"
 }
