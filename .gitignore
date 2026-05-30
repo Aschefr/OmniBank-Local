@@ -24,7 +24,7 @@ CA*.xlsx
 # Project Docs / Personal Docs
 /Cahier des charges.md
 /Construction Plan.yaml
-/Bank Data Example*
+sample_data/
 scratch/
 
 # OS specific
