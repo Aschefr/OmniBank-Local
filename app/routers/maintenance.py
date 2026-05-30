@@ -163,13 +163,15 @@ def _find_orphan_recurrence_transactions(db: Session):
         row_dict = dict(row._mapping)
         tx_year = int(str(row_dict['date_operation'])[:4])
         rec_id = row_dict['recurrence_id']
+        is_closed = bool(row_dict['is_closed'])
 
-        # If this (template, year) has NO confirmed transactions → orphan candidate
-        if (rec_id, tx_year) not in confirmed_pairs:
+        # If the template is closed AND this (template, year) has NO confirmed transactions → orphan candidate
+        if is_closed and (rec_id, tx_year) not in confirmed_pairs:
             row_dict['year'] = tx_year
             orphans.append(row_dict)
 
     return orphans
+
 
 
 @router.get("/orphan_recurrences/preview")

@@ -526,6 +526,75 @@ def test_paycheck_override_reset_fallback():
     assert res_dash_after.json()["next_pay_amount"] == orig_amount
 
 
+# ==============================================================================
+# TEST 13: Orphan Recurrence Cleanup Logic
+# ==============================================================================
+def test_orphan_recurrences_cleanup_logic():
+    # 1. Create an active recurrence template (is_closed=False)
+    # Template ID 1 is active (Loyer mensuel, is_closed=False)
+    # Generate instances for it
+    client.post("/api/recurrences/generate_to_end_of_year?template_id=1")
+    
+    # 2. Create a CLOSED recurrence template (is_closed=True)
+    res_tpl = client.post("/api/recurrences/", json={
+        "amount": 100.0,
+        "description": "Abonnement Ferme",
+        "frequency": "Monthly",
+        "start_date": "2026-01-01",
+        "category": "Abonnement",
+        "type": "expense_fixed",
+        "is_active": False,
+        "is_closed": True
+    })
+    assert res_tpl.status_code == 200
+    closed_tpl_id = res_tpl.json()["id"]
+    
+    # Generate an unreconciled transaction for this closed template
+    res_tx = client.post("/api/transactions/", json={
+        "date_saisie": "2026-05-30",
+        "date_operation": "2026-06-15",
+        "description": "Abonnement Ferme Juin",
+        "amount": 100.0,
+        "type": "expense_fixed",
+        "category": "Abonnement",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "reconciliation_date": None,
+        "recurrence_id": closed_tpl_id
+    })
+    assert res_tx.status_code == 200
+    orphan_tx_id = res_tx.json()["id"]
+    
+    # 3. Call preview endpoint
+    res_prev = client.get("/api/maintenance/orphan_recurrences/preview")
+    assert res_prev.status_code == 200
+    data = res_prev.json()
+    
+    # Only the transaction from the closed template should be in orphans
+    orphan_ids = [tx["id"] for group in data["groups"] for tx in group["transactions"]]
+    assert orphan_tx_id in orphan_ids
+    
+    # Verify that unreconciled transactions from the active template (1) are NOT in orphans
+    res_txs = client.get("/api/transactions/")
+    txs_active_unrec = [t["id"] for t in res_txs.json() if t["recurrence_id"] == 1 and t["reconciliation_date"] is None]
+    assert len(txs_active_unrec) > 0
+    for tid in txs_active_unrec:
+        assert tid not in orphan_ids
+        
+    # 4. Call cleanup endpoint on the orphan transaction
+    res_clean = client.post("/api/maintenance/orphan_recurrences/cleanup", json=[orphan_tx_id])
+    assert res_clean.status_code == 200
+    assert res_clean.json()["deleted"] == 1
+    
+    # Verify the orphan transaction is deleted
+    res_check = client.get(f"/api/transactions/{orphan_tx_id}")
+    assert res_check.status_code == 404
+    
+    # Verify that the active template's unreconciled transactions are NOT deleted
+    for tid in txs_active_unrec:
+        res_check_active = client.get(f"/api/transactions/{tid}")
+        assert res_check_active.status_code == 200
+
 
 if __name__ == "__main__":
     build_test_db(engine)
@@ -534,4 +603,6 @@ if __name__ == "__main__":
     test_synthesis_drilldown_filters()
     test_delete_recurrence_template_preserves_reconciled()
     test_paycheck_override_reset_fallback()
+    test_orphan_recurrences_cleanup_logic()
+
 
