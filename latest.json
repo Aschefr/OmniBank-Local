@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDZUd2RNalhaaGIwdWZkU24rSXlJWUFabFoyMlpzWEhHaHppWXhnRDJMUjNrUlVrcjllaXVNQ3JaR1I5Nk84OUJrOHVRdEpXc1dhQVZZVE1nMHVJL1FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTI2NDI1CWZpbGU6T21uaUJhbmtfMS4wLjQ0X3g2NF9mci1GUi5tc2kKV3N6dnBiSUp0dzFNTFdxdmR2QnM3V3BVUlp4SzhkSWlMUUdzL1phK2pJZW5rZzdQd2JyOFMrRmMyK2x2Q0wxeWFXV0Vkd3BIMHlRSHFRcE9ZMlRmQWc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.44/OmniBank_1.0.44_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDNaSGdnengrUGpYREgybkJlekxXL2Rsa1V6Y3VFZ3dWOS9MZTNNZW1yWE5pRjU3TXJwZHBiTG1IcnUrUDdlTmRuMTVuWFM3NUtocm5BUWZxbVYyREFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTI4MjY1CWZpbGU6T21uaUJhbmtfMS4wLjQ1X3g2NF9mci1GUi5tc2kKdStrYTdoeWgwcURTU2U3TStuRERVVXNOZHdoVENic3RIRHYyU21PY2tBZzdKaDZSWHNDY0hVSkVwL1hXa0JpOWcvalNuU0ZjNks2UWZUVFJiR0xRQVE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.45/OmniBank_1.0.45_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-30T07:33:45Z",
-    "version":  "1.0.44",
-    "notes":  "Correction définitive de la prédiction avec des overrides obsolètes"
+    "pub_date":  "2026-05-30T08:04:25Z",
+    "version":  "1.0.45",
+    "notes":  "Correctif critique recurrences dupliquees : detection de 4 familles d orphelins (ABANDONED, ZEROED_OUT, YEARLY_DUPE, MONTHLY_DUPE). Correctif dashboard : operations rapprochees + offset jours correctement affichees."
 }

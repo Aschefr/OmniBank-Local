@@ -596,6 +596,119 @@ def test_orphan_recurrences_cleanup_logic():
         assert res_check_active.status_code == 200
 
 
+def test_obsolete_orphan_recurrences():
+    """Tests three orphan scenarios:
+    - Rule 2.5: ABANDONED — confirmed in 2023 only, unreconciled in 2026
+    - Rule 2.6: ZEROED_OUT — last 3+ reconciled at €0, unreconciled in 2026 at non-zero
+    - Rule 3b:  YEARLY_DUPE_RECON — already reconciled this year, another unreconciled appears
+    """
+    # ---- Scenario A: ABANDONED ----
+    # Template active but last confirmed in 2023, nothing in 2024/2025
+    res_tpl_a = client.post("/api/recurrences/", json={
+        "amount": 185.0,
+        "description": "TotalEnergies Obsolete Test",
+        "frequency": "Monthly",
+        "start_date": "2023-01-01",
+        "category": "Facture énergie",
+        "type": "expense_fixed",
+        "is_active": True,
+        "is_closed": False
+    })
+    assert res_tpl_a.status_code == 200
+    tpl_a = res_tpl_a.json()["id"]
+
+    # One reconciled in 2023
+    client.post("/api/transactions/", json={
+        "date_saisie": "2023-06-12", "date_operation": "2023-06-12",
+        "description": "TotalEnergies Obsolete Test", "amount": 185.0,
+        "type": "expense_fixed", "category": "Facture énergie",
+        "from_account_id": 1, "to_account_id": None,
+        "reconciliation_date": "2023-06-12", "recurrence_id": tpl_a
+    })
+    # Unreconciled in 2026
+    res_orphan_a = client.post("/api/transactions/", json={
+        "date_saisie": "2026-05-30", "date_operation": "2026-06-12",
+        "description": "TotalEnergies Obsolete Test", "amount": 185.0,
+        "type": "expense_fixed", "category": "Facture énergie",
+        "from_account_id": 1, "to_account_id": None,
+        "reconciliation_date": None, "recurrence_id": tpl_a
+    })
+    orphan_a = res_orphan_a.json()["id"]
+
+    # ---- Scenario B: ZEROED_OUT ----
+    res_tpl_b = client.post("/api/recurrences/", json={
+        "amount": 63.01, "description": "Amalia Zeroed Test",
+        "frequency": "Monthly", "start_date": "2024-01-01",
+        "category": "Virement", "type": "expense_fixed",
+        "is_active": True, "is_closed": False
+    })
+    assert res_tpl_b.status_code == 200
+    tpl_b = res_tpl_b.json()["id"]
+
+    # Three consecutive reconciled at €0 in 2025
+    for day, month in [("05", "10"), ("05", "11"), ("05", "12")]:
+        client.post("/api/transactions/", json={
+            "date_saisie": f"2025-{month}-{day}", "date_operation": f"2025-{month}-{day}",
+            "description": "Amalia Zeroed Test", "amount": 0.0,
+            "type": "expense_fixed", "category": "Virement",
+            "from_account_id": 1, "to_account_id": None,
+            "reconciliation_date": f"2025-{month}-{day}", "recurrence_id": tpl_b
+        })
+    # Unreconciled in 2026 at original non-zero amount
+    res_orphan_b = client.post("/api/transactions/", json={
+        "date_saisie": "2026-05-30", "date_operation": "2026-06-05",
+        "description": "Amalia Zeroed Test", "amount": 63.01,
+        "type": "expense_fixed", "category": "Virement",
+        "from_account_id": 1, "to_account_id": None,
+        "reconciliation_date": None, "recurrence_id": tpl_b
+    })
+    orphan_b = res_orphan_b.json()["id"]
+
+    # ---- Scenario C: YEARLY_DUPE_RECON ----
+    res_tpl_c = client.post("/api/recurrences/", json={
+        "amount": 19.99, "description": "Google One Yearly Test",
+        "frequency": "Yearly", "start_date": "2024-01-01",
+        "category": "Abonnement", "type": "expense_fixed",
+        "is_active": True, "is_closed": False
+    })
+    assert res_tpl_c.status_code == 200
+    tpl_c = res_tpl_c.json()["id"]
+
+    # One reconciled in 2026 (Jan)
+    client.post("/api/transactions/", json={
+        "date_saisie": "2026-01-21", "date_operation": "2026-01-21",
+        "description": "Google One Yearly Test", "amount": 19.99,
+        "type": "expense_fixed", "category": "Abonnement",
+        "from_account_id": 1, "to_account_id": None,
+        "reconciliation_date": "2026-01-21", "recurrence_id": tpl_c
+    })
+    # Second unreconciled in same year (May)
+    res_orphan_c = client.post("/api/transactions/", json={
+        "date_saisie": "2026-05-30", "date_operation": "2026-05-21",
+        "description": "Google One Yearly Test", "amount": 19.99,
+        "type": "expense_fixed", "category": "Abonnement",
+        "from_account_id": 1, "to_account_id": None,
+        "reconciliation_date": None, "recurrence_id": tpl_c
+    })
+    orphan_c = res_orphan_c.json()["id"]
+
+    # ---- Verify preview catches all three ----
+    res_prev = client.get("/api/maintenance/orphan_recurrences/preview")
+    assert res_prev.status_code == 200
+    orphan_ids = [tx["id"] for group in res_prev.json()["groups"] for tx in group["transactions"]]
+    assert orphan_a in orphan_ids, f"ABANDONED orphan {orphan_a} not detected"
+    assert orphan_b in orphan_ids, f"ZEROED_OUT orphan {orphan_b} not detected"
+    assert orphan_c in orphan_ids, f"YEARLY_DUPE orphan {orphan_c} not detected"
+
+    # ---- Cleanup ----
+    res_clean = client.post("/api/maintenance/orphan_recurrences/cleanup", json=[orphan_a, orphan_b, orphan_c])
+    assert res_clean.status_code == 200
+    assert res_clean.json()["deleted"] == 3
+
+    for oid in [orphan_a, orphan_b, orphan_c]:
+        assert client.get(f"/api/transactions/{oid}").status_code == 404
+
+
 if __name__ == "__main__":
     build_test_db(engine)
     test_payday_and_dashboard_forcing()
@@ -604,5 +717,6 @@ if __name__ == "__main__":
     test_delete_recurrence_template_preserves_reconciled()
     test_paycheck_override_reset_fallback()
     test_orphan_recurrences_cleanup_logic()
+    test_obsolete_orphan_recurrences()
 
 
