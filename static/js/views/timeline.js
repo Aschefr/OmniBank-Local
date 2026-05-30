@@ -533,15 +533,10 @@ window.TimelineView = {
                     baseStartDateStr = d.toISOString().split('T')[0];
                 }
             } else {
-                if (window.app.validatedPayDate) {
+                if (window.app.isPayValidated && window.app.validatedPayDate) {
                     const d = new Date(window.app.validatedPayDate);
                     d.setDate(d.getDate() + 1);
                     baseStartDateStr = d.toISOString().split('T')[0];
-                } else if (window.app.payPeriod) {
-                    const parts = window.app.payPeriod.split('-');
-                    if (parts.length === 2) {
-                        baseStartDateStr = `${parts[0]}-${parts[1]}-01`;
-                    }
                 } else if (window.app.payHistory && window.app.payHistory.length > 0) {
                     const detectedHistory = window.app.payHistory.filter(h => !h.is_override);
                     const sortedHistory = [...detectedHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -549,6 +544,19 @@ window.TimelineView = {
                         const d = new Date(sortedHistory[0].date);
                         d.setDate(d.getDate() + 1);
                         baseStartDateStr = d.toISOString().split('T')[0];
+                    }
+                }
+                
+                if (!baseStartDateStr) {
+                    if (window.app.validatedPayDate) {
+                        const d = new Date(window.app.validatedPayDate);
+                        d.setDate(d.getDate() + 1);
+                        baseStartDateStr = d.toISOString().split('T')[0];
+                    } else if (window.app.payPeriod) {
+                        const parts = window.app.payPeriod.split('-');
+                        if (parts.length === 2) {
+                            baseStartDateStr = `${parts[0]}-${parts[1]}-01`;
+                        }
                     }
                 }
             }
