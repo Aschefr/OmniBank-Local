@@ -1,4 +1,4 @@
-# OmniBank Local 🏦
+﻿# OmniBank Local 🏦
 
 <p align="center">
   <a href="#-français">Français</a> • 
@@ -9,7 +9,7 @@
 
 # 🇫🇷 Français
 
-[![Version](https://img.shields.io/badge/version-1.0.41-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.45-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -111,6 +111,16 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
+## 🆕 Dernières Mises à Jour (v1.0.45)
+
+*   **🔧 Correctif critique — Récurrences dupliquées** : Correction d'un bug majeur où la clôture du mois courant générait des dizaines d'opérations récurrentes en doublon pour des templates abandonnés ou désactivés.
+*   **🧹 Détection enrichie des orphelins** : Le bouton de nettoyage des récurrences orphelines détecte désormais 4 familles de doublons :
+    * **Templates abandonnés** (actifs mais sans activité en N-1 et N).
+    * **Templates vidés à zéro** (3+ derniers rapprochements à 0 €, abonnement résilié sans clôture).
+    * **Doublons annuels** (occurrence supplémentaire pour une récurrence annuelle déjà rapprochée dans l'année).
+    * **Doublons mensuels** (deux instances non rapprochées le même mois).
+*   **🐛 Correctif Dashboard** : Les opérations non rapprochées de la période courante + l'offset de jours (5/15/30) sélectionné sont désormais correctement affichées (seules les opérations non rapprochées étaient auparavant visibles).
+
 ## 🆕 Dernières Mises à Jour (v1.0.41)
 
 *   **⚙️ Colonnes de totaux configurables** : Ajout d'un bouton "⚙️ Années" sur la page Synthèse permettant de sélectionner les colonnes de totaux annuels à afficher, avec une synchronisation automatique et bidirectionnelle avec l'export PDF.
@@ -150,7 +160,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.41-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.45-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -251,6 +261,16 @@ Access the interface at `http://localhost:8434`.
 *   **AI**: Ollama (Text & Vision Support).
 
 ---
+
+## 🆕 Recent Updates (v1.0.45)
+
+*   **🔧 Critical Fix — Duplicate Recurring Transactions**: Fixed a major bug where closing the current month generated dozens of duplicate recurring transactions for abandoned or deactivated templates.
+*   **🧹 Enhanced Orphan Detection**: The orphan recurrence cleanup button now detects 4 types of duplicates:
+    * **Abandoned templates** (still active but no activity in year N-1 or N).
+    * **Zeroed-out templates** (last 3+ reconciled entries at €0, subscription cancelled without closing the template).
+    * **Yearly duplicates** (a second unreconciled instance exists for a yearly template already reconciled this year).
+    * **Monthly duplicates** (two unreconciled instances for the same month).
+*   **🐛 Dashboard Fix**: Unreconciled transactions for the current period are now correctly displayed alongside the user-selected day offset (5/15/30 days), instead of showing only unreconciled transactions.
 
 ## 🆕 Recent Updates (v1.0.41)
 
