@@ -846,7 +846,7 @@
   "paycheck_widget_active_desc": "Période du {period_start} au {date}. Prochaine paye estimée : {amount}.",
   "paycheck_widget_skipped_desc": "Le passage à la période suivante a été forcé. Période du {period_start} au {date} ({amount}).",
   "paycheck_widget_btn_correct": "Corriger la paye",
-  "paycheck_widget_btn_force": "Forcer le mois suivant",
+  "paycheck_widget_btn_force": "Clôturer le mois en cours",
   "paycheck_widget_btn_cancel": "Annuler le forçage",
   "pay_history_override_label": "Correction manuelle",
   "btn_restore_default": "Restaurer",

@@ -242,7 +242,6 @@ window.TimelineView = {
             const disabledTitle = window.i18n.t('tooltip_historical_disabled') || 'Action impossible pour une période passée';
             actionBtnHtml = `
                 <div style="display: flex; gap: 8px; align-items: center;">
-                    <button class="btn btn-secondary" style="padding: 5px 12px; font-weight: 600; font-size: 12px; border-radius: 8px; white-space: nowrap; opacity: 0.5; cursor: not-allowed;" title="${disabledTitle}">✏️ ${window.i18n.t('paycheck_widget_btn_correct')}</button>
                     <button class="btn btn-primary" style="padding: 5px 14px; font-weight: 700; font-size: 12px; border-radius: 8px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); border: none; box-shadow: 0 4px 10px rgba(108, 92, 231, 0.2); white-space: nowrap; opacity: 0.5; cursor: not-allowed;" title="${disabledTitle}"><span style="margin-right:4px;">⏩</span>${window.i18n.t('paycheck_widget_btn_force')}</button>
                 </div>
             `;
@@ -257,7 +256,6 @@ window.TimelineView = {
             statusDesc = window.i18n.tp('paycheck_widget_active_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartStr });
             actionBtnHtml = `
                 <div style="display: flex; gap: 8px; align-items: center;">
-                    <button class="btn btn-secondary" style="padding: 5px 12px; font-weight: 600; font-size: 12px; border-radius: 8px; white-space: nowrap;" onclick="window.app.showPayOverrideModal()">✏️ ${window.i18n.t('paycheck_widget_btn_correct')}</button>
                     <button class="btn btn-primary" style="padding: 5px 14px; font-weight: 700; font-size: 12px; border-radius: 8px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); border: none; box-shadow: 0 4px 10px rgba(108, 92, 231, 0.2); white-space: nowrap;" onclick="window.app.skipPayPeriod()"><span style="margin-right:4px;">⏩</span>${window.i18n.t('paycheck_widget_btn_force')}</button>
                 </div>
             `;

@@ -830,7 +830,7 @@
   "paycheck_widget_active_desc": "Period from {period_start} to {date}. Estimated next pay: {amount}.",
   "paycheck_widget_skipped_desc": "The next period was forced manually. Period from {period_start} to {date} ({amount}).",
   "paycheck_widget_btn_correct": "Correct pay",
-  "paycheck_widget_btn_force": "Force next month",
+  "paycheck_widget_btn_force": "Close current month",
   "paycheck_widget_btn_cancel": "Cancel force",
   "pay_history_override_label": "Manual correction",
   "btn_restore_default": "Restore",
