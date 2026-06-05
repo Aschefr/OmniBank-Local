@@ -697,3 +697,10 @@ def migrate_db(engine):
         if 'new_column' not in cols:
             conn.execute(text("ALTER TABLE transactions ADD COLUMN new_column TEXT"))
 ```
+
+### 21. Erreur auto-catégorisation : Erreur API (Timeout Ollama)
+
+**Cause** : Le chargement initial du modèle LLM local (Ollama) peut prendre plus de 30 secondes. Si le timeout configuré dans l'API FastAPI est trop court, cela provoque une erreur 500 systématique.
+
+**Solution** : Utiliser un timeout de `120.0` secondes sur les requêtes vers le serveur Ollama (comme c'est déjà le cas pour les autres routes de discussion de l'assistant IA) dans `app/routers/chat.py`. Également, s'assurer que le frontend utilise `API.post` et intercepte les messages d'erreur détaillés pour l'afficher à l'utilisateur.
+

@@ -287,7 +287,7 @@ Si aucune ne convient vraiment, propose un nom court (2-3 mots max).
 Réponds avec SEULEMENT le nom, sans ponctuation, sans explication."""
 
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(f"{url}/api/chat", json={
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
