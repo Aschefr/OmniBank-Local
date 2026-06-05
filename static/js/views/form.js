@@ -572,13 +572,10 @@ window.FormView = {
         btn.disabled = true;
         btn.textContent = '⏳';
         try {
-            const res = await fetch('/api/chat/autocategorize', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ description: desc, amount: parseFloat(amount) || null })
+            const data = await API.post('/api/chat/autocategorize', {
+                description: desc,
+                amount: parseFloat(amount) || null
             });
-            if (!res.ok) throw new Error('Erreur API');
-            const data = await res.json();
             const cat = data.category;
             if (cat) {
                 // Try to select existing, otherwise set search and prompt creation
@@ -595,7 +592,12 @@ window.FormView = {
                 }
             }
         } catch(e) {
-            showInlineMessage(window.i18n.t('title_info'), window.i18n.tp('msg_autocategorize_error', {error: e.message}));
+            let errorMsg = e.message;
+            try {
+                const parsed = JSON.parse(e.message);
+                errorMsg = parsed.detail || e.message;
+            } catch(err) {}
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.tp('msg_autocategorize_error', {error: errorMsg}));
         } finally {
             btn.disabled = false;
             btn.textContent = '✨ IA';

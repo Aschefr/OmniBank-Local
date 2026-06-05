@@ -1,4 +1,4 @@
-﻿# OmniBank Local 🏦
+# OmniBank Local 🏦
 
 <p align="center">
   <a href="#-français">Français</a> • 
@@ -9,7 +9,7 @@
 
 # 🇫🇷 Français
 
-[![Version](https://img.shields.io/badge/version-1.0.46-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.47-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -111,6 +111,10 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
+## 🆕 Dernières Mises à Jour (v1.0.47)
+
+*   **🤖 Correctif IA — Auto-catégorisation** : Augmentation du timeout de l'API d'auto-catégorisation à 120 secondes dans le backend pour éviter les erreurs de chargement du LLM local (Ollama) lorsque le modèle n'est pas encore en mémoire. Amélioration de l'affichage des erreurs détaillées dans l'interface de saisie en cas d'échec.
+
 ## 🆕 Dernières Mises à Jour (v1.0.46)
 
 *   **🔧 Correctif Sidebar — Montant "Dépenses non rapprochées avant paie"** : Le montant affiché dans l'encart du bandeau latéral gauche excluait incorrectement les virements internes (ex : Virement vers livret, virement entre comptes), provoquant un écart avec le total affiché dans l'onglet Historique. Les deux valeurs sont désormais cohérentes.
@@ -164,7 +168,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.46-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.47-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -265,6 +269,10 @@ Access the interface at `http://localhost:8434`.
 *   **AI**: Ollama (Text & Vision Support).
 
 ---
+
+## 🆕 Recent Updates (v1.0.47)
+
+*   **🤖 AI Fix — Auto-categorization**: Increased the auto-categorization API timeout to 120 seconds in the backend to prevent loading timeouts with local LLMs (Ollama) when the model is not yet in memory. Improved detailed error message reporting in the transaction entry UI upon failure.
 
 ## 🆕 Recent Updates (v1.0.46)
 

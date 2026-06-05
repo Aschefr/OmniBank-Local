@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHltV2NYUG94eGpLZlpzODFqUWxiS21IMTJibFB6WXRGM29vbWI5RWlSWldETnlxSmFwSDE3NFN6bFk3anN6bnYzR1E2RlpLVHlmdnFCWlU1a0xiOEFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTI4OTA4CWZpbGU6T21uaUJhbmtfMS4wLjQ2X3g2NF9mci1GUi5tc2kKQ1pVbEZTZ2JPQlE0YllWZnNoSTRyQS9jWmhRbXpacitMU3dHNm9MMVN2Z0NWcmxPTVd3TDBINlpnQm9jbE5zSmRUc2todVVSeG1FYjJkMlowU0dVRGc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.46/OmniBank_1.0.46_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDRhSWtyUGlyOHYvSDA1TTJTTWU5MjdzYjYxbXdpL09vWHNERUJNaHo2S2lNR212YWNCdnd5blVPRUNkZmRNSWhNMklVUWFMTHlTSFZTajRFV2RNZ2dzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNjg1MDM5CWZpbGU6T21uaUJhbmtfMS4wLjQ3X3g2NF9mci1GUi5tc2kKeFVZSzZzRUZjUUlkcWQxQkNTVlBsYkk5akNRVkI2SThoS1ZSTE5CM0lGRWhSTk1JTTN6TDB0NkhmVzNKems0ZzE0eDM2YXBVZUZza1d0MGFYaW1wQ1E9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.47/OmniBank_1.0.47_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-05-30T08:15:08Z",
-    "version":  "1.0.46",
-    "notes":  "Correctif sidebar : exclusion des virements internes du calcul des depenses non rapprochees avant paie (coherence avec le filtre de l historique)"
+    "pub_date":  "2026-06-05T18:43:59Z",
+    "version":  "1.0.47",
+    "notes":  "Correctif auto-categorisation IA: Augmentation du timeout de l\u0027API a 120s pour eviter les erreurs de chargement du LLM local (Ollama) et amelioration de la remontee d\u0027erreurs detaillees dans l\u0027interface."
 }
