@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDRhSWtyUGlyOHYvSDA1TTJTTWU5MjdzYjYxbXdpL09vWHNERUJNaHo2S2lNR212YWNCdnd5blVPRUNkZmRNSWhNMklVUWFMTHlTSFZTajRFV2RNZ2dzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNjg1MDM5CWZpbGU6T21uaUJhbmtfMS4wLjQ3X3g2NF9mci1GUi5tc2kKeFVZSzZzRUZjUUlkcWQxQkNTVlBsYkk5akNRVkI2SThoS1ZSTE5CM0lGRWhSTk1JTTN6TDB0NkhmVzNKems0ZzE0eDM2YXBVZUZza1d0MGFYaW1wQ1E9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.47/OmniBank_1.0.47_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDZkSDBnSWJ1Y0ZvbjZCcVFyZmlacm5hcklrSDVhbkJPSUFTbGJjekJLZlZCTllOVitVRUNSZ0xsbUtIMENXeXU5Qk1tNVo5bnQ0YUMvaElpMkpvUUFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNzI4NTAwCWZpbGU6T21uaUJhbmtfMS4wLjQ4X3g2NF9mci1GUi5tc2kKTVZZTjVOYmlrajNwb251TkVGUnBxcWNxNjlEcUF1MWxXS1k5bm5yVEJuUldjZTZ6dFVmOEMxcW44Qko2YzZMNWNjWkdBWkE4RDV0SjQ0eFVlUTdNQ2c9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.48/OmniBank_1.0.48_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-06-05T18:43:59Z",
-    "version":  "1.0.47",
-    "notes":  "Correctif auto-categorisation IA: Augmentation du timeout de l\u0027API a 120s pour eviter les erreurs de chargement du LLM local (Ollama) et amelioration de la remontee d\u0027erreurs detaillees dans l\u0027interface."
+    "pub_date":  "2026-06-06T06:48:20Z",
+    "version":  "1.0.48",
+    "notes":  "Ameliorations visuelles budgets tirelire, couleurs de badges et navigation sidebar"
 }
