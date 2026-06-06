@@ -457,17 +457,27 @@ class App {
                 let barsHtml = '';
 
                 // Helper: render a single sidebar budget bar
-                const renderBar = (label, targetVal, recSpent, totalSpent, accentColor, indent) => {
+                const renderBar = (label, targetVal, recSpent, totalSpent, accentColor, indent, period, accKey) => {
                     const totalPct = targetVal > 0 ? Math.min((totalSpent / targetVal) * 100, 100) : 0;
                     const recPct = targetVal > 0 ? Math.min((recSpent / targetVal) * 100, 100) : 0;
                     const over = targetVal > 0 && recSpent > targetVal;
                     const color = over ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
-                    const borderLeft = accentColor ? `border-left:3px solid ${accentColor};` : '';
+                    
+                    const periodColors = {
+                        'monthly': '#3b82f6',
+                        'yearly': '#8b5cf6',
+                        'indefinite': '#14b8a6',
+                        'custom': '#ec4899'
+                    };
+                    const pColor = periodColors[period] || '#3b82f6';
+                    const borderLeftColor = accentColor || pColor;
+                    const borderLeft = `border-left:3px solid ${borderLeftColor};`;
                     const marginLeft = indent ? 'margin-left:8px;' : '';
+                    const clickAction = `window.app.scrollToBudgetSection('${period}', '${accKey || '__global__'}')`;
 
                     return `
-                    <div class="stat-box" style="display:block; border-color:${color}66; background-color:${color}1a; cursor:pointer; margin-bottom:6px; ${borderLeft}${marginLeft}" onclick="window.app.loadView('budgets')">
-                        <span class="stat-label" style="color:${color}; font-weight:600;">${label}</span>
+                    <div class="stat-box" style="display:block; border-color:${pColor}66; background-color:${pColor}1a; cursor:pointer; margin-bottom:6px; ${borderLeft}${marginLeft}" onclick="${clickAction}">
+                        <span class="stat-label" style="color:${pColor}; font-weight:600;">${label}</span>
                         <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:6px;overflow:hidden;margin:8px 0;border:1px solid rgba(255,255,255,0.05);">
                             <div style="position:absolute;top:0;left:0;width:${totalPct}%;height:100%;background:rgba(128,128,128,0.4);border-radius:999px;transition:width 0.3s;"></div>
                             <div style="position:absolute;top:0;left:0;width:${recPct}%;height:100%;background:${color};border-radius:999px;transition:width 0.3s;"></div>
@@ -510,33 +520,44 @@ class App {
                                     subLabel = (names.join(' + ') || key) + periodSuffix;
                                 }
                             }
-                            barsHtml += renderBar(subLabel, sub.target, sub.reconciled_expenses, sub.expenses, accent, subKeys.length > 1);
+                            barsHtml += renderBar(subLabel, sub.target, sub.reconciled_expenses, sub.expenses, accent, subKeys.length > 1, period, key);
                         }
                     } else {
                         // Single bar for the whole period (original behavior)
-                        barsHtml += renderBar(periodLabels[period] || period, data.target, data.reconciled_expenses, data.expenses, null, false);
+                        barsHtml += renderBar(periodLabels[period] || period, data.target, data.reconciled_expenses, data.expenses, null, false, period, '__global__');
                     }
                 }
 
                 barsContainer.innerHTML = barsHtml;
 
-                // ── Savings (Tirelire) sidebar bar ──
-                const savingsSummary = stats.savings_summary;
-                if (savingsSummary && savingsSummary.count > 0) {
-                    const savPct = savingsSummary.goal > 0 ? Math.min((savingsSummary.balance / savingsSummary.goal) * 100, 100) : 0;
-                    const savColor = savPct >= 100 ? '#f59e0b' : savPct >= 50 ? '#10b981' : 'rgba(128,128,128,0.6)';
-                    const savingsBarHtml = `
-                    <div class="stat-box" style="display:block; border-color:#f59e0b66; background-color:#f59e0b1a; cursor:pointer; margin-top:8px; border-left:3px solid #f59e0b;" onclick="window.app.loadView('budgets')">
-                        <span class="stat-label" style="color:#f59e0b; font-weight:600;">🏦 ${window.i18n.t('budget_savings_summary')}</span>
-                        <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:6px;overflow:hidden;margin:8px 0;border:1px solid rgba(255,255,255,0.05);">
-                            <div style="position:absolute;top:0;left:0;width:${savPct}%;height:100%;background:${savColor};border-radius:999px;transition:width 0.3s;"></div>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; font-size:12px;">
-                            <span class="privacy-blur" style="color:${savColor}; font-weight:600;">${formatCurrency(savingsSummary.balance)}</span>
-                            <span class="privacy-blur" style="color:var(--text-muted);">/ ${formatCurrency(savingsSummary.goal)}</span>
-                        </div>
+                // ── Savings (Tirelire) sidebar bars ──
+                const savingsDetails = stats.savings_details || [];
+                if (savingsDetails && savingsDetails.length > 0) {
+                    let savingsHtml = `<div style="margin-top:12px; margin-bottom:4px;">
+                        <span class="stat-label" style="color:var(--text-muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.03em;">🏦 ${window.i18n.t('budget_savings_summary')}</span>
                     </div>`;
-                    barsContainer.innerHTML += savingsBarHtml;
+                    
+                    savingsDetails.forEach(sav => {
+                        if (sav.is_closed) return;
+                        const balance = sav.balance || 0;
+                        const goal = sav.goal || 0;
+                        const pct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
+                        const goalReached = balance >= goal && goal > 0;
+                        const savColor = goalReached ? '#f59e0b' : '#10b981';
+
+                        savingsHtml += `
+                        <div class="stat-box" data-sidebar-budget-id="${sav.id}" style="display:block; border-color:#f59e0b66; background-color:#f59e0b1a; cursor:pointer; margin-bottom:6px; border-left:3px solid #f59e0b;" onclick="window.app.scrollToBudget(${sav.id}, 'budgets')">
+                            <span class="stat-label" style="color:#f59e0b; font-weight:600;">${sav.name}</span>
+                            <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:6px;overflow:hidden;margin:8px 0;border:1px solid rgba(255,255,255,0.05);">
+                                <div style="position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${savColor};border-radius:999px;transition:width 0.3s;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-size:12px;">
+                                <span class="privacy-blur" style="color:${savColor}; font-weight:600;">${formatCurrency(balance)}</span>
+                                <span class="privacy-blur" style="color:var(--text-muted);">/ ${formatCurrency(goal)}</span>
+                            </div>
+                        </div>`;
+                    });
+                    barsContainer.innerHTML += savingsHtml;
                 }
             }
 
@@ -826,6 +847,49 @@ class App {
                 window.ImportWizard._setImportBtnState('working');
             }
         }
+    }
+
+    async scrollToBudget(budgetId, viewName = 'budgets') {
+        if (this.currentView !== viewName) {
+            this.loadView(viewName);
+        }
+        const startTime = Date.now();
+        const poll = () => {
+            const card = document.querySelector(`[data-budget-id="${budgetId}"]`);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.classList.add('budget-card-highlight-flash');
+                setTimeout(() => {
+                    card.classList.remove('budget-card-highlight-flash');
+                }, 3000);
+            } else if (Date.now() - startTime < 3000) {
+                setTimeout(poll, 100);
+            }
+        };
+        poll();
+    }
+
+    async scrollToBudgetSection(period, accKey = '__global__', viewName = 'budgets') {
+        if (this.currentView !== viewName) {
+            this.loadView(viewName);
+        }
+        const startTime = Date.now();
+        const poll = () => {
+            let target = document.querySelector(`[data-budget-period-sub="${period}-${accKey}"]`);
+            if (!target) {
+                target = document.querySelector(`[data-budget-period="${period}"]`);
+            }
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.classList.add('budget-card-highlight-flash');
+                setTimeout(() => {
+                    target.classList.remove('budget-card-highlight-flash');
+                }, 3000);
+            } else if (Date.now() - startTime < 3000) {
+                setTimeout(poll, 100);
+            }
+        };
+        poll();
     }
 
     // ── Changelog popup ──────────────────────────────────────────────

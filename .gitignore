@@ -18,6 +18,7 @@ env/
 data/uploads/
 data/backups/
 export_omnibank*
+*.zip
 CA*.csv
 CA*.xlsx
 

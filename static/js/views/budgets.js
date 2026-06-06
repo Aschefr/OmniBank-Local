@@ -643,7 +643,14 @@ window.BudgetsView = {
                 }).join(' ');
             }
 
-            return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" style="background:var(--bg-body);border:1px solid ${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'};border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.3s, box-shadow 0.3s;${closedStyle}" onmouseover="this.style.borderColor='rgba(99,102,241,0.5)'" onmouseout="this.style.borderColor='${overBudget ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'}'">\
+            const periodColors = {
+                'monthly': '#3b82f6',
+                'yearly': '#8b5cf6',
+                'indefinite': '#14b8a6',
+                'custom': '#ec4899'
+            };
+            const pColor = periodColors[b.period] || '#3b82f6';
+            return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" class="budget-envelope-card ${overBudget ? 'over-budget' : ''}" style="${closedStyle}">\
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px;">
                         <div style="flex:1;">
                             <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
@@ -688,7 +695,7 @@ window.BudgetsView = {
             const goal = b.budget_amount || 0;
             const pct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
             const goalReached = balance >= goal && goal > 0;
-            const barColor = goalReached ? '#f59e0b' : pct >= 50 ? '#10b981' : 'rgba(128,128,128,0.6)';
+            const barColor = goalReached ? '#f59e0b' : '#10b981';
             const funded = b.funded || 0;
             const withdrawn = b.withdrawn || 0;
 
@@ -714,7 +721,7 @@ window.BudgetsView = {
                 ? `<span class="privacy-blur" style="color:#ff5630;font-size:11px;">↓ ${formatCurrency(withdrawn)} ${window.i18n.t('budget_savings_withdrawn')}</span>`
                 : '';
 
-            return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" style="background:var(--bg-body);border:1px solid ${goalReached ? 'rgba(245,158,11,0.4)' : 'var(--border-color)'};border-radius:10px;padding:16px;cursor:pointer;transition:border-color 0.3s, box-shadow 0.3s;${closedStyle}" onmouseover="this.style.borderColor='rgba(245,158,11,0.5)'" onmouseout="this.style.borderColor='${goalReached ? 'rgba(245,158,11,0.4)' : 'var(--border-color)'}'">\
+            return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" class="budget-envelope-card savings ${goalReached ? 'goal-reached' : ''}" style="${closedStyle}">\
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px;">
                         <div style="flex:1;">
                             <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
@@ -771,8 +778,16 @@ window.BudgetsView = {
 
             if (spendingBudgets.length === 0) continue;
 
-            let html = `<div style="margin-bottom:40px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border-color);padding-bottom:8px;">
+            const periodColors = {
+                'monthly': '#3b82f6',
+                'yearly': '#8b5cf6',
+                'indefinite': '#14b8a6',
+                'custom': '#ec4899'
+            };
+            const pColor = periodColors[period] || '#3b82f6';
+
+            let html = `<div data-budget-period="${period}" style="margin-bottom:40px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;border-bottom:2px solid ${pColor}80;padding-bottom:8px;">
                     <h3 style="margin:0;font-size:16px;color:var(--text-color);">${window.i18n.t('budget_envelopes_title')} — ${group.title}</h3>
                     ${renderDateControls(period)}
                 </div>`;
@@ -813,16 +828,18 @@ window.BudgetsView = {
                         accentColor = firstAcc?.color || 'var(--accent)';
                     }
 
+                    html += `<div data-budget-period-sub="${period}-${key}">`;
                     html += renderSummaryBar(subTitle, label, budgets, accentColor);
                     html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:24px;">`;
                     for (const b of budgets) html += renderBudgetCard(b, y, m);
-                    html += '</div>';
+                    html += '</div></div>';
                 }
             } else {
+                html += `<div data-budget-period-sub="${period}-__global__">`;
                 html += renderSummaryBar(`${window.i18n.t('budget_summary_global')} — ${group.title}`, label, spendingBudgets, null);
                 html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">`;
                 for (const b of spendingBudgets) html += renderBudgetCard(b, y, m);
-                html += '</div>';
+                html += '</div></div>';
             }
 
             html += '</div>';
@@ -831,7 +848,7 @@ window.BudgetsView = {
 
         // ── Savings (Tirelire) section ───────────────────────────────────
         if (savingsBudgets.length > 0) {
-            let savingsHtml = `<div style="margin-bottom:40px;">
+            let savingsHtml = `<div data-budget-period="savings" style="margin-bottom:40px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;border-bottom:2px solid rgba(245,158,11,0.3);padding-bottom:8px;">
                     <h3 style="margin:0;font-size:16px;color:#f59e0b;">🏦 ${window.i18n.t('budget_savings_section')}</h3>
                 </div>`;
@@ -840,7 +857,7 @@ window.BudgetsView = {
             const totalGoal = savingsBudgets.reduce((s, b) => s + (b.budget_amount || 0), 0);
             const totalBalance = savingsBudgets.reduce((s, b) => s + (b.balance || 0), 0);
             const savingsPct = totalGoal > 0 ? Math.min((totalBalance / totalGoal) * 100, 100) : 0;
-            const savingsBarColor = savingsPct >= 100 ? '#f59e0b' : savingsPct >= 50 ? '#10b981' : 'rgba(128,128,128,0.6)';
+            const savingsBarColor = savingsPct >= 100 ? '#f59e0b' : '#10b981';
             savingsHtml += `<div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);border-left:3px solid #f59e0b;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
                     <div>
@@ -936,7 +953,7 @@ window.BudgetsView = {
                 const goal = budget?.budget_amount || 0;
                 const pct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
                 const goalReached = balance >= goal && goal > 0;
-                const barColor = goalReached ? '#f59e0b' : pct >= 50 ? '#10b981' : 'rgba(128,128,128,0.6)';
+                const barColor = goalReached ? '#f59e0b' : '#10b981';
 
                 title.textContent = `🏦 ${budgetName}`;
                 const safeName = budgetName.replace(/'/g, "\\'");
@@ -944,7 +961,10 @@ window.BudgetsView = {
                 graph.innerHTML = `<div style="margin-bottom:10px;">
                     <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:3px;">
                         <span>${window.i18n.t('budget_expenses')} · <span class="privacy-blur" style="font-weight:600;">${formatCurrency(goal)}</span> ${window.i18n.t('budget_savings_goal')}</span>
-                        <span class="privacy-blur">↑ ${formatCurrency(funded)} ${window.i18n.t('budget_savings_funded')}${withdrawn > 0 ? ` · ↓ ${formatCurrency(withdrawn)} ${window.i18n.t('budget_savings_withdrawn')}` : ''}</span>
+                        <span class="privacy-blur">
+                            <span style="color:#10b981;font-weight:600;">↑ ${formatCurrency(funded)}</span> ${window.i18n.t('budget_savings_funded')}
+                            ${withdrawn > 0 ? ` · <span style="color:#ff5630;font-weight:600;">↓ ${formatCurrency(withdrawn)}</span> ${window.i18n.t('budget_savings_withdrawn')}` : ''}
+                        </span>
                     </div>
                     <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);">
                         <div style="position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${barColor};border-radius:999px;transition:width 0.5s ease;"></div>

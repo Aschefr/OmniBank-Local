@@ -109,6 +109,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     budget_data = get_budget_status(today.year, today.month, db=db)
     period_groups = {}
     savings_summary = {"funded": 0, "goal": 0, "balance": 0, "count": 0}
+    savings_list = []
     for b in budget_data["budgets"]:
         # Separate savings (tirelire) from spending
         if (b.get("envelope_type") or "spending") == "savings":
@@ -116,6 +117,14 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             savings_summary["goal"] += b.get("budget_amount", 0)
             savings_summary["balance"] += b.get("balance", 0)
             savings_summary["count"] += 1
+            savings_list.append({
+                "id": b.get("id"),
+                "name": b.get("name"),
+                "balance": b.get("balance", 0),
+                "goal": b.get("budget_amount", 0),
+                "percent": b.get("percent", 0),
+                "is_closed": b.get("is_closed", False)
+            })
             continue
 
         p = b.get("period", "monthly")
@@ -165,6 +174,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "total_unreconciled_expenses": total_unreconciled_expenses,
         "budget_summary": period_groups,
         "savings_summary": savings_summary,
+        "savings_details": savings_list,
     }
 
 from pydantic import BaseModel
