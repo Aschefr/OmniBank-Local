@@ -3020,3 +3020,52 @@ input[type="range"]::-moz-range-thumb:hover {
     background: rgba(145, 158, 171, 0.12);
 }
 
+/* ── Budget highlight flash animation ────────────────────────── */
+@keyframes budgetCardHighlight {
+    0% {
+        box-shadow: 0 0 0 2px var(--accent), 0 0 20px rgba(99, 102, 241, 0.45) !important;
+        border-color: var(--accent) !important;
+    }
+    30% {
+        box-shadow: 0 0 0 2px var(--accent), 0 0 20px rgba(99, 102, 241, 0.45) !important;
+        border-color: var(--accent) !important;
+    }
+    100% {
+        box-shadow: none !important;
+    }
+}
+.budget-card-highlight-flash {
+    animation: budgetCardHighlight 3s ease-out forwards !important;
+}
+
+/* ── Budget Cards Styling ────────────────────────────────────── */
+.budget-envelope-card {
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.budget-envelope-card.over-budget {
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.budget-envelope-card.goal-reached {
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+.budget-envelope-card:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+}
+
+.budget-envelope-card.savings:hover {
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
+.budget-envelope-card.over-budget:hover {
+    border-color: rgba(239, 68, 68, 0.6);
+}
+
+
