@@ -1,0 +1,24 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copier les dependances
+COPY requirements.txt .
+COPY package.json .
+COPY latest.json .
+
+# Installer les dependances
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier l'application et les assets statiques
+COPY app/ ./app/
+COPY static/ ./static/
+
+# Declarer le volume pour les donnees persistantes
+VOLUME ["/app/data"]
+
+# Exposer le port
+EXPOSE 8434
+
+# Lancer le serveur (sans --reload pour la prod)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8434"]
