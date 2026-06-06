@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDZkSDBnSWJ1Y0ZvbjZCcVFyZmlacm5hcklrSDVhbkJPSUFTbGJjekJLZlZCTllOVitVRUNSZ0xsbUtIMENXeXU5Qk1tNVo5bnQ0YUMvaElpMkpvUUFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNzI4NTAwCWZpbGU6T21uaUJhbmtfMS4wLjQ4X3g2NF9mci1GUi5tc2kKTVZZTjVOYmlrajNwb251TkVGUnBxcWNxNjlEcUF1MWxXS1k5bm5yVEJuUldjZTZ6dFVmOEMxcW44Qko2YzZMNWNjWkdBWkE4RDV0SjQ0eFVlUTdNQ2c9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.48/OmniBank_1.0.48_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDYyM3ArajdRdFYzSm5PNGEvT1p6Nm5KUmJicnRPWWExWHhRRGluL2pMRW5NbkVUQnk5MGpxWHRxWEhQb3YwZTdETEJTZ0Z1WldaeHZnRnVOOFdPdXdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNzc2ODM5CWZpbGU6T21uaUJhbmtfMS4wLjQ5X3g2NF9mci1GUi5tc2kKMlk2TDc0c2tVOE5XWlJEY3ZsdG5qc2psazVBZ21acHBhKy93eWhLQnJCTE1RK3l2QXVvcFNRN1pLVG1xN3ZBRWtHVllXeVloWjZzdGsxNmZ0ZXZnQ3c9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.49/OmniBank_1.0.49_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-06-06T06:48:20Z",
-    "version":  "1.0.48",
-    "notes":  "Ameliorations visuelles budgets tirelire, couleurs de badges et navigation sidebar"
+    "pub_date":  "2026-06-06T20:13:59Z",
+    "version":  "1.0.49",
+    "notes":  "Ajout de l\u0027image Docker Hub et du template Unraid"
 }

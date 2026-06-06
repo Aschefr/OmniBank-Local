@@ -185,6 +185,19 @@ gh release create "v$Version" $msiPath `
     --title "OmniBank v$Version" `
     --notes $Notes
 
+# --- Step 9: Docker Hub Release ---
+Write-Host "`n[9/9] Building and pushing Docker image..." -ForegroundColor Yellow
+
+docker build -f Dockerfile.standalone -t aschefr/omnibank-local:$Version -t aschefr/omnibank-local:latest .
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Docker build failed" -ForegroundColor Red
+    exit 1
+}
+
+docker push aschefr/omnibank-local:$Version
+docker push aschefr/omnibank-local:latest
+
 Write-Host "`n=== Release v$Version complete! ===" -ForegroundColor Green
 $releaseUrl = "https://github.com/Aschefr/OmniBank-Local/releases/tag/v$Version"
-Write-Host "  $releaseUrl"
+Write-Host "  GitHub: $releaseUrl"
+Write-Host "  Docker: https://hub.docker.com/r/aschefr/omnibank-local"

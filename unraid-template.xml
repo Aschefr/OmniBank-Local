@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Omnibank-local</Name>
+  <Repository>aschefr/omnibank-local:latest</Repository>
+  <Registry>https://hub.docker.com/r/aschefr/omnibank-local</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project/>
+  <Overview>OmniBank-Local est un backend financier conçu initialement pour le desktop, mais adapté pour fonctionner en autonomie sur Unraid via Docker.
+  
+  Notez que les données sont stockées de façon persistante dans le dossier appdata mappé.</Overview>
+  <Category>Tools:Utilities</Category>
+  <WebUI>http://[IP]:[PORT:8434]</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/Aschefr/OmniBank-Local/main/src-tauri/icons/128x128.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="WebUI Port" Target="8434" Default="8434" Mode="tcp" Description="Port d'accès à l'interface web (et à l'API)" Type="Port" Display="always" Required="true" Mask="false">8434</Config>
+  <Config Name="Configuration and Data" Target="/app/data" Default="/mnt/user/appdata/omnibank-local" Mode="rw" Description="Stockage de la base de données et des fichiers uploadés" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/omnibank-local</Config>
+  <Config Name="DATABASE_URL" Target="DATABASE_URL" Default="sqlite:///./data/omnibank.db" Mode="" Description="Configuration interne de la base de données (Ne pas modifier)" Type="Variable" Display="advanced" Required="true" Mask="false">sqlite:///./data/omnibank.db</Config>
+  <Config Name="Timezone" Target="TZ" Default="Europe/Paris" Mode="" Description="Fuseau horaire du conteneur" Type="Variable" Display="advanced" Required="true" Mask="false">Europe/Paris</Config>
+</Container>

@@ -303,6 +303,7 @@ Le script effectue dans l'ordre :
 6. Mise a jour de `latest.json` avec la signature base64
 7. Git commit + tag + push
 8. Creation de la GitHub Release avec upload du MSI
+9. **Nouveau** : Build de l'image Docker (`Dockerfile.standalone`) et push vers Docker Hub (`aschefr/omnibank-local`).
 
 ### Methode manuelle (si le script echoue)
 
