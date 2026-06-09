@@ -24,6 +24,13 @@ async def download_backup(db: Session = Depends(get_db)):
     attachments_dir = os.path.join(DATA_DIR, "uploads")
     
     try:
+        # Checkpoint SQLite WAL pour vider les transactions en cours dans le fichier .db principal
+        try:
+            with engine.connect() as conn:
+                conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+        except Exception:
+            pass
+
         with zipfile.ZipFile(tmp_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             if os.path.exists(db_path):
                 zipf.write(db_path, arcname="omnibank.db")
@@ -73,6 +80,16 @@ async def upload_backup(file: UploadFile = File(...)):
         with zipfile.ZipFile(tmp_path, 'r') as zip_ref:
             if "omnibank.db" not in zip_ref.namelist():
                 raise HTTPException(status_code=400, detail="Le backup ne contient pas omnibank.db.")
+            
+            # Supprimer les fichiers WAL et SHM existants avant extraction pour éviter les conflits
+            for ext in (".db-wal", ".db-shm"):
+                f_path = os.path.join(DATA_DIR, f"omnibank{ext}")
+                if os.path.exists(f_path):
+                    try:
+                        os.remove(f_path)
+                    except Exception:
+                        pass
+
             zip_ref.extractall(DATA_DIR)
             
         return {"ok": True, "message": "Backup restauré avec succès."}

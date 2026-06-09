@@ -23,7 +23,10 @@ def resource_path(relative_path):
 # Create tables if they don't exist + run idempotent migrations
 logger.info(f"[Startup] DATA_DIR = {DATA_DIR}")
 
+from starlette.middleware.gzip import GZipMiddleware
+
 app = FastAPI(title="OmniBank Local")
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # Mount static files from bundled resources
 static_dir = resource_path("static")

@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
-from app.database import DATA_DIR, DB_PATH, SessionLocal
+from app.database import DATA_DIR, DB_PATH, SessionLocal, engine
 from app.models import GlobalConfig
 
 logger = logging.getLogger(__name__)
@@ -124,6 +124,13 @@ def run_backup_now() -> dict:
     filepath = os.path.join(BACKUPS_DIR, filename)
 
     try:
+        # Checkpoint SQLite WAL pour vider les transactions en cours dans le fichier .db principal
+        try:
+            with engine.connect() as conn:
+                conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+        except Exception as checkpoint_err:
+            logger.warning(f"[AutoBackup] Checkpoint WAL échoué : {checkpoint_err}")
+
         with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
             # Base de données
             if os.path.exists(DB_PATH):
