@@ -9,7 +9,7 @@
 
 # 🇫🇷 Français
 
-[![Version](https://img.shields.io/badge/version-1.0.47-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.51-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -111,6 +111,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
+## 🆕 Dernières Mises à Jour (v1.0.51)
+
+*   **⚡ Performance Docker** : Amélioration drastique des performances de l'application sous Docker grâce à l'utilisation de `uvloop` et `httptools` pour le serveur ASGI (Uvicorn), et correction du buffering Nginx pour le flux de streaming SSE en ajoutant l'en-tête `X-Accel-Buffering: no` sur la réponse du chat.
+*   **📱 Affichage Mobile** : Correction de la hauteur du conteneur de l'application en utilisant l'unité `100dvh` (Dynamic Viewport Height) afin de respecter parfaitement la hauteur de l'écran sur les navigateurs mobiles et éviter les barres de défilement ou coupures indésirables.
+*   **🎨 Favicon & Résolution** : Ajout d'un favicon pour la version Web/Docker et utilisation d'une version haute résolution pour l'application Tauri pour éviter l'icône floue dans la barre des tâches Windows.
+
 ## 🆕 Dernières Mises à Jour (v1.0.47)
 
 *   **🤖 Correctif IA — Auto-catégorisation** : Augmentation du timeout de l'API d'auto-catégorisation à 120 secondes dans le backend pour éviter les erreurs de chargement du LLM local (Ollama) lorsque le modèle n'est pas encore en mémoire. Amélioration de l'affichage des erreurs détaillées dans l'interface de saisie en cas d'échec.
@@ -168,7 +174,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.47-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.51-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -269,6 +275,12 @@ Access the interface at `http://localhost:8434`.
 *   **AI**: Ollama (Text & Vision Support).
 
 ---
+
+## 🆕 Recent Updates (v1.0.51)
+
+*   **⚡ Docker Performance**: Drastic performance improvements under Docker by integrating `uvloop` and `httptools` for the ASGI server (Uvicorn), and fixing Nginx buffering for SSE streaming by adding the `X-Accel-Buffering: no` header to the streaming chat response.
+*   **📱 Mobile Display**: Fixed the application container height by using the `100dvh` (Dynamic Viewport Height) unit to correctly fit the screen on mobile browsers, preventing unwanted scrollbars or layout cuts.
+*   **🎨 Favicons & Resolution**: Added a favicon for the Web/Docker version and referenced a high-resolution version in Tauri to avoid blurry icons in the Windows taskbar.
 
 ## 🆕 Recent Updates (v1.0.47)
 
