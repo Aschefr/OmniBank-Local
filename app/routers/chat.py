@@ -255,7 +255,7 @@ async def chat_with_ai(message: ChatMessage, db: Session = Depends(get_db)):
             
         yield "data: [DONE]\n\n"
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return StreamingResponse(generate(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"})
 
 
 class AutoCatRequest(BaseModel):

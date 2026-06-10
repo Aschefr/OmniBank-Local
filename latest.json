@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHl3VWEvZ1NVaGlKQnc5OHQyeXk1WVhHUzJQRld4STI3MUVqTFlUcjdzTmdsTzJwc25abUV4L1N1WlE3c2NEM1c1cHQ0bTZoR3ZFZUJKd1J1UFdjV0E0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxMDM1NTQ3CWZpbGU6T21uaUJhbmtfMS4wLjUwX3g2NF9mci1GUi5tc2kKdWRQOXNUaHlZR1NFSWJvdHQxRFV5VS9SZi83TzljVGIrcThBelhlU3Nkb2Z3Uktpb3hQeDFpRTg4MnAxdXV5TFlrNUI2eXhncVBIN3JmSWIza2tPQkE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.50/OmniBank_1.0.50_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHd6WkhORzFrdlFiVkhpdTBDKzJPU0ZWT1FoanFoQzFaMFJFNldYWlVEUlBYMk9JL3BlcWRvKzRwdFU1WWluZXlEa1Z5dzAvVUErU2JDOHg5UkVwUFFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxMTIyMDIyCWZpbGU6T21uaUJhbmtfMS4wLjUxX3g2NF9mci1GUi5tc2kKbU95ZjlmVEljSXNyNVJRcitiM2EwQVpzL0xYbFRmaFRpRmdzdUFBZzZpL3BGMzJNUldrdFhyaXI4R1pMV3JPSTloYUdBenZJNjdoR1I1QkJRcDZUQlE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.51/OmniBank_1.0.51_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-06-09T20:05:47Z",
-    "version":  "1.0.50",
-    "notes":  "Amélioration majeure des performances : SQLite WAL, GZipMiddleware, et nouvelle image Docker standalone avec Nginx Reverse Proxy."
+    "pub_date":  "2026-06-10T20:07:02Z",
+    "version":  "1.0.51",
+    "notes":  "Performance Docker (uvloop/httptools/SSE buffering), correctif affichage mobile (100dvh) et ajout/résolution favicons (web \u0026 Tauri)"
 }
