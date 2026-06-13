@@ -182,6 +182,9 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
     """Returns spending vs budget for each envelope.
     Supports day-granularity via date_start/date_end (YYYY-MM-DD) or month-level via year/month.
     period_filter: optional, one of 'monthly', 'yearly', 'indefinite', 'custom' to return only that type.
+
+    PERF: Bulk-loads all budgets, categories, allocations, and transactions in a small
+    number of SQL queries, then aggregates in Python memory — O(1) queries instead of O(N×M).
     """
     today = date.today()
     y = year or today.year
@@ -199,6 +202,7 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
         except HTTPException:
             pass  # Dates invalides = pas de filtre custom (fallback mensuel)
 
+    # ── 1. Bulk-load budgets ──────────────────────────────────────────────────
     q = db.query(Budget).filter(Budget.is_closed == False)
     if period_filter:
         if period_filter == "custom":
@@ -210,27 +214,71 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
         elif period_filter == "monthly":
             q = q.filter(Budget.period.in_(["monthly", None]))
     budgets = q.all()
+    if not budgets:
+        return {"year": y, "month": m, "budgets": []}
+
+    budget_ids = [b.id for b in budgets]
+
+    # ── 2. Bulk-load categories (1 query) ─────────────────────────────────────
+    all_cats = db.query(BudgetCategory).filter(BudgetCategory.budget_id.in_(budget_ids)).all()
+    cats_by_budget = {}
+    for c in all_cats:
+        cats_by_budget.setdefault(c.budget_id, []).append(c.category_name)
+
+    # ── 3. Bulk-load allocations for savings envelopes (1 query) ──────────────
+    savings_budget_ids = [b.id for b in budgets if (b.envelope_type or "spending") == "savings"]
+    allocs_by_budget = {}
+    if savings_budget_ids:
+        all_allocs = db.query(BudgetAllocation).filter(BudgetAllocation.budget_id.in_(savings_budget_ids)).all()
+        for a in all_allocs:
+            allocs_by_budget.setdefault(a.budget_id, []).append(a)
+
+    # ── 4. Bulk-load transactions ─────────────────────────────────────────────
+    # We load ALL transactions that could match ANY budget, using the widest
+    # possible filter.  This is at most 2 queries:
+    #   A) budget_id-linked transactions (for savings + project envelopes)
+    #   B) category-based transactions (for spending envelopes)
+
+    # (A) Transactions linked by budget_id (savings + project)
+    budget_id_linked_ids = [b.id for b in budgets
+                           if (b.envelope_type or "spending") == "savings" or b.is_project]
+    txs_by_budget_id = {}
+    if budget_id_linked_ids:
+        linked_txs = db.query(Transaction).filter(Transaction.budget_id.in_(budget_id_linked_ids)).all()
+        for tx in linked_txs:
+            txs_by_budget_id.setdefault(tx.budget_id, []).append(tx)
+
+    # (B) Category-based transactions (for spending envelopes: indefinite, custom, yearly, monthly)
+    # Load them ALL in one query — the broadest superset we might need.
+    spending_budgets = [b for b in budgets
+                       if (b.envelope_type or "spending") != "savings" and not b.is_project]
+    all_category_txs = []
+    if spending_budgets:
+        all_category_txs = db.query(Transaction).filter(
+            Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
+        ).all()
+
+    # ── 5. Process each budget in memory ──────────────────────────────────────
     result = []
 
     for b in budgets:
-        cats = [c.category_name for c in db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all()]
+        cats = cats_by_budget.get(b.id, [])
         acc_ids = _parse_account_ids(b.account_ids)  # Improvement_04
+        acc_ids_set = set(acc_ids) if acc_ids else None
+
+        def _match_account(tx):
+            if not acc_ids_set:
+                return True
+            return (tx.from_account_id in acc_ids_set or tx.to_account_id in acc_ids_set)
 
         expenses = 0.0
         income = 0.0
         reconciled_expenses = 0.0
         reconciled_income = 0.0
 
-        def _match_account(tx):
-            """Check if transaction involves any of the budget's scoped accounts."""
-            if not acc_ids:
-                return True  # No account filter = global
-            return (tx.from_account_id in acc_ids or tx.to_account_id in acc_ids)
-
         # ── Tirelire (savings) mode: track via budget_id + manual allocations ──
         if (b.envelope_type or "spending") == "savings":
-            txs = db.query(Transaction).filter(Transaction.budget_id == b.id).all()
-            for tx in txs:
+            for tx in txs_by_budget_id.get(b.id, []):
                 if not _match_account(tx):
                     continue
                 if tx.type == "income":
@@ -242,8 +290,8 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
 
-            # Manual allocations
-            allocs = db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == b.id).all()
+            # Manual allocations (from bulk-loaded data)
+            allocs = allocs_by_budget.get(b.id, [])
             alloc_deposits = sum(a.amount for a in allocs if a.amount > 0)
             alloc_withdrawals = sum(abs(a.amount) for a in allocs if a.amount < 0)
 
@@ -280,9 +328,9 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
             })
             continue
 
+        # ── Project envelopes: track via budget_id ──
         if b.is_project:
-            txs = db.query(Transaction).filter(Transaction.budget_id == b.id).all()
-            for tx in txs:
+            for tx in txs_by_budget_id.get(b.id, []):
                 if not _match_account(tx):
                     continue
                 if tx.type == "income":
@@ -293,14 +341,14 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     expenses += abs(tx.amount)
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
+
+        # ── Category-based spending envelopes: filter from pre-loaded transactions ──
         elif b.period == "indefinite":
-            txs_all = db.query(Transaction).filter(
-                Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
-            ).all()
-            for tx in txs_all:
+            cats_set = set(cats) if cats else None
+            for tx in all_category_txs:
                 if not _match_account(tx):
                     continue
-                if cats and (tx.category or "Sans catégorie") not in cats:
+                if cats_set and (tx.category or "Sans catégorie") not in cats_set:
                     continue
                 if tx.type == "income":
                     income += abs(tx.amount)
@@ -311,15 +359,13 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
         elif b.period == "custom" and b.start_date and b.end_date:
-            txs_custom = db.query(Transaction).filter(
-                Transaction.date_operation >= b.start_date,
-                Transaction.date_operation <= b.end_date,
-                Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
-            ).all()
-            for tx in txs_custom:
+            cats_set = set(cats) if cats else None
+            for tx in all_category_txs:
+                if tx.date_operation < b.start_date or tx.date_operation > b.end_date:
+                    continue
                 if not _match_account(tx):
                     continue
-                if cats and (tx.category or "Sans catégorie") not in cats:
+                if cats_set and (tx.category or "Sans catégorie") not in cats_set:
                     continue
                 if tx.type == "income":
                     income += abs(tx.amount)
@@ -330,14 +376,13 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
         elif b.period == "yearly":
-            txs_yearly = db.query(Transaction).filter(
-                extract('year', Transaction.date_operation) == y,
-                Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
-            ).all()
-            for tx in txs_yearly:
+            cats_set = set(cats) if cats else None
+            for tx in all_category_txs:
+                if tx.date_operation.year != y:
+                    continue
                 if not _match_account(tx):
                     continue
-                if cats and (tx.category or "Sans catégorie") not in cats:
+                if cats_set and (tx.category or "Sans catégorie") not in cats_set:
                     continue
                 if tx.type == "income":
                     income += abs(tx.amount)
@@ -348,15 +393,13 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
         elif custom_start and custom_end:
-            txs = db.query(Transaction).filter(
-                Transaction.date_operation >= custom_start,
-                Transaction.date_operation <= custom_end,
-                Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
-            ).all()
-            for tx in txs:
+            cats_set = set(cats) if cats else None
+            for tx in all_category_txs:
+                if tx.date_operation < custom_start or tx.date_operation > custom_end:
+                    continue
                 if not _match_account(tx):
                     continue
-                if cats and (tx.category or "Sans catégorie") not in cats:
+                if cats_set and (tx.category or "Sans catégorie") not in cats_set:
                     continue
                 if tx.type == "income":
                     income += abs(tx.amount)
@@ -367,15 +410,14 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
         else:
-            txs = db.query(Transaction).filter(
-                extract('year', Transaction.date_operation) == y,
-                extract('month', Transaction.date_operation) == m,
-                Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
-            ).all()
-            for tx in txs:
+            # Default: monthly
+            cats_set = set(cats) if cats else None
+            for tx in all_category_txs:
+                if tx.date_operation.year != y or tx.date_operation.month != m:
+                    continue
                 if not _match_account(tx):
                     continue
-                if cats and (tx.category or "Sans catégorie") not in cats:
+                if cats_set and (tx.category or "Sans catégorie") not in cats_set:
                     continue
                 if tx.type == "income":
                     income += abs(tx.amount)

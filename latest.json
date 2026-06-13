@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHd6WkhORzFrdlFiVkhpdTBDKzJPU0ZWT1FoanFoQzFaMFJFNldYWlVEUlBYMk9JL3BlcWRvKzRwdFU1WWluZXlEa1Z5dzAvVUErU2JDOHg5UkVwUFFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxMTIyMDIyCWZpbGU6T21uaUJhbmtfMS4wLjUxX3g2NF9mci1GUi5tc2kKbU95ZjlmVEljSXNyNVJRcitiM2EwQVpzL0xYbFRmaFRpRmdzdUFBZzZpL3BGMzJNUldrdFhyaXI4R1pMV3JPSTloYUdBenZJNjdoR1I1QkJRcDZUQlE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.51/OmniBank_1.0.51_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC90OHF1NXo2UnlmV2Vja1hsWlBGRWhxQWE1ZnF0aFNyQjRKR1BQTUswNVFSRVdmUUg2UGlOS2dTSG9rWVBOQmxMb1IxRzFMaTIwV3htTWdDeEtoc3cwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxMzM4MDc0CWZpbGU6T21uaUJhbmtfMS4wLjUyX3g2NF9mci1GUi5tc2kKaW5QaCt2c0JnL2FUVXdDTDRpMnhnem9wQU9wUnZnMUx2Q3ZiMmxGWnNZT1Z3TUFqdVZlcjhRaEhFNG5WNk9NT0hkTmpMM0FXaUw3ZzB6MEgrU2dKQ0E9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.52/OmniBank_1.0.52_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-06-10T20:07:02Z",
-    "version":  "1.0.51",
-    "notes":  "Performance Docker (uvloop/httptools/SSE buffering), correctif affichage mobile (100dvh) et ajout/résolution favicons (web \u0026 Tauri)"
+    "pub_date":  "2026-06-13T08:07:55Z",
+    "version":  "1.0.52",
+    "notes":  "Optimisation des performances des actions sur les opérations (rapprochements, ajouts, suppressions) en Docker/Local via parallélisation et requêtes de groupe."
 }

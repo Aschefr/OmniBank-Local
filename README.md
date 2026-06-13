@@ -7,13 +7,11 @@
 
 ---
 
-# 🇫🇷 Français
-
-[![Version](https://img.shields.io/badge/version-1.0.51-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫�[![Version](https://img.shields.io/badge/version-1.0.52-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
-**OmniBank Local** est une solution de gestion de finances personnelles et associatives ultra-privée, conçue pour ceux qui exigent un contrôle total sur leurs données. Alliant la puissance d'un tableur à l'intelligence d'une IA locale, elle transforme votre gestion financière en une expérience fluide et sécurisée.
+**OmniBank Local** est une solution de gestion de finances personnelles et associatives ultra-privée, conçue pour ceux qui exigent un contrôle total sur vos données. Alliant la puissance d'un tableur à l'intelligence d'une IA locale, elle transforme votre gestion financière en une expérience fluide et sécurisée.
 
 ![Dashboard Overview](screenshots/02_dashboard.png)
 
@@ -106,6 +104,17 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 *   **Backend** : Python (FastAPI), SQLAlchemy, Pandas.
 *   **Frontend** : HTML5/CSS3 (Vanilla), JavaScript, Chart.js.
+*   **Desktop** : Tauri (Wrapper Rust).
+*   **IA** : Ollama (Support Texte & Vision).
+
+---
+
+## 🆕 Dernières Mises à Jour (v1.0.52)
+
+*   **⚡ Performance des Actions & Rapprochements** : Parallélisation complète des appels d'API front-end dépendants (`refreshSidebar` et `loadData`) via `Promise.all` pour éliminer le délai visible lors des opérations (ajout, suppression, rapprochement). Optimisation SQL backend ($O(N)$ vers $O(1)$) sur `get_budget_status` et `predict_next_paycheck` avec chargements en lot.
+*   **💾 Optimisation SQLite** : Activation des PRAGMAs de performance (`cache_size`, `mmap_size`, `temp_store`) pour un traitement ultra-rapide des données en mémoire RAM sous Docker.
+
+## 🆕 Dernières Mises à Jour (v1.0.51)*Frontend** : HTML5/CSS3 (Vanilla), JavaScript, Chart.js.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 

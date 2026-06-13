@@ -356,7 +356,11 @@ class App {
 
     async refreshSidebar() {
         try {
-            const accounts = await API.get('/api/stats/accounts');
+            // PERF: Fetch accounts and dashboard stats in parallel
+            const [accounts, stats] = await Promise.all([
+                API.get('/api/stats/accounts'),
+                API.get('/api/stats/dashboard')
+            ]);
             this.accounts = accounts;
             const list = document.getElementById('accountsList');
             list.innerHTML = '';
@@ -368,7 +372,6 @@ class App {
                 list.appendChild(div);
             });
 
-            const stats = await API.get('/api/stats/dashboard');
             this.isPayValidated = stats.is_pay_validated;
             this.validatedPayDate = stats.validated_pay_date;
             document.getElementById('valNetWorth').textContent = formatCurrency(stats.net_worth);

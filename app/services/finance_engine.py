@@ -184,6 +184,22 @@ def predict_next_paycheck(db: Session):
     override_date_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_date").first()
     override_amount_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_amount").first()
     override_period_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_period").first()
+
+    # PERF: Bulk-load all reconciled income transactions for the past ~14 months
+    # instead of querying 13 times individually in the loop below.
+    lookback_date = date(today.year if today.month > 1 else today.year - 1,
+                         today.month - 1 if today.month > 1 else 12, 1)
+    # Go back 14 months to cover the full window
+    for _ in range(13):
+        if lookback_date.month == 1:
+            lookback_date = lookback_date.replace(year=lookback_date.year - 1, month=12)
+        else:
+            lookback_date = lookback_date.replace(month=lookback_date.month - 1)
+    all_incomes = db.query(Transaction).filter(
+        Transaction.type == "income",
+        Transaction.date_operation >= lookback_date,
+        Transaction.reconciliation_date.isnot(None)
+    ).all()
         
     for i in range(0, 13):
         # Go back i months
@@ -233,23 +249,22 @@ def predict_next_paycheck(db: Session):
             })
             continue # Skip normal DB lookup for this month
             
-        # Find largest Recettes in this window
-        largest_income = db.query(Transaction).filter(
-            Transaction.type == "income",
-            Transaction.date_operation >= window_start,
-            Transaction.date_operation <= window_end,
-            Transaction.reconciliation_date.isnot(None)
-        ).order_by(Transaction.amount.desc()).first()
+        # Find largest Recettes in this window from pre-loaded data
+        best_income = None
+        for tx in all_incomes:
+            if window_start <= tx.date_operation <= window_end:
+                if best_income is None or tx.amount > best_income.amount:
+                    best_income = tx
         
-        if largest_income:
+        if best_income:
             if i == 0:
                 current_month_received = True
-            historical_amounts.append(largest_income.amount)
-            historical_days.append(largest_income.date_operation.day)
+            historical_amounts.append(best_income.amount)
+            historical_days.append(best_income.date_operation.day)
             history_records.append({
-                "date": largest_income.date_operation.isoformat(),
-                "amount": largest_income.amount,
-                "description": largest_income.description,
+                "date": best_income.date_operation.isoformat(),
+                "amount": best_income.amount,
+                "description": best_income.description,
                 "logical_period": period_str
             })
         elif val_period and val_period.value == period_str:
