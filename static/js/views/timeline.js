@@ -400,8 +400,12 @@ window.TimelineView = {
 
     async loadData() {
         try {
-            // Get all operations and filter in JS
-            const allTransactions = await API.get('/api/transactions/?limit=10000');
+            // PERF: Fetch transactions, budgets, and dashboard stats in parallel
+            const [allTransactions, budgets, stats] = await Promise.all([
+                API.get('/api/transactions/?limit=10000'),
+                API.get('/api/budgets/').catch(e => { console.error('Failed to load budgets', e); return []; }),
+                API.get('/api/stats/dashboard').catch(e => { console.error('Failed to load paycheck stats', e); return null; })
+            ]);
             
             // Keep all transactions, filtering will be done in renderTable
             this.transactions = allTransactions;
@@ -427,25 +431,18 @@ window.TimelineView = {
                 }
             }
 
-            // Load budgets map for the budget column
-            try {
-                const budgets = await API.get('/api/budgets/');
-                this.budgetsMap = {};
-                this.categoryToBudgetMap = {}; // category name → budget name (for category-based envelopes)
-                budgets.forEach(b => {
-                    this.budgetsMap[b.id] = b.name;
-                    // For category-based budgets, map each category to the budget name
-                    if (!b.is_project && b.categories) {
-                        b.categories.forEach(cat => { this.categoryToBudgetMap[cat] = b.name; });
-                    }
-                });
-            } catch(e) { this.budgetsMap = {}; this.categoryToBudgetMap = {}; }
+            // Process budgets map for the budget column
+            this.budgetsMap = {};
+            this.categoryToBudgetMap = {};
+            budgets.forEach(b => {
+                this.budgetsMap[b.id] = b.name;
+                if (!b.is_project && b.categories) {
+                    b.categories.forEach(cat => { this.categoryToBudgetMap[cat] = b.name; });
+                }
+            });
 
-            // Load dashboard stats for paycheck widget
-            try {
-                const stats = await API.get('/api/stats/dashboard');
-                this.renderPaycheckWidget(stats);
-            } catch(e) { console.error("Failed to load paycheck stats", e); }
+            // Render paycheck widget from dashboard stats
+            if (stats) this.renderPaycheckWidget(stats);
 
             this.renderTable();
 
@@ -784,8 +781,8 @@ window.TimelineView = {
         try {
             await API.post(`/api/transactions/${id}/toggle_reconciliation`);
             this._pendingHighlightTxId = id;
-            await window.app.refreshSidebar();
-            await this.loadData();
+            // PERF: Refresh sidebar and reload data in parallel
+            await Promise.all([window.app.refreshSidebar(), this.loadData()]);
         } catch (e) {
             console.error(e);
         }
@@ -795,8 +792,8 @@ window.TimelineView = {
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.t('confirm_delete_operation'))) {
             try {
                 await API.del(`/api/transactions/${id}`);
-                await window.app.refreshSidebar();
-                await this.loadData();
+                // PERF: Refresh sidebar and reload data in parallel
+                await Promise.all([window.app.refreshSidebar(), this.loadData()]);
             } catch (e) {
                 console.error(e);
             }

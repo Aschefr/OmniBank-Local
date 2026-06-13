@@ -113,9 +113,11 @@ window.FormView = {
             this.lastSavedId = null;
             const undoBtn = document.getElementById('op_undo_last_btn');
             if (undoBtn) undoBtn.style.display = 'none';
-            await window.app.refreshSidebar();
-            if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) await window.TimelineView.loadData();
-            if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) await window.AllOperationsView.loadData();
+            // PERF: Refresh sidebar and reload view data in parallel
+            const refreshPromises = [window.app.refreshSidebar()];
+            if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) refreshPromises.push(window.TimelineView.loadData());
+            if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) refreshPromises.push(window.AllOperationsView.loadData());
+            await Promise.all(refreshPromises);
             showToast(window.i18n.t('form_undo_done') || 'Derni\u00e8re saisie supprim\u00e9e', 'success');
         } catch(e) {
             showInlineMessage(window.i18n.t('title_error'), e.message);
@@ -775,17 +777,18 @@ window.FormView = {
             // Reload descriptions on save
             this.loadDescriptions();
 
-            await window.app.refreshSidebar();
-
+            // PERF: Refresh sidebar and reload view data in parallel
+            const refreshPromises = [window.app.refreshSidebar()];
             if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) {
-                await window.TimelineView.loadData();
+                refreshPromises.push(window.TimelineView.loadData());
             }
             if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) {
-                await window.AllOperationsView.loadData();
+                refreshPromises.push(window.AllOperationsView.loadData());
             }
             if (window.app.currentView === 'recurrences' && window.RecurrenceView.loadData) {
-                await window.RecurrenceView.loadData();
+                refreshPromises.push(window.RecurrenceView.loadData());
             }
+            await Promise.all(refreshPromises);
 
 
         } catch (e) {

@@ -192,28 +192,28 @@ window.AllOperationsView = {
 
     async loadData() {
         try {
-            // Load budgets map for the budget column
-            try {
-                const budgets = await API.get('/api/budgets/');
-                this.budgetsMap = {};
-                this.categoryToBudgetMap = {}; // category name → budget name (for category-based envelopes)
-                budgets.forEach(b => {
-                    this.budgetsMap[b.id] = b.name;
-                    // For category-based budgets, map each category to the budget name
-                    if (!b.is_project && b.categories) {
-                        b.categories.forEach(cat => { this.categoryToBudgetMap[cat] = b.name; });
-                    }
-                });
-            } catch(e) { this.budgetsMap = {}; this.categoryToBudgetMap = {}; }
+            // PERF: Fetch budgets, accounts, and transactions in parallel
+            const [budgets, accs, allTx] = await Promise.all([
+                API.get('/api/budgets/').catch(e => { console.error('Failed to load budgets', e); return []; }),
+                API.get('/api/accounts/'),
+                API.get('/api/transactions/?limit=10000')
+            ]);
 
-            // Load accounts to map IDs to full objects (name + color)
-            const accs = await API.get('/api/accounts/');
+            // Process budgets map
+            this.budgetsMap = {};
+            this.categoryToBudgetMap = {};
+            budgets.forEach(b => {
+                this.budgetsMap[b.id] = b.name;
+                if (!b.is_project && b.categories) {
+                    b.categories.forEach(cat => { this.categoryToBudgetMap[cat] = b.name; });
+                }
+            });
+
+            // Process accounts
             this.accounts = {};
             this.accountNames = {};
             accs.forEach(a => { this.accounts[a.id] = a; this.accountNames[a.id] = a.name; });
 
-            // Get all operations
-            const allTx = await API.get('/api/transactions/?limit=10000');
             // Sort by operation date descending (newest first)
             this.transactions = allTx.sort((a, b) => new Date(b.date_operation) - new Date(a.date_operation));
             
@@ -471,8 +471,8 @@ window.AllOperationsView = {
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.t('confirm_delete_operation'))) {
             try {
                 await API.del(`/api/transactions/${id}`);
-                await window.app.refreshSidebar();
-                await this.loadData();
+                // PERF: Refresh sidebar and reload data in parallel
+                await Promise.all([window.app.refreshSidebar(), this.loadData()]);
             } catch (e) {
                 console.error(e);
             }
