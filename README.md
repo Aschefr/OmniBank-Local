@@ -114,12 +114,6 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **⚡ Performance des Actions & Rapprochements** : Parallélisation complète des appels d'API front-end dépendants (`refreshSidebar` et `loadData`) via `Promise.all` pour éliminer le délai visible lors des opérations (ajout, suppression, rapprochement). Optimisation SQL backend ($O(N)$ vers $O(1)$) sur `get_budget_status` et `predict_next_paycheck` avec chargements en lot.
 *   **💾 Optimisation SQLite** : Activation des PRAGMAs de performance (`cache_size`, `mmap_size`, `temp_store`) pour un traitement ultra-rapide des données en mémoire RAM sous Docker.
 
-## 🆕 Dernières Mises à Jour (v1.0.51)*Frontend** : HTML5/CSS3 (Vanilla), JavaScript, Chart.js.
-*   **Desktop** : Tauri (Wrapper Rust).
-*   **IA** : Ollama (Support Texte & Vision).
-
----
-
 ## 🆕 Dernières Mises à Jour (v1.0.51)
 
 *   **⚡ Performance Docker** : Amélioration drastique des performances de l'application sous Docker grâce à l'utilisation de `uvloop` et `httptools` pour le serveur ASGI (Uvicorn), et correction du buffering Nginx pour le flux de streaming SSE en ajoutant l'en-tête `X-Accel-Buffering: no` sur la réponse du chat.
@@ -183,7 +177,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.51-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.52-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -284,6 +278,11 @@ Access the interface at `http://localhost:8434`.
 *   **AI**: Ollama (Text & Vision Support).
 
 ---
+
+## 🆕 Recent Updates (v1.0.52)
+
+*   **⚡ Actions & Reconciliation Performance**: Complete parallelization of dependent front-end API calls (`refreshSidebar` and `loadData`) using `Promise.all` to eliminate visible delays during operations (add, delete, reconcile). SQL backend optimization ($O(N)$ to $O(1)$) on `get_budget_status` and `predict_next_paycheck` using batch loading.
+*   **💾 SQLite Optimization**: Activation of performance PRAGMAs (`cache_size`, `mmap_size`, `temp_store`) for ultra-fast data processing in RAM under Docker.
 
 ## 🆕 Recent Updates (v1.0.51)
 
