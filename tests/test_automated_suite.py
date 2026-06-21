@@ -190,7 +190,14 @@ def test_categories_cascade():
 # ==============================================================================
 # TEST 4: Recurrences - generate_to_end_of_year with/without template_id and de-duplication
 # ==============================================================================
-def test_recurrences_generation_and_deduplication():
+def test_recurrences_generation_and_deduplication(monkeypatch):
+    from datetime import date
+    class MockDate(date):
+        @classmethod
+        def today(cls):
+            return date(2026, 5, 29)
+    monkeypatch.setattr("app.routers.recurrences.date", MockDate)
+
     # Call generate_to_end_of_year with a template_id (Template 1: Loyer mensuel, 600€)
     # This should only generate instances for Template 1
     res = client.post("/api/recurrences/generate_to_end_of_year?template_id=1")

@@ -12,8 +12,13 @@ from app.models import GlobalConfig
 
 router = APIRouter(prefix="/api/license", tags=["license"])
 
-# ── HMAC secret (loaded from gitignored module) ─────────────────────
-from app._license_secret import SECRET as _SECRET
+# ── HMAC secret (loaded from gitignored module or fallback) ─────────
+import os
+try:
+    from app._license_secret import SECRET as _SECRET
+except ImportError:
+    _SECRET = os.getenv("OMNIBANK_LICENSE_SECRET", "OmniBankLicenseKey2026").encode("utf-8")
+
 
 
 def _generate_key(email: str) -> str:
