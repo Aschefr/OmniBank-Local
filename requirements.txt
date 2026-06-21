@@ -12,3 +12,4 @@ pydantic-settings
 python-dateutil
 pytest
 openpyxl
+cryptography

@@ -12,28 +12,31 @@ from app.models import GlobalConfig
 
 router = APIRouter(prefix="/api/license", tags=["license"])
 
-# ── HMAC secret (loaded from gitignored module or fallback) ─────────
-import os
-try:
-    from app._license_secret import SECRET as _SECRET
-except ImportError:
-    _SECRET = os.getenv("OMNIBANK_LICENSE_SECRET", "OmniBankLicenseKey2026").encode("utf-8")
+# ── Ed25519 Public Key (Base64) ──────────────────────────────────────
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from cryptography.exceptions import InvalidSignature
 
-
-
-def _generate_key(email: str) -> str:
-    """Generate a short license key from an email using HMAC-SHA256."""
-    normalized = email.strip().lower()
-    digest = hmac.new(_SECRET, normalized.encode("utf-8"), hashlib.sha256).digest()
-    # Take first 9 bytes → 72 bits → base32 = 15 chars, split into 3 groups of 5
-    short = base64.b32encode(digest[:9]).decode("ascii").rstrip("=")[:15]
-    return f"OMNI-{short[:5]}-{short[5:10]}-{short[10:15]}"
-
+PUBLIC_KEY_B64 = "rlAgxcf0MapA13+WZi5CpGg42HhjTth/O40yV5qTxgY="
 
 def verify_key(email: str, key: str) -> bool:
-    """Verify a license key matches the email."""
-    expected = _generate_key(email)
-    return hmac.compare_digest(expected.upper(), key.strip().upper())
+    """Verify a license key matches the email using Ed25519 signature validation."""
+    try:
+        # Load raw public key from Base64
+        pub_bytes = base64.b64decode(PUBLIC_KEY_B64)
+        public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
+        
+        # Decode the license key (signature) from Base64
+        signature = base64.b64decode(key.strip())
+        
+        # Normalize email
+        normalized = email.strip().lower().encode("utf-8")
+        
+        # Verify the signature
+        public_key.verify(signature, normalized)
+        return True
+    except Exception:
+        return False
+
 
 
 # ── Schemas ──────────────────────────────────────────────────────────
@@ -48,8 +51,13 @@ def license_status(db: Session = Depends(get_db)):
     """Return current license status."""
     key_row = db.query(GlobalConfig).filter(GlobalConfig.key == "license_key").first()
     email_row = db.query(GlobalConfig).filter(GlobalConfig.key == "license_email").first()
-    if key_row and email_row and verify_key(email_row.value, key_row.value):
-        return {"active": True, "email": email_row.value}
+    if key_row and email_row:
+        # Passive migration: if the stored key is an old OMNI- key, we trust it as active
+        if key_row.value.startswith("OMNI-"):
+            return {"active": True, "email": email_row.value}
+        # Otherwise, verify it via Ed25519
+        if verify_key(email_row.value, key_row.value):
+            return {"active": True, "email": email_row.value}
     return {"active": False, "email": None}
 
 
@@ -59,11 +67,18 @@ def activate_license(req: LicenseActivateRequest, db: Session = Depends(get_db))
     if not req.email or not req.key:
         raise HTTPException(status_code=400, detail="Email et clé requis")
 
+    if req.key.strip().startswith("OMNI-"):
+        raise HTTPException(
+            status_code=400, 
+            detail="Les anciennes clés (OMNI-) ne sont plus acceptées pour les nouvelles activations. Veuillez demander une nouvelle clé."
+        )
+
     if not verify_key(req.email, req.key):
         raise HTTPException(status_code=403, detail="Clé de licence invalide")
 
-    # Store in GlobalConfig (persistent across updates)
-    for k, v in [("license_key", req.key.strip().upper()), ("license_email", req.email.strip().lower())]:
+    # Store in GlobalConfig (persistent across updates).
+    # NOTE: We do NOT uppercase the key as Ed25519 base64 is case-sensitive!
+    for k, v in [("license_key", req.key.strip()), ("license_email", req.email.strip().lower())]:
         row = db.query(GlobalConfig).filter(GlobalConfig.key == k).first()
         if row:
             row.value = v
