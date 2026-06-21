@@ -50,6 +50,7 @@ src-tauri/.tauri-private-key
 
 # Sensitive tools (NEVER commit)
 tools/license_generator*
+tools/*.pem
 app/_license_secret.py
 debug_raw.json
 

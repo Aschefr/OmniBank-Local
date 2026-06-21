@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC90OHF1NXo2UnlmV2Vja1hsWlBGRWhxQWE1ZnF0aFNyQjRKR1BQTUswNVFSRVdmUUg2UGlOS2dTSG9rWVBOQmxMb1IxRzFMaTIwV3htTWdDeEtoc3cwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxMzM4MDc0CWZpbGU6T21uaUJhbmtfMS4wLjUyX3g2NF9mci1GUi5tc2kKaW5QaCt2c0JnL2FUVXdDTDRpMnhnem9wQU9wUnZnMUx2Q3ZiMmxGWnNZT1Z3TUFqdVZlcjhRaEhFNG5WNk9NT0hkTmpMM0FXaUw3ZzB6MEgrU2dKQ0E9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.52/OmniBank_1.0.52_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHo4UWYxUysyeGhQZFBQNzJyQ1FvS1NPcGxsZ2FVNU1kTGlDYUdLMU9ZUkNsU0lPMitVWWdiNkdxNjZXNnkvV1NGVy9lLytadTVwTk0wQ3R5MTIzb3djPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMDI5NDY5CWZpbGU6T21uaUJhbmtfMS4wLjUzX3g2NF9mci1GUi5tc2kKS2hvZTJibnZrckZqbDJPcWdJbkkyaDhUM0ovNnNqc0FFTlBMc05iRFU1eTZ5L2RucjhudDkrdzBxNGg3TDk0UUVuUDNmcG42VmI0bFFudldzQllEQmc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.53/OmniBank_1.0.53_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-06-13T08:07:55Z",
-    "version":  "1.0.52",
-    "notes":  "Optimisation des performances des actions sur les opérations (rapprochements, ajouts, suppressions) en Docker/Local via parallélisation et requêtes de groupe."
+    "pub_date":  "2026-06-21T08:11:09Z",
+    "version":  "1.0.53",
+    "notes":  "Passage a la licence asymetrique Ed25519"
 }

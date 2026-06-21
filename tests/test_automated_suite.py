@@ -716,6 +716,63 @@ def test_obsolete_orphan_recurrences():
         assert client.get(f"/api/transactions/{oid}").status_code == 404
 
 
+# ==============================================================================
+# TEST 14: License Validation (Ed25519 & Passive Migration)
+# ==============================================================================
+def test_license_validation_flow():
+    # 1. Initially status is inactive
+    res = client.get("/api/license/status")
+    assert res.status_code == 200
+    assert res.json() == {"active": False, "email": None}
+
+    # 2. Try activation with invalid email/key format
+    res = client.post("/api/license/activate", json={"email": "", "key": ""})
+    assert res.status_code == 400
+
+    # 3. Try activation with old OMNI- key (should be rejected)
+    res = client.post("/api/license/activate", json={"email": "test@example.com", "key": "OMNI-12345-67890-12345"})
+    assert res.status_code == 400
+    assert "Les anciennes clés (OMNI-) ne sont plus acceptées" in res.json()["detail"]
+
+    # 4. Try activation with invalid Ed25519 signature
+    res = client.post("/api/license/activate", json={"email": "test@example.com", "key": "invalidbase64signature=="})
+    assert res.status_code == 403
+
+    # 5. Activate with valid Ed25519 signature (pre-generated for test@example.com)
+    # Public key: rlAgxcf0MapA13+WZi5CpGg42HhjTth/O40yV5qTxgY=
+    valid_key = "zuQ9Y6lxxTsi1hOJgjoi/P3RX1F1lf+NWHXOuspxBo3kxaUw/RZs4ksxv0eU40FLTe90CpIRDDKGxfJzpEXbAA=="
+    res = client.post("/api/license/activate", json={"email": "test@example.com", "key": valid_key})
+    assert res.status_code == 200
+    assert res.json() == {"active": True, "email": "test@example.com"}
+
+    # 6. Verify status is active
+    res = client.get("/api/license/status")
+    assert res.status_code == 200
+    assert res.json() == {"active": True, "email": "test@example.com"}
+
+    # 7. Deactivate
+    res = client.post("/api/license/deactivate")
+    assert res.status_code == 200
+    assert res.json() == {"active": False}
+    
+    # 8. Verify status is inactive again
+    res = client.get("/api/license/status")
+    assert res.json() == {"active": False, "email": None}
+
+    # 9. Test Passive Migration: directly insert an old OMNI- key into the database
+    db = TestingSessionLocal()
+    from app.models import GlobalConfig
+    db.add(GlobalConfig(key="license_key", value="OMNI-LEGACY-KEY"))
+    db.add(GlobalConfig(key="license_email", value="legacy@example.com"))
+    db.commit()
+    db.close()
+
+    # Verify status is active due to passive migration
+    res = client.get("/api/license/status")
+    assert res.status_code == 200
+    assert res.json() == {"active": True, "email": "legacy@example.com"}
+
+
 if __name__ == "__main__":
     build_test_db(engine)
     test_payday_and_dashboard_forcing()
@@ -725,5 +782,4 @@ if __name__ == "__main__":
     test_paycheck_override_reset_fallback()
     test_orphan_recurrences_cleanup_logic()
     test_obsolete_orphan_recurrences()
-
-
+    test_license_validation_flow()
