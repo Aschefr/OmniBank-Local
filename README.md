@@ -350,7 +350,10 @@ Access the interface at `http://localhost:8434`.
 3. `pip install -r requirements.txt`
 4. `uvicorn app.main:app --host 127.0.0.1 --port 8434 --reload`
 
----
+## 📝 Licence / License
 
-## 📝 License
-© 2026 Amify Studio — All rights reserved.
+Ce projet est disponible en accès partagé (**Source-Available**) sous la licence propriétaire d'Amify Studio.
+
+* **Usage Personnel / Personal Use** : Gratuit et autorisé pour un usage strictement individuel et privé. / Free and permitted for strictly individual and private use.
+* **Usage Organisation / Organizational Use** : L'utilisation collective, par une association (Loi 1901, CSE) ou une entreprise (y compris l'activation du "Mode Organisation") requiert l'acquisition d'une clé de licence commerciale. / Any group, non-profit, or corporate use (including enabling "Organisation Mode") requires a commercial license key.
+* **Détails / Details** : Voir le fichier [LICENSE](LICENSE) pour les termes complets. / See the [LICENSE](LICENSE) file for full terms.
