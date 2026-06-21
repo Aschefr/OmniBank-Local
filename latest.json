@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHo4UWYxUysyeGhQZFBQNzJyQ1FvS1NPcGxsZ2FVNU1kTGlDYUdLMU9ZUkNsU0lPMitVWWdiNkdxNjZXNnkvV1NGVy9lLytadTVwTk0wQ3R5MTIzb3djPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMDI5NDY5CWZpbGU6T21uaUJhbmtfMS4wLjUzX3g2NF9mci1GUi5tc2kKS2hvZTJibnZrckZqbDJPcWdJbkkyaDhUM0ovNnNqc0FFTlBMc05iRFU1eTZ5L2RucjhudDkrdzBxNGg3TDk0UUVuUDNmcG42VmI0bFFudldzQllEQmc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.53/OmniBank_1.0.53_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHlxdjB3ZmxTbW13OFNKU1pIVW0vWWZkdHU2NXFNTmU0UjZTUUZnaWdpUEEzZU9LUVZieDdPS3pOUGY1NUdqTmxWZjg1Q2xLamlRTkJtN3ZCRG8zQlFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMDMxMTk0CWZpbGU6T21uaUJhbmtfMS4wLjU0X3g2NF9mci1GUi5tc2kKdjd6QktEQ09RbHAzYzdwWjlsTE1QQ3A0MVZyYk1rQVp3QytSMzZRK2ozV1pEb1FRTnh4V0tjejRoYjJSalVlclRlSTR5NU03dW82dTVTbm52QXRWRFE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.54/OmniBank_1.0.54_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-06-21T08:11:09Z",
-    "version":  "1.0.53",
-    "notes":  "Passage a la licence asymetrique Ed25519"
+    "pub_date":  "2026-06-21T08:39:54Z",
+    "version":  "1.0.54",
+    "notes":  "Optimize Nginx configuration for Docker/Unraid environments (HTTP Keep-Alive, proxy buffering off, gzip proxy)"
 }
