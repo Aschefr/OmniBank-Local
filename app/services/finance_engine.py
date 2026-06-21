@@ -13,7 +13,7 @@ def calculate_balances(db: Session, end_date: date = None, only_reconciled: bool
     accounts = db.query(Account).all()
     balances = {a.id: a.initial_balance for a in accounts}
     
-    query = db.query(Transaction)
+    query = db.query(Transaction.amount, Transaction.from_account_id, Transaction.to_account_id)
     if end_date:
         query = query.filter(Transaction.date_operation <= end_date)
     if only_reconciled:
@@ -195,7 +195,7 @@ def predict_next_paycheck(db: Session):
             lookback_date = lookback_date.replace(year=lookback_date.year - 1, month=12)
         else:
             lookback_date = lookback_date.replace(month=lookback_date.month - 1)
-    all_incomes = db.query(Transaction).filter(
+    all_incomes = db.query(Transaction.amount, Transaction.date_operation, Transaction.description).filter(
         Transaction.type == "income",
         Transaction.date_operation >= lookback_date,
         Transaction.reconciliation_date.isnot(None)

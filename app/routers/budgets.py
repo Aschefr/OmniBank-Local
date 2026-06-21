@@ -254,9 +254,29 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                        if (b.envelope_type or "spending") != "savings" and not b.is_project]
     all_category_txs = []
     if spending_budgets:
-        all_category_txs = db.query(Transaction).filter(
+        tx_query = db.query(Transaction).filter(
             Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
-        ).all()
+        )
+        
+        # Optimize: only load transactions starting from the earliest relevant date
+        has_indefinite = any(b.period == "indefinite" for b in spending_budgets)
+        if not has_indefinite:
+            dates = []
+            if any(b.period in ("monthly", None) for b in spending_budgets):
+                if custom_start:
+                    dates.append(custom_start)
+                else:
+                    dates.append(date(y, m, 1))
+            if any(b.period == "yearly" for b in spending_budgets):
+                dates.append(date(y, 1, 1))
+            for b in spending_budgets:
+                if b.period == "custom" and b.start_date:
+                    dates.append(b.start_date)
+            if dates:
+                min_date = min(dates)
+                tx_query = tx_query.filter(Transaction.date_operation >= min_date)
+                
+        all_category_txs = tx_query.all()
 
     # ── 5. Process each budget in memory ──────────────────────────────────────
     result = []
