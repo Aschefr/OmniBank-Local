@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHlxdjB3ZmxTbW13OFNKU1pIVW0vWWZkdHU2NXFNTmU0UjZTUUZnaWdpUEEzZU9LUVZieDdPS3pOUGY1NUdqTmxWZjg1Q2xLamlRTkJtN3ZCRG8zQlFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMDMxMTk0CWZpbGU6T21uaUJhbmtfMS4wLjU0X3g2NF9mci1GUi5tc2kKdjd6QktEQ09RbHAzYzdwWjlsTE1QQ3A0MVZyYk1rQVp3QytSMzZRK2ozV1pEb1FRTnh4V0tjejRoYjJSalVlclRlSTR5NU03dW82dTVTbm52QXRWRFE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.54/OmniBank_1.0.54_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBZdWg3VHlIQ01NT3Z0L3ZRQXIvY0JpYlcrajRIc2NROFY1b1VuMU1PeEhpSVh1ZGIrQzJoQjZaZE5UaFdYeW83TGtvWGtaRExZblZpV3R6ODNvYndzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMDMxNzM1CWZpbGU6T21uaUJhbmtfMS4wLjU1X3g2NF9mci1GUi5tc2kKb1FWUHoxVDR3d2VndkF1NlE0Nk5XRnhFeklJOXRyanFMZVV5cWk1ck9GUC9kaUhWN3hwR3BsaWN5d1hmc0RlTkdUdkhiYWtqMnhFL0lCRkxROUNuQnc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.55/OmniBank_1.0.55_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-06-21T08:39:54Z",
-    "version":  "1.0.54",
-    "notes":  "Optimize Nginx configuration for Docker/Unraid environments (HTTP Keep-Alive, proxy buffering off, gzip proxy)"
+    "pub_date":  "2026-06-21T08:48:55Z",
+    "version":  "1.0.55",
+    "notes":  "Optimize SQL queries for dashboard stats, account balances and paycheck prediction (5x-15x performance increase)"
 }
