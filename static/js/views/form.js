@@ -25,6 +25,44 @@ window.FormView = {
         await this.loadCategories();
         await this.loadDescriptions();
         await this.loadProjectBudgets();
+
+        // Load keepOpen from localStorage
+        const storedKeepOpen = localStorage.getItem('form_keep_open');
+        this.keepOpen = storedKeepOpen === 'true';
+        const cb = document.getElementById('op_keep_open');
+        if (cb) {
+            cb.checked = this.keepOpen;
+        }
+        this.updateCancelButtonText();
+    },
+
+    adjustDate(inputId, offset) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        let val = input.value;
+        if (!val) {
+            val = new Date().toISOString().split('T')[0];
+        }
+        const date = new Date(val);
+        if (isNaN(date.getTime())) return;
+        date.setDate(date.getDate() + offset);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        input.value = `${year}-${month}-${day}`;
+    },
+
+    updateCancelButtonText() {
+        const cancelBtn = document.getElementById('op_cancel_btn');
+        if (cancelBtn) {
+            if (this.keepOpen) {
+                cancelBtn.setAttribute('data-i18n', 'btn_close');
+                cancelBtn.textContent = window.i18n.t('btn_close');
+            } else {
+                cancelBtn.setAttribute('data-i18n', 'btn_cancel');
+                cancelBtn.textContent = window.i18n.t('btn_cancel');
+            }
+        }
     },
 
     async loadProjectBudgets() {
@@ -99,6 +137,8 @@ window.FormView = {
 
     onKeepOpenToggle() {
         this.keepOpen = document.getElementById('op_keep_open').checked;
+        localStorage.setItem('form_keep_open', this.keepOpen ? 'true' : 'false');
+        this.updateCancelButtonText();
         if (!this.keepOpen) {
             this.lastSavedId = null;
             const undoBtn = document.getElementById('op_undo_last_btn');
@@ -142,6 +182,12 @@ window.FormView = {
         document.getElementById('op_date').value = tx.date_operation;
         document.getElementById('op_date_saisie').value = tx.date_saisie || new Date().toISOString().split('T')[0];
         document.getElementById('op_recon_date').value = tx.reconciliation_date || '';
+        
+        // is_salary flag (checkbox)
+        const isSalaryCheckbox = document.getElementById('op_is_salary');
+        if (isSalaryCheckbox) {
+            isSalaryCheckbox.checked = tx.is_salary === true;
+        }
         
         // Determine if recurrent
         const isRecurrent = tx.is_monthly || tx.is_yearly || !!tx.recurrence_id;
@@ -451,6 +497,16 @@ window.FormView = {
             badge.style.backgroundColor = 'var(--text-muted)';
         }
         
+        // Show/hide is_salary checkbox container for income types in edit mode (we have an ID/currentTxId)
+        const isSalaryContainer = document.getElementById('op_is_salary_container');
+        if (isSalaryContainer) {
+            if (type === 'income' && this.currentTxId) {
+                isSalaryContainer.style.display = 'flex';
+            } else {
+                isSalaryContainer.style.display = 'none';
+            }
+        }
+        
         // Update recurrence limit badge
         const badgeEl = document.getElementById('op_rec_limit_badge');
         if (badgeEl) {
@@ -633,7 +689,14 @@ window.FormView = {
             to_account_id: toAcc ? parseInt(toAcc) : null,
             check_slip_number: document.getElementById('op_check_slip').value || null,
             attachments: document.getElementById('op_attachments').value || null,
-            budget_id: (() => { const v = document.getElementById('op_budget_id')?.value; return v ? parseInt(v) : null; })()
+            budget_id: (() => { const v = document.getElementById('op_budget_id')?.value; return v ? parseInt(v) : null; })(),
+            is_salary: (() => {
+                const cb = document.getElementById('op_is_salary');
+                if (cb && document.getElementById('op_is_salary_container').style.display !== 'none') {
+                    return cb.checked;
+                }
+                return null;
+            })()
         };
 
         // Phase 9: Inject org user audit fields
@@ -765,11 +828,6 @@ window.FormView = {
                 this.lastSavedId = savedRes;
                 const undoBtn = document.getElementById('op_undo_last_btn');
                 if (undoBtn) undoBtn.style.display = 'inline-flex';
-                // Reset form but keep modal open
-                await this.open();
-                // Re-apply keep-open state (open() does init which resets nothing about keepOpen flag)
-                document.getElementById('op_keep_open').checked = true;
-                this.keepOpen = true;
             } else {
                 this.close();
             }

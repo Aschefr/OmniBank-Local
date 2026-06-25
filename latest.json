@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBZdWg3VHlIQ01NT3Z0L3ZRQXIvY0JpYlcrajRIc2NROFY1b1VuMU1PeEhpSVh1ZGIrQzJoQjZaZE5UaFdYeW83TGtvWGtaRExZblZpV3R6ODNvYndzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMDMxNzM1CWZpbGU6T21uaUJhbmtfMS4wLjU1X3g2NF9mci1GUi5tc2kKb1FWUHoxVDR3d2VndkF1NlE0Nk5XRnhFeklJOXRyanFMZVV5cWk1ck9GUC9kaUhWN3hwR3BsaWN5d1hmc0RlTkdUdkhiYWtqMnhFL0lCRkxROUNuQnc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.55/OmniBank_1.0.55_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBwQ2VGVWEyVm41ZWUwUFZzcWlNQklwSFpsamRrcHQ0ZEZJKzd4RVcvR1VaeGFEclMvY1F4MzdwbVdJRy9tTzcyRWRndlpPSUNkUkRJZVVtSW80S3dZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNDA2Mjk3CWZpbGU6T21uaUJhbmtfMS4wLjU2X3g2NF9mci1GUi5tc2kKbFNlTVd1Y1FMbmlWSHVFSFl2NGI3ZFY2MEdiUU1la25kazN6VTF5NU5UUXVpaGlyQkZna2lGcllJNm9BWVdaREZFNHhJbXRadU0yeVRFZkNsZkRlQmc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.56/OmniBank_1.0.56_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-06-21T08:48:55Z",
-    "version":  "1.0.55",
-    "notes":  "Optimize SQL queries for dashboard stats, account balances and paycheck prediction (5x-15x performance increase)"
+    "pub_date":  "2026-06-25T16:51:37Z",
+    "version":  "1.0.56",
+    "notes":  "Version 1.0.56 - Reste à vivre négatif, overflow d\u0027épargne (tirelires) et améliorations de la saisie d\u0027opérations."
 }

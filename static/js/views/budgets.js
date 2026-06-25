@@ -165,8 +165,9 @@ window.BudgetsView = {
 
         // Per-type status data
         this.statusByType = { monthly: null, yearly: null, indefinite: null, custom: null };
+        this.savingsOverflow = null; // Loaded from dashboard for overflow visual
 
-        await Promise.all([this.loadBudgets(), this.loadAccounts(), this.loadCategories(), this.loadAllStatuses(), this.checkAI()]);
+        await Promise.all([this.loadBudgets(), this.loadAccounts(), this.loadCategories(), this.loadAllStatuses(), this.checkAI(), this.loadSavingsOverflow()]);
         // Re-render after all data is loaded to ensure this.accounts is available for colored badges
         this.renderStatus();
     },
@@ -488,8 +489,22 @@ window.BudgetsView = {
     },
 
     // Keep old loadStatus as alias for full reload
-    async loadStatus() { await this.loadAllStatuses(); },
+    async loadStatus() {
+        await Promise.all([
+            this.loadAllStatuses(),
+            this.loadSavingsOverflow()
+        ]);
+    },
 
+    async loadSavingsOverflow() {
+        try {
+            const dash = await API.get('/api/stats/dashboard');
+            this.savingsOverflow = dash.savings_overflow || null;
+        } catch(e) {
+            console.warn('[budget] Could not load savings overflow data', e);
+            this.savingsOverflow = null;
+        }
+    },
 
     renderStatus() {
         const container = document.getElementById('budgetStatusContainer');
@@ -693,11 +708,22 @@ window.BudgetsView = {
         const renderSavingsCard = (b, y, m) => {
             const balance = b.balance || 0;
             const goal = b.budget_amount || 0;
-            const pct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
-            const goalReached = balance >= goal && goal > 0;
-            const barColor = goalReached ? '#f59e0b' : '#10b981';
             const funded = b.funded || 0;
             const withdrawn = b.withdrawn || 0;
+
+            // Calculate temporary withdrawal from savings overflow (proportional)
+            const overflow = this.savingsOverflow;
+            let tempWithdrawn = 0;
+            if (overflow && overflow.total_savings > 0 && !b.is_closed) {
+                const proportion = balance / overflow.total_savings;
+                tempWithdrawn = Math.min(balance, overflow.overflow_amount * proportion);
+            }
+
+            const effectiveBalance = balance - tempWithdrawn;
+            const pct = goal > 0 ? Math.min((effectiveBalance / goal) * 100, 100) : 0;
+            const theoreticalPct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
+            const goalReached = balance >= goal && goal > 0;
+            const barColor = goalReached ? '#f59e0b' : '#10b981';
 
             const safeName = b.name.replace(/'/g, "\\'");
             const closedStyle = b.is_closed ? 'opacity:0.6;' : '';
@@ -721,6 +747,11 @@ window.BudgetsView = {
                 ? `<span class="privacy-blur" style="color:#ff5630;font-size:11px;">↓ ${formatCurrency(withdrawn)} ${window.i18n.t('budget_savings_withdrawn')}</span>`
                 : '';
 
+            // Temporary withdrawal badge (overflow)
+            const tempWithdrawnBadge = tempWithdrawn > 0
+                ? `<span style="color:#ef4444; font-size:11px; font-weight:600; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px;" title="${window.i18n.t('savings_temp_withdrawn') || 'Provisoirement retiré'}">⚠ -${formatCurrency(tempWithdrawn)}</span>`
+                : '';
+
             return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" class="budget-envelope-card savings ${goalReached ? 'goal-reached' : ''}" style="${closedStyle}">\
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px;">
                         <div style="flex:1;">
@@ -728,6 +759,7 @@ window.BudgetsView = {
                                 <strong style="font-size:13px;">${b.name}</strong>
                                 ${closedTag}
                                 ${accountBadges}
+                                ${tempWithdrawnBadge}
                             </div>
                             <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">${typeTag}</div>
                         </div>
@@ -747,6 +779,7 @@ window.BudgetsView = {
                     </div>
 
                     <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:8px;overflow:hidden;margin-bottom:8px;border:1px solid rgba(255,255,255,0.05);">
+                        ${tempWithdrawn > 0 ? `<div style="position:absolute;top:0;left:0;width:${theoreticalPct}%;height:100%;background:${barColor};opacity:0.25;border-radius:999px;"></div>` : ''}
                         <div style="position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${barColor};border-radius:999px;transition:width 0.5s ease;"></div>
                     </div>
                     <div style="display:flex;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:4px;">
@@ -853,26 +886,40 @@ window.BudgetsView = {
                     <h3 style="margin:0;font-size:16px;color:#f59e0b;">🏦 ${window.i18n.t('budget_savings_section')}</h3>
                 </div>`;
 
-            // Summary bar for savings
+            // Summary bar for savings — with overflow support
             const totalGoal = savingsBudgets.reduce((s, b) => s + (b.budget_amount || 0), 0);
             const totalBalance = savingsBudgets.reduce((s, b) => s + (b.balance || 0), 0);
-            const savingsPct = totalGoal > 0 ? Math.min((totalBalance / totalGoal) * 100, 100) : 0;
-            const savingsBarColor = savingsPct >= 100 ? '#f59e0b' : '#10b981';
-            savingsHtml += `<div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);border-left:3px solid #f59e0b;">
+            const overflow = this.savingsOverflow;
+            const totalTempWithdrawn = overflow ? overflow.overflow_amount : 0;
+            const effectiveTotalBalance = totalBalance - totalTempWithdrawn;
+            const savingsPct = totalGoal > 0 ? Math.min(Math.max(effectiveTotalBalance / totalGoal, 0) * 100, 100) : 0;
+            const theoreticalSavingsPct = totalGoal > 0 ? Math.min((totalBalance / totalGoal) * 100, 100) : 0;
+            const savingsBarColor = theoreticalSavingsPct >= 100 ? '#f59e0b' : '#10b981';
+
+            // Overflow warning badge for summary
+            const overflowBadgeHtml = overflow
+                ? `<span style="color:${overflow.fully_consumed ? '#ef4444' : '#f59e0b'}; font-size:12px; font-weight:600; background:${overflow.fully_consumed ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)'}; padding:3px 8px; border-radius:6px;">⚠ -${formatCurrency(totalTempWithdrawn)} ${window.i18n.t('savings_temp_withdrawn') || 'provisoirement retiré'}</span>`
+                : '';
+
+            savingsHtml += `<div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);border-left:3px solid ${overflow ? (overflow.fully_consumed ? '#ef4444' : '#f59e0b') : '#f59e0b'};">
                 <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
                     <div>
                         <h4 style="margin:0 0 4px;font-size:14px;color:var(--text-color);">🏦 ${window.i18n.t('budget_savings_summary')}</h4>
-                        <span style="font-size:12px;color:var(--text-muted);">${savingsBudgets.length} ${window.i18n.t('budget_savings_tag').toLowerCase()}${savingsBudgets.length > 1 ? 's' : ''}</span>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                            <span style="font-size:12px;color:var(--text-muted);">${savingsBudgets.length} ${window.i18n.t('budget_savings_tag').toLowerCase()}${savingsBudgets.length > 1 ? 's' : ''}</span>
+                            ${overflowBadgeHtml}
+                        </div>
                     </div>
                     <div style="text-align:right;">
-                        <strong class="privacy-blur" style="font-size:18px;color:var(--text-color);">${formatCurrency(totalBalance)}</strong><span style="font-size:12px;color:var(--text-muted);"> / ${formatCurrency(totalGoal)}</span>
+                        <strong class="privacy-blur" style="font-size:18px;color:var(--text-color);">${formatCurrency(effectiveTotalBalance)}</strong><span style="font-size:12px;color:var(--text-muted);"> / ${formatCurrency(totalGoal)}</span>
                     </div>
                 </div>
                 <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:12px;overflow:hidden;margin-bottom:12px;border:1px solid rgba(255,255,255,0.05);">
+                    ${totalTempWithdrawn > 0 ? `<div style="position:absolute;top:0;left:0;width:${theoreticalSavingsPct}%;height:100%;background:${savingsBarColor};opacity:0.25;border-radius:999px;"></div>` : ''}
                     <div style="position:absolute;top:0;left:0;width:${savingsPct}%;height:100%;background:${savingsBarColor};border-radius:999px;transition:width 0.3s;"></div>
                 </div>
                 <div style="display:flex;justify-content:space-between;font-size:14px;">
-                    <span class="privacy-blur" style="color:${savingsBarColor};font-weight:600;">${formatCurrency(totalBalance)} ${window.i18n.t('budget_savings_funded')}</span>
+                    <span class="privacy-blur" style="color:${savingsBarColor};font-weight:600;">${formatCurrency(effectiveTotalBalance)} ${window.i18n.t('budget_savings_funded')}</span>
                     <span style="color:var(--text-muted);font-weight:600;"><span class="privacy-blur">${formatCurrency(Math.abs(totalGoal - totalBalance))}</span> ${totalBalance >= totalGoal ? window.i18n.t('budget_savings_goal_reached') : window.i18n.t('budget_savings_remaining')}</span>
                 </div>
             </div>`;
@@ -951,11 +998,22 @@ window.BudgetsView = {
                 const withdrawn = budget?.withdrawn || 0;
                 const balance = budget?.balance || 0;
                 const goal = budget?.budget_amount || 0;
-                const pct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
+
+                // Calculate temporary withdrawal from savings overflow (proportional)
+                const overflow = this.savingsOverflow;
+                let tempWithdrawn = 0;
+                if (overflow && overflow.total_savings > 0 && !budget?.is_closed) {
+                    const proportion = balance / overflow.total_savings;
+                    tempWithdrawn = Math.min(balance, overflow.overflow_amount * proportion);
+                }
+
+                const effectiveBalance = balance - tempWithdrawn;
+                const pct = goal > 0 ? Math.min((effectiveBalance / goal) * 100, 100) : 0;
+                const theoreticalPct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
                 const goalReached = balance >= goal && goal > 0;
                 const barColor = goalReached ? '#f59e0b' : '#10b981';
 
-                title.textContent = `🏦 ${budgetName}`;
+                title.innerHTML = `🏦 ${budgetName} ${tempWithdrawn > 0 ? `<span style="color:#ef4444; font-size:11px; font-weight:600; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px; margin-left:8px;" title="${window.i18n.t('savings_temp_withdrawn') || 'Provisoirement retiré'}">⚠ -${formatCurrency(tempWithdrawn)}</span>` : ''}`;
                 const safeName = budgetName.replace(/'/g, "\\'");
 
                 graph.innerHTML = `<div style="margin-bottom:10px;">
@@ -967,10 +1025,11 @@ window.BudgetsView = {
                         </span>
                     </div>
                     <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);">
+                        ${tempWithdrawn > 0 ? `<div style="position:absolute;top:0;left:0;width:${theoreticalPct}%;height:100%;background:${barColor};opacity:0.25;border-radius:999px;"></div>` : ''}
                         <div style="position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${barColor};border-radius:999px;transition:width 0.5s ease;"></div>
                     </div>
                     <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px;">
-                        <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(balance)} ${window.i18n.t('budget_savings_balance')}</span>
+                        <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(effectiveBalance)} ${window.i18n.t('budget_savings_balance')}</span>
                         <span style="color:${goalReached ? '#f59e0b' : 'var(--text-muted)'};font-weight:600;">${goalReached ? '🎯 ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(goal - balance))}</span> ${goalReached ? window.i18n.t('budget_savings_goal_reached') : window.i18n.t('budget_savings_remaining')}</span>
                     </div>
                 </div>

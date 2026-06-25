@@ -161,12 +161,21 @@ def predict_next_paycheck(db: Session):
     
     today = date.today()
     
-    # 1. Get Base Pay Day from config
+    # 1. Get Base Pay Day and settings from config
     conf_day = db.query(GlobalConfig).filter(GlobalConfig.key == "base_pay_day").first()
     try:
         base_pay_day = int(conf_day.value) if conf_day and conf_day.value else 28
     except ValueError:
         base_pay_day = 28
+
+    conf_cat = db.query(GlobalConfig).filter(GlobalConfig.key == "pay_category").first()
+    pay_category = conf_cat.value if conf_cat and conf_cat.value else None
+
+    conf_pct = db.query(GlobalConfig).filter(GlobalConfig.key == "pay_threshold_percent").first()
+    try:
+        pay_threshold_percent = float(conf_pct.value) if conf_pct and conf_pct.value else 30.0
+    except ValueError:
+        pay_threshold_percent = 30.0
     
     # 3. Analyze last 12 months history
     historical_amounts = []
@@ -195,13 +204,24 @@ def predict_next_paycheck(db: Session):
             lookback_date = lookback_date.replace(year=lookback_date.year - 1, month=12)
         else:
             lookback_date = lookback_date.replace(month=lookback_date.month - 1)
-    all_incomes = db.query(Transaction.amount, Transaction.date_operation, Transaction.description).filter(
+    all_incomes = db.query(
+        Transaction.id,
+        Transaction.amount,
+        Transaction.date_operation,
+        Transaction.description,
+        Transaction.category,
+        Transaction.is_salary
+    ).filter(
         Transaction.type == "income",
         Transaction.date_operation >= lookback_date,
         Transaction.reconciliation_date.isnot(None)
     ).all()
-        
-    for i in range(0, 13):
+    
+    # Iterate from OLDEST month (12 months ago) to CURRENT month (i=0).
+    # This ensures the historical average is established from real paycheck
+    # data before we evaluate the current month — preventing low-amount
+    # incomes from passing a fallback threshold.
+    for i in range(12, -1, -1):
         # Go back i months
         m = today.month - i
         y = today.year
@@ -250,9 +270,36 @@ def predict_next_paycheck(db: Session):
             continue # Skip normal DB lookup for this month
             
         # Find largest Recettes in this window from pre-loaded data
+        # Threshold is based on the rolling historical average built from older months.
+        hist_avg = statistics.mean(historical_amounts) if historical_amounts else 1000.0
+        threshold_value = hist_avg * (pay_threshold_percent / 100.0)
+
         best_income = None
         for tx in all_incomes:
-            if window_start <= tx.date_operation <= window_end:
+            # 1. Filter out transactions explicitly marked as not salary
+            if tx.is_salary is False:
+                continue
+            
+            # 2. Window boundary check
+            if not (window_start <= tx.date_operation <= window_end):
+                continue
+            
+            # 3. Check if marked explicitly as salary, or matches category filter, or exceeds threshold
+            is_valid_salary = False
+            if tx.is_salary is True:
+                is_valid_salary = True
+            else:
+                # If pay_category is defined, try matching it. If it doesn't match, we still allow it if it's over threshold
+                # and pay_category isn't an exclusive hard filter (but since user feedback says "category is optional",
+                # matching category makes it a salary regardless of amount, whereas other categories or no category
+                # require the amount threshold).
+                has_matching_category = (pay_category and tx.category == pay_category)
+                if has_matching_category:
+                    is_valid_salary = True
+                elif tx.amount >= threshold_value:
+                    is_valid_salary = True
+
+            if is_valid_salary:
                 if best_income is None or tx.amount > best_income.amount:
                     best_income = tx
         
@@ -262,6 +309,7 @@ def predict_next_paycheck(db: Session):
             historical_amounts.append(best_income.amount)
             historical_days.append(best_income.date_operation.day)
             history_records.append({
+                "id": best_income.id,
                 "date": best_income.date_operation.isoformat(),
                 "amount": best_income.amount,
                 "description": best_income.description,
@@ -281,6 +329,9 @@ def predict_next_paycheck(db: Session):
                 "is_override": True,
                 "logical_period": period_str
             })
+
+    # Reverse so the most recent entry is first (expected by UI pay history modal)
+    history_records.reverse()
             
     # 4. Compute Predictions (move up to establish logical period)
     predicted_amount = 0.0

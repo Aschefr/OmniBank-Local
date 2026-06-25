@@ -46,6 +46,9 @@ class Transaction(Base):
     # Budget project assignment (optional — for project-type envelopes)
     budget_id = Column(Integer, ForeignKey("budgets.id"), nullable=True)
 
+    # Manual override for paycheck detection (True = is paycheck, False = not paycheck, None = default/heuristic)
+    is_salary = Column(Boolean, nullable=True, default=None)
+
     # Phase 9: Multi-user audit (org mode)
     created_by = Column(String, nullable=True)     # Org user name who created
     modified_by = Column(String, nullable=True)     # Last org user who modified

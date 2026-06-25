@@ -159,6 +159,17 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
                 first_acc = acc_map.get((sub.get("account_ids") or [None])[0]) if sub.get("account_ids") else None
                 sub["accent_color"] = first_acc["color"] if first_acc and first_acc.get("color") else None
     
+    # Calculate savings_overflow metadata if rest_to_live is negative
+    savings_overflow = None
+    if rest_to_live < 0:
+        total_savings_balance = sum(s["balance"] for s in savings_list if not s.get("is_closed"))
+        overflow_amount = abs(rest_to_live)
+        savings_overflow = {
+            "overflow_amount": round(overflow_amount, 2),
+            "total_savings": round(total_savings_balance, 2),
+            "fully_consumed": overflow_amount >= total_savings_balance
+        }
+
     return {
         "net_worth": net_worth,
         "rest_to_live": rest_to_live,
@@ -175,6 +186,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "budget_summary": period_groups,
         "savings_summary": savings_summary,
         "savings_details": savings_list,
+        "savings_overflow": savings_overflow,
     }
 
 from pydantic import BaseModel
