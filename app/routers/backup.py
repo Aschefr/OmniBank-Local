@@ -91,7 +91,12 @@ async def upload_backup(file: UploadFile = File(...)):
                         pass
 
             zip_ref.extractall(DATA_DIR)
-            
+
+        # Re-run migrations on the restored DB to apply any missing schema changes
+        # (e.g., an old backup may not have the is_salary column added in schema v4)
+        from app.init_data import init_db
+        init_db()
+
         return {"ok": True, "message": "Backup restauré avec succès."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur de restauration: {str(e)}")

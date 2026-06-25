@@ -773,8 +773,149 @@ def test_license_validation_flow():
     assert res.json() == {"active": True, "email": "legacy@example.com"}
 
 
+# ==============================================================================
+# TEST 15: Piggy Bank Overflow (Savings consumption warning)
+# ==============================================================================
+def test_piggy_bank_overflow():
+    # 1. Create a savings/tirelire budget
+    res_b = client.post("/api/budgets/", json={
+        "name": "Tirelire Vacances",
+        "monthly_amount": 1000.0,
+        "period": "monthly",
+        "is_project": False,
+        "envelope_type": "savings"
+    })
+    assert res_b.status_code == 200
+    b_id = res_b.json()["id"]
+
+    # Deposit funds to it by adding a manual allocation of 500€
+    res_alloc = client.post(f"/api/budgets/{b_id}/allocations", json={
+        "amount": 500.0,
+        "date": "2026-05-29",
+        "note": "Initial deposit"
+    })
+    assert res_alloc.status_code == 200
+
+    # 2. Add an unreconciled expense that will exceed rest_to_live but stay within savings limit
+    # CC balance: ~5500€ (from test_transactions_sign_logic if run sequentially, but since DB is rebuilt fresh
+    # before each test via setup_and_teardown_db, starting balance is 5870.0€)
+    # Savings total: 500€
+    # Rest to live: 5870.0 - 500.0 = 5370.0€
+    # Let's add an expense of 5500€ to make rest_to_live negative: -130€ (which is > -500€ total savings)
+    res_tx = client.post("/api/transactions/", json={
+        "date_saisie": "2026-05-29",
+        "date_operation": "2026-06-15", # before next paycheck
+        "description": "Big purchase",
+        "amount": 5500.0,
+        "type": "expense_var",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "reconciliation_date": None
+    })
+    assert res_tx.status_code == 200
+
+    # Get stats dashboard
+    res_dash = client.get("/api/stats/dashboard")
+    assert res_dash.status_code == 200
+    data = res_dash.json()
+    
+    # Rest to live should be negative: 5870.0 - 5500.0 - 500.0 = -130.0€
+    assert data["rest_to_live"] == -130.0
+    overflow = data["savings_overflow"]
+    assert overflow is not None
+    assert overflow["overflow_amount"] == 130.0
+    assert overflow["total_savings"] == 500.0
+    assert overflow["fully_consumed"] is False
+
+    # 3. Add another unreconciled expense of 500€ (total expenses 6000€)
+    # Rest to live: 5870.0 - 6000.0 - 500.0 = -630.0€
+    # Overflow amount: 630.0€ (> 500€ total savings), meaning fully_consumed should be True
+    client.post("/api/transactions/", json={
+        "date_saisie": "2026-05-29",
+        "date_operation": "2026-06-15",
+        "description": "Another purchase",
+        "amount": 500.0,
+        "type": "expense_var",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "reconciliation_date": None
+    })
+    
+    res_dash2 = client.get("/api/stats/dashboard")
+    assert res_dash2.status_code == 200
+    data2 = res_dash2.json()
+    assert data2["rest_to_live"] == -630.0
+    overflow2 = data2["savings_overflow"]
+    assert overflow2 is not None
+    assert overflow2["overflow_amount"] == 630.0
+    assert overflow2["fully_consumed"] is True
+
+
+# ==============================================================================
+# TEST 16: Paycheck Threshold — small non-salary income must NOT trigger period advance
+# ==============================================================================
+def test_paycheck_threshold_small_income(monkeypatch):
+    """
+    Reproduces: user adds a 500€ 'Mercer' mutuelle income near payday (day 28).
+    Even though the amount exceeds the fallback threshold (1000€ * 30% = 300€),
+    it should NOT be detected as a paycheck because the REAL historical average
+    is ~2500€, giving a threshold of ~750€.
+    The pay_category is set to 'Salaire' and the Mercer tx has category 'Mutuelle'.
+    """
+    from datetime import date
+    from app.models import GlobalConfig
+
+    # Fix today to a date near the pay day
+    class MockDate(date):
+        @classmethod
+        def today(cls):
+            return date(2026, 5, 29)
+    monkeypatch.setattr("app.services.finance_engine.date", MockDate)
+
+    # Configure pay_category to 'Salaire' and threshold to 30%
+    client.post("/api/config/", json={"key": "pay_category", "value": "Salaire"})
+    client.post("/api/config/", json={"key": "pay_threshold_percent", "value": "30"})
+
+    # The test DB already has 2 reconciled Salaire incomes of 2500€ each (March & April).
+    # Add a small non-salary income near payday that should NOT be detected as paycheck:
+    res = client.post("/api/transactions/", json={
+        "date_saisie": "2026-05-25",
+        "date_operation": "2026-05-25",
+        "description": "Mercer Mutuelle",
+        "amount": 500.0,
+        "type": "income",
+        "category": "Mutuelle",
+        "from_account_id": None,
+        "to_account_id": 1,
+        "reconciliation_date": "2026-05-25"
+    })
+    assert res.status_code == 200
+
+    # Get dashboard — the 500€ Mercer should NOT appear as pay_history entry for May
+    res_dash = client.get("/api/stats/dashboard")
+    assert res_dash.status_code == 200
+    data = res_dash.json()
+
+    # Check pay_history: the Mercer 500€ should NOT be in the list
+    mercer_entries = [h for h in data["pay_history"] if h.get("description") == "Mercer Mutuelle"]
+    assert len(mercer_entries) == 0, (
+        f"500€ Mercer income was incorrectly detected as paycheck! "
+        f"pay_history entries with 'Mercer Mutuelle': {mercer_entries}"
+    )
+
+    # The real paychecks (Salaire Mars/Avril at 2500€) should still be detected
+    salary_entries = [h for h in data["pay_history"] if "Salaire" in h.get("description", "")]
+    assert len(salary_entries) >= 2, (
+        f"Expected at least 2 salary entries, got {len(salary_entries)}: {salary_entries}"
+    )
+
+
 if __name__ == "__main__":
     build_test_db(engine)
+    test_accounts_crud()
+    test_transactions_sign_logic()
+    test_categories_cascade()
+    test_recurrences_generation_and_deduplication()
     test_payday_and_dashboard_forcing()
     test_recurrence_category_modification_cascade()
     test_synthesis_drilldown_filters()
@@ -783,3 +924,6 @@ if __name__ == "__main__":
     test_orphan_recurrences_cleanup_logic()
     test_obsolete_orphan_recurrences()
     test_license_validation_flow()
+    test_piggy_bank_overflow()
+    test_paycheck_threshold_small_income()
+

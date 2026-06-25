@@ -124,6 +124,20 @@ def init_db():
 
             conn.commit()
 
+        if schema_version < 4:
+            # Schema v4: Salary manual flag override
+            try:
+                conn.execute(text("ALTER TABLE transactions ADD COLUMN is_salary BOOLEAN DEFAULT NULL"))
+            except Exception:
+                pass
+
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '4')"))
+            except Exception:
+                pass
+
+            conn.commit()
+
 def wipe_db(db: Session):
     """Delete all data to start fresh."""
     db.query(Transaction).delete()

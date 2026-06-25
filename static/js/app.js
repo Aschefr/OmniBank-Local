@@ -375,7 +375,21 @@ class App {
             this.isPayValidated = stats.is_pay_validated;
             this.validatedPayDate = stats.validated_pay_date;
             document.getElementById('valNetWorth').textContent = formatCurrency(stats.net_worth);
-            document.getElementById('valRestToLive').textContent = formatCurrency(stats.rest_to_live);
+            
+            const valRestToLive = document.getElementById('valRestToLive');
+            valRestToLive.textContent = formatCurrency(stats.rest_to_live);
+            
+            // Color-code Rest to Live based on savings consumption
+            if (stats.savings_overflow) {
+                if (stats.savings_overflow.fully_consumed) {
+                    valRestToLive.style.color = '#ef4444'; // Red: overdraft warning
+                } else {
+                    valRestToLive.style.color = '#f59e0b'; // Orange: consuming savings
+                }
+            } else {
+                valRestToLive.style.color = ''; // Default green
+            }
+            
             // Load base config early to check Org Mode
             const configs = window.app.config || await API.get('/api/config/');
             const isOrgMode = configs.enable_org_mode === 'true' || configs.enable_org_mode === true;
@@ -535,6 +549,7 @@ class App {
 
                 // ── Savings (Tirelire) sidebar bars ──
                 const savingsDetails = stats.savings_details || [];
+                const overflow = stats.savings_overflow;
                 if (savingsDetails && savingsDetails.length > 0) {
                     let savingsHtml = `<div style="margin-top:12px; margin-bottom:4px;">
                         <span class="stat-label" style="color:var(--text-muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.03em;">🏦 ${window.i18n.t('budget_savings_summary')}</span>
@@ -544,18 +559,36 @@ class App {
                         if (sav.is_closed) return;
                         const balance = sav.balance || 0;
                         const goal = sav.goal || 0;
-                        const pct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
+                        
+                        // Calculate temporary withdrawal
+                        let tempWithdrawn = 0;
+                        if (overflow && overflow.total_savings > 0) {
+                            // Proportional share of the overflow
+                            const proportion = balance / overflow.total_savings;
+                            tempWithdrawn = Math.min(balance, overflow.overflow_amount * proportion);
+                        }
+                        
+                        const effectiveBalance = balance - tempWithdrawn;
+                        const pct = goal > 0 ? Math.min((effectiveBalance / goal) * 100, 100) : 0;
+                        const theoreticalPct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
+                        
                         const goalReached = balance >= goal && goal > 0;
                         const savColor = goalReached ? '#f59e0b' : '#10b981';
 
                         savingsHtml += `
                         <div class="stat-box" data-sidebar-budget-id="${sav.id}" style="display:block; border-color:#f59e0b66; background-color:#f59e0b1a; cursor:pointer; margin-bottom:6px; border-left:3px solid #f59e0b;" onclick="window.app.scrollToBudget(${sav.id}, 'budgets')">
-                            <span class="stat-label" style="color:#f59e0b; font-weight:600;">${sav.name}</span>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span class="stat-label" style="color:#f59e0b; font-weight:600;">${sav.name}</span>
+                                ${tempWithdrawn > 0 ? `<span style="color:#ef4444; font-size:11px; font-weight:600; background:rgba(239,68,68,0.1); padding:1px 4px; border-radius:4px;" title="${window.i18n.t('savings_temp_withdrawn') || 'Provisoirement retiré'}">-${formatCurrency(tempWithdrawn)}</span>` : ''}
+                            </div>
                             <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:6px;overflow:hidden;margin:8px 0;border:1px solid rgba(255,255,255,0.05);">
+                                <!-- Ghost (theoretical) fill -->
+                                ${tempWithdrawn > 0 ? `<div style="position:absolute;top:0;left:0;width:${theoreticalPct}%;height:100%;background:${savColor};opacity:0.25;border-radius:999px;"></div>` : ''}
+                                <!-- Actual (effective) fill -->
                                 <div style="position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${savColor};border-radius:999px;transition:width 0.3s;"></div>
                             </div>
                             <div style="display:flex; justify-content:space-between; font-size:12px;">
-                                <span class="privacy-blur" style="color:${savColor}; font-weight:600;">${formatCurrency(balance)}</span>
+                                <span class="privacy-blur" style="color:${savColor}; font-weight:600;">${formatCurrency(effectiveBalance)}</span>
                                 <span class="privacy-blur" style="color:var(--text-muted);">/ ${formatCurrency(goal)}</span>
                             </div>
                         </div>`;
@@ -586,6 +619,30 @@ class App {
             if (configs.base_pay_type) document.getElementById('quickPayType').value = configs.base_pay_type;
             if (configs.base_pay_day) document.getElementById('quickPayDay').value = configs.base_pay_day;
             if (configs.base_pay_day_2) document.getElementById('quickPayDay2').value = configs.base_pay_day_2;
+            
+            // Populate income categories in settings select
+            try {
+                const categories = await API.get('/api/categories/');
+                const incomeCats = categories.filter(c => c.type === 'income');
+                const catSelect = document.getElementById('quickPayCategory');
+                if (catSelect) {
+                    const currentSelVal = configs.pay_category || '';
+                    let html = `<option value="" data-i18n="opt_any_category">${window.i18n.t('opt_any_category') || '-- Toutes --'}</option>`;
+                    incomeCats.forEach(c => {
+                        html += `<option value="${c.name}">${c.name}</option>`;
+                    });
+                    catSelect.innerHTML = html;
+                    catSelect.value = currentSelVal;
+                }
+            } catch (e) {
+                console.error("Failed to load categories for quick pay config", e);
+            }
+
+            if (configs.pay_threshold_percent) {
+                document.getElementById('quickPayThreshold').value = configs.pay_threshold_percent;
+            } else {
+                document.getElementById('quickPayThreshold').value = '30';
+            }
             
             this.onQuickPayTypeChange(false);
             
@@ -669,12 +726,19 @@ class App {
                             </button>
                         </td>
                         <td style="padding: 8px; text-align: right; color: #f59e0b; font-weight: bold;">${formatCurrency(tx.amount)}</td>
+                        <td style="padding: 8px; text-align: center;">-</td>
                     `;
                 } else {
+                    const rejectTitle = window.i18n.t('btn_reject_salary') || 'Rejeter cette paie';
                     tr.innerHTML = `
                         <td style="padding: 8px;">${formatDate(tx.date)}</td>
                         <td style="padding: 8px;"><strong>${tx.description}</strong></td>
                         <td style="padding: 8px; text-align: right; color: var(--color-income); font-weight: bold;">${formatCurrency(tx.amount)}</td>
+                        <td style="padding: 8px; text-align: center;">
+                            <button onclick="window.app.rejectPaycheck(${tx.id})" title="${rejectTitle}" style="cursor:pointer; background:none; border:1px solid var(--border-color); color:var(--color-expense); border-radius:4px; padding:3px 8px; font-weight:bold;">
+                                ❌
+                            </button>
+                        </td>
                     `;
                 }
                 tbody.appendChild(tr);
@@ -682,6 +746,28 @@ class App {
         }
         
         document.getElementById('payHistoryModal').style.display = 'flex';
+    }
+    
+    async rejectPaycheck(txId) {
+        if (!txId) return;
+        const confirmMsg = window.i18n.t('confirm_reject_salary') || 'Es-tu sûr de vouloir rejeter cette opération de l\'historique des paies ?';
+        if (await showInlineConfirm(window.i18n.t('confirm_default_title') || 'Confirmation', confirmMsg)) {
+            try {
+                // Update transaction setting is_salary = false
+                await API.put(`/api/transactions/${txId}?propagate=false`, { is_salary: false });
+                
+                // Hide modal and refresh everything
+                document.getElementById('payHistoryModal').style.display = 'none';
+                await this.refreshSidebar();
+                if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
+                    window.TimelineView.loadData();
+                }
+                showToast(window.i18n.t('msg_salary_rejected') || 'Opération rejetée avec succès');
+            } catch (e) {
+                console.error("Failed to reject paycheck", e);
+                showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error') || 'Erreur lors de la sauvegarde');
+            }
+        }
     }
     
     async savePayOverride() {
@@ -740,6 +826,8 @@ class App {
         const type = document.getElementById('quickPayType').value;
         const day = document.getElementById('quickPayDay').value;
         const day2 = document.getElementById('quickPayDay2').value;
+        const payCat = document.getElementById('quickPayCategory').value;
+        const payThreshold = document.getElementById('quickPayThreshold').value;
         
         if (!day) return;
         
@@ -747,13 +835,17 @@ class App {
             await API.post('/api/config/', { 
                 base_pay_type: type,
                 base_pay_day: day.toString(),
-                base_pay_day_2: day2.toString()
+                base_pay_day_2: day2.toString(),
+                pay_category: payCat,
+                pay_threshold_percent: payThreshold ? payThreshold.toString() : '30'
             });
             // Update cache to prevent stale config overwriting input fields in refreshSidebar
             if (this.config) {
                 this.config.base_pay_type = type;
                 this.config.base_pay_day = day.toString();
                 this.config.base_pay_day_2 = day2.toString();
+                this.config.pay_category = payCat;
+                this.config.pay_threshold_percent = payThreshold ? payThreshold.toString() : '30';
             }
             await this.refreshSidebar();
             if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
