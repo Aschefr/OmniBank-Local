@@ -188,7 +188,7 @@ gh release create "v$Version" $msiPath `
 # --- Step 9: Docker Hub Release ---
 Write-Host "`n[9/9] Building and pushing Docker image..." -ForegroundColor Yellow
 
-docker build -f Dockerfile.standalone -t aschefr/omnibank-local:$Version -t aschefr/omnibank-local:latest .
+docker build -f docker/Dockerfile.standalone -t aschefr/omnibank-local:$Version -t aschefr/omnibank-local:latest .
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Docker build failed" -ForegroundColor Red
     exit 1
