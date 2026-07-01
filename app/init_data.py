@@ -138,6 +138,22 @@ def init_db():
 
             conn.commit()
 
+        if schema_version < 5:
+            # Schema v5: Reclassify 'neutral' categories as 'transfer'
+            # Previously, transfer-related categories like "Compte vers compte"
+            # were typed as 'neutral', making them invisible when creating transfers.
+            try:
+                conn.execute(text("UPDATE categories SET type = 'transfer' WHERE type = 'neutral'"))
+            except Exception:
+                pass
+
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '5')"))
+            except Exception:
+                pass
+
+            conn.commit()
+
 def wipe_db(db: Session):
     """Delete all data to start fresh."""
     db.query(Transaction).delete()

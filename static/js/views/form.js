@@ -411,6 +411,7 @@ window.FormView = {
             select.innerHTML = this.accounts
                 .filter(a => !a.is_closed || a.id == currentVal)
                 .map(a => `<option value="${a.id}">${a.name}${a.is_closed ? ' (Fermé)' : ''}</option>`).join('');
+            select.value = currentVal || '';
         };
         renderAcc('op_from_account', currentFrom);
         renderAcc('op_to_account', currentTo);
@@ -546,8 +547,8 @@ window.FormView = {
         let html = '<option value="">-- Sans cat\u00e9gorie --</option>';
         this.categories.forEach(c => {
             if (c.is_closed && c.name !== currentVal) return;
-            // Show all categories when type is neutral/empty (no account selected yet)
-            const typeMatch = !currentType || currentType === 'neutral' || c.type === currentType;
+            // Show only categories matching the current type
+            const typeMatch = !currentType || c.type === currentType;
             if (typeMatch) {
                 if (!search || c.name.toLowerCase().includes(search)) {
                     html += `<option value="${c.name}">${c.name}</option>`;
