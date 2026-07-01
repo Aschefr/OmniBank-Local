@@ -158,7 +158,7 @@ window.FormView = {
             if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) refreshPromises.push(window.TimelineView.loadData());
             if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) refreshPromises.push(window.AllOperationsView.loadData());
             await Promise.all(refreshPromises);
-            showToast(window.i18n.t('form_undo_done') || 'Derni\u00e8re saisie supprim\u00e9e', 'success');
+            showToast(window.i18n.t('form_undo_done') || 'Last entry deleted', 'success');
         } catch(e) {
             showInlineMessage(window.i18n.t('title_error'), e.message);
         }
@@ -514,13 +514,13 @@ window.FormView = {
                 badgeEl.style.display = 'inline-block';
                 if (isLimited) {
                     badgeEl.setAttribute('data-i18n', 'rec_limit_limited');
-                    badgeEl.textContent = window.i18n.t('rec_limit_limited') || 'Limitée dans le temps';
+                    badgeEl.textContent = window.i18n.t('rec_limit_limited') || 'Limited in time';
                     badgeEl.style.backgroundColor = 'rgba(245,158,11,0.15)';
                     badgeEl.style.color = '#f59e0b';
                     badgeEl.style.borderColor = 'rgba(245,158,11,0.25)';
                 } else {
                     badgeEl.setAttribute('data-i18n', 'rec_limit_unlimited');
-                    badgeEl.textContent = window.i18n.t('rec_limit_unlimited') || 'Illimitée dans le temps';
+                    badgeEl.textContent = window.i18n.t('rec_limit_unlimited') || 'Unlimited in time';
                     badgeEl.style.backgroundColor = 'rgba(16,185,129,0.15)';
                     badgeEl.style.color = '#10b981';
                     badgeEl.style.borderColor = 'rgba(16,185,129,0.25)';

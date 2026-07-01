@@ -47,7 +47,7 @@ window.AnalyticsView = {
                                 <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--border-color);transition:.4s;border-radius:34px;"></span>
                                 <span class="slider-knob" style="position:absolute;height:14px;width:14px;left:3px;bottom:3px;background-color:white;transition:.4s;border-radius:50%;"></span>
                             </div>
-                            <span data-i18n="analytics_custom_range_toggle">${window.i18n.t('analytics_custom_range_toggle') || 'P\u00e9riode'}</span>
+                            <span data-i18n="analytics_custom_range_toggle">${window.i18n.t('analytics_custom_range_toggle') || 'Period'}</span>
                         </label>
                         <div id="analyticsCustomRangeInputs" style="display:none;align-items:center;gap:4px;">
                             <input type="date" id="analyticsCustomStart" class="inline-input" style="width:145px;" onchange="window.AnalyticsView.onCustomRangeChange()">
@@ -268,7 +268,7 @@ window.AnalyticsView = {
         // Validation : ne pas envoyer si l'une des dates est absente ou si end < start
         if (start && end) {
             if (start > end) {
-                showToast(window.i18n.t('error_date_range_invalid') || 'La date de fin doit être après la date de début.', 'error');
+                showToast(window.i18n.t('error_date_range_invalid') || 'End date must be after start date.', 'error');
                 return;
             }
         }
@@ -345,11 +345,11 @@ window.AnalyticsView = {
         const isProp = sliderVal >= 0.98 && sliderVal <= 1.02;
         let currentLabel = '';
         if (isProp) {
-            currentLabel = window.i18n.t('analytics_gradient_prop') || 'Proportionnel';
+            currentLabel = window.i18n.t('analytics_gradient_prop') || 'Proportional';
         } else if (sliderVal > 1.02) {
-            currentLabel = `${window.i18n.t('analytics_gradient_log') || 'Logarithmique'} (${p.toFixed(2)})`;
+            currentLabel = `${window.i18n.t('analytics_gradient_log') || 'Logarithmic'} (${p.toFixed(2)})`;
         } else {
-            currentLabel = `${window.i18n.t('analytics_gradient_exp') || 'Exponentiel'} (${p.toFixed(2)})`;
+            currentLabel = `${window.i18n.t('analytics_gradient_exp') || 'Exponential'} (${p.toFixed(2)})`;
         }
 
         // Max for heatmap
@@ -382,7 +382,7 @@ window.AnalyticsView = {
                 <div class="print-hide" style="display:flex;align-items:center;gap:18px;font-size:12px;color:var(--text-muted);user-select:none;">
                     <!-- Bloc Gradient -->
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <span data-i18n="analytics_gradient_label">${window.i18n.t('analytics_gradient_label') || 'Gradient :'}</span>
+                        <span data-i18n="analytics_gradient_label">${window.i18n.t('analytics_gradient_label') || 'Gradient:'}</span>
                         <input type="range" min="0.0" max="2.0" value="${sliderVal}" step="0.01" style="width:95px;cursor:pointer;margin:0;" oninput="window.AnalyticsView.onGradientChange('${txType}', this.value)">
                         <span class="reset-gradient-btn" style="cursor:pointer;opacity:0.6;font-size:11px;transition:opacity 0.2s, visibility 0.2s;visibility:${isProp ? 'hidden' : 'visible'};" title="Réinitialiser (Proportionnel)" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6" onclick="window.AnalyticsView.onGradientChange('${txType}', '1.0'); this.parentElement.querySelector('input[type=range]').value = '1.0';">↺</span>
                         <span class="gradient-label-value" style="font-weight:600;width:140px;flex-shrink:0;color:var(--text-muted);">${currentLabel}</span>
@@ -393,7 +393,7 @@ window.AnalyticsView = {
 
                     <!-- Bloc Couleur -->
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <span data-i18n="analytics_color_label">${window.i18n.t('analytics_color_label') || 'Couleur :'}</span>
+                        <span data-i18n="analytics_color_label">${window.i18n.t('analytics_color_label') || 'Color:'}</span>
                         <input type="color" value="${cfg.color}" style="width:20px;height:20px;border:none;border-radius:50%;cursor:pointer;padding:0;background:none;outline:none;vertical-align:middle;box-shadow:var(--shadow-sm);" title="Changer la couleur du tableau" oninput="window.AnalyticsView.onColorChange('${txType}', this.value)">
                         <span class="reset-color-btn" style="cursor:pointer;opacity:0.6;font-size:11px;transition:opacity 0.2s, display 0.2s;display:${savedColor ? 'inline' : 'none'};" title="Restaurer la couleur par défaut" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6" onclick="localStorage.removeItem('analytics_color_${txType}'); window.AnalyticsView.renderAll();">⟲</span>
                     </div>
@@ -501,11 +501,11 @@ window.AnalyticsView = {
         const p = this.mapSliderToExponent(mappedVal);
         let currentLabel = '';
         if (sliderVal >= 0.98 && sliderVal <= 1.02) {
-            currentLabel = window.i18n.t('analytics_gradient_prop') || 'Proportionnel';
+            currentLabel = window.i18n.t('analytics_gradient_prop') || 'Proportional';
         } else if (sliderVal > 1.02) {
-            currentLabel = `${window.i18n.t('analytics_gradient_log') || 'Logarithmique'} (${p.toFixed(2)})`;
+            currentLabel = `${window.i18n.t('analytics_gradient_log') || 'Logarithmic'} (${p.toFixed(2)})`;
         } else {
-            currentLabel = `${window.i18n.t('analytics_gradient_exp') || 'Exponentiel'} (${p.toFixed(2)})`;
+            currentLabel = `${window.i18n.t('analytics_gradient_exp') || 'Exponential'} (${p.toFixed(2)})`;
         }
 
         const labelEl = container.querySelector('.gradient-label-value');
@@ -790,23 +790,23 @@ window.AnalyticsView = {
         const savedLogoRight = localStorage.getItem('print_logo_right') !== 'false';
         const orgHeaderHtml = isOrgMode ? `
         <div style="margin-bottom: 20px; padding: 14px; background: rgba(99,102,241,0.06); border-radius: 10px; border: 1px solid rgba(99,102,241,0.2);">
-            <h4 style="margin:0 0 12px 0;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_header_section') || 'En-tête du document'}</h4>
+            <h4 style="margin:0 0 12px 0;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_header_section') || 'Document header'}</h4>
             <div style="display:flex;flex-direction:column;gap:10px;">
-                <input type="text" id="exportHeaderTitle" class="inline-input" placeholder="${window.i18n.t('export_header_title_placeholder') || 'Titre du document'}" value="${savedHeaderTitle.replace(/"/g, '&quot;')}" style="width:100%;" oninput="localStorage.setItem('print_header_title', this.value)">
+                <input type="text" id="exportHeaderTitle" class="inline-input" placeholder="${window.i18n.t('export_header_title_placeholder') || 'Document title'}" value="${savedHeaderTitle.replace(/"/g, '&quot;')}" style="width:100%;" oninput="localStorage.setItem('print_header_title', this.value)">
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                    <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px;" onclick="document.getElementById('exportLogoFileInput').click()">${window.i18n.t('export_header_logo_import') || 'Importer un logo'}</button>
+                    <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px;" onclick="document.getElementById('exportLogoFileInput').click()">${window.i18n.t('export_header_logo_import') || 'Import logo'}</button>
                     <input type="file" id="exportLogoFileInput" accept="image/*" style="display:none;" onchange="window.AnalyticsView._handleLogoUpload(this)">
-                    ${savedLogoB64 ? `<button class="btn btn-danger" style="font-size:12px;padding:6px 14px;" onclick="localStorage.removeItem('print_header_logo');this.previousElementSibling.previousElementSibling.previousElementSibling.style.display='none';this.remove()">${window.i18n.t('export_header_logo_remove') || 'Supprimer le logo'}</button>` : ''}
+                    ${savedLogoB64 ? `<button class="btn btn-danger" style="font-size:12px;padding:6px 14px;" onclick="localStorage.removeItem('print_header_logo');this.previousElementSibling.previousElementSibling.previousElementSibling.style.display='none';this.remove()">${window.i18n.t('export_header_logo_remove') || 'Remove logo'}</button>` : ''}
                 </div>
                 ${savedLogoB64 ? `<img id="exportLogoPreview" src="${savedLogoB64}" style="max-height:60px;max-width:200px;border-radius:6px;border:1px solid var(--border-color);object-fit:contain;">` : '<div id="exportLogoPreview"></div>'}
                 <div style="display:flex;gap:16px;flex-wrap:wrap;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
                         <input type="checkbox" id="exportLogoLeft" ${savedLogoLeft ? 'checked' : ''} style="accent-color:var(--accent);" onchange="localStorage.setItem('print_logo_left', this.checked)">
-                        ${window.i18n.t('export_logo_position_left') || 'Logo à gauche'}
+                        ${window.i18n.t('export_logo_position_left') || 'Logo on left'}
                     </label>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
                         <input type="checkbox" id="exportLogoRight" ${savedLogoRight ? 'checked' : ''} style="accent-color:var(--accent);" onchange="localStorage.setItem('print_logo_right', this.checked)">
-                        ${window.i18n.t('export_logo_position_right') || 'Logo à droite'}
+                        ${window.i18n.t('export_logo_position_right') || 'Logo on right'}
                     </label>
                 </div>
             </div>
@@ -819,15 +819,15 @@ window.AnalyticsView = {
                 <div style="flex:1; overflow-y:auto; padding-right:10px;">
                     ${orgHeaderHtml}
                     <div style="margin-bottom: 20px;">
-                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_detailed_period') || 'Période détaillée (mois par mois)'}</h4>
+                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_detailed_period') || 'Detailed period (month by month)'}</h4>
                         <div style="display:flex; border-bottom:1px solid var(--border-color); margin-bottom:12px; gap:8px;">
-                            <button type="button" class="tab-btn" id="tabYear" onclick="window.AnalyticsView.switchExportTab('year')" style="padding:8px 16px; border:none; background:none; cursor:pointer; font-size:13px; outline:none; transition:all 0.2s;">${window.i18n.t('export_full_year') || 'Année complète'}</button>
-                            <button type="button" class="tab-btn" id="tabCustom" onclick="window.AnalyticsView.switchExportTab('custom')" style="padding:8px 16px; border:none; background:none; cursor:pointer; font-size:13px; outline:none; transition:all 0.2s;">${window.i18n.t('export_custom_range') || 'Période personnalisée'}</button>
+                            <button type="button" class="tab-btn" id="tabYear" onclick="window.AnalyticsView.switchExportTab('year')" style="padding:8px 16px; border:none; background:none; cursor:pointer; font-size:13px; outline:none; transition:all 0.2s;">${window.i18n.t('export_full_year') || 'Full year'}</button>
+                            <button type="button" class="tab-btn" id="tabCustom" onclick="window.AnalyticsView.switchExportTab('custom')" style="padding:8px 16px; border:none; background:none; cursor:pointer; font-size:13px; outline:none; transition:all 0.2s;">${window.i18n.t('export_custom_range') || 'Custom period'}</button>
                         </div>
                         
                         <div id="exportTabContentYear" style="margin-bottom: 12px; display:none;">
                             <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
-                                <span>${window.i18n.t('export_year_label') || 'Année :'}</span>
+                                <span>${window.i18n.t('export_year_label') || 'Year:'}</span>
                                 <select id="exportSelectYear" class="inline-input" style="width:120px;" onchange="localStorage.setItem('print_settings_selected_year', this.value)">
                                     ${availableYears.map(y => `<option value="${y}" ${y === savedSelectedYear ? 'selected' : ''}>${y}</option>`).join('')}
                                 </select>
@@ -841,7 +841,7 @@ window.AnalyticsView = {
                         </div>
 
                         <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
-                            <h4 style="margin-bottom:8px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_annual_totals_section') || 'Colonnes de Totaux Annuels (à droite)'}</h4>
+                            <h4 style="margin-bottom:8px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_annual_totals_section') || 'Annual Totals Columns (on the right)'}</h4>
                             <div style="display:flex; gap:16px; flex-wrap:wrap;">
                                 ${availableYears.map(y => `
                                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
@@ -860,7 +860,7 @@ window.AnalyticsView = {
                         ${typesHtml}
                     </div>
                     <div style="margin-bottom: 20px;">
-                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_account_balances') || 'Situation des comptes'}</h4>
+                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_account_balances') || 'Account Balances'}</h4>
                         <div id="exportBalanceCheckboxes" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:6px;background:rgba(0,0,0,0.02);padding:10px;border-radius:8px;"></div>
                     </div>
                     <div style="margin-bottom: 20px;">
@@ -881,29 +881,29 @@ window.AnalyticsView = {
                     <div style="margin-top:12px;">
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text-muted);">
                             <input type="checkbox" id="exportForcePageBreak" ${savedForcePageBreak ? 'checked' : ''} style="accent-color:var(--accent);">
-                            ${window.i18n.t('export_force_page_break') || 'Forcer un saut de page entre chaque tableau'}
+                            ${window.i18n.t('export_force_page_break') || 'Force page break between each table'}
                         </label>
                     </div>
 
                     <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
-                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_font_sizes_section') || 'Taille des polices'}</h4>
+                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_font_sizes_section') || 'Font Sizes'}</h4>
                         <div style="display:flex;gap:20px;flex-wrap:wrap;">
                             ${isOrgMode ? `
                             <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
-                                <span>${window.i18n.t('export_title_font_size') || 'Taille du titre'} :</span>
+                                <span>${window.i18n.t('export_title_font_size') || 'Title font size'} :</span>
                                 <select id="exportTitleFontSize" class="inline-input" style="width:150px;">
-                                    <option value="small" ${savedTitleFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Petit'}</option>
-                                    <option value="medium" ${savedTitleFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Moyen (Par défaut)'}</option>
-                                    <option value="large" ${savedTitleFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Grand'}</option>
+                                    <option value="small" ${savedTitleFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Small'}</option>
+                                    <option value="medium" ${savedTitleFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Medium (Default)'}</option>
+                                    <option value="large" ${savedTitleFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Large'}</option>
                                 </select>
                             </label>
                             ` : ''}
                             <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
-                                <span>${window.i18n.t('export_table_font_size') || 'Taille des tableaux et montants'} :</span>
+                                <span>${window.i18n.t('export_table_font_size') || 'Table / amount font size'} :</span>
                                 <select id="exportTableFontSize" class="inline-input" style="width:150px;">
-                                    <option value="small" ${savedTableFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Petit'}</option>
-                                    <option value="medium" ${savedTableFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Moyen (Par défaut)'}</option>
-                                    <option value="large" ${savedTableFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Grand'}</option>
+                                    <option value="small" ${savedTableFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Small'}</option>
+                                    <option value="medium" ${savedTableFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Medium (Default)'}</option>
+                                    <option value="large" ${savedTableFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Large'}</option>
                                 </select>
                             </label>
                         </div>
@@ -1246,14 +1246,14 @@ window.AnalyticsView = {
             balancesHtml = `
             <div style="margin-bottom:24px;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">
                 <div style="background:rgba(99,102,241,0.08);padding:10px 16px;border-bottom:1px solid var(--border-color);">
-                    <strong style="font-size:14px;">${window.i18n.t('export_balance_title') || 'Situation des comptes'}</strong>
+                    <strong style="font-size:14px;">${window.i18n.t('export_balance_title') || 'Account Balances'}</strong>
                     <span style="float:right;font-size:12px;color:var(--text-muted);">${new Date().toLocaleDateString(window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                 </div>
                 <table style="width:100%;border-collapse:collapse;font-size:12px;">
                     <thead><tr style="background:rgba(0,0,0,0.03);">
                          <th style="text-align:left;padding:6px 12px;border-bottom:1px solid var(--border-color);">${window.i18n.t('acc_th_name')}</th>
                         <th style="text-align:left;padding:6px 12px;border-bottom:1px solid var(--border-color);">${window.i18n.t('acc_th_type')}</th>
-                        <th style="text-align:right;padding:6px 12px;border-bottom:1px solid var(--border-color);">${window.i18n.t('export_balance_current') || 'Solde actuel'}</th>
+                        <th style="text-align:right;padding:6px 12px;border-bottom:1px solid var(--border-color);">${window.i18n.t('export_balance_current') || 'Current Balance'}</th>
                     </tr></thead>
                     <tbody>${balanceRows}</tbody>
                     <tfoot><tr style="font-weight:700;background:rgba(0,0,0,0.03);">
@@ -1425,7 +1425,7 @@ window.AnalyticsView = {
             return;
         }
 
-        const title = window.i18n.t('analytics_popover_years_title') || 'Années de totaux :';
+        const title = window.i18n.t('analytics_popover_years_title') || 'Total Years:';
         let html = `<div style="font-weight:600; font-size:12px; border-bottom:1px solid var(--border-color); padding-bottom:6px; margin-bottom:6px; color:var(--text-main);">${title}</div>`;
         
         revYears.forEach(yr => {
