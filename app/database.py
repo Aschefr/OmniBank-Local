@@ -57,7 +57,7 @@ DB_PATH = os.path.join(DATA_DIR, 'omnibank.db')
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
 
 engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False}
+    DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 30}
 )
 
 @event.listens_for(engine, "connect")
