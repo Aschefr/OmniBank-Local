@@ -136,7 +136,6 @@ window.CategoriesView = {
             if (search) {
                 cats = cats.filter(c => c.name.toLowerCase().includes(search));
             }
-            if (cats.length === 0) return;
             
             html += `
             <div style="background: var(--bg-surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto;">
@@ -155,23 +154,31 @@ window.CategoriesView = {
                     <tbody>
             `;
             
-            cats.forEach(cat => {
-                const isClosed = cat.is_closed;
-                const rowStyle = isClosed ? 'opacity: 0.5;' : '';
-                const statusBadge = isClosed ? `<span style="background:rgba(239,68,68,0.15); color:#ff5630; padding:2px 6px; border-radius:4px; font-size:10px;">${window.i18n.t('badge_closed_cat') || 'Clôturée'}</span>` : `<span style="background:rgba(16,185,129,0.15); color:#10b981; padding:2px 6px; border-radius:4px; font-size:10px;">${window.i18n.t('badge_active') || 'Active'}</span>`;
-                
+            if (cats.length === 0) {
                 html += `
-                <tr style="${rowStyle}">
-                    <td style="padding-left: 10px;"><strong>${cat.name}</strong></td>
-                    <td>${statusBadge}</td>
-                    <td style="text-align: right; white-space: nowrap; overflow: visible;">
-                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.openEdit(${cat.id})" title="${window.i18n.t('tooltip_edit') || 'Modifier'}">✏️</button>
-                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.toggleClose(${cat.id})" title="${isClosed ? (window.i18n.t('tooltip_reopen') || 'Réouvrir') : (window.i18n.t('tooltip_close') || 'Clôturer')}">${isClosed ? '🔓' : '🔒'}</button>
-                        <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.openDelete(${cat.id})" title="${window.i18n.t('tooltip_delete') || 'Supprimer'}">✕</button>
-                    </td>
+                <tr>
+                    <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 15px; font-style: italic;" data-i18n="cat_empty_list">${window.i18n.t('cat_empty_list') || 'Aucune catégorie'}</td>
                 </tr>
                 `;
-            });
+            } else {
+                cats.forEach(cat => {
+                    const isClosed = cat.is_closed;
+                    const rowStyle = isClosed ? 'opacity: 0.5;' : '';
+                    const statusBadge = isClosed ? `<span style="background:rgba(239,68,68,0.15); color:#ff5630; padding:2px 6px; border-radius:4px; font-size:10px;">${window.i18n.t('badge_closed_cat') || 'Clôturée'}</span>` : `<span style="background:rgba(16,185,129,0.15); color:#10b981; padding:2px 6px; border-radius:4px; font-size:10px;">${window.i18n.t('badge_active') || 'Active'}</span>`;
+                    
+                    html += `
+                    <tr style="${rowStyle}">
+                        <td style="padding-left: 10px;"><strong>${cat.name}</strong></td>
+                        <td>${statusBadge}</td>
+                        <td style="text-align: right; white-space: nowrap; overflow: visible;">
+                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.openEdit(${cat.id})" title="${window.i18n.t('tooltip_edit') || 'Modifier'}">✏️</button>
+                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.toggleClose(${cat.id})" title="${isClosed ? (window.i18n.t('tooltip_reopen') || 'Réouvrir') : (window.i18n.t('tooltip_close') || 'Clôturer')}">${isClosed ? '🔓' : '🔒'}</button>
+                            <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.openDelete(${cat.id})" title="${window.i18n.t('tooltip_delete') || 'Supprimer'}">✕</button>
+                        </td>
+                    </tr>
+                    `;
+                });
+            }
             
             html += `
                     </tbody>
