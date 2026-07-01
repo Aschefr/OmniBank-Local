@@ -872,5 +872,6 @@
     "confirm_reject_salary": "Are you sure you want to reject this transaction from the paycheck history?",
     "msg_salary_rejected": "Transaction successfully rejected",
     "th_action": "Actions",
-    "savings_temp_withdrawn": "Temporarily withdrawn"
+    "savings_temp_withdrawn": "Temporarily withdrawn",
+    "cat_empty_list": "No categories"
 }

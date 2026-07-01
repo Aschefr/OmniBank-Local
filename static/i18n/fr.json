@@ -872,5 +872,6 @@
     "confirm_reject_salary": "Es-tu sûr de vouloir rejeter cette opération de l'historique des paies ?",
     "msg_salary_rejected": "Opération rejetée avec succès",
     "th_action": "Actions",
-    "savings_temp_withdrawn": "Provisoirement retiré"
+    "savings_temp_withdrawn": "Provisoirement retiré",
+    "cat_empty_list": "Aucune catégorie"
 }
