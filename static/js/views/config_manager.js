@@ -176,12 +176,12 @@ window.ConfigView = {
 
                     <!-- Fix type mismatch -->
                     <button class="btn btn-secondary" id="btnFixTypeMismatch" onclick="window.ConfigView.fixTypeMismatch()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(245,158,11,0.5); color: #f59e0b;">
-                        🔧 <span data-i18n="maintenance_fix_types">${window.i18n.t('maintenance_fix_types') || 'Corriger les types incohérents'}</span>
+                        🔧 <span data-i18n="maintenance_fix_types">${window.i18n.t('maintenance_fix_types') || 'Fix inconsistent types'}</span>
                     </button>
 
                     <!-- Orphan recurrence cleanup -->
                     <button class="btn btn-secondary" id="btnCleanOrphanRecurrences" onclick="window.ConfigView.cleanOrphanRecurrences()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(239,68,68,0.5); color: #ef4444;">
-                        🧹 <span data-i18n="maintenance_orphan_btn">${window.i18n.t('maintenance_orphan_btn') || 'Nettoyer les récurrences orphelines'}</span>
+                        🧹 <span data-i18n="maintenance_orphan_btn">${window.i18n.t('maintenance_orphan_btn') || 'Clean up orphan recurrences'}</span>
                     </button>
 
                     <!-- Clear DB -->
@@ -716,10 +716,10 @@ window.ConfigView = {
         if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse...'; }
         try {
             const preview = await API.get('/api/maintenance/fix_type_mismatch/preview');
-            if (btn) { btn.disabled = false; btn.innerHTML = '🔧 ' + (window.i18n.t('maintenance_fix_types') || 'Corriger les types incohérents'); }
+            if (btn) { btn.disabled = false; btn.innerHTML = '🔧 ' + (window.i18n.t('maintenance_fix_types') || 'Fix inconsistent types'); }
 
             if (preview.count === 0) {
-                showInlineMessage('✅', window.i18n.t('maintenance_no_fix_needed') || 'Aucune incohérence détectée. Tout est en ordre !');
+                showInlineMessage('✅', window.i18n.t('maintenance_no_fix_needed') || 'No inconsistencies detected. Everything is in order!');
                 return;
             }
 
@@ -764,8 +764,8 @@ window.ConfigView = {
                             <thead><tr style="background:var(--bg-surface);">
                                 <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_date_op') || 'Date'}</th>
                                 <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_description') || 'Description'}</th>
-                                <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_category') || 'Catégorie'}</th>
-                                <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_amount') || 'Montant'}</th>
+                                <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_category') || 'Category'}</th>
+                                <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_amount') || 'Amount'}</th>
                                 <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('maintenance_correction') || 'Correction'}</th>
                             </tr></thead>
                             <tbody>${rows}</tbody>
@@ -781,7 +781,7 @@ window.ConfigView = {
                 <div style="padding:12px;background:rgba(245,158,11,0.06);border-radius:10px;border:1px solid rgba(245,158,11,0.25);margin-bottom:14px;">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                         <span style="font-size:16px;">⚠️</span>
-                        <strong style="font-size:13px;color:#f59e0b;">${window.i18n.t('maintenance_cat_choice') || 'Catégories partagées'}</strong>
+                        <strong style="font-size:13px;color:#f59e0b;">${window.i18n.t('maintenance_cat_choice') || 'Shared categories'}</strong>
                     </div>
                     <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;line-height:1.4;">
                         ${window.i18n.t('maintenance_cat_choice_desc') || "Ces catégories sont utilisées par des opérations récurrentes ET des dépenses variables ponctuelles. Choisissez l'action pour chaque :"}
@@ -790,10 +790,10 @@ window.ConfigView = {
                         <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:4px;background:var(--bg-surface);border-radius:8px;">
                             <span style="flex:1;font-weight:600;font-size:13px;">${c.name}</span>
                             <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);">
-                                <input type="radio" name="cat_${c.name}" value="move" checked> ${window.i18n.t('maintenance_cat_move') || 'Déplacer vers Charges fixes'}
+                                <input type="radio" name="cat_${c.name}" value="move" checked> ${window.i18n.t('maintenance_cat_move') || 'Move to Fixed charges'}
                             </label>
                             <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);">
-                                <input type="radio" name="cat_${c.name}" value="keep"> ${window.i18n.t('maintenance_cat_keep') || 'Conserver en Variables'}
+                                <input type="radio" name="cat_${c.name}" value="keep"> ${window.i18n.t('maintenance_cat_keep') || 'Keep as Variable'}
                             </label>
                         </div>`).join('')}
                 </div>`;
@@ -804,7 +804,7 @@ window.ConfigView = {
             if (nonSharedCats.length > 0) {
                 autoMovedHtml = `
                 <div style="padding:10px;background:rgba(16,185,129,0.06);border-radius:8px;border:1px solid rgba(16,185,129,0.25);">
-                    <div style="font-size:12px;color:#10b981;margin-bottom:4px;font-weight:600;">✅ ${window.i18n.t('maintenance_auto_move') || 'Catégories déplacées automatiquement'}</div>
+                    <div style="font-size:12px;color:#10b981;margin-bottom:4px;font-weight:600;">✅ ${window.i18n.t('maintenance_auto_move') || 'Categories moved automatically'}</div>
                     <p style="font-size:11px;color:var(--text-muted);margin:0;">
                         ${nonSharedCats.map(c => '<span style="background:var(--bg-surface);padding:2px 8px;border-radius:4px;margin-right:4px;font-weight:500;">' + c.name + '</span>').join('')}
                     </p>
@@ -814,7 +814,7 @@ window.ConfigView = {
             const msgHtml = '<div style="max-height:60vh;overflow-y:auto;">' + summaryHtml + sampleHtml + catChoicesHtml + autoMovedHtml + '</div>';
 
             const ok = await showInlineConfirm(
-                window.i18n.t('maintenance_fix_preview') || 'Aper\u00e7u de la correction',
+                window.i18n.t('maintenance_fix_preview') || 'Preview fix',
                 msgHtml
             );
             if (!ok) return;
@@ -830,7 +830,7 @@ window.ConfigView = {
 
             const result = await API.post(`/api/maintenance/fix_type_mismatch/apply?cat_moves=${encodeURIComponent(allMoves.join(','))}`);
             showToast(
-                (window.i18n.t('maintenance_fix_result') || 'Migration terminée : {tx} opérations, {cat} catégories corrigées.')
+                (window.i18n.t('maintenance_fix_result') || 'Migration complete: {tx} transactions, {cat} categories corrected.')
                     .replace('{tx}', result.tx_fixed)
                     .replace('{cat}', result.cat_fixed),
                 'success', 4000
@@ -847,10 +847,10 @@ window.ConfigView = {
         if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse...'; }
         try {
             const preview = await API.get('/api/maintenance/orphan_recurrences/preview');
-            if (btn) { btn.disabled = false; btn.innerHTML = '🧹 ' + (window.i18n.t('maintenance_orphan_btn') || 'Nettoyer les récurrences orphelines'); }
+            if (btn) { btn.disabled = false; btn.innerHTML = '🧹 ' + (window.i18n.t('maintenance_orphan_btn') || 'Clean up orphan recurrences'); }
 
             if (preview.count === 0) {
-                showInlineMessage('✅', window.i18n.t('maintenance_orphan_none') || 'Aucune récurrence orpheline détectée. Tout est en ordre !');
+                showInlineMessage('✅', window.i18n.t('maintenance_orphan_none') || 'No orphan recurrences detected. Everything is in order!');
                 return;
             }
 
@@ -870,17 +870,17 @@ window.ConfigView = {
 
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                         <span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;">
-                            ${window.i18n.t('maintenance_orphan_select_label') || 'Sélectionnez les opérations à supprimer'}
+                            ${window.i18n.t('maintenance_orphan_select_label') || 'Select transactions to delete'}
                         </span>
                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--primary-color);">
                             <input type="checkbox" id="orphanSelectAll" checked onchange="document.querySelectorAll('.orphan-tx-cb').forEach(cb => { cb.checked = this.checked; })">
-                            ${window.i18n.t('wizard_tooltip_select_all') || 'Tout sélectionner'}
+                            ${window.i18n.t('wizard_tooltip_select_all') || 'Select all'}
                         </label>
                     </div>`;
 
             preview.groups.forEach(group => {
                 const closedBadge = group.is_closed
-                    ? `<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;margin-left:8px;">${window.i18n.t('badge_closed') || 'Fermé'}</span>`
+                    ? `<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;margin-left:8px;">${window.i18n.t('badge_closed') || 'Closed'}</span>`
                     : '';
 
                 contentHtml += `
@@ -915,13 +915,13 @@ window.ConfigView = {
             contentHtml += `
                     <div style="padding:10px;background:rgba(239,68,68,0.06);border-radius:8px;border:1px solid rgba(239,68,68,0.2);margin-top:8px;">
                         <p style="font-size:12px;color:#ef4444;margin:0;font-weight:500;">
-                            ⚠️ ${window.i18n.t('maintenance_orphan_warning') || 'Les opérations cochées seront définitivement supprimées. Les opérations rapprochées ne peuvent jamais être supprimées.'}
+                            ⚠️ ${window.i18n.t('maintenance_orphan_warning') || 'Checked transactions will be permanently deleted. Reconciled transactions can never be deleted.'}
                         </p>
                     </div>
                 </div>`;
 
             const ok = await showInlineConfirm(
-                window.i18n.t('maintenance_orphan_preview_title') || 'Nettoyage des récurrences orphelines',
+                window.i18n.t('maintenance_orphan_preview_title') || 'Orphan recurrence cleanup',
                 contentHtml
             );
             if (!ok) return;
@@ -930,13 +930,13 @@ window.ConfigView = {
             const selectedIds = Array.from(document.querySelectorAll('.orphan-tx-cb:checked')).map(cb => parseInt(cb.value));
 
             if (selectedIds.length === 0) {
-                showToast(window.i18n.t('maintenance_orphan_none_selected') || 'Aucune opération sélectionnée.', 'info');
+                showToast(window.i18n.t('maintenance_orphan_none_selected') || 'No transaction selected.', 'info');
                 return;
             }
 
             const result = await API.post('/api/maintenance/orphan_recurrences/cleanup', selectedIds);
             showToast(
-                (window.i18n.t('maintenance_orphan_result') || '{count} opération(s) supprimée(s).')
+                (window.i18n.t('maintenance_orphan_result') || '{count} transaction(s) deleted.')
                     .replace('{count}', result.deleted),
                 'success', 4000
             );

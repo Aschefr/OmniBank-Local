@@ -58,7 +58,7 @@ window.RecurrenceView = {
             const tableContainer = document.getElementById('recurrencesTableContainer');
             if (tableContainer) {
                 if (displayTemplates.length === 0) {
-                    const emptyMsg = (window.i18n.t('msg_no_recurrences_configured_year') || 'Aucune opération récurrente planifiée pour {year}').replace('{year}', this.selectedYear);
+                    const emptyMsg = (window.i18n.t('msg_no_recurrences_configured_year') || 'No recurring operations planned for {year}').replace('{year}', this.selectedYear);
                     tableContainer.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--text-muted); font-size: 16px;">${emptyMsg}</div>`;
                     return;
                 }
@@ -70,8 +70,8 @@ window.RecurrenceView = {
                                 <th style="padding: 12px; width: 40px; text-align: center;"></th>
                                 <th style="padding: 12px;">${window.i18n.t('col_description')}</th>
                                 <th style="padding: 12px; width: 200px;">${window.i18n.t('col_category')}</th>
-                                <th style="padding: 12px; width: 120px;">${window.i18n.t('wizard_th_frequency') || 'Fréquence'}</th>
-                                <th style="padding: 12px; width: 100px; text-align: center;">${window.i18n.t('wizard_th_day') || 'Jour'}</th>
+                                <th style="padding: 12px; width: 120px;">${window.i18n.t('wizard_th_frequency') || 'Frequency'}</th>
+                                <th style="padding: 12px; width: 100px; text-align: center;">${window.i18n.t('wizard_th_day') || 'Day of month'}</th>
                                 <th style="padding: 12px; width: 130px; text-align: right;">${window.i18n.t('col_amount')}</th>
                                 <th style="padding: 12px; width: 80px; text-align: center;">${window.i18n.t('th_actions') || 'Actions'}</th>
                             </tr>
@@ -106,7 +106,7 @@ window.RecurrenceView = {
                             <td style="padding: 12px; text-align: center; font-size: 13px;">${t.day_of_month || 1}</td>
                             <td style="padding: 12px; text-align: right; font-weight: 700; color: var(--text-main); font-size: 14px;">${formatCurrency(t.amount)}</td>
                             <td style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
-                                <button class="btn btn-danger" style="padding: 6px 10px; font-size: 12px;" onclick="window.RecurrenceView.deleteTemplate(${t.id})" title="${window.i18n.t('tooltip_delete') || 'Supprimer'}">🗑️</button>
+                                <button class="btn btn-danger" style="padding: 6px 10px; font-size: 12px;" onclick="window.RecurrenceView.deleteTemplate(${t.id})" title="${window.i18n.t('tooltip_delete') || 'Delete'}">🗑️</button>
                             </td>
                         </tr>
                         <tr id="details_row_${t.id}" style="display: ${displayStyle}; background: var(--bg-sidebar);">
@@ -421,13 +421,13 @@ window.RecurrenceView = {
     async changeTemplateCategory(selectElement, templateId) {
         const val = selectElement.value;
         if (val === '__new__') {
-            const title = window.i18n.t('wizard_prompt_new_category_title') || 'Nom de la nouvelle catégorie de dépenses fixes :';
+            const title = window.i18n.t('wizard_prompt_new_category_title') || 'Name of the new fixed expense category:';
             const name = await showInlinePrompt(title);
             if (name && name.trim()) {
                 try {
                     const newCat = await API.post('/api/categories/', { name: name.trim(), type: 'expense_fixed' });
                     await API.patch(`/api/recurrences/${templateId}/category`, { category: newCat.name });
-                    showToast(window.i18n.t('msg_category_added') || 'Catégorie ajoutée');
+                    showToast(window.i18n.t('msg_category_added') || 'Category added');
                 } catch (e) {
                     let isConflict = false;
                     let msg = e.message;
@@ -445,14 +445,14 @@ window.RecurrenceView = {
                             try {
                                 const newCat = await API.post('/api/categories/?force_move=true', { name: name.trim(), type: 'expense_fixed' });
                                 await API.patch(`/api/recurrences/${templateId}/category`, { category: newCat.name });
-                                showToast(window.i18n.t('msg_category_added') || 'Catégorie ajoutée');
+                                showToast(window.i18n.t('msg_category_added') || 'Category added');
                             } catch(err2) {
                                 showToast("Erreur lors du déplacement de la catégorie", "error");
                             }
                         }
                     } else {
                         console.error("Failed to create category", e);
-                        showToast(window.i18n.t('msg_category_create_error') || 'Erreur lors de la création de la catégorie', 'error');
+                        showToast(window.i18n.t('msg_category_create_error') || 'Category creation error', 'error');
                     }
                 }
             }
@@ -475,7 +475,7 @@ window.RecurrenceView = {
         
         try {
             await API.del(`/api/recurrences/${templateId}`);
-            showToast(window.i18n.t('msg_template_deleted') || 'Récurrence supprimée');
+            showToast(window.i18n.t('msg_template_deleted') || 'Recurrence deleted');
             if (this.expandedTemplateIds.has(templateId)) {
                 this.expandedTemplateIds.delete(templateId);
             }
@@ -571,7 +571,7 @@ window.RecurrenceView = {
                         <select id="wiz_cat_${t.id}" class="inline-input" style="width:100%; font-size: 13px;" onchange="window.RecurrenceView.onWizardCategoryChange(this, '${t.id}')">
                             <option value="">${window.i18n.t('wizard_opt_no_category')}</option>
                             ${categories.filter(c => c.type === 'expense_fixed' || c.name === t.category).map(c => `<option value="${c.name}" ${t.category === c.name ? 'selected' : ''}>${c.name}</option>`).join('')}
-                            <option value="__new__" style="color: var(--primary-color); font-weight: bold;">+ ${window.i18n.t('wizard_opt_new_category') || 'Nouvelle catégorie...'}</option>
+                            <option value="__new__" style="color: var(--primary-color); font-weight: bold;">+ ${window.i18n.t('wizard_opt_new_category') || 'New category...'}</option>
                         </select>
                     </td>
                     <td style="padding: 10px;">
@@ -783,7 +783,7 @@ window.RecurrenceView = {
                     <select id="wiz_cat_${newId}" class="inline-input" style="width:100%; font-size: 13px;" onchange="window.RecurrenceView.onWizardCategoryChange(this, '${newId}')">
                         <option value="">${window.i18n.t('wizard_opt_no_category')}</option>
                         ${catOptions}
-                        <option value="__new__" style="color: var(--primary-color); font-weight: bold;">+ ${window.i18n.t('wizard_opt_new_category') || 'Nouvelle catégorie...'}</option>
+                        <option value="__new__" style="color: var(--primary-color); font-weight: bold;">+ ${window.i18n.t('wizard_opt_new_category') || 'New category...'}</option>
                     </select>
                 </td>
                 <td style="padding: 10px;">
@@ -799,7 +799,7 @@ window.RecurrenceView = {
     
     async onWizardCategoryChange(select, id) {
         if (select.value === '__new__') {
-            const title = window.i18n.t('wizard_prompt_new_category_title') || 'Nom de la nouvelle catégorie de dépenses fixes :';
+            const title = window.i18n.t('wizard_prompt_new_category_title') || 'Name of the new fixed expense category:';
             const name = await showInlinePrompt(title);
             if (name && name.trim()) {
                 try {
@@ -827,10 +827,10 @@ window.RecurrenceView = {
                         }
                     });
                     
-                    showToast(window.i18n.t('msg_category_added') || 'Catégorie ajoutée');
+                    showToast(window.i18n.t('msg_category_added') || 'Category added');
                 } catch (e) {
                     console.error("Failed to create category in wizard", e);
-                    showToast(window.i18n.t('msg_category_create_error') || 'Erreur lors de la création de la catégorie', 'error');
+                    showToast(window.i18n.t('msg_category_create_error') || 'Category creation error', 'error');
                     select.value = '';
                 }
             } else {
@@ -840,8 +840,8 @@ window.RecurrenceView = {
     },
     
     updateWizardCategorySelectOptions(selectElement, fixedCategories, currentValue, originalCategoryValue = null) {
-        const noCatLabel = window.i18n.t('wizard_opt_no_category') || '-- Catégorie --';
-        const newCatLabel = window.i18n.t('wizard_opt_new_category') || 'Nouvelle catégorie...';
+        const noCatLabel = window.i18n.t('wizard_opt_no_category') || '-- Category --';
+        const newCatLabel = window.i18n.t('wizard_opt_new_category') || 'New category...';
         
         const displayCategories = [...fixedCategories];
         if (originalCategoryValue && !displayCategories.some(c => c.name === originalCategoryValue)) {

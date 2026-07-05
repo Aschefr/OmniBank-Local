@@ -85,7 +85,7 @@ window.BudgetsView = {
 
                             <!-- Improvement_04: Account Selector (Org Mode only) -->
                             <div id="budgetAccountSection" style="${(window.app?.config?.enable_org_mode === 'true') ? '' : 'display:none;'}">
-                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_account_filter">${window.i18n.t('budget_account_filter') || 'Périmètre comptes'}</label>
+                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_account_filter">${window.i18n.t('budget_account_filter') || 'Account scope'}</label>
                                 <div id="budgetAccountCheckboxes" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:6px;margin-top:6px;max-height:150px;overflow-y:auto;padding:10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border-color);">
                                     <!-- Filled dynamically -->
                                 </div>
@@ -96,7 +96,7 @@ window.BudgetsView = {
                                 <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_cat_included">${window.i18n.t('budget_cat_included')}</label>
                                 <input type="text" id="budgetCatSearch" class="inline-input" 
                                     data-i18n-placeholder="budget_cat_search_placeholder"
-                                    placeholder="${window.i18n.t('budget_cat_search_placeholder') || 'Rechercher une catégorie...'}"
+                                    placeholder="${window.i18n.t('budget_cat_search_placeholder') || 'Search category...'}"
                                     style="width:100%;margin-top:6px;margin-bottom:4px;font-size:12px;padding:6px 10px;border-radius:6px;"
                                     oninput="window.BudgetsView.renderCatCheckboxes(window.BudgetsView.getSelectedCats())">
                                 <div id="budgetCatCheckboxes" style="display:block;margin-top:8px;max-height:450px;overflow-y:auto;padding:12px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border-color);">
@@ -116,14 +116,14 @@ window.BudgetsView = {
                                         <option value="monthly" data-i18n="budget_opt_monthly">${window.i18n.t('budget_opt_monthly')}</option>
                                         <option value="yearly" data-i18n="budget_opt_yearly">${window.i18n.t('budget_opt_yearly')}</option>
                                         <option value="indefinite" data-i18n="budget_opt_indefinite">${window.i18n.t('budget_opt_indefinite')}</option>
-                                        ${(window.app?.config?.enable_org_mode === 'true') ? `<option value="custom" data-i18n="budget_opt_custom">${window.i18n.t('budget_opt_custom') || 'Défini dans le temps'}</option>` : ''}
+                                        ${(window.app?.config?.enable_org_mode === 'true') ? `<option value="custom" data-i18n="budget_opt_custom">${window.i18n.t('budget_opt_custom') || 'Time-bound'}</option>` : ''}
                                     </select>
                                 </div>
                             </div>
 
                             <!-- Custom period date pickers (hidden by default) -->
                             <div id="budgetCustomDates" style="display:none;">
-                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_custom_dates_label">${window.i18n.t('budget_custom_dates_label') || 'Période personnalisée'}</label>
+                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_custom_dates_label">${window.i18n.t('budget_custom_dates_label') || 'Custom period'}</label>
                                 <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
                                     <input type="date" id="newBudgetStartDate" class="inline-input" style="flex:1;">
                                     <span style="color:var(--text-muted);">→</span>
@@ -523,7 +523,7 @@ window.BudgetsView = {
             'monthly': { title: window.i18n.t('period_monthly'), budgets: [], label: monthLabel, y: my, m: mm },
             'yearly': { title: window.i18n.t('period_yearly'), budgets: [], label: yearLabel, y: this.yearlyYear, m: 1 },
             'indefinite': { title: window.i18n.t('budget_period_indefinite'), budgets: [], label: '', y: my, m: mm },
-            'custom': { title: window.i18n.t('budget_period_custom') || 'Défini dans le temps', budgets: [], label: '', y: my, m: mm }
+            'custom': { title: window.i18n.t('budget_period_custom') || 'Time-bound', budgets: [], label: '', y: my, m: mm }
         };
 
         for (const b of this.statusData.budgets) {
@@ -555,7 +555,7 @@ window.BudgetsView = {
                                 <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--border-color);transition:.4s;border-radius:34px;"></span>
                                 <span class="slider-knob" style="position:absolute;height:12px;width:12px;left:3px;bottom:3px;background-color:white;transition:.4s;border-radius:50%;"></span>
                             </div>
-                            <span>${window.i18n.t('budget_custom_period') || 'Période'}</span>
+                            <span>${window.i18n.t('budget_custom_period') || 'Period'}</span>
                         </label>
                         <div id="budgetCustomPeriodInputs" style="${customDisp}align-items:center;gap:4px;">
                             <input type="date" id="budgetCustomStart" class="inline-input" style="width:130px;font-size:11px;" value="${this.customPeriod.start || ''}" onchange="window.BudgetsView.onCustomPeriodChange()">
@@ -641,7 +641,7 @@ window.BudgetsView = {
                 : '';
 
             const safeName = b.name.replace(/'/g, "\\'");
-            const periodLabel = b.period === 'monthly' ? window.i18n.t('period_monthly') : b.period === 'yearly' ? window.i18n.t('period_yearly') : b.period === 'custom' ? `${window.i18n.t('budget_period_custom') || 'Défini'} (${b.start_date || '?'} → ${b.end_date || '?'})` : window.i18n.t('period_undefined');
+            const periodLabel = b.period === 'monthly' ? window.i18n.t('period_monthly') : b.period === 'yearly' ? window.i18n.t('period_yearly') : b.period === 'custom' ? `${window.i18n.t('budget_period_custom') || 'Time-bound'} (${b.start_date || '?'} → ${b.end_date || '?'})` : window.i18n.t('period_undefined');
             const closedStyle = b.is_closed ? 'opacity:0.6;' : '';
             const closedTag = b.is_closed
                 ? `<span style="background:rgba(239,68,68,0.15);color:#ff5630;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">${window.i18n.t('budget_closed_tag')}</span>`
@@ -749,7 +749,7 @@ window.BudgetsView = {
 
             // Temporary withdrawal badge (overflow)
             const tempWithdrawnBadge = tempWithdrawn > 0
-                ? `<span style="color:#ef4444; font-size:11px; font-weight:600; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px;" title="${window.i18n.t('savings_temp_withdrawn') || 'Provisoirement retiré'}">⚠ -${formatCurrency(tempWithdrawn)}</span>`
+                ? `<span style="color:#ef4444; font-size:11px; font-weight:600; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px;" title="${window.i18n.t('savings_temp_withdrawn') || 'Temporarily withdrawn'}">⚠ -${formatCurrency(tempWithdrawn)}</span>`
                 : '';
 
             return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" class="budget-envelope-card savings ${goalReached ? 'goal-reached' : ''}" style="${closedStyle}">\
@@ -898,7 +898,7 @@ window.BudgetsView = {
 
             // Overflow warning badge for summary
             const overflowBadgeHtml = overflow
-                ? `<span style="color:${overflow.fully_consumed ? '#ef4444' : '#f59e0b'}; font-size:12px; font-weight:600; background:${overflow.fully_consumed ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)'}; padding:3px 8px; border-radius:6px;">⚠ -${formatCurrency(totalTempWithdrawn)} ${window.i18n.t('savings_temp_withdrawn') || 'provisoirement retiré'}</span>`
+                ? `<span style="color:${overflow.fully_consumed ? '#ef4444' : '#f59e0b'}; font-size:12px; font-weight:600; background:${overflow.fully_consumed ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)'}; padding:3px 8px; border-radius:6px;">⚠ -${formatCurrency(totalTempWithdrawn)} ${window.i18n.t('savings_temp_withdrawn') || 'temporarily withdrawn'}</span>`
                 : '';
 
             savingsHtml += `<div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);border-left:3px solid ${overflow ? (overflow.fully_consumed ? '#ef4444' : '#f59e0b') : '#f59e0b'};">
@@ -1013,7 +1013,7 @@ window.BudgetsView = {
                 const goalReached = balance >= goal && goal > 0;
                 const barColor = goalReached ? '#f59e0b' : '#10b981';
 
-                title.innerHTML = `🏦 ${budgetName} ${tempWithdrawn > 0 ? `<span style="color:#ef4444; font-size:11px; font-weight:600; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px; margin-left:8px;" title="${window.i18n.t('savings_temp_withdrawn') || 'Provisoirement retiré'}">⚠ -${formatCurrency(tempWithdrawn)}</span>` : ''}`;
+                title.innerHTML = `🏦 ${budgetName} ${tempWithdrawn > 0 ? `<span style="color:#ef4444; font-size:11px; font-weight:600; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px; margin-left:8px;" title="${window.i18n.t('savings_temp_withdrawn') || 'Temporarily withdrawn'}">⚠ -${formatCurrency(tempWithdrawn)}</span>` : ''}`;
                 const safeName = budgetName.replace(/'/g, "\\'");
 
                 graph.innerHTML = `<div style="margin-bottom:10px;">
@@ -1255,7 +1255,7 @@ window.BudgetsView = {
 
         const startDate = period === 'custom' ? (document.getElementById('newBudgetStartDate')?.value || null) : null;
         const endDate = period === 'custom' ? (document.getElementById('newBudgetEndDate')?.value || null) : null;
-        if (period === 'custom' && (!startDate || !endDate)) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_custom_dates_required') || 'Veuillez sélectionner les dates de début et de fin.');
+        if (period === 'custom' && (!startDate || !endDate)) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_custom_dates_required') || 'Please select start and end dates.');
         
         const envelope_type = isSavings ? 'savings' : 'spending';
         const account_ids = window.app?.config?.enable_org_mode === 'true' ? this.getSelectedAccounts() : null;
