@@ -136,11 +136,11 @@ window.ChatView = {
         const input = document.getElementById('chatInput');
         
         if (role === 'advisor') {
-            input.value = "Fais-moi un bilan financier global de ma situation actuelle. Quels sont mes points forts et les points à surveiller ?";
+            input.value = window.i18n.t('chat_report_advisor');
         } else if (role === 'simulator') {
-            input.value = "Analyse ma capacité d'épargne et mes marges de manœuvre actuelles pour de nouveaux projets ou achats.";
+            input.value = window.i18n.t('chat_report_simulator');
         } else if (role === 'alerts') {
-            input.value = "Fais-moi un rapport détaillé des anomalies, des dépenses excessives récentes, et des risques de découvert urgents.";
+            input.value = window.i18n.t('chat_report_alerts');
         }
         
         this.sendMessage();

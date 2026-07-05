@@ -873,5 +873,8 @@
     "msg_salary_rejected": "Transaction successfully rejected",
     "th_action": "Actions",
     "savings_temp_withdrawn": "Temporarily withdrawn",
-    "cat_empty_list": "No categories"
+    "cat_empty_list": "No categories",
+    "chat_report_advisor": "Give me a comprehensive financial report of my current situation. What are my strengths and areas to watch?",
+    "chat_report_simulator": "Analyze my savings capacity and current financial flexibility for new projects or purchases.",
+    "chat_report_alerts": "Give me a detailed report of anomalies, recent excessive spending, and urgent overdraft risks."
 }
