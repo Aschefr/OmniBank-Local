@@ -948,12 +948,17 @@ window.BudgetsView = {
             const nameEl = card.querySelector('strong');
             if (nameEl && nameEl.textContent.trim().startsWith(budgetName)) {
                 card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                card.style.boxShadow = '0 0 0 2px var(--accent), 0 0 20px rgba(99,102,241,0.4)';
+                card.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease, transform 0.4s ease';
+                card.style.boxShadow = '0 0 0 2px var(--accent), 0 0 24px rgba(99,102,241,0.5)';
                 card.style.borderColor = 'var(--accent)';
+                card.style.transform = 'scale(1.02)';
                 setTimeout(() => {
                     card.style.boxShadow = '';
                     card.style.borderColor = '';
-                }, 3000);
+                    card.style.transform = '';
+                    // Clean up transition after animation completes
+                    setTimeout(() => { card.style.transition = ''; }, 500);
+                }, 4000);
                 break;
             }
         }
@@ -1270,6 +1275,9 @@ window.BudgetsView = {
                 savedId = res.id;
             }
             
+            // Highlight the new/updated envelope after re-render
+            if (!id) this._pendingHighlightName = name;
+
             await this.loadBudgets();
             await this.loadStatus();
             window.app.refreshSidebar();
@@ -1504,6 +1512,9 @@ window.BudgetsView = {
                 categories: proposal.categories || [],
             });
             
+            // Highlight the newly created envelope after re-render
+            this._pendingHighlightName = proposal.name;
+
             await this.loadBudgets();
             await this.loadStatus();
             window.app.refreshSidebar();
