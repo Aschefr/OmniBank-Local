@@ -1036,16 +1036,16 @@ window.AnalyticsView = {
         // Validation
         if (useCustomRange) {
             if (!customStart || !customEnd) {
-                showToast("Veuillez saisir les dates de début et de fin pour la période personnalisée.", "error");
+                showToast(window.i18n.t('analytics_err_dates_required') || "Veuillez saisir les dates de début et de fin pour la période personnalisée.", "error");
                 return;
             }
             if (customStart > customEnd) {
-                showToast("La date de début doit être antérieure à la date de fin.", "error");
+                showToast(window.i18n.t('analytics_err_date_order') || "La date de début doit être antérieure à la date de fin.", "error");
                 return;
             }
         } else {
             if (!selectedYear) {
-                showToast("Veuillez sélectionner une année à afficher.", "error");
+                showToast(window.i18n.t('analytics_err_year_required') || "Veuillez sélectionner une année à afficher.", "error");
                 return;
             }
         }
@@ -1378,12 +1378,12 @@ window.AnalyticsView = {
         if (!file) return;
         // Vérification type
         if (!file.type.startsWith('image/')) {
-            showToast('Fichier non supporté. Veuillez importer une image (PNG, JPG, SVG…).', 'error');
+            showToast(window.i18n.t('analytics_err_logo_format') || 'Fichier non supporté. Veuillez importer une image (PNG, JPG, SVG…).', 'error');
             return;
         }
         // Vérification taille (max 2 Mo)
         if (file.size > 2 * 1024 * 1024) {
-            showToast('Logo trop volumineux (max 2 Mo). Veuillez réduire la taille du fichier.', 'error');
+            showToast(window.i18n.t('analytics_err_logo_size') || 'Logo trop volumineux (max 2 Mo). Veuillez réduire la taille du fichier.', 'error');
             return;
         }
         const reader = new FileReader();
@@ -1409,7 +1409,7 @@ window.AnalyticsView = {
                 if (preview) {
                     preview.outerHTML = `<img id="exportLogoPreview" src="${resizedB64}" style="max-height:60px;max-width:200px;border-radius:6px;border:1px solid var(--border-color);object-fit:contain;">`;
                 }
-                showToast('Logo importé et enregistré ✅', 'success');
+                showToast(window.i18n.t('analytics_logo_saved') || 'Logo importé et enregistré ✅', 'success');
             };
             img.src = b64;
         };

@@ -410,7 +410,7 @@ window.FormView = {
             if (!select) return;
             select.innerHTML = this.accounts
                 .filter(a => !a.is_closed || a.id == currentVal)
-                .map(a => `<option value="${a.id}">${a.name}${a.is_closed ? ' (Fermé)' : ''}</option>`).join('');
+                .map(a => `<option value="${a.id}">${a.name}${a.is_closed ? (window.i18n.t('acc_closed_suffix') || ' (Fermé)') : ''}</option>`).join('');
             select.value = currentVal || '';
         };
         renderAcc('op_from_account', currentFrom);
@@ -600,8 +600,8 @@ window.FormView = {
             } catch(err) {}
 
             if (isConflict) {
-                const confirmMsg = `La catégorie '${name}' existe déjà en tant que dépense variable. Voulez-vous la déplacer définitivement vers les charges fixes ?`;
-                if (await showInlineConfirm("Conflit de catégorie", confirmMsg)) {
+                const confirmMsg = window.i18n.tp('cat_conflict_confirm', { name: name });
+                if (await showInlineConfirm(window.i18n.t('cat_conflict_title') || "Conflit de catégorie", confirmMsg)) {
                     try {
                         const newCat = await API.post('/api/categories/?force_move=true', { name, type });
                         await this.loadCategories();
@@ -610,7 +610,7 @@ window.FormView = {
                         this.hideNewCatInput();
                         return;
                     } catch(err2) {
-                        showInlineMessage(window.i18n.t('title_info'), "Erreur lors du déplacement de la catégorie.");
+                        showInlineMessage(window.i18n.t('title_info'), window.i18n.t('cat_move_error') || "Erreur lors du déplacement de la catégorie.");
                         return;
                     }
                 }

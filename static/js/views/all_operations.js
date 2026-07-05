@@ -357,10 +357,10 @@ window.AllOperationsView = {
             const netColor = net > 0 ? 'var(--color-income)' : (net < 0 ? 'var(--color-expense)' : 'inherit');
             footer.innerHTML = `
                 <div style="display:flex; gap: 20px; flex-wrap: wrap; width: 100%; align-items: center;">
-                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">Opérations</span> <br/> <strong>${filtered.length}</strong></div>
-                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">Dépenses</span> <br/> <strong style="color:var(--color-expense);">${formatCurrency(sumExpense)}</strong></div>
-                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">Recettes</span> <br/> <strong style="color:var(--color-income);">${formatCurrency(sumIncome)}</strong></div>
-                    <div style="flex:1; text-align:right;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">Total Affiché</span> <br/> <strong style="font-size:16px; color:${netColor};">${formatCurrency(net)}</strong></div>
+                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('allops_label_operations') || 'Opérations'}</span> <br/> <strong>${filtered.length}</strong></div>
+                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('allops_label_expenses') || 'Dépenses'}</span> <br/> <strong style="color:var(--color-expense);">${formatCurrency(sumExpense)}</strong></div>
+                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('type_income') || 'Recettes'}</span> <br/> <strong style="color:var(--color-income);">${formatCurrency(sumIncome)}</strong></div>
+                    <div style="flex:1; text-align:right;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('allops_label_total_shown') || 'Total Affiché'}</span> <br/> <strong style="font-size:16px; color:${netColor};">${formatCurrency(net)}</strong></div>
                 </div>
             `;
         }
