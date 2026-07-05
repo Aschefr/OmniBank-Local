@@ -873,5 +873,8 @@
     "msg_salary_rejected": "Opération rejetée avec succès",
     "th_action": "Actions",
     "savings_temp_withdrawn": "Provisoirement retiré",
-    "cat_empty_list": "Aucune catégorie"
+    "cat_empty_list": "Aucune catégorie",
+    "chat_report_advisor": "Fais-moi un bilan financier global de ma situation actuelle. Quels sont mes points forts et les points à surveiller ?",
+    "chat_report_simulator": "Analyse ma capacité d'épargne et mes marges de manœuvre actuelles pour de nouveaux projets ou achats.",
+    "chat_report_alerts": "Fais-moi un rapport détaillé des anomalies, des dépenses excessives récentes, et des risques de découvert urgents."
 }
