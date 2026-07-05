@@ -7,6 +7,12 @@ venv/
 env/
 .env
 
+# IDE
+.idea/
+.vscode/
+*.suo
+*.user
+
 # Databases & Financial Data
 *.db
 *.db-wal
