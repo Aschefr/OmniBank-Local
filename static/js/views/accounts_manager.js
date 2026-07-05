@@ -134,7 +134,7 @@ window.AccountsView = {
                 <td>
                     ${isMain ? '<span class="acc-main-star" title="' + window.i18n.t('acc_main_account') + '">⭐</span>' : ''}
                     <strong>${acc.name}</strong>
-                    ${acc.is_closed ? '<span data-i18n="badge_closed" style="background:var(--danger); color:#fff; padding:2px 5px; border-radius:4px; font-size:10px; margin-left:5px; font-weight:bold;">Fermé</span>' : ''}
+                    ${acc.is_closed ? `<span data-i18n="badge_closed" style="background:var(--danger); color:#fff; padding:2px 5px; border-radius:4px; font-size:10px; margin-left:5px; font-weight:bold;">${window.i18n.t('badge_closed') || 'Fermé'}</span>` : ''}
                 </td>
                 <td>${acc.type}</td>
                 <td><span class="privacy-blur">${formatCurrency(acc.initial_balance)}</span></td>

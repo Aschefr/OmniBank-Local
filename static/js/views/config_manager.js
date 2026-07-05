@@ -432,18 +432,31 @@ window.ConfigView = {
 
     async exportCSV() {
         const columns = [
-            "Date de saisie", "Date opération", "Description", "Montant", "Type", "Catégorie", 
-            "Date de rapprochement", "Répétition mensuelle", "Répétition annuelle", 
-            "Répétition bi-mensuelle", "Jour de récurrence 1", "Jour de récurrence 2",
-            "Documents joints", "Bordereau de chèque", "Depuis", "Vers", "ID"
+            { id: "Date de saisie", label: window.i18n.t('csv_col_entry_date') || "Date de saisie" },
+            { id: "Date opération", label: window.i18n.t('csv_col_op_date') || "Date opération" },
+            { id: "Description", label: window.i18n.t('th_description') || "Description" },
+            { id: "Montant", label: window.i18n.t('th_amount') || "Montant" },
+            { id: "Type", label: window.i18n.t('th_type') || "Type" },
+            { id: "Catégorie", label: window.i18n.t('th_category') || "Catégorie" },
+            { id: "Date de rapprochement", label: window.i18n.t('csv_col_reconciliation_date') || "Date de rapprochement" },
+            { id: "Répétition mensuelle", label: window.i18n.t('csv_col_monthly_repeat') || "Répétition mensuelle" },
+            { id: "Répétition annuelle", label: window.i18n.t('csv_col_yearly_repeat') || "Répétition annuelle" },
+            { id: "Répétition bi-mensuelle", label: window.i18n.t('csv_col_bimonthly_repeat') || "Répétition bi-mensuelle" },
+            { id: "Jour de récurrence 1", label: window.i18n.t('csv_col_recurrence_day_1') || "Jour de récurrence 1" },
+            { id: "Jour de récurrence 2", label: window.i18n.t('csv_col_recurrence_day_2') || "Jour de récurrence 2" },
+            { id: "Documents joints", label: window.i18n.t('csv_col_attachments') || "Documents joints" },
+            { id: "Bordereau de chèque", label: window.i18n.t('csv_col_check_slip') || "Bordereau de chèque" },
+            { id: "Depuis", label: window.i18n.t('csv_col_from') || "Depuis" },
+            { id: "Vers", label: window.i18n.t('csv_col_to') || "Vers" },
+            { id: "ID", label: "ID" }
         ];
         
         const container = document.getElementById('exportColumnsContainer');
         if (container) {
             container.innerHTML = columns.map(col => `
                 <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                    <input type="checkbox" class="export-col-cb" value="${col}" checked>
-                    ${col}
+                    <input type="checkbox" class="export-col-cb" value="${col.id}" checked>
+                    ${col.label}
                 </label>
             `).join('');
             document.getElementById('exportConfigModal').style.display = 'flex';

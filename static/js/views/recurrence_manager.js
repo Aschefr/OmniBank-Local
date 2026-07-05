@@ -440,14 +440,14 @@ window.RecurrenceView = {
                     } catch(err) {}
 
                     if (isConflict) {
-                        const confirmMsg = `La catégorie '${name}' existe déjà en tant que dépense variable. Voulez-vous la déplacer définitivement vers les charges fixes ?`;
-                        if (await showInlineConfirm("Conflit de catégorie", confirmMsg)) {
+                        const confirmMsg = window.i18n.tp('cat_conflict_confirm', { name: name });
+                        if (await showInlineConfirm(window.i18n.t('cat_conflict_title') || "Conflit de catégorie", confirmMsg)) {
                             try {
                                 const newCat = await API.post('/api/categories/?force_move=true', { name: name.trim(), type: 'expense_fixed' });
                                 await API.patch(`/api/recurrences/${templateId}/category`, { category: newCat.name });
                                 showToast(window.i18n.t('msg_category_added') || 'Category added');
                             } catch(err2) {
-                                showToast("Erreur lors du déplacement de la catégorie", "error");
+                                showToast(window.i18n.t('cat_move_error') || "Erreur lors du déplacement de la catégorie", "error");
                             }
                         }
                     } else {
@@ -460,10 +460,10 @@ window.RecurrenceView = {
         } else {
             try {
                 await API.patch(`/api/recurrences/${templateId}/category`, { category: val || null });
-                showToast("Catégorie mise à jour");
+                showToast(window.i18n.t('cat_updated') || "Catégorie mise à jour");
             } catch (e) {
                 console.error(e);
-                showToast("Erreur lors de la mise à jour de la catégorie", "error");
+                showToast(window.i18n.t('cat_update_error') || "Erreur lors de la mise à jour de la catégorie", "error");
             }
             await this.loadData();
         }
@@ -483,7 +483,7 @@ window.RecurrenceView = {
             await this.loadData();
         } catch (e) {
             console.error(e);
-            showToast("Impossible de supprimer la récurrence", "error");
+            showToast(window.i18n.t('rec_delete_error') || "Impossible de supprimer la récurrence", "error");
         }
     },
     
@@ -925,7 +925,7 @@ window.RecurrenceView = {
             
         } catch (e) {
             console.error(e);
-            await showInlineMessage("Erreur", "Une erreur s'est produite lors de la génération.");
+            await showInlineMessage(window.i18n.t('error_title') || "Erreur", window.i18n.t('rec_generate_error') || "Une erreur s'est produite lors de la génération.");
             const btn = document.querySelector('#recWizardModal .btn-primary');
             if (btn) {
                 btn.disabled = false;
