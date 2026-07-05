@@ -311,7 +311,7 @@ window.AccountsView = {
         const modalHtml = `
         <div id="accEditModal" class="modal-overlay" style="display:flex;z-index:9999;">
             <div class="modal" style="width:480px; max-width:90vw;">
-                <h3 style="margin-bottom:20px;">${window.i18n.t('acc_edit_title') || 'Modifier le compte'}</h3>
+                <h3 style="margin-bottom:20px;">${window.i18n.t('acc_edit_title') || 'Edit Account'}</h3>
                 <div style="display:flex;flex-direction:column;gap:16px;">
                     <div>
                         <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_name')}</label>

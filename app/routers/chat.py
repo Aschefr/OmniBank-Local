@@ -87,7 +87,7 @@ def get_recent_transactions_tool(db: Session, limit: int = 15) -> dict:
             "amount": tx.amount, 
             "type": tx.type, 
             "category": tx.category,
-            "status": "Rapproché (Exécuté)" if tx.reconciliation_date else "Non Rapproché (Futur/Prévu)"
+            "status": "Reconciled (Executed)" if tx.reconciliation_date else "Not Reconciled (Future/Planned)"
         }
         for tx in recent_txs
     ]}
@@ -98,7 +98,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_net_worth",
-            "description": "Obtenir la valeur nette totale de l'utilisateur (Total des comptes + livrets). Retourne le montant 'reconciled' (actuel validé) et 'projected_today' (incluant les opérations non rapprochées jusqu'à aujourd'hui).",
+            "description": "Get the user's total net worth (Total accounts + savings). Returns 'reconciled' amount (currently validated in bank) and 'projected_today' (including unreconciled transactions until today).",
             "parameters": {"type": "object", "properties": {}}
         }
     },
@@ -106,7 +106,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_account_balances",
-            "description": "Obtenir le solde de tous les comptes bancaires et livrets séparément. Retourne 'reconciled_balances' (soldes actuels validés en banque) et 'projected_balances_today' (soldes virtuels incluant les dépenses non rapprochées jusqu'à la date d'aujourd'hui, excluant les mois futurs).",
+            "description": "Get the balance of all bank accounts and savings separately. Returns 'reconciled_balances' (current validated bank balances) and 'projected_balances_today' (virtual balances including unreconciled expenses until today's date, excluding future months).",
             "parameters": {"type": "object", "properties": {}}
         }
     },
@@ -114,13 +114,13 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_recent_transactions",
-            "description": "Obtenir les dernières transactions effectuées par l'utilisateur. Chaque transaction contient un statut 'Rapproché' (déjà passé en banque) ou 'Non Rapproché' (dépense future prévue).",
+            "description": "Get the latest transactions made by the user. Each transaction contains a status 'Reconciled' (already passed in bank) or 'Not Reconciled' (planned future expense).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "limit": {
                         "type": "integer", 
-                        "description": "Le nombre de transactions à récupérer (par défaut 15, max 50)."
+                        "description": "The number of transactions to retrieve (default 15, max 50)."
                     }
                 }
             }
@@ -131,23 +131,23 @@ TOOLS = [
 def load_system_prompt(role: str = 'advisor', categories: list = None) -> str:
     prompt_key = f"sys_prompt_{role}"
     try:
-        with codecs.open('static/i18n/fr.json', 'r', encoding='utf-8-sig') as f:
+        with codecs.open(f'static/i18n/{"en"}.json', 'r', encoding='utf-8-sig') as f:
             translations = json.load(f)
-            prompt = translations.get(prompt_key, 'Tu es un assistant financier.')
-            prompt = prompt.replace("Voici les donn\u00e9es financi\u00e8res actuelles de l'utilisateur (en format JSON) :\n{FINANCE_DATA}\n", '')
-            prompt = prompt.replace('Voici les donn\u00e9es financi\u00e8res actuelles:\n{FINANCE_DATA}', '')
+            prompt = translations.get(prompt_key, 'You are a financial assistant.')
+            prompt = prompt.replace("Here is the user's current financial data (in JSON format):\n{FINANCE_DATA}\n", '')
+            prompt = prompt.replace('Here is the current financial data:\n{FINANCE_DATA}', '')
             
             # Inject existing categories so AI picks from them first
             cat_list = ", ".join(f'"{c}"' for c in (categories or []))
-            prompt += f"""\n\nIMPORTANT: Si tu remarques une anomalie sur une transaction (erreur de cat\u00e9gorie, date incoh\u00e9rente, etc.) et que tu as son \"id\", tu PEUX proposer une correction \u00e0 l'utilisateur. 
-Pour cela, ajoute imm\u00e9diatement apr\u00e8s ton explication ce bloc JSON sur une seule ligne, sans indentation :
-{{\"id\": 123, \"updates\": {{\"category\": \"Nouvelle Cat\u00e9gorie\"}}}}
-Remplace 123 par le vrai ID de la transaction, et sp\u00e9cifie dans \"updates\" les champs \u00e0 modifier.
-CAT\u00c9GORIES EXISTANTES (\u00e0 privil\u00e9gier imp\u00e9rativement) : {cat_list}
-Si aucune ne convient, propose un nouveau nom court et pr\u00e9cis. Ne propose qu'une seule action JSON \u00e0 la fois."""
+            prompt += f"""\n\nIMPORTANT: If you notice an anomaly on a transaction (category error, inconsistent date, etc.) and you have its \"id\", you CAN propose a correction to the user. 
+For this, add immediately after your explanation this JSON block on a single line, without indentation:
+{{\"id\": 123, \"updates\": {{\"category\": \"New Category\"}}}}
+Replace 123 by the real ID of the transaction, and specify in \"updates\" the fields to modify.
+EXISTING CATEGORIES (to be prioritized imperatively): {cat_list}
+If none fits, propose a new short and precise name. Only propose one JSON action at a time."""
             return prompt
     except Exception:
-        return "Tu es un assistant financier d'OmniBank."
+        return "You are an OmniBank financial assistant."
 
 @router.post("/")
 async def chat_with_ai(message: ChatMessage, db: Session = Depends(get_db)):
@@ -276,15 +276,15 @@ async def autocategorize(req: AutoCatRequest, db: Session = Depends(get_db)):
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
     cat_list = ", ".join(f'"{c}"' for c in categories)
 
-    amount_str = f" de {req.amount} €" if req.amount else ""
-    prompt = f"""Tu es un assistant de catégorisation financière.
-CATÉGORIES EXISTANTES : {cat_list}
+    amount_str = f" of {req.amount} €" if req.amount else ""
+    prompt = f"""You are a financial categorization assistant.
+EXISTING CATEGORIES: {cat_list}
 
-Transaction : "{req.description}"{amount_str}
+Transaction: "{req.description}"{amount_str}
 
-Réponds UNIQUEMENT avec le nom de la catégorie la plus appropriée, en privilégiant une catégorie existante.
-Si aucune ne convient vraiment, propose un nom court (2-3 mots max).
-Réponds avec SEULEMENT le nom, sans ponctuation, sans explication."""
+Respond ONLY with the name of the most appropriate category, preferring an existing category.
+If none fits well, propose a short name (2-3 words max).
+Respond with ONLY the name, without punctuation, without explanation."""
 
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
