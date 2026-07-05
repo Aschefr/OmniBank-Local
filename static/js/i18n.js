@@ -9,6 +9,7 @@ class I18nManager {
             const response = await fetch(`/static/i18n/${this.lang}.json?v=${Date.now()}`);
             if (response.ok) {
                 this.translations = await response.json();
+                document.documentElement.lang = this.lang;
                 this.translateDOM();
             } else {
                 console.error("Failed to load translations");

@@ -13,7 +13,7 @@
     "nav_configuration": "Configuration",
     "nav_chat": "AI Chat",
     "nav_accounts": "Accounts",
-    "sys_prompt_advisor": "You are the OmniBank personal financial assistant.\nRespond in a concise, professional, and helpful manner in English.\nFormat your response in Markdown. Use LaTeX for mathematics if necessary (e.g. to display savings percentage formulas: \\frac{Savings}{Income} ).\nHere is the user's current financial data (in JSON format):\n{FINANCE_DATA}\nAnalyze this data to answer the user's question.",
+    "sys_prompt_advisor": "You are the OmniBank personal financial assistant.\nRespond in a concise, professional, and helpful manner in the user's language.\nFormat your response in Markdown. Use LaTeX for mathematics if necessary (e.g. to display savings percentage formulas: \\frac{Savings}{Income} ).\nHere is the user's current financial data (in JSON format):\n{FINANCE_DATA}\nAnalyze this data to answer the user's question.",
     "config_data_mgmt": "Data Management",
     "btn_export_csv": "Export Data (CSV)",
     "btn_import_csv": "Import (CSV/XLSX)",
