@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.52-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.58-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -109,6 +109,19 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
+## 🆕 Dernières Mises à Jour (v1.0.58)
+
+*   **🌍 Localisation anglaise** : Traduction de 40+ clés manquantes dans `en.json` (prompts IA, labels catégories, fallbacks UI). Contribution communautaire de [@Lloir](https://github.com/Lloir) (PR #1).
+*   **🐳 Correctif — Image Docker** : Le dossier `/app/static` manquait dans l'image Docker, provoquant un crash `FileNotFoundError` sur les déploiements standalone (ex: Unraid).
+*   **✨ UX Budgets** : La création d'une enveloppe budgétaire fait maintenant défiler et met en surbrillance la nouvelle carte avec une animation visuelle de confirmation.
+
+## 🆕 Dernières Mises à Jour (v1.0.57)
+
+*   **🐛 Correctif — Pré-sélection de compte** : Le navigateur sélectionnait silencieusement le premier compte de la liste, déduisant à tort un type `expense_var` avant toute sélection manuelle.
+*   **🔒 Correctif — Verrou SQLite (HTTP 500)** : Les appels API parallèles au chargement des pages provoquaient une erreur `database is locked`. Un timeout de 30 secondes a été configuré dans SQLAlchemy.
+*   **📂 Correctif — Catégories transfert vides** : La catégorie "Compte vers compte" était stockée en type `neutral` au lieu de `transfer`. La migration v5 du schéma corrige automatiquement ce problème au démarrage pour tous les utilisateurs.
+*   **🗂️ Correctif — Gestion des catégories** : Le groupe "Neutre" n'affiche plus de transactions dans la Synthèse suite à la correction du type de catégorie.
+
 ## 🆕 Dernières Mises à Jour (v1.0.52)
 
 *   **⚡ Performance des Actions & Rapprochements** : Parallélisation complète des appels d'API front-end dépendants (`refreshSidebar` et `loadData`) via `Promise.all` pour éliminer le délai visible lors des opérations (ajout, suppression, rapprochement). Optimisation SQL backend ($O(N)$ vers $O(1)$) sur `get_budget_status` et `predict_next_paycheck` avec chargements en lot.
@@ -177,7 +190,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.52-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.58-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -278,6 +291,19 @@ Access the interface at `http://localhost:8434`.
 *   **AI**: Ollama (Text & Vision Support).
 
 ---
+
+## 🆕 Recent Updates (v1.0.58)
+
+*   **🌍 English Localization**: Translated 40+ remaining French-only keys in `en.json` (AI prompts, category manager labels, UI fallbacks). Community contribution by [@Lloir](https://github.com/Lloir) (PR #1).
+*   **🐳 Fix — Docker Image**: The `/app/static` directory was missing from the Docker image, causing a `FileNotFoundError` crash on standalone deployments (e.g. Unraid).
+*   **✨ Budget UX**: Creating a budget envelope now scrolls to and highlights the new card with a glowing accent animation for visual confirmation.
+
+## 🆕 Recent Updates (v1.0.57)
+
+*   **🐛 Fix — Implicit Account Pre-selection**: The browser was silently selecting the first account in the listbox, incorrectly inferring `expense_var` type before the user made any selection.
+*   **🔒 Fix — SQLite Concurrency Lock (HTTP 500)**: Parallel API calls on page load triggered `database is locked` errors. A 30-second busy timeout is now configured in SQLAlchemy.
+*   **📂 Fix — Empty Transfer Category Dropdown**: The "Compte vers compte" category was stored as type `neutral` instead of `transfer`. Schema migration v5 automatically corrects this on startup for all users.
+*   **🗂️ Fix — Category Manager**: The "Neutral" group no longer incorrectly shows transactions in the Synthesis view after the category type fix.
 
 ## 🆕 Recent Updates (v1.0.52)
 
