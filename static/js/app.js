@@ -428,11 +428,11 @@ class App {
                     if (isManualSkip) {
                         btnSkip.textContent = '⏪';
                         btnSkip.setAttribute('data-i18n-title', 'tooltip_cancel_skip_pay_period');
-                        btnSkip.setAttribute('title', window.i18n.t('tooltip_cancel_skip_pay_period') || 'Annuler le passage à la période suivante');
+                        btnSkip.setAttribute('title', window.i18n.t('tooltip_cancel_skip_pay_period') || 'Cancel skip to next period');
                     } else {
                         btnSkip.textContent = '⏭️';
                         btnSkip.setAttribute('data-i18n-title', 'tooltip_skip_pay_period');
-                        btnSkip.setAttribute('title', window.i18n.t('tooltip_skip_pay_period') || 'Passer à la période suivante');
+                        btnSkip.setAttribute('title', window.i18n.t('tooltip_skip_pay_period') || 'Skip to next period');
                     }
                 }
                 
@@ -652,7 +652,7 @@ class App {
                 document.getElementById('valOverdraft').textContent = formatCurrency(stats.overdraft_warning.projected_balance);
                 document.getElementById('valOverdraftDate').textContent = `${formatDate(stats.overdraft_warning.date)} (${stats.overdraft_warning.transaction_description})`;
                 
-                const expText = `Si aucune rentrée d'argent d'ici le ${formatDate(stats.overdraft_warning.date)}, risque de découvert causé par cette opération.`;
+                const expText = window.i18n.t('msg_overdraft_explanation') ? window.i18n.tp('msg_overdraft_explanation', {date: formatDate(stats.overdraft_warning.date)}) : `If no income by ${formatDate(stats.overdraft_warning.date)}, risk of overdraft caused by this transaction.`;
                 document.getElementById('valOverdraftExplanation').textContent = expText;
                 
                 const btnLocate = document.getElementById('btnLocateOverdraft');
@@ -750,7 +750,7 @@ class App {
     
     async rejectPaycheck(txId) {
         if (!txId) return;
-        const confirmMsg = window.i18n.t('confirm_reject_salary') || 'Es-tu sûr de vouloir rejeter cette opération de l\'historique des paies ?';
+        const confirmMsg = window.i18n.t('confirm_reject_salary') || 'Are you sure you want to reject this transaction from the paycheck history?';
         if (await showInlineConfirm(window.i18n.t('confirm_default_title') || 'Confirmation', confirmMsg)) {
             try {
                 // Update transaction setting is_salary = false
