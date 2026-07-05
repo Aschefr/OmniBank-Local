@@ -63,7 +63,7 @@ window.TimelineView = {
                         <option value="transfer" data-i18n="type_transfer">${window.i18n.t('type_transfer')}</option>
                     </select>
                     <div id="timelineCategoryFilter" style="min-width:140px; flex:1; max-width:220px;"></div>
-                    <button class="btn btn-secondary" style="padding:0 8px; font-size:14px; border-radius:8px; min-height:32px; line-height:32px;" onclick="window.MultiSelect.reset('timelineCategoryFilter')" title="${window.i18n.t('filter_reset_categories') || 'Réinitialiser les catégories'}">&#x21BA;</button>
+                    <button class="btn btn-secondary" style="padding:0 8px; font-size:14px; border-radius:8px; min-height:32px; line-height:32px;" onclick="window.MultiSelect.reset('timelineCategoryFilter')" title="${window.i18n.t('filter_reset_categories') || 'Reset categories'}">&#x21BA;</button>
                     <div style="display:flex; align-items:center; gap:8px; ${unreconciledDisp}">
                         <span style="font-size:12px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_unreconciled_before_pay">${window.i18n.t('filter_unreconciled_before_pay')}</span>
                         <label class="toggle-switch" style="flex-shrink: 0;" data-i18n-title="tooltip_filter_unreconciled" title="Filtre les dépenses non-rapprochées prévues avant la prochaine paie">
@@ -235,11 +235,11 @@ window.TimelineView = {
         let statusDesc = '';
 
         if (isHistory) {
-            statusTitle = window.i18n.t('paycheck_widget_status_history') || 'Période historique';
+            statusTitle = window.i18n.t('paycheck_widget_status_history') || 'Historical Period';
             statusClass = 'background: rgba(107, 114, 128, 0.12); border: 1px solid rgba(107, 114, 128, 0.3); color: #9ca3af;';
             statusDesc = window.i18n.tp('paycheck_widget_history_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartStr });
             
-            const disabledTitle = window.i18n.t('tooltip_historical_disabled') || 'Action impossible pour une période passée';
+            const disabledTitle = window.i18n.t('tooltip_historical_disabled') || 'Action not available for past periods';
             actionBtnHtml = `
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <button class="btn btn-primary" style="padding: 5px 14px; font-weight: 700; font-size: 12px; border-radius: 8px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); border: none; box-shadow: 0 4px 10px rgba(108, 92, 231, 0.2); white-space: nowrap; opacity: 0.5; cursor: not-allowed;" title="${disabledTitle}"><span style="margin-right:4px;">⏩</span>${window.i18n.t('paycheck_widget_btn_force')}</button>
@@ -416,7 +416,7 @@ window.TimelineView = {
             if (catContainer && !catContainer.querySelector('.multi-select-trigger')) {
                 window.MultiSelect.create('timelineCategoryFilter', {
                     allLabel: window.i18n.t('filter_all_categories'),
-                    searchPlaceholder: window.i18n.t('ph_search') || 'Rechercher...',
+                    searchPlaceholder: window.i18n.t('ph_search') || 'Search...',
                     onChange: () => window.TimelineView.applyFilters()
                 });
             }
