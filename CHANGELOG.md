@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.58] - 2026-07-05
+
+### Added
+- English localization: translated 40+ remaining French-only keys in `en.json` (system prompts, category manager labels, UI fallbacks). Community contribution by [@Lloir](https://github.com/Lloir) (PR #1).
+- Dynamic `<html lang>` attribute: now automatically reflects the user's selected language instead of being hardcoded.
+
+### Fixed
+- Fixed Docker image missing `/app/static` directory, causing `FileNotFoundError` crash on standalone deployments (e.g. Unraid) that don't use volume mounts.
+- Reverted AI chat prompts (`chat.py`) to use French locale — the PR had hardcoded English, breaking the AI assistant for French-speaking users.
+
+### Improved
+- Budget envelope creation now scrolls to and highlights the new card with a glowing accent animation for visual confirmation.
+- Added `.idea/`, `.vscode/` and other IDE config directories to `.gitignore` to prevent future contributors from accidentally committing editor settings.
 ## [1.0.57] - 2026-07-01
 
 ### Fixed
