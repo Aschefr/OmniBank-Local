@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDV0SUNRWUJCT0gvYjRkZkdJY3ZYRURSYVZxY3ROT2Z0ZHRvcG9CcitMWG5CY1JoVTc2Wnh4Vk1oa3hwbVhydGI2aU83c1FmRERWUTBwY0FQTlBCWlFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzODY4MjEzCWZpbGU6T21uaUJhbmtfMS4wLjU5X3g2NF9mci1GUi5tc2kKKzIzRndrVE5RMnFaa1hnSkFjZG92d0ZWQVhiT3ZMTy8wcHNQaVF5VHgrVHhSTlFEUjlUTnd6c3k2elFmM0ZHM0JoK2JCbEE1eSt0MjZlMCs1OEpVQnc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.59/OmniBank_1.0.59_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHdKM2Zzek16eGFDdkM5NDVZdWE2VUUwYXlteDhoQ2lUNGU3SStNNnRkWitPZUhMbVlvUW5MRFF2SWloSGlMRkVFMXp3SHZaWFVPTE1pa0pLUWg0L0FrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzODg2MDYwCWZpbGU6T21uaUJhbmtfMS4wLjYwX3g2NF9mci1GUi5tc2kKZ3pNZmltQkp0QlB0VkxKaUF1eUxGVEpoRmtuSXorS0V3VGlaOHJiTmZvUWdycmdtejNGS3JqTXNqeURYbjhmeVBPVWE1M3NqVzJxQk5ZN0dSRG52QVE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.60/OmniBank_1.0.60_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-07-12T14:56:53Z",
-    "version":  "1.0.59",
-    "notes":  "Ajout du chat IA Premium double-colonne, compression de contexte RAG, persistance du défilement, bouton de duplication rapide d\u0027opération et raccourci 16K de contexte."
+    "pub_date":  "2026-07-12T19:54:20Z",
+    "version":  "1.0.60",
+    "notes":  "Ameliorations de l\u0027affichage cote-a-cote sans scrollbar des Tendances et refonte premium de la page des recurrences"
 }
