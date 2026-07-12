@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.59] - 2026-07-12
+
+### Added
+- Chat IA Premium: Double-column layout with sidebar for conversation sessions and main chat window.
+- Context Compaction: AI context is dynamically compressed under a configurable threshold to fit in context window.
+- Conversation Session persistence: selected conversation session and its precise scroll position are remembered (via sessionStorage) across tab switches.
+- Added transaction duplication feature: duplicate any existing transaction with a single click (📋 button) pre-filling the entry form with today's date.
+- Added "16K" quick setting option in config context size panel.
+- System message endpoint `POST /api/chat/sessions/{id}/system-message` to add feedback messages without triggering AI generations.
+
+### Fixed
+- Fixed UI overlap bugs by moving message action buttons from absolute positioning to inline block elements inside bubbles.
+- Fixed empty stream bug: chat UI now displays an explicit error message instead of failing silently when Ollama doesn't return content.
+- Fixed stream delivery on non-tool routes: response is stream-chunked in all paths for a smooth rendering experience.
+- Fixed XSS vulnerability: user message texts are now properly escaped with HTML entities.
+- Fixed token usage indicator: correctly initialises based on the server's real Ollama config instead of defaulting to 4096.
+- Fixed loop bug in session creation when no sessions exist.
+- Fixed bubble edit size & look-and-feel: inline bubble text editor matches the exact width of the message bubble and uses a cleaner theme-integrated border.
+
 ## [1.0.58] - 2026-07-05
 
 ### Added

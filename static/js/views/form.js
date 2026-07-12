@@ -245,6 +245,58 @@ window.FormView = {
 
         document.getElementById('operationModal').style.display = 'flex';
     },
+    
+    async openDuplicate(tx) {
+        // Similar to openEdit but resets transaction ID and overrides operation dates to today
+        this.currentTxId = null;
+        this.currentTxBase = null;
+        this._pendingRecId = null;
+        
+        document.getElementById('op_desc').value = tx.description;
+        document.getElementById('op_amount').value = tx.amount;
+        
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('op_date').value = todayStr;
+        document.getElementById('op_date_saisie').value = todayStr;
+        document.getElementById('op_recon_date').value = '';
+        
+        // is_salary flag
+        const isSalaryCheckbox = document.getElementById('op_is_salary');
+        if (isSalaryCheckbox) {
+            isSalaryCheckbox.checked = tx.is_salary === true;
+        }
+        
+        // Duplicating disables recurrence copy to prevent duplicate schedules by accident
+        document.getElementById('op_is_recurrent').checked = false;
+        document.getElementById('op_is_recurrent').disabled = false;
+        
+        await this.init();
+        
+        this.renderAccountsDropdowns(tx.from_account_id, tx.to_account_id);
+        
+        document.getElementById('op_from_account').value = tx.from_account_id || '';
+        document.getElementById('op_to_account').value = tx.to_account_id || '';
+        
+        document.getElementById('op_check_slip').value = '';
+        document.getElementById('op_attachments').value = '';
+        this.renderAttachmentsList('');
+        
+        this.applyConfigVisibility();
+        this.toggleRecurrenceFields();
+        document.getElementById('op_rec_edit_hint').style.display = 'none';
+        this.hideNewCatInput();
+        
+        this.updateInferredType();
+        
+        if (tx.category) {
+            document.getElementById('op_category').value = tx.category;
+        }
+
+        const budgetSel = document.getElementById('op_budget_id');
+        if (budgetSel) budgetSel.value = tx.budget_id || '';
+
+        document.getElementById('operationModal').style.display = 'flex';
+    },
 
     close() {
         document.getElementById('operationModal').style.display = 'none';
