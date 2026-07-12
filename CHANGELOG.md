@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.60] - 2026-07-12
+
+### Added
+- **Comparative Trends Refactoring**:
+  - Superimposed annual curves with calendar year (Jan 1st - Dec 31st) alignment and customizable year selector.
+  - Redesigned Trends layout to display the chart and comparison table side-by-side on desktop viewports (70/30 split layout) and stacked on mobile viewports.
+  - Compacted the comparison table by removing Min/Max columns to fit the side-by-side layout perfectly.
+  - Introduced dynamic viewport height calculations (`calc(100vh - 330px)` / `calc(100vh - 400px)`) to fit Trends elements precisely without body or container scrollbars.
+  - Interactivity & focus: clicking a year highlights its curve and dims other years, while updating stats cards dynamically.
+  - Smooth X-axis zooming & panning using `chartjs-plugin-zoom` CDN, with a restyled "Reset Zoom" button.
+  - Modern iOS-style toggle switch for the "Superpose years" checkbox.
+- **Premium Recurrences View Redesign**:
+  - Introduced 4 global stats cards (planned annual total, monthly average, active recurrence count, and reconciliation rate) at the top of the view.
+  - Added a "Total annuel" column in the recurrence table showing the sum of actual operations for the selected year for each template.
+  - Styled frequency columns using beautiful colored badges (blue for monthly, purple for yearly, green for bi-monthly).
+  - Interactive chevron rotations (0 to 90 degrees) using smooth CSS transitions when unfolding recurrence instances.
+- **System Polish**:
+  - Implemented script load cache-busting version tags in `index.html`.
+
+### Fixed
+- Fixed table alignment on Trends page by wrapping blurred values in `<span>` tags rather than applying `privacy-blur` to `<td>` tags.
+- Fixed year filtering initialization bug where unchecking a year initially failed to update the chart/table.
+- Fixed SQLite database operational errors (disk I/O error) on WSL2/Docker volume mounts on Windows/NTFS by wrapping pragmas in robust exception handlers and falling back to DELETE rollback journal mode.
+- Removed outdated and irrelevant "Other months" compare option for a cleaner, unified workspace.
+
 ## [1.0.59] - 2026-07-12
 
 ### Added
