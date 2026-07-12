@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.58-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.59-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -109,6 +109,11 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
+## 🆕 Dernières Mises à Jour (v1.0.59)
+
+*   **🤖 Chat IA Premium & RAG** : Interface double-colonne, persistance du défilement des sessions, compression dynamique de contexte, intégration de raccourcis 16K, streaming fluide et correctif de faille XSS.
+*   **📋 Duplication d'Opérations** : Ajout d'un bouton de duplication rapide (`📋`) à gauche du bouton de modification sur la timeline et l'historique général, pré-remplissant instantanément le formulaire avec la date du jour.
+
 ## 🆕 Dernières Mises à Jour (v1.0.58)
 
 *   **🌍 Localisation anglaise** : Traduction de 40+ clés manquantes dans `en.json` (prompts IA, labels catégories, fallbacks UI). Contribution communautaire de [@Lloir](https://github.com/Lloir) (PR #1).
@@ -190,7 +195,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.58-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.59-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -291,6 +296,11 @@ Access the interface at `http://localhost:8434`.
 *   **AI**: Ollama (Text & Vision Support).
 
 ---
+
+## 🆕 Recent Updates (v1.0.59)
+
+*   **🤖 Premium AI Chat & RAG** : Double-column layout, session scroll persistence, dynamic context compaction, 16K setting shortcut integration, clean streaming responses, and XSS vulnerability patch.
+*   **📋 Transaction Duplication** : Added a quick duplicate button (`📋`) next to the Edit button in the timeline and general history views, pre-filling the entry form with today's date.
 
 ## 🆕 Recent Updates (v1.0.58)
 
