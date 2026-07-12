@@ -1,16 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import List, Optional
+
 import httpx
 import json
 import codecs
 from datetime import date
 
 from app.database import get_db
-from app.models import GlobalConfig, Transaction, Account, Category
+from app.models import GlobalConfig, Transaction, Account, Category, RecurrenceTemplate, Budget, ChatSession, ChatMessage
 from app.services.finance_engine import calculate_balances, get_net_worth
-from app.schemas.api_schemas import ChatMessage
+from app.schemas.api_schemas import ChatSessionCreate, ChatSessionUpdate, ChatContextUpdate, ChatSendMessage, ChatMessageUpdate
+
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -54,7 +57,6 @@ def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
         },
         timeout=120.0,
     )
-    resp.raise_for_status()
     return resp.json().get("message", {}).get("content", "")
 
 def get_net_worth_tool(db: Session) -> dict:
@@ -82,23 +84,172 @@ def get_recent_transactions_tool(db: Session, limit: int = 15) -> dict:
     return {"transactions": [
         {
             "id": tx.id,
-            "date": tx.date_operation.isoformat(), 
+            "date": tx.date_operation.isoformat() if tx.date_operation else None, 
             "description": tx.description, 
             "amount": tx.amount, 
             "type": tx.type, 
             "category": tx.category,
-            "status": "Rapproché (Exécuté)" if tx.reconciliation_date else "Non Rapproché (Futur/Prévu)"
+            "status": "Rapproché" if tx.reconciliation_date else "Non Rapproché"
         }
         for tx in recent_txs
     ]}
 
+def search_transactions_tool(db: Session, description_query: str = None, category: str = None, type: str = None, start_date: str = None, end_date: str = None, min_amount: float = None, max_amount: float = None, limit: int = 50) -> dict:
+    query = db.query(Transaction)
+    if description_query:
+        query = query.filter(Transaction.description.ilike(f"%{description_query}%"))
+    if category:
+        query = query.filter(Transaction.category == category)
+    if type:
+        query = query.filter(Transaction.type == type)
+    if start_date:
+        try:
+            query = query.filter(Transaction.date_operation >= date.fromisoformat(start_date))
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            query = query.filter(Transaction.date_operation <= date.fromisoformat(end_date))
+        except ValueError:
+            pass
+    if min_amount is not None:
+        query = query.filter(Transaction.amount >= min_amount)
+    if max_amount is not None:
+        query = query.filter(Transaction.amount <= max_amount)
+    
+    txs = query.order_by(Transaction.date_operation.desc()).limit(limit).all()
+    return {"transactions": [
+        {
+            "id": tx.id,
+            "date": tx.date_operation.isoformat() if tx.date_operation else None,
+            "description": tx.description,
+            "amount": tx.amount,
+            "type": tx.type,
+            "category": tx.category,
+            "status": "Rapproché" if tx.reconciliation_date else "Non Rapproché"
+        }
+        for tx in txs
+    ]}
+
+def get_spending_analytics_tool(db: Session, start_date: str, end_date: str) -> dict:
+    try:
+        d_start = date.fromisoformat(start_date)
+        d_end = date.fromisoformat(end_date)
+    except ValueError:
+        return {"error": "Invalid date format. Expected YYYY-MM-DD."}
+    
+    txs = db.query(Transaction).filter(
+        Transaction.date_operation >= d_start,
+        Transaction.date_operation <= d_end
+    ).all()
+    
+    by_type = {}
+    by_category = {}
+    total_income = 0.0
+    total_expense = 0.0
+    
+    for tx in txs:
+        tx_type = tx.type or "neutral"
+        category = tx.category or "Sans catégorie"
+        
+        if tx_type not in by_type:
+            by_type[tx_type] = {"total_amount": 0.0, "count": 0}
+        by_type[tx_type]["total_amount"] += tx.amount
+        by_type[tx_type]["count"] += 1
+        
+        if category not in by_category:
+            by_category[category] = {"total_amount": 0.0, "count": 0, "type": tx_type}
+        by_category[category]["total_amount"] += tx.amount
+        by_category[category]["count"] += 1
+        
+        if tx_type == "income":
+            total_income += tx.amount
+        elif tx_type in ("expense_var", "expense_fixed"):
+            total_expense += tx.amount
+            
+    total_income = round(total_income, 2)
+    total_expense = round(total_expense, 2)
+    net_savings = round(total_income - total_expense, 2)
+    
+    for t in by_type:
+        by_type[t]["total_amount"] = round(by_type[t]["total_amount"], 2)
+    for c in by_category:
+        by_category[c]["total_amount"] = round(by_category[c]["total_amount"], 2)
+        
+    return {
+        "period": {"start": start_date, "end": end_date},
+        "totals": {
+            "total_income": total_income,
+            "total_expense": total_expense,
+            "net_savings": net_savings
+        },
+        "by_type": by_type,
+        "by_category": by_category
+    }
+
+def get_budgets_status_tool(db: Session, year: int = None, month: int = None) -> dict:
+    from app.routers.budgets import get_budget_status
+    today = date.today()
+    y = year or today.year
+    m = month or today.month
+    
+    status_data = get_budget_status(year=y, month=m, db=db)
+    
+    envelopes = []
+    for b in status_data.get("budgets", []):
+        envelopes.append({
+            "id": b.get("id"),
+            "name": b.get("name"),
+            "type": b.get("envelope_type", "spending"),
+            "period": b.get("period", "monthly"),
+            "limit": b.get("budget_amount", 0.0),
+            "spent": b.get("expenses", 0.0),
+            "remaining": b.get("balance", 0.0),
+            "percent": b.get("percent", 0.0)
+        })
+    return {"year": y, "month": m, "budgets": envelopes}
+
+def get_recurrence_templates_tool(db: Session) -> dict:
+    templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
+    return {"templates": [
+        {
+            "id": t.id,
+            "description": t.description,
+            "amount": t.amount,
+            "type": t.type,
+            "category": t.category,
+            "frequency": t.frequency,
+            "day_of_month": t.day_of_month
+        }
+        for t in templates
+    ]}
+
+def get_net_worth_history_tool(db: Session, months: int = 12) -> dict:
+    from app.routers.stats import get_trends
+    trends = get_trends("total", db)
+    if "error" in trends:
+        return trends
+    
+    history = trends.get("history", [])
+    monthly_points = {}
+    for pt in history:
+        date_str = pt["date"]
+        month_key = date_str[:7]
+        monthly_points[month_key] = pt
+        
+    sorted_months = sorted(monthly_points.keys())
+    result_points = [monthly_points[m] for m in sorted_months[-months:]]
+    return {
+        "current_balance": trends.get("current_balance"),
+        "net_worth_history": result_points
+    }
 
 TOOLS = [
     {
         "type": "function",
         "function": {
             "name": "get_net_worth",
-            "description": "Obtenir la valeur nette totale de l'utilisateur (Total des comptes + livrets). Retourne le montant 'reconciled' (actuel validé) et 'projected_today' (incluant les opérations non rapprochées jusqu'à aujourd'hui).",
+            "description": "Get the total net worth of the user (all accounts and savings combined). Returns reconciled balance (cleared in bank) and projected balance (including future/planned transactions).",
             "parameters": {"type": "object", "properties": {}}
         }
     },
@@ -106,21 +257,114 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_account_balances",
-            "description": "Obtenir le solde de tous les comptes bancaires et livrets séparément. Retourne 'reconciled_balances' (soldes actuels validés en banque) et 'projected_balances_today' (soldes virtuels incluant les dépenses non rapprochées jusqu'à la date d'aujourd'hui, excluant les mois futurs).",
+            "description": "Get the balances of all bank accounts and savings envelopes separately. Returns reconciled and projected balances.",
             "parameters": {"type": "object", "properties": {}}
         }
     },
     {
         "type": "function",
         "function": {
-            "name": "get_recent_transactions",
-            "description": "Obtenir les dernières transactions effectuées par l'utilisateur. Chaque transaction contient un statut 'Rapproché' (déjà passé en banque) ou 'Non Rapproché' (dépense future prévue).",
+            "name": "search_transactions",
+            "description": "Search user transactions with various filters. Returns a list of transactions matching the criteria.",
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "description_query": {
+                        "type": "string",
+                        "description": "Optional keyword search on transaction description."
+                    },
+                    "category": {
+                        "type": "string",
+                        "description": "Optional category name."
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Optional transaction type: expense_var, expense_fixed, income, transfer, neutral."
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "Optional start date in YYYY-MM-DD format."
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "Optional end date in YYYY-MM-DD format."
+                    },
+                    "min_amount": {
+                        "type": "number",
+                        "description": "Optional minimum amount."
+                    },
+                    "max_amount": {
+                        "type": "number",
+                        "description": "Optional maximum amount."
+                    },
                     "limit": {
-                        "type": "integer", 
-                        "description": "Le nombre de transactions à récupérer (par défaut 15, max 50)."
+                        "type": "integer",
+                        "description": "Maximum number of transactions to return (default 50)."
+                    }
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_spending_analytics",
+            "description": "Get aggregated spending and income statistics for a specific period, grouped by category and transaction type.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "start_date": {
+                        "type": "string",
+                        "description": "Start date of the analysis period (YYYY-MM-DD)."
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "End date of the analysis period (YYYY-MM-DD)."
+                    }
+                },
+                "required": ["start_date", "end_date"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_budgets_status",
+            "description": "Get status of all budget envelopes and savings for a specific year and month.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "year": {
+                        "type": "integer",
+                        "description": "Optional year. Defaults to current year."
+                    },
+                    "month": {
+                        "type": "integer",
+                        "description": "Optional month (1-12). Defaults to current month."
+                    }
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_recurrence_templates",
+            "description": "Get the list of all active recurrence templates (regular bills, salaries, transfers).",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_net_worth_history",
+            "description": "Get the historical net worth trend data points grouped by month.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "months": {
+                        "type": "integer",
+                        "description": "Number of past months to retrieve (default 12)."
                     }
                 }
             }
@@ -128,63 +372,278 @@ TOOLS = [
     }
 ]
 
-def load_system_prompt(role: str = 'advisor', categories: list = None) -> str:
-    prompt_key = f"sys_prompt_{role}"
-    try:
-        with codecs.open('static/i18n/fr.json', 'r', encoding='utf-8-sig') as f:
-            translations = json.load(f)
-            prompt = translations.get(prompt_key, 'Tu es un assistant financier.')
-            prompt = prompt.replace("Voici les donn\u00e9es financi\u00e8res actuelles de l'utilisateur (en format JSON) :\n{FINANCE_DATA}\n", '')
-            prompt = prompt.replace('Voici les donn\u00e9es financi\u00e8res actuelles:\n{FINANCE_DATA}', '')
-            
-            # Inject existing categories so AI picks from them first
-            cat_list = ", ".join(f'"' + c + '"' for c in (categories or []))
-            prompt += f"""\n\nIMPORTANT: Si tu remarques une anomalie sur une transaction (erreur de cat\u00e9gorie, date incoh\u00e9rente, etc.) et que tu as son \"id\", tu PEUX proposer une correction \u00e0 l'utilisateur. 
-Pour cela, ajoute imm\u00e9diatement apr\u00e8s ton explication ce bloc JSON sur une seule ligne, sans indentation :
-{{\"id\": 123, \"updates\": {{\"category\": \"Nouvelle Cat\u00e9gorie\"}}}}
-Remplace 123 par le vrai ID de la transaction, et sp\u00e9cifie dans \"updates\" les champs \u00e0 modifier.
-CAT\u00c9GORIES EXISTANTES (\u00e0 privil\u00e9gier imp\u00e9rativement) : {cat_list}
-Si aucune ne convient, propose un nouveau nom court et pr\u00e9cis. Ne propose qu'une seule action JSON \u00e0 la fois."""
-            return prompt
-    except Exception:
-        return "Tu es un assistant financier d'OmniBank."
+def load_system_prompt(role: str = 'advisor', categories: list = None, lang: str = 'fr') -> str:
+    if role == 'simulator':
+        prompt = """You are the Project Simulation Engine for OmniBank.
+Your goal is to help the user simulate financial projects (purchasing a house, planning a trip, taking a loan) and compute their impact on the user's net worth and budgets.
+CRITICAL: Do NOT ask the user for permission to consult their budgets, accounts, or recurrences, and do NOT tell the user that you need to consult them. Instead, IMMEDIATELY call the appropriate tools (like `get_budgets_status`, `get_account_balances`, or `get_recurrence_templates`) in your very first step to retrieve the necessary data.
+Present your answers using clear markdown tables and LaTeX formatting for calculations."""
+    elif role == 'alerts':
+        prompt = """You are the Alert Analyst for OmniBank.
+Your goal is to proactively identify anomalies, overspending, unnecessary subscription costs, or overdraft risks in the user's accounts.
+Use the database tools to check recent transactions and active budget levels. Be direct and highlight potential issues in a concise markdown format."""
+    else: # advisor
+        prompt = """You are the Premium Personal Financial Advisor for OmniBank.
+Your goal is to help the user understand their financial situation, track their expenses, manage budgets, and make smart saving decisions.
+CRITICAL: Do NOT ask the user for permission to consult their budgets, accounts, or recurrences, and do NOT tell the user that you need to consult them. Instead, IMMEDIATELY call the appropriate tools in your very first step to retrieve the necessary data.
+Always use the tools provided to query the database first before answering. Do not guess, make up numbers, or apologize if you don't know without checking.
+- Call `get_account_balances` to check bank account/savings balances.
+- Call `get_spending_analytics` to calculate total income/expense or spending per category over a date range. Do not read raw transactions to sum them up yourself.
+- Call `search_transactions` to find specific transactions (by keyword, category, date).
+- Call `get_budgets_status` to see budget progress (envelope limits, spent amounts, remaining balances).
+- Call `get_recurrence_templates` to inspect regular bills.
+- Call `get_net_worth_history` to analyze wealth growth.
+Always be concise, professional, and helpful."""
 
-@router.post("/")
-async def chat_with_ai(message: ChatMessage, db: Session = Depends(get_db)):
-    ollama_url_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_url").first()
-    ollama_model_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_model").first()
-    ollama_temp_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_temperature").first()
-    ollama_ctx_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_context").first()
+    cat_list = ", ".join(f'"{c}"' for c in (categories or []))
+    prompt += f"""
+
+IMPORTANT: If you notice an anomaly on a transaction (wrong category, inconsistent date, etc.) and you have its "id", you CAN propose a correction.
+To do this, append this single-line JSON block immediately at the end of your explanation on its own line:
+{{"id": 123, "updates": {{"category": "New Category"}}}}
+Replace 123 with the real transaction ID, and specify in "updates" the fields to modify.
+EXISTING CATEGORIES (prefer these): {cat_list}
+If none fits, propose a short and precise new category name. Only propose one JSON action at a time."""
+
+    if lang == 'fr':
+        prompt += "\n\nIMPORTANT: You must write your response in French."
+    else:
+        prompt += "\n\nIMPORTANT: You must write your response in English."
+
+    return prompt
+
+def estimate_tokens(text: str) -> int:
+    return len(text) // 4
+
+def run_context_compaction(db: Session, session: ChatSession, messages: List[ChatMessage], cfg: dict):
+    if len(messages) <= 4:
+        return
     
-    if not ollama_url_conf or not ollama_url_conf.value or not ollama_model_conf or not ollama_model_conf.value:
+    to_compress = messages[:-4]
+    
+    formatted_history = []
+    for msg in to_compress:
+        role_prefix = "U" if msg.role == "user" else "A"
+        formatted_history.append(f"{role_prefix}: {msg.content}")
+    history_text = "\n".join(formatted_history)
+    
+    if session.compressed_context:
+        history_text = f"Previously compacted memory:\n{session.compressed_context}\n\nNew messages to compact:\n{history_text}"
+        
+    prompt = history_text + """
+
+=== INSTRUCTIONS (CRITICAL — READ CAREFULLY) ===
+You are a text compactor. Rewrite the text ABOVE using minimum characters.
+
+RULES:
+1. Output ONLY the compacted text. No commentary, no intro.
+2. Keep the SAME language as the input (French→French, English→English).
+3. Use U: for user, A: for assistant.
+4. Remove ALL greetings, politeness, filler, reformulations, repetitions.
+5. Convert verbose explanations to telegraphic notes.
+6. KEEP ALL technical details.
+7. KEEP conversation flow (who said what, in order).
+8. Target: ~50% of original size.
+
+NOW COMPACT THE TEXT ABOVE. Output ONLY the compacted result:"""
+
+    try:
+        compacted = call_ollama_sync(prompt, cfg)
+        if compacted:
+            session.compressed_context = compacted.strip()
+            for msg in to_compress:
+                db.delete(msg)
+            db.commit()
+    except Exception as e:
+        print(f"Error during context compaction: {e}")
+
+def generate_session_title(db: Session, session_id: int, user_message: str, cfg: dict):
+    prompt = f"""Conversation first message: "{user_message}"
+
+=== INSTRUCTIONS ===
+Generate a concise 3-5 word title for this conversation based on the user's first message. 
+Output ONLY the title, no quotation marks, no commentary, no intro, nothing else.
+Write the title in the same language as the message.
+
+NOW GENERATE THE TITLE:"""
+    try:
+        title = call_ollama_sync(prompt, cfg)
+        if title:
+            session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+            if session:
+                session.title = title.strip().strip('"').strip("'")
+                db.commit()
+    except Exception as e:
+        print(f"Error generating session title: {e}")
+
+@router.get("/sessions")
+async def list_sessions(db: Session = Depends(get_db)):
+    sessions = db.query(ChatSession).order_by(ChatSession.created_at.desc()).all()
+    return [{
+        "id": s.id,
+        "title": s.title,
+        "role": s.role,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "has_compressed_context": bool(s.compressed_context)
+    } for s in sessions]
+
+@router.post("/sessions")
+async def create_session(req: ChatSessionCreate, db: Session = Depends(get_db)):
+    session = ChatSession(role=req.role)
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return {
+        "id": session.id,
+        "title": session.title,
+        "role": session.role,
+        "created_at": session.created_at.isoformat() if session.created_at else None,
+        "has_compressed_context": False
+    }
+
+@router.put("/sessions/{id}")
+async def update_session(id: int, req: ChatSessionUpdate, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter(ChatSession.id == id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    if req.title is not None:
+        session.title = req.title
+    if req.role is not None:
+        session.role = req.role
+    db.commit()
+    return {"ok": True}
+
+@router.delete("/sessions/{id}")
+async def delete_session(id: int, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter(ChatSession.id == id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    db.delete(session)
+    db.commit()
+    return {"ok": True}
+
+@router.get("/sessions/{id}/messages")
+async def get_session_messages(id: int, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter(ChatSession.id == id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    messages = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.asc()).all()
+    
+    cfg = get_ollama_config(db)
+    categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
+    sys_prompt = load_system_prompt(session.role, categories, 'fr')
+    
+    used = estimate_tokens(sys_prompt)
+    if session.compressed_context:
+        used += estimate_tokens(session.compressed_context)
+    for m in messages:
+        used += estimate_tokens(m.content)
+        
+    return {
+        "compressed_context": session.compressed_context,
+        "messages": [{
+            "id": m.id,
+            "role": m.role,
+            "content": m.content,
+            "timestamp": m.timestamp.isoformat() if m.timestamp else None
+        } for m in messages],
+        "token_usage": {
+            "used": used,
+            "limit": cfg["num_ctx"]
+        }
+    }
+
+@router.put("/sessions/{id}/context")
+async def update_session_context(id: int, req: ChatContextUpdate, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter(ChatSession.id == id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    session.compressed_context = req.compressed_context
+    db.commit()
+    return {"ok": True}
+
+@router.delete("/messages/{id}")
+async def delete_message(id: int, db: Session = Depends(get_db)):
+    message = db.query(ChatMessage).filter(ChatMessage.id == id).first()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message non trouvé")
+    db.delete(message)
+    db.commit()
+    return {"ok": True}
+
+@router.post("/sessions/{id}/system-message")
+async def add_system_message(id: int, req: ChatSendMessage, db: Session = Depends(get_db)):
+    """Insert a message into a session without triggering AI generation.
+    Used for feedback messages (e.g. after applying an AI action)."""
+    session = db.query(ChatSession).filter(ChatSession.id == id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    msg = ChatMessage(session_id=id, role=req.role if hasattr(req, 'role') else "assistant", content=req.content)
+    db.add(msg)
+    db.commit()
+    return {"ok": True}
+
+@router.post("/sessions/{id}/message")
+async def send_message(id: int, req: ChatSendMessage, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter(ChatSession.id == id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    
+    cfg = get_ollama_config(db)
+    if not cfg["enabled"] or not cfg["url"] or not cfg["model"]:
         raise HTTPException(status_code=400, detail="Ollama URL ou Modèle non configuré.")
         
-    url = ollama_url_conf.value.rstrip("/")
-    model = ollama_model_conf.value
+    url = cfg["url"].rstrip("/")
+    model = cfg["model"]
     
-    options = {}
-    if ollama_temp_conf and ollama_temp_conf.value:
-        try: options["temperature"] = float(ollama_temp_conf.value)
-        except: pass
-    if ollama_ctx_conf and ollama_ctx_conf.value:
-        try: options["num_ctx"] = int(ollama_ctx_conf.value)
-        except: pass
+    # Save user message to database
+    user_msg = ChatMessage(session_id=id, role="user", content=req.content)
+    db.add(user_msg)
+    db.commit()
+    db.refresh(user_msg)
     
+    # Get all messages
+    messages = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.asc()).all()
+    
+    # Check if first message to trigger title generation
+    is_first_exchange = (len(messages) == 1)
+    
+    # Context Compaction check
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
-    sys_prompt = load_system_prompt(message.role, categories)
+    sys_prompt = load_system_prompt(session.role, categories, req.lang)
     
-    # Filter out empty messages that might be in history
-    clean_history = [m for m in message.history if m.get("content")]
-    messages = [{"role": "system", "content": sys_prompt}] + clean_history
-    messages.append({"role": "user", "content": message.content})
+    options = {"temperature": cfg["temperature"], "num_ctx": cfg["num_ctx"]}
     
-    async def generate():
+    # Estimate token budget
+    total_tokens = estimate_tokens(sys_prompt)
+    if session.compressed_context:
+        total_tokens += estimate_tokens(session.compressed_context)
+    for m in messages:
+        total_tokens += estimate_tokens(m.content)
+        
+    if total_tokens > int(cfg["num_ctx"] * 0.75):
+        run_context_compaction(db, session, messages, cfg)
+        # Reload messages after compaction
+        messages = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.asc()).all()
+        
+    # Construct Ollama prompt payload
+    ollama_msgs = [{"role": "system", "content": sys_prompt}]
+    if session.compressed_context:
+        ollama_msgs.append({
+            "role": "system", 
+            "content": f"[SYSTEM NOTICE: The following is a compacted memory summary of the older messages in this conversation. Keep it in mind for context.]\n{session.compressed_context}"
+        })
+    for m in messages:
+        ollama_msgs.append({"role": m.role, "content": m.content})
+        
+    async def generate_response():
+        final_text = ""
         try:
             async with httpx.AsyncClient() as client:
-                # FIRST STEP: Call Ollama with tools (No streaming)
+                # 1. Call Ollama with tools (non-streaming first)
                 payload = {
                     "model": model,
-                    "messages": messages,
+                    "messages": ollama_msgs,
                     "tools": TOOLS,
                     "stream": False,
                     "options": options
@@ -200,8 +659,7 @@ async def chat_with_ai(message: ChatMessage, db: Session = Depends(get_db)):
                 
                 # Check for tool calls
                 if assistant_msg.get("tool_calls"):
-                    # Execute tools
-                    messages.append(assistant_msg) # Add assistant's tool call request
+                    ollama_msgs.append(assistant_msg)
                     
                     for tool_call in assistant_msg["tool_calls"]:
                         fn_name = tool_call["function"]["name"]
@@ -212,21 +670,40 @@ async def chat_with_ai(message: ChatMessage, db: Session = Depends(get_db)):
                             tool_result = get_net_worth_tool(db)
                         elif fn_name == "get_account_balances":
                             tool_result = get_balances_tool(db)
-                        elif fn_name == "get_recent_transactions":
-                            limit = fn_args.get("limit", 15)
-                            tool_result = get_recent_transactions_tool(db, limit)
+                        elif fn_name == "search_transactions":
+                            desc = fn_args.get("description_query")
+                            cat = fn_args.get("category")
+                            tx_type = fn_args.get("type")
+                            s_date = fn_args.get("start_date")
+                            e_date = fn_args.get("end_date")
+                            min_a = fn_args.get("min_amount")
+                            max_a = fn_args.get("max_amount")
+                            lim = fn_args.get("limit", 50)
+                            tool_result = search_transactions_tool(db, desc, cat, tx_type, s_date, e_date, min_a, max_a, lim)
+                        elif fn_name == "get_spending_analytics":
+                            s_date = fn_args.get("start_date")
+                            e_date = fn_args.get("end_date")
+                            tool_result = get_spending_analytics_tool(db, s_date, e_date)
+                        elif fn_name == "get_budgets_status":
+                            yr = fn_args.get("year")
+                            mn = fn_args.get("month")
+                            tool_result = get_budgets_status_tool(db, yr, mn)
+                        elif fn_name == "get_recurrence_templates":
+                            tool_result = get_recurrence_templates_tool(db)
+                        elif fn_name == "get_net_worth_history":
+                            mnths = fn_args.get("months", 12)
+                            tool_result = get_net_worth_history_tool(db, mnths)
                             
-                        # Append tool result
-                        messages.append({
+                        ollama_msgs.append({
                             "role": "tool",
                             "name": fn_name,
                             "content": json.dumps(tool_result, ensure_ascii=False)
                         })
                         
-                    # SECOND STEP: Stream the final answer with tool context
+                    # 2. Stream final response with context
                     payload_stream = {
                         "model": model,
-                        "messages": messages,
+                        "messages": ollama_msgs,
                         "stream": True,
                         "options": options
                     }
@@ -235,28 +712,122 @@ async def chat_with_ai(message: ChatMessage, db: Session = Depends(get_db)):
                         if stream_resp.status_code != 200:
                             yield f"data: {json.dumps({'error': 'Ollama error: ' + str(stream_resp.status_code)})}\n\n"
                             return
-                        async for chunk in stream_resp.aiter_bytes():
-                            if chunk:
+                        async for line in stream_resp.aiter_lines():
+                            if line:
                                 try:
-                                    json_chunk = json.loads(chunk)
+                                    json_chunk = json.loads(line)
                                     content = json_chunk.get("message", {}).get("content", "")
                                     if content:
+                                        final_text += content
                                         yield f"data: {json.dumps({'content': content})}\n\n"
                                 except json.JSONDecodeError:
                                     pass
                 else:
-                    # No tool calls, just return the response
-                    content = assistant_msg.get("content", "")
-                    if content:
-                        yield f"data: {json.dumps({'content': content})}\n\n"
-                            
+                    # No tool calls — re-stream the response for consistent UX
+                    # The non-streamed call may have returned content directly
+                    direct_content = assistant_msg.get("content", "")
+                    if direct_content:
+                        # Re-request in streaming mode for progressive display
+                        payload_stream = {
+                            "model": model,
+                            "messages": ollama_msgs,
+                            "stream": True,
+                            "options": options
+                        }
+                        async with client.stream("POST", f"{url}/api/chat", json=payload_stream, timeout=120.0) as stream_resp:
+                            if stream_resp.status_code != 200:
+                                yield f"data: {json.dumps({'error': 'Ollama error: ' + str(stream_resp.status_code)})}\n\n"
+                                return
+                            async for line in stream_resp.aiter_lines():
+                                if line:
+                                    try:
+                                        json_chunk = json.loads(line)
+                                        content = json_chunk.get("message", {}).get("content", "")
+                                        if content:
+                                            final_text += content
+                                            yield f"data: {json.dumps({'content': content})}\n\n"
+                                    except json.JSONDecodeError:
+                                        pass
+                    else:
+                        empty_err = "Le modèle n'a pas fourni de réponse. Vérifiez votre configuration Ollama."
+                        yield f"data: {json.dumps({'error': empty_err})}\n\n"
+            
+            # Save assistant response to DB
+            if final_text:
+                bot_msg = ChatMessage(session_id=id, role="assistant", content=final_text)
+                db.add(bot_msg)
+                db.commit()
+                
+            # Calculate final token usage
+            final_messages = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.asc()).all()
+            used_tokens = estimate_tokens(sys_prompt)
+            if session.compressed_context:
+                used_tokens += estimate_tokens(session.compressed_context)
+            for m in final_messages:
+                used_tokens += estimate_tokens(m.content)
+                
+            yield f"data: {json.dumps({'token_usage': {'used': used_tokens, 'limit': cfg['num_ctx']}})}\n\n"
+            
+            if is_first_exchange:
+                background_tasks.add_task(generate_session_title, db, id, req.content, cfg)
+                
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
             
         yield "data: [DONE]\n\n"
+        
+    return StreamingResponse(generate_response(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"})
 
-    return StreamingResponse(generate(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"})
+@router.post("/sessions/{id}/regenerate")
+async def regenerate_response(id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter(ChatSession.id == id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+        
+    # Find last assistant message and delete it
+    last_msg = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.desc()).first()
+    if last_msg and last_msg.role == "assistant":
+        db.delete(last_msg)
+        db.commit()
+        
+    # Get the last user message to feed to the send_message endpoint
+    last_user_msg = db.query(ChatMessage).filter(ChatMessage.session_id == id, ChatMessage.role == "user").order_by(ChatMessage.timestamp.desc()).first()
+    if not last_user_msg:
+        raise HTTPException(status_code=400, detail="Aucun message utilisateur à régénérer")
+        
+    # Call standard message logic by simulating a new send
+    req = ChatSendMessage(content=last_user_msg.content)
+    # Delete the user message from DB before re-sending so send_message doesn't duplicate it
+    db.delete(last_user_msg)
+    db.commit()
+    
+    return await send_message(id, req, background_tasks, db)
 
+@router.put("/messages/{id}")
+async def edit_message(id: int, req: ChatMessageUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    message = db.query(ChatMessage).filter(ChatMessage.id == id).first()
+    if not message or message.role != "user":
+        raise HTTPException(status_code=400, detail="Seuls les messages utilisateur peuvent être édités")
+        
+    session_id = message.session_id
+    
+    # Delete all subsequent messages in the session
+    subsequent = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id,
+        ChatMessage.timestamp > message.timestamp
+    ).all()
+    for m in subsequent:
+        db.delete(m)
+        
+    # Delete the edited message itself so send_message doesn't duplicate
+    db.delete(message)
+    db.commit()
+    
+    # Send the new edited content
+    send_req = ChatSendMessage(content=req.content)
+    return await send_message(session_id, send_req, background_tasks, db)
 
 class AutoCatRequest(BaseModel):
     description: str
@@ -300,3 +871,4 @@ Réponds avec SEULEMENT le nom, sans ponctuation, sans explication."""
             return {"category": suggested, "existing_categories": categories}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+

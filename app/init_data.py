@@ -1,7 +1,7 @@
 import os
 from sqlalchemy.orm import Session
 from app.database import engine, Base, SessionLocal
-from app.models import Account, Transaction, GlobalConfig
+from app.models import Account, Transaction, GlobalConfig, ChatSession, ChatMessage
 
 def init_db():
     Base.metadata.create_all(bind=engine)
@@ -153,6 +153,38 @@ def init_db():
                 pass
 
             conn.commit()
+
+        if schema_version < 6:
+            # Schema v6: Chat sessions and message history
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS chat_sessions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title TEXT DEFAULT 'Nouvelle conversation',
+                        role TEXT DEFAULT 'advisor',
+                        compressed_context TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS chat_messages (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        session_id INTEGER NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+                        role TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+            except Exception:
+                pass
+
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '6')"))
+            except Exception:
+                pass
+
+            conn.commit()
+
 
 def wipe_db(db: Session):
     """Delete all data to start fresh."""
