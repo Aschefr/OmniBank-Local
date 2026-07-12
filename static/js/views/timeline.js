@@ -391,8 +391,8 @@ window.TimelineView = {
                 css += `.timeline-table .col-${k} { width: ${pct}%; }\n`;
             }
         });
-        // Actions column — enough room for Edit + Delete buttons
-        css += `.timeline-table .col-actions { width: 8%; }\n`;
+        // Actions column — enough room for Duplicate + Edit + Delete buttons
+        css += `.timeline-table .col-actions { width: 10%; }\n`;
         
         const styleTag = document.getElementById('timelineColsStyle');
         if (styleTag) styleTag.innerHTML = css;
@@ -723,6 +723,7 @@ window.TimelineView = {
                 <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${tx.modified_by}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.modified_at}</span>` : ''}` : '-'}</td>
                 <td class="col-actions mobile-card-actions">
                     <div style="display:flex;gap:4px;align-items:center;justify-content:flex-end;">
+                        <button class="btn btn-secondary" style="padding: 4px 6px; font-size: 11px; display: flex; align-items: center;" onclick="window.TimelineView.duplicate(${tx.id})" title="${window.i18n.t('tooltip_duplicate') || 'Dupliquer'}">📋</button>
                         <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;white-space:nowrap;" onclick="window.TimelineView.edit(${tx.id})">${window.i18n.t('tooltip_edit')}</button>
                         <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.TimelineView.delete(${tx.id})">✕</button>
                     </div>
@@ -774,6 +775,13 @@ window.TimelineView = {
         const tx = this.transactions.find(t => t.id === id);
         if (tx && window.FormView) {
             window.FormView.openEdit(tx);
+        }
+    },
+
+    duplicate(id) {
+        const tx = this.transactions.find(t => t.id === id);
+        if (tx && window.FormView) {
+            window.FormView.openDuplicate(tx);
         }
     },
 

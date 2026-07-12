@@ -143,10 +143,23 @@ class ConfigItem(BaseModel):
     key: str
     value: str
 
-class ChatMessage(BaseModel):
+class ChatSessionCreate(BaseModel):
+    role: str = "advisor"
+
+class ChatSessionUpdate(BaseModel):
+    title: Optional[str] = None
+    role: Optional[str] = None
+
+class ChatContextUpdate(BaseModel):
+    compressed_context: str
+
+class ChatSendMessage(BaseModel):
     content: str
-    history: List[dict] = []
-    role: Optional[str] = "advisor"
+    lang: str = "fr"
+
+class ChatMessageUpdate(BaseModel):
+    content: str
+
 
 # Phase 9: Org Users
 class OrgUserBase(BaseModel):

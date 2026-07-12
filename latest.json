@@ -1,11 +1,11 @@
 {
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBwQ2VGVWEyVm41ZWUwUFZzcWlNQklwSFpsamRrcHQ0ZEZJKzd4RVcvR1VaeGFEclMvY1F4MzdwbVdJRy9tTzcyRWRndlpPSUNkUkRJZVVtSW80S3dZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNDA2Mjk3CWZpbGU6T21uaUJhbmtfMS4wLjU2X3g2NF9mci1GUi5tc2kKbFNlTVd1Y1FMbmlWSHVFSFl2NGI3ZFY2MEdiUU1la25kazN6VTF5NU5UUXVpaGlyQkZna2lGcllJNm9BWVdaREZFNHhJbXRadU0yeVRFZkNsZkRlQmc9PQo=",
-      "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.56/OmniBank_1.0.56_x64_fr-FR.msi"
-    }
-  },
-  "pub_date": "2026-07-05T09:00:00Z",
-  "version": "1.0.58",
-  "notes": "English localization (PR #1 by @Lloir), Docker static files fix, budget envelope highlight animation, dynamic HTML lang attribute."
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDV0SUNRWUJCT0gvYjRkZkdJY3ZYRURSYVZxY3ROT2Z0ZHRvcG9CcitMWG5CY1JoVTc2Wnh4Vk1oa3hwbVhydGI2aU83c1FmRERWUTBwY0FQTlBCWlFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzODY4MjEzCWZpbGU6T21uaUJhbmtfMS4wLjU5X3g2NF9mci1GUi5tc2kKKzIzRndrVE5RMnFaa1hnSkFjZG92d0ZWQVhiT3ZMTy8wcHNQaVF5VHgrVHhSTlFEUjlUTnd6c3k2elFmM0ZHM0JoK2JCbEE1eSt0MjZlMCs1OEpVQnc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.59/OmniBank_1.0.59_x64_fr-FR.msi"
+                                         }
+                  },
+    "pub_date":  "2026-07-12T14:56:53Z",
+    "version":  "1.0.59",
+    "notes":  "Ajout du chat IA Premium double-colonne, compression de contexte RAG, persistance du défilement, bouton de duplication rapide d\u0027opération et raccourci 16K de contexte."
 }

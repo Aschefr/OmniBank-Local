@@ -910,6 +910,48 @@ def test_paycheck_threshold_small_income(monkeypatch):
     )
 
 
+def test_chat_premium_flow():
+    # 1. List initial sessions
+    res = client.get("/api/chat/sessions")
+    assert res.status_code == 200
+    assert len(res.json()) == 0
+
+    # 2. Create new session
+    res = client.post("/api/chat/sessions", json={"role": "advisor"})
+    assert res.status_code == 200
+    session = res.json()
+    assert session["role"] == "advisor"
+    assert session["title"] == "Nouvelle conversation"
+
+    # 3. Update session title and role
+    res = client.put(f"/api/chat/sessions/{session['id']}", json={"title": "Test Chat", "role": "simulator"})
+    assert res.status_code == 200
+
+    # 4. Get messages (empty list)
+    res = client.get(f"/api/chat/sessions/{session['id']}/messages")
+    assert res.status_code == 200
+    assert len(res.json()["messages"]) == 0
+    assert res.json()["compressed_context"] is None
+
+    # 5. Update compressed context
+    res = client.put(f"/api/chat/sessions/{session['id']}/context", json={"compressed_context": "Compacted history test"})
+    assert res.status_code == 200
+
+    # 6. Verify updated context
+    res = client.get(f"/api/chat/sessions/{session['id']}/messages")
+    assert res.status_code == 200
+    assert res.json()["compressed_context"] == "Compacted history test"
+
+    # 7. Delete session
+    res = client.delete(f"/api/chat/sessions/{session['id']}")
+    assert res.status_code == 200
+    
+    # 8. Verify list is empty again
+    res = client.get("/api/chat/sessions")
+    assert res.status_code == 200
+    assert len(res.json()) == 0
+
+
 if __name__ == "__main__":
     build_test_db(engine)
     test_accounts_crud()
@@ -926,4 +968,6 @@ if __name__ == "__main__":
     test_license_validation_flow()
     test_piggy_bank_overflow()
     test_paycheck_threshold_small_income()
+    test_chat_premium_flow()
+
 
