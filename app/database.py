@@ -63,16 +63,42 @@ engine = create_engine(
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.execute("PRAGMA synchronous=NORMAL")
-    # PERF: Increase SQLite page cache to ~20 MB (default is ~2 MB).
-    # Critical in Docker where each disk I/O is expensive due to volume mount overhead.
-    cursor.execute("PRAGMA cache_size=-20000")
-    # PERF: Enable memory-mapped I/O (256 MB). Allows SQLite to read the DB file
-    # via mmap instead of read() syscalls, bypassing Docker overlay filesystem overhead.
-    cursor.execute("PRAGMA mmap_size=268435456")
-    # PERF: Keep temporary tables/indices in memory instead of writing to disk.
-    cursor.execute("PRAGMA temp_store=MEMORY")
+    # On some environments (like Docker bind-mounts on Windows/WSL2), WAL mode or mmap can cause disk I/O errors.
+    # We attempt to set these performance tunings but fallback gracefully if not supported by the filesystem.
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL")
+    except Exception as e:
+        logger.warning(f"[DB] PRAGMA journal_mode=WAL failed, falling back: {e}")
+        try:
+            cursor.execute("PRAGMA journal_mode=DELETE")
+        except Exception:
+            pass
+
+    try:
+        cursor.execute("PRAGMA synchronous=NORMAL")
+    except Exception:
+        pass
+
+    try:
+        # PERF: Increase SQLite page cache to ~20 MB (default is ~2 MB).
+        # Critical in Docker where each disk I/O is expensive due to volume mount overhead.
+        cursor.execute("PRAGMA cache_size=-20000")
+    except Exception:
+        pass
+
+    try:
+        # PERF: Enable memory-mapped I/O (256 MB). Allows SQLite to read the DB file
+        # via mmap instead of read() syscalls, bypassing Docker overlay filesystem overhead.
+        cursor.execute("PRAGMA mmap_size=268435456")
+    except Exception:
+        pass
+
+    try:
+        # PERF: Keep temporary tables/indices in memory instead of writing to disk.
+        cursor.execute("PRAGMA temp_store=MEMORY")
+    except Exception:
+        pass
+
     cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
