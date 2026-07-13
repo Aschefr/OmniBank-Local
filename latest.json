@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHpkUTdEdUdMMC84K3pIcUdFVnpUZlJFUlBFbmtSRHBCT29oSS9qUDM4Z2dEWnZsWjhXb0dDdjRMRlVPaVBHOGlkNG9TNExqL0hpZmVsYVpjQXBXQ0FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTIxMjA2CWZpbGU6T21uaUJhbmtfMS4wLjYyX3g2NF9mci1GUi5tc2kKYlRwMUMydzgxZmdQQlovVjZCS0tYV0Fldnc2a0doVnp5L1FGUy82NEx2dkgyRlhEaFlNK2FtZGFYdkZCZ3QxVXltaXZHT0dGRkt3ZVM2eitzc2RQRFE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.62/OmniBank_1.0.62_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC91RXF5Wlo1SFEvTlRiRklNeTl2TnVEUjR3Uk1EUTNzRW1OdERUSXZIZWxBSXVpM2JMOFNsUmJheG9YaTMyUS93cVhnc0JPRzhvdTNGKzVmTkZMdnd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTIxOTU3CWZpbGU6T21uaUJhbmtfMS4wLjYzX3g2NF9mci1GUi5tc2kKeGlGeUtpeVZ3WWtua2dkdEhSMkJ1bko2NWFCNmFlZERkM0p5ZEtRak90cFBpVnpsa2xBY291WXhKeE1MNWZoRk5paU5MTkJMeXRyK2xLcWhKNStKQVE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.63/OmniBank_1.0.63_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-07-13T05:40:06Z",
-    "version":  "1.0.62",
-    "notes":  "Correctif de l\u0027affichage compact des détails de récurrence"
+    "pub_date":  "2026-07-13T05:52:37Z",
+    "version":  "1.0.63",
+    "notes":  "Correction des effets de bord du mode compact sur le dashboard et l\u0027historique"
 }
