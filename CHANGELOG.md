@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.61] - 2026-07-13
+
+### Added
+- **Recurrence Column Sorting**:
+  - Interactive table headers (Description, Category, Frequency, Day, Amount, Annual Total) with visual sorting indicators (▲ / ▼).
+  - Dynamic ascending and descending sort order persisted on `RecurrenceView`.
+- **Integrated Changelog Viewer**:
+  - Replaced single release notes popup with a scrollable list of all version releases parsed directly from the local `CHANGELOG.md` file (similar to Alanbix).
+  - Docker volume mount for `CHANGELOG.md` to ensure synchronized updates.
+
 ## [1.0.60] - 2026-07-12
 
 ### Added
