@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.63] - 2026-07-13
+
+### Fixed
+- **Scoped Compact Mode Rules**:
+  - Scoped all compact-mode table padding, button, and select overrides specifically to the `#recurrencesTableContainer` to prevent side effects on the dashboard and history tables.
+
 ## [1.0.62] - 2026-07-13
 
 ### Fixed
