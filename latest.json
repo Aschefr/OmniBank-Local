@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC91RXF5Wlo1SFEvTlRiRklNeTl2TnVEUjR3Uk1EUTNzRW1OdERUSXZIZWxBSXVpM2JMOFNsUmJheG9YaTMyUS93cVhnc0JPRzhvdTNGKzVmTkZMdnd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTIxOTU3CWZpbGU6T21uaUJhbmtfMS4wLjYzX3g2NF9mci1GUi5tc2kKeGlGeUtpeVZ3WWtua2dkdEhSMkJ1bko2NWFCNmFlZERkM0p5ZEtRak90cFBpVnpsa2xBY291WXhKeE1MNWZoRk5paU5MTkJMeXRyK2xLcWhKNStKQVE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.63/OmniBank_1.0.63_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDZqS1RTUWlkMzRoNS84K3l1bnpCSkd2U3UrL1BBYTdhK3YvSEF2SWdwbVRxb2R2b3NPMHFKMjduZU5iWnhBZTYxbnpKOWFpNEsxZGZuMFlXNXlLVFFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTQ0OTkzCWZpbGU6T21uaUJhbmtfMS4wLjY0X3g2NF9mci1GUi5tc2kKWlcrZ0F6aWNZell1d0FNUGplYnBBRWVWa0NDVmlMNUVrTjR6RVBLeXBnQSsrOUc1aFJtWlVpMjlHVG9tR2FQcGM0L1h5WDFaSjA4YVFlckJKSG1qQnc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.64/OmniBank_1.0.64_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-07-13T05:52:37Z",
-    "version":  "1.0.63",
-    "notes":  "Correction des effets de bord du mode compact sur le dashboard et l\u0027historique"
+    "pub_date":  "2026-07-13T12:16:33Z",
+    "version":  "1.0.64",
+    "notes":  "Visual fixes for AI chat, thoughts format, and month picker navigation"
 }

@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.64] - 2026-07-13
+
+### Added
+- **Cross-Browser History Month Filter**:
+  - Replaced the inconsistent native `<input type="month">` with a dynamic `<select>` dropdown populated from unique database transaction months, ensuring full compatibility on Firefox and Safari.
+  - Organized month options using `<optgroup>` year headers (e.g., `2026`, `2025`) and localized month names to dramatically reduce list height and visual clutter.
+  - Added month navigation buttons (◀ and ▶) next to the select field, dynamically showing/hiding themselves based on navigable directions.
+  - Synchronized and translated the `filter_all_months` key in both French and English locale files, preserving UTF-8 BOM encoding.
+
+### Fixed
+- **AI Chat Visual Pipeline & Error Capturing**:
+  - Centralized bubble rendering inside a unified `formatMessageContent` helper to guarantee identical visual rendering (including spinners, collapsible thoughts, and cards) in both live streaming and history loading.
+  - Secured the collapsible `🧠 Phase de réflexion` details view for reasoning models by using text-based placeholders (`___THINK_START___`) during markdown parsing to prevent DOMPurify from stripping custom tags.
+  - Added a `1.0s` delay to tool status SSE events in the FastAPI backend to ensure live tool execution messages (like *"Interrogation du solde..."*) remain readable instead of disappearing instantly.
+  - Resolved a critical silent error bug where streaming connection failures or empty responses were overwritten by the `finally` block reloading messages. Added a `hasError` guard to prevent database reloads when an error state is visible.
+
 ## [1.0.63] - 2026-07-13
 
 ### Fixed

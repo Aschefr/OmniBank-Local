@@ -324,6 +324,36 @@ window.ChatView = {
                         opacity: 1 !important; /* Always visible on mobile for accessibility */
                     }
                 }
+                .ai-think-details {
+                    border: 1px solid var(--border-color);
+                    background: rgba(255, 255, 255, 0.02);
+                    border-radius: 8px;
+                    margin-bottom: 12px;
+                    padding: 6px 10px;
+                    width: 100%;
+                }
+                .ai-think-summary {
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: var(--text-muted);
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    user-select: none;
+                    outline: none;
+                }
+                .ai-think-content {
+                    font-size: 12.5px;
+                    color: var(--text-muted);
+                    font-style: italic;
+                    margin-top: 8px;
+                    padding-left: 8px;
+                    border-left: 2px solid var(--border-color);
+                }
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
             </style>
 
             <div class="chat-wrapper">
@@ -357,6 +387,10 @@ window.ChatView = {
                                 <option value="advisor" data-i18n="chat_role_advisor">${window.i18n.t('chat_role_advisor')}</option>
                                 <option value="simulator" data-i18n="chat_role_simulator">${window.i18n.t('chat_role_simulator')}</option>
                                 <option value="alerts" data-i18n="chat_role_alerts">${window.i18n.t('chat_role_alerts')}</option>
+                                <option value="optimizer" data-i18n="chat_role_optimizer">${window.i18n.t('chat_role_optimizer')}</option>
+                                <option value="budget_planner" data-i18n="chat_role_budget_planner">${window.i18n.t('chat_role_budget_planner')}</option>
+                                <option value="forecaster" data-i18n="chat_role_forecaster">${window.i18n.t('chat_role_forecaster')}</option>
+                                <option value="auditor" data-i18n="chat_role_auditor">${window.i18n.t('chat_role_auditor')}</option>
                             </select>
                             <button class="btn btn-secondary" onclick="window.ChatView.askDefaultQuestion()" data-i18n-title="tooltip_auto_report" title="Demander le rapport automatique de ce rôle" data-i18n="chat_btn_report" style="display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">${window.i18n.t('chat_btn_report')}</button>
                         </div>
@@ -437,21 +471,21 @@ window.ChatView = {
         }
     },
 
-    async loadSessions() {
+    async loadSessions(preventSelectSession = false) {
         try {
             const resp = await fetch('/api/chat/sessions');
             if (resp.ok) {
                 this.sessions = await resp.json();
                 this.renderSidebarList();
-
-                if (this.sessions.length > 0) {
+ 
+                if (this.sessions.length > 0 && !preventSelectSession) {
                     const sessionExists = this.activeSessionId && this.sessions.some(s => s.id === this.activeSessionId);
                     if (sessionExists) {
                         await this.selectSession(this.activeSessionId, true);
                     } else {
                         await this.selectSession(this.sessions[0].id);
                     }
-                } else if (!this._creatingSession) {
+                } else if (!this._creatingSession && this.sessions.length === 0) {
                     // Create first session if none exists (with guard against loops)
                     await this.createNewSession();
                 }
@@ -672,6 +706,95 @@ window.ChatView = {
         }
     },
 
+    formatMessageContent(msg) {
+        const isUser = msg.role === 'user';
+        let displayContent = msg.content;
+        
+        if (!isUser && window.marked && window.DOMPurify) {
+            let rawContent = msg.content;
+            let actions = [];
+            
+            // Match signature {"id": 123, "updates": {...}}
+            const actionRegex = /\{\s*"id"\s*:\s*\d+\s*,\s*"updates"\s*:\s*\{[^}]+\}\s*\}/g;
+            rawContent = rawContent.replace(actionRegex, (match) => {
+                try {
+                    const actionObj = JSON.parse(match);
+                    actions.push(actionObj);
+                    return '';
+                } catch (e) {
+                    return match;
+                }
+            });
+            
+            rawContent = rawContent.replace(/```(?:action|json)?\s*```/g, '');
+
+            // Check for thinking blocks - use placeholders to bypass DOMPurify stripping
+            let hasThink = false;
+            let isOpenThink = false;
+            if (rawContent.includes('<think>')) {
+                hasThink = true;
+                if (rawContent.includes('</think>')) {
+                    rawContent = rawContent.replace(/<think>/g, '___THINK_START___').replace(/<\/think>/g, '___THINK_END___');
+                } else {
+                    isOpenThink = true;
+                    rawContent = rawContent.replace(/<think>/g, '___THINK_START___') + '___THINK_END_ACTIVE___';
+                }
+            }
+
+            // Check if this content is a standard connection or stream error
+            if (rawContent.includes('**Erreur:**') || (rawContent.startsWith('*') && rawContent.endsWith('*') && rawContent.includes('Erreur')) || rawContent.startsWith('⚠️')) {
+                let cleanErr = rawContent.replace(/\*\*Erreur:\*\*/g, '').replace(/^\*/, '').replace(/\*$/, '').replace(/⚠️/g, '').trim();
+                displayContent = `
+                    <div class="ai-error-box" style="padding: 12px 16px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; color: #ef4444; display: flex; align-items: start; gap: 10px;">
+                        <span style="font-size: 18px; line-height: 1;">⚠️</span>
+                        <div style="flex: 1;">
+                           <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">Échec de la requête</div>
+                           <div style="font-size: 12px; opacity: 0.9;">${cleanErr}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                displayContent = DOMPurify.sanitize(marked.parse(rawContent));
+                
+                // Replace placeholders back to HTML details after sanitization
+                if (hasThink) {
+                    const thinkTitle = isOpenThink ? "🧠 Réflexion en cours..." : "🧠 Phase de réflexion";
+                    const openAttr = isOpenThink ? "open" : "";
+                    displayContent = displayContent
+                        .replace(/___THINK_START___/g, `<details class="ai-think-details" ${openAttr}><summary class="ai-think-summary"><span>${thinkTitle}</span></summary><div class="ai-think-content">`)
+                        .replace(/___THINK_END___/g, '</div></details>')
+                        .replace(/___THINK_END_ACTIVE___/g, '</div></details>');
+                }
+
+                for (const actionObj of actions) {
+                    this.pendingActions[actionObj.id] = actionObj;
+                    displayContent += `
+                        <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
+                            <div style="font-size: 12px; margin-bottom: 12px;">${window.i18n.t('chat_ai_propose_modify')} #${actionObj.id}.</div>
+                            <button class="btn btn-primary" data-action-id="${actionObj.id}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review')}</button>
+                        </div>
+                    `;
+                }
+            }
+        } else if (isUser) {
+            displayContent = window.escapeHtml(displayContent);
+        }
+
+        // Append status indicator if present
+        if (!isUser && msg.status) {
+            displayContent = `
+                <div class="ai-status-indicator" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent); padding: 4px 8px; background: rgba(51, 102, 255, 0.1); border-radius: 12px; margin-bottom: 8px;">
+                    <span class="spinner-border-sm" style="width:10px; height:10px; border:2px solid; border-right-color:transparent; border-radius:50%; animation: spin 0.75s linear infinite; display: inline-block; box-sizing: border-box;"></span>
+                    <span>${msg.status}</span>
+                </div>
+                <div style="margin-top: 4px;">${displayContent}</div>
+            `;
+        }
+        
+        return displayContent;
+    },
+
     renderHistory(isRestore = false) {
         const container = document.getElementById('chatMessages');
         if (!container) return;
@@ -712,40 +835,6 @@ window.ChatView = {
         // Render conversation timeline
         html += this.messages.map((msg, index) => {
             const isUser = msg.role === 'user';
-            let displayContent = msg.content;
-            
-            // Format AI response
-            if (!isUser && window.marked && window.DOMPurify) {
-                let rawContent = msg.content;
-                let actions = [];
-                
-                // Match signature {"id": 123, "updates": {...}}
-                const actionRegex = /\{\s*"id"\s*:\s*\d+\s*,\s*"updates"\s*:\s*\{[^}]+\}\s*\}/g;
-                rawContent = rawContent.replace(actionRegex, (match) => {
-                    try {
-                        const actionObj = JSON.parse(match);
-                        actions.push(actionObj);
-                        return '';
-                    } catch (e) {
-                        return match;
-                    }
-                });
-                
-                rawContent = rawContent.replace(/```(?:action|json)?\s*```/g, '');
-                displayContent = DOMPurify.sanitize(marked.parse(rawContent));
-                
-                for (const actionObj of actions) {
-                    this.pendingActions[actionObj.id] = actionObj;
-                    displayContent += `
-                        <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
-                            <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
-                            <div style="font-size: 12px; margin-bottom: 12px;">${window.i18n.t('chat_ai_propose_modify')} #${actionObj.id}.</div>
-                            <button class="btn btn-primary" data-action-id="${actionObj.id}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review')}</button>
-                        </div>
-                    `;
-                }
-            }
-
             const formattedTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString(window.i18n.lang || 'fr', { hour: '2-digit', minute: '2-digit' }) : '';
             const isLastMsg = index === this.messages.length - 1;
 
@@ -764,7 +853,7 @@ window.ChatView = {
                                     <button class="btn btn-secondary btn-sm" onclick="window.ChatView.editingMsgId = null; window.ChatView.renderHistory();" style="font-size:12px; padding:2px 8px;">✕</button>
                                 </div>
                             </div>
-                        ` : (isUser ? window.escapeHtml(displayContent) : displayContent)}
+                        ` : this.formatMessageContent(msg)}
                     </div>
                     
                     <!-- Inline actions -->
@@ -866,7 +955,10 @@ window.ChatView = {
         } finally {
             if (sendBtn) sendBtn.disabled = false;
             if (input) input.disabled = false;
-            await this.loadMessages();
+            const hasError = this.messages[aiMsgIndex].content.includes("⚠️") || this.messages[aiMsgIndex].content.startsWith("*");
+            if (!hasError) {
+                await this.loadMessages();
+            }
         }
     },
 
@@ -916,7 +1008,14 @@ window.ChatView = {
         } finally {
             if (sendBtn) sendBtn.disabled = false;
             if (input) input.disabled = false;
-            await this.loadMessages();
+            if (aiMsgIndex >= 0) {
+                const hasError = this.messages[aiMsgIndex].content.includes("⚠️") || this.messages[aiMsgIndex].content.startsWith("*");
+                if (!hasError) {
+                    await this.loadMessages();
+                }
+            } else {
+                await this.loadMessages();
+            }
         }
     },
 
@@ -952,6 +1051,14 @@ window.ChatView = {
             input.value = window.i18n.t('chat_report_simulator');
         } else if (role === 'alerts') {
             input.value = window.i18n.t('chat_report_alerts');
+        } else if (role === 'optimizer') {
+            input.value = window.i18n.t('chat_report_optimizer');
+        } else if (role === 'budget_planner') {
+            input.value = window.i18n.t('chat_report_budget_planner');
+        } else if (role === 'forecaster') {
+            input.value = window.i18n.t('chat_report_forecaster');
+        } else if (role === 'auditor') {
+            input.value = window.i18n.t('chat_report_auditor');
         }
         
         this.sendMessage();
@@ -1096,12 +1203,13 @@ window.ChatView = {
             input.disabled = false;
             input.focus();
             
+            const hasError = this.messages[aiMsgIndex].content.includes("⚠️") || this.messages[aiMsgIndex].content.startsWith("*");
+            
             // Only reload sessions if it's the first exchange to get the auto-generated title
             if (is_first_exchange) {
-                await this.loadSessions();
+                await this.loadSessions(hasError);
             } else {
                 // If it's not the first exchange, just reload messages but preserve the error state if any
-                const hasError = this.messages[aiMsgIndex].content.includes("⚠️") || this.messages[aiMsgIndex].content.startsWith("*");
                 if (!hasError) {
                     await this.loadMessages();
                 }
@@ -1135,17 +1243,26 @@ window.ChatView = {
                             done = true;
                             break;
                         }
+                        let streamError = null;
                         try {
                             const data = JSON.parse(dataStr);
                             if (data.error) {
+                                streamError = data.error;
                                 aiText += `\n**Erreur:** ${data.error}`;
                             } else if (data.content) {
+                                delete this.messages[aiMsgIndex].status;
                                 aiText += data.content;
+                            } else if (data.status) {
+                                this.messages[aiMsgIndex].status = data.status;
+                                this.renderHistory();
                             } else if (data.token_usage) {
                                 this.tokenUsage = data.token_usage;
                             }
                         } catch (e) {
                             console.error("Parse error on chunk:", dataStr);
+                        }
+                        if (streamError) {
+                            throw new Error(streamError);
                         }
                     }
                 }
@@ -1154,11 +1271,9 @@ window.ChatView = {
                 this.messages[aiMsgIndex].content = aiText;
                 
                 const bubble = document.getElementById(`msg-${aiMsgIndex}`);
-                if (bubble && window.marked && window.DOMPurify) {
-                    bubble.innerHTML = DOMPurify.sanitize(marked.parse(aiText));
+                if (bubble) {
+                    bubble.innerHTML = this.formatMessageContent(this.messages[aiMsgIndex]);
                     this.renderMath();
-                } else if (bubble) {
-                    bubble.textContent = aiText;
                 }
                 this.scrollToBottom();
                 this.updateTokenUsageIndicator();

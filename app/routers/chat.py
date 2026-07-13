@@ -95,6 +95,16 @@ def get_recent_transactions_tool(db: Session, limit: int = 15) -> dict:
     ]}
 
 def search_transactions_tool(db: Session, description_query: str = None, category: str = None, type: str = None, start_date: str = None, end_date: str = None, min_amount: float = None, max_amount: float = None, limit: int = 50) -> dict:
+    try:
+        if min_amount is not None:
+            min_amount = float(min_amount)
+        if max_amount is not None:
+            max_amount = float(max_amount)
+        if limit is not None:
+            limit = int(limit)
+    except (ValueError, TypeError):
+        return {"error": "Invalid min_amount, max_amount or limit. Expected numeric values."}
+        
     query = db.query(Transaction)
     if description_query:
         query = query.filter(Transaction.description.ilike(f"%{description_query}%"))
@@ -105,12 +115,12 @@ def search_transactions_tool(db: Session, description_query: str = None, categor
     if start_date:
         try:
             query = query.filter(Transaction.date_operation >= date.fromisoformat(start_date))
-        except ValueError:
+        except (ValueError, TypeError):
             pass
     if end_date:
         try:
             query = query.filter(Transaction.date_operation <= date.fromisoformat(end_date))
-        except ValueError:
+        except (ValueError, TypeError):
             pass
     if min_amount is not None:
         query = query.filter(Transaction.amount >= min_amount)
@@ -135,8 +145,8 @@ def get_spending_analytics_tool(db: Session, start_date: str, end_date: str) -> 
     try:
         d_start = date.fromisoformat(start_date)
         d_end = date.fromisoformat(end_date)
-    except ValueError:
-        return {"error": "Invalid date format. Expected YYYY-MM-DD."}
+    except (ValueError, TypeError):
+        return {"error": "Invalid or missing date format. Expected YYYY-MM-DD strings."}
     
     txs = db.query(Transaction).filter(
         Transaction.date_operation >= d_start,
@@ -190,8 +200,11 @@ def get_spending_analytics_tool(db: Session, start_date: str, end_date: str) -> 
 def get_budgets_status_tool(db: Session, year: int = None, month: int = None) -> dict:
     from app.routers.budgets import get_budget_status
     today = date.today()
-    y = year or today.year
-    m = month or today.month
+    try:
+        y = int(year) if year is not None else today.year
+        m = int(month) if month is not None else today.month
+    except (ValueError, TypeError):
+        return {"error": "Invalid year or month format. Expected integers."}
     
     status_data = get_budget_status(year=y, month=m, db=db)
     
@@ -225,6 +238,10 @@ def get_recurrence_templates_tool(db: Session) -> dict:
     ]}
 
 def get_net_worth_history_tool(db: Session, months: int = 12) -> dict:
+    try:
+        months = int(months) if months is not None else 12
+    except (ValueError, TypeError):
+        return {"error": "Invalid months format. Expected integer."}
     from app.routers.stats import get_trends
     trends = get_trends("total", db)
     if "error" in trends:
@@ -382,6 +399,18 @@ Present your answers using clear markdown tables and LaTeX formatting for calcul
         prompt = """You are the Alert Analyst for OmniBank.
 Your goal is to proactively identify anomalies, overspending, unnecessary subscription costs, or overdraft risks in the user's accounts.
 Use the database tools to check recent transactions and active budget levels. Be direct and highlight potential issues in a concise markdown format."""
+    elif role == 'optimizer':
+        prompt = """You are the Subscription and Expenses Optimizer for OmniBank.
+Your goal is to analyze the user's recurring transactions, bills, and recent transactions to identify optimization opportunities, excessive subscription costs, or potential duplicates."""
+    elif role == 'budget_planner':
+        prompt = """You are the Budget Planner for OmniBank.
+Your goal is to analyze the user's spending habits over the last 12 months, compare them to their current budget envelopes, and recommend realistic budget envelope allocations."""
+    elif role == 'forecaster':
+        prompt = """You are the Cash Flow Forecaster for OmniBank.
+Your goal is to project the user's account balances over the next 3 months, taking into account their planned recurring transactions and historical average spending."""
+    elif role == 'auditor':
+        prompt = """You are the Transaction Auditor for OmniBank.
+Your goal is to scan the user's transaction history for data entry inconsistencies, categorization errors, suspicious duplicates, or delayed/forgotten reconciliations."""
     else: # advisor
         prompt = """You are the Premium Personal Financial Advisor for OmniBank.
 Your goal is to help the user understand their financial situation, track their expenses, manage budgets, and make smart saving decisions.
@@ -394,6 +423,16 @@ Always use the tools provided to query the database first before answering. Do n
 - Call `get_recurrence_templates` to inspect regular bills.
 - Call `get_net_worth_history` to analyze wealth growth.
 Always be concise, professional, and helpful."""
+
+    today_str = date.today().isoformat()
+    prompt += f"\n\nCURRENT DATE REFERENCE: Today is {today_str}."
+    prompt += """
+
+RECONCILIATION & FUTURE TRANSACTIONS RULE:
+- In normal mode, the user manages their budget and expenses between regular pay dates.
+- It is perfectly normal and expected for transactions with a future date (where `date_operation` is in the future relative to the CURRENT DATE REFERENCE above) to be in the "Unreconciled" (Non Rapproché) state, as they represent scheduled/planned operations that have not occurred yet.
+- Do NOT flag future or scheduled transactions as anomalies, forgotten reconciliations, or errors.
+- Only consider a transaction as a potentially forgotten or delayed reconciliation if its date is in the PAST (older than today) and it is still unreconciled."""
 
     cat_list = ", ".join(f'"{c}"' for c in (categories or []))
     prompt += f"""
@@ -661,9 +700,24 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
                 if assistant_msg.get("tool_calls"):
                     ollama_msgs.append(assistant_msg)
                     
+                    tool_desc_map = {
+                        "get_net_worth": "Consultation du patrimoine net global...",
+                        "get_account_balances": "Interrogation du solde des comptes...",
+                        "search_transactions": "Recherche de transactions...",
+                        "get_spending_analytics": "Calcul des statistiques de dépenses...",
+                        "get_budgets_status": "Vérification de l'état des budgets...",
+                        "get_recurrence_templates": "Examen des charges récurrentes...",
+                        "get_net_worth_history": "Analyse de l'historique du patrimoine..."
+                    }
+                    
                     for tool_call in assistant_msg["tool_calls"]:
                         fn_name = tool_call["function"]["name"]
                         fn_args = tool_call["function"].get("arguments", {})
+                        
+                        desc_status = tool_desc_map.get(fn_name, f"Exécution de {fn_name}...")
+                        yield f"data: {json.dumps({'status': desc_status})}\n\n"
+                        import asyncio
+                        await asyncio.sleep(1.0)
                         
                         tool_result = {}
                         if fn_name == "get_net_worth":
@@ -693,6 +747,8 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
                         elif fn_name == "get_net_worth_history":
                             mnths = fn_args.get("months", 12)
                             tool_result = get_net_worth_history_tool(db, mnths)
+                        else:
+                            tool_result = {"error": f"Tool '{fn_name}' is not supported or defined."}
                             
                         ollama_msgs.append({
                             "role": "tool",
@@ -712,42 +768,47 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
                         if stream_resp.status_code != 200:
                             yield f"data: {json.dumps({'error': 'Ollama error: ' + str(stream_resp.status_code)})}\n\n"
                             return
+                        in_thinking = False
                         async for line in stream_resp.aiter_lines():
                             if line:
                                 try:
                                     json_chunk = json.loads(line)
-                                    content = json_chunk.get("message", {}).get("content", "")
-                                    if content:
-                                        final_text += content
-                                        yield f"data: {json.dumps({'content': content})}\n\n"
+                                    msg_obj = json_chunk.get("message", {})
+                                    reasoning = msg_obj.get("reasoning_content", "")
+                                    content = msg_obj.get("content", "")
+                                    
+                                    chunk_to_send = ""
+                                    if reasoning:
+                                        if not in_thinking:
+                                            chunk_to_send += "<think>\n"
+                                            in_thinking = True
+                                        chunk_to_send += reasoning
+                                    else:
+                                        if in_thinking:
+                                            chunk_to_send += "\n</think>\n\n"
+                                            in_thinking = False
+                                        chunk_to_send += content
+                                        
+                                    if chunk_to_send:
+                                        final_text += chunk_to_send
+                                        yield f"data: {json.dumps({'content': chunk_to_send})}\n\n"
                                 except json.JSONDecodeError:
                                     pass
+                        if in_thinking:
+                            final_text += "\n</think>\n\n"
+                            think_end_payload = json.dumps({'content': '\n</think>\n\n'})
+                            yield f"data: {think_end_payload}\n\n"
                 else:
-                    # No tool calls — re-stream the response for consistent UX
-                    # The non-streamed call may have returned content directly
+                    # No tool calls — we already have the complete response!
+                    reasoning = assistant_msg.get("reasoning_content", "")
                     direct_content = assistant_msg.get("content", "")
+                    
+                    if reasoning:
+                        direct_content = f"<think>\n{reasoning}\n</think>\n\n{direct_content}"
+                        
                     if direct_content:
-                        # Re-request in streaming mode for progressive display
-                        payload_stream = {
-                            "model": model,
-                            "messages": ollama_msgs,
-                            "stream": True,
-                            "options": options
-                        }
-                        async with client.stream("POST", f"{url}/api/chat", json=payload_stream, timeout=120.0) as stream_resp:
-                            if stream_resp.status_code != 200:
-                                yield f"data: {json.dumps({'error': 'Ollama error: ' + str(stream_resp.status_code)})}\n\n"
-                                return
-                            async for line in stream_resp.aiter_lines():
-                                if line:
-                                    try:
-                                        json_chunk = json.loads(line)
-                                        content = json_chunk.get("message", {}).get("content", "")
-                                        if content:
-                                            final_text += content
-                                            yield f"data: {json.dumps({'content': content})}\n\n"
-                                    except json.JSONDecodeError:
-                                        pass
+                        final_text = direct_content
+                        yield f"data: {json.dumps({'content': direct_content})}\n\n"
                     else:
                         empty_err = "Le modèle n'a pas fourni de réponse. Vérifiez votre configuration Ollama."
                         yield f"data: {json.dumps({'error': empty_err})}\n\n"
