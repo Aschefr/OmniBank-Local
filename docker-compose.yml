@@ -10,6 +10,7 @@ services:
       - ./static:/app/static
       - ./scratch:/app/scratch
       - ./package.json:/app/package.json
+      - ./CHANGELOG.md:/app/CHANGELOG.md
     environment:
       - DATABASE_URL=sqlite:///./data/omnibank.db
       - TZ=Europe/Paris
