@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlLQ3N0UlFiRGlLa25yeU91WURRMnk5WXhKMktobUtHTFp5bURsZHNQcTFVSEcyb05Pc3pobkMwWGdhSXdLUmsvcjBCbmE5emsrb1l6WWg0S0gzalFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTIwNDU3CWZpbGU6T21uaUJhbmtfMS4wLjYxX3g2NF9mci1GUi5tc2kKUnRoM3dNRDh1ZHhWNlZ1QTBQYWxVc0h4R1pNbmJRY0o0OTlNZGlwSkF2bGdmNUdDYkcwYlRnMndXWHhmZnJKVExSYS85Y1h2cWozSXh3NUFxTitYQXc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.61/OmniBank_1.0.61_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHpkUTdEdUdMMC84K3pIcUdFVnpUZlJFUlBFbmtSRHBCT29oSS9qUDM4Z2dEWnZsWjhXb0dDdjRMRlVPaVBHOGlkNG9TNExqL0hpZmVsYVpjQXBXQ0FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTIxMjA2CWZpbGU6T21uaUJhbmtfMS4wLjYyX3g2NF9mci1GUi5tc2kKYlRwMUMydzgxZmdQQlovVjZCS0tYV0Fldnc2a0doVnp5L1FGUy82NEx2dkgyRlhEaFlNK2FtZGFYdkZCZ3QxVXltaXZHT0dGRkt3ZVM2eitzc2RQRFE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.62/OmniBank_1.0.62_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-07-13T05:27:37Z",
-    "version":  "1.0.61",
-    "notes":  "Tri des colonnes sur les récurrences et historique des versions"
+    "pub_date":  "2026-07-13T05:40:06Z",
+    "version":  "1.0.62",
+    "notes":  "Correctif de l\u0027affichage compact des détails de récurrence"
 }
