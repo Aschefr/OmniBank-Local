@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHdKM2Zzek16eGFDdkM5NDVZdWE2VUUwYXlteDhoQ2lUNGU3SStNNnRkWitPZUhMbVlvUW5MRFF2SWloSGlMRkVFMXp3SHZaWFVPTE1pa0pLUWg0L0FrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzODg2MDYwCWZpbGU6T21uaUJhbmtfMS4wLjYwX3g2NF9mci1GUi5tc2kKZ3pNZmltQkp0QlB0VkxKaUF1eUxGVEpoRmtuSXorS0V3VGlaOHJiTmZvUWdycmdtejNGS3JqTXNqeURYbjhmeVBPVWE1M3NqVzJxQk5ZN0dSRG52QVE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.60/OmniBank_1.0.60_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlLQ3N0UlFiRGlLa25yeU91WURRMnk5WXhKMktobUtHTFp5bURsZHNQcTFVSEcyb05Pc3pobkMwWGdhSXdLUmsvcjBCbmE5emsrb1l6WWg0S0gzalFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTIwNDU3CWZpbGU6T21uaUJhbmtfMS4wLjYxX3g2NF9mci1GUi5tc2kKUnRoM3dNRDh1ZHhWNlZ1QTBQYWxVc0h4R1pNbmJRY0o0OTlNZGlwSkF2bGdmNUdDYkcwYlRnMndXWHhmZnJKVExSYS85Y1h2cWozSXh3NUFxTitYQXc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.61/OmniBank_1.0.61_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-07-12T19:54:20Z",
-    "version":  "1.0.60",
-    "notes":  "Ameliorations de l\u0027affichage cote-a-cote sans scrollbar des Tendances et refonte premium de la page des recurrences"
+    "pub_date":  "2026-07-13T05:27:37Z",
+    "version":  "1.0.61",
+    "notes":  "Tri des colonnes sur les récurrences et historique des versions"
 }

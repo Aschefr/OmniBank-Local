@@ -37,6 +37,8 @@ window.RecurrenceView = {
         this.selectedYear = new Date().getFullYear();
         this.modifiedRows.clear();
         this.expandedTemplateIds.clear();
+        this.sortBy = 'description';
+        this.sortOrder = 'asc';
         await this.loadData();
     },
 
@@ -69,7 +71,8 @@ window.RecurrenceView = {
                     tx.recurrence_id == t.id && 
                     tx.date_operation && parseInt(tx.date_operation.substring(0, 4)) === this.selectedYear
                 );
-                grandTotalAnnual += templateTx.reduce((sum, tx) => sum + tx.amount, 0);
+                t.totalAnnualAmount = templateTx.reduce((sum, tx) => sum + tx.amount, 0);
+                grandTotalAnnual += t.totalAnnualAmount;
                 totalInstancesCount += templateTx.length;
                 totalReconciledCount += templateTx.filter(tx => tx.reconciliation_date != null).length;
             });
@@ -108,24 +111,58 @@ window.RecurrenceView = {
                     tableContainer.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--text-muted); font-size: 16px;">${emptyMsg}</div>`;
                     return;
                 }
+                               // Sort templates based on sortBy and sortOrder
+                const sortBy = this.sortBy || 'description';
+                const sortOrder = this.sortOrder || 'asc';
+                
+                displayTemplates.sort((a, b) => {
+                    let valA, valB;
+                    if (sortBy === 'description') {
+                        valA = a.description || '';
+                        valB = b.description || '';
+                        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    } else if (sortBy === 'category') {
+                        valA = a.category || '';
+                        valB = b.category || '';
+                        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    } else if (sortBy === 'frequency') {
+                        valA = a.frequency || '';
+                        valB = b.frequency || '';
+                        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    } else if (sortBy === 'day') {
+                        valA = a.day_of_month || 1;
+                        valB = b.day_of_month || 1;
+                        return sortOrder === 'asc' ? valA - valB : valB - valA;
+                    } else if (sortBy === 'amount') {
+                        valA = a.amount || 0;
+                        valB = b.amount || 0;
+                        return sortOrder === 'asc' ? valA - valB : valB - valA;
+                    } else if (sortBy === 'annual_total') {
+                        valA = a.totalAnnualAmount || 0;
+                        valB = b.totalAnnualAmount || 0;
+                        return sortOrder === 'asc' ? valA - valB : valB - valA;
+                    }
+                    return 0;
+                });
+
                 let tableHtml = `
                      <table class="data-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                         <thead>
-                            <tr style="text-align: left; background: rgba(0, 0, 0, 0.02); border-bottom: 2px solid var(--border-color);">
+                            <tr style="text-align: left; background: rgba(0, 0, 0, 0.02); border-bottom: 2px solid var(--border-color); user-select: none;">
                                 <th style="padding: 12px; width: 45px; text-align: center;"></th>
-                                <th style="padding: 12px; white-space: nowrap;">${window.i18n.t('col_description')}</th>
-                                <th style="padding: 12px; width: 170px; white-space: nowrap;">${window.i18n.t('col_category')}</th>
-                                <th style="padding: 12px; width: 120px; text-align: center; white-space: nowrap;">${window.i18n.t('wizard_th_frequency') || 'Frequency'}</th>
-                                <th style="padding: 12px; width: 120px; text-align: center; white-space: nowrap;">${window.i18n.t('wizard_th_day') || 'Day of month'}</th>
-                                <th style="padding: 12px; width: 110px; text-align: right; white-space: nowrap;">${window.i18n.t('col_amount')}</th>
-                                <th style="padding: 12px; width: 140px; text-align: right; white-space: nowrap;">${window.i18n.t('col_total_annual') || 'Annual Total'}</th>
+                                <th style="padding: 12px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('description')">${window.i18n.t('col_description')} ${this.getSortArrow('description')}</th>
+                                <th style="padding: 12px; width: 170px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('category')">${window.i18n.t('col_category')} ${this.getSortArrow('category')}</th>
+                                <th style="padding: 12px; width: 120px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('frequency')">${window.i18n.t('wizard_th_frequency') || 'Frequency'} ${this.getSortArrow('frequency')}</th>
+                                <th style="padding: 12px; width: 120px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('day')">${window.i18n.t('wizard_th_day') || 'Day of month'} ${this.getSortArrow('day')}</th>
+                                <th style="padding: 12px; width: 110px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('amount')">${window.i18n.t('col_amount')} ${this.getSortArrow('amount')}</th>
+                                <th style="padding: 12px; width: 140px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('annual_total')">${window.i18n.t('col_total_annual') || 'Annual Total'} ${this.getSortArrow('annual_total')}</th>
                                 <th style="padding: 12px; width: 85px; text-align: center; white-space: nowrap;">${window.i18n.t('th_actions') || 'Actions'}</th>
                             </tr>
                         </thead>
                         <tbody>
                 `;
                 
-                displayTemplates.sort((a, b) => a.description.localeCompare(b.description)).forEach(t => {
+                displayTemplates.forEach(t => {
                     const isExpanded = this.expandedTemplateIds.has(t.id);
                     const chevronStyle = `display: inline-block; transition: transform 0.2s ease; transform: ${isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'}; font-size: 11px; color: var(--text-muted); cursor: pointer;`;
                     const displayStyle = isExpanded ? 'table-row' : 'none';
@@ -148,20 +185,13 @@ window.RecurrenceView = {
                         .filter(c => !c.is_closed || c.name === t.category)
                         .map(c => `<option value="${c.name}" ${t.category === c.name ? 'selected' : ''}>${c.name}</option>`)
                         .join('');
-
-                    // Compute individual total annual amount
-                    const templateTx = (this.allTransactions || []).filter(tx => 
-                        tx.recurrence_id == t.id && 
-                        tx.date_operation && parseInt(tx.date_operation.substring(0, 4)) === this.selectedYear
-                    );
-                    const totalAnnualAmount = templateTx.reduce((sum, tx) => sum + tx.amount, 0);
                     
                     tableHtml += `
                         <tr onclick="window.RecurrenceView.toggleRow(${t.id})" style="cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(99,102,241,0.03)'" onmouseout="this.style.backgroundColor=''">
                             <td style="padding: 12px; text-align: center;">
                                 <span id="chevron_${t.id}" style="${chevronStyle}">❯</span>
                             </td>
-                            <td style="padding: 12px; font-weight: 600; color: var(--text-main);">${t.description}</td>
+                            <td style="padding: 12px; font-weight: 600; color: var(--text-main); font-size: 14px;">${t.description}</td>
                             <td style="padding: 6px 12px;" onclick="event.stopPropagation()">
                                 <select class="inline-input" style="padding: 4px 8px; border-radius: 6px; font-size: 13px; width: 100%; border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;" onchange="window.RecurrenceView.changeTemplateCategory(this, ${t.id})">
                                     <option value="">-- Sans catégorie --</option>
@@ -172,11 +202,11 @@ window.RecurrenceView = {
                             <td style="padding: 12px; text-align: center;">${badgeHtml}</td>
                             <td style="padding: 12px; text-align: center; font-size: 13px; color: var(--text-muted); font-weight: 500;">${t.day_of_month || 1}</td>
                             <td style="padding: 12px; text-align: right; font-weight: 600; color: var(--text-main); font-size: 13px;">${formatCurrency(t.amount)}</td>
-                            <td style="padding: 12px; text-align: right; font-weight: 700; color: var(--text-main); font-size: 14px;"><span class="privacy-blur">${formatCurrency(totalAnnualAmount)}</span></td>
+                            <td style="padding: 12px; text-align: right; font-weight: 700; color: var(--text-main); font-size: 14px;"><span class="privacy-blur">${formatCurrency(t.totalAnnualAmount)}</span></td>
                             <td style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
                                 <button class="btn btn-secondary btn-delete" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='var(--danger, #ff5630)'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.deleteTemplate(${t.id})" title="${window.i18n.t('tooltip_delete') || 'Delete'}">🗑️</button>
                             </td>
-                        </tr>        </tr>
+                        </tr>
                         <tr id="details_row_${t.id}" style="display: ${displayStyle}; background: var(--bg-sidebar);">
                             <td colspan="8" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
                                 <div id="details_content_${t.id}">
@@ -252,6 +282,23 @@ window.RecurrenceView = {
         const display = document.getElementById('recYearDisplay');
         if (display) display.textContent = this.selectedYear;
         this.refreshTransactions();
+    },
+
+    setSort(columnName) {
+        if (this.sortBy === columnName) {
+            this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortBy = columnName;
+            this.sortOrder = 'asc';
+        }
+        this.loadData();
+    },
+
+    getSortArrow(columnName) {
+        if (this.sortBy === columnName) {
+            return this.sortOrder === 'asc' ? ' <span style="font-size: 10px; color: var(--accent);">▲</span>' : ' <span style="font-size: 10px; color: var(--accent);">▼</span>';
+        }
+        return ' <span style="font-size: 10px; color: var(--text-muted); opacity: 0.3;">▲</span>';
     },
 
     toggleRow(templateId) {

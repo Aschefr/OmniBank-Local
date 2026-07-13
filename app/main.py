@@ -178,68 +178,85 @@ def get_version():
         return {"version": "?"}
 
 
-# In-memory changelog cache to avoid repeated GitHub API calls
-_changelog_cache = {}
+# In-memory changelog cache to avoid repeated file reads
+_changelog_cache = None
+
+def parse_changelog():
+    global _changelog_cache
+    if _changelog_cache is not None:
+        return _changelog_cache
+
+    import re
+    changelog_path = resource_path("CHANGELOG.md")
+    if not os.path.exists(changelog_path):
+        changelog_path = os.path.join(os.path.abspath('.'), "CHANGELOG.md")
+    if not os.path.exists(changelog_path):
+        changelog_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "CHANGELOG.md")
+
+    if not os.path.exists(changelog_path):
+        logger.warning(f"[changelog] CHANGELOG.md not found at any known path.")
+        return []
+
+    releases = []
+    current_release = None
+    release_pattern = re.compile(r'^##\s+\[?([0-9a-zA-Z\.\-]+)\]?(?:\s*-\s*([0-9\-]+))?')
+
+    try:
+        with open(changelog_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        for line in lines:
+            match = release_pattern.match(line.strip())
+            if match:
+                if current_release:
+                    releases.append(current_release)
+                current_release = {
+                    "version": match.group(1),
+                    "date": match.group(2) or "",
+                    "content": []
+                }
+            elif current_release is not None:
+                current_release["content"].append(line)
+
+        if current_release:
+            releases.append(current_release)
+
+        # Clean up contents
+        for r in releases:
+            r["notes"] = "".join(r["content"]).strip()
+            del r["content"]
+
+        _changelog_cache = releases
+        return releases
+    except Exception as e:
+        logger.error(f"[changelog] Error parsing CHANGELOG.md: {e}")
+        return []
 
 @app.get("/api/changelog")
 def get_changelog(version: str = None):
-    """Fetch release notes from GitHub, with local fallback."""
-    import json
-    import urllib.request
-    import urllib.error
+    """Return parsed release notes from local CHANGELOG.md with full history."""
+    releases = parse_changelog()
+    if not releases:
+        return {"version": version or "?", "notes": "", "pub_date": "", "name": "OmniBank", "history": []}
 
-    # Determine version
-    if not version:
-        try:
-            pkg_path = resource_path("package.json")
-            if not os.path.exists(pkg_path):
-                pkg_path = os.path.join(os.path.abspath('.'), "package.json")
-            with open(pkg_path, "r", encoding="utf-8") as f:
-                version = json.load(f).get("version", "?")
-        except Exception:
-            version = "?"
+    # Find requested version or fall back to latest
+    target_release = None
+    if version:
+        for r in releases:
+            if r["version"] == version:
+                target_release = r
+                break
 
-    # Check cache
-    if version in _changelog_cache:
-        return _changelog_cache[version]
+    if not target_release:
+        target_release = releases[0]
 
-    # Try GitHub API
-    tag = f"v{version}" if not version.startswith("v") else version
-    gh_url = f"https://api.github.com/repos/Aschefr/OmniBank-Local/releases/tags/{tag}"
-    try:
-        req = urllib.request.Request(gh_url, headers={"Accept": "application/vnd.github.v3+json", "User-Agent": "OmniBank"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-        result = {
-            "version": version,
-            "notes": data.get("body", ""),
-            "pub_date": data.get("published_at", ""),
-            "name": data.get("name", f"OmniBank v{version}")
-        }
-        _changelog_cache[version] = result
-        return result
-    except Exception as e:
-        logger.warning(f"[changelog] GitHub API failed: {e}, using local fallback")
-
-    # Fallback: latest.json
-    try:
-        latest_path = resource_path("latest.json")
-        if not os.path.exists(latest_path):
-            latest_path = os.path.join(os.path.abspath('.'), "latest.json")
-        with open(latest_path, "r", encoding="utf-8") as f:
-            latest = json.load(f)
-        result = {
-            "version": latest.get("version", version),
-            "notes": latest.get("notes", ""),
-            "pub_date": latest.get("pub_date", ""),
-            "name": f"OmniBank v{latest.get('version', version)}"
-        }
-        _changelog_cache[version] = result
-        return result
-    except Exception:
-        pass
-
-    return {"version": version, "notes": "", "pub_date": "", "name": f"OmniBank v{version}"}
+    return {
+        "version": target_release["version"],
+        "notes": target_release["notes"],
+        "pub_date": target_release["date"],
+        "name": f"OmniBank v{target_release['version']}",
+        "history": releases
+    }
 
 
 @app.post("/api/upload")
