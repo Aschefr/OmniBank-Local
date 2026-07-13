@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.62] - 2026-07-13
+
+### Fixed
+- **Recurrence Expanded Compact View**:
+  - Reduced padding (`4px 8px`) and font size (`12px`) on inner input fields and rows when compact mode is active.
+  - Fixed specificity bug on "Sauvegarder les modifications" (Save changes) button to preserve its legible size (`12px` font size and `4px 10px` padding) in compact mode.
+  - Incremented stylesheet cache-buster query parameter to `v=7` to force instant update for all users.
+
 ## [1.0.61] - 2026-07-13
 
 ### Added

@@ -1375,6 +1375,27 @@ body.compact-mode .data-table select {
     font-size: 11px !important;
 }
 
+/* Recurrence details compact mode overrides */
+body.compact-mode .rec-instance-row {
+    padding: 4px 8px !important;
+}
+
+body.compact-mode .rec-instance-row input {
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    height: 28px !important;
+}
+
+body.compact-mode .data-table .btn[id^="save_btn_"] {
+    padding: 4px 10px !important;
+    font-size: 12px !important;
+}
+
+body.compact-mode .rec-instance-row .btn {
+    padding: 3px 6px !important;
+    font-size: 11px !important;
+}
+
 /* ═══════════════════════════════════════════════════════
    SETUP WIZARD — Phase 8
    ═══════════════════════════════════════════════════════ */
