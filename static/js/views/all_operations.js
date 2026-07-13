@@ -47,7 +47,13 @@ window.AllOperationsView = {
                 <div class="responsive-header-controls">
                     <div class="history-filters" style="display:flex; gap:8px; width:100%; max-width:900px; justify-content:flex-end; flex-wrap:wrap; align-items: center;">
                     <input type="text" id="historySearch" class="inline-input" data-i18n-placeholder="ph_search" placeholder="Rechercher..." style="min-width:0; flex:1; max-width: 180px;" oninput="window.AllOperationsView.applyFilters()">
-                    <input type="month" id="historyMonthFilter" class="inline-input" style="min-width:0; flex:1;" onchange="window.AllOperationsView.applyFilters()" title="Filtrer par mois">
+                    <div style="display:inline-flex; align-items:center; gap:4px; margin-right: 4px;">
+                        <button id="historyMonthPrevBtn" class="btn btn-secondary" style="display:none; padding:0 8px; font-size:11px; min-height:32px; line-height:32px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-surface); cursor: pointer;" onclick="window.AllOperationsView.navigateMonthFilter(-1)" title="Mois précédent">◀</button>
+                        <select id="historyMonthFilter" class="inline-input" style="min-width:110px; flex:1;" onchange="window.AllOperationsView.applyFilters(); window.AllOperationsView.updateMonthNavButtons();">
+                            <option value="" data-i18n="filter_all_months">${window.i18n.t('filter_all_months') || 'Tous les mois'}</option>
+                        </select>
+                        <button id="historyMonthNextBtn" class="btn btn-secondary" style="display:none; padding:0 8px; font-size:11px; min-height:32px; line-height:32px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-surface); cursor: pointer;" onclick="window.AllOperationsView.navigateMonthFilter(1)" title="Mois suivant">▶</button>
+                    </div>
                     <select id="historyTypeFilter" class="inline-input" style="min-width:130px; flex:1;" onchange="window.AllOperationsView.applyFilters()">
                         <option value="" data-i18n="filter_all_types">${window.i18n.t('filter_all_types')}</option>
                         <option value="expense_fixed" data-i18n="type_expense_fixed">${window.i18n.t('type_expense_fixed')}</option>
@@ -229,6 +235,49 @@ window.AllOperationsView = {
             }
             window.MultiSelect.populate('historyCategoryFilter', categories);
 
+            // Populate month select dropdown dynamically grouped by year
+            const monthSelect = document.getElementById('historyMonthFilter');
+            if (monthSelect) {
+                const uniqueMonths = [...new Set(
+                    this.transactions
+                        .map(tx => tx.date_operation ? tx.date_operation.substring(0, 7) : null)
+                        .filter(Boolean)
+                )].sort().reverse();
+                
+                // Group by year
+                const grouped = {};
+                uniqueMonths.forEach(m => {
+                    const year = m.split('-')[0];
+                    if (!grouped[year]) {
+                        grouped[year] = [];
+                    }
+                    grouped[year].push(m);
+                });
+                
+                let monthHtml = `<option value="" data-i18n="filter_all_months">${window.i18n.t('filter_all_months') || 'Tous les mois'}</option>`;
+                
+                // Sort years descending and render grouped options
+                const sortedYears = Object.keys(grouped).sort().reverse();
+                sortedYears.forEach(year => {
+                    monthHtml += `<optgroup label="${year}">`;
+                    grouped[year].forEach(m => {
+                        const parts = m.split('-');
+                        const monthIdx = parseInt(parts[1]) - 1;
+                        const dateObj = new Date(year, monthIdx, 1);
+                        // Only show month name under the year group header
+                        const formattedMonth = dateObj.toLocaleDateString(window.i18n.lang || 'fr', { month: 'long' });
+                        monthHtml += `<option value="${m}">${formattedMonth}</option>`;
+                    });
+                    monthHtml += `</optgroup>`;
+                });
+                
+                const currentVal = monthSelect.value;
+                monthSelect.innerHTML = monthHtml;
+                if (currentVal && uniqueMonths.includes(currentVal)) {
+                    monthSelect.value = currentVal;
+                }
+            }
+
             // Apply pending filter from AnalyticsView drilldown
             if (this.pendingFilter) {
                 const pf = this.pendingFilter;
@@ -264,6 +313,7 @@ window.AllOperationsView = {
             }
 
             this.renderTable();
+            this.updateMonthNavButtons();
 
             // Check if we need to highlight a specific transaction (e.g. overdraft locate)
             if (this._pendingHighlightTxId) {
@@ -281,6 +331,44 @@ window.AllOperationsView = {
     
     applyFilters() {
         this.renderTable(false); // false means don't auto-scroll
+    },
+
+    navigateMonthFilter(direction) {
+        const select = document.getElementById('historyMonthFilter');
+        if (!select) return;
+        
+        if (!select.value) return;
+        
+        const newIndex = select.selectedIndex - direction;
+        
+        if (newIndex >= 1 && newIndex < select.options.length) {
+            select.selectedIndex = newIndex;
+            this.applyFilters();
+            this.updateMonthNavButtons();
+        }
+    },
+
+    updateMonthNavButtons() {
+        const select = document.getElementById('historyMonthFilter');
+        const prevBtn = document.getElementById('historyMonthPrevBtn');
+        const nextBtn = document.getElementById('historyMonthNextBtn');
+        if (!select || !prevBtn || !nextBtn) return;
+        
+        const val = select.value;
+        if (!val) {
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+            return;
+        }
+        
+        const idx = select.selectedIndex;
+        // ◀ (previous month / older) is shown if we can go older (index can increase)
+        const showPrev = idx < select.options.length - 1;
+        // ▶ (next month / newer) is shown if we can go newer (index can decrease)
+        const showNext = idx > 1;
+        
+        prevBtn.style.display = showPrev ? 'inline-block' : 'none';
+        nextBtn.style.display = showNext ? 'inline-block' : 'none';
     },
 
     renderTable(autoScroll = true) {
