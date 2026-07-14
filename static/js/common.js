@@ -161,16 +161,24 @@ function showToast(message, type = 'success', duration = 3000) {
     };
     const c = colors[type] || colors.info;
 
+    // Shift existing toasts up
+    const existingToasts = document.querySelectorAll('.app-toast');
+    existingToasts.forEach(t => {
+        const currentBottom = parseInt(t.style.bottom) || 20;
+        t.style.bottom = (currentBottom + 65) + 'px';
+    });
+
     const toast = document.createElement('div');
+    toast.className = 'app-toast';
     toast.style.cssText = `
-        position: fixed; bottom: 20px; right: 20px; z-index: 10000;
+        position: fixed; bottom: 20px; right: 20px; z-index: 10010;
         display: flex; align-items: center; gap: 10px;
         padding: 14px 20px; border-radius: 10px;
         background: ${c.bg}; border: 1px solid ${c.border};
         color: ${c.text}; font-size: 13px; font-weight: 600;
         box-shadow: 0 8px 24px rgba(0,0,0,0.3);
         backdrop-filter: blur(12px);
-        transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), bottom 0.3s ease;
         pointer-events: auto; cursor: pointer;
     `;
     toast.innerHTML = `<span style="font-size:16px;">${c.icon}</span> ${message}`;
@@ -181,7 +189,17 @@ function showToast(message, type = 'success', duration = 3000) {
 
     const dismiss = () => {
         toast.style.transform = 'translateX(120%)';
-        setTimeout(() => toast.remove(), 350);
+        setTimeout(() => {
+            toast.remove();
+            // Smoothly shift remaining toasts down if needed
+            const remainingToasts = document.querySelectorAll('.app-toast');
+            let offset = 20;
+            // Iterate in reverse (newest to oldest) to reposition them
+            Array.from(remainingToasts).reverse().forEach(t => {
+                t.style.bottom = offset + 'px';
+                offset += 65;
+            });
+        }, 350);
     };
     setTimeout(dismiss, duration);
 }
