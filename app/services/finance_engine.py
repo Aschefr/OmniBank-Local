@@ -14,6 +14,7 @@ def calculate_balances(db: Session, end_date: date = None, only_reconciled: bool
     balances = {a.id: a.initial_balance for a in accounts}
     
     query = db.query(Transaction.amount, Transaction.from_account_id, Transaction.to_account_id)
+    query = query.filter((Transaction.is_skipped == False) | (Transaction.is_skipped == None))
     if end_date:
         query = query.filter(Transaction.date_operation <= end_date)
     if only_reconciled:
@@ -77,19 +78,21 @@ def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date)
     balances_now = calculate_balances(db, only_reconciled=True)
     current_balance = balances_now.get(account.id, 0.0)
     
-    # All unreconciled expenses before next pay date
+    # All unreconciled expenses before next pay date (exclude skipped)
     future_tx = db.query(Transaction).filter(
         Transaction.reconciliation_date == None,
         Transaction.date_operation < next_pay_date,
         Transaction.from_account_id == account.id,
-        Transaction.to_account_id == None # Expense
+        Transaction.to_account_id == None, # Expense
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
     ).all()
     
     future_transfers = db.query(Transaction).filter(
         Transaction.reconciliation_date == None,
         Transaction.date_operation < next_pay_date,
         Transaction.from_account_id == account.id,
-        Transaction.to_account_id != None # Transfer out
+        Transaction.to_account_id != None, # Transfer out
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
     ).all()
     
     expenses_sum = sum(t.amount for t in future_tx) + sum(t.amount for t in future_transfers)
@@ -128,10 +131,11 @@ def get_overdraft_warning(db: Session, account_id: int = None, current_date: dat
     balances_now = calculate_balances(db, only_reconciled=True)
     simulated_balance = balances_now.get(account.id, 0.0)
     
-    # Get all unreconciled expenses sorted by date
+    # Get all unreconciled expenses sorted by date (exclude skipped)
     future_expenses = db.query(Transaction).filter(
         Transaction.reconciliation_date == None,
-        Transaction.from_account_id == account.id
+        Transaction.from_account_id == account.id,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
     ).order_by(Transaction.date_operation.asc()).all()
     
     for t in future_expenses:

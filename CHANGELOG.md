@@ -5,30 +5,32 @@ All notable changes to this project will be documented in this file.
 ## [1.0.66] - 2026-07-14
 
 ### Added
-- **New Recurrence Frequencies**:
-  - Added support for **Weekly** (Hebdomadaire), **Quarterly** (Trimestrielle), and **Semi-Annually** (Bi-annuelle) recurrence frequencies in both backend calculations and frontend dropdown selectors.
-  - Implemented custom styling for new frequency badges in the main recurrences table (amber, teal, and pink).
-- **Skip Recurring Occurrences**:
-  - Implemented the `is_skipped` flag on transactions, allowing users to temporarily pause/ignore occurrences of a recurrence series.
-  - Ignored occurrences are automatically reconciled with a zeroed-out amount and are excluded from the auto-closure rules and orphan-cleaner checks.
-  - Added skip action button (⏭️/↩️) in Dashboard, History, and Recurrence sub-tables.
-  - Added retroactive migration tool in the Configuration panel to convert past 0.0€ recurring transactions into the new skipped format.
-- **Strict Duplicate Detection**:
-  - Updated all recurrence instance generation endpoints to run duplicate checks strictly based on `recurrence_id` and corresponding date intervals, preventing duplicate generation when transaction descriptions are customized.
-- **Persistent Table Sorting**:
-  - Added persistence for the recurrence list table sorting choices (sorting column and order) using `localStorage`, ensuring the table retains the user's preferred layout upon page reload or navigation.
-- **Configurable Rolling Window Generation**:
-  - Replaced the strict calendar-year boundary (`December 31`) with a configurable rolling window (e.g. `today + N months`, defaulting to 12).
-  - Added a new setting field in the Configuration panel to customize the number of months generated in advance.
-  - Gracefully handles database state when changing this window duration.
-- **Auto-closure of Abandoned Recurrences**:
-  - Added automatic closure of inactive/abandoned recurrence templates when they have history but no recent transactions (reconciled or unreconciled) or when their latest transaction is forced to `0.0`.
-- **Status Column**:
-  - Added a new **Statut** column in the recurrences table display with color-coded status badges (**En cours** / **Fermé**).
+- **Extended Recurrence Options & Styling**:
+  - Support for Weekly, Quarterly, and Semi-Annually recurrence frequencies with custom-colored badges in the table.
+  - Added persistence for table sorting preferences (column and order) in `localStorage`.
+  - Added a color-coded **Statut** column (En cours / Fermé) in the main table.
+- **Non-Destructive Skip Mechanism**:
+  - Implemented the `is_skipped` transaction flag to pause recurrences instead of setting amount to `0.0`.
+  - Updated all financial engine calculations, analytical reports, and trends to filter out skipped entries.
+  - Interactive migration tool in settings to convert legacy 0.0€ occurrences while restoring original amounts from templates.
+- **Sanitization Wizard Enhancements**:
+  - Added a "Fermer la récurrence" button (with tooltip) in group headers to close templates directly from the wizard.
+  - Filtered out inactive/terminated templates (those with > 3 consecutive zeroed transactions).
 - **Premium Recurrence Edit Modal**:
-  - Integrated an edit button (✏️) in the Actions column of each recurrence.
-  - Displays a high-fidelity modal window supporting light and dark themes, enabling complete editing of all database fields with real-time date previews of the next 6 occurrences.
-  - Automatically deletes unreconciled transactions upon template modifications to force immediate propagation of the new parameters.
+  - Interactive edit modal (✏️) supporting all template settings with a real-time 6-occurrence date preview.
+  - Month of year selection enabled for Yearly & Semi-Annually frequencies, with smart month auto-inference from transaction history.
+  - Unified "Depuis" and "Vers" transfer account fields (always editable regardless of transaction type).
+- **Core Engine Improvements**:
+  - Configurable rolling window generation (defaulting to 12 months) configurable in Settings.
+  - Strict duplicate instance checks based on `recurrence_id` and specific date intervals.
+  - Auto-closure of abandoned templates without recent transactions or on zeroed endpoints.
+- **Smart Stacking Toast Notifications**:
+  - Fixed toast z-index to show above modals, with dynamic vertical stacking and positioning animations.
+
+### Changed
+- **Performance & UI Fixes**:
+  - Settings page loads Ollama models asynchronously in the background to prevent interface freezes.
+  - Automatic deletion of unreconciled occurrences on template modifications to force instant updates.
 
 ## [1.0.65] - 2026-07-14
 

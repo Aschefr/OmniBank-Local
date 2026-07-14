@@ -162,7 +162,7 @@
     "dl_attachments": "Attachments",
     "rec_monthly": "Monthly",
     "rec_yearly": "Yearly",
-    "rec_bimonthly": "Bi-Monthly",
+    "rec_bimonthly": "Bi-monthly",
     "tooltip_cancel_reconciliation": "Cancel reconciliation",
     "tooltip_filter_unreconciled": "Filter unreconciled expenses before next pay",
     "tooltip_filter_attachments": "With attachments only",
@@ -977,7 +977,7 @@
     "maintenance_convert_zeroed_confirm": "{count} transaction(s) will be marked as 'Skipped'.",
     "maintenance_convert_zeroed_result": "{count} transaction(s) converted.",
     "form_skip_label": "Skip this occurrence (temporary pause)",
-    "form_skip_hint": "The amount will be set to 0.0 € and the transaction will be auto-reconciled.",
+    "form_skip_hint": "The occurrence will be marked as skipped and auto-reconciled. The original amount is preserved.",
     "edit_from_acc_label": "Source account",
     "edit_to_acc_label": "Destination account",
     "edit_amount_hint": "The new amount will be applied to all future occurrences.",
@@ -997,9 +997,13 @@
     "maintenance_convert_zeroed_desc_1": "Previously, to temporarily pause a subscription or recurrence (e.g. Audible paused for 3 months), the only solution was to manually set the occurrence amount to 0.00 €.",
     "maintenance_convert_zeroed_desc_2": "However, these 0 € amounts mislead the maintenance algorithms into believing the recurrence has been permanently closed or abandoned, triggering auto-closures or false orphan detections.",
     "maintenance_convert_zeroed_action_label": "Conversion action:",
-    "maintenance_convert_zeroed_action_desc": "By checking these transactions ({count} detected), they will be converted into properly 'Skipped' occurrences (passed/paused). This allows your recurrence to stay active and keep generating the following months at their normal amount.",
+    "maintenance_convert_zeroed_action_desc": "By checking these transactions ({count} detected), they will be converted into properly 'Skipped' occurrences (passed/paused). Their amount will be restored to its original value (shown by the → arrow). This allows your recurrence to stay active and keep generating the following months at their normal amount.",
     "maintenance_convert_zeroed_select_label": "Select transactions to convert",
     "maintenance_convert_zeroed_select_all": "Select all",
     "maintenance_convert_zeroed_ops": "occ.",
-    "form_skip_btn_label": "Skip"
+    "form_skip_btn_label": "Skip",
+    "maintenance_close_recurrence": "Close",
+    "maintenance_close_recurrence_confirm": "Recurrence \"{name}\" has been closed. It will no longer be processed.",
+    "maintenance_close_recurrence_tooltip": "Permanently close this recurrence. It will no longer generate new occurrences.",
+    "rec_biweekly": "Bi-weekly"
 }
