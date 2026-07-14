@@ -85,6 +85,17 @@ async def startup_init():
     init_db()
     from app.routers.auto_backup import start_scheduler
     start_scheduler()
+    
+    # Automatically generate recurrences on startup
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        from app.routers.recurrences import generate_recurrences
+        generate_recurrences(db=db)
+    except Exception as e:
+        logger.error(f"Failed to generate recurrences on startup: {e}")
+    finally:
+        db.close()
 
 
 # ── Cache-busting: compute a short hash from all local static assets ──────────

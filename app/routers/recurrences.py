@@ -41,11 +41,33 @@ def update_template(tpl_id: int, tpl_update: RecurrenceTemplateCreate, db: Sessi
     db_tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
     if not db_tpl:
         raise HTTPException(status_code=404, detail="Template not found")
+        
+    # Check if structural parameters are changing (frequency, day, amount, etc.)
+    # is_closed changes alone should NOT trigger transaction deletion
+    structural_changed = (
+        db_tpl.frequency != tpl_update.frequency or
+        db_tpl.day_of_month != tpl_update.day_of_month or
+        db_tpl.month_of_year != tpl_update.month_of_year or
+        db_tpl.amount != tpl_update.amount or
+        db_tpl.type != tpl_update.type or
+        db_tpl.category != tpl_update.category or
+        db_tpl.from_account_id != tpl_update.from_account_id or
+        db_tpl.to_account_id != tpl_update.to_account_id
+    )
+    
     update_data = tpl_update.dict(exclude_unset=True)
     for key, value in update_data.items():
         if hasattr(db_tpl, key):
             setattr(db_tpl, key, value)
     _upgrade_category_if_needed(db_tpl.category, db_tpl.type, db)
+    
+    if structural_changed:
+        # Delete all unreconciled transactions for this template to force regeneration
+        db.query(Transaction).filter(
+            Transaction.recurrence_id == tpl_id,
+            Transaction.reconciliation_date == None
+        ).delete()
+        
     db.commit()
     db.refresh(db_tpl)
     return db_tpl
@@ -103,13 +125,22 @@ def propagate_recurrence(tpl_id: int, req: PropagateRequest, db: Session = Depen
         t.date_operation = t.date_operation.replace(day=safe_day)
         updated_count += 1
         
-    # Generate missing transactions for the rest of the year being edited
-    end_of_year = date(req.new_date.year, 12, 31)
+    # Generate missing transactions up to the rolling window from the date being edited
+    from app.models import GlobalConfig
+    config_row = db.query(GlobalConfig).filter(GlobalConfig.key == "recurrence_generation_months").first()
+    gen_months = int(config_row.value) if (config_row and config_row.value.isdigit()) else 12
+    end_date = req.new_date + relativedelta(months=gen_months)
     current_date = req.new_date
     if tpl.frequency == "Monthly":
         current_date += relativedelta(months=1)
     elif tpl.frequency == "Yearly":
         current_date += relativedelta(years=1)
+    elif tpl.frequency == "Weekly":
+        current_date += relativedelta(weeks=1)
+    elif tpl.frequency == "Quarterly":
+        current_date += relativedelta(months=3)
+    elif tpl.frequency == "Semi-Annually":
+        current_date += relativedelta(months=6)
     elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
         current_date += relativedelta(weeks=2)
  
@@ -123,11 +154,11 @@ def propagate_recurrence(tpl_id: int, req: PropagateRequest, db: Session = Depen
     while True:
         if tpl.max_occurrences and (existing_count + tpl_generated) >= tpl.max_occurrences:
             break
-        if not tpl.max_occurrences and current_date > end_of_year:
+        if not tpl.max_occurrences and current_date > end_date:
             break
             
         exists = db.query(Transaction).filter(
-            Transaction.description == tpl.description,
+            Transaction.recurrence_id == tpl.id,
             Transaction.date_operation == current_date
         ).first()
     
@@ -153,6 +184,12 @@ def propagate_recurrence(tpl_id: int, req: PropagateRequest, db: Session = Depen
             current_date += relativedelta(months=1)
         elif tpl.frequency == "Yearly":
             current_date += relativedelta(years=1)
+        elif tpl.frequency == "Weekly":
+            current_date += relativedelta(weeks=1)
+        elif tpl.frequency == "Quarterly":
+            current_date += relativedelta(months=3)
+        elif tpl.frequency == "Semi-Annually":
+            current_date += relativedelta(months=6)
         elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
             current_date += relativedelta(weeks=2)
         else:
@@ -160,6 +197,68 @@ def propagate_recurrence(tpl_id: int, req: PropagateRequest, db: Session = Depen
             
     db.commit()
     return {"updated": updated_count}
+
+def auto_close_abandoned_templates(db: Session):
+    """
+    Automatically mark templates as closed (is_closed = True) if they have
+    reconciled history but no confirmed transactions in the current year
+    or the previous year. This catches truly abandoned recurring expenses.
+    
+    NOTE: Templates whose last confirmed transaction is 0€ (paused subscriptions)
+    are NOT closed here. They are simply skipped during generation to avoid
+    creating future transactions while preserving the user's is_closed state.
+    """
+    from datetime import date
+    from sqlalchemy import text
+    from app.models import RecurrenceTemplate
+    today = date.today()
+    current_year = today.year
+    
+    # Find all recurrence_ids that have reconciled history
+    sql_history = """
+        SELECT DISTINCT recurrence_id 
+        FROM transactions 
+        WHERE recurrence_id IS NOT NULL 
+          AND reconciliation_date IS NOT NULL
+    """
+    rec_ids_with_history = [row[0] for row in db.execute(text(sql_history))]
+    if not rec_ids_with_history:
+        return
+        
+    # Find templates that have reconciled history in current year or previous year, OR any transaction in current year or future
+    sql_recent = """
+        SELECT DISTINCT recurrence_id 
+        FROM transactions 
+        WHERE recurrence_id IS NOT NULL 
+          AND (
+            (reconciliation_date IS NOT NULL AND CAST(strftime('%Y', date_operation) AS INTEGER) >= :prev_year)
+            OR (CAST(strftime('%Y', date_operation) AS INTEGER) >= :curr_year)
+          )
+    """
+    rec_ids_recent = {row[0] for row in db.execute(text(sql_recent), {"curr_year": current_year, "prev_year": current_year - 1})}
+    
+    abandoned_ids = [rid for rid in rec_ids_with_history if rid not in rec_ids_recent]
+    
+    if abandoned_ids:
+        db.query(RecurrenceTemplate).filter(
+            RecurrenceTemplate.id.in_(abandoned_ids),
+            (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed == None)
+        ).update({RecurrenceTemplate.is_closed: True}, synchronize_session=False)
+        db.commit()
+
+
+def _is_template_zeroed(db: Session, tpl_id: int) -> bool:
+    """Check if a template's latest confirmed (non-skipped) transaction has amount == 0.
+    
+    Used to skip generation for paused subscriptions without closing the template.
+    """
+    latest_conf = db.query(Transaction).filter(
+        Transaction.recurrence_id == tpl_id,
+        Transaction.reconciliation_date != None,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).order_by(Transaction.date_operation.desc()).first()
+    return latest_conf is not None and latest_conf.amount == 0
+
 
 @router.post("/generate_to_end_of_year")
 def generate_recurrences(template_id: Optional[int] = None, db: Session = Depends(get_db)):
@@ -171,6 +270,7 @@ def generate_recurrences(template_id: Optional[int] = None, db: Session = Depend
     linked via recurrence_id. This prevents orphaned/legacy templates from flooding
     the database with unwanted past occurrences.
     """
+    auto_close_abandoned_templates(db)
     query = db.query(RecurrenceTemplate).filter(
         (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed == None)
     )
@@ -179,48 +279,72 @@ def generate_recurrences(template_id: Optional[int] = None, db: Session = Depend
         
     templates = query.all()
     today = date.today()
-    end_of_year = date(today.year, 12, 31)
+    from app.models import GlobalConfig
+    config_row = db.query(GlobalConfig).filter(GlobalConfig.key == "recurrence_generation_months").first()
+    gen_months = int(config_row.value) if (config_row and config_row.value.isdigit()) else 12
+    end_date = today + relativedelta(months=gen_months)
     
     generated_count = 0
     
     for tpl in templates:
+        # Skip templates whose latest confirmed transaction is 0€ (paused subscriptions)
+        # This prevents generating future transactions without altering is_closed state
+        if _is_template_zeroed(db, tpl.id):
+            continue
+            
         # Anchor on the latest existing transaction belonging to this template
         latest_tx = db.query(Transaction).filter(
             Transaction.recurrence_id == tpl.id
         ).order_by(Transaction.date_operation.desc()).first()
         
-        # CRITICAL: If no transaction is linked to this template, skip it entirely.
-        # This prevents legacy templates (created before recurrence_id tracking) from
-        # generating hundreds of unwanted past transactions.
+        amount_to_use = tpl.amount
+        
         if not latest_tx:
-            continue
-        
-        current_date = latest_tx.date_operation
-        # Advance by one interval before generating new occurrences
-        if tpl.frequency == "Monthly":
-            current_date += relativedelta(months=1)
-        elif tpl.frequency == "Yearly":
-            current_date += relativedelta(years=1)
-        elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
-            current_date += relativedelta(weeks=2)
+            # If no transactions exist, anchor on the current month to start generating from now
+            current_date = date(today.year, today.month, 1) + relativedelta(day=tpl.day_of_month or 1)
+            if tpl.frequency == "Yearly":
+                current_date = date(today.year, tpl.month_of_year or 1, 1) + relativedelta(day=tpl.day_of_month or 1)
+                if current_date < today:
+                    current_date = date(today.year + 1, tpl.month_of_year or 1, 1) + relativedelta(day=tpl.day_of_month or 1)
         else:
-            continue
-        
-        # GUARD: Never generate transactions in the past.
-        # Fast-forward until current_date is at least in the current month.
-        first_of_current_month = date(today.year, today.month, 1)
-        while current_date < first_of_current_month:
+            current_date = latest_tx.date_operation
+            # Advance by one interval before generating new occurrences
             if tpl.frequency == "Monthly":
                 current_date += relativedelta(months=1)
             elif tpl.frequency == "Yearly":
                 current_date += relativedelta(years=1)
+            elif tpl.frequency == "Weekly":
+                current_date += relativedelta(weeks=1)
+            elif tpl.frequency == "Quarterly":
+                current_date += relativedelta(months=3)
+            elif tpl.frequency == "Semi-Annually":
+                current_date += relativedelta(months=6)
             elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
                 current_date += relativedelta(weeks=2)
             else:
-                break
+                continue
+            
+            # GUARD: Never generate transactions in the past.
+            # Fast-forward until current_date is at least in the current month.
+            first_of_current_month = date(today.year, today.month, 1)
+            while current_date < first_of_current_month:
+                if tpl.frequency == "Monthly":
+                    current_date += relativedelta(months=1)
+                elif tpl.frequency == "Yearly":
+                    current_date += relativedelta(years=1)
+                elif tpl.frequency == "Weekly":
+                    current_date += relativedelta(weeks=1)
+                elif tpl.frequency == "Quarterly":
+                    current_date += relativedelta(months=3)
+                elif tpl.frequency == "Semi-Annually":
+                    current_date += relativedelta(months=6)
+                elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
+                    current_date += relativedelta(weeks=2)
+                else:
+                    break
         
-        # Hard ceiling: never generate past end of year
-        if current_date > end_of_year:
+        # Hard ceiling: never generate past rolling end date
+        if current_date > end_date:
             continue
             
         existing_count = db.query(Transaction).filter(
@@ -229,31 +353,38 @@ def generate_recurrences(template_id: Optional[int] = None, db: Session = Depend
         
         tpl_generated = 0
             
-        while current_date <= end_of_year:
+        while current_date <= end_date:
             # Stop if max occurrences reached
             if tpl.max_occurrences and (existing_count + tpl_generated) >= tpl.max_occurrences:
                 break
                 
-            # Duplicate check: two-layer defense
-            # 1. Check by recurrence_id (for properly linked transactions)
-            # 2. Check by description (for legacy/manually-entered transactions without recurrence_id)
+            # Duplicate check: strictly by recurrence_id (and appropriate period depending on frequency)
             # IMPORTANT: SQLite stores dates as TEXT, so we use strftime() not extract().
-            from sqlalchemy import func, or_
-            year_month = current_date.strftime('%Y-%m')
-            already_exists = db.query(Transaction).filter(
-                func.strftime('%Y-%m', Transaction.date_operation) == year_month,
-                or_(
+            from sqlalchemy import func
+            if tpl.frequency == "Monthly":
+                year_month = current_date.strftime('%Y-%m')
+                already_exists = db.query(Transaction).filter(
                     Transaction.recurrence_id == tpl.id,
-                    Transaction.description == tpl.description
-                )
-            ).first()
+                    func.strftime('%Y-%m', Transaction.date_operation) == year_month
+                ).first()
+            elif tpl.frequency == "Yearly":
+                year_val = current_date.strftime('%Y')
+                already_exists = db.query(Transaction).filter(
+                    Transaction.recurrence_id == tpl.id,
+                    func.strftime('%Y', Transaction.date_operation) == year_val
+                ).first()
+            else:
+                already_exists = db.query(Transaction).filter(
+                    Transaction.recurrence_id == tpl.id,
+                    Transaction.date_operation == current_date
+                ).first()
             
             if not already_exists:
                 new_tx = Transaction(
                     date_saisie=today,
                     date_operation=current_date,
                     description=tpl.description,
-                    amount=tpl.amount,
+                    amount=amount_to_use,
                     type=tpl.type,
                     category=tpl.category,
                     is_monthly=(tpl.frequency == "Monthly"),
@@ -270,6 +401,12 @@ def generate_recurrences(template_id: Optional[int] = None, db: Session = Depend
                 current_date += relativedelta(months=1)
             elif tpl.frequency == "Yearly":
                 current_date += relativedelta(years=1)
+            elif tpl.frequency == "Weekly":
+                current_date += relativedelta(weeks=1)
+            elif tpl.frequency == "Quarterly":
+                current_date += relativedelta(months=3)
+            elif tpl.frequency == "Semi-Annually":
+                current_date += relativedelta(months=6)
             elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
                 current_date += relativedelta(weeks=2)
             else:
@@ -339,17 +476,17 @@ def wizard_generate(req: WizardGenerateRequest, db: Session = Depends(get_db)):
                 from sqlalchemy import func
                 if tpl.frequency == "Monthly":
                     exists = db.query(Transaction).filter(
-                        Transaction.description == tpl.description,
+                        Transaction.recurrence_id == tpl.id,
                         func.strftime('%Y-%m', Transaction.date_operation) == current_date.strftime('%Y-%m')
                     ).first()
                 elif tpl.frequency == "Yearly":
                     exists = db.query(Transaction).filter(
-                        Transaction.description == tpl.description,
+                        Transaction.recurrence_id == tpl.id,
                         func.strftime('%Y', Transaction.date_operation) == current_date.strftime('%Y')
                     ).first()
                 else:
                     exists = db.query(Transaction).filter(
-                        Transaction.description == tpl.description,
+                        Transaction.recurrence_id == tpl.id,
                         Transaction.date_operation == current_date
                     ).first()
                 
@@ -375,6 +512,12 @@ def wizard_generate(req: WizardGenerateRequest, db: Session = Depends(get_db)):
                     current_date += relativedelta(months=1)
                 elif tpl.frequency == "Yearly":
                     current_date += relativedelta(years=1)
+                elif tpl.frequency == "Weekly":
+                    current_date += relativedelta(weeks=1)
+                elif tpl.frequency == "Quarterly":
+                    current_date += relativedelta(months=3)
+                elif tpl.frequency == "Semi-Annually":
+                    current_date += relativedelta(months=6)
                 elif tpl.frequency in ("Bi-Weekly", "Bi-Monthly"):
                     current_date += relativedelta(weeks=2)
                 else:

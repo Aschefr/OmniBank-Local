@@ -157,6 +157,7 @@ def _find_orphan_recurrence_transactions(db: Session):
         FROM transactions
         WHERE recurrence_id IS NOT NULL
           AND reconciliation_date IS NOT NULL
+          AND (is_skipped = 0 OR is_skipped IS NULL)
         ORDER BY recurrence_id, date_operation ASC
     """))
 
@@ -205,6 +206,7 @@ def _find_orphan_recurrence_transactions(db: Session):
         JOIN recurrence_templates rt ON t.recurrence_id = rt.id
         WHERE t.recurrence_id IS NOT NULL
           AND t.reconciliation_date IS NULL
+          AND (t.is_skipped = 0 OR t.is_skipped IS NULL)
         ORDER BY t.recurrence_id, t.date_operation ASC
     """))
 
@@ -354,4 +356,123 @@ def cleanup_orphan_recurrences(
 
     db.commit()
     return {"deleted": deleted}
+
+
+@router.get("/convert_zeroed_to_skipped/preview")
+def preview_convert_zeroed_to_skipped(db: Session = Depends(get_db)):
+    """
+    Finds templates whose generation is currently blocked by zeroed transactions,
+    and where converting them to 'skipped' would unblock generation with a valid amount.
+    
+    A template is shown only if:
+    1. It is active (not closed)
+    2. Its latest confirmed (non-skipped) transaction has amount == 0.0
+    3. It has at least one confirmed transaction with amount > 0 in its history
+       (so there's a valid fallback amount to resume generation with)
+    
+    Only the consecutive 0€ tail transactions are shown (the ones blocking generation).
+    """
+    # Fetch all confirmed transactions for active templates, sorted by template and date DESC
+    rows = db.execute(text("""
+        SELECT t.id, t.description, t.amount, t.date_operation, t.category, t.type,
+               t.recurrence_id, rt.description AS tpl_description, t.is_skipped
+        FROM transactions t
+        JOIN recurrence_templates rt ON t.recurrence_id = rt.id
+        WHERE t.recurrence_id IS NOT NULL
+          AND t.reconciliation_date IS NOT NULL
+          AND (rt.is_closed = 0 OR rt.is_closed IS NULL)
+        ORDER BY t.recurrence_id, t.date_operation DESC
+    """)).fetchall()
+
+    # Group transactions by template ID
+    by_template = {}
+    for r in rows:
+        tpl_id = r[6]
+        if tpl_id not in by_template:
+            by_template[tpl_id] = []
+        by_template[tpl_id].append(r)
+
+    grouped = {}
+    for tpl_id, txs in by_template.items():
+        # Filter to non-skipped transactions for analysis
+        non_skipped = [tx for tx in txs if not tx[8]]
+        if not non_skipped:
+            continue
+            
+        # Check: is the latest confirmed non-skipped tx zeroed?
+        if non_skipped[0][2] != 0.0:
+            continue  # Not blocked, skip this template
+            
+        # Check: does any confirmed tx have a non-zero amount? (fallback exists?)
+        has_nonzero = any(tx[2] != 0.0 for tx in txs)
+        if not has_nonzero:
+            continue  # No fallback amount, wizard won't help
+        
+        # Collect only the consecutive 0€ tail (the blocking transactions)
+        blocking_txs = []
+        for tx in non_skipped:
+            if tx[2] == 0.0:
+                blocking_txs.append(tx)
+            else:
+                break  # Stop at the first non-zero transaction
+        
+        if not blocking_txs:
+            continue
+        
+        # Skip templates with too many consecutive zeros (4+):
+        # these are clearly terminated subscriptions, not temporary pauses
+        MAX_CONSECUTIVE_ZEROS = 3
+        if len(blocking_txs) > MAX_CONSECUTIVE_ZEROS:
+            continue
+            
+        # Find the fallback amount for display context
+        fallback_tx = next((tx for tx in non_skipped if tx[2] != 0.0), None)
+        
+        grouped[tpl_id] = {
+            'template_id': tpl_id,
+            'template_description': txs[0][7],
+            'fallback_amount': fallback_tx[2] if fallback_tx else None,
+            'transactions': [{
+                'id': tx[0],
+                'description': tx[1],
+                'amount': tx[2],
+                'date_operation': str(tx[3]),
+                'category': tx[4],
+                'type': tx[5]
+            } for tx in blocking_txs]
+        }
+
+    total_count = sum(len(g['transactions']) for g in grouped.values())
+
+    return {
+        'count': total_count,
+        'groups': list(grouped.values())
+    }
+
+
+@router.post("/convert_zeroed_to_skipped/apply")
+def apply_convert_zeroed_to_skipped(
+    tx_ids: List[int],
+    db: Session = Depends(get_db)
+):
+    """
+    Converts specified transaction IDs with amount = 0.0 to be is_skipped = 1.
+    """
+    if not tx_ids:
+        return {"converted": 0}
+        
+    converted = 0
+    for tx_id in tx_ids:
+        result = db.execute(text("""
+            UPDATE transactions
+            SET is_skipped = 1
+            WHERE id = :id
+              AND recurrence_id IS NOT NULL
+              AND reconciliation_date IS NOT NULL
+              AND amount = 0.0
+              AND (is_skipped = 0 OR is_skipped IS NULL)
+        """), {'id': tx_id})
+        converted += result.rowcount
+    db.commit()
+    return {"converted": converted}
 

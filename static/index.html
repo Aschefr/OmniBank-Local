@@ -289,7 +289,7 @@
 
     <!-- Unified Operation Modal -->
     <div id="operationModal" class="modal-overlay" style="display: none;">
-        <div class="modal" style="width: 580px; max-width: 95vw; max-height: 90vh; border-radius: 14px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6); padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+        <div class="modal" style="width: 620px; max-width: 95vw; max-height: 90vh; border-radius: 14px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6); padding: 0; overflow: hidden; display: flex; flex-direction: column;">
             <!-- Header -->
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0;">
                 <h3 style="margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.3px;" data-i18n="form_title">Saisie d'opération</h3>
@@ -348,10 +348,13 @@
                         <span data-i18n="label_recurring_op">Opération récurrente</span>
                     </label>
                     <div id="op_rec_options" style="display: none; align-items: center; gap: 8px;">
-                        <span id="op_rec_limit_badge" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; font-weight: bold; background: rgba(16,185,129,0.15); color: #10b981; min-width: 60px; text-align: center; border: 1px solid rgba(16,185,129,0.25);" data-i18n="rec_limit_unlimited">Illimitée dans le temps</span>
+                        <span id="op_rec_limit_badge" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; font-weight: bold; background: rgba(16,185,129,0.15); color: #10b981; min-width: 60px; text-align: center; border: 1px solid rgba(16,185,129,0.25); white-space: nowrap;" data-i18n="rec_limit_unlimited">Illimitée dans le temps</span>
                         <input type="number" id="op_rec_limit" class="inline-input" data-i18n-placeholder="ph_rec_limit" placeholder="Nbr max (opt.)" min="1" data-i18n-title="tooltip_rec_limit" title="Nombre limité d'occurrences" style="width: 100px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-input);" oninput="window.FormView.updateInferredType()">
                         <select id="op_rec_freq" class="inline-input" style="width: 130px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-input);" onchange="window.FormView.onFreqChange()">
+                            <option value="Weekly" data-i18n="opt_freq_weekly">Hebdomadaire</option>
                             <option value="Monthly" data-i18n="opt_freq_monthly">Mensuelle</option>
+                            <option value="Quarterly" data-i18n="opt_freq_quarterly">Trimestrielle</option>
+                            <option value="Semi-Annually" data-i18n="opt_freq_semi_annually">Bi-annuelle</option>
                             <option value="Yearly" data-i18n="opt_freq_yearly">Annuelle</option>
                         </select>
                     </div>
@@ -485,7 +488,11 @@
                     </label>
                     <button id="op_undo_last_btn" class="btn btn-secondary" style="display:none; padding:5px 10px; font-size:11px; border-radius:8px; color:#f59e0b; border-color:rgba(245,158,11,0.4);" onclick="window.FormView.undoLastEntry()" data-i18n="form_undo_last">↩ Supprimer le dernier</button>
                 </div>
-                <div style="display:flex; gap:10px;">
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <!-- Sleek Skip Toggle Button (hidden by default, only visible for recurrent operations) -->
+                    <button id="op_skip_btn" class="btn btn-secondary" style="display: none; border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; transition: all 0.2s;" onclick="window.FormView.toggleSkipState(); event.preventDefault();" type="button">
+                        <span style="font-size:14px; margin-right: 4px;">⏭️</span><span data-i18n="form_skip_btn_label">Ignorer</span>
+                    </button>
                     <button id="op_cancel_btn" class="btn btn-secondary" style="border-radius: 8px; padding: 8px 18px; font-weight: 600; font-size: 13px;" onclick="window.FormView.close()" data-i18n="btn_cancel">Annuler</button>
                     <button id="op_save_btn" class="btn btn-primary" style="border-radius: 8px; padding: 8px 20px; font-weight: 600; font-size: 13px; box-shadow: 0 4px 14px rgba(0, 112, 243, 0.4);" onclick="window.FormView.save()" data-i18n="btn_save_operation">Enregistrer l'opération</button>
                 </div>

@@ -185,6 +185,18 @@ def init_db():
 
             conn.commit()
 
+        if schema_version < 7:
+            # Schema v7: Skipped/paused recurrence occurrences
+            try:
+                conn.execute(text("ALTER TABLE transactions ADD COLUMN is_skipped BOOLEAN DEFAULT 0"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '7')"))
+            except Exception:
+                pass
+            conn.commit()
+
 
 def wipe_db(db: Session):
     """Delete all data to start fresh."""
