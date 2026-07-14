@@ -186,7 +186,7 @@
     "dl_attachments": "P. Jointes",
     "rec_monthly": "Mensuelle",
     "rec_yearly": "Annuelle",
-    "rec_bimonthly": "Bi-Mensuelle",
+    "rec_bimonthly": "Tous les 2 mois",
     "tooltip_cancel_reconciliation": "Annuler le rapprochement",
     "tooltip_filter_unreconciled": "Filtre les dépenses non-rapprochées prévues avant la prochaine paie",
     "tooltip_filter_attachments": "Uniquement avec pièces jointes",
@@ -977,7 +977,7 @@
     "maintenance_convert_zeroed_confirm": "{count} transaction(s) vont être marquées comme 'Ignorées'.",
     "maintenance_convert_zeroed_result": "{count} transaction(s) converties.",
     "form_skip_label": "Ignorer cette échéance (pause temporaire)",
-    "form_skip_hint": "Le montant sera mis à 0 € et la transaction sera rapprochée automatiquement.",
+    "form_skip_hint": "L'échéance sera marquée comme ignorée et rapprochée automatiquement. Le montant original est conservé.",
     "edit_from_acc_label": "Compte émetteur",
     "edit_to_acc_label": "Compte destinataire",
     "edit_amount_hint": "Le nouveau montant sera appliqué pour toutes les futures occurrences.",
@@ -997,9 +997,13 @@
     "maintenance_convert_zeroed_desc_1": "Auparavant, pour suspendre temporairement un abonnement ou une récurrence (ex. Audible mis en pause pendant 3 mois), la seule solution consistait à mettre manuellement à 0,00 € le montant de l'échéance.",
     "maintenance_convert_zeroed_desc_2": "Cependant, ces montants à 0 € induisent en erreur les algorithmes de maintenance qui croient que la récurrence est définitivement fermée/abandonnée, provoquant des auto-clôtures ou de fausses détections d'orphelines.",
     "maintenance_convert_zeroed_action_label": "Action de la conversion :",
-    "maintenance_convert_zeroed_action_desc": "En cochant ces transactions ({count} détectée(s)), elles seront converties en échéances proprement « Ignorées » (passées/suspendues). Cela permet à votre récurrence de rester active et de continuer à générer les mois suivants à leur montant normal.",
+    "maintenance_convert_zeroed_action_desc": "En cochant ces transactions ({count} détectée(s)), elles seront converties en échéances proprement « Ignorées » (passées/suspendues). Leur montant sera restauré à sa valeur d'origine (indiquée par la flèche →). Cela permet à votre récurrence de rester active et de continuer à générer les mois suivants à leur montant normal.",
     "maintenance_convert_zeroed_select_label": "Sélectionnez les transactions à convertir",
     "maintenance_convert_zeroed_select_all": "Tout sélectionner",
     "maintenance_convert_zeroed_ops": "op.",
-    "form_skip_btn_label": "Ignorer"
+    "form_skip_btn_label": "Ignorer",
+    "maintenance_close_recurrence": "Fermer",
+    "maintenance_close_recurrence_confirm": "La récurrence « {name} » a été fermée. Elle ne sera plus prise en compte.",
+    "maintenance_close_recurrence_tooltip": "Fermer définitivement cette récurrence. Elle ne générera plus de nouvelles échéances.",
+    "rec_biweekly": "Toutes les 2 semaines"
 }

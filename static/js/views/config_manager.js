@@ -1037,12 +1037,14 @@ window.ConfigView = {
                     ? `<span style="margin-left:8px;font-size:11px;color:var(--success-color);font-weight:500;">→ ${formatCurrency(group.fallback_amount)}</span>`
                     : '';
                 contentHtml += `
-                    <div style="margin-bottom:12px;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">
+                    <div style="margin-bottom:12px;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;" id="wizard-group-${group.template_id}">
                         <div style="padding:10px 14px;background:var(--bg-surface);border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px;">
                             <span style="font-size:14px;">🔄</span>
                             <strong style="font-size:13px;">${group.template_description}</strong>
                             ${fallbackHtml}
                             <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">${group.transactions.length} ${opsSuffix}</span>
+                            <button type="button" class="wizard-close-tpl-btn" data-tpl-id="${group.template_id}" data-tpl-name="${group.template_description}" title="${window.i18n.t('maintenance_close_recurrence_tooltip') || 'Fermer définitivement cette récurrence. Elle ne générera plus de nouvelles échéances.'}" style="margin-left:8px;background:none;border:1px solid var(--danger-color);color:var(--danger-color);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .15s;white-space:nowrap;" onmouseover="this.style.background='var(--danger-color)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--danger-color)'"
+                            >🚫 ${window.i18n.t('maintenance_close_recurrence') || 'Fermer'}</button>
                         </div>
                         <div style="padding:0;">`;
 
@@ -1066,6 +1068,47 @@ window.ConfigView = {
             });
 
             contentHtml += `</div>`;
+
+            // Attach close-recurrence button handlers via event delegation on the modal
+            const _attachCloseHandlers = () => {
+                document.querySelectorAll('.wizard-close-tpl-btn').forEach(btn => {
+                    btn.onclick = async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const tplId = btn.dataset.tplId;
+                        const tplName = btn.dataset.tplName;
+                        btn.disabled = true;
+                        btn.textContent = '⏳...';
+                        try {
+                            await API.post(`/api/maintenance/close_template/${tplId}`);
+                            const groupEl = document.getElementById(`wizard-group-${tplId}`);
+                            if (groupEl) {
+                                groupEl.style.transition = 'opacity 0.3s, max-height 0.3s';
+                                groupEl.style.opacity = '0';
+                                groupEl.style.maxHeight = '0';
+                                groupEl.style.overflow = 'hidden';
+                                groupEl.style.marginBottom = '0';
+                                groupEl.style.borderWidth = '0';
+                                setTimeout(() => groupEl.remove(), 350);
+                                // Uncheck removed transactions from select-all logic
+                                groupEl.querySelectorAll('.convert-tx-cb').forEach(cb => cb.checked = false);
+                            }
+                            showToast(
+                                (window.i18n.t('maintenance_close_recurrence_confirm') || 'La récurrence « {name} » a été fermée.')
+                                    .replace('{name}', tplName),
+                                'success', 4000
+                            );
+                        } catch (err) {
+                            console.error(err);
+                            btn.disabled = false;
+                            btn.textContent = '🚫 ' + (window.i18n.t('maintenance_close_recurrence') || 'Fermer');
+                            showToast('Erreur', 'error');
+                        }
+                    };
+                });
+            };
+            // Queue handler attachment after DOM render
+            setTimeout(_attachCloseHandlers, 50);
 
             const ok = await showInlineConfirm(
                 window.i18n.t('maintenance_convert_zeroed_title') || "Assainir les échéances suspendues à 0 €",

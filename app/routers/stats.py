@@ -85,7 +85,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             Transaction.date_operation <= next_pay_date,
             Transaction.reconciliation_date.is_(None),
             Transaction.from_account_id == main_acc.id,
-            Transaction.to_account_id.is_(None)  # Exclude transfers
+            Transaction.to_account_id.is_(None),  # Exclude transfers
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
         ).all()
         unreconciled_expenses = sum(tx.amount for tx in unrec_txs)
         
@@ -94,7 +95,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         all_unrec_txs = db.query(Transaction).filter(
             Transaction.reconciliation_date.is_(None),
             Transaction.from_account_id == main_acc.id,
-            Transaction.to_account_id.is_(None)  # Exclude transfers
+            Transaction.to_account_id.is_(None),  # Exclude transfers
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
         ).all()
         total_unreconciled_expenses = sum(tx.amount for tx in all_unrec_txs)
         
@@ -395,7 +397,9 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
                 Transaction.to_account_id.in_(acc_ids_list)
             ))
 
-    txs = query.all()
+    txs = query.filter(
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).all()
 
     # Group: {type: {category: {month_key: amount}}}
     TYPE_ORDER = ["expense_var", "expense_fixed", "income", "transfer", "neutral"]
@@ -432,7 +436,9 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
         }
 
     # ----- Annual totals: scan ALL years in DB (with same reconciliation filter) -----
-    all_query = db.query(Transaction)
+    all_query = db.query(Transaction).filter(
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    )
     if reconciled == "reconciled":
         all_query = all_query.filter(Transaction.reconciliation_date != None)
     elif reconciled == "unreconciled":
@@ -504,7 +510,9 @@ def get_trends(account_id: str, db: Session = Depends(get_db)):
             (Transaction.from_account_id == acc_id) | (Transaction.to_account_id == acc_id)
         ).order_by(Transaction.date_operation.asc())
         
-    transactions = tx_query.all()
+    transactions = tx_query.filter(
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).all()
     
     if not transactions:
         return {"current_balance": round(starting_balance, 2), "history": [{"date": today.isoformat(), "balance": round(starting_balance, 2)}]}

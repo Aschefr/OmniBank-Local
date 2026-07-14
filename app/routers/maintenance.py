@@ -457,6 +457,7 @@ def apply_convert_zeroed_to_skipped(
 ):
     """
     Converts specified transaction IDs with amount = 0.0 to be is_skipped = 1.
+    Also restores the original amount from the recurrence template (non-destructive approach).
     """
     if not tx_ids:
         return {"converted": 0}
@@ -465,7 +466,12 @@ def apply_convert_zeroed_to_skipped(
     for tx_id in tx_ids:
         result = db.execute(text("""
             UPDATE transactions
-            SET is_skipped = 1
+            SET is_skipped = 1,
+                amount = COALESCE(
+                    (SELECT rt.amount FROM recurrence_templates rt 
+                     WHERE rt.id = transactions.recurrence_id),
+                    0.0
+                )
             WHERE id = :id
               AND recurrence_id IS NOT NULL
               AND reconciliation_date IS NOT NULL
@@ -476,3 +482,18 @@ def apply_convert_zeroed_to_skipped(
     db.commit()
     return {"converted": converted}
 
+
+@router.post("/close_template/{tpl_id}")
+def close_template_from_wizard(tpl_id: int, db: Session = Depends(get_db)):
+    """
+    Close a recurrence template directly from the wizard.
+    Sets is_closed = True so it's excluded from generation and future wizard runs.
+    """
+    from app.models import RecurrenceTemplate
+    tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+    if not tpl:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Template not found")
+    tpl.is_closed = True
+    db.commit()
+    return {"ok": True, "template_id": tpl_id}

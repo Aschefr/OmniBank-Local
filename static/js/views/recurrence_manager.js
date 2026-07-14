@@ -1140,6 +1140,18 @@ window.RecurrenceView = {
         const tpl = this.templates.find(t => t.id === templateId);
         if (!tpl) return;
 
+        // Auto-infer month_of_year from existing transactions if not set
+        if (tpl.month_of_year == null && ['Yearly', 'Semi-Annually'].includes(tpl.frequency)) {
+            const tplTxs = (this.allTransactions || []).filter(tx => tx.recurrence_id === templateId && tx.date_operation);
+            if (tplTxs.length > 0) {
+                // Use the month from the most recent transaction
+                const sorted = tplTxs.sort((a, b) => b.date_operation.localeCompare(a.date_operation));
+                const dateStr = sorted[0].date_operation;
+                const inferredMonth = parseInt(dateStr.substring(5, 7)); // 1-12
+                tpl.month_of_year = inferredMonth;
+            }
+        }
+
         // Fetch accounts
         let accounts = [];
         try {
@@ -1164,15 +1176,15 @@ window.RecurrenceView = {
             ['Quarterly', 'rec_quarterly', 'Trimestrielle'],
             ['Semi-Annually', 'rec_semi-annually', 'Semestrielle'],
             ['Yearly', 'rec_yearly', 'Annuelle'],
-            ['Bi-Weekly', 'Bi-Weekly', 'Toutes les 2 semaines'],
-            ['Bi-Monthly', 'Bi-Monthly', 'Tous les 2 mois']
+            ['Bi-Weekly', 'rec_biweekly', 'Toutes les 2 semaines'],
+            ['Bi-Monthly', 'rec_bimonthly', 'Tous les 2 mois']
         ].map(([val, key, fallback]) => `<option value="${val}" ${tpl.frequency === val ? 'selected' : ''}>${window.i18n.t(key) || fallback}</option>`).join('');
 
         const fromAccOptions = `<option value="">-- Aucun --</option>` + accounts.map(a => `<option value="${a.id}" ${tpl.from_account_id === a.id ? 'selected' : ''}>${a.name}</option>`).join('');
         const toAccOptions = `<option value="">-- Aucun --</option>` + accounts.map(a => `<option value="${a.id}" ${tpl.to_account_id === a.id ? 'selected' : ''}>${a.name}</option>`).join('');
 
         const monthOptions = Array.from({length: 12}, (_, i) => i + 1)
-            .map(m => `<option value="${m}" ${tpl.month_of_year === m ? 'selected' : ''}>${new Date(2000, m - 1, 1).toLocaleDateString('fr-FR', {month: 'long'})}</option>`)
+            .map(m => `<option value="${m}" ${tpl.month_of_year == m ? 'selected' : ''}>${new Date(2000, m - 1, 1).toLocaleDateString('fr-FR', {month: 'long'})}</option>`)
             .join('');
 
         modal.innerHTML = `
@@ -1232,11 +1244,11 @@ window.RecurrenceView = {
                         </div>
                     </div>
 
-                    <!-- Line 4: Mois de l'année (only active if Yearly) & Max Occurrences -->
+                    <!-- Line 4: Mois de l'année (only active if Yearly or Semi-Annually) & Max Occurrences -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div id="edit_month_container" style="display: flex; flex-direction: column; gap: 5px; opacity: ${tpl.frequency === 'Yearly' ? '1' : '0.5'};">
+                        <div id="edit_month_container" style="display: flex; flex-direction: column; gap: 5px; opacity: ${['Yearly', 'Semi-Annually'].includes(tpl.frequency) ? '1' : '0.5'};">
                             <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_month_of_year') || "Mois de l'année"}</label>
-                            <select id="edit_month" class="inline-input" ${tpl.frequency === 'Yearly' ? '' : 'disabled'} style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
+                            <select id="edit_month" class="inline-input" ${['Yearly', 'Semi-Annually'].includes(tpl.frequency) ? '' : 'disabled'} style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
                                 <option value="">${window.i18n.t('edit_month_option_none') || '-- Aucun --'}</option>
                                 ${monthOptions}
                             </select>
@@ -1247,16 +1259,16 @@ window.RecurrenceView = {
                         </div>
                     </div>
 
-                    <!-- Line 5: Compte émetteur & Compte destinataire -->
+                    <!-- Line 5: Depuis & Vers -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div id="edit_from_acc_container" style="display: flex; flex-direction: column; gap: 5px;">
-                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('edit_from_acc_label') || 'Compte émetteur'}</label>
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('label_from') || 'Depuis'}</label>
                             <select id="edit_from_acc" class="inline-input" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
                                 ${fromAccOptions}
                             </select>
                         </div>
                         <div id="edit_to_acc_container" style="display: flex; flex-direction: column; gap: 5px;">
-                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('edit_to_acc_label') || 'Compte destinataire'}</label>
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('label_to') || 'Vers'}</label>
                             <select id="edit_to_acc" class="inline-input" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
                                 ${toAccOptions}
                             </select>
@@ -1315,7 +1327,7 @@ window.RecurrenceView = {
         const freq = document.getElementById('edit_freq').value;
         const monthContainer = document.getElementById('edit_month_container');
         const monthSelect = document.getElementById('edit_month');
-        if (freq === 'Yearly') {
+        if (['Yearly', 'Semi-Annually'].includes(freq)) {
             monthContainer.style.opacity = '1';
             monthSelect.disabled = false;
         } else {
@@ -1326,32 +1338,8 @@ window.RecurrenceView = {
     },
 
     onEditTypeChange() {
-        const type = document.getElementById('edit_type').value;
-        const fromAccContainer = document.getElementById('edit_from_acc_container');
-        const toAccContainer = document.getElementById('edit_to_acc_container');
-        
-        // Expense, Income, Transfer logic
-        if (type === 'income') {
-            fromAccContainer.style.opacity = '0.5';
-            document.getElementById('edit_from_acc').disabled = true;
-            document.getElementById('edit_from_acc').value = '';
-            
-            toAccContainer.style.opacity = '1';
-            document.getElementById('edit_to_acc').disabled = false;
-        } else if (type === 'transfer') {
-            fromAccContainer.style.opacity = '1';
-            document.getElementById('edit_from_acc').disabled = false;
-            
-            toAccContainer.style.opacity = '1';
-            document.getElementById('edit_to_acc').disabled = false;
-        } else { // expenses
-            fromAccContainer.style.opacity = '1';
-            document.getElementById('edit_from_acc').disabled = false;
-            
-            toAccContainer.style.opacity = '0.5';
-            document.getElementById('edit_to_acc').disabled = true;
-            document.getElementById('edit_to_acc').value = '';
-        }
+        // Both account fields are always available — no disabling.
+        // The user can freely assign Depuis/Vers regardless of type.
     },
 
     async saveEditModal(templateId) {
@@ -1477,13 +1465,33 @@ window.RecurrenceView = {
             }
         } else if (freq === 'Semi-Annually') {
             let y = base.getFullYear();
-            let m = base.getMonth();
-            if (base.getDate() > day) {
-                m++;
+            let startMonth = month !== null ? month : base.getMonth();
+            // Determine starting point based on startMonth and startMonth + 6
+            let m1 = startMonth;
+            let m2 = (startMonth + 6) % 12;
+            
+            // Put in order relative to current year
+            let d1 = new Date(y, m1, day);
+            let d2 = new Date(y, m2, day);
+            if (m2 < m1) {
+                // if second month wrapped around, it belongs to the next year visually if sorting,
+                // but let's just find the first occurrence >= base date
             }
+            
+            let possibleDates = [];
+            for (let i = -1; i < 4; i++) {
+                possibleDates.push(new Date(y + i, m1, day));
+                possibleDates.push(new Date(y + i, m2, day));
+            }
+            // Filter future dates (including today if base.getDate() <= day)
+            let future = possibleDates.filter(d => {
+                const compDate = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+                return d >= compDate;
+            });
+            // Sort
+            future.sort((a, b) => a - b);
             for (let i = 0; i < 6; i++) {
-                let d = new Date(y, m + i * 6, day);
-                dates.push(d);
+                dates.push(future[i] || new Date());
             }
         } else if (freq === 'Bi-Weekly') {
             for (let i = 0; i < 6; i++) {
