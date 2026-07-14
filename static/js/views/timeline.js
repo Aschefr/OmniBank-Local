@@ -97,7 +97,7 @@ window.TimelineView = {
                             <th class="col-type" data-i18n="col_type">${window.i18n.t('col_type')}</th>
                             <th class="col-cat" data-i18n="col_category">${window.i18n.t('col_category')}</th>
                             <th class="col-amount" data-i18n="col_amount">${window.i18n.t('col_amount')}</th>
-                            <th class="col-recon" data-i18n="col_reconciled">${window.i18n.t('col_reconciled')}</th>
+                            <th class="col-recon" style="text-align: center;" data-i18n="col_reconciled">${window.i18n.t('col_reconciled')}</th>
                             <th class="col-budget" data-i18n="col_envelope">${window.i18n.t('col_envelope')}</th>
                             <th class="col-depuis" data-i18n="col_from">${window.i18n.t('col_from')}</th>
                             <th class="col-vers" data-i18n="col_to">${window.i18n.t('col_to')}</th>
@@ -106,7 +106,7 @@ window.TimelineView = {
                             <th class="col-attachments" data-i18n="col_attachments">${window.i18n.t('col_attachments')}</th>
                             <th class="col-createdBy" data-i18n="col_created_by">${window.i18n.t('col_created_by')}</th>
                             <th class="col-modifiedBy" data-i18n="col_modified_by">${window.i18n.t('col_modified_by')}</th>
-                            <th class="col-actions"></th>
+                            <th class="col-actions" style="text-align: right; padding-right: 15px;" data-i18n="th_actions">${window.i18n.t('th_actions') || 'Actions'}</th>
                         </tr>
                     </thead>
                     <tbody id="timelineBody">
@@ -660,6 +660,9 @@ window.TimelineView = {
                                (tx.type === 'transfer' ? 'var(--color-transfer)' : 'inherit');
             
             let rowClass = isReconciled ? 'reconciled-row' : '';
+            if (tx.is_skipped) {
+                rowClass += ' skipped-row';
+            }
             
             // Highlight non-recurrent operations
             const isRecurrent = tx.recurrence_id || tx.is_monthly || tx.is_yearly;
@@ -672,7 +675,9 @@ window.TimelineView = {
             const idAttr = tx._isFirstReconciled ? 'id="first-reconciled"' : '';
             
             let reconcileHTML = '';
-            if (isReconciled) {
+            if (tx.is_skipped) {
+                reconcileHTML = `<span style="font-size:11px; font-weight: 600; color: #64748b; background: rgba(100, 116, 139, 0.1); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(100, 116, 139, 0.2); white-space: nowrap;">${window.i18n.t('rec_status_skipped') || '⏭️ Ignorée'}</span>`;
+            } else if (isReconciled) {
                 const dateStr = formatDate(tx.reconciliation_date);
                 reconcileHTML = `<span style="font-size:12px; cursor:pointer;" onclick="window.TimelineView.toggleReconciliation(${tx.id})" title="${window.i18n.t('tooltip_cancel_reconciliation')}">${dateStr}</span>`;
             } else {
@@ -723,6 +728,16 @@ window.TimelineView = {
                 <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${tx.modified_by}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.modified_at}</span>` : ''}` : '-'}</td>
                 <td class="col-actions mobile-card-actions">
                     <div style="display:flex;gap:4px;align-items:center;justify-content:flex-end;">
+                        ${(() => {
+                            if (tx.recurrence_id) {
+                                if (tx.is_skipped) {
+                                    return `<button class="btn btn-secondary" style="padding: 4px 6px; font-size: 11px; display: flex; align-items: center;" onclick="window.TimelineView.toggleSkip(${tx.id})" title="${window.i18n.t('tooltip_unskip') || 'Rétablir'}">↩️</button>`;
+                                } else if (!isReconciled) {
+                                    return `<button class="btn btn-secondary" style="padding: 4px 6px; font-size: 11px; display: flex; align-items: center;" onclick="window.TimelineView.toggleSkip(${tx.id})" title="${window.i18n.t('tooltip_skip') || 'Ignorer'}">⏭️</button>`;
+                                }
+                            }
+                            return '';
+                        })()}
                         <button class="btn btn-secondary" style="padding: 4px 6px; font-size: 11px; display: flex; align-items: center;" onclick="window.TimelineView.duplicate(${tx.id})" title="${window.i18n.t('tooltip_duplicate') || 'Dupliquer'}">📋</button>
                         <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;white-space:nowrap;" onclick="window.TimelineView.edit(${tx.id})">${window.i18n.t('tooltip_edit')}</button>
                         <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.TimelineView.delete(${tx.id})">✕</button>
@@ -782,6 +797,17 @@ window.TimelineView = {
         const tx = this.transactions.find(t => t.id === id);
         if (tx && window.FormView) {
             window.FormView.openDuplicate(tx);
+        }
+    },
+
+    async toggleSkip(id) {
+        try {
+            await API.post(`/api/transactions/${id}/toggle_skip`);
+            this._pendingHighlightTxId = id;
+            await Promise.all([window.app.refreshSidebar(), this.loadData()]);
+        } catch (e) {
+            console.error(e);
+            showToast("Erreur lors de la modification", "error");
         }
     },
 

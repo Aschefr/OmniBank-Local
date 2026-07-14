@@ -51,6 +51,10 @@ def create_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
     if db_tx.created_by:
         db_tx.created_at = datetime.now().strftime("%Y-%m-%d %H:%M")
     db.add(db_tx)
+    if db_tx.recurrence_id and db_tx.reconciliation_date:
+        template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
+        if template:
+            template.amount = db_tx.amount
     db.commit()
     db.refresh(db_tx)
     return db_tx
@@ -72,8 +76,27 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
     # Auto-set audit timestamp if modified_by is present (org mode)
     if "modified_by" in update_data and update_data["modified_by"]:
         update_data["modified_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        
+    # Special handling for is_skipped in update
+    if "is_skipped" in update_data:
+        was_skipped = db_tx.is_skipped
+        new_skipped = update_data["is_skipped"]
+        if new_skipped and not was_skipped:
+            db_tx.is_skipped = True
+            db_tx.amount = 0.0
+            if not db_tx.reconciliation_date:
+                db_tx.reconciliation_date = date.today()
+        elif not new_skipped and was_skipped:
+            db_tx.is_skipped = False
+            db_tx.reconciliation_date = None
+            if db_tx.recurrence_id:
+                template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
+                if template:
+                    db_tx.amount = template.amount
+                    
     for key, value in update_data.items():
-        setattr(db_tx, key, value)
+        if key != "is_skipped": # Handled specifically above
+            setattr(db_tx, key, value)
         
     if propagate and db_tx.recurrence_id:
         # Update all future instances belonging to the same recurrence
@@ -93,6 +116,10 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
                 if hasattr(template, key) and key not in ['date_operation', 'reconciliation_date']:
                     setattr(template, key, value)
                     
+    if db_tx.recurrence_id and db_tx.reconciliation_date:
+        template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
+        if template:
+            template.amount = db_tx.amount
     db.commit()
     db.refresh(db_tx)
     return db_tx
@@ -117,9 +144,39 @@ def toggle_reconciliation(tx_id: int, db: Session = Depends(get_db)):
     else:
         db_tx.reconciliation_date = date.today()
         
+    if db_tx.recurrence_id and db_tx.reconciliation_date:
+        template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
+        if template:
+            template.amount = db_tx.amount
     db.commit()
     db.refresh(db_tx)
     return {"reconciliation_date": db_tx.reconciliation_date}
+
+@router.post("/{tx_id}/toggle_skip")
+def toggle_skip(tx_id: int, db: Session = Depends(get_db)):
+    db_tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not db_tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+        
+    if db_tx.is_skipped:
+        db_tx.is_skipped = False
+        db_tx.reconciliation_date = None
+        if db_tx.recurrence_id:
+            template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
+            if template:
+                db_tx.amount = template.amount
+    else:
+        db_tx.is_skipped = True
+        db_tx.amount = 0.0
+        db_tx.reconciliation_date = date.today()
+        
+    db.commit()
+    db.refresh(db_tx)
+    return {
+        "is_skipped": db_tx.is_skipped,
+        "amount": db_tx.amount,
+        "reconciliation_date": db_tx.reconciliation_date
+    }
 
 @router.delete("/all/clear", status_code=200)
 def clear_all_transactions(db: Session = Depends(get_db)):

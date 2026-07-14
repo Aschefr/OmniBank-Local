@@ -24,6 +24,15 @@ def set_config(data: Dict[str, str], db: Session = Depends(get_db)):
             conf = GlobalConfig(key=key, value=value)
             db.add(conf)
     db.commit()
+    
+    # Automatically generate recurrences using the new window settings if modified
+    if "recurrence_generation_months" in data:
+        try:
+            from app.routers.recurrences import generate_recurrences
+            generate_recurrences(db=db)
+        except Exception:
+            pass
+            
     return {"ok": True}
 
 @router.get("/ollama/models")

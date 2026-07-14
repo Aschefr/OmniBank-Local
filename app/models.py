@@ -52,6 +52,9 @@ class Transaction(Base):
     # Manual override for paycheck detection (True = is paycheck, False = not paycheck, None = default/heuristic)
     is_salary = Column(Boolean, nullable=True, default=None)
 
+    # Skipped recurring occurrence flag (True = skipped/paused, False/None = regular)
+    is_skipped = Column(Boolean, default=False, nullable=True)
+
     # Phase 9: Multi-user audit (org mode)
     created_by = Column(String, nullable=True)     # Org user name who created
     modified_by = Column(String, nullable=True)     # Last org user who modified

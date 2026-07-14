@@ -35,6 +35,7 @@ class TransactionBase(BaseModel):
     created_at: Optional[str] = None
     modified_at: Optional[str] = None
     is_salary: Optional[bool] = None
+    is_skipped: Optional[bool] = False
 
     _val_date_saisie = validator('date_saisie', allow_reuse=True)(_validate_date_range)
     _val_date_op = validator('date_operation', allow_reuse=True)(_validate_date_range)
@@ -54,6 +55,7 @@ class TransactionUpdate(BaseModel):
     recurrence_day_1: Optional[int] = None
     recurrence_day_2: Optional[int] = None
     is_salary: Optional[bool] = None
+    is_skipped: Optional[bool] = None
 
     _val_date_op = validator('date_operation', allow_reuse=True)(_validate_date_range)
     _val_recon = validator('reconciliation_date', allow_reuse=True)(_validate_date_range)
