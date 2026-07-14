@@ -37,8 +37,8 @@ window.RecurrenceView = {
         this.selectedYear = new Date().getFullYear();
         this.modifiedRows.clear();
         this.expandedTemplateIds.clear();
-        this.sortBy = 'description';
-        this.sortOrder = 'asc';
+        this.sortBy = localStorage.getItem('recurrences_sortBy') || 'description';
+        this.sortOrder = localStorage.getItem('recurrences_sortOrder') || 'asc';
         await this.loadData();
     },
 
@@ -74,7 +74,23 @@ window.RecurrenceView = {
                 t.totalAnnualAmount = templateTx.reduce((sum, tx) => sum + tx.amount, 0);
                 grandTotalAnnual += t.totalAnnualAmount;
                 totalInstancesCount += templateTx.length;
-                totalReconciledCount += templateTx.filter(tx => tx.reconciliation_date != null).length;
+                totalReconciledCount += templateTx.filter(tx => tx.reconciliation_date != null || tx.is_skipped === true).length;
+
+                // Find the last reconciled transaction for this template up to the selected year
+                const reconciledTx = (this.allTransactions || [])
+                    .filter(tx => tx.recurrence_id == t.id && 
+                                  tx.reconciliation_date != null &&
+                                  tx.date_operation &&
+                                  parseInt(tx.date_operation.substring(0, 4)) <= this.selectedYear)
+                    .sort((a, b) => b.date_operation.localeCompare(a.date_operation));
+                t.displayAmount = reconciledTx.length > 0 ? reconciledTx[0].amount : t.amount;
+
+                // Calculate progress
+                const reconciledCount = templateTx.filter(tx => tx.reconciliation_date != null || tx.is_skipped === true).length;
+                const totalCount = templateTx.length;
+                t.progressPct = totalCount > 0 ? Math.round((reconciledCount / totalCount) * 100) : 0;
+                t.reconciledCount = reconciledCount;
+                t.totalCount = totalCount;
             });
 
             const monthlyAverage = grandTotalAnnual / 12;
@@ -133,13 +149,21 @@ window.RecurrenceView = {
                         valA = a.day_of_month || 1;
                         valB = b.day_of_month || 1;
                         return sortOrder === 'asc' ? valA - valB : valB - valA;
+                    } else if (sortBy === 'progress') {
+                        valA = a.progressPct || 0;
+                        valB = b.progressPct || 0;
+                        return sortOrder === 'asc' ? valA - valB : valB - valA;
                     } else if (sortBy === 'amount') {
-                        valA = a.amount || 0;
-                        valB = b.amount || 0;
+                        valA = a.displayAmount || 0;
+                        valB = b.displayAmount || 0;
                         return sortOrder === 'asc' ? valA - valB : valB - valA;
                     } else if (sortBy === 'annual_total') {
                         valA = a.totalAnnualAmount || 0;
                         valB = b.totalAnnualAmount || 0;
+                        return sortOrder === 'asc' ? valA - valB : valB - valA;
+                    } else if (sortBy === 'status') {
+                        valA = a.is_closed ? 1 : 0;
+                        valB = b.is_closed ? 1 : 0;
                         return sortOrder === 'asc' ? valA - valB : valB - valA;
                     }
                     return 0;
@@ -152,9 +176,11 @@ window.RecurrenceView = {
                                 <th style="padding: 12px; width: 45px; text-align: center;"></th>
                                 <th style="padding: 12px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('description')">${window.i18n.t('col_description')} ${this.getSortArrow('description')}</th>
                                 <th style="padding: 12px; width: 170px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('category')">${window.i18n.t('col_category')} ${this.getSortArrow('category')}</th>
-                                <th style="padding: 12px; width: 120px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('frequency')">${window.i18n.t('wizard_th_frequency') || 'Frequency'} ${this.getSortArrow('frequency')}</th>
-                                <th style="padding: 12px; width: 120px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('day')">${window.i18n.t('wizard_th_day') || 'Day of month'} ${this.getSortArrow('day')}</th>
-                                <th style="padding: 12px; width: 110px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('amount')">${window.i18n.t('col_amount')} ${this.getSortArrow('amount')}</th>
+                                <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('frequency')">${window.i18n.t('wizard_th_frequency') || 'Frequency'} ${this.getSortArrow('frequency')}</th>
+                                <th style="padding: 12px; width: 100px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('status')">${window.i18n.t('col_status')} ${this.getSortArrow('status')}</th>
+                                <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('day')">${window.i18n.t('wizard_th_day') || 'Day of month'} ${this.getSortArrow('day')}</th>
+                                <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('progress')">${window.i18n.t('col_progress') || 'Progression'} ${this.getSortArrow('progress')}</th>
+                                <th style="padding: 12px; width: 120px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('amount')">${window.i18n.t('col_amount')} ${this.getSortArrow('amount')}</th>
                                 <th style="padding: 12px; width: 140px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('annual_total')">${window.i18n.t('col_total_annual') || 'Annual Total'} ${this.getSortArrow('annual_total')}</th>
                                 <th style="padding: 12px; width: 85px; text-align: center; white-space: nowrap;">${window.i18n.t('th_actions') || 'Actions'}</th>
                             </tr>
@@ -169,17 +195,28 @@ window.RecurrenceView = {
                     
                     const freqLabel = window.i18n.t('rec_' + t.frequency.toLowerCase()) || t.frequency;
                     
-                    // Frequency badge color styles
                     let badgeStyle = '';
                     const freq = t.frequency.toLowerCase();
                     if (freq === 'monthly') {
                         badgeStyle = 'background: rgba(51, 102, 255, 0.1); color: var(--accent); border: 1px solid rgba(51, 102, 255, 0.2);';
                     } else if (freq === 'yearly') {
                         badgeStyle = 'background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.2);';
+                    } else if (freq === 'weekly') {
+                        badgeStyle = 'background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);';
+                    } else if (freq === 'quarterly') {
+                        badgeStyle = 'background: rgba(14, 165, 233, 0.1); color: #0ea5e9; border: 1px solid rgba(14, 165, 233, 0.2);';
+                    } else if (freq === 'semi-annually') {
+                        badgeStyle = 'background: rgba(236, 72, 153, 0.1); color: #ec4899; border: 1px solid rgba(236, 72, 153, 0.2);';
                     } else {
                         badgeStyle = 'background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);';
                     }
                     const badgeHtml = `<span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; ${badgeStyle}">${freqLabel}</span>`;
+                    
+                    const statusLabel = t.is_closed ? window.i18n.t('rec_status_closed') : window.i18n.t('rec_status_active');
+                    const statusBadgeStyle = t.is_closed 
+                        ? 'background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2);' 
+                        : 'background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);';
+                    const statusBadgeHtml = `<span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; ${statusBadgeStyle}">${statusLabel}</span>`;
                     
                     const catOptionsHtml = (this.categories || [])
                         .filter(c => !c.is_closed || c.name === t.category)
@@ -200,15 +237,27 @@ window.RecurrenceView = {
                                 </select>
                             </td>
                             <td style="padding: 12px; text-align: center;">${badgeHtml}</td>
+                            <td style="padding: 12px; text-align: center;">${statusBadgeHtml}</td>
                             <td style="padding: 12px; text-align: center; font-size: 13px; color: var(--text-muted); font-weight: 500;">${t.day_of_month || 1}</td>
-                            <td style="padding: 12px; text-align: right; font-weight: 600; color: var(--text-main); font-size: 13px;">${formatCurrency(t.amount)}</td>
+                            <td style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; min-width: 90px;">
+                                    <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 3px; overflow: hidden; border: 1px solid var(--border-color);">
+                                        <div style="width: ${t.progressPct}%; height: 100%; background: ${t.progressPct === 100 ? 'linear-gradient(90deg, #2ecc71, #27ae60)' : 'linear-gradient(90deg, var(--accent, #6c5ce7), #a29bfe)'}; border-radius: 3px; transition: width 0.3s ease;"></div>
+                                    </div>
+                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-muted);">${t.progressPct}% <span style="font-size: 10px; font-weight: 500; opacity: 0.7;">(${t.reconciledCount}/${t.totalCount})</span></span>
+                                </div>
+                            </td>
+                            <td style="padding: 12px; text-align: right; font-weight: 600; color: var(--text-main); font-size: 13px;">${formatCurrency(t.displayAmount)}</td>
                             <td style="padding: 12px; text-align: right; font-weight: 700; color: var(--text-main); font-size: 14px;"><span class="privacy-blur">${formatCurrency(t.totalAnnualAmount)}</span></td>
                             <td style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
-                                <button class="btn btn-secondary btn-delete" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='var(--danger, #ff5630)'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.deleteTemplate(${t.id})" title="${window.i18n.t('tooltip_delete') || 'Delete'}">🗑️</button>
+                                <div style="display: flex; justify-content: center; gap: 6px;">
+                                    <button class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='var(--primary-color, #6366f1)'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.openEditModal(${t.id})" title="${window.i18n.t('tooltip_edit') || 'Modifier'}">✏️</button>
+                                    <button class="btn btn-secondary btn-delete" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='var(--danger, #ff5630)'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.deleteTemplate(${t.id})" title="${window.i18n.t('tooltip_delete') || 'Delete'}">🗑️</button>
+                                </div>
                             </td>
                         </tr>
                         <tr id="details_row_${t.id}" style="display: ${displayStyle}; background: var(--bg-sidebar);">
-                            <td colspan="8" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
+                            <td colspan="10" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
                                 <div id="details_content_${t.id}">
                                     <!-- Rendered dynamically -->
                                 </div>
@@ -227,6 +276,9 @@ window.RecurrenceView = {
                 this.expandedTemplateIds.forEach(id => {
                     this.renderTemplateDetails(id);
                 });
+
+                // Apply filter
+                this.applyFilter();
             }
         } catch (e) {
             console.error("Failed to load transactions", e);
@@ -278,7 +330,6 @@ window.RecurrenceView = {
     changeYear(delta) {
         this.selectedYear += delta;
         this.lastPropagate = null; // Reset undo state on year change
-        this.expandedTemplateIds.clear(); // Clear expanded templates on year change
         const display = document.getElementById('recYearDisplay');
         if (display) display.textContent = this.selectedYear;
         this.refreshTransactions();
@@ -291,6 +342,8 @@ window.RecurrenceView = {
             this.sortBy = columnName;
             this.sortOrder = 'asc';
         }
+        localStorage.setItem('recurrences_sortBy', this.sortBy);
+        localStorage.setItem('recurrences_sortOrder', this.sortOrder);
         this.loadData();
     },
 
@@ -339,14 +392,18 @@ window.RecurrenceView = {
             if (tx._original_date === undefined) tx._original_date = tx.date_operation;
         });
         
+        const hasChanges = templateTx.some(tx => this.modifiedRows.has(tx.id));
+        const buttonDisplay = hasChanges ? 'inline-block' : 'none';
+
         let instancesHtml = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h4 style="margin: 0; color: var(--text-muted); font-size: 14px; font-weight: bold;">${window.i18n.t('rec_year_details_title') || 'Détails des opérations de l\'année'}</h4>
-                <button id="save_btn_${templateId}" class="btn btn-primary" style="padding: 6px 15px; font-size: 13px; font-weight: bold;" onclick="window.RecurrenceView.saveTemplateChanges(${templateId})">${window.i18n.t('btn_save_changes')}</button>
+                <button id="save_btn_${templateId}" class="btn btn-primary" style="display: ${buttonDisplay}; padding: 6px 15px; font-size: 13px; font-weight: bold;" onclick="window.RecurrenceView.saveTemplateChanges(${templateId})">${window.i18n.t('btn_save_changes') || 'Sauvegarder les modifications'}</button>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 140px; gap: 10px; margin-bottom: 10px; padding: 0 10px; font-weight: bold; color: var(--text-muted); text-align: center; font-size: 13px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 60px 140px; gap: 10px; margin-bottom: 10px; padding: 0 10px; font-weight: bold; color: var(--text-muted); text-align: center; font-size: 13px;">
                 <div data-i18n="rec_col_date">${window.i18n.t('rec_col_date')}</div>
                 <div data-i18n="rec_col_amount">${window.i18n.t('rec_col_amount')}</div>
+                <div data-i18n="rec_col_status">Statut</div>
                 <div></div>
             </div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -355,12 +412,16 @@ window.RecurrenceView = {
         instancesHtml += templateTx.map(tx => {
             const isModified = this.modifiedRows.has(tx.id);
             const isReconciled = tx.reconciliation_date != null;
+            const isSkipped = tx.is_skipped === true;
             
             const justPropagated = (this.lastPropagate && this.lastPropagate.txId === tx.id);
             
-            const bg = isModified ? 'rgba(51, 102, 255, 0.05)' : (isReconciled ? 'var(--bg-base)' : 'var(--bg-surface)');
-            const opClass = isReconciled ? 'opacity: 0.6;' : '';
-            const readonly = isReconciled ? 'readonly disabled' : '';
+            let bg = isModified ? 'rgba(51, 102, 255, 0.05)' : (isReconciled ? 'var(--bg-base)' : 'var(--bg-surface)');
+            if (isSkipped) {
+                bg = 'rgba(100, 116, 139, 0.05)';
+            }
+            const opClass = (isReconciled || isSkipped) ? 'opacity: 0.6;' : '';
+            const readonly = (isReconciled || isSkipped) ? 'readonly disabled' : '';
             
             const dateStr = tx.date_operation.split('T')[0];
             
@@ -372,10 +433,20 @@ window.RecurrenceView = {
                 actionBtn = `<button class="btn btn-primary" style="padding: 5px; font-size: 11px; width: 100%; white-space: normal;" onclick="window.RecurrenceView.propagate(${tx.id})" data-i18n="btn_propagate_down">Propager vers le bas ⬇️</button>`;
             }
 
+            let skipColHTML = '';
+            if (isSkipped) {
+                skipColHTML = `<button class="btn btn-secondary" style="padding: 4px; font-size: 11px; display: inline-flex; align-items: center; justify-content: center;" onclick="window.RecurrenceView.toggleSkipInDetails(${tx.id}, ${templateId})" title="${window.i18n.t('tooltip_unskip') || 'Rétablir'}">↩️</button>`;
+            } else if (!isReconciled) {
+                skipColHTML = `<button class="btn btn-secondary" style="padding: 4px; font-size: 11px; display: inline-flex; align-items: center; justify-content: center;" onclick="window.RecurrenceView.toggleSkipInDetails(${tx.id}, ${templateId})" title="${window.i18n.t('tooltip_skip') || 'Ignorer'}">⏭️</button>`;
+            } else {
+                skipColHTML = '✅';
+            }
+ 
             return `
-            <div class="rec-instance-row" style="display: grid; grid-template-columns: 1fr 1fr 140px; gap: 10px; align-items: center; background: ${bg}; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); ${opClass}">
+            <div class="rec-instance-row" style="display: grid; grid-template-columns: 1fr 1fr 60px 140px; gap: 10px; align-items: center; background: ${bg}; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); ${opClass}">
                 <input type="date" id="rec_date_${tx.id}" class="inline-input" value="${dateStr}" style="text-align: center; font-size: 13px;" onchange="window.RecurrenceView.markTemplateRowModified(${tx.id}, ${templateId})" ${readonly}>
                 <input type="number" id="rec_amount_${tx.id}" class="inline-input" value="${tx.amount}" step="0.01" style="text-align: center; font-size: 13px;" onchange="window.RecurrenceView.markTemplateRowModified(${tx.id}, ${templateId})" ${readonly}>
+                <div style="text-align: center;">${skipColHTML}</div>
                 <div>${actionBtn}</div>
             </div>
             `;
@@ -383,6 +454,16 @@ window.RecurrenceView = {
         
         instancesHtml += `</div>`;
         container.innerHTML = instancesHtml;
+    },
+    async toggleSkipInDetails(txId, templateId) {
+        try {
+            await API.post(`/api/transactions/${txId}/toggle_skip`);
+            window.app.refreshSidebar();
+            await this.loadData();
+        } catch (e) {
+            console.error(e);
+            showToast("Erreur lors de la modification", "error");
+        }
     },
     
     markTemplateRowModified(txId, templateId) {
@@ -661,15 +742,18 @@ window.RecurrenceView = {
         `;
         
         currentTemplates.forEach(t => {
-            let freqOptions = `
-                <option value="Monthly" ${t.frequency === 'Monthly' ? 'selected' : ''}>${window.i18n.t('opt_freq_monthly')}</option>
-                <option value="Yearly" ${t.frequency === 'Yearly' ? 'selected' : ''}>${window.i18n.t('opt_freq_yearly')}</option>
-            `;
-            if (showBimonthly) {
-                freqOptions = `
-                    <option value="Bi-Monthly" ${(t.frequency === 'Bi-Monthly' || t.frequency === 'Bi-Weekly') ? 'selected' : ''}>${window.i18n.t('opt_freq_bimonthly')}</option>
-                ` + freqOptions;
-            }
+             let freqOptions = `
+                 <option value="Weekly" ${t.frequency === 'Weekly' ? 'selected' : ''}>${window.i18n.t('opt_freq_weekly') || 'Hebdomadaire'}</option>
+                 <option value="Monthly" ${t.frequency === 'Monthly' ? 'selected' : ''}>${window.i18n.t('opt_freq_monthly')}</option>
+                 <option value="Quarterly" ${t.frequency === 'Quarterly' ? 'selected' : ''}>${window.i18n.t('opt_freq_quarterly') || 'Trimestrielle'}</option>
+                 <option value="Semi-Annually" ${t.frequency === 'Semi-Annually' ? 'selected' : ''}>${window.i18n.t('opt_freq_semi_annually') || 'Bi-annuelle'}</option>
+                 <option value="Yearly" ${t.frequency === 'Yearly' ? 'selected' : ''}>${window.i18n.t('opt_freq_yearly')}</option>
+             `;
+             if (showBimonthly) {
+                 freqOptions = `
+                     <option value="Bi-Monthly" ${(t.frequency === 'Bi-Monthly' || t.frequency === 'Bi-Weekly') ? 'selected' : ''}>${window.i18n.t('opt_freq_bimonthly')}</option>
+                 ` + freqOptions;
+             }
 
             wizardHtml += `
                 <tr style="border-bottom: 1px solid var(--border-color); transition: opacity 0.2s; ${t.is_closed ? 'opacity: 0.4;' : ''}" id="wizard_row_${t.id}">
@@ -872,7 +956,10 @@ window.RecurrenceView = {
         const showBimonthly = (cfg.enable_bimonthly === 'true' || cfg.enable_bimonthly === true);
         
         let freqOptions = `
+            <option value="Weekly">${window.i18n.t('opt_freq_weekly') || 'Hebdomadaire'}</option>
             <option value="Monthly" selected>${window.i18n.t('opt_freq_monthly')}</option>
+            <option value="Quarterly">${window.i18n.t('opt_freq_quarterly') || 'Trimestrielle'}</option>
+            <option value="Semi-Annually">${window.i18n.t('opt_freq_semi_annually') || 'Bi-annuelle'}</option>
             <option value="Yearly">${window.i18n.t('opt_freq_yearly')}</option>
         `;
         if (showBimonthly) {
@@ -1047,5 +1134,378 @@ window.RecurrenceView = {
                 btn.textContent = window.i18n.t('wizard_btn_validate');
             }
         }
+    },
+
+    async openEditModal(templateId) {
+        const tpl = this.templates.find(t => t.id === templateId);
+        if (!tpl) return;
+
+        // Fetch accounts
+        let accounts = [];
+        try {
+            accounts = await API.get('/api/accounts/');
+        } catch (e) {
+            console.error("Failed to load accounts", e);
+        }
+
+        // Create modal element
+        const modal = document.createElement('div');
+        modal.id = 'editRecurrenceModal';
+        modal.className = 'modal-overlay';
+        modal.style.zIndex = '1000';
+
+        const categoryOptions = (this.categories || [])
+            .map(c => `<option value="${c.name}" ${tpl.category === c.name ? 'selected' : ''}>${c.name}</option>`)
+            .join('');
+
+        const freqOptions = [
+            ['Weekly', 'rec_weekly', 'Hebdomadaire'],
+            ['Monthly', 'rec_monthly', 'Mensuelle'],
+            ['Quarterly', 'rec_quarterly', 'Trimestrielle'],
+            ['Semi-Annually', 'rec_semi-annually', 'Semestrielle'],
+            ['Yearly', 'rec_yearly', 'Annuelle'],
+            ['Bi-Weekly', 'Bi-Weekly', 'Toutes les 2 semaines'],
+            ['Bi-Monthly', 'Bi-Monthly', 'Tous les 2 mois']
+        ].map(([val, key, fallback]) => `<option value="${val}" ${tpl.frequency === val ? 'selected' : ''}>${window.i18n.t(key) || fallback}</option>`).join('');
+
+        const fromAccOptions = `<option value="">-- Aucun --</option>` + accounts.map(a => `<option value="${a.id}" ${tpl.from_account_id === a.id ? 'selected' : ''}>${a.name}</option>`).join('');
+        const toAccOptions = `<option value="">-- Aucun --</option>` + accounts.map(a => `<option value="${a.id}" ${tpl.to_account_id === a.id ? 'selected' : ''}>${a.name}</option>`).join('');
+
+        const monthOptions = Array.from({length: 12}, (_, i) => i + 1)
+            .map(m => `<option value="${m}" ${tpl.month_of_year === m ? 'selected' : ''}>${new Date(2000, m - 1, 1).toLocaleDateString('fr-FR', {month: 'long'})}</option>`)
+            .join('');
+
+        modal.innerHTML = `
+            <div class="modal" style="width: 90%; max-width: 650px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); padding: 25px; display: flex; flex-direction: column; gap: 20px; animation: modalFadeIn 0.3s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+                    <h3 style="margin: 0; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px;">✏️ ${window.i18n.t('edit_recurrence_title') || 'Modifier la récurrence'}</h3>
+                    <button style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted);" onclick="document.getElementById('editRecurrenceModal').remove()">×</button>
+                </div>
+                
+                <form id="editRecurrenceForm" style="display: flex; flex-direction: column; gap: 15px;" onsubmit="event.preventDefault(); window.RecurrenceView.saveEditModal(${tpl.id})">
+                    <!-- Line 1: Description & Montant -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_description')}</label>
+                            <input type="text" id="edit_desc" class="inline-input" value="${tpl.description || ''}" required style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_amount')}</label>
+                            <input type="number" id="edit_amount" class="inline-input" value="${tpl.amount || 0}" step="0.01" required style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit;">
+                            <span style="font-size: 11px; color: var(--text-muted); font-style: italic;">${window.i18n.t('edit_amount_hint') || 'Le nouveau montant sera appliqué pour toutes les futures occurrences.'}</span>
+                        </div>
+                    </div>
+
+                    <!-- Line 2: Type & Catégorie -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_type') || "Type d'opération"}</label>
+                            <select id="edit_type" class="inline-input" onchange="window.RecurrenceView.onEditTypeChange()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
+                                <option value="expense_fixed" ${tpl.type === 'expense_fixed' ? 'selected' : ''}>${window.i18n.t('edit_type_option_expense_fixed') || 'Dépense fixe'}</option>
+                                <option value="expense_var" ${tpl.type === 'expense_var' ? 'selected' : ''}>${window.i18n.t('edit_type_option_expense_var') || 'Dépense variable'}</option>
+                                <option value="income" ${tpl.type === 'income' ? 'selected' : ''}>${window.i18n.t('edit_type_option_income') || 'Revenu'}</option>
+                                <option value="transfer" ${tpl.type === 'transfer' ? 'selected' : ''}>${window.i18n.t('edit_type_option_transfer') || 'Virement'}</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_category')}</label>
+                            <select id="edit_category" class="inline-input" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
+                                <option value="">${window.i18n.t('edit_category_option_none') || '-- Sans catégorie --'}</option>
+                                ${categoryOptions}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Line 3: Fréquence & Jour du mois -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('wizard_th_frequency') || 'Fréquence'}</label>
+                            <select id="edit_freq" class="inline-input" onchange="window.RecurrenceView.onEditFreqChange()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
+                                ${freqOptions}
+                            </select>
+                            <span style="font-size: 11px; color: #ff5630; font-weight: 500;">${window.i18n.t('edit_freq_hint') || "Changer la fréquence régénérera toutes les occurrences futures non rapprochées de l'année."}</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('wizard_th_day') || 'Jour du mois'}</label>
+                            <input type="number" id="edit_day" class="inline-input" value="${tpl.day_of_month || 1}" min="1" max="31" required style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit;">
+                            <span style="font-size: 11px; color: #ff5630; font-weight: 500;">${window.i18n.t('edit_day_hint') || "Changer le jour régénérera également les dates des futures occurrences."}</span>
+                        </div>
+                    </div>
+
+                    <!-- Line 4: Mois de l'année (only active if Yearly) & Max Occurrences -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div id="edit_month_container" style="display: flex; flex-direction: column; gap: 5px; opacity: ${tpl.frequency === 'Yearly' ? '1' : '0.5'};">
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_month_of_year') || "Mois de l'année"}</label>
+                            <select id="edit_month" class="inline-input" ${tpl.frequency === 'Yearly' ? '' : 'disabled'} style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
+                                <option value="">${window.i18n.t('edit_month_option_none') || '-- Aucun --'}</option>
+                                ${monthOptions}
+                            </select>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_max_occurrences') || 'Occurrences Max (Optionnel)'}</label>
+                            <input type="number" id="edit_max_occurrences" class="inline-input" value="${tpl.max_occurrences || ''}" min="1" placeholder="Illimité" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit;">
+                        </div>
+                    </div>
+
+                    <!-- Line 5: Compte émetteur & Compte destinataire -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div id="edit_from_acc_container" style="display: flex; flex-direction: column; gap: 5px;">
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('edit_from_acc_label') || 'Compte émetteur'}</label>
+                            <select id="edit_from_acc" class="inline-input" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
+                                ${fromAccOptions}
+                            </select>
+                        </div>
+                        <div id="edit_to_acc_container" style="display: flex; flex-direction: column; gap: 5px;">
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('edit_to_acc_label') || 'Compte destinataire'}</label>
+                            <select id="edit_to_acc" class="inline-input" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
+                                ${toAccOptions}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Line 6: Closed Switch -->
+                    <label style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 5px; cursor: pointer; user-select: none;">
+                        <div style="display: flex; flex-direction: column; gap: 3px; max-width: 80%;">
+                            <span style="font-size: 14px; font-weight: 600; color: var(--text-main);">${window.i18n.t('edit_close_recurrence_label') || "Clôturer l'abonnement / récurrence"}</span>
+                            <span style="font-size: 11px; color: var(--text-muted); line-height: 1.3;">${window.i18n.t('edit_close_recurrence_hint') || 'Activer cette option désactive définitivement la génération future de cette récurrence. Les transactions existantes seront conservées.'}</span>
+                        </div>
+                        <input type="checkbox" id="edit_is_closed" ${tpl.is_closed ? 'checked' : ''} style="width: 22px; height: 22px; cursor: pointer;">
+                    </label>
+
+                    <!-- Real-time Preview Container -->
+                    <div id="edit_preview_dates_container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px; padding: 12px; background: rgba(99, 102, 241, 0.05); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <span id="edit_preview_dates_title" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Aperçu des 6 prochaines dates :</span>
+                        <div id="edit_preview_dates_list" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px; font-weight: 500; text-align: center;"></div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 10px;">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('editRecurrenceModal').remove()" style="padding: 8px 16px;">${window.i18n.t('btn_cancel') || 'Annuler'}</button>
+                        <button type="submit" class="btn btn-primary" style="padding: 8px 16px; background: var(--primary-color, #6366f1); color: #ffffff;">${window.i18n.t('btn_save') || 'Enregistrer'}</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        window.RecurrenceView.onEditTypeChange(); // align accounts field on start
+
+        // Bind preview listeners
+        document.getElementById('edit_freq').addEventListener('change', () => {
+            window.RecurrenceView.onEditFreqChange();
+            window.RecurrenceView.updateEditPreviewDates();
+        });
+        document.getElementById('edit_day').addEventListener('input', () => window.RecurrenceView.updateEditPreviewDates());
+        document.getElementById('edit_month').addEventListener('change', () => window.RecurrenceView.updateEditPreviewDates());
+        document.getElementById('edit_amount').addEventListener('input', () => window.RecurrenceView.updateEditPreviewDates());
+        document.getElementById('edit_is_closed').addEventListener('change', (e) => {
+            const container = document.getElementById('edit_preview_dates_container');
+            if (container) {
+                container.style.display = e.target.checked ? 'none' : 'flex';
+            }
+        });
+
+        const isClosed = document.getElementById('edit_is_closed').checked;
+        document.getElementById('edit_preview_dates_container').style.display = isClosed ? 'none' : 'flex';
+
+        window.RecurrenceView.updateEditPreviewDates(); // initial preview draw
+    },
+
+    onEditFreqChange() {
+        const freq = document.getElementById('edit_freq').value;
+        const monthContainer = document.getElementById('edit_month_container');
+        const monthSelect = document.getElementById('edit_month');
+        if (freq === 'Yearly') {
+            monthContainer.style.opacity = '1';
+            monthSelect.disabled = false;
+        } else {
+            monthContainer.style.opacity = '0.5';
+            monthSelect.disabled = true;
+            monthSelect.value = '';
+        }
+    },
+
+    onEditTypeChange() {
+        const type = document.getElementById('edit_type').value;
+        const fromAccContainer = document.getElementById('edit_from_acc_container');
+        const toAccContainer = document.getElementById('edit_to_acc_container');
+        
+        // Expense, Income, Transfer logic
+        if (type === 'income') {
+            fromAccContainer.style.opacity = '0.5';
+            document.getElementById('edit_from_acc').disabled = true;
+            document.getElementById('edit_from_acc').value = '';
+            
+            toAccContainer.style.opacity = '1';
+            document.getElementById('edit_to_acc').disabled = false;
+        } else if (type === 'transfer') {
+            fromAccContainer.style.opacity = '1';
+            document.getElementById('edit_from_acc').disabled = false;
+            
+            toAccContainer.style.opacity = '1';
+            document.getElementById('edit_to_acc').disabled = false;
+        } else { // expenses
+            fromAccContainer.style.opacity = '1';
+            document.getElementById('edit_from_acc').disabled = false;
+            
+            toAccContainer.style.opacity = '0.5';
+            document.getElementById('edit_to_acc').disabled = true;
+            document.getElementById('edit_to_acc').value = '';
+        }
+    },
+
+    async saveEditModal(templateId) {
+        const desc = document.getElementById('edit_desc').value.trim();
+        const amount = parseFloat(document.getElementById('edit_amount').value) || 0;
+        const type = document.getElementById('edit_type').value;
+        const category = document.getElementById('edit_category').value || null;
+        const frequency = document.getElementById('edit_freq').value;
+        const day_of_month = parseInt(document.getElementById('edit_day').value) || 1;
+        const month_val = document.getElementById('edit_month').value;
+        const month_of_year = month_val ? parseInt(month_val) : null;
+        const max_occ_val = document.getElementById('edit_max_occurrences').value;
+        const max_occurrences = max_occ_val ? parseInt(max_occ_val) : null;
+        const from_acc_val = document.getElementById('edit_from_acc').value;
+        const from_account_id = from_acc_val ? parseInt(from_acc_val) : null;
+        const to_acc_val = document.getElementById('edit_to_acc').value;
+        const to_account_id = to_acc_val ? parseInt(to_acc_val) : null;
+        const is_closed = document.getElementById('edit_is_closed').checked;
+
+        const payload = {
+            description: desc,
+            amount: amount,
+            type: type,
+            category: category,
+            frequency: frequency,
+            day_of_month: day_of_month,
+            month_of_year: month_of_year,
+            max_occurrences: max_occurrences,
+            from_account_id: from_account_id,
+            to_account_id: to_account_id,
+            is_closed: is_closed
+        };
+
+        const formBtn = document.querySelector('#editRecurrenceForm button[type="submit"]');
+        const originalText = formBtn ? formBtn.textContent : '';
+
+        try {
+            if (formBtn) {
+                formBtn.disabled = true;
+                formBtn.textContent = '⏳ ...';
+            }
+
+            // 1. Put updates to DB
+            await API.put(`/api/recurrences/${templateId}`, payload);
+
+            // 2. Trigger automatic recurrence generation to regenerate future instances
+            await API.post('/api/recurrences/generate_to_end_of_year');
+
+            // Remove modal
+            document.getElementById('editRecurrenceModal').remove();
+
+            // Refresh UI
+            window.app.refreshSidebar();
+            await this.loadData();
+            showToast(window.i18n.t('msg_saved') || 'Enregistré avec succès !', 'success');
+        } catch (e) {
+            console.error(e);
+            showToast("Erreur lors de la mise à jour de la récurrence", "error");
+            if (formBtn) {
+                formBtn.disabled = false;
+                formBtn.textContent = originalText;
+            }
+        }
+    },
+
+    updateEditPreviewDates() {
+        const freq = document.getElementById('edit_freq').value;
+        const day = parseInt(document.getElementById('edit_day').value) || 1;
+        const monthVal = document.getElementById('edit_month').value;
+        const month = monthVal ? parseInt(monthVal) - 1 : null;
+        
+        const list = document.getElementById('edit_preview_dates_list');
+        if (!list) return;
+
+        // Show active amount in the preview header
+        const amountEl = document.getElementById('edit_amount');
+        const amountVal = amountEl ? parseFloat(amountEl.value) || 0 : 0;
+        const titleEl = document.getElementById('edit_preview_dates_title');
+        if (titleEl) {
+            const formattedAmt = `<span style="color: var(--accent, #6366f1); font-weight: 700;">${amountVal.toFixed(2).replace('.', ',')} €</span>`;
+            titleEl.innerHTML = (window.i18n.t('edit_preview_title') || 'Aperçu des 6 prochaines échéances (Montant : {amount}) :')
+                .replace('{amount}', formattedAmt);
+        }
+        
+        const dates = [];
+        let base = new Date();
+        
+        if (freq === 'Monthly') {
+            let y = base.getFullYear();
+            let m = base.getMonth();
+            if (base.getDate() > day) {
+                m++;
+            }
+            for (let i = 0; i < 6; i++) {
+                let d = new Date(y, m + i, day);
+                dates.push(d);
+            }
+        } else if (freq === 'Yearly') {
+            let y = base.getFullYear();
+            let targetM = month !== null ? month : 0;
+            if (base.getMonth() > targetM || (base.getMonth() === targetM && base.getDate() > day)) {
+                y++;
+            }
+            for (let i = 0; i < 6; i++) {
+                let d = new Date(y + i, targetM, day);
+                dates.push(d);
+            }
+        } else if (freq === 'Weekly') {
+            for (let i = 0; i < 6; i++) {
+                let temp = new Date();
+                temp.setDate(base.getDate() + (i + 1) * 7);
+                dates.push(temp);
+            }
+        } else if (freq === 'Quarterly') {
+            let y = base.getFullYear();
+            let m = base.getMonth();
+            if (base.getDate() > day) {
+                m++;
+            }
+            for (let i = 0; i < 6; i++) {
+                let d = new Date(y, m + i * 3, day);
+                dates.push(d);
+            }
+        } else if (freq === 'Semi-Annually') {
+            let y = base.getFullYear();
+            let m = base.getMonth();
+            if (base.getDate() > day) {
+                m++;
+            }
+            for (let i = 0; i < 6; i++) {
+                let d = new Date(y, m + i * 6, day);
+                dates.push(d);
+            }
+        } else if (freq === 'Bi-Weekly') {
+            for (let i = 0; i < 6; i++) {
+                let temp = new Date();
+                temp.setDate(base.getDate() + (i + 1) * 14);
+                dates.push(temp);
+            }
+        } else if (freq === 'Bi-Monthly') {
+            let y = base.getFullYear();
+            let m = base.getMonth();
+            if (base.getDate() > day) {
+                m++;
+            }
+            for (let i = 0; i < 6; i++) {
+                let d = new Date(y, m + i * 2, day);
+                dates.push(d);
+            }
+        }
+        
+        list.innerHTML = dates.map(d => {
+            const formatted = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+            return `<div style="padding: 6px; background: rgba(99, 102, 241, 0.08); color: var(--accent, #6366f1); border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.15); font-weight: 600;">${formatted}</div>`;
+        }).join('');
     }
 };

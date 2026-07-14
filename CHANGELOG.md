@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.66] - 2026-07-14
+
+### Added
+- **New Recurrence Frequencies**:
+  - Added support for **Weekly** (Hebdomadaire), **Quarterly** (Trimestrielle), and **Semi-Annually** (Bi-annuelle) recurrence frequencies in both backend calculations and frontend dropdown selectors.
+  - Implemented custom styling for new frequency badges in the main recurrences table (amber, teal, and pink).
+- **Skip Recurring Occurrences**:
+  - Implemented the `is_skipped` flag on transactions, allowing users to temporarily pause/ignore occurrences of a recurrence series.
+  - Ignored occurrences are automatically reconciled with a zeroed-out amount and are excluded from the auto-closure rules and orphan-cleaner checks.
+  - Added skip action button (⏭️/↩️) in Dashboard, History, and Recurrence sub-tables.
+  - Added retroactive migration tool in the Configuration panel to convert past 0.0€ recurring transactions into the new skipped format.
+- **Strict Duplicate Detection**:
+  - Updated all recurrence instance generation endpoints to run duplicate checks strictly based on `recurrence_id` and corresponding date intervals, preventing duplicate generation when transaction descriptions are customized.
+- **Persistent Table Sorting**:
+  - Added persistence for the recurrence list table sorting choices (sorting column and order) using `localStorage`, ensuring the table retains the user's preferred layout upon page reload or navigation.
+- **Configurable Rolling Window Generation**:
+  - Replaced the strict calendar-year boundary (`December 31`) with a configurable rolling window (e.g. `today + N months`, defaulting to 12).
+  - Added a new setting field in the Configuration panel to customize the number of months generated in advance.
+  - Gracefully handles database state when changing this window duration.
+- **Auto-closure of Abandoned Recurrences**:
+  - Added automatic closure of inactive/abandoned recurrence templates when they have history but no recent transactions (reconciled or unreconciled) or when their latest transaction is forced to `0.0`.
+- **Status Column**:
+  - Added a new **Statut** column in the recurrences table display with color-coded status badges (**En cours** / **Fermé**).
+- **Premium Recurrence Edit Modal**:
+  - Integrated an edit button (✏️) in the Actions column of each recurrence.
+  - Displays a high-fidelity modal window supporting light and dark themes, enabling complete editing of all database fields with real-time date previews of the next 6 occurrences.
+  - Automatically deletes unreconciled transactions upon template modifications to force immediate propagation of the new parameters.
+
+## [1.0.65] - 2026-07-14
+
+### Added
+- **Recurrence Reconciliation Progress**:
+  - Added a new **Progression** column in the recurrences table showing a visual progress bar (0-100%) of reconciled transactions for each recurrence template in the selected year.
+  - Features premium styling with dynamic gradient colors: a success-green gradient (`#2ecc71` to `#27ae60`) for fully reconciled items (100%), and a modern accent-purple gradient otherwise.
+  - Includes a text badge showing the percentage and reconciled count details (e.g., `75% (9/12)`).
+  - Integrated full column sorting support (ascending and descending) for the progression values.
+
+### Changed
+- **Last Reconciled Transaction Amount Display**:
+  - Updated the "Montant" column in the main recurrences table to display the amount of the latest reconciled transaction up to the selected year, falling back to the template default amount if no transactions have been reconciled yet.
+
 ## [1.0.64] - 2026-07-13
 
 ### Added

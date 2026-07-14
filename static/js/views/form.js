@@ -104,6 +104,13 @@ window.FormView = {
         document.getElementById('op_date_saisie').value = new Date().toISOString().split('T')[0];
         document.getElementById('op_recon_date').value = '';
         
+        this._isSkipped = false;
+        const skipBtn = document.getElementById('op_skip_btn');
+        if (skipBtn) {
+            skipBtn.style.display = 'none';
+            this._updateSkipBtnUI();
+        }
+        
         document.getElementById('op_is_recurrent').checked = false;
         document.getElementById('op_is_recurrent').disabled = false;
         
@@ -227,6 +234,13 @@ window.FormView = {
             } catch(e) { /* non-critical */ }
         }
         
+        this._isSkipped = tx.is_skipped === true;
+        const skipBtn = document.getElementById('op_skip_btn');
+        if (skipBtn) {
+            skipBtn.style.display = tx.recurrence_id ? 'inline-flex' : 'none';
+            this._updateSkipBtnUI();
+        }
+
         this.applyConfigVisibility();
         this.toggleRecurrenceFields();
         document.getElementById('op_rec_edit_hint').style.display = isRecurrent ? 'flex' : 'none';
@@ -749,7 +763,8 @@ window.FormView = {
                     return cb.checked;
                 }
                 return null;
-            })()
+            })(),
+            is_skipped: this._isSkipped === true
         };
 
         // Phase 9: Inject org user audit fields
@@ -905,6 +920,33 @@ window.FormView = {
         } catch (e) {
             console.error(e);
             showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error_generic'));
+        }
+    },
+
+    toggleSkipState() {
+        this._isSkipped = !this._isSkipped;
+        this._updateSkipBtnUI();
+    },
+
+    _updateSkipBtnUI() {
+        const btn = document.getElementById('op_skip_btn');
+        if (!btn) return;
+        
+        // Dynamic localized tooltips
+        const label = window.i18n.t('form_skip_label') || "Ignorer cette échéance";
+        const desc = window.i18n.t('form_skip_hint') || "Le montant sera mis à 0 € et la transaction sera rapprochée automatiquement.";
+        btn.title = `${label}\n(${desc})`;
+
+        if (this._isSkipped) {
+            btn.style.background = 'rgba(99, 102, 241, 0.2)';
+            btn.style.borderColor = 'var(--accent)';
+            btn.style.color = 'var(--accent)';
+            btn.querySelector('[data-i18n="form_skip_btn_label"]').textContent = window.i18n.t('form_skip_btn_label') + ' ✅';
+        } else {
+            btn.style.background = '';
+            btn.style.borderColor = '';
+            btn.style.color = '';
+            btn.querySelector('[data-i18n="form_skip_btn_label"]').textContent = window.i18n.t('form_skip_btn_label') || 'Ignorer';
         }
     }
 };

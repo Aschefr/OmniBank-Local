@@ -209,8 +209,8 @@ def test_recurrences_generation_and_deduplication(monkeypatch):
     loyer_txs = [t for t in txs if t["recurrence_id"] == 1]
     netflix_txs = [t for t in txs if t["recurrence_id"] == 2]
     
-    # Originally seeded 1 Loyer tx. With generation, it should have generated May-Dec (8 instances). Total = 9.
-    assert len(loyer_txs) == 9
+    # Originally seeded 1 Loyer tx. With 12-month rolling window (mocked today=2026-05-29), it should generate May 2026 to May 2027 (13 instances). Total = 14.
+    assert len(loyer_txs) == 14
     # We seeded 2 netflix instances, should still be only 2 (since we filtered by template_id=1)
     assert len(netflix_txs) == 2 
 
@@ -226,8 +226,8 @@ def test_recurrences_generation_and_deduplication(monkeypatch):
     
     # Verify May-Dec Netflix instances exist but March/April were not duplicated
     netflix_txs_final = [t for t in txs2 if t["recurrence_id"] == 2]
-    # Seeded: 2. Generating May to Dec: 8 instances. Total should be 10 instances.
-    assert len(netflix_txs_final) == 10
+    # Seeded: 2. Generating May 2026 to May 2027: 13 instances. Total should be 15 instances.
+    assert len(netflix_txs_final) == 15
     
     # Ensure there's exactly 1 Netflix transaction for March 2026 and 1 for April 2026
     march_netflix = [t for t in netflix_txs_final if "2026-03" in t["date_operation"]]
@@ -952,6 +952,395 @@ def test_chat_premium_flow():
     assert len(res.json()) == 0
 
 
+def test_weekly_recurrence_and_strict_id_deduplication():
+    # 1. Create a Weekly recurrence template
+    res_tpl = client.post("/api/recurrences/", json={
+        "amount": 25.0,
+        "description": "Weekly Veggie Box",
+        "frequency": "Weekly",
+        "start_date": "2026-01-01",
+        "category": "Courses",
+        "type": "expense_fixed",
+        "is_active": True,
+        "is_closed": False,
+        "day_of_month": 5
+    })
+    assert res_tpl.status_code == 200
+    tpl = res_tpl.json()
+    tpl_id = tpl["id"]
+
+    # 2. Add the first instance transaction for 2026-05-04 (Monday)
+    res_tx = client.post("/api/transactions/", json={
+        "date_saisie": "2026-05-04",
+        "date_operation": "2026-05-04",
+        "description": "Weekly Veggie Box",
+        "amount": 25.0,
+        "type": "expense_fixed",
+        "category": "Courses",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "reconciliation_date": None,
+        "recurrence_id": tpl_id
+    })
+    assert res_tx.status_code == 200
+
+    # 3. Trigger generate_to_end_of_year. It should generate weekly instances.
+    res_gen = client.post("/api/recurrences/generate_to_end_of_year?template_id=" + str(tpl_id))
+    assert res_gen.status_code == 200
+    
+    # 4. Fetch transactions linked to this recurrence
+    res_txs = client.get("/api/transactions/?limit=10000")
+    txs = [t for t in res_txs.json() if t["recurrence_id"] == tpl_id]
+    
+    # May 4th (1) + remaining weeks generated from first of current month (July 2026 onwards)
+    assert len(txs) > 20
+
+    # Verify that the distance between consecutive generated date_operations is exactly 7 days
+    txs_sorted = sorted(txs, key=lambda x: x["date_operation"])
+    from datetime import datetime
+    for i in range(1, len(txs_sorted) - 1):
+        d1 = datetime.strptime(txs_sorted[i]["date_operation"].split('T')[0], "%Y-%m-%d")
+        d2 = datetime.strptime(txs_sorted[i+1]["date_operation"].split('T')[0], "%Y-%m-%d")
+        assert (d2 - d1).days == 7
+
+    # 5. Modify the description of one of the generated transactions (e.g. index 5)
+    tx_to_mod = txs_sorted[5]
+    res_mod = client.put(f"/api/transactions/{tx_to_mod['id']}", json={
+        "description": "Weekly Veggie Box - Modified Name"
+    })
+    assert res_mod.status_code == 200
+
+    # 6. Run generation again. It should generate 0 new instances because the ID check
+    # finds that the instance already exists even though its description was changed.
+    res_gen2 = client.post("/api/recurrences/generate_to_end_of_year?template_id=" + str(tpl_id))
+    assert res_gen2.status_code == 200
+    assert res_gen2.json()["generated_instances"] == 0
+
+    # Cleanup
+    client.delete(f"/api/recurrences/{tpl_id}")
+
+
+def test_quarterly_and_semiannual_recurrences():
+    # 1. Create a Quarterly template
+    res_tpl_q = client.post("/api/recurrences/", json={
+        "amount": 100.0,
+        "description": "Quarterly Water Bill",
+        "frequency": "Quarterly",
+        "start_date": "2026-01-01",
+        "category": "Factures",
+        "type": "expense_fixed",
+        "is_active": True,
+        "is_closed": False,
+        "day_of_month": 15
+    })
+    assert res_tpl_q.status_code == 200
+    tpl_q_id = res_tpl_q.json()["id"]
+
+    # Add first instance in January
+    client.post("/api/transactions/", json={
+        "date_saisie": "2026-01-15",
+        "date_operation": "2026-01-15",
+        "description": "Quarterly Water Bill",
+        "amount": 100.0,
+        "type": "expense_fixed",
+        "category": "Factures",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "reconciliation_date": None,
+        "recurrence_id": tpl_q_id
+    })
+
+    # Trigger generation
+    res_gen = client.post("/api/recurrences/generate_to_end_of_year?template_id=" + str(tpl_q_id))
+    assert res_gen.status_code == 200
+
+    # Fetch generated transactions
+    res_txs = client.get("/api/transactions/?limit=10000")
+    txs_q = sorted([t for t in res_txs.json() if t["recurrence_id"] == tpl_q_id], key=lambda x: x["date_operation"])
+
+    # Jan 15th + fast-forwarded starting July 15th + Oct 15th = 3 transactions
+    assert len(txs_q) >= 2
+
+    # Clean up
+    client.delete(f"/api/recurrences/{tpl_q_id}")
+
+
+def test_configurable_rolling_window_recurrences():
+    # 1. Set config to 3 months
+    res_cfg = client.post("/api/config/", json={"recurrence_generation_months": "3"})
+    assert res_cfg.status_code == 200
+
+    # 2. Create a Monthly recurrence template
+    res_tpl = client.post("/api/recurrences/", json={
+        "amount": 50.0,
+        "description": "Configurable Rolling Test",
+        "frequency": "Monthly",
+        "start_date": "2026-01-01",
+        "category": "Abonnement",
+        "type": "expense_fixed",
+        "is_active": True,
+        "is_closed": False,
+        "day_of_month": 15
+    })
+    assert res_tpl.status_code == 200
+    tpl_id = res_tpl.json()["id"]
+
+    # 3. Add first instance in January
+    client.post("/api/transactions/", json={
+        "date_saisie": "2026-01-15",
+        "date_operation": "2026-01-15",
+        "description": "Configurable Rolling Test",
+        "amount": 50.0,
+        "type": "expense_fixed",
+        "category": "Abonnement",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "reconciliation_date": None,
+        "recurrence_id": tpl_id
+    })
+
+    # 4. Trigger generation
+    client.post("/api/recurrences/generate_to_end_of_year?template_id=" + str(tpl_id))
+
+    # Fetch generated transactions
+    res_txs = client.get("/api/transactions/?limit=10000")
+    txs_3 = [t for t in res_txs.json() if t["recurrence_id"] == tpl_id]
+    assert len(txs_3) <= 4
+
+    # 5. Now update config to 6 months
+    res_cfg2 = client.post("/api/config/", json={"recurrence_generation_months": "6"})
+    assert res_cfg2.status_code == 200
+
+    # Trigger generation again
+    client.post("/api/recurrences/generate_to_end_of_year?template_id=" + str(tpl_id))
+
+    # Fetch generated transactions again
+    res_txs2 = client.get("/api/transactions/?limit=10000")
+    txs_6 = [t for t in res_txs2.json() if t["recurrence_id"] == tpl_id]
+    assert len(txs_6) > len(txs_3)
+
+    # Clean up
+    client.delete(f"/api/recurrences/{tpl_id}")
+    # Reset config to 12
+    client.post("/api/config/", json={"recurrence_generation_months": "12"})
+
+
+def test_auto_close_abandoned_templates(monkeypatch):
+    from datetime import date
+    class MockDate(date):
+        @classmethod
+        def today(cls):
+            return date(2026, 5, 29)
+    monkeypatch.setattr("app.routers.recurrences.date", MockDate)
+
+    # 1. Create a template
+    res_tpl = client.post("/api/recurrences/", json={
+        "amount": 120.0,
+        "description": "Old Abandoned Subscription",
+        "frequency": "Monthly",
+        "start_date": "2024-01-01",
+        "category": "Abonnement",
+        "type": "expense_fixed",
+        "is_active": True,
+        "is_closed": False,
+        "day_of_month": 10
+    })
+    assert res_tpl.status_code == 200
+    tpl_id = res_tpl.json()["id"]
+
+    # 2. Add reconciled transaction in 2024
+    client.post("/api/transactions/", json={
+        "date_saisie": "2024-01-10",
+        "date_operation": "2024-01-10",
+        "description": "Old Abandoned Subscription",
+        "amount": 120.0,
+        "type": "expense_fixed",
+        "category": "Abonnement",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "reconciliation_date": "2024-01-11",
+        "recurrence_id": tpl_id
+    })
+
+    # 3. Trigger generate_recurrences. It should auto-close this template first.
+    res_gen = client.post("/api/recurrences/generate_to_end_of_year")
+    assert res_gen.status_code == 200
+
+    # 4. Check if the template is now closed
+    res_check = client.get(f"/api/recurrences/?include_closed=true")
+    templates = res_check.json()
+    tpl = next(t for t in templates if t["id"] == tpl_id)
+    assert tpl["is_closed"] is True
+
+    # 5. Clean up
+    client.delete(f"/api/recurrences/{tpl_id}")
+
+
+def test_auto_close_zeroed_out_template(monkeypatch):
+    """Zeroed templates are NOT auto-closed, but are skipped during generation."""
+    from datetime import date
+    class MockDate(date):
+        @classmethod
+        def today(cls):
+            return date(2026, 5, 29)
+    monkeypatch.setattr("app.routers.recurrences.date", MockDate)
+
+    # 1. Create a template
+    res_tpl = client.post("/api/recurrences/", json={
+        "amount": 15.0,
+        "description": "Zeroed Out Spotify Test",
+        "frequency": "Monthly",
+        "start_date": "2026-01-01",
+        "category": "Abonnement",
+        "type": "expense_fixed",
+        "is_active": True,
+        "is_closed": False,
+        "day_of_month": 22
+    })
+    assert res_tpl.status_code == 200
+    tpl_id = res_tpl.json()["id"]
+
+    # 2. Add reconciled transaction with 0.0 amount in 2026 (current year)
+    client.post("/api/transactions/", json={
+        "date_saisie": "2026-04-22",
+        "date_operation": "2026-04-22",
+        "description": "Zeroed Out Spotify Test",
+        "amount": 0.0,
+        "type": "expense_fixed",
+        "category": "Abonnement",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "reconciliation_date": "2026-04-23",  # Reconciled!
+        "recurrence_id": tpl_id
+    })
+
+    # 3. Trigger generate_recurrences
+    res_gen = client.post("/api/recurrences/generate_to_end_of_year")
+    assert res_gen.status_code == 200
+
+    # 4. Template should remain OPEN (not auto-closed)
+    res_check = client.get(f"/api/recurrences/?include_closed=true")
+    templates = res_check.json()
+    tpl = next(t for t in templates if t["id"] == tpl_id)
+    assert tpl["is_closed"] is False  # NOT closed, just skipped during generation
+
+    # 5. No future transactions should have been generated (skipped due to zeroed)
+    res_txs = client.get("/api/transactions/?limit=10000")
+    future_txs = [t for t in res_txs.json() 
+                  if t["recurrence_id"] == tpl_id and t["date_operation"] > "2026-04-22"]
+    assert len(future_txs) == 0
+
+    # 6. Clean up
+    client.delete(f"/api/recurrences/{tpl_id}")
+
+
+def test_dynamic_amount_generation(monkeypatch):
+    from datetime import date
+    class MockDate(date):
+        @classmethod
+        def today(cls):
+            return date(2026, 5, 29)
+    monkeypatch.setattr("app.routers.recurrences.date", MockDate)
+
+    # 1. Create template with initial amount 50.0
+    res_tpl = client.post("/api/recurrences/", json={
+        "amount": 50.0,
+        "description": "Dynamic Price Increase Test",
+        "frequency": "Monthly",
+        "start_date": "2026-01-01",
+        "category": "Abonnement",
+        "type": "expense_fixed",
+        "is_active": True,
+        "is_closed": False,
+        "day_of_month": 15
+    })
+    assert res_tpl.status_code == 200
+    tpl_id = res_tpl.json()["id"]
+
+    # 2. Add reconciled transaction with updated amount 55.0 (price increase)
+    client.post("/api/transactions/", json={
+        "date_saisie": "2026-04-15",
+        "date_operation": "2026-04-15",
+        "description": "Dynamic Price Increase Test",
+        "amount": 55.0,
+        "type": "expense_fixed",
+        "category": "Abonnement",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "reconciliation_date": "2026-04-16",
+        "recurrence_id": tpl_id
+    })
+
+    # 3. Trigger generation
+    res_gen = client.post("/api/recurrences/generate_to_end_of_year?template_id=" + str(tpl_id))
+    assert res_gen.status_code == 200
+
+    # 4. Fetch generated transactions
+    res_txs = client.get("/api/transactions/?limit=10000")
+    txs = [t for t in res_txs.json() if t["recurrence_id"] == tpl_id]
+    
+    # Newly generated ones (e.g. May 15) should have amount = 55.0
+    may_tx = next(t for t in txs if t["date_operation"] == "2026-05-15")
+    assert may_tx["amount"] == 55.0
+
+    # Clean up
+    client.delete(f"/api/recurrences/{tpl_id}")
+
+
+def test_update_template_without_reconciled_transactions_does_not_disappear(monkeypatch):
+    from datetime import date
+    class MockDate(date):
+        @classmethod
+        def today(cls):
+            return date(2026, 5, 29)
+    monkeypatch.setattr("app.routers.recurrences.date", MockDate)
+
+    # 1. Create a template
+    res_tpl = client.post("/api/recurrences/", json={
+        "amount": 20.0,
+        "description": "Test Disappear",
+        "frequency": "Monthly",
+        "start_date": "2026-05-01",
+        "category": "Abonnement",
+        "type": "expense_fixed",
+        "is_active": True,
+        "is_closed": False,
+        "day_of_month": 15
+    })
+    assert res_tpl.status_code == 200
+    tpl_id = res_tpl.json()["id"]
+
+    # 2. Trigger generation
+    res_gen = client.post("/api/recurrences/generate_to_end_of_year")
+    assert res_gen.status_code == 200
+
+    # 3. Modify template
+    res_upd = client.put(f"/api/recurrences/{tpl_id}", json={
+        "amount": 25.0,
+        "description": "Test Disappear",
+        "frequency": "Monthly",
+        "category": "Abonnement Loisir",
+        "type": "expense_fixed",
+        "is_active": True,
+        "is_closed": False,
+        "day_of_month": 15
+    })
+    assert res_upd.status_code == 200
+
+    # 4. Trigger generation again
+    res_gen2 = client.post("/api/recurrences/generate_to_end_of_year")
+    assert res_gen2.status_code == 200
+
+    # 5. Verify transactions exist and have new amount
+    res_txs = client.get("/api/transactions/?limit=10000")
+    txs = [t for t in res_txs.json() if t["recurrence_id"] == tpl_id]
+    assert len(txs) > 0
+    assert all(t["amount"] == 25.0 for t in txs)
+
+    # Clean up
+    client.delete(f"/api/recurrences/{tpl_id}")
+
+
 if __name__ == "__main__":
     build_test_db(engine)
     test_accounts_crud()
@@ -969,5 +1358,10 @@ if __name__ == "__main__":
     test_piggy_bank_overflow()
     test_paycheck_threshold_small_income()
     test_chat_premium_flow()
-
-
+    test_weekly_recurrence_and_strict_id_deduplication()
+    test_quarterly_and_semiannual_recurrences()
+    test_configurable_rolling_window_recurrences()
+    test_auto_close_abandoned_templates()
+    test_auto_close_zeroed_out_template()
+    test_dynamic_amount_generation()
+    test_update_template_without_reconciled_transactions_does_not_disappear()

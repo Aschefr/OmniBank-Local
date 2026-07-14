@@ -112,12 +112,23 @@ window.ConfigView = {
                         </div>
                         <span data-i18n="config_opt_org_mode">Activer le mode Organisation (Association/CSE)</span>
                     </label>
-                    <div id="configLicenseStatus" style="margin-top: 8px; display: none;"></div>
                 </div>
+                <div id="configLicenseStatus" style="margin-top: 8px; display: none;"></div>
                 <style>
                     .global-toggle:checked ~ .slider { background-color: var(--accent) !important; }
                     .global-toggle:checked ~ .slider-knob { transform: translateX(16px) !important; }
                 </style>
+            </div>
+
+            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_gen_settings_title">⚙️ ${window.i18n.t('config_gen_settings_title')}</h3>
+                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_gen_settings_desc">
+                    ${window.i18n.t('config_gen_settings_desc')}
+                </p>
+                <div style="display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 500;">
+                    <input type="number" id="conf_recurrence_months" class="inline-input" min="1" max="36" value="12" style="width: 70px; text-align: center; border-radius: 6px; padding: 6px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13px;" onchange="window.ConfigView.save()">
+                    <span data-i18n="config_recurrence_months">Nombre de mois de récurrences à générer à l'avance</span>
+                </div>
             </div>
 
             <!-- Phase 9: User management panel (org mode only) -->
@@ -185,6 +196,11 @@ window.ConfigView = {
                         🧹 <span data-i18n="maintenance_orphan_btn">${window.i18n.t('maintenance_orphan_btn') || 'Clean up orphan recurrences'}</span>
                     </button>
 
+                    <!-- Convert zeroed to skipped -->
+                    <button class="btn btn-secondary" id="btnConvertZeroedToSkipped" onclick="window.ConfigView.convertZeroedToSkipped()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(99,102,241,0.5); color: var(--accent, #6366f1);">
+                        🔄 <span data-i18n="maintenance_convert_zeroed_btn">${window.i18n.t('maintenance_convert_zeroed_btn') || 'Convert 0€ transactions to Skipped'}</span>
+                    </button>
+
                     <!-- Clear DB -->
                     <button class="btn btn-danger" onclick="window.ConfigView.clearDB()" style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
                         ⚠️ <span data-i18n="btn_clear_db">Vider la base de données</span>
@@ -248,8 +264,8 @@ window.ConfigView = {
             
             if (this.configData.ollama_url) {
                 document.getElementById('conf_ollama_url').value = this.configData.ollama_url;
-                // If URL is present, try to fetch models immediately
-                await this.fetchModels(true);
+                // If URL is present, fetch models in background without blocking local config UI
+                this.fetchModels(true);
             }
             
             if (this.configData.ollama_temperature) {
@@ -270,6 +286,11 @@ window.ConfigView = {
             if (this.configData.enable_attachments === 'true') document.getElementById('conf_enable_attachments').checked = true;
             if (this.configData.enable_check_slips === 'true') document.getElementById('conf_enable_check_slips').checked = true;
             if (this.configData.enable_org_mode === 'true') document.getElementById('conf_enable_org_mode').checked = true;
+            if (this.configData.recurrence_generation_months) {
+                document.getElementById('conf_recurrence_months').value = this.configData.recurrence_generation_months;
+            } else {
+                document.getElementById('conf_recurrence_months').value = "12";
+            }
             
             // Phase 9: Show org users panel if enabled
             this._refreshOrgUsersPanel();
@@ -370,7 +391,8 @@ window.ConfigView = {
                 enable_org_mode: document.getElementById('conf_enable_org_mode').checked ? 'true' : 'false',
                 auto_backup_enabled: document.getElementById('conf_auto_backup_enabled').checked ? 'true' : 'false',
                 auto_backup_frequency: document.getElementById('conf_auto_backup_frequency').value,
-                auto_backup_max_count: document.getElementById('conf_auto_backup_max_count').value
+                auto_backup_max_count: document.getElementById('conf_auto_backup_max_count').value,
+                recurrence_generation_months: document.getElementById('conf_recurrence_months').value || "12"
             };
             
             // Sync to window.app.config immediately
@@ -958,6 +980,116 @@ window.ConfigView = {
             // Refresh sidebar to update balances
             if (window.app && window.app.refreshSidebar) window.app.refreshSidebar();
 
+        } catch(e) {
+            console.error(e);
+            if (btn) { btn.disabled = false; }
+            showInlineMessage(window.i18n.t('title_error'), e.message);
+        }
+    },
+
+    async convertZeroedToSkipped() {
+        const btn = document.getElementById('btnConvertZeroedToSkipped');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse...'; }
+        try {
+            const preview = await API.get('/api/maintenance/convert_zeroed_to_skipped/preview');
+            if (btn) { btn.disabled = false; btn.innerHTML = '🔄 ' + (window.i18n.t('maintenance_convert_zeroed_btn') || 'Convert 0€ transactions to Skipped'); }
+
+            if (preview.count === 0) {
+                showInlineMessage('✅', window.i18n.t('maintenance_convert_zeroed_none') || 'No transactions to convert. Everything is in order!');
+                return;
+            }
+
+            // Build per-transaction review modal with checkboxes
+            const actionText = (window.i18n.t('maintenance_convert_zeroed_action_desc') || "En cochant ces transactions ({count} détectée(s)), elles seront converties en échéances proprement « Ignorées » (passées/suspendues). Cela permet à votre récurrence de rester active et de continuer à générer les mois suivants à leur montant normal.")
+                .replace('{count}', preview.count);
+            const opsSuffix = window.i18n.t('maintenance_convert_zeroed_ops') || 'op.';
+
+            let contentHtml = `
+                <div style="max-height:60vh;overflow-y:auto; text-align: left;">
+                    <div style="background:var(--bg-surface);border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid var(--border-color);line-height:1.4;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                            <span style="font-size:20px;">💡</span>
+                            <strong style="font-size:14px;color:var(--accent);">${window.i18n.t('maintenance_convert_zeroed_why') || 'Pourquoi cette action ?'}</strong>
+                        </div>
+                        <p style="margin:0 0 10px 0;font-size:13px;color:var(--text-muted);">
+                            ${window.i18n.t('maintenance_convert_zeroed_desc_1') || "Auparavant, pour suspendre temporairement un abonnement ou une récurrence (ex. Audible mis en pause pendant 3 mois), la seule solution consistait à mettre manuellement à 0,00 € le montant de l'échéance."}
+                        </p>
+                        <p style="margin:0 0 10px 0;font-size:13px;color:var(--text-muted);">
+                            ${window.i18n.t('maintenance_convert_zeroed_desc_2') || "Cependant, ces montants à 0 € induisent en erreur les algorithmes de maintenance qui croient que la récurrence est définitivement fermée/abandonnée, provoquant des auto-clôtures ou de fausses détections d'orphelines."}
+                        </p>
+                        <p style="margin:0;font-size:13px;color:var(--text-muted);">
+                            <strong>${window.i18n.t('maintenance_convert_zeroed_action_label') || 'Action de la conversion :'}</strong> ${actionText}
+                        </p>
+                    </div>
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;">
+                            ${window.i18n.t('maintenance_convert_zeroed_select_label') || 'Sélectionnez les transactions à convertir'}
+                        </span>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--primary-color);">
+                            <input type="checkbox" id="convertSelectAll" checked onchange="document.querySelectorAll('.convert-tx-cb').forEach(cb => { cb.checked = this.checked; })">
+                            ${window.i18n.t('maintenance_convert_zeroed_select_all') || 'Tout sélectionner'}
+                        </label>
+                    </div>`;
+
+            preview.groups.forEach(group => {
+                const fallbackHtml = group.fallback_amount != null
+                    ? `<span style="margin-left:8px;font-size:11px;color:var(--success-color);font-weight:500;">→ ${formatCurrency(group.fallback_amount)}</span>`
+                    : '';
+                contentHtml += `
+                    <div style="margin-bottom:12px;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">
+                        <div style="padding:10px 14px;background:var(--bg-surface);border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:14px;">🔄</span>
+                            <strong style="font-size:13px;">${group.template_description}</strong>
+                            ${fallbackHtml}
+                            <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">${group.transactions.length} ${opsSuffix}</span>
+                        </div>
+                        <div style="padding:0;">`;
+
+                group.transactions.forEach(tx => {
+                    const dateStr = tx.date_operation.split('T')[0];
+                    contentHtml += `
+                            <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border-color);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='rgba(99,102,241,0.04)'" onmouseout="this.style.background=''">
+                                <input type="checkbox" class="convert-tx-cb" value="${tx.id}" checked style="width:16px;height:16px;flex-shrink:0;">
+                                <span style="flex:1;font-size:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                                    <span style="color:var(--text-muted);min-width:85px;">${dateStr}</span>
+                                    <span style="font-weight:500;flex:1;min-width:120px;">${tx.description}</span>
+                                    <span style="color:var(--text-muted);font-size:11px;">${tx.category || ''}</span>
+                                    <span style="font-weight:700;min-width:80px;text-align:right;">${formatCurrency(tx.amount)}</span>
+                                </span>
+                            </label>`;
+                });
+
+                contentHtml += `
+                        </div>
+                    </div>`;
+            });
+
+            contentHtml += `</div>`;
+
+            const ok = await showInlineConfirm(
+                window.i18n.t('maintenance_convert_zeroed_title') || "Assainir les échéances suspendues à 0 €",
+                contentHtml
+            );
+            if (!ok) return;
+
+            const selectedIds = Array.from(document.querySelectorAll('.convert-tx-cb:checked')).map(cb => parseInt(cb.value));
+            if (selectedIds.length === 0) {
+                showToast('Aucune transaction sélectionnée.', 'info');
+                return;
+            }
+            try {
+                const result = await API.post('/api/maintenance/convert_zeroed_to_skipped/apply', selectedIds);
+                showToast(
+                    (window.i18n.t('maintenance_convert_zeroed_result') || '{count} transaction(s) converted.')
+                        .replace('{count}', result.converted),
+                    'success', 4000
+                );
+                if (window.app && window.app.refreshSidebar) window.app.refreshSidebar();
+            } catch (e) {
+                console.error(e);
+                showToast("Erreur lors de la conversion", "error");
+            }
         } catch(e) {
             console.error(e);
             if (btn) { btn.disabled = false; }
