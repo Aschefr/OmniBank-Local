@@ -929,15 +929,38 @@ window.ChatView = {
             }
         }
 
-        // Attach scroll listener to save position & detect manual scroll-up
+        // Attach scroll & input listeners to save position & detect manual scroll-up instantly
         if (!container.dataset.hasScrollListener) {
+            // 1. Classical scroll listener to save history position
             container.addEventListener('scroll', () => {
                 if (this.activeSessionId) {
                     sessionStorage.setItem(`chatScrollPos_${this.activeSessionId}`, container.scrollTop);
-                    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
-                    this.userHasScrolledUp = !atBottom;
                 }
             });
+
+            // 2. Wheel listener to detect instant scroll-up intent
+            container.addEventListener('wheel', (e) => {
+                if (e.deltaY < 0) {
+                    this.userHasScrolledUp = true;
+                }
+            }, { passive: true });
+
+            // 3. Touch move listener to detect instant swipe-down (which scrolls up) intent on mobile
+            let touchStartY = 0;
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 0) {
+                    touchStartY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+            container.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 0) {
+                    const touchY = e.touches[0].clientY;
+                    if (touchY > touchStartY) { // Swipe down -> scrolls up
+                        this.userHasScrolledUp = true;
+                    }
+                }
+            }, { passive: true });
+
             container.dataset.hasScrollListener = "true";
         }
     },
