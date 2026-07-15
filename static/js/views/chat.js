@@ -997,14 +997,22 @@ window.ChatView = {
         } catch (e) {
             console.error(e);
             this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection')}: ${e.message}*`;
+            this.messages[aiMsgIndex]._isError = true;
             this.renderHistory();
         } finally {
             if (sendBtn) sendBtn.disabled = false;
             if (input) input.disabled = false;
-            const hasError = this.messages[aiMsgIndex].content.includes("⚠️") || this.messages[aiMsgIndex].content.startsWith("*");
-            if (!hasError) {
-                await this.loadMessages();
+            const hasError = !!this.messages[aiMsgIndex]._isError;
+            if (hasError) {
+                // Persist error message to DB so it survives F5
+                try {
+                    await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                        content: this.messages[aiMsgIndex].content,
+                        role: "assistant"
+                    });
+                } catch (e) { console.error("Failed to persist error:", e); }
             }
+            await this.loadMessages();
         }
     },
 
@@ -1050,13 +1058,14 @@ window.ChatView = {
             console.error(e);
             if (aiMsgIndex >= 0) {
                 this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection')}: ${e.message}*`;
+                this.messages[aiMsgIndex]._isError = true;
                 this.renderHistory();
             }
         } finally {
             if (sendBtn) sendBtn.disabled = false;
             if (input) input.disabled = false;
             if (aiMsgIndex >= 0) {
-                const hasError = this.messages[aiMsgIndex].content.includes("⚠️") || /^\*.*(?:Erreur|Error).*\*$/.test(this.messages[aiMsgIndex].content.trim());
+                const hasError = !!this.messages[aiMsgIndex]._isError;
                 if (hasError) {
                     // Persist error message to DB so it survives F5
                     try {
@@ -1252,13 +1261,14 @@ window.ChatView = {
         } catch (e) {
             console.error(e);
             this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection') || "Erreur de connexion"}: ${e.message}*`;
+            this.messages[aiMsgIndex]._isError = true;
             this.renderHistory();
         } finally {
             sendBtn.disabled = false;
             input.disabled = false;
             input.focus();
             
-            const hasError = this.messages[aiMsgIndex].content.includes("⚠️") || /^\*.*(?:Erreur|Error).*\*$/.test(this.messages[aiMsgIndex].content.trim());
+            const hasError = !!this.messages[aiMsgIndex]._isError;
             
             if (hasError) {
                 // Persist error message to DB so it survives F5
@@ -1359,6 +1369,7 @@ window.ChatView = {
         // Bug 1 fix: Show error if AI returned nothing
         if (!aiText.trim()) {
             this.messages[aiMsgIndex].content = `⚠️ ${window.i18n.t('chat_error_empty_response') || "L'IA n'a pas répondu. Vérifiez votre configuration Ollama dans les paramètres."}`;
+            this.messages[aiMsgIndex]._isError = true;
             this.renderHistory();
         }
     }
