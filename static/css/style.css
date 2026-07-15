@@ -95,7 +95,7 @@ body {
     gap: 8px;
 }
 
-.header-actions button:not(.user-switcher-btn) {
+.header-actions button:not(.user-switcher-btn):not(.notif-action-btn):not(#langToggleBtn) {
     background: rgba(145, 158, 171, 0.12);
     border: none;
     font-size: 18px;
@@ -110,7 +110,7 @@ body {
     height: 32px;
 }
 
-.header-actions button:hover {
+.header-actions button:not(.user-switcher-btn):not(.notif-action-btn):not(#langToggleBtn):hover {
     background: rgba(145, 158, 171, 0.24);
 }
 

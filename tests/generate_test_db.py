@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.models import (
     Account, Transaction, Category, RecurrenceTemplate,
-    Budget, BudgetCategory, GlobalConfig
+    Budget, BudgetCategory, GlobalConfig, Notification
 )
 
 def build_test_db(engine_or_path="data/omnibank_test.db"):
@@ -47,7 +47,7 @@ def build_test_db(engine_or_path="data/omnibank_test.db"):
 
     # 3. Global Config
     session.add_all([
-        GlobalConfig(key="schema_version", value="3"),
+        GlobalConfig(key="schema_version", value="8"),
         GlobalConfig(key="base_pay_day", value="28"),
         GlobalConfig(key="site_lang", value="fr"),
         GlobalConfig(key="ia_enabled", value="false") # Default disabled to test toggle

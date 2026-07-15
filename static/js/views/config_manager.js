@@ -71,6 +71,41 @@ window.ConfigView = {
                     </div>
                 </div>
 
+                <hr style="border:none; border-top:1px solid var(--border-color); margin:18px 0;">
+
+                <div style="margin-top: 15px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
+                        <h4 style="margin:0; font-size: 13px;" data-i18n="settings_ai_reports_title">Bilans Périodiques Proactifs</h4>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            <div style="position: relative; width: 40px; height: 24px;">
+                                <input type="checkbox" id="conf_ai_reports_enabled" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.toggleAIReports(this.checked); window.ConfigView.save()">
+                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                            </div>
+                            <span data-i18n="settings_ai_reports_enable">Activer les bilans de santé financière par l'IA</span>
+                        </label>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;" data-i18n="settings_ai_reports_enable_desc">Génère périodiquement une courte notification analytique résumant votre état de santé financière.</p>
+                    
+                    <div id="aiReportsSubSettings" style="display: none;">
+                        <div class="flex-row-mobile-col" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 180px;">
+                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="settings_ai_reports_freq">Fréquence des rapports</label>
+                                <select id="conf_ai_reports_frequency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
+                                    <option value="daily" data-i18n="settings_ai_reports_freq_daily">Quotidien</option>
+                                    <option value="weekly" data-i18n="settings_ai_reports_freq_weekly">Hebdomadaire (Recommandé)</option>
+                                    <option value="monthly" data-i18n="settings_ai_reports_freq_monthly">Mensuel</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button class="btn btn-secondary" id="btnTriggerAIReport" onclick="window.ConfigView.triggerAIReportGeneration()" style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                                    ⚡ <span data-i18n="settings_ai_btn_generate_report">Générer un bilan maintenant</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 </div> <!-- End ollamaSettings -->
             </div>
 
@@ -315,6 +350,18 @@ window.ConfigView = {
                 maxSel.value = this.configData.auto_backup_max_count;
             }
             this._refreshAutoBackupStatus();
+
+            // AI reports configuration loading
+            const aiReportsToggle = document.getElementById('conf_ai_reports_enabled');
+            if (aiReportsToggle) {
+                const isReportsEnabled = (this.configData.ai_reports_enabled || 'false') === 'true';
+                aiReportsToggle.checked = isReportsEnabled;
+                this.toggleAIReports(isReportsEnabled);
+            }
+            const aiReportsFreqSel = document.getElementById('conf_ai_reports_frequency');
+            if (aiReportsFreqSel && this.configData.ai_reports_frequency) {
+                aiReportsFreqSel.value = this.configData.ai_reports_frequency;
+            }
         } catch (e) {
             console.error("Failed to load config", e);
         }
@@ -342,6 +389,34 @@ window.ConfigView = {
         const settings = document.getElementById('autoBackupSettings');
         if (settings) {
             settings.style.display = enabled ? 'block' : 'none';
+        }
+    },
+
+    toggleAIReports(enabled) {
+        const settings = document.getElementById('aiReportsSubSettings');
+        if (settings) {
+            settings.style.display = enabled ? 'block' : 'none';
+        }
+    },
+
+    async triggerAIReportGeneration() {
+        const btn = document.getElementById('btnTriggerAIReport');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Génération...'; }
+        try {
+            const res = await fetch('/api/notifications/generate-ai-report', { method: 'POST' });
+            if (res.ok) {
+                showToast("Bilan lancé en arrière-plan. Vérifiez la cloche de notifications d'ici quelques instants !", 'success', 4000);
+            } else {
+                showToast("Erreur lors du lancement de la génération.", 'error', 3000);
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Erreur de connexion API.", 'error', 3000);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '⚡ <span data-i18n="settings_ai_btn_generate_report">Générer un bilan maintenant</span>';
+            }
         }
     },
 
@@ -392,6 +467,8 @@ window.ConfigView = {
                 auto_backup_enabled: document.getElementById('conf_auto_backup_enabled').checked ? 'true' : 'false',
                 auto_backup_frequency: document.getElementById('conf_auto_backup_frequency').value,
                 auto_backup_max_count: document.getElementById('conf_auto_backup_max_count').value,
+                ai_reports_enabled: document.getElementById('conf_ai_reports_enabled').checked ? 'true' : 'false',
+                ai_reports_frequency: document.getElementById('conf_ai_reports_frequency').value,
                 recurrence_generation_months: document.getElementById('conf_recurrence_months').value || "12"
             };
             
