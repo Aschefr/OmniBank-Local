@@ -1228,6 +1228,7 @@ window.ChatView = {
 
         let done = false;
         let aiText = '';
+        this.userHasScrolledUp = false; // Reset at the start of streaming
 
         while (!done) {
             const { value, done: readerDone } = await reader.read();
@@ -1267,6 +1268,16 @@ window.ChatView = {
                     }
                 }
 
+                // Detect if user has scrolled up before updating content and scrolling
+                const container = document.getElementById('chatMessages');
+                if (container && !this.userHasScrolledUp) {
+                    // If the user is more than 50px away from the bottom, they scrolled up
+                    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 50;
+                    if (!isAtBottom) {
+                        this.userHasScrolledUp = true;
+                    }
+                }
+
                 // Update UI live
                 this.messages[aiMsgIndex].content = aiText;
                 
@@ -1275,7 +1286,10 @@ window.ChatView = {
                     bubble.innerHTML = this.formatMessageContent(this.messages[aiMsgIndex]);
                     this.renderMath();
                 }
-                this.scrollToBottom();
+
+                if (!this.userHasScrolledUp) {
+                    this.scrollToBottom();
+                }
                 this.updateTokenUsageIndicator();
             }
         }
