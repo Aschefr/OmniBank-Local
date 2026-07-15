@@ -931,10 +931,14 @@ window.ChatView = {
 
         // Attach scroll & input listeners to save position & detect manual scroll-up instantly
         if (!container.dataset.hasScrollListener) {
-            // 1. Classical scroll listener to save history position
+            // 1. Classical scroll listener to save history position & re-engage auto-scroll when close to bottom
             container.addEventListener('scroll', () => {
                 if (this.activeSessionId) {
                     sessionStorage.setItem(`chatScrollPos_${this.activeSessionId}`, container.scrollTop);
+                }
+                const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
+                if (atBottom) {
+                    this.userHasScrolledUp = false;
                 }
             });
 
