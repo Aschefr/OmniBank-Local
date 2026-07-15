@@ -5,32 +5,20 @@ All notable changes to this project will be documented in this file.
 ## [1.0.66] - 2026-07-14
 
 ### Added
-- **Extended Recurrence Options & Styling**:
-  - Support for Weekly, Quarterly, and Semi-Annually recurrence frequencies with custom-colored badges in the table.
-  - Added persistence for table sorting preferences (column and order) in `localStorage`.
-  - Added a color-coded **Statut** column (En cours / Fermé) in the main table.
-- **Non-Destructive Skip Mechanism**:
-  - Implemented the `is_skipped` transaction flag to pause recurrences instead of setting amount to `0.0`.
-  - Updated all financial engine calculations, analytical reports, and trends to filter out skipped entries.
-  - Interactive migration tool in settings to convert legacy 0.0€ occurrences while restoring original amounts from templates.
-- **Sanitization Wizard Enhancements**:
-  - Added a "Fermer la récurrence" button (with tooltip) in group headers to close templates directly from the wizard.
-  - Filtered out inactive/terminated templates (those with > 3 consecutive zeroed transactions).
-- **Premium Recurrence Edit Modal**:
-  - Interactive edit modal (✏️) supporting all template settings with a real-time 6-occurrence date preview.
-  - Month of year selection enabled for Yearly & Semi-Annually frequencies, with smart month auto-inference from transaction history.
-  - Unified "Depuis" and "Vers" transfer account fields (always editable regardless of transaction type).
-- **Core Engine Improvements**:
-  - Configurable rolling window generation (defaulting to 12 months) configurable in Settings.
-  - Strict duplicate instance checks based on `recurrence_id` and specific date intervals.
-  - Auto-closure of abandoned templates without recent transactions or on zeroed endpoints.
-- **Smart Stacking Toast Notifications**:
-  - Fixed toast z-index to show above modals, with dynamic vertical stacking and positioning animations.
+- **Timeline (Chronogramme) view for recurrences** with interactive month grids, day status badges (reconciled/skipped/pending), click-to-skip occurrences, and details panel expansion.
+- **Improved Type Indicators**: Added 3px left borders with an outward glow effect (`box-shadow`) and dynamic type detection (resolving transfers like "Economie").
+- **Sticky headers** in both table and chronogramme views for seamless scrolling.
+- **Smart AI Chat scroll-lock** that suspends auto-scrolling if the user scrolls up during streaming.
+- **Non-destructive skip mechanism** using a dedicated `is_skipped` transaction flag instead of zeroing out amounts.
+- **Sanitization Wizard Enhancements**: Closure buttons directly in groups, and filtering of inactive templates.
+- **Premium Recurrence Edit Modal** with 6-occurrence preview, yearly month selection, and unified transfer fields.
+- **Enhanced Transaction Modal**: Added a direct "✏️ Modifier" button to edit recurrence templates from the transaction form, updated the "🔄 Récurrences" button to navigate to, scroll to, and highlight the corresponding recurrence row, and modernized the helper hint text to match these new features.
+- **New Frequencies & Badges**: Added Weekly, Quarterly, and Semi-Annually options, sorting persistence, and status column.
+- **Toast Notifications**: Stackable layout with z-index fixes.
 
 ### Changed
-- **Performance & UI Fixes**:
-  - Settings page loads Ollama models asynchronously in the background to prevent interface freezes.
-  - Automatic deletion of unreconciled occurrences on template modifications to force instant updates.
+- Settings page loads Ollama models asynchronously to prevent freeze.
+- Force-refresh occurrences on template edits.
 
 ## [1.0.65] - 2026-07-14
 
