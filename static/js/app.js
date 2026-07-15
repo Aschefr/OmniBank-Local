@@ -233,6 +233,232 @@ class App {
         
         // Phase 9: Init user switcher if org mode
         this._initUserSwitcher();
+
+        // Init Notification Center
+        this._initNotifications();
+    }
+
+    _initNotifications() {
+        const bellBtn = document.getElementById('notifBellBtn');
+        const notifMenu = document.getElementById('notifMenu');
+        if (!bellBtn || !notifMenu) return;
+
+        bellBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (notifMenu.style.display === 'none') {
+                this.loadNotifications();
+                notifMenu.style.display = 'block';
+            } else {
+                notifMenu.style.display = 'none';
+            }
+        };
+
+        document.addEventListener('click', (e) => {
+            if (!bellBtn.contains(e.target) && !notifMenu.contains(e.target)) {
+                notifMenu.style.display = 'none';
+            }
+        });
+
+        // Load notifications initially
+        this.loadNotifications();
+        // Polling loop every 60 seconds
+        setInterval(() => this.loadNotifications(), 60000);
+    }
+
+    async loadNotifications() {
+        try {
+            const notifs = await API.get('/api/notifications');
+            const unreadCount = notifs.filter(n => !n.is_read).length;
+            const badge = document.getElementById('notifCountBadge');
+            const totalLabel = document.getElementById('notifTotalLabel');
+            const container = document.getElementById('notifListContainer');
+
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+
+            totalLabel.textContent = `${notifs.length} notification(s)`;
+
+            if (notifs.length === 0) {
+                container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-style: italic;" data-i18n="notif_no_notifications">${window.i18n.t('notif_no_notifications')}</div>`;
+                return;
+            }
+
+            // Store notification data in a map keyed by ID to avoid inline text injection issues
+            this._notifDataMap = {};
+            notifs.forEach(n => { this._notifDataMap[n.id] = n; });
+
+            container.innerHTML = notifs.map(n => {
+                const dateStr = new Date(n.created_at).toLocaleString(window.i18n.lang || 'fr', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+                const styleUnread = n.is_read ? 'opacity: 0.85; cursor: pointer;' : 'border-left: 4px solid var(--accent); background: rgba(99,102,241,0.02); font-weight: 500; cursor: pointer;';
+                const isReport = n.type === 'ai_report';
+                const clickCallback = `onclick="window.app.handleNotifClick(${n.id})"`;
+                return `
+                <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); ${styleUnread} transition: background 0.2s;" ${clickCallback}>
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                        <span style="font-weight: 700; font-size:13px; color: ${n.is_read ? 'var(--text-color)' : 'var(--accent)'}">${n.title}</span>
+                        <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">${dateStr}</span>
+                    </div>
+                    <div style="font-size:12.5px; margin-top:6px; line-height:1.5; color:var(--text-main); white-space: pre-wrap;">${n.content}</div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+                        ${isReport ? `<button class="btn btn-primary btn-sm notif-action-btn" style="font-size:11px; padding:6px 12px; border-radius:8px; height:30px; width:auto; background:var(--accent); color:white; border:none; cursor:pointer; font-weight:600; transition: all 0.2s; box-shadow:0 2px 4px rgba(32,101,209,0.24);" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); window.app.deepenAIReportById(${n.id})" data-i18n="notif_btn_deepen">${window.i18n.t('notif_btn_deepen')}</button>` : ''}
+                        <button id="delete-notif-btn-${n.id}" class="btn btn-secondary btn-sm notif-action-btn" style="font-size:11px; padding:6px 12px; border-radius:8px; height:30px; width:auto; border:1px solid rgba(239,68,68,0.2); color:#ff5630; background:rgba(255,86,48,0.05); cursor:pointer; font-weight:600; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,86,48,0.15)'" onmouseout="this.style.background='rgba(255,86,48,0.05)'" onclick="event.stopPropagation(); window.app.deleteNotif(${n.id}, event)" data-i18n="notif_btn_delete">${window.i18n.t('notif_btn_delete')}</button>
+                    </div>
+                </div>`;
+            }).join('');
+        } catch (e) {
+            console.error("Failed to load notifications", e);
+        }
+    }
+
+    async handleNotifClick(id) {
+        const n = this._notifDataMap && this._notifDataMap[id];
+        if (!n) return;
+
+        // 1. Mark as read if it is unread
+        if (!n.is_read) {
+            await this.markNotifRead(id);
+        }
+
+        // 2. Close notification menu
+        const notifMenu = document.getElementById('notifMenu');
+        if (notifMenu) notifMenu.style.display = 'none';
+
+        // 3. Process link redirection if present
+        if (n.link_data) {
+            try {
+                const linkObj = JSON.parse(n.link_data);
+                if (linkObj.session_id) {
+                    sessionStorage.setItem('chatActiveSessionId', linkObj.session_id);
+                    if (window.ChatView) {
+                        window.ChatView.activeSessionId = linkObj.session_id;
+                    }
+                    this.loadView('chat');
+                }
+            } catch (e) {
+                console.error("Failed to parse link_data", e);
+            }
+        }
+    }
+
+    async markNotifRead(id) {
+        try {
+            await API.put(`/api/notifications/${id}/read`);
+            await this.loadNotifications();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async markAllNotifsRead() {
+        try {
+            await API.put('/api/notifications/read-all');
+            await this.loadNotifications();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async deleteNotif(id, event) {
+        const btn = event ? event.currentTarget : document.getElementById(`delete-notif-btn-${id}`);
+        if (!btn) return;
+
+        // If the button is already in confirmation state, execute deletion
+        if (btn.dataset.confirmState === "true") {
+            try {
+                await API.del(`/api/notifications/${id}`);
+                await this.loadNotifications();
+            } catch (e) {
+                console.error(e);
+            }
+        } else {
+            // Put button in confirmation state
+            btn.dataset.confirmState = "true";
+            const originalText = btn.textContent;
+            btn.textContent = window.i18n.lang === 'en' ? "Confirm?" : "Confirmer ?";
+            btn.style.background = "#ff5630";
+            btn.style.color = "white";
+            btn.style.border = "1px solid #ff5630";
+
+            // Cancel confirmation state if clicked outside or after 3 seconds
+            const resetBtn = () => {
+                if (btn && btn.dataset.confirmState === "true") {
+                    btn.dataset.confirmState = "false";
+                    btn.textContent = originalText;
+                    btn.style.background = "rgba(255,86,48,0.05)";
+                    btn.style.color = "#ff5630";
+                    btn.style.border = "1px solid rgba(239,68,68,0.2)";
+                }
+            };
+            btn._resetTimeout = setTimeout(resetBtn, 3000);
+        }
+    }
+
+    deepenAIReportById(notifId) {
+        const n = this._notifDataMap && this._notifDataMap[notifId];
+        if (!n) {
+            console.error("Notification data not found for id", notifId);
+            return;
+        }
+        this.deepenAIReport(n.content || '', n.detailed_content || '');
+    }
+
+    async deepenAIReport(content, detailedContent) {
+        try {
+            // Close popover
+            const notifMenu = document.getElementById('notifMenu');
+            if (notifMenu) notifMenu.style.display = 'none';
+
+            const isEn = window.i18n.lang === 'en';
+            const sessionTitle = isEn ? "AI Financial Report Deepening" : "Approfondissement Bilan IA";
+
+            // Create a new session
+            const newSession = await API.post('/api/chat/sessions', {
+                title: sessionTitle,
+                role: "advisor"
+            });
+            
+            const sessionId = newSession.id;
+
+            // 1. Insert the detailed report as an ASSISTANT message (will render with full markdown)
+            const textReport = detailedContent && detailedContent.trim() ? detailedContent.trim() : content.trim();
+            const reportIntro = isEn
+                ? `## 📊 Financial Health Report\n\nHere is your detailed financial health analysis:\n\n${textReport}`
+                : `## 📊 Bilan de Santé Financière\n\nVoici votre analyse financière détaillée :\n\n${textReport}`;
+
+            await API.post(`/api/chat/sessions/${sessionId}/system-message`, {
+                content: reportIntro,
+                role: "assistant"
+            });
+
+            // 2. Save active session and navigate to chat
+            sessionStorage.setItem('chatActiveSessionId', sessionId);
+            if (window.ChatView) {
+                window.ChatView.activeSessionId = sessionId;
+            }
+
+            this.loadView('chat');
+
+            // 3. After the view loads, send a follow-up user message to trigger AI response
+            setTimeout(async () => {
+                const textarea = document.getElementById('chatInput');
+                if (textarea) {
+                    const userPrompt = isEn 
+                        ? "Could you analyze my financial situation in detail based on this report? What are the key risks and what concrete actions do you recommend?"
+                        : "Pouvez-vous analyser ma situation financière en détail à partir de ce bilan ? Quels sont les principaux risques et quelles actions concrètes me recommandez-vous ?";
+                    textarea.value = userPrompt;
+                    window.ChatView.sendMessage();
+                }
+            }, 600);
+
+        } catch (e) {
+            console.error("Failed to deepen AI report", e);
+            const errToast = window.i18n.lang === 'en' ? "Failed to start conversation." : "Échec du lancement de la discussion.";
+            showToast(errToast, 'error', 3000);
+        }
     }
 
     // ── Phase 9: User Picker (full-page splash) ──────────────────

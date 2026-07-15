@@ -679,9 +679,47 @@ window.ChatView = {
                     this.tokenUsage = data.token_usage;
                 }
                 this.renderHistory(isRestore);
+
+                // Check if the server is still generating a response for this session
+                const lastMsg = this.messages[this.messages.length - 1];
+                if (lastMsg && lastMsg.role === 'user') {
+                    await this._checkAndPollGeneration();
+                }
             }
         } catch (e) {
             console.error("Error loading messages:", e);
+        }
+    },
+
+    async _checkAndPollGeneration() {
+        if (!this.activeSessionId) return;
+        try {
+            const statusResp = await API.get(`/api/chat/sessions/${this.activeSessionId}/generating`);
+            if (statusResp && statusResp.generating) {
+                // Show typing indicator as a placeholder AI message
+                this.messages.push({
+                    role: 'assistant',
+                    content: '<div class="typing-indicator"><span></span><span></span><span></span></div>'
+                });
+                this.renderHistory();
+
+                // Start polling until generation completes
+                this._generationPollTimer = setInterval(async () => {
+                    try {
+                        const check = await API.get(`/api/chat/sessions/${this.activeSessionId}/generating`);
+                        if (!check || !check.generating) {
+                            clearInterval(this._generationPollTimer);
+                            this._generationPollTimer = null;
+                            await this.loadMessages();
+                        }
+                    } catch (e) {
+                        clearInterval(this._generationPollTimer);
+                        this._generationPollTimer = null;
+                    }
+                }, 2000);
+            }
+        } catch (e) {
+            console.error("Error checking generation status:", e);
         }
     },
 
@@ -870,6 +908,9 @@ window.ChatView = {
             `;
         }).join('');
 
+        // Snapshot scroll position before re-rendering
+        const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
+
         container.innerHTML = html;
         this.updateTokenUsageIndicator();
         this.renderMath();
@@ -882,14 +923,19 @@ window.ChatView = {
                 this.scrollToBottom();
             }
         } else {
-            this.scrollToBottom();
+            // Only auto-scroll if user hasn't manually scrolled up
+            if (!this.userHasScrolledUp && wasAtBottom) {
+                this.scrollToBottom();
+            }
         }
 
-        // Attach scroll listener to save scroll position
+        // Attach scroll listener to save position & detect manual scroll-up
         if (!container.dataset.hasScrollListener) {
             container.addEventListener('scroll', () => {
                 if (this.activeSessionId) {
                     sessionStorage.setItem(`chatScrollPos_${this.activeSessionId}`, container.scrollTop);
+                    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
+                    this.userHasScrolledUp = !atBottom;
                 }
             });
             container.dataset.hasScrollListener = "true";
@@ -981,6 +1027,7 @@ window.ChatView = {
 
     async regenerateAiResponse() {
         if (!this.activeSessionId) return;
+        this.userHasScrolledUp = false; // Reset scroll lock on user action
 
         // Set last AI message bubble to typing indicator
         const aiMsgIndex = this.messages.length - 1;
@@ -1009,10 +1056,17 @@ window.ChatView = {
             if (sendBtn) sendBtn.disabled = false;
             if (input) input.disabled = false;
             if (aiMsgIndex >= 0) {
-                const hasError = this.messages[aiMsgIndex].content.includes("⚠️") || this.messages[aiMsgIndex].content.startsWith("*");
-                if (!hasError) {
-                    await this.loadMessages();
+                const hasError = this.messages[aiMsgIndex].content.includes("⚠️") || /^\*.*(?:Erreur|Error).*\*$/.test(this.messages[aiMsgIndex].content.trim());
+                if (hasError) {
+                    // Persist error message to DB so it survives F5
+                    try {
+                        await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                            content: this.messages[aiMsgIndex].content,
+                            role: "assistant"
+                        });
+                    } catch (e) { console.error("Failed to persist error:", e); }
                 }
+                await this.loadMessages();
             } else {
                 await this.loadMessages();
             }
@@ -1161,6 +1215,7 @@ window.ChatView = {
 
     async sendMessage() {
         if (!this.activeSessionId) return;
+        this.userHasScrolledUp = false; // Reset scroll lock on user action
 
         const input = document.getElementById('chatInput');
         const text = input.value.trim();
@@ -1203,16 +1258,23 @@ window.ChatView = {
             input.disabled = false;
             input.focus();
             
-            const hasError = this.messages[aiMsgIndex].content.includes("⚠️") || this.messages[aiMsgIndex].content.startsWith("*");
+            const hasError = this.messages[aiMsgIndex].content.includes("⚠️") || /^\*.*(?:Erreur|Error).*\*$/.test(this.messages[aiMsgIndex].content.trim());
+            
+            if (hasError) {
+                // Persist error message to DB so it survives F5
+                try {
+                    await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                        content: this.messages[aiMsgIndex].content,
+                        role: "assistant"
+                    });
+                } catch (e) { console.error("Failed to persist error:", e); }
+            }
             
             // Only reload sessions if it's the first exchange to get the auto-generated title
             if (is_first_exchange) {
                 await this.loadSessions(hasError);
             } else {
-                // If it's not the first exchange, just reload messages but preserve the error state if any
-                if (!hasError) {
-                    await this.loadMessages();
-                }
+                await this.loadMessages();
             }
         }
     },
@@ -1271,8 +1333,8 @@ window.ChatView = {
                 // Detect if user has scrolled up before updating content and scrolling
                 const container = document.getElementById('chatMessages');
                 if (container && !this.userHasScrolledUp) {
-                    // If the user is more than 50px away from the bottom, they scrolled up
-                    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 50;
+                    // If the user is more than 150px away from the bottom, they scrolled up
+                    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 150;
                     if (!isAtBottom) {
                         this.userHasScrolledUp = true;
                     }

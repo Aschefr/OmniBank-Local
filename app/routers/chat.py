@@ -14,8 +14,13 @@ from app.models import GlobalConfig, Transaction, Account, Category, RecurrenceT
 from app.services.finance_engine import calculate_balances, get_net_worth
 from app.schemas.api_schemas import ChatSessionCreate, ChatSessionUpdate, ChatContextUpdate, ChatSendMessage, ChatMessageUpdate
 
+import logging
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+logger = logging.getLogger(__name__)
+
+# In-memory tracker: which sessions currently have an AI generation in progress
+_generating_sessions = set()
 
 
 # ─── Shared Ollama helpers (importable by other routers) ──────────────────────
@@ -261,7 +266,417 @@ def get_net_worth_history_tool(db: Session, months: int = 12) -> dict:
         "net_worth_history": result_points
     }
 
+def get_envelopes_impact_tool(db: Session, amount: float, budget_id: int = None) -> dict:
+    from app.models import Budget, BudgetAllocation, Transaction
+    amount = float(amount)
+    
+    # 1. Calculate impact on global Left to Live
+    from app.services.finance_engine import calculate_rest_to_live, predict_next_paycheck
+    from datetime import date
+    today = date.today()
+    paycheck = predict_next_paycheck(db)
+    next_pay_date = paycheck["date"]
+    current_rtl = calculate_rest_to_live(db, today, next_pay_date)
+    new_rtl = round(current_rtl - amount, 2)
+    
+    result = {
+        "current_left_to_live_euros": current_rtl,
+        "simulated_left_to_live_euros": new_rtl,
+        "is_left_to_live_overdrawn": new_rtl < 0,
+        "envelope_impact": None
+    }
+    
+    # 2. Calculate impact on specific budget envelope if provided
+    if budget_id is not None:
+        try:
+            budget_id = int(budget_id)
+            b = db.query(Budget).filter(Budget.id == budget_id).first()
+            if b:
+                # Calculate current spent
+                allocs = db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == b.id).all()
+                alloc_balance = sum(a.amount for a in allocs)
+                txs = db.query(Transaction).filter(Transaction.budget_id == b.id).all()
+                tx_income = sum(abs(t.amount) for t in txs if t.type == "income")
+                tx_expenses = sum(abs(t.amount) for t in txs if t.type != "income")
+                current_spent = round(tx_expenses - tx_income - alloc_balance, 2)
+                
+                remaining = round(b.budget_amount - current_spent, 2)
+                new_remaining = round(remaining - amount, 2)
+                
+                result["envelope_impact"] = {
+                    "budget_name": b.name,
+                    "budget_limit_euros": b.budget_amount,
+                    "current_spent_euros": current_spent,
+                    "current_remaining_euros": remaining,
+                    "simulated_remaining_euros": new_remaining,
+                    "is_envelope_overspent": new_remaining < 0
+                }
+        except Exception as e:
+            result["error"] = str(e)
+            
+    return result
+
+def suggest_transaction_category_tool(db: Session, description: str) -> dict:
+    from app.models import Transaction
+    if not description:
+        return {"suggested_category": None, "confidence": "none"}
+        
+    # Search history for exact or similar transaction description
+    txs = db.query(Transaction.category, Transaction.description).filter(
+        Transaction.category.isnot(None),
+        Transaction.category != ""
+    ).all()
+    
+    # Simple match
+    desc_lower = description.lower()
+    matches = {}
+    for tx in txs:
+        if tx.description and tx.description.lower() in desc_lower or desc_lower in tx.description.lower():
+            matches[tx.category] = matches.get(tx.category, 0) + 1
+            
+    if matches:
+        best_cat = max(matches, key=matches.get)
+        return {"suggested_category": best_cat, "confidence": "high" if matches[best_cat] > 2 else "medium"}
+        
+    return {"suggested_category": None, "confidence": "low"}
+
+def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
+    from datetime import date, timedelta
+    from app.services.finance_engine import calculate_balances, get_main_account
+    from app.models import RecurrenceTemplate, Transaction
+    
+    try:
+        days = int(days)
+    except:
+        days = 30
+        
+    today = date.today()
+    end_date = today + timedelta(days=days)
+    
+    account = get_main_account(db)
+    if not account:
+        return {"error": "No checking account found"}
+        
+    # Current reconciled balance
+    balances = calculate_balances(db, only_reconciled=True)
+    current_balance = balances.get(account.id, 0.0)
+    
+    # Load all recurrence templates
+    templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
+    
+    # Project chronologically day-by-day
+    points = [{"date": today.isoformat(), "projected_balance_euros": current_balance}]
+    running_balance = current_balance
+    
+    # Calculate simple historical average daily spending
+    thirty_days_ago = today - timedelta(days=30)
+    past_txs = db.query(Transaction).filter(
+        Transaction.from_account_id == account.id,
+        Transaction.to_account_id.is_(None),
+        Transaction.date_operation >= thirty_days_ago,
+        Transaction.date_operation <= today
+    ).all()
+    total_spent_30d = sum(t.amount for t in past_txs)
+    daily_avg_spend = round(total_spent_30d / 30.0, 2)
+    
+    sim_date = today
+    while sim_date < end_date:
+        sim_date += timedelta(days=1)
+        day_diff = (sim_date - today).days
+        
+        # Deduct daily average spend
+        running_balance -= daily_avg_spend
+        
+        # Apply recurrence templates
+        for t in templates:
+            if t.frequency == "Monthly" and t.day_of_month == sim_date.day:
+                if t.type == "income":
+                    running_balance += t.amount
+                elif t.from_account_id == account.id:
+                    running_balance -= t.amount
+                    
+        points.append({
+            "date": sim_date.isoformat(),
+            "projected_balance_euros": round(running_balance, 2)
+        })
+        
+    return {
+        "checking_account": account.name,
+        "daily_average_variable_spend_euros": daily_avg_spend,
+        "forecast_days": days,
+        "history": points
+    }
+
+def detect_anomalies_and_subscriptions_tool(db: Session) -> dict:
+    from app.models import Transaction
+    from datetime import date, timedelta
+    from collections import defaultdict
+    import statistics
+    
+    today = date.today()
+    six_months_ago = today - timedelta(days=180)
+    
+    txs = db.query(Transaction).filter(
+        Transaction.date_operation >= six_months_ago,
+        Transaction.date_operation <= today
+    ).all()
+    
+    # 1. Subscription detection (recurring values at recurring intervals)
+    candidates = defaultdict(list)
+    for t in txs:
+        if t.type in ("expense_var", "expense_fixed") and t.amount > 5.0:
+            candidates[t.description.lower()].append(t)
+            
+    detected_subs = []
+    for desc, items in candidates.items():
+        if len(items) >= 3:
+            # Check if amounts are very close
+            amounts = [i.amount for i in items]
+            if len(set(amounts)) == 1 or (statistics.stdev(amounts) / statistics.mean(amounts) < 0.05):
+                # Check intervals
+                dates = sorted([i.date_operation for i in items])
+                intervals = [(dates[i] - dates[i-1]).days for i in range(1, len(dates))]
+                avg_interval = statistics.mean(intervals) if intervals else 0
+                if 25 <= avg_interval <= 35: # Monthly sub
+                    detected_subs.append({
+                        "description": items[0].description,
+                        "amount_euros": items[0].amount,
+                        "interval_days": round(avg_interval, 1),
+                        "frequency": "Monthly"
+                    })
+                    
+    # 2. Duplicate detection (same date, same description, same amount)
+    duplicates = []
+    seen = {}
+    for t in txs:
+        if t.type in ("expense_var", "expense_fixed"):
+            key = (t.date_operation, t.description.lower(), t.amount)
+            if key in seen:
+                duplicates.append({
+                    "original_transaction_id": seen[key].id,
+                    "duplicate_transaction_id": t.id,
+                    "date": t.date_operation.isoformat(),
+                    "description": t.description,
+                    "amount_euros": t.amount
+                })
+            else:
+                seen[key] = t
+                
+    return {
+        "detected_subscriptions": detected_subs,
+        "potential_duplicate_charges": duplicates
+    }
+
+def apply_transaction_correction_tool(db: Session, transaction_id: int, category: str = None, description: str = None, amount: float = None, type: str = None) -> dict:
+    from app.models import Transaction, Category
+    tx = db.query(Transaction).filter(Transaction.id == int(transaction_id)).first()
+    if not tx:
+        return {"success": False, "error": "Transaction not found"}
+        
+    changes = {}
+    if category is not None:
+        # Check if category exists or create it
+        cat_exists = db.query(Category).filter(Category.name == category).first()
+        if not cat_exists:
+            new_cat = Category(name=category, type=type or tx.type or "expense_var")
+            db.add(new_cat)
+            db.commit()
+        tx.category = category
+        changes["category"] = category
+        
+    if description is not None:
+        tx.description = description
+        changes["description"] = description
+        
+    if amount is not None:
+        tx.amount = float(amount)
+        changes["amount"] = float(amount)
+        
+    if type is not None:
+        tx.type = type
+        changes["type"] = type
+        
+    if changes:
+        db.commit()
+        return {"success": True, "transaction_id": transaction_id, "updated_fields": changes}
+        
+    return {"success": False, "error": "No fields to update"}
+
+def get_saving_recommendations_tool(db: Session) -> dict:
+    from app.models import Transaction
+    from datetime import date, timedelta
+    
+    today = date.today()
+    six_months_ago = today - timedelta(days=180)
+    txs = db.query(Transaction).filter(
+        Transaction.date_operation >= six_months_ago,
+        Transaction.date_operation <= today
+    ).all()
+    
+    total_income = sum(t.amount for t in txs if t.type == "income")
+    total_fixed = sum(t.amount for t in txs if t.type == "expense_fixed")
+    total_var = sum(t.amount for t in txs if t.type == "expense_var")
+    
+    monthly_income = round(total_income / 6.0, 2)
+    monthly_fixed = round(total_fixed / 6.0, 2)
+    monthly_var = round(total_var / 6.0, 2)
+    
+    savings = round(monthly_income - monthly_fixed - monthly_var, 2)
+    
+    # 50/30/20 standard percentages
+    needs_pct = round((monthly_fixed / monthly_income * 100) if monthly_income > 0 else 0, 1)
+    wants_pct = round((monthly_var / monthly_income * 100) if monthly_income > 0 else 0, 1)
+    savings_pct = round((savings / monthly_income * 100) if monthly_income > 0 else 0, 1)
+    
+    return {
+        "monthly_averages": {
+            "income_euros": monthly_income,
+            "needs_fixed_euros": monthly_fixed,
+            "wants_variable_euros": monthly_var,
+            "net_savings_euros": savings
+        },
+        "ratio_50_30_20_actual": {
+            "needs_percent": needs_pct,
+            "wants_percent": wants_pct,
+            "savings_percent": savings_pct
+        },
+        "recommendation": "Augmenter l'épargne" if savings_pct < 20 else "Structure saine et équilibrée"
+    }
+
+def search_similar_past_spends_tool(db: Session, keyword: str) -> dict:
+    from app.models import Transaction
+    from datetime import date, timedelta
+    
+    today = date.today()
+    one_year_ago_start = today - timedelta(days=400)
+    one_year_ago_end = today - timedelta(days=330)
+    
+    txs = db.query(Transaction).filter(
+        Transaction.date_operation >= one_year_ago_start,
+        Transaction.date_operation <= one_year_ago_end,
+        Transaction.description.ilike(f"%{keyword}%")
+    ).all()
+    
+    return {
+        "keyword": keyword,
+        "historical_period": f"{one_year_ago_start.isoformat()} to {one_year_ago_end.isoformat()}",
+        "transactions": [
+            {
+                "date": t.date_operation.isoformat(),
+                "description": t.description,
+                "amount_euros": t.amount,
+                "category": t.category
+            } for t in txs
+        ]
+    }
+
+def generate_csv_export_link_tool(db: Session, category: str = None, start_date: str = None, end_date: str = None, type: str = None) -> dict:
+    import uuid
+    import pandas as pd
+    from app.models import Transaction
+    from datetime import date
+    
+    query = db.query(Transaction)
+    if category:
+        query = query.filter(Transaction.category == category)
+    if start_date:
+        query = query.filter(Transaction.date_operation >= date.fromisoformat(start_date))
+    if end_date:
+        query = query.filter(Transaction.date_operation <= date.fromisoformat(end_date))
+    if type:
+        query = query.filter(Transaction.type == type)
+        
+    txs = query.all()
+    
+    # Build dataframe
+    records = []
+    for t in txs:
+        records.append({
+            "Date": t.date_operation.isoformat() if t.date_operation else "",
+            "Description": t.description,
+            "Montant": t.amount,
+            "Type": t.type,
+            "Catégorie": t.category
+        })
+        
+    if not records:
+        return {"error": "Aucune opération trouvée avec ces critères."}
+        
+    filename = f"export_{uuid.uuid4().hex[:8]}.csv"
+    filepath = f"static/{filename}"
+    df = pd.DataFrame(records)
+    df.to_csv(filepath, index=False, sep=";", encoding="utf-8-sig")
+    
+    return {
+        "download_url": f"/static/{filename}",
+        "matching_records_count": len(records)
+    }
+
+def simulate_loan_amortization_tool(db: Session, principal: float, rate_percent: float, years: int) -> dict:
+    principal = float(principal)
+    rate_percent = float(rate_percent)
+    years = int(years)
+    
+    monthly_rate = (rate_percent / 100.0) / 12.0
+    months = years * 12
+    
+    if monthly_rate == 0:
+        monthly_payment = principal / months
+    else:
+        monthly_payment = principal * (monthly_rate * (1 + monthly_rate) ** months) / (((1 + monthly_rate) ** months) - 1)
+        
+    total_paid = monthly_payment * months
+    total_interest = total_paid - principal
+    
+    # Impact on left to live
+    from app.services.finance_engine import calculate_rest_to_live, predict_next_paycheck
+    from datetime import date
+    today = date.today()
+    paycheck = predict_next_paycheck(db)
+    next_pay_date = paycheck["date"]
+    current_rtl = calculate_rest_to_live(db, today, next_pay_date)
+    new_rtl = round(current_rtl - monthly_payment, 2)
+    
+    return {
+        "principal_euros": principal,
+        "annual_rate_percent": rate_percent,
+        "duration_years": years,
+        "monthly_payment_euros": round(monthly_payment, 2),
+        "total_interest_euros": round(total_interest, 2),
+        "total_paid_euros": round(total_paid, 2),
+        "current_rest_to_live_euros": current_rtl,
+        "projected_rest_to_live_euros": new_rtl
+    }
+
+def get_financial_summary_tool(db: Session) -> dict:
+    from app.services.finance_engine import calculate_rest_to_live, predict_next_paycheck
+    from datetime import date
+    
+    today = date.today()
+    paycheck = predict_next_paycheck(db)
+    next_pay_date = paycheck["date"]
+    
+    rest_to_live = calculate_rest_to_live(db, today, next_pay_date)
+    
+    return {
+        "current_rest_to_live_euros": rest_to_live,
+        "next_predicted_paycheck": {
+            "date": next_pay_date.isoformat() if isinstance(next_pay_date, date) else str(next_pay_date),
+            "amount": paycheck["amount"],
+            "is_override": paycheck["is_override"],
+            "logical_period": paycheck["logical_period"]
+        }
+    }
+
 TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_financial_summary",
+            "description": "Get the current 'Reste à vivre' (left to live) amount and the next predicted paycheck details (amount, date, logical period). Use this when the user asks about their remaining budget, budget difficulties, or paycheck/income projections.",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
     {
         "type": "function",
         "function": {
@@ -386,6 +801,128 @@ TOOLS = [
                 }
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_envelopes_impact",
+            "description": "Simulate the impact of a planned purchase (amount) on user budget envelopes or savings. Returns remaining capacity.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "amount": {"type": "number", "description": "The cost of the simulated purchase."},
+                    "budget_id": {"type": "integer", "description": "Optional budget envelope ID to test."}
+                },
+                "required": ["amount"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "suggest_transaction_category",
+            "description": "Suggest the most likely category for a transaction description based on existing database history.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "description": {"type": "string", "description": "Transaction description (e.g. 'Amazon', 'LIDL')."}
+                },
+                "required": ["description"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "forecast_balances_history",
+            "description": "Forecast account balances and left-to-live trend over next 30, 60, or 90 days using recurring transactions and average historical spend.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days": {"type": "integer", "description": "Number of days to forecast (30, 60, 90). Default is 30."}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "detect_anomalies_and_subscriptions",
+            "description": "Detect possible active subscriptions, duplicate charges, or suspicious expense spikes in recent months.",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "apply_transaction_correction",
+            "description": "Directly modify a transaction category, date, or amount in the database upon user request.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "transaction_id": {"type": "integer", "description": "The ID of the transaction to update."},
+                    "category": {"type": "string", "description": "New category name (optional)."},
+                    "description": {"type": "string", "description": "New description (optional)."},
+                    "amount": {"type": "number", "description": "New amount (optional)."},
+                    "type": {"type": "string", "description": "New type: expense_var, expense_fixed, income (optional)."}
+                },
+                "required": ["transaction_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_saving_recommendations",
+            "description": "Analyze financial history of last 6 months to suggest a tailored saving rule (e.g. 50/30/20 rule adaptation).",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_similar_past_spends",
+            "description": "Search database for similar seasonal expenditures from the previous year (e.g. comparing holiday, heating, or gift spends).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "keyword": {"type": "string", "description": "Description keyword to look for in past year transactions."}
+                },
+                "required": ["keyword"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_csv_export_link",
+            "description": "Create a temporary CSV file with filtered transactions matching user criteria, and return the download URL.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string", "description": "Optional category filter."},
+                    "start_date": {"type": "string", "description": "Optional start date filter (YYYY-MM-DD)."},
+                    "end_date": {"type": "string", "description": "Optional end date filter (YYYY-MM-DD)."},
+                    "type": {"type": "string", "description": "Optional transaction type filter."}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "simulate_loan_amortization",
+            "description": "Calculate loan monthly payments, total interest, and project its impact on the user's Reste à Vivre.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "principal": {"type": "number", "description": "The amount to borrow."},
+                    "rate_percent": {"type": "number", "description": "Annual interest rate (e.g. 3.5)."},
+                    "years": {"type": "integer", "description": "Duration of loan in years."}
+                },
+                "required": ["principal", "rate_percent", "years"]
+            }
+        }
     }
 ]
 
@@ -416,6 +953,8 @@ Your goal is to scan the user's transaction history for data entry inconsistenci
 Your goal is to help the user understand their financial situation, track their expenses, manage budgets, and make smart saving decisions.
 CRITICAL: Do NOT ask the user for permission to consult their budgets, accounts, or recurrences, and do NOT tell the user that you need to consult them. Instead, IMMEDIATELY call the appropriate tools in your very first step to retrieve the necessary data.
 Always use the tools provided to query the database first before answering. Do not guess, make up numbers, or apologize if you don't know without checking.
+- Note that you are also the author of the proactive financial health reports (bilans périodiques proactifs) sent as notifications to the user (starting with status emojis 🟢, 🟡, 🔴). If the user asks about or wants to deepen a financial report they received, acknowledge that you analyzed and wrote it, and immediately use the tools (especially `detect_anomalies_and_subscriptions`, `get_financial_summary`, and `forecast_balances_history`) to double-check their current status and explain your reasoning in detail.
+- Call `get_financial_summary` to retrieve the current Reste à Vivre (left to live) amount and the next predicted/scheduled paycheck details. ALWAYS call this tool first if the user asks about remaining budget, financial difficulties for the upcoming period, or paycheck projections. Do NOT assume a zero or extremely low income for future months without checking the predicted paycheck amount first.
 - Call `get_account_balances` to check bank account/savings balances.
 - Call `get_spending_analytics` to calculate total income/expense or spending per category over a date range. Do not read raw transactions to sum them up yourself.
 - Call `search_transactions` to find specific transactions (by keyword, category, date).
@@ -437,10 +976,10 @@ RECONCILIATION & FUTURE TRANSACTIONS RULE:
     cat_list = ", ".join(f'"{c}"' for c in (categories or []))
     prompt += f"""
 
-IMPORTANT: If you notice an anomaly on a transaction (wrong category, inconsistent date, etc.) and you have its "id", you CAN propose a correction.
-To do this, append this single-line JSON block immediately at the end of your explanation on its own line:
-{{"id": 123, "updates": {{"category": "New Category"}}}}
+IMPORTANT: If you suggest correcting a transaction (re-categorizing, correcting a duplicate, modifying an anomaly, or executing `apply_transaction_correction` / `detect_anomalies_and_subscriptions`), you MUST append this single-line JSON block immediately at the end of your explanation on its own line:
+{{"id": 123, "updates": {{"category": "New Category", "description": "New description", "amount": -20.5}}}}
 Replace 123 with the real transaction ID, and specify in "updates" the fields to modify.
+This JSON block will trigger an interactive human-in-the-loop review button in the UI for the user to confirm.
 EXISTING CATEGORIES (prefer these): {cat_list}
 If none fits, propose a short and precise new category name. Only propose one JSON action at a time."""
 
@@ -561,6 +1100,11 @@ async def delete_session(id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
+@router.get("/sessions/{id}/generating")
+async def is_session_generating(id: int):
+    """Check if an AI response is currently being generated for this session."""
+    return {"generating": id in _generating_sessions}
+
 @router.get("/sessions/{id}/messages")
 async def get_session_messages(id: int, db: Session = Depends(get_db)):
     session = db.query(ChatSession).filter(ChatSession.id == id).first()
@@ -617,7 +1161,7 @@ async def add_system_message(id: int, req: ChatSendMessage, db: Session = Depend
     session = db.query(ChatSession).filter(ChatSession.id == id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session non trouvée")
-    msg = ChatMessage(session_id=id, role=req.role if hasattr(req, 'role') else "assistant", content=req.content)
+    msg = ChatMessage(session_id=id, role=req.role or "assistant", content=req.content)
     db.add(msg)
     db.commit()
     return {"ok": True}
@@ -677,6 +1221,9 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
         
     async def generate_response():
         final_text = ""
+        _response_saved = False
+        _tools_meta = ""
+        _generating_sessions.add(id)
         try:
             async with httpx.AsyncClient() as client:
                 # 1. Call Ollama with tools (non-streaming first)
@@ -688,7 +1235,7 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
                     "options": options
                 }
                 
-                resp = await client.post(f"{url}/api/chat", json=payload, timeout=120.0)
+                resp = await client.post(f"{url}/api/chat", json=payload, timeout=httpx.Timeout(300.0, connect=10.0))
                 if resp.status_code != 200:
                     yield f"data: {json.dumps({'error': 'Ollama error: ' + str(resp.status_code)})}\n\n"
                     return
@@ -701,13 +1248,23 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
                     ollama_msgs.append(assistant_msg)
                     
                     tool_desc_map = {
+                        "get_financial_summary": "Analyse du reste à vivre et des prévisions de salaire...",
                         "get_net_worth": "Consultation du patrimoine net global...",
                         "get_account_balances": "Interrogation du solde des comptes...",
                         "search_transactions": "Recherche de transactions...",
                         "get_spending_analytics": "Calcul des statistiques de dépenses...",
                         "get_budgets_status": "Vérification de l'état des budgets...",
                         "get_recurrence_templates": "Examen des charges récurrentes...",
-                        "get_net_worth_history": "Analyse de l'historique du patrimoine..."
+                        "get_net_worth_history": "Analyse de l'historique du patrimoine...",
+                        "get_envelopes_impact": "Simulation de l'impact sur vos enveloppes budgétaires...",
+                        "suggest_transaction_category": "Recherche d'une suggestion de catégorie...",
+                        "forecast_balances_history": "Calcul des prévisions de solde...",
+                        "detect_anomalies_and_subscriptions": "Recherche d'abonnements et de doublons...",
+                        "apply_transaction_correction": "Application de la modification sur l'opération...",
+                        "get_saving_recommendations": "Génération de vos préconisations d'épargne...",
+                        "search_similar_past_spends": "Analyse comparative des dépenses passées...",
+                        "generate_csv_export_link": "Génération du lien de téléchargement CSV...",
+                        "simulate_loan_amortization": "Simulation d'amortissement de prêt..."
                     }
                     
                     for tool_call in assistant_msg["tool_calls"]:
@@ -720,7 +1277,9 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
                         await asyncio.sleep(1.0)
                         
                         tool_result = {}
-                        if fn_name == "get_net_worth":
+                        if fn_name == "get_financial_summary":
+                            tool_result = get_financial_summary_tool(db)
+                        elif fn_name == "get_net_worth":
                             tool_result = get_net_worth_tool(db)
                         elif fn_name == "get_account_balances":
                             tool_result = get_balances_tool(db)
@@ -747,6 +1306,41 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
                         elif fn_name == "get_net_worth_history":
                             mnths = fn_args.get("months", 12)
                             tool_result = get_net_worth_history_tool(db, mnths)
+                        elif fn_name == "get_envelopes_impact":
+                            amt = fn_args.get("amount")
+                            b_id = fn_args.get("budget_id")
+                            tool_result = get_envelopes_impact_tool(db, amt, b_id)
+                        elif fn_name == "suggest_transaction_category":
+                            desc = fn_args.get("description")
+                            tool_result = suggest_transaction_category_tool(db, desc)
+                        elif fn_name == "forecast_balances_history":
+                            dys = fn_args.get("days", 30)
+                            tool_result = forecast_balances_history_tool(db, dys)
+                        elif fn_name == "detect_anomalies_and_subscriptions":
+                            tool_result = detect_anomalies_and_subscriptions_tool(db)
+                        elif fn_name == "apply_transaction_correction":
+                            tx_id = fn_args.get("transaction_id")
+                            cat = fn_args.get("category")
+                            desc = fn_args.get("description")
+                            amt = fn_args.get("amount")
+                            tp = fn_args.get("type")
+                            tool_result = apply_transaction_correction_tool(db, tx_id, cat, desc, amt, tp)
+                        elif fn_name == "get_saving_recommendations":
+                            tool_result = get_saving_recommendations_tool(db)
+                        elif fn_name == "search_similar_past_spends":
+                            kw = fn_args.get("keyword")
+                            tool_result = search_similar_past_spends_tool(db, kw)
+                        elif fn_name == "generate_csv_export_link":
+                            cat = fn_args.get("category")
+                            s_date = fn_args.get("start_date")
+                            e_date = fn_args.get("end_date")
+                            tp = fn_args.get("type")
+                            tool_result = generate_csv_export_link_tool(db, cat, s_date, e_date, tp)
+                        elif fn_name == "simulate_loan_amortization":
+                            pr = fn_args.get("principal")
+                            rt = fn_args.get("rate_percent")
+                            yr = fn_args.get("years")
+                            tool_result = simulate_loan_amortization_tool(db, pr, rt, yr)
                         else:
                             tool_result = {"error": f"Tool '{fn_name}' is not supported or defined."}
                             
@@ -755,6 +1349,10 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
                             "name": fn_name,
                             "content": json.dumps(tool_result, ensure_ascii=False)
                         })
+
+                    # Precompute tools metadata for DB persistence
+                    fn_names = [tc["function"]["name"] for tc in assistant_msg["tool_calls"]]
+                    _tools_meta = f"<!-- TOOLS_USED: {','.join(fn_names)} -->\n"
                         
                     # 2. Stream final response with context
                     payload_stream = {
@@ -764,7 +1362,7 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
                         "options": options
                     }
                     
-                    async with client.stream("POST", f"{url}/api/chat", json=payload_stream, timeout=120.0) as stream_resp:
+                    async with client.stream("POST", f"{url}/api/chat", json=payload_stream, timeout=httpx.Timeout(300.0, connect=10.0)) as stream_resp:
                         if stream_resp.status_code != 200:
                             yield f"data: {json.dumps({'error': 'Ollama error: ' + str(stream_resp.status_code)})}\n\n"
                             return
@@ -813,11 +1411,12 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
                         empty_err = "Le modèle n'a pas fourni de réponse. Vérifiez votre configuration Ollama."
                         yield f"data: {json.dumps({'error': empty_err})}\n\n"
             
-            # Save assistant response to DB
+            # Save assistant response to DB (normal path — client still connected)
             if final_text:
-                bot_msg = ChatMessage(session_id=id, role="assistant", content=final_text)
+                bot_msg = ChatMessage(session_id=id, role="assistant", content=_tools_meta + final_text)
                 db.add(bot_msg)
                 db.commit()
+                _response_saved = True
                 
             # Calculate final token usage
             final_messages = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.asc()).all()
@@ -831,13 +1430,39 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
             
             if is_first_exchange:
                 background_tasks.add_task(generate_session_title, db, id, req.content, cfg)
+            
+            yield "data: [DONE]\n\n"
                 
         except Exception as e:
             import traceback
             traceback.print_exc()
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
             
-        yield "data: [DONE]\n\n"
+        finally:
+            # Guarantee: if the client disconnected mid-stream but Ollama already
+            # produced a response, persist it to DB and notify the user.
+            if final_text and not _response_saved:
+                try:
+                    bot_msg = ChatMessage(session_id=id, role="assistant", content=_tools_meta + final_text)
+                    db.add(bot_msg)
+                    db.commit()
+                    _response_saved = True
+                    logger.info(f"[Chat] Client disconnected mid-stream — AI response saved to DB for session {id}")
+                    
+                    # Create a notification so the user knows their AI response is ready
+                    from app.models import Notification
+                    notif = Notification(
+                        type="system",
+                        title="Réponse IA disponible 💬",
+                        content=f"Votre conseiller IA a terminé sa réponse pendant votre absence. Retrouvez-la dans votre conversation.",
+                        link_data=json.dumps({"session_id": id}),
+                        is_read=False
+                    )
+                    db.add(notif)
+                    db.commit()
+                except Exception as save_err:
+                    logger.error(f"[Chat] Failed to persist AI response after client disconnect: {save_err}")
+            _generating_sessions.discard(id)
         
     return StreamingResponse(generate_response(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"})
 

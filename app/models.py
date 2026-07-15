@@ -155,4 +155,17 @@ class ChatMessage(Base):
     session = relationship("ChatSession", back_populates="messages")
 
 
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    type = Column(String)  # 'system' or 'ai_report'
+    title = Column(String)
+    content = Column(Text)
+    detailed_content = Column(Text, nullable=True)
+    link_data = Column(Text, nullable=True)  # JSON field containing click action metadata (e.g. {"session_id": 123})
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+
 

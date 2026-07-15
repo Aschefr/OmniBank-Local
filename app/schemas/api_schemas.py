@@ -158,6 +158,7 @@ class ChatContextUpdate(BaseModel):
 class ChatSendMessage(BaseModel):
     content: str
     lang: str = "fr"
+    role: Optional[str] = None
 
 class ChatMessageUpdate(BaseModel):
     content: str

@@ -63,6 +63,25 @@
                     </button>
                     <div id="userSwitcherMenu" class="user-switcher-menu" style="display:none;"></div>
                 </div>
+                <!-- Notification Bell & Dropdown -->
+                <div class="notifications-dropdown" style="position: relative; display: inline-block;">
+                    <button id="notifBellBtn" data-i18n-title="notif_title_notifications" title="Notifications" style="font-size:16px; line-height:1; position: relative;">
+                        🔔
+                        <span id="notifCountBadge" style="display: none; position: absolute; top: -4px; right: -4px; background: var(--accent); color: white; font-size: 8.5px; font-weight: 700; padding: 2px 4.5px; border-radius: 50%; line-height: 1;">0</span>
+                    </button>
+                    <div id="notifMenu" style="display:none; position:absolute; top:100%; right:0; margin-top:8px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; box-shadow:var(--shadow-lg); z-index:10000; width:450px; overflow:hidden; font-size:13px; color:var(--text-main);">
+                        <div style="padding:12px 16px; border-bottom:1px solid var(--border-color); font-weight:600; display:flex; justify-content:space-between; align-items:center; background:var(--bg-base);">
+                            <span data-i18n="notif_title_notifications">Notifications</span>
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <a href="#" onclick="event.preventDefault(); window.app.markAllNotifsRead();" class="notif-action-btn" style="font-size:11px; color:var(--accent); text-decoration:none; font-weight:500; cursor:pointer; white-space:nowrap;" data-i18n="notif_btn_mark_all_read">Tout marquer comme lu</a>
+                                <span id="notifTotalLabel" style="font-size:11px; color:var(--text-muted); font-weight:normal;">0</span>
+                            </div>
+                        </div>
+                        <div id="notifListContainer" style="max-height:400px; overflow-y:auto; display:flex; flex-direction:column;">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+                </div>
                 <button id="compactToggle" data-i18n-title="tooltip_compact_mode" title="Affichage compact" style="font-size:15px; line-height:1;"><svg id="compactIcon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect y="2" width="16" height="2.5" rx="1"/><rect y="7" width="16" height="2.5" rx="1"/><rect y="12" width="16" height="2.5" rx="1"/></svg></button>
                 <button id="privacyToggle" data-i18n-title="tooltip_hide_amounts" title="Masquer les montants">👁️</button>
                 <button id="themeToggle" data-i18n-title="tooltip_change_theme" title="Changer le thème">🌓</button>
