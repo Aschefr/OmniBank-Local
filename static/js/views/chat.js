@@ -998,8 +998,12 @@ window.ChatView = {
 
         this.editingMsgId = null;
         
-        // Put placeholder at the end of messages for generation streaming
-        this.messages = this.messages.filter(m => m.id !== msgId); // Optimistically clear rest
+        // Truncate messages starting from the edited message index to match backend logic
+        const msgIndex = this.messages.findIndex(m => m.id === msgId);
+        if (msgIndex !== -1) {
+            this.messages = this.messages.slice(0, msgIndex);
+        }
+        
         this.messages.push({ role: 'user', content: newContent });
         this.messages.push({ role: 'assistant', content: '<div class="typing-indicator"><span></span><span></span><span></span></div>' });
         const aiMsgIndex = this.messages.length - 1;
