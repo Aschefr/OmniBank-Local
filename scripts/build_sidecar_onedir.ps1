@@ -28,6 +28,7 @@ if (-not $SkipBuild) {
         --add-data "static;static" `
         --add-data "app;app" `
         --add-data "package.json;." `
+        --add-data "CHANGELOG.md;." `
         --hidden-import "uvicorn" `
         --hidden-import "uvicorn.config" `
         --hidden-import "uvicorn.main" `

@@ -1066,6 +1066,11 @@ def test_quarterly_and_semiannual_recurrences():
 
 
 def test_configurable_rolling_window_recurrences():
+    from datetime import date
+    today = date.today()
+    # Use current month as seed so fast-forward doesn't inflate count
+    seed_date = f"{today.year}-{today.month:02d}-15"
+
     # 1. Set config to 3 months
     res_cfg = client.post("/api/config/", json={"recurrence_generation_months": "3"})
     assert res_cfg.status_code == 200
@@ -1075,7 +1080,7 @@ def test_configurable_rolling_window_recurrences():
         "amount": 50.0,
         "description": "Configurable Rolling Test",
         "frequency": "Monthly",
-        "start_date": "2026-01-01",
+        "start_date": seed_date,
         "category": "Abonnement",
         "type": "expense_fixed",
         "is_active": True,
@@ -1085,10 +1090,10 @@ def test_configurable_rolling_window_recurrences():
     assert res_tpl.status_code == 200
     tpl_id = res_tpl.json()["id"]
 
-    # 3. Add first instance in January
+    # 3. Add first instance in current month
     client.post("/api/transactions/", json={
-        "date_saisie": "2026-01-15",
-        "date_operation": "2026-01-15",
+        "date_saisie": seed_date,
+        "date_operation": seed_date,
         "description": "Configurable Rolling Test",
         "amount": 50.0,
         "type": "expense_fixed",
@@ -1105,6 +1110,7 @@ def test_configurable_rolling_window_recurrences():
     # Fetch generated transactions
     res_txs = client.get("/api/transactions/?limit=10000")
     txs_3 = [t for t in res_txs.json() if t["recurrence_id"] == tpl_id]
+    # With seed in current month + 3-month window: seed + up to 3 generated = max 4
     assert len(txs_3) <= 4
 
     # 5. Now update config to 6 months
