@@ -329,7 +329,7 @@ def predict_next_paycheck(db: Session):
             history_records.append({
                 "date": target_date.isoformat(),
                 "amount": 0.0,
-                "description": "Priode force",
+                "description": "Période forcée",
                 "is_override": True,
                 "logical_period": period_str
             })

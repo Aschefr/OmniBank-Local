@@ -666,12 +666,12 @@ window.RecurrenceView = {
                 if (monthTx.length > 0) {
                     // Use the first transaction of the month for the segment
                     const tx = monthTx[0];
-                    const isReconciled = tx.reconciliation_date != null;
                     const isSkipped = tx.is_skipped === true || tx.is_skipped === 'true';
+                    const isReconciled = tx.reconciliation_date != null && !isSkipped;
                     
                     let segmentClass = 'gantt-segment-pending';
-                    if (isReconciled) segmentClass = 'gantt-segment-reconciled';
-                    else if (isSkipped) segmentClass = 'gantt-segment-skipped';
+                    if (isSkipped) segmentClass = 'gantt-segment-skipped';
+                    else if (isReconciled) segmentClass = 'gantt-segment-reconciled';
                     
                     const day = parseInt(tx.date_operation.split('T')[0].split('-')[2]);
                     
@@ -698,9 +698,27 @@ window.RecurrenceView = {
                     const tooltip = `${tx.description} — ${formattedDate}\n${formatCurrency(tx.amount)} • ${statusText}`;
                     
                     // Multiple transactions in same month: show count, plus stacked amount
-                    const labelBase = monthTx.length > 1 ? `${day}+${monthTx.length - 1}` : `${day}`;
+                    let labelDayStr = '';
+                    if (window.i18n.lang === 'en') {
+                        const getOrdinalSuffix = (d) => {
+                            if (d > 3 && d < 21) return 'th';
+                            switch (d % 10) {
+                                case 1:  return "st";
+                                case 2:  return "nd";
+                                case 3:  return "rd";
+                                default: return "th";
+                            }
+                        };
+                        labelDayStr = `${day}${getOrdinalSuffix(day)}`;
+                        if (monthTx.length > 1) {
+                            labelDayStr += `+${monthTx.length - 1}`;
+                        }
+                    } else {
+                        const labelBase = monthTx.length > 1 ? `${day}+${monthTx.length - 1}` : `${day}`;
+                        labelDayStr = `Le ${labelBase}`;
+                    }
                     const skipStyle = isSkipped ? 'text-decoration: line-through;' : '';
-                    const label = `<span style="${skipStyle}">Le ${labelBase}</span><span style="font-size: 8.5px; opacity: 0.95; font-weight: 600; ${skipStyle}">${formatCurrency(tx.amount)}</span>`;
+                    const label = `<span style="${skipStyle}">${labelDayStr}</span><span style="font-size: 8.5px; opacity: 0.95; font-weight: 600; ${skipStyle}">${formatCurrency(tx.amount)}</span>`;
                     
                     segmentsHtml += `<div class="gantt-segment ${segmentClass}" style="${borderRadius}" title="${tooltip}" data-tx-id="${tx.id}" data-template-id="${t.id}" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${t.id}, this)"><span class="gantt-segment-label">${label}</span></div>`;
                 } else {
@@ -787,8 +805,8 @@ window.RecurrenceView = {
         const tx = (this.allTransactions || []).find(t => t.id === txId);
         if (!tx) return;
         
-        const isReconciled = tx.reconciliation_date != null;
         const isSkipped = tx.is_skipped === true || tx.is_skipped === 'true';
+        const isReconciled = tx.reconciliation_date != null && !isSkipped;
         
         const datePart = tx.date_operation.split('T')[0];
         const formattedDate = datePart.split('-').reverse().join('/');
@@ -1080,8 +1098,8 @@ window.RecurrenceView = {
         
         instancesHtml += templateTx.map(tx => {
             const isModified = this.modifiedRows.has(tx.id);
-            const isReconciled = tx.reconciliation_date != null;
             const isSkipped = tx.is_skipped === true;
+            const isReconciled = tx.reconciliation_date != null && !isSkipped;
             
             const justPropagated = (this.lastPropagate && this.lastPropagate.txId === tx.id);
             
