@@ -57,7 +57,8 @@ from app.routers import (
     maintenance,
     org_users,
     license,
-    shared_mode
+    shared_mode,
+    notifications
 )
 
 app.include_router(transactions.router)
@@ -77,6 +78,8 @@ app.include_router(maintenance.router)
 app.include_router(org_users.router)
 app.include_router(license.router)
 app.include_router(shared_mode.router)
+app.include_router(notifications.router)
+
 
 
 @app.on_event("startup")
@@ -96,6 +99,33 @@ async def startup_init():
         logger.error(f"Failed to generate recurrences on startup: {e}")
     finally:
         db.close()
+        
+    # Check/Generate periodic AI financial report on startup in background
+    try:
+        from app.routers.notifications import generate_ai_report_task, _active_report_thread
+        import app.routers.notifications as notif_module
+        import threading
+        t = threading.Thread(target=generate_ai_report_task, args=(SessionLocal, False), daemon=True)
+        notif_module._active_report_thread = t
+        t.start()
+    except Exception as e:
+        logger.error(f"Failed to launch startup AI report task check: {e}")
+
+
+@app.on_event("shutdown")
+async def shutdown_cleanup():
+    """Signal background AI report thread to stop and wait for it to finish gracefully."""
+    import app.routers.notifications as notif_module
+    notif_module._shutdown_event.set()
+    t = notif_module._active_report_thread
+    if t and t.is_alive():
+        logger.info("[Shutdown] Waiting for AI report thread to finish (max 10s)...")
+        t.join(timeout=10)
+        if t.is_alive():
+            logger.warning("[Shutdown] AI report thread did not finish in time — proceeding with shutdown.")
+        else:
+            logger.info("[Shutdown] AI report thread finished cleanly.")
+
 
 
 # ── Cache-busting: compute a short hash from all local static assets ──────────

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.67] - 2026-07-15
+
+### Added
+- **Centre de Notifications 🔔** : Intégration d'un menu de notifications en haut à droite du header principal pour suivre l'actualité système et vos bilans de santé financière.
+- **Bilans Financiers Périodiques Proactifs (IA) 🧠** : Recevez des rapports automatiques rédigés en quelques phrases courtes par l'assistant IA Ollama. Les bilans incluent un indicateur visuel (🟢, 🟡, 🔴) calculé d'après votre reste à vivre actuel, vos charges régulières et vos anomalies.
+- **Approfondissement en 1 Clic 💬** : Une option dans les notifications de bilan vous permet d'ouvrir instantanément une nouvelle session de chat IA pré-remplie pour obtenir des explications approfondies sur votre bilan.
+- **Configuration & Respect de la vie privée ⚙️** : Les bilans périodiques sont **désactivés par défaut**. Vous pouvez les activer et choisir leur fréquence (quotidienne, hebdomadaire ou mensuelle) à tout moment dans l'onglet **Configuration (Configuration Ollama)**.
+
 ## [1.0.66] - 2026-07-14
 
 ### Added

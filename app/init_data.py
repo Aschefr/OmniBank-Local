@@ -197,6 +197,52 @@ def init_db():
                 pass
             conn.commit()
 
+        if schema_version < 8:
+            # Schema v8: Proactive periodic AI financial reports notifications
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS notifications (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        type TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        detailed_content TEXT,
+                        is_read BOOLEAN DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '8')"))
+            except Exception:
+                pass
+            conn.commit()
+
+        if schema_version < 9:
+            # Schema v9: Add detailed_content column to notifications table if created under schema v8
+            try:
+                conn.execute(text("ALTER TABLE notifications ADD COLUMN detailed_content TEXT"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '9')"))
+            except Exception:
+                pass
+            conn.commit()
+
+        if schema_version < 10:
+            # Schema v10: Add link_data column to notifications table
+            try:
+                conn.execute(text("ALTER TABLE notifications ADD COLUMN link_data TEXT"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '10')"))
+            except Exception:
+                pass
+            conn.commit()
+
 
 def wipe_db(db: Session):
     """Delete all data to start fresh."""
