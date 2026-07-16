@@ -293,7 +293,7 @@ class App {
 
             container.innerHTML = notifs.map(n => {
                 const dateStr = new Date(n.created_at).toLocaleString(window.i18n.lang || 'fr', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
-                const styleUnread = n.is_read ? 'opacity: 0.85; cursor: pointer;' : 'border-left: 4px solid var(--accent); background: rgba(99,102,241,0.02); font-weight: 500; cursor: pointer;';
+                const styleUnread = n.is_read ? 'opacity: 0.85; cursor: default; user-select: text;' : 'border-left: 4px solid var(--accent); background: rgba(99,102,241,0.02); font-weight: 500; cursor: pointer;';
                 const isReport = n.type === 'ai_report';
                 const clickCallback = `onclick="window.app.handleNotifClick(${n.id})"`;
                 return `
@@ -323,11 +323,7 @@ class App {
             await this.markNotifRead(id);
         }
 
-        // 2. Close notification menu
-        const notifMenu = document.getElementById('notifMenu');
-        if (notifMenu) notifMenu.style.display = 'none';
-
-        // 3. Process link redirection if present
+        // 2. Process link redirection if present (close menu only when navigating)
         if (n.link_data) {
             try {
                 const linkObj = JSON.parse(n.link_data);
@@ -336,6 +332,9 @@ class App {
                     if (window.ChatView) {
                         window.ChatView.activeSessionId = linkObj.session_id;
                     }
+                    // Close notification menu only when navigating away
+                    const notifMenu = document.getElementById('notifMenu');
+                    if (notifMenu) notifMenu.style.display = 'none';
                     this.loadView('chat');
                 }
             } catch (e) {
@@ -1122,6 +1121,10 @@ class App {
         if (window.AllOperationsView && window.AllOperationsView._vt) {
             window.AllOperationsView._vt.destroy();
             window.AllOperationsView._vt = null;
+        }
+        // Abort active chat stream only when switching AWAY from chat
+        if (viewName !== 'chat' && window.ChatView && window.ChatView.destroy) {
+            window.ChatView.destroy();
         }
         
         if (viewName === 'dashboard' && window.TimelineView) {
