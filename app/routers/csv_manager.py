@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 
 from app.database import get_db
 from app.models import Transaction, Account, Category
-from app.routers.csv_parser import heuristic_parse, check_reconciliation, check_import_alerts, extract_account_block
+from app.routers.csv_parser import heuristic_parse, check_reconciliation, check_import_alerts, extract_account_block, detect_multi_account_sections
 
 router = APIRouter(prefix="/api/csv", tags=["csv"])
 
@@ -322,10 +322,44 @@ def export_csv(db: Session = Depends(get_db), cols: str = Query(None, descriptio
     response.headers["Content-Disposition"] = "attachment; filename=export_omnibank.csv"
     return response
 
+@router.post("/inspect_file")
+async def inspect_file(
+    file: UploadFile = File(...),
+    account_id: int = Form(None),
+    db: Session = Depends(get_db)
+):
+    import pandas as pd
+    content = await file.read()
+    
+    if file.filename.endswith('.xlsx'):
+        df = pd.read_excel(BytesIO(content), dtype=str)
+    else:
+        try:
+            decoded = content.decode('utf-8-sig')
+        except:
+            decoded = content.decode('latin-1')
+        df = pd.read_csv(StringIO(decoded), sep=';', dtype=str)
+        if len(df.columns) == 1:
+            df = pd.read_csv(StringIO(decoded), sep=',', dtype=str)
+            
+    raw_data = [df.columns.tolist()] + df.values.tolist()
+    
+    account_name = ""
+    account_type = ""
+    if account_id:
+        acc = db.query(Account).filter(Account.id == account_id).first()
+        if acc:
+            account_name = acc.name
+            account_type = acc.type or ""
+            
+    res = detect_multi_account_sections(raw_data, account_name, account_type)
+    return res
+
 @router.post("/analyze_heuristic")
 async def analyze_heuristic(
     file: UploadFile = File(...),
     account_id: int = Form(None),
+    section_title: str = Form(None),
     db: Session = Depends(get_db)
 ):
     import pandas as pd
@@ -346,10 +380,11 @@ async def analyze_heuristic(
     raw_data = [df.columns.tolist()] + df.values.tolist()
     
     # Extract only the block matching selected account (if multi-account export)
-    if account_id:
+    if account_id or section_title:
         acc = db.query(Account).filter(Account.id == account_id).first()
-        if acc:
-            raw_data = extract_account_block(raw_data, acc.name, acc.type or "")
+        acc_name = acc.name if acc else ""
+        acc_type = (acc.type or "") if acc else ""
+        raw_data = extract_account_block(raw_data, acc_name, acc_type, explicit_section_title=section_title)
     
     import json
     try:
