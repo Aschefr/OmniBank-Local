@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 # In-memory tracker: which sessions currently have an AI generation in progress
 _generating_sessions = set()
+# Sessions that should create a notification when generation completes (user left the page)
+_notify_on_complete = set()
 
 
 # ─── Shared Ollama helpers (importable by other routers) ──────────────────────
@@ -361,38 +363,47 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     balances = calculate_balances(db, only_reconciled=True)
     current_balance = balances.get(account.id, 0.0)
     
-    # Load all recurrence templates
+    # Load all active recurrence templates
     templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
+    
+    # Calculate daily average VARIABLE spending only (exclude recurring charges)
+    # Recurring charges will be applied separately via templates to avoid double counting
+    thirty_days_ago = today - timedelta(days=30)
+    past_var_txs = db.query(Transaction).filter(
+        Transaction.from_account_id == account.id,
+        Transaction.to_account_id.is_(None),
+        Transaction.date_operation >= thirty_days_ago,
+        Transaction.date_operation <= today,
+        Transaction.recurrence_id.is_(None)  # Exclude recurring transactions
+    ).all()
+    total_var_spent_30d = sum(t.amount for t in past_var_txs)
+    daily_avg_var_spend = round(total_var_spent_30d / 30.0, 2)
     
     # Project chronologically day-by-day
     points = [{"date": today.isoformat(), "projected_balance_euros": current_balance}]
     running_balance = current_balance
     
-    # Calculate simple historical average daily spending
-    thirty_days_ago = today - timedelta(days=30)
-    past_txs = db.query(Transaction).filter(
-        Transaction.from_account_id == account.id,
-        Transaction.to_account_id.is_(None),
-        Transaction.date_operation >= thirty_days_ago,
-        Transaction.date_operation <= today
-    ).all()
-    total_spent_30d = sum(t.amount for t in past_txs)
-    daily_avg_spend = round(total_spent_30d / 30.0, 2)
-    
     sim_date = today
     while sim_date < end_date:
         sim_date += timedelta(days=1)
-        day_diff = (sim_date - today).days
         
-        # Deduct daily average spend
-        running_balance -= daily_avg_spend
+        # Deduct daily average VARIABLE spend only
+        running_balance -= daily_avg_var_spend
         
-        # Apply recurrence templates
+        # Apply recurrence templates (charges & income) on their scheduled day
         for t in templates:
+            applies = False
             if t.frequency == "Monthly" and t.day_of_month == sim_date.day:
+                applies = True
+            elif t.frequency == "Weekly" and sim_date.weekday() == (t.day_of_month % 7 if t.day_of_month else 0):
+                applies = True
+            elif t.frequency == "Bimonthly" and t.day_of_month == sim_date.day and sim_date.month % 2 == 0:
+                applies = True
+                
+            if applies:
                 if t.type == "income":
                     running_balance += t.amount
-                elif t.from_account_id == account.id:
+                elif t.from_account_id == account.id and t.type in ("expense_fixed", "expense_var"):
                     running_balance -= t.amount
                     
         points.append({
@@ -402,7 +413,8 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
         
     return {
         "checking_account": account.name,
-        "daily_average_variable_spend_euros": daily_avg_spend,
+        "daily_average_variable_spend_euros": daily_avg_var_spend,
+        "daily_average_note": "Variable spending only (non-recurring). Recurring charges applied separately via templates.",
         "forecast_days": days,
         "history": points
     }
@@ -1035,7 +1047,11 @@ NOW COMPACT THE TEXT ABOVE. Output ONLY the compacted result:"""
     except Exception as e:
         print(f"Error during context compaction: {e}")
 
-def generate_session_title(db: Session, session_id: int, user_message: str, cfg: dict):
+def generate_session_title(db_session_factory, session_id: int, user_message: str, cfg: dict):
+    """Generate a session title in a background task using its own DB session.
+    Uses a dedicated DB session to avoid conflicts with the streaming response,
+    and retries once after a delay if Ollama is busy."""
+    import time
     prompt = f"""Conversation first message: "{user_message}"
 
 === INSTRUCTIONS ===
@@ -1044,15 +1060,38 @@ Output ONLY the title, no quotation marks, no commentary, no intro, nothing else
 Write the title in the same language as the message.
 
 NOW GENERATE THE TITLE:"""
-    try:
-        title = call_ollama_sync(prompt, cfg)
-        if title:
-            session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-            if session:
-                session.title = title.strip().strip('"').strip("'")
-                db.commit()
-    except Exception as e:
-        print(f"Error generating session title: {e}")
+
+    max_attempts = 2
+    for attempt in range(1, max_attempts + 1):
+        db = None
+        try:
+            # Wait for the main Ollama response to likely finish before requesting title
+            if attempt == 1:
+                time.sleep(3)
+            else:
+                time.sleep(10)
+
+            title = call_ollama_sync(prompt, cfg)
+            if title:
+                clean_title = title.strip().strip('"').strip("'").split("\n")[0].strip()
+                if clean_title:
+                    db = db_session_factory()
+                    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+                    if session:
+                        session.title = clean_title
+                        db.commit()
+                        print(f"[Chat] Auto-title for session {session_id}: {clean_title}")
+                    return  # Success
+        except Exception as e:
+            print(f"[Chat] Title generation attempt {attempt}/{max_attempts} failed for session {session_id}: {e}")
+        finally:
+            if db is not None:
+                try:
+                    db.close()
+                except Exception:
+                    pass
+
+    print(f"[Chat] All title generation attempts failed for session {session_id}")
 
 @router.get("/sessions")
 async def list_sessions(db: Session = Depends(get_db)):
@@ -1068,6 +1107,8 @@ async def list_sessions(db: Session = Depends(get_db)):
 @router.post("/sessions")
 async def create_session(req: ChatSessionCreate, db: Session = Depends(get_db)):
     session = ChatSession(role=req.role)
+    if req.title:
+        session.title = req.title
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -1104,6 +1145,27 @@ async def delete_session(id: int, db: Session = Depends(get_db)):
 async def is_session_generating(id: int):
     """Check if an AI response is currently being generated for this session."""
     return {"generating": id in _generating_sessions}
+
+@router.post("/sessions/{id}/notify-on-complete")
+async def notify_on_complete(id: int, db: Session = Depends(get_db)):
+    """Register that a notification should be created when generation completes for this session."""
+    if id in _generating_sessions:
+        # Still generating — register for later notification in the finally block
+        _notify_on_complete.add(id)
+    else:
+        # Generation already finished — create notification immediately
+        from app.models import Notification
+        logger.info(f"[Chat] Generation already complete for session {id} — creating notification now")
+        notif = Notification(
+            type="system",
+            title="Réponse IA disponible 💬",
+            content="Votre conseiller IA a terminé sa réponse. Retrouvez-la dans votre conversation.",
+            link_data=json.dumps({"session_id": id}),
+            is_read=False
+        )
+        db.add(notif)
+        db.commit()
+    return {"ok": True}
 
 @router.get("/sessions/{id}/messages")
 async def get_session_messages(id: int, db: Session = Depends(get_db)):
@@ -1167,7 +1229,7 @@ async def add_system_message(id: int, req: ChatSendMessage, db: Session = Depend
     return {"ok": True}
 
 @router.post("/sessions/{id}/message")
-async def send_message(id: int, req: ChatSendMessage, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def send_message(id: int, req: ChatSendMessage, request: Request = None, db: Session = Depends(get_db)):
     session = db.query(ChatSession).filter(ChatSession.id == id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session non trouvée")
@@ -1222,60 +1284,125 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
     async def generate_response():
         final_text = ""
         _response_saved = False
+        _done_sent = False
         _tools_meta = ""
         _generating_sessions.add(id)
         try:
             async with httpx.AsyncClient() as client:
-                # 1. Call Ollama with tools (non-streaming first)
+                tool_desc_map = {
+                    "get_financial_summary": "Analyse du reste à vivre et des prévisions de salaire...",
+                    "get_net_worth": "Consultation du patrimoine net global...",
+                    "get_account_balances": "Interrogation du solde des comptes...",
+                    "search_transactions": "Recherche de transactions...",
+                    "get_spending_analytics": "Calcul des statistiques de dépenses...",
+                    "get_budgets_status": "Vérification de l'état des budgets...",
+                    "get_recurrence_templates": "Examen des charges récurrentes...",
+                    "get_net_worth_history": "Analyse de l'historique du patrimoine...",
+                    "get_envelopes_impact": "Simulation de l'impact sur vos enveloppes budgétaires...",
+                    "suggest_transaction_category": "Recherche d'une suggestion de catégorie...",
+                    "forecast_balances_history": "Calcul des prévisions de solde...",
+                    "detect_anomalies_and_subscriptions": "Recherche d'abonnements et de doublons...",
+                    "apply_transaction_correction": "Application de la modification sur l'opération...",
+                    "get_saving_recommendations": "Génération de vos préconisations d'épargne...",
+                    "search_similar_past_spends": "Analyse comparative des dépenses passées...",
+                    "generate_csv_export_link": "Génération du lien de téléchargement CSV...",
+                    "simulate_loan_amortization": "Simulation d'amortissement de prêt..."
+                }
+
+                # Helper: stream a request to Ollama, yield content chunks, return full text
+                async def _stream_ollama(payload_data):
+                    """Stream Ollama response, yielding SSE chunks. Returns (full_text, tool_calls_list)."""
+                    collected_text = ""
+                    collected_tool_calls = []
+                    in_thinking = False
+
+                    async with client.stream("POST", f"{url}/api/chat", json=payload_data, timeout=httpx.Timeout(300.0, connect=10.0)) as stream_resp:
+                        if stream_resp.status_code != 200:
+                            yield f"data: {json.dumps({'error': 'Ollama error: ' + str(stream_resp.status_code)})}\n\n"
+                            return
+                        async for line in stream_resp.aiter_lines():
+                            if not line:
+                                continue
+                            try:
+                                json_chunk = json.loads(line)
+                            except json.JSONDecodeError:
+                                continue
+
+                            msg_obj = json_chunk.get("message", {})
+
+                            # Intercept native tool_calls from stream
+                            tc_list = msg_obj.get("tool_calls")
+                            if tc_list:
+                                collected_tool_calls.extend(tc_list)
+                                continue
+
+                            reasoning = msg_obj.get("reasoning_content", "")
+                            content = msg_obj.get("content", "")
+
+                            chunk_to_send = ""
+                            if reasoning:
+                                if not in_thinking:
+                                    chunk_to_send += "<think>\n"
+                                    in_thinking = True
+                                chunk_to_send += reasoning
+                            else:
+                                if in_thinking:
+                                    chunk_to_send += "\n</think>\n\n"
+                                    in_thinking = False
+                                chunk_to_send += content
+
+                            if chunk_to_send:
+                                collected_text += chunk_to_send
+                                yield f"data: {json.dumps({'content': chunk_to_send})}\n\n"
+
+                    if in_thinking:
+                        collected_text += "\n</think>\n\n"
+                        yield f"data: {json.dumps({'content': chr(10) + '</think>' + chr(10) + chr(10)})}\n\n"
+
+                    # Attach results as a special final yield
+                    yield {"_result": collected_text, "_tool_calls": collected_tool_calls}
+
+                # ─── Phase 1: Stream with tools ───
                 payload = {
                     "model": model,
                     "messages": ollama_msgs,
                     "tools": TOOLS,
-                    "stream": False,
-                    "options": options
+                    "stream": True,
+                    "options": options,
+                    "keep_alive": "30m"
                 }
-                
-                resp = await client.post(f"{url}/api/chat", json=payload, timeout=httpx.Timeout(300.0, connect=10.0))
-                if resp.status_code != 200:
-                    yield f"data: {json.dumps({'error': 'Ollama error: ' + str(resp.status_code)})}\n\n"
-                    return
-                    
-                resp_data = resp.json()
-                assistant_msg = resp_data.get("message", {})
-                
-                # Check for tool calls
-                if assistant_msg.get("tool_calls"):
-                    ollama_msgs.append(assistant_msg)
-                    
-                    tool_desc_map = {
-                        "get_financial_summary": "Analyse du reste à vivre et des prévisions de salaire...",
-                        "get_net_worth": "Consultation du patrimoine net global...",
-                        "get_account_balances": "Interrogation du solde des comptes...",
-                        "search_transactions": "Recherche de transactions...",
-                        "get_spending_analytics": "Calcul des statistiques de dépenses...",
-                        "get_budgets_status": "Vérification de l'état des budgets...",
-                        "get_recurrence_templates": "Examen des charges récurrentes...",
-                        "get_net_worth_history": "Analyse de l'historique du patrimoine...",
-                        "get_envelopes_impact": "Simulation de l'impact sur vos enveloppes budgétaires...",
-                        "suggest_transaction_category": "Recherche d'une suggestion de catégorie...",
-                        "forecast_balances_history": "Calcul des prévisions de solde...",
-                        "detect_anomalies_and_subscriptions": "Recherche d'abonnements et de doublons...",
-                        "apply_transaction_correction": "Application de la modification sur l'opération...",
-                        "get_saving_recommendations": "Génération de vos préconisations d'épargne...",
-                        "search_similar_past_spends": "Analyse comparative des dépenses passées...",
-                        "generate_csv_export_link": "Génération du lien de téléchargement CSV...",
-                        "simulate_loan_amortization": "Simulation d'amortissement de prêt..."
-                    }
-                    
-                    for tool_call in assistant_msg["tool_calls"]:
+
+                phase1_text = ""
+                detected_tool_calls = []
+                async for chunk in _stream_ollama(payload):
+                    if isinstance(chunk, dict) and "_result" in chunk:
+                        phase1_text = chunk["_result"]
+                        detected_tool_calls = chunk["_tool_calls"]
+                    else:
+                        # Accumulate text progressively for safety (client may disconnect)
+                        if isinstance(chunk, str) and chunk.startswith('data: '):
+                            try:
+                                d = json.loads(chunk[6:].strip())
+                                if d.get('content'):
+                                    final_text += d['content']
+                            except: pass
+                        yield chunk
+
+                # ─── Phase 2: If tool calls detected, execute and re-stream ───
+                if detected_tool_calls:
+                    # Build assistant message with tool_calls for Ollama history
+                    assistant_tc_msg = {"role": "assistant", "tool_calls": detected_tool_calls, "content": phase1_text}
+                    ollama_msgs.append(assistant_tc_msg)
+
+                    import asyncio
+                    for tool_call in detected_tool_calls:
                         fn_name = tool_call["function"]["name"]
                         fn_args = tool_call["function"].get("arguments", {})
-                        
+
                         desc_status = tool_desc_map.get(fn_name, f"Exécution de {fn_name}...")
                         yield f"data: {json.dumps({'status': desc_status})}\n\n"
-                        import asyncio
-                        await asyncio.sleep(1.0)
-                        
+                        await asyncio.sleep(0.8)
+
                         tool_result = {}
                         if fn_name == "get_financial_summary":
                             tool_result = get_financial_summary_tool(db)
@@ -1284,134 +1411,76 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
                         elif fn_name == "get_account_balances":
                             tool_result = get_balances_tool(db)
                         elif fn_name == "search_transactions":
-                            desc = fn_args.get("description_query")
-                            cat = fn_args.get("category")
-                            tx_type = fn_args.get("type")
-                            s_date = fn_args.get("start_date")
-                            e_date = fn_args.get("end_date")
-                            min_a = fn_args.get("min_amount")
-                            max_a = fn_args.get("max_amount")
-                            lim = fn_args.get("limit", 50)
-                            tool_result = search_transactions_tool(db, desc, cat, tx_type, s_date, e_date, min_a, max_a, lim)
+                            tool_result = search_transactions_tool(db, fn_args.get("description_query"), fn_args.get("category"), fn_args.get("type"), fn_args.get("start_date"), fn_args.get("end_date"), fn_args.get("min_amount"), fn_args.get("max_amount"), fn_args.get("limit", 50))
                         elif fn_name == "get_spending_analytics":
-                            s_date = fn_args.get("start_date")
-                            e_date = fn_args.get("end_date")
-                            tool_result = get_spending_analytics_tool(db, s_date, e_date)
+                            tool_result = get_spending_analytics_tool(db, fn_args.get("start_date"), fn_args.get("end_date"))
                         elif fn_name == "get_budgets_status":
-                            yr = fn_args.get("year")
-                            mn = fn_args.get("month")
-                            tool_result = get_budgets_status_tool(db, yr, mn)
+                            tool_result = get_budgets_status_tool(db, fn_args.get("year"), fn_args.get("month"))
                         elif fn_name == "get_recurrence_templates":
                             tool_result = get_recurrence_templates_tool(db)
                         elif fn_name == "get_net_worth_history":
-                            mnths = fn_args.get("months", 12)
-                            tool_result = get_net_worth_history_tool(db, mnths)
+                            tool_result = get_net_worth_history_tool(db, fn_args.get("months", 12))
                         elif fn_name == "get_envelopes_impact":
-                            amt = fn_args.get("amount")
-                            b_id = fn_args.get("budget_id")
-                            tool_result = get_envelopes_impact_tool(db, amt, b_id)
+                            tool_result = get_envelopes_impact_tool(db, fn_args.get("amount"), fn_args.get("budget_id"))
                         elif fn_name == "suggest_transaction_category":
-                            desc = fn_args.get("description")
-                            tool_result = suggest_transaction_category_tool(db, desc)
+                            tool_result = suggest_transaction_category_tool(db, fn_args.get("description"))
                         elif fn_name == "forecast_balances_history":
-                            dys = fn_args.get("days", 30)
-                            tool_result = forecast_balances_history_tool(db, dys)
+                            tool_result = forecast_balances_history_tool(db, fn_args.get("days", 30))
                         elif fn_name == "detect_anomalies_and_subscriptions":
                             tool_result = detect_anomalies_and_subscriptions_tool(db)
                         elif fn_name == "apply_transaction_correction":
-                            tx_id = fn_args.get("transaction_id")
-                            cat = fn_args.get("category")
-                            desc = fn_args.get("description")
-                            amt = fn_args.get("amount")
-                            tp = fn_args.get("type")
-                            tool_result = apply_transaction_correction_tool(db, tx_id, cat, desc, amt, tp)
+                            tool_result = apply_transaction_correction_tool(db, fn_args.get("transaction_id"), fn_args.get("category"), fn_args.get("description"), fn_args.get("amount"), fn_args.get("type"))
                         elif fn_name == "get_saving_recommendations":
                             tool_result = get_saving_recommendations_tool(db)
                         elif fn_name == "search_similar_past_spends":
-                            kw = fn_args.get("keyword")
-                            tool_result = search_similar_past_spends_tool(db, kw)
+                            tool_result = search_similar_past_spends_tool(db, fn_args.get("keyword"))
                         elif fn_name == "generate_csv_export_link":
-                            cat = fn_args.get("category")
-                            s_date = fn_args.get("start_date")
-                            e_date = fn_args.get("end_date")
-                            tp = fn_args.get("type")
-                            tool_result = generate_csv_export_link_tool(db, cat, s_date, e_date, tp)
+                            tool_result = generate_csv_export_link_tool(db, fn_args.get("category"), fn_args.get("start_date"), fn_args.get("end_date"), fn_args.get("type"))
                         elif fn_name == "simulate_loan_amortization":
-                            pr = fn_args.get("principal")
-                            rt = fn_args.get("rate_percent")
-                            yr = fn_args.get("years")
-                            tool_result = simulate_loan_amortization_tool(db, pr, rt, yr)
+                            tool_result = simulate_loan_amortization_tool(db, fn_args.get("principal"), fn_args.get("rate_percent"), fn_args.get("years"))
                         else:
                             tool_result = {"error": f"Tool '{fn_name}' is not supported or defined."}
-                            
+
                         ollama_msgs.append({
                             "role": "tool",
                             "name": fn_name,
                             "content": json.dumps(tool_result, ensure_ascii=False)
                         })
 
-                    # Precompute tools metadata for DB persistence
-                    fn_names = [tc["function"]["name"] for tc in assistant_msg["tool_calls"]]
+                    # Track tools metadata for DB
+                    fn_names = [tc["function"]["name"] for tc in detected_tool_calls]
                     _tools_meta = f"<!-- TOOLS_USED: {','.join(fn_names)} -->\n"
-                        
-                    # 2. Stream final response with context
-                    payload_stream = {
+
+                    # Phase 2b: Stream final response with tool results (no tools this time)
+                    payload_final = {
                         "model": model,
                         "messages": ollama_msgs,
                         "stream": True,
-                        "options": options
+                        "options": options,
+                        "keep_alive": "30m"
                     }
-                    
-                    async with client.stream("POST", f"{url}/api/chat", json=payload_stream, timeout=httpx.Timeout(300.0, connect=10.0)) as stream_resp:
-                        if stream_resp.status_code != 200:
-                            yield f"data: {json.dumps({'error': 'Ollama error: ' + str(stream_resp.status_code)})}\n\n"
-                            return
-                        in_thinking = False
-                        async for line in stream_resp.aiter_lines():
-                            if line:
+                    final_text = ""  # Reset for phase2 (will be re-accumulated)
+                    async for chunk in _stream_ollama(payload_final):
+                        if isinstance(chunk, dict) and "_result" in chunk:
+                            final_text = chunk["_result"]
+                        else:
+                            # Accumulate text progressively for safety (client may disconnect)
+                            if isinstance(chunk, str) and chunk.startswith('data: '):
                                 try:
-                                    json_chunk = json.loads(line)
-                                    msg_obj = json_chunk.get("message", {})
-                                    reasoning = msg_obj.get("reasoning_content", "")
-                                    content = msg_obj.get("content", "")
-                                    
-                                    chunk_to_send = ""
-                                    if reasoning:
-                                        if not in_thinking:
-                                            chunk_to_send += "<think>\n"
-                                            in_thinking = True
-                                        chunk_to_send += reasoning
-                                    else:
-                                        if in_thinking:
-                                            chunk_to_send += "\n</think>\n\n"
-                                            in_thinking = False
-                                        chunk_to_send += content
-                                        
-                                    if chunk_to_send:
-                                        final_text += chunk_to_send
-                                        yield f"data: {json.dumps({'content': chunk_to_send})}\n\n"
-                                except json.JSONDecodeError:
-                                    pass
-                        if in_thinking:
-                            final_text += "\n</think>\n\n"
-                            think_end_payload = json.dumps({'content': '\n</think>\n\n'})
-                            yield f"data: {think_end_payload}\n\n"
+                                    d = json.loads(chunk[6:].strip())
+                                    if d.get('content'):
+                                        final_text += d['content']
+                                except: pass
+                            yield chunk
+
                 else:
-                    # No tool calls — we already have the complete response!
-                    reasoning = assistant_msg.get("reasoning_content", "")
-                    direct_content = assistant_msg.get("content", "")
-                    
-                    if reasoning:
-                        direct_content = f"<think>\n{reasoning}\n</think>\n\n{direct_content}"
-                        
-                    if direct_content:
-                        final_text = direct_content
-                        yield f"data: {json.dumps({'content': direct_content})}\n\n"
-                    else:
-                        empty_err = "Le modèle n'a pas fourni de réponse. Vérifiez votre configuration Ollama."
-                        yield f"data: {json.dumps({'error': empty_err})}\n\n"
+                    # No tool calls — phase1 already streamed everything
+                    final_text = phase1_text
+
+                if not final_text:
+                    yield f"data: {json.dumps({'error': 'Le modèle na pas fourni de réponse. Vérifiez votre configuration Ollama.'})}\n\n"
             
-            # Save assistant response to DB (normal path — client still connected)
+            # Save assistant response to DB
             if final_text:
                 bot_msg = ChatMessage(session_id=id, role="assistant", content=_tools_meta + final_text)
                 db.add(bot_msg)
@@ -1429,9 +1498,18 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
             yield f"data: {json.dumps({'token_usage': {'used': used_tokens, 'limit': cfg['num_ctx']}})}\n\n"
             
             if is_first_exchange:
-                background_tasks.add_task(generate_session_title, db, id, req.content, cfg)
+                from app.database import SessionLocal
+                import threading
+                print(f"[Chat] Launching title generation thread for session {id}")
+                threading.Thread(
+                    target=generate_session_title,
+                    args=(SessionLocal, id, req.content, cfg),
+                    daemon=True
+                ).start()
             
             yield "data: [DONE]\n\n"
+            # If we reach here, the client received everything — no notification needed
+            _done_sent = True
                 
         except Exception as e:
             import traceback
@@ -1439,35 +1517,41 @@ async def send_message(id: int, req: ChatSendMessage, background_tasks: Backgrou
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
             
         finally:
-            # Guarantee: if the client disconnected mid-stream but Ollama already
-            # produced a response, persist it to DB and notify the user.
+            # Safety net: if Ollama failed mid-stream and response wasn't saved, save what we have
             if final_text and not _response_saved:
                 try:
                     bot_msg = ChatMessage(session_id=id, role="assistant", content=_tools_meta + final_text)
                     db.add(bot_msg)
                     db.commit()
                     _response_saved = True
-                    logger.info(f"[Chat] Client disconnected mid-stream — AI response saved to DB for session {id}")
-                    
-                    # Create a notification so the user knows their AI response is ready
-                    from app.models import Notification
-                    notif = Notification(
-                        type="system",
-                        title="Réponse IA disponible 💬",
-                        content=f"Votre conseiller IA a terminé sa réponse pendant votre absence. Retrouvez-la dans votre conversation.",
-                        link_data=json.dumps({"session_id": id}),
-                        is_read=False
-                    )
-                    db.add(notif)
-                    db.commit()
+                    logger.info(f"[Chat] Saved partial AI response for session {id}")
                 except Exception as save_err:
-                    logger.error(f"[Chat] Failed to persist AI response after client disconnect: {save_err}")
+                    logger.error(f"[Chat] Failed to persist AI response: {save_err}")
+            
+            # If user left the page during generation, create notification now that response is saved
+            if id in _notify_on_complete:
+                _notify_on_complete.discard(id)
+                if _response_saved:
+                    try:
+                        from app.models import Notification
+                        logger.info(f"[Chat] Generation complete for session {id} — creating notification")
+                        notif = Notification(
+                            type="system",
+                            title="Réponse IA disponible 💬",
+                            content="Votre conseiller IA a terminé sa réponse. Retrouvez-la dans votre conversation.",
+                            link_data=json.dumps({"session_id": id}),
+                            is_read=False
+                        )
+                        db.add(notif)
+                        db.commit()
+                    except Exception as notif_err:
+                        logger.error(f"[Chat] Failed to create completion notification: {notif_err}")
             _generating_sessions.discard(id)
         
     return StreamingResponse(generate_response(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"})
 
 @router.post("/sessions/{id}/regenerate")
-async def regenerate_response(id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def regenerate_response(id: int, db: Session = Depends(get_db)):
     session = db.query(ChatSession).filter(ChatSession.id == id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session non trouvée")
@@ -1489,10 +1573,10 @@ async def regenerate_response(id: int, background_tasks: BackgroundTasks, db: Se
     db.delete(last_user_msg)
     db.commit()
     
-    return await send_message(id, req, background_tasks, db)
+    return await send_message(id, req, db=db)
 
 @router.put("/messages/{id}")
-async def edit_message(id: int, req: ChatMessageUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def edit_message(id: int, req: ChatMessageUpdate, db: Session = Depends(get_db)):
     message = db.query(ChatMessage).filter(ChatMessage.id == id).first()
     if not message or message.role != "user":
         raise HTTPException(status_code=400, detail="Seuls les messages utilisateur peuvent être édités")
@@ -1513,7 +1597,7 @@ async def edit_message(id: int, req: ChatMessageUpdate, background_tasks: Backgr
     
     # Send the new edited content
     send_req = ChatSendMessage(content=req.content)
-    return await send_message(session_id, send_req, background_tasks, db)
+    return await send_message(session_id, send_req, db=db)
 
 class AutoCatRequest(BaseModel):
     description: str
