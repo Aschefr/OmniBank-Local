@@ -306,6 +306,41 @@
         </div>
     </div>
 
+    <!-- Paycheck Candidates Modal (Correction helper) -->
+    <div id="payCandidatesModal" class="modal-overlay" style="display: none;">
+        <div class="modal" style="min-width: 480px; padding: 25px;">
+            <h3 style="margin-bottom: 10px;" id="payCandidatesTitle" data-i18n="pay_candidates_title">Correction de la paie</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;" id="payCandidatesDesc" data-i18n="pay_candidates_desc">Tu as rejeté cette paie. Y a-t-il une autre transaction ce mois-ci qui correspond à ton salaire ?</p>
+            
+            <div id="payCandidatesListContainer" style="max-height: 250px; overflow-y: auto; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color); padding: 10px; margin-bottom: 15px; display: none;">
+                <table style="width: 100%; font-size: 13px; text-align: left; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted);">
+                            <th style="padding: 8px; font-weight: 600;" data-i18n="th_date">Date</th>
+                            <th style="padding: 8px; font-weight: 600;" data-i18n="th_description">Description</th>
+                            <th style="padding: 8px; font-weight: 600; text-align: right;" data-i18n="th_amount">Montant</th>
+                            <th style="padding: 8px; font-weight: 600; text-align: center;" data-i18n="th_action">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payCandidatesTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="noPayCandidatesMsg" style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 15px;" data-i18n="no_pay_candidates_msg">
+                Aucune autre recette trouvée sur cette période.
+            </div>
+            
+            <div class="modal-actions" style="margin-top:20px; display: flex; justify-content: space-between; gap: 10px;">
+                <button class="btn btn-secondary" onclick="document.getElementById('payCandidatesModal').style.display='none'" data-i18n="btn_close">Fermer</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" id="btnForceMissedPeriod" style="background: linear-gradient(135deg, #e74c3c, #c0392b); border: none; box-shadow: 0 4px 10px rgba(231, 76, 60, 0.2); font-weight: bold; color: white;" data-i18n="btn_force_missed">Aucune paie ce mois-ci</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Unified Operation Modal -->
     <div id="operationModal" class="modal-overlay" style="display: none;">
         <div class="modal" style="width: 620px; max-width: 95vw; max-height: 90vh; border-radius: 14px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6); padding: 0; overflow: hidden; display: flex; flex-direction: column;">

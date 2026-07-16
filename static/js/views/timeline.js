@@ -535,7 +535,7 @@ window.TimelineView = {
                     d.setDate(d.getDate() + 1);
                     baseStartDateStr = d.toISOString().split('T')[0];
                 } else if (window.app.payHistory && window.app.payHistory.length > 0) {
-                    const detectedHistory = window.app.payHistory.filter(h => !h.is_override);
+                    const detectedHistory = window.app.payHistory.filter(h => !h.is_override && !h.is_placeholder);
                     const sortedHistory = [...detectedHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
                     if (sortedHistory.length > 0) {
                         const d = new Date(sortedHistory[0].date);
@@ -585,6 +585,28 @@ window.TimelineView = {
                 let payDateStr = '';
                 let payAmount = 0;
                 
+                let oldestUnreconciledStr = '';
+                if (!isHistory && window.app.nextPayDate) {
+                    const nextPayDate = new Date(window.app.nextPayDate);
+                    const unreconciledTxs = filtered.filter(tx => {
+                        if (tx.reconciliation_date) return false;
+                        const txDate = new Date(tx.date_operation);
+                        if (txDate > nextPayDate) return false;
+                        return true;
+                    });
+                    if (unreconciledTxs.length > 0) {
+                        const dates = unreconciledTxs.map(tx => new Date(tx.date_operation)).filter(d => !isNaN(d));
+                        if (dates.length > 0) {
+                            const oldest = new Date(Math.min(...dates));
+                            const startLimit = new Date(startDateStr);
+                            if (oldest < startLimit) {
+                                const pad = (n) => n < 10 ? '0'+n : n;
+                                oldestUnreconciledStr = `${oldest.getFullYear()}-${pad(oldest.getMonth()+1)}-${pad(oldest.getDate())}`;
+                            }
+                        }
+                    }
+                }
+                
                 if (isHistory) {
                     const hIndex = this.currentPeriodIndex - 1;
                     const historyItem = window.app.payHistory[hIndex];
@@ -597,11 +619,18 @@ window.TimelineView = {
                     payAmount = window.app.nextPayAmount;
                     const periodStartFormatted = formatDate(startDateStr);
                     const isManualSkip = window.app.isPayValidated;
+                    
+                    let descText = '';
                     if (isManualSkip) {
-                        descSpan.innerHTML = window.i18n.tp('paycheck_widget_skipped_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartFormatted });
+                        descText = window.i18n.tp('paycheck_widget_skipped_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartFormatted });
                     } else {
-                        descSpan.innerHTML = window.i18n.tp('paycheck_widget_active_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartFormatted });
+                        descText = window.i18n.tp('paycheck_widget_active_desc', { date: payDateStr, amount: formatCurrency(payAmount), period_start: periodStartFormatted });
                     }
+                    
+                    if (oldestUnreconciledStr) {
+                        descText += window.i18n.tp('paycheck_widget_unreconciled_suffix', { date: formatDate(oldestUnreconciledStr) });
+                    }
+                    descSpan.innerHTML = descText;
                 }
             }
         }

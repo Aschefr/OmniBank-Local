@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDhTbTVLZThhNzg5U0RyNlF4QkZYQkFhVGo4SnVMMEM1MGJ5VGN5ZXI2amlFNW1vRGpYVVphR1YvLzlDMk9KKzJ6UlM1NEY4UTd4OUZYbU1PMVBCQ1FnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MTI5NDY4CWZpbGU6T21uaUJhbmtfMS4wLjY2X3g2NF9mci1GUi5tc2kKRHprR0toempWcTdEU1lLR24xME9qRmpzd3lLeVZYZnVUYThLTkwvcXp5aUV1SmpocEJYajRYQXdzbzNBM1c1bC8vRTJJTXlNcTZTZ2ZaaFZsRzlmQmc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.66/OmniBank_1.0.66_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDFBQlo3T2grSkNXRmJPN2djR2IvT0lCQnUzVlk2Sld2bFdNVkhYSE9PQlJLTjBsSktKV3ZBY3pIM2F5RGc0WnZsUkVEYitCTlhZME50WmVNQlpYaWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MjIwNDA3CWZpbGU6T21uaUJhbmtfMS4wLjY3X3g2NF9mci1GUi5tc2kKOURuMzBVekhwSnhKMnMzMTVjenNLa3Y1VHRaNGVURENXZ0NKMzB2Qm9nYXJncDd3MXBjWmlvTnc0YW9RNWVMNlVPNjRFWXc1YjdHei9xSHdKcWd0QkE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.67/OmniBank_1.0.67_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-07-15T15:31:08Z",
-    "version":  "1.0.66",
-    "notes":  "Recurrence UI enhancements, timeline view, skipped status logic fixes, English date ordinal representation, and changelog inclusion in sidecar bundle"
+    "pub_date":  "2026-07-16T16:46:47Z",
+    "version":  "1.0.67",
+    "notes":  "Notification Center, periodic reports, paycheck correction modal assistant, inline confirmations, and bug fixes."
 }
