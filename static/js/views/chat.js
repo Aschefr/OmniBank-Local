@@ -372,33 +372,84 @@ window.ChatView = {
                 }
                 .chat-info-panel {
                     display: none;
-                    position: absolute;
-                    top: 0;
-                    right: 0;
-                    bottom: 0;
-                    width: 380px;
-                    max-width: 100%;
-                    background: var(--bg-sidebar);
-                    border-left: 1px solid var(--border-color);
-                    z-index: 20;
-                    overflow-y: auto;
-                    padding: 20px;
-                    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2);
-                    animation: slideInRight 0.25s ease;
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.6);
+                    z-index: 1000;
+                    align-items: center;
+                    justify-content: center;
+                    backdrop-filter: blur(4px);
+                    animation: fadeIn 0.2s ease;
                 }
                 .chat-info-panel.open {
-                    display: block;
+                    display: flex;
                 }
-                @keyframes slideInRight {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
                 }
-                .chat-info-panel h3 {
-                    margin: 0 0 16px 0;
-                    font-size: 16px;
+                .chat-info-modal {
+                    background: var(--bg-sidebar);
+                    border: 1px solid var(--border-color);
+                    border-radius: 12px;
+                    width: 95%;
+                    max-width: 1000px;
+                    max-height: 85vh;
+                    display: flex;
+                    flex-direction: column;
+                    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+                    animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+                    overflow: hidden;
+                }
+                .access-badge {
+                    font-size: 11px;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: 500;
+                }
+                .access-badge.badge-readonly {
+                    background: rgba(46, 213, 115, 0.15);
+                    color: #2ed573;
+                    border: 1px solid rgba(46, 213, 115, 0.3);
+                }
+                .access-badge.badge-validation {
+                    background: rgba(255, 165, 0, 0.15);
+                    color: #ffa500;
+                    border: 1px solid rgba(255, 165, 0, 0.3);
+                }
+                .role-mini-badge {
+                    display: inline-block;
+                    font-size: 11px;
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    padding: 1px 5px;
+                    border-radius: 3px;
+                    margin-right: 4px;
+                    margin-bottom: 2px;
+                    color: var(--text-muted);
+                }
+                @keyframes scaleIn {
+                    from { transform: scale(0.95); opacity: 0; }
+                    to { transform: scale(1); opacity: 1; }
+                }
+                .chat-info-modal-header {
+                    padding: 16px 24px;
+                    border-bottom: 1px solid var(--border-color);
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
+                }
+                .chat-info-modal-header h3 {
+                    margin: 0;
+                    font-size: 16px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .chat-info-modal-body {
+                    padding: 24px;
+                    overflow-y: auto;
+                    flex: 1;
                 }
                 .chat-info-section {
                     margin-bottom: 20px;
@@ -420,26 +471,59 @@ window.ChatView = {
                     color: var(--text-muted);
                     margin: 0 0 8px 0;
                 }
-                .chat-info-tool-item {
-                    display: flex;
-                    align-items: baseline;
-                    gap: 8px;
-                    font-size: 13px;
-                    padding: 4px 0;
-                    line-height: 1.5;
+                .chat-info-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 10px;
                 }
-                .chat-info-tool-item .tool-emoji {
-                    font-size: 15px;
-                    flex-shrink: 0;
-                    width: 22px;
+                .chat-info-table th {
+                    border-bottom: 1px solid var(--border-color);
+                    padding: 10px 12px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: var(--accent);
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+                .chat-info-table td {
+                    padding: 10px 12px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+                    vertical-align: middle;
+                }
+                .chat-info-table tr:last-child td {
+                    border-bottom: none;
+                }
+                .chat-info-table td.tool-emoji-col {
+                    width: 40px;
                     text-align: center;
+                    font-size: 16px;
+                    padding-left: 0;
                 }
-                .chat-info-tool-item code {
+                .chat-info-table td.tool-name-col {
+                    width: 200px;
+                    white-space: nowrap;
+                }
+                .chat-info-table td.tool-name-col code {
                     font-size: 11px;
                     background: rgba(255,255,255,0.06);
-                    padding: 1px 5px;
-                    border-radius: 3px;
+                    padding: 3px 6px;
+                    border-radius: 4px;
                     font-family: monospace;
+                    border: 1px solid rgba(255,255,255,0.03);
+                }
+                .chat-info-table td.tool-access-col {
+                    width: 150px;
+                    white-space: nowrap;
+                }
+                .chat-info-table td.tool-params-col {
+                    width: 180px;
+                    font-size: 12.5px;
+                    color: var(--text-main);
+                    white-space: nowrap;
+                }
+                .chat-info-table td.tool-desc-col {
+                    font-size: 13px;
+                    color: var(--text-muted);
                     white-space: nowrap;
                 }
             </style>
@@ -505,27 +589,33 @@ window.ChatView = {
                         </div>
                     </div>
 
-                    <!-- Info Panel -->
-                    <div id="chatInfoPanel" class="chat-info-panel">
-                        <h3>
-                            <span>ℹ️ ${window.i18n.t('chat_info_title')}</span>
-                            <button class="chat-session-btn" onclick="window.ChatView.toggleInfoPanel()" style="font-size:16px;">✕</button>
-                        </h3>
+                    <!-- Info Panel Modal -->
+                    <div id="chatInfoPanel" class="chat-info-panel" onclick="if(event.target === this) window.ChatView.toggleInfoPanel()">
+                        <div class="chat-info-modal">
+                            <div class="chat-info-modal-header">
+                                <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                                    <span>ℹ️ ${window.i18n.t('chat_info_title')}</span>
+                                </h3>
+                                <button class="chat-session-btn" onclick="window.ChatView.toggleInfoPanel()" style="font-size: 20px; background: transparent; border: none; cursor: pointer; color: var(--text-muted);">✕</button>
+                            </div>
 
-                        <div class="chat-info-section">
-                            <h4>🤖 ${window.i18n.t('chat_info_assistant_title')}</h4>
-                            <p>${window.i18n.t('chat_info_assistant_desc')}</p>
-                        </div>
+                            <div class="chat-info-modal-body">
+                                <div class="chat-info-section">
+                                    <h4>🤖 ${window.i18n.t('chat_info_assistant_title')}</h4>
+                                    <p>${window.i18n.t('chat_info_assistant_desc')}</p>
+                                </div>
 
-                        <div class="chat-info-section">
-                            <h4>🔧 ${window.i18n.t('chat_info_tools_title')}</h4>
-                            <p style="margin-bottom:12px;">${window.i18n.t('chat_info_tools_intro')}</p>
-                            <div id="chatInfoToolsList"></div>
-                        </div>
+                                <div class="chat-info-section">
+                                    <h4>🔧 ${window.i18n.t('chat_info_tools_title')}</h4>
+                                    <p style="margin-bottom:12px;">${window.i18n.t('chat_info_tools_intro')}</p>
+                                    <div id="chatInfoToolsList" style="overflow-x: auto;"></div>
+                                </div>
 
-                        <div class="chat-info-section">
-                            <h4>🛡️ ${window.i18n.t('chat_info_validation_title')}</h4>
-                            <p>${window.i18n.t('chat_info_validation_desc')}</p>
+                                <div class="chat-info-section" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                                    <h4>🛡️ ${window.i18n.t('chat_info_validation_title')}</h4>
+                                    <p>${window.i18n.t('chat_info_validation_desc')}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -617,6 +707,7 @@ window.ChatView = {
     populateInfoToolsList() {
         const container = document.getElementById('chatInfoToolsList');
         if (!container) return;
+        
         const toolOrder = [
             'get_financial_summary', 'get_net_worth', 'get_account_balances',
             'search_transactions', 'get_spending_analytics', 'get_budgets_status',
@@ -626,14 +717,65 @@ window.ChatView = {
             'get_saving_recommendations', 'search_similar_past_spends',
             'generate_csv_export_link', 'simulate_loan_amortization'
         ];
-        container.innerHTML = toolOrder.map(name => {
+
+        const toolMeta = {
+            get_financial_summary: { access: 'readonly', params: 'none', roles: ['advisor', 'budget_planner'] },
+            get_net_worth: { access: 'readonly', params: 'none', roles: ['advisor', 'simulator'] },
+            get_account_balances: { access: 'readonly', params: 'none', roles: ['advisor', 'simulator', 'alerts'] },
+            search_transactions: { access: 'readonly', params: 'query', roles: ['advisor', 'auditor'] },
+            get_spending_analytics: { access: 'readonly', params: 'date_range', roles: ['advisor', 'optimizer'] },
+            get_budgets_status: { access: 'readonly', params: 'month', roles: ['advisor', 'budget_planner', 'optimizer'] },
+            get_recurrence_templates: { access: 'readonly', params: 'none', roles: ['advisor', 'alerts', 'budget_planner'] },
+            get_net_worth_history: { access: 'readonly', params: 'months_count', roles: ['advisor', 'simulator', 'forecaster'] },
+            get_envelopes_impact: { access: 'readonly', params: 'amount_cat', roles: ['advisor', 'budget_planner', 'simulator'] },
+            suggest_transaction_category: { access: 'readonly', params: 'desc_amount', roles: ['advisor', 'auditor'] },
+            forecast_balances_history: { access: 'readonly', params: 'days', roles: ['advisor', 'forecaster', 'simulator'] },
+            detect_anomalies_and_subscriptions: { access: 'readonly', params: 'none', roles: ['advisor', 'alerts', 'auditor'] },
+            apply_transaction_correction: { access: 'validation', params: 'correction', roles: ['auditor', 'advisor'] },
+            get_saving_recommendations: { access: 'readonly', params: 'none', roles: ['advisor', 'optimizer', 'simulator'] },
+            search_similar_past_spends: { access: 'readonly', params: 'desc', roles: ['advisor', 'optimizer'] },
+            generate_csv_export_link: { access: 'readonly', params: 'export', roles: ['advisor', 'auditor'] },
+            simulate_loan_amortization: { access: 'readonly', params: 'loan', roles: ['simulator'] }
+        };
+        
+        const rows = toolOrder.map(name => {
             const emoji = this._toolEmojiMap[name] || '⚙️';
             const desc = window.i18n.t(`tool_${name}`) || name;
-            return `<div class="chat-info-tool-item">
-                <span class="tool-emoji">${emoji}</span>
-                <span><code>${name}</code> : ${desc}</span>
-            </div>`;
+            
+            const meta = toolMeta[name] || { access: 'readonly', params: 'none', roles: [] };
+            
+            // Access badge
+            const isVal = meta.access === 'validation';
+            const accessBadge = `<span class="access-badge badge-${meta.access}">
+                ${window.i18n.t(isVal ? 'chat_info_access_validation' : 'chat_info_access_readonly')}
+            </span>`;
+            
+            // Params label
+            const paramsLabel = window.i18n.t(`tool_params_${meta.params}`) || meta.params;
+
+            return `<tr>
+                <td class="tool-emoji-col">${emoji}</td>
+                <td class="tool-name-col"><code>${name}</code></td>
+                <td class="tool-access-col">${accessBadge}</td>
+                <td class="tool-params-col">${paramsLabel}</td>
+                <td class="tool-desc-col">${desc}</td>
+            </tr>`;
         }).join('');
+
+        container.innerHTML = `<table class="chat-info-table">
+            <thead>
+                <tr>
+                    <th style="padding-left: 0; width: 40px;"></th>
+                    <th>${window.i18n.t('chat_info_header_tool')}</th>
+                    <th>${window.i18n.t('chat_info_header_access')}</th>
+                    <th>${window.i18n.t('chat_info_header_params')}</th>
+                    <th>${window.i18n.t('chat_info_header_desc')}</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows}
+            </tbody>
+        </table>`;
     },
 
     async loadSessions(preventSelectSession = false) {
@@ -1225,6 +1367,9 @@ window.ChatView = {
         if (sendBtn) sendBtn.disabled = true;
         if (input) input.disabled = true;
 
+        if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+            window.app.setFastNotificationsPolling(true);
+        }
         try {
             this._activeAbortController = new AbortController();
             const response = await fetch(`/api/chat/messages/${msgId}`, {
@@ -1241,6 +1386,9 @@ window.ChatView = {
             this.messages[aiMsgIndex]._isError = true;
             this.renderHistory();
         } finally {
+            if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+                window.app.setFastNotificationsPolling(false);
+            }
             if (sendBtn) sendBtn.disabled = false;
             if (input) input.disabled = false;
             const hasError = !!this.messages[aiMsgIndex]._isError;
@@ -1290,6 +1438,9 @@ window.ChatView = {
         if (sendBtn) sendBtn.disabled = true;
         if (input) input.disabled = true;
 
+        if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+            window.app.setFastNotificationsPolling(true);
+        }
         try {
             this._activeAbortController = new AbortController();
             this._streamDetached = false;
@@ -1310,6 +1461,9 @@ window.ChatView = {
                 this.renderHistory();
             }
         } finally {
+            if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+                window.app.setFastNotificationsPolling(false);
+            }
             if (!this._streamDetached) {
                 if (sendBtn) sendBtn.disabled = false;
                 if (input) input.disabled = false;
@@ -1493,6 +1647,9 @@ window.ChatView = {
         sendBtn.disabled = true;
         input.disabled = true;
 
+        if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+            window.app.setFastNotificationsPolling(true);
+        }
         try {
             // Track active stream so destroy() knows generation is in progress
             this._activeAbortController = new AbortController();
@@ -1528,6 +1685,9 @@ window.ChatView = {
                 this.renderHistory();
             }
         } finally {
+            if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+                window.app.setFastNotificationsPolling(false);
+            }
             // Guard DOM access — elements may not exist if user left the view
             if (!this._streamDetached) {
                 const sendBtnF = document.getElementById('chatSendBtn');

@@ -261,13 +261,66 @@ class App {
 
         // Load notifications initially
         this.loadNotifications();
-        // Polling loop every 60 seconds
-        setInterval(() => this.loadNotifications(), 60000);
+        
+        // Dynamic notification polling
+        this._notifInterval = 60000; // Base: 60s
+        this._notifTimer = null;
+        this._startNotifPolling();
+    }
+
+    _startNotifPolling() {
+        if (this._notifTimer) clearTimeout(this._notifTimer);
+        
+        const poll = async () => {
+            await this.loadNotifications();
+            this._notifTimer = setTimeout(poll, this._notifInterval);
+        };
+        this._notifTimer = setTimeout(poll, this._notifInterval);
+    }
+
+    setFastNotificationsPolling(active) {
+        const newInterval = active ? 15000 : 60000;
+        if (this._notifInterval !== newInterval) {
+            this._notifInterval = newInterval;
+            this._startNotifPolling();
+        }
+        // Auto-disable fast polling after a safety timeout (5 minutes) to avoid infinite polling if something goes wrong
+        if (active) {
+            if (this._fastPollingSafetyTimeout) clearTimeout(this._fastPollingSafetyTimeout);
+            this._fastPollingSafetyTimeout = setTimeout(() => {
+                this.setFastNotificationsPolling(false);
+            }, 300000);
+        } else {
+            if (this._fastPollingSafetyTimeout) {
+                clearTimeout(this._fastPollingSafetyTimeout);
+                this._fastPollingSafetyTimeout = null;
+            }
+        }
     }
 
     async loadNotifications() {
         try {
             const notifs = await API.get('/api/notifications');
+            
+            // Check for new unread notifications to display toast
+            if (this._knownNotifIds) {
+                let foundNew = false;
+                notifs.forEach(n => {
+                    if (!n.is_read && !this._knownNotifIds.has(n.id)) {
+                        this._knownNotifIds.add(n.id);
+                        foundNew = true;
+                        if (typeof showToast === 'function') {
+                            showToast(`${n.title} 🔔`, 'info', 5000);
+                        }
+                    }
+                });
+                if (foundNew) {
+                    this.setFastNotificationsPolling(false);
+                }
+            } else {
+                this._knownNotifIds = new Set(notifs.map(n => n.id));
+            }
+
             const unreadCount = notifs.filter(n => !n.is_read).length;
             const badge = document.getElementById('notifCountBadge');
             const totalLabel = document.getElementById('notifTotalLabel');
