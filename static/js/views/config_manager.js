@@ -406,6 +406,9 @@ window.ConfigView = {
             const res = await fetch('/api/notifications/generate-ai-report', { method: 'POST' });
             if (res.ok) {
                 showToast("Bilan lancé en arrière-plan. Vérifiez la cloche de notifications d'ici quelques instants !", 'success', 4000);
+                if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+                    window.app.setFastNotificationsPolling(true);
+                }
             } else {
                 showToast("Erreur lors du lancement de la génération.", 'error', 3000);
             }
