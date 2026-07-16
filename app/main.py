@@ -58,7 +58,8 @@ from app.routers import (
     org_users,
     license,
     shared_mode,
-    notifications
+    notifications,
+    history
 )
 
 app.include_router(transactions.router)
@@ -79,6 +80,7 @@ app.include_router(org_users.router)
 app.include_router(license.router)
 app.include_router(shared_mode.router)
 app.include_router(notifications.router)
+app.include_router(history.router)
 
 
 
@@ -97,6 +99,23 @@ async def startup_init():
         generate_recurrences(db=db)
     except Exception as e:
         logger.error(f"Failed to generate recurrences on startup: {e}")
+    finally:
+        db.close()
+
+    # Purge old actions on startup
+    db = SessionLocal()
+    try:
+        from datetime import datetime, timedelta
+        from app.models import GlobalConfig, ActionHistory
+        retention_days = 90
+        cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "history_retention_days").first()
+        if cfg and cfg.value.isdigit():
+            retention_days = int(cfg.value)
+        cutoff = datetime.utcnow() - timedelta(days=retention_days)
+        db.query(ActionHistory).filter(ActionHistory.timestamp < cutoff).delete()
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to purge old action history on startup: {e}")
     finally:
         db.close()
         

@@ -8,6 +8,7 @@ import json
 
 from app.database import get_db
 from app.models import Budget, BudgetCategory, BudgetAllocation, Transaction, GlobalConfig, Account
+from app.services.history_service import record_action, snapshot_entity
 
 router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 
@@ -126,14 +127,18 @@ def create_budget(data: BudgetCreate, db: Session = Depends(get_db)):
         envelope_type=data.envelope_type or "spending",
     )
     db.add(b)
-    db.commit()
-    db.refresh(b)
+    db.flush()
 
     for cat_name in (data.categories or []):
         db.add(BudgetCategory(budget_id=b.id, category_name=cat_name))
+    db.flush()
+    action_id = record_action(db, "budget", b.id, "CREATE", None, snapshot_entity(b, db))
     db.commit()
+    db.refresh(b)
 
-    return _budget_to_dict(b, db)
+    res = _budget_to_dict(b, db)
+    res["action_id"] = action_id
+    return res
 
 
 @router.put("/{budget_id}")
@@ -142,6 +147,7 @@ def update_budget(budget_id: int, data: BudgetUpdate, db: Session = Depends(get_
     if not b:
         raise HTTPException(status_code=404, detail="Budget non trouvé.")
 
+    old_snapshot = snapshot_entity(b, db)
     for k, v in data.dict(exclude_unset=True).items():
         if k == "categories":
             continue  # handled below
@@ -158,9 +164,13 @@ def update_budget(budget_id: int, data: BudgetUpdate, db: Session = Depends(get_
         for cat_name in data.categories:
             db.add(BudgetCategory(budget_id=budget_id, category_name=cat_name))
 
+    db.flush()
+    action_id = record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db))
     db.commit()
     db.refresh(b)
-    return _budget_to_dict(b, db)
+    res = _budget_to_dict(b, db)
+    res["action_id"] = action_id
+    return res
 
 
 @router.delete("/{budget_id}")
@@ -168,11 +178,13 @@ def delete_budget(budget_id: int, db: Session = Depends(get_db)):
     b = db.query(Budget).filter(Budget.id == budget_id).first()
     if not b:
         raise HTTPException(status_code=404, detail="Budget non trouvé.")
+    old_snapshot = snapshot_entity(b, db)
     db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget_id).delete()
     db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == budget_id).delete()
     db.delete(b)
+    action_id = record_action(db, "budget", budget_id, "DELETE", old_snapshot, None)
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "action_id": action_id}
 
 
 # ─── Status endpoint ──────────────────────────────────────────────────────────
@@ -826,6 +838,8 @@ def create_allocation(budget_id: int, data: AllocationCreate, db: Session = Depe
         created_at=datetime.now().isoformat(),
     )
     db.add(alloc)
+    db.flush()
+    action_id = record_action(db, "budget_allocation", alloc.id, "CREATE", None, snapshot_entity(alloc))
     db.commit()
     db.refresh(alloc)
     return {
@@ -835,6 +849,7 @@ def create_allocation(budget_id: int, data: AllocationCreate, db: Session = Depe
         "date": alloc.date.isoformat() if alloc.date else None,
         "note": alloc.note,
         "created_at": alloc.created_at,
+        "action_id": action_id,
     }
 
 
@@ -846,6 +861,8 @@ def delete_allocation(budget_id: int, alloc_id: int, db: Session = Depends(get_d
     ).first()
     if not alloc:
         raise HTTPException(status_code=404, detail="Allocation non trouvée.")
+    old_snapshot = snapshot_entity(alloc)
     db.delete(alloc)
+    action_id = record_action(db, "budget_allocation", alloc_id, "DELETE", old_snapshot, None)
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "action_id": action_id}

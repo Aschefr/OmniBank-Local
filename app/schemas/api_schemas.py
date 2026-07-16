@@ -71,6 +71,7 @@ class TransactionUpdate(BaseModel):
 class TransactionOut(TransactionBase):
     id: int
     csv_id: Optional[str] = None
+    action_id: Optional[int] = None
 
     class Config:
         orm_mode = True
@@ -82,6 +83,7 @@ class CategoryBase(BaseModel):
 
 class CategoryOut(CategoryBase):
     id: int
+    action_id: Optional[int] = None
 
     class Config:
         orm_mode = True
@@ -123,6 +125,7 @@ class PropagateRequest(BaseModel):
 
 class RecurrenceTemplateOut(RecurrenceTemplateBase):
     id: int
+    action_id: Optional[int] = None
 
     class Config:
         orm_mode = True
@@ -136,6 +139,7 @@ class AccountBase(BaseModel):
 
 class AccountOut(AccountBase):
     id: int
+    action_id: Optional[int] = None
 
     class Config:
         orm_mode = True
@@ -181,6 +185,7 @@ class OrgUserUpdate(BaseModel):
 
 class OrgUserOut(OrgUserBase):
     id: int
+    action_id: Optional[int] = None
 
     class Config:
         orm_mode = True

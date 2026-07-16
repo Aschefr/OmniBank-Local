@@ -8,6 +8,7 @@ from sqlalchemy import text
 from app.database import get_db
 from app.models import OrgUser
 from app.schemas.api_schemas import OrgUserCreate, OrgUserUpdate, OrgUserOut
+from app.services.history_service import record_action, snapshot_entity
 
 router = APIRouter(prefix="/api/org_users", tags=["OrgUsers"])
 
@@ -26,8 +27,11 @@ def create_user(user: OrgUserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f"L'utilisateur '{user.name}' existe déjà.")
     db_user = OrgUser(name=user.name, is_active=user.is_active, sort_order=user.sort_order)
     db.add(db_user)
+    db.flush()
+    action_id = record_action(db, "org_user", db_user.id, "CREATE", None, snapshot_entity(db_user))
     db.commit()
     db.refresh(db_user)
+    db_user.action_id = action_id
     return db_user
 
 
@@ -37,6 +41,7 @@ def update_user(user_id: int, data: OrgUserUpdate, db: Session = Depends(get_db)
     db_user = db.query(OrgUser).filter(OrgUser.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+    old_snapshot = snapshot_entity(db_user)
     if data.name is not None:
         # Check uniqueness
         dup = db.query(OrgUser).filter(OrgUser.name == data.name, OrgUser.id != user_id).first()
@@ -47,8 +52,11 @@ def update_user(user_id: int, data: OrgUserUpdate, db: Session = Depends(get_db)
         db_user.is_active = data.is_active
     if data.sort_order is not None:
         db_user.sort_order = data.sort_order
+    db.flush()
+    action_id = record_action(db, "org_user", db_user.id, "UPDATE", old_snapshot, snapshot_entity(db_user))
     db.commit()
     db.refresh(db_user)
+    db_user.action_id = action_id
     return db_user
 
 
@@ -61,10 +69,13 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db_user = db.query(OrgUser).filter(OrgUser.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+    old_snapshot = snapshot_entity(db_user)
     # Deactivate instead of delete
     db_user.is_active = False
+    db.flush()
+    action_id = record_action(db, "org_user", db_user.id, "UPDATE", old_snapshot, snapshot_entity(db_user))
     db.commit()
-    return {"status": "deactivated", "id": user_id, "name": db_user.name}
+    return {"status": "deactivated", "id": user_id, "name": db_user.name, "action_id": action_id}
 
 
 @router.post("/ensure_default", response_model=OrgUserOut)

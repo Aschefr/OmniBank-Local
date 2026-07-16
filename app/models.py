@@ -167,5 +167,19 @@ class Notification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ActionHistory(Base):
+    __tablename__ = "action_history"
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    entity_type = Column(String, nullable=False)   # "transaction", "account", "category", "budget", "budget_allocation", "recurrence_template", "org_user"
+    entity_id = Column(Integer, nullable=False)
+    action_type = Column(String, nullable=False)    # "CREATE", "UPDATE", "DELETE"
+    previous_state = Column(Text, nullable=True)    # JSON snapshot before action
+    new_state = Column(Text, nullable=True)         # JSON snapshot after action
+    is_undone = Column(Boolean, default=False)
+    user_name = Column(String, nullable=True)       # Org user name if active
+
+
+
 
 

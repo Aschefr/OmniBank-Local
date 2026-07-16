@@ -223,7 +223,7 @@ window.AccountsView = {
             };
             if (!data.name) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_name_required'));
             
-            await API.post('/api/accounts/', data);
+            const res = await API.post('/api/accounts/', data);
             
             document.getElementById('acc_name').value = '';
             document.getElementById('acc_type_select').value = 'Compte courant';
@@ -233,6 +233,8 @@ window.AccountsView = {
             
             await this.loadData();
             window.app.refreshSidebar();
+            
+            showUndoToast(window.i18n.t('toast_acc_created') || 'Compte créé', res.action_id, () => this.loadData().then(() => window.app.refreshSidebar()));
 
             // Update color picker to next available color
             const picker = document.getElementById('accNewColorPicker');
@@ -251,9 +253,10 @@ window.AccountsView = {
     async delete(id) {
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.t('confirm_delete_account'))) {
             try {
-                await API.del(`/api/accounts/${id}`);
+                const res = await API.del(`/api/accounts/${id}`);
                 await this.loadData();
                 window.app.refreshSidebar();
+                showUndoToast(window.i18n.t('toast_acc_deleted') || 'Compte supprimé', res.action_id, () => this.loadData().then(() => window.app.refreshSidebar()));
             } catch (e) {
                 console.error(e);
                 showInlineMessage(window.i18n.t('title_error'), window.i18n.t('acc_delete_error'));
@@ -268,7 +271,7 @@ window.AccountsView = {
         const action = acc.is_closed ? window.i18n.t('acc_reopen_action') : window.i18n.t('acc_close_action');
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.tp('acc_confirm_toggle', {action}))) {
             try {
-                await API.put(`/api/accounts/${id}`, {
+                const res = await API.put(`/api/accounts/${id}`, {
                     name: acc.name,
                     type: acc.type,
                     initial_balance: acc.initial_balance,
@@ -277,6 +280,7 @@ window.AccountsView = {
                 });
                 await this.loadData();
                 window.app.refreshSidebar();
+                showUndoToast(window.i18n.t('toast_acc_updated') || 'Statut du compte modifié', res.action_id, () => this.loadData().then(() => window.app.refreshSidebar()));
             } catch (e) {
                 console.error(e);
                 showInlineMessage(window.i18n.t('title_error'), window.i18n.t('acc_toggle_error'));
@@ -370,7 +374,7 @@ window.AccountsView = {
         const color = document.getElementById('accEditColor').value || ACCOUNT_COLORS[0];
 
         try {
-            await API.put(`/api/accounts/${id}`, {
+            const res = await API.put(`/api/accounts/${id}`, {
                 name: name,
                 type: type,
                 initial_balance: balance,
@@ -380,6 +384,7 @@ window.AccountsView = {
             this._closeEditModal();
             await this.loadData();
             window.app.refreshSidebar();
+            showUndoToast(window.i18n.t('toast_acc_updated') || 'Compte mis à jour', res.action_id, () => this.loadData().then(() => window.app.refreshSidebar()));
         } catch (e) {
             console.error(e);
             showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_edit_error'));

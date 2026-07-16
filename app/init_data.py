@@ -243,6 +243,31 @@ def init_db():
                 pass
             conn.commit()
 
+        if schema_version < 11:
+            # Schema v11: Add action_history table
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS action_history (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        entity_type TEXT NOT NULL,
+                        entity_id INTEGER NOT NULL,
+                        action_type TEXT NOT NULL,
+                        previous_state TEXT,
+                        new_state TEXT,
+                        is_undone BOOLEAN DEFAULT 0,
+                        user_name TEXT
+                    )
+                """))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '11')"))
+            except Exception:
+                pass
+            conn.commit()
+
+
 
 def wipe_db(db: Session):
     """Delete all data to start fresh."""

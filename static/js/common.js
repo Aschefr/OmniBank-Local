@@ -203,3 +203,126 @@ function showToast(message, type = 'success', duration = 3000) {
     };
     setTimeout(dismiss, duration);
 }
+
+/**
+ * Toast with an Undo button.
+ * @param {string} message 
+ * @param {number} actionId 
+ * @param {function} onUndoSuccess - callback to run after undo success
+ */
+function showUndoToast(message, actionId, onUndoSuccess = null) {
+    if (!actionId) {
+        showToast(message, 'success');
+        return;
+    }
+    if (window.app && window.app.updateHeaderHistoryState) {
+        window.app.updateHeaderHistoryState();
+    }
+    const undoText = window.i18n.t('history_undo_toast') || '↩ Undo';
+    const successMsg = window.i18n.t('history_undo_success') || 'Action successfully undone.';
+    
+    // Shift existing toasts up
+    const existingToasts = document.querySelectorAll('.app-toast');
+    existingToasts.forEach(t => {
+        const currentBottom = parseInt(t.style.bottom) || 20;
+        t.style.bottom = (currentBottom + 65) + 'px';
+    });
+
+    const toast = document.createElement('div');
+    toast.className = 'app-toast';
+    toast.style.cssText = `
+        position: fixed; bottom: 20px; right: 20px; z-index: 10010;
+        display: flex; align-items: center; justify-content: space-between; gap: 15px;
+        padding: 14px 20px; border-radius: 10px;
+        background: rgba(16,185,129,0.15); border: 1px solid #10b981;
+        color: #10b981; font-size: 13px; font-weight: 600;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        backdrop-filter: blur(12px);
+        transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), bottom 0.3s ease;
+        pointer-events: auto;
+    `;
+    
+    const textSpan = document.createElement('span');
+    textSpan.innerHTML = `<span style="font-size:16px;">✅</span> ${message}`;
+    
+    const undoBtn = document.createElement('button');
+    undoBtn.textContent = undoText;
+    undoBtn.style.cssText = `
+        background: rgba(245,158,11,0.2); border: 1px solid #f59e0b;
+        color: #f59e0b; padding: 4px 10px; border-radius: 6px;
+        font-size: 11px; font-weight: 700; cursor: pointer;
+        transition: background 0.2s;
+    `;
+    undoBtn.onmouseover = () => { undoBtn.style.background = 'rgba(245,158,11,0.35)'; };
+    undoBtn.onmouseout = () => { undoBtn.style.background = 'rgba(245,158,11,0.2)'; };
+    
+    undoBtn.onclick = async (e) => {
+        e.stopPropagation();
+        undoBtn.disabled = true;
+        undoBtn.textContent = '...';
+        try {
+            const res = await API.post(`/api/history/${actionId}/undo`);
+            if (res.ok) {
+                showToast(successMsg, 'success');
+                dismiss();
+                if (window.app && window.app.updateHeaderHistoryState) {
+                    window.app.updateHeaderHistoryState();
+                }
+                if (res.warning) {
+                    const warningMsg = window.i18n.t(`history_undo_warning_cascade`) || 'Warning: cascade entities modified.';
+                    setTimeout(() => showToast(warningMsg, 'info', 6000), 1000);
+                }
+                if (onUndoSuccess) {
+                    onUndoSuccess();
+                } else {
+                    // Default fallback: reload current view
+                    if (window.app && window.app.currentView) {
+                        window.app.loadView(window.app.currentView);
+                    }
+                }
+            } else {
+                const failMsg = (window.i18n.t('history_undo_fail') || 'Failed to undo').replace('{error}', res.detail || '');
+                showToast(failMsg, 'error');
+                undoBtn.disabled = false;
+                undoBtn.textContent = undoText;
+            }
+        } catch (err) {
+            console.error("Undo failed", err);
+            showToast("Undo failed", 'error');
+            undoBtn.disabled = false;
+            undoBtn.textContent = undoText;
+        }
+    };
+    
+    toast.appendChild(textSpan);
+    toast.appendChild(undoBtn);
+    
+    // Close button on clicking outside the undo button
+    toast.onclick = (e) => {
+        if (e.target !== undoBtn) {
+            dismiss();
+        }
+    };
+
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { toast.style.transform = 'translateX(0)'; });
+
+    const dismiss = () => {
+        toast.style.transform = 'translateX(120%)';
+        setTimeout(() => {
+            toast.remove();
+            const remainingToasts = document.querySelectorAll('.app-toast');
+            let offset = 20;
+            Array.from(remainingToasts).reverse().forEach(t => {
+                t.style.bottom = offset + 'px';
+                offset += 65;
+            });
+        }, 350);
+    };
+
+    setTimeout(() => {
+        if (document.body.contains(toast)) {
+            dismiss();
+        }
+    }, 8000);
+}
