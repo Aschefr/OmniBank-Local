@@ -58,6 +58,13 @@ window.ImportWizard = {
         const summaryDiv = document.getElementById('importSummaryText');
         if (summaryDiv) summaryDiv.style.display = 'none';
         
+        const alertBox = document.getElementById('importAlertBox');
+        if (alertBox) {
+            alertBox.style.display = 'none';
+            alertBox.innerHTML = '';
+        }
+        this._lastAnalyzedAccountId = undefined;
+        
         document.getElementById('btnSaveImport').style.display = 'none';
         
         const btnCatAll = document.getElementById('btnCategorizeAllAI');
@@ -138,6 +145,11 @@ window.ImportWizard = {
         const formData = new FormData();
         formData.append("file", this.selectedFile);
         
+        const accountId = document.getElementById('importAccountSelect')?.value;
+        if (accountId) {
+            formData.append("account_id", accountId);
+        }
+        
         this.showImportLoading('direct');
         
         try {
@@ -148,7 +160,7 @@ window.ImportWizard = {
             const result = await res.json();
             if (res.ok) {
                 this.fileBalance = result.file_balance || null;
-                await this.renderImportTable(result.transactions || []);
+                await this.renderImportTable(result.transactions || [], result.alerts || {});
             } else {
                 this.showImportError('direct', result.detail);
             }
@@ -163,6 +175,11 @@ window.ImportWizard = {
         
         const formData = new FormData();
         formData.append("file", this.selectedFile);
+        
+        const accountId = document.getElementById('importAccountSelect')?.value;
+        if (accountId) {
+            formData.append("account_id", accountId);
+        }
         
         this.showImportLoading('ai');
         this._aiDismissed = false;
@@ -194,7 +211,7 @@ window.ImportWizard = {
                 } else {
                     this._setImportBtnState('idle');
                     this.fileBalance = result.file_balance || null;
-                    await this.renderImportTable(result.transactions || []);
+                    await this.renderImportTable(result.transactions || [], result.alerts || {});
                 }
             } else {
                 this._setImportBtnState('idle');
@@ -266,10 +283,10 @@ window.ImportWizard = {
         // Re-open the modal
         document.getElementById('importDataModal').style.display = 'flex';
         this.fileBalance = result.file_balance || null;
-        await this.renderImportTable(result.transactions || []);
+        await this.renderImportTable(result.transactions || [], result.alerts || {});
     },
 
-    async renderImportTable(txs) {
+    async renderImportTable(txs, alerts = {}) {
         if (!window.app.categoriesList || window.app.categoriesList.length === 0) {
             try {
                 window.app.categoriesList = await API.get('/api/categories/');
@@ -321,6 +338,46 @@ window.ImportWizard = {
         
         const tbody = document.getElementById('importDataBody');
         tbody.innerHTML = '';
+        
+        // Store account used for these alerts
+        const currentAccountId = document.getElementById('importAccountSelect')?.value;
+        this._lastAnalyzedAccountId = currentAccountId || null;
+        
+        // Render alert box
+        const alertBox = document.getElementById('importAlertBox');
+        if (alertBox) {
+            alertBox.style.display = 'none';
+            alertBox.innerHTML = '';
+            
+            const warningMsgs = [];
+            if (alerts.all_duplicate) {
+                warningMsgs.push(`⚠️ ${window.i18n.t('import_alert_all_duplicate')}`);
+            }
+            if (alerts.is_old_file) {
+                warningMsgs.push(`⚠️ ${window.i18n.t('import_alert_old_file')
+                    .replace('{date_import}', formatDate(alerts.latest_import_date))
+                    .replace('{date_db}', formatDate(alerts.latest_db_date))}`);
+            }
+            if (alerts.has_gap) {
+                const dbD = new Date(alerts.latest_db_date);
+                const impD = new Date(alerts.oldest_import_date);
+                const diffTime = Math.abs(impD - dbD);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                warningMsgs.push(`⚠️ ${window.i18n.t('import_alert_gap')
+                    .replace('{jours}', diffDays)
+                    .replace('{date_db}', formatDate(alerts.latest_db_date))
+                    .replace('{date_import_debut}', formatDate(alerts.oldest_import_date))}`);
+            }
+            if (alerts.is_old_compared_to_today && !alerts.is_old_file) {
+                warningMsgs.push(`⚠️ ${window.i18n.t('import_alert_obsolete')
+                    .replace('{date_import}', formatDate(alerts.latest_import_date))}`);
+            }
+            
+            if (warningMsgs.length > 0) {
+                alertBox.style.display = 'block';
+                alertBox.innerHTML = warningMsgs.map(m => `<div style="margin-bottom: 5px; line-height: 1.4;">${m}</div>`).join('');
+            }
+        }
         
         // Reset scroll to top so the first row is always visible
         const tableContainer = document.getElementById('importTableContainer');
@@ -470,6 +527,19 @@ window.ImportWizard = {
         if (!box) return;
         
         const accountId = document.getElementById('importAccountSelect')?.value;
+        
+        // Handle account changed warnings
+        const alertBox = document.getElementById('importAlertBox');
+        if (alertBox) {
+            if (this._lastAnalyzedAccountId !== undefined && this._lastAnalyzedAccountId !== (accountId || null)) {
+                alertBox.style.display = 'block';
+                alertBox.innerHTML = `<div style="line-height: 1.4; color: #e67e22;">⚠️ ${window.i18n.t('import_alert_account_changed')}</div>`;
+            } else if (this._lastAnalyzedAccountId === (accountId || null) && alertBox.innerHTML.includes('import_alert_account_changed')) {
+                alertBox.style.display = 'none';
+                alertBox.innerHTML = '';
+            }
+        }
+        
         if (!accountId) {
             box.style.display = 'none';
             return;
