@@ -236,6 +236,47 @@ class App {
 
         // Init Notification Center
         this._initNotifications();
+
+        // Setup Undo / Redo Header Buttons
+        const undoBtn = document.getElementById('headerUndoBtn');
+        const redoBtn = document.getElementById('headerRedoBtn');
+        if (undoBtn) {
+            undoBtn.onclick = async () => {
+                try {
+                    undoBtn.disabled = true;
+                    const res = await API.post('/api/history/undo_last');
+                    if (res.ok) {
+                        showToast(window.i18n.t('history_undo_success') || 'Action annulée', 'success');
+                        if (res.warning) {
+                            const warningMsg = window.i18n.t(`history_undo_warning_cascade`) || 'Warning: cascade entities modified.';
+                            setTimeout(() => showToast(warningMsg, 'info', 6000), 1000);
+                        }
+                        this.updateHeaderHistoryState();
+                        this.loadView(this.currentView);
+                    }
+                } catch (e) {
+                    showToast("Failed to undo", 'error');
+                    this.updateHeaderHistoryState();
+                }
+            };
+        }
+        if (redoBtn) {
+            redoBtn.onclick = async () => {
+                try {
+                    redoBtn.disabled = true;
+                    const res = await API.post('/api/history/redo_last');
+                    if (res.ok) {
+                        showToast("Action rétablie avec succès.", 'success');
+                        this.updateHeaderHistoryState();
+                        this.loadView(this.currentView);
+                    }
+                } catch (e) {
+                    showToast("Failed to redo", 'error');
+                    this.updateHeaderHistoryState();
+                }
+            };
+        }
+        this.updateHeaderHistoryState();
     }
 
     _initNotifications() {
@@ -1397,6 +1438,9 @@ class App {
         } else if (viewName === 'trends' && window.TrendsView) {
             main.innerHTML = window.TrendsView.render();
             window.TrendsView.init();
+        } else if (viewName === 'history' && window.HistoryView) {
+            main.innerHTML = window.HistoryView.render();
+            window.HistoryView.init();
         } else {
             main.innerHTML = `<h2>${window.i18n.t('nav_' + viewName)}</h2><p>${window.i18n.t('label_in_construction')}</p>`;
         }
@@ -1529,6 +1573,27 @@ class App {
     closeChangelog() {
         const modal = document.getElementById('changelogModal');
         if (modal) modal.style.display = 'none';
+    }
+
+    async updateHeaderHistoryState() {
+        try {
+            const status = await API.get('/api/history/status');
+            const undoBtn = document.getElementById('headerUndoBtn');
+            const redoBtn = document.getElementById('headerRedoBtn');
+            
+            if (undoBtn) {
+                undoBtn.disabled = !status.can_undo;
+                undoBtn.style.opacity = status.can_undo ? "1" : "0.4";
+                undoBtn.style.cursor = status.can_undo ? "pointer" : "not-allowed";
+            }
+            if (redoBtn) {
+                redoBtn.disabled = !status.can_redo;
+                redoBtn.style.opacity = status.can_redo ? "1" : "0.4";
+                redoBtn.style.cursor = status.can_redo ? "pointer" : "not-allowed";
+            }
+        } catch (e) {
+            console.warn("Failed to fetch history status", e);
+        }
     }
 }
 

@@ -1357,13 +1357,13 @@ window.RecurrenceView = {
         if (!confirm) return;
         
         try {
-            await API.del(`/api/recurrences/${templateId}`);
-            showToast(window.i18n.t('msg_template_deleted') || 'Recurrence deleted');
+            const res = await API.del(`/api/recurrences/${templateId}`);
             if (this.expandedTemplateIds.has(templateId)) {
                 this.expandedTemplateIds.delete(templateId);
             }
             await window.app.refreshSidebar();
             await this.loadData();
+            showUndoToast(window.i18n.t('msg_template_deleted') || 'Recurrence deleted', res.action_id, () => this.loadData());
         } catch (e) {
             console.error(e);
             showToast(window.i18n.t('rec_delete_error') || "Impossible de supprimer la récurrence", "error");
@@ -2082,7 +2082,7 @@ window.RecurrenceView = {
             }
 
             // 1. Put updates to DB
-            await API.put(`/api/recurrences/${templateId}`, payload);
+            const res = await API.put(`/api/recurrences/${templateId}`, payload);
 
             // 2. Trigger automatic recurrence generation to regenerate future instances
             await API.post('/api/recurrences/generate_to_end_of_year');
@@ -2093,7 +2093,7 @@ window.RecurrenceView = {
             // Refresh UI
             window.app.refreshSidebar();
             await this.loadData();
-            showToast(window.i18n.t('msg_saved') || 'Enregistré avec succès !', 'success');
+            showUndoToast(window.i18n.t('msg_saved') || 'Enregistré avec succès !', res.action_id, () => this.loadData());
         } catch (e) {
             console.error(e);
             showToast("Erreur lors de la mise à jour de la récurrence", "error");

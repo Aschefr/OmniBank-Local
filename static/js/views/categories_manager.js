@@ -245,11 +245,11 @@ window.CategoriesView = {
             };
             if (!data.name) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_name_required'));
             
-            await API.post('/api/categories/', data);
+            const res = await API.post('/api/categories/', data);
             document.getElementById('cat_name').value = '';
             await this.loadData();
             window.dispatchEvent(new Event('categoriesUpdated'));
-            showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_category_added'));
+            showUndoToast(window.i18n.t('msg_category_added') || 'Catégorie ajoutée', res.action_id, () => this.loadData());
         } catch (e) {
             console.error(e);
             showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_category_exists'));
@@ -275,11 +275,11 @@ window.CategoriesView = {
         if (!name) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_name_required'));
         
         try {
-            await API.put(`/api/categories/${id}`, { name, type, is_closed });
+            const res = await API.put(`/api/categories/${id}`, { name, type, is_closed });
             document.getElementById('catEditModal').style.display = 'none';
             await this.loadData();
             window.dispatchEvent(new Event('categoriesUpdated'));
-            showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_category_updated'));
+            showUndoToast(window.i18n.t('msg_category_updated') || 'Catégorie modifiée', res.action_id, () => this.loadData());
         } catch(e) {
             showInlineMessage(window.i18n.t('title_error'), e.message || window.i18n.t('msg_cannot_update'));
         }
@@ -289,12 +289,13 @@ window.CategoriesView = {
         const cat = this.categories.find(c => c.id === id);
         if(!cat) return;
         try {
-            await API.put(`/api/categories/${id}`, { 
+            const res = await API.put(`/api/categories/${id}`, { 
                 name: cat.name, 
                 type: cat.type, 
                 is_closed: !cat.is_closed 
             });
             await this.loadData();
+            showUndoToast(window.i18n.t('msg_category_updated') || 'Catégorie modifiée', res.action_id, () => this.loadData());
         } catch(e) {
             showInlineMessage(window.i18n.t('title_error') || "Error", e.message);
         }
@@ -330,11 +331,11 @@ window.CategoriesView = {
         }
         
         try {
-            await API.del(url);
+            const res = await API.del(url);
             document.getElementById('catDeleteModal').style.display = 'none';
             await this.loadData();
             window.dispatchEvent(new Event('categoriesUpdated'));
-            showInlineMessage(window.i18n.t('title_success'), window.i18n.t('msg_category_deleted'));
+            showUndoToast(window.i18n.t('msg_category_deleted') || 'Catégorie supprimée', res.action_id, () => this.loadData());
         } catch (e) {
             console.error(e);
             showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_cannot_delete'));

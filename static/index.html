@@ -51,6 +51,7 @@
                 <button data-view="recurrences" class="nav-btn">🔄 <span data-i18n="nav_recurrences">Récurrences</span></button>
                 <button data-view="categories" class="nav-btn">🏷️ <span data-i18n="nav_categories">Catégories</span></button>
                 <button data-view="accounts" class="nav-btn">🏦 <span data-i18n="nav_accounts">Comptes</span></button>
+                <button data-view="history" class="nav-btn">🕓 <span data-i18n="nav_history_actions">Actions</span></button>
                 <button data-view="config" class="nav-btn">⚙️ <span data-i18n="nav_configuration">Configuration</span></button>
             </nav>
             <div class="header-actions">
@@ -62,6 +63,15 @@
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.5;flex-shrink:0;"><path d="M7 10l5 5 5-5z"/></svg>
                     </button>
                     <div id="userSwitcherMenu" class="user-switcher-menu" style="display:none;"></div>
+                </div>
+                <!-- Undo / Redo Global Arrows -->
+                <div style="display:flex; align-items:center; gap:4px; margin-right:6px;">
+                    <button id="headerUndoBtn" data-i18n-title="history_undo_toast" title="Annuler" style="font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; opacity:0.4; cursor:not-allowed; background:none; border:none; color:var(--text-main); padding:6px; border-radius:6px; transition:opacity 0.2s, background 0.2s;" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+                    </button>
+                    <button id="headerRedoBtn" title="Rétablir" style="font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; opacity:0.4; cursor:not-allowed; background:none; border:none; color:var(--text-main); padding:6px; border-radius:6px; transition:opacity 0.2s, background 0.2s;" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
+                    </button>
                 </div>
                 <!-- Notification Bell & Dropdown -->
                 <div class="notifications-dropdown" style="position: relative; display: inline-block;">
@@ -734,6 +744,7 @@
     <script src="/static/js/views/trends.js?v=4"></script>
     <script src="/static/js/views/license_manager.js"></script>
     <script src="/static/js/views/setup_wizard.js?v=2"></script>
+    <script src="/static/js/views/history_manager.js"></script>
     <script src="/static/js/app.js?v=4"></script>
 </body>
 </html>

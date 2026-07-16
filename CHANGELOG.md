@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.70] - 2026-07-16
+
+### Added
+- **Global Activity & Undo System 🕓**: Added full write operation tracking (Create, Update, Delete) across transactions, accounts, categories, budgets, recurrence templates, and org users.
+- **Header Undo/Redo Controls**: Added quick interactive Undo (↩) and Redo (↪) arrow buttons in the top header with real-time status updates.
+- **Activity Log View**: Added a dedicated "Actions" panel displaying a paginated history of all modifications with inline action details and undo buttons.
+- **Undo Toasts**: Added a temporary pop-up toast with a ↩ button to instantly reverse any successful action.
+
 ## [1.0.69] - 2026-07-16
 
 ### Added

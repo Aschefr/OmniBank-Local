@@ -578,8 +578,9 @@ window.AllOperationsView = {
 
     async toggleSkip(id) {
         try {
-            await API.post(`/api/transactions/${id}/toggle_skip`);
+            const res = await API.post(`/api/transactions/${id}/toggle_skip`);
             await Promise.all([window.app.refreshSidebar(), this.loadData()]);
+            showUndoToast(window.i18n.t('toast_tx_updated') || "Opération modifiée", res.action_id, () => this.loadData());
         } catch (e) {
             console.error(e);
             showToast("Erreur lors de la modification", "error");
@@ -589,9 +590,10 @@ window.AllOperationsView = {
     async delete(id) {
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.t('confirm_delete_operation'))) {
             try {
-                await API.del(`/api/transactions/${id}`);
+                const res = await API.del(`/api/transactions/${id}`);
                 // PERF: Refresh sidebar and reload data in parallel
                 await Promise.all([window.app.refreshSidebar(), this.loadData()]);
+                showUndoToast(window.i18n.t('toast_tx_deleted') || "Opération supprimée", res.action_id, () => this.loadData());
             } catch (e) {
                 console.error(e);
             }

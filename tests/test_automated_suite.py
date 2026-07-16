@@ -84,7 +84,7 @@ def test_accounts_crud():
     # Delete Account
     res = client.delete(f"/api/accounts/{new_acc['id']}")
     assert res.status_code == 200
-    assert res.json() == {"ok": True}
+    assert res.json().get("ok") is True
 
 
 # ==============================================================================
@@ -482,7 +482,7 @@ def test_delete_recurrence_template_preserves_reconciled():
     # Delete the template
     res_del = client.delete("/api/recurrences/1")
     assert res_del.status_code == 200
-    assert res_del.json() == {"ok": True}
+    assert res_del.json().get("ok") is True
     
     # Verify the template is deleted
     res_templates = client.get("/api/recurrences/")
