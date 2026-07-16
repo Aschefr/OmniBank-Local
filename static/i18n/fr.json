@@ -19,8 +19,6 @@
     "btn_clear_db": "Vider la base de données",
     "alert_clear_db": "Êtes-vous sûr de vouloir supprimer TOUTES vos données (comptes, opérations, budgets, etc.) ? Cette action est irréversible.",
     "nav_history": "Historique",
-    "sys_prompt_csv_extractor": "Tu es un parseur de données expert. Tu vas recevoir un texte brut issu d'un export bancaire (CSV ou tableau copié/collé). IGNORE toutes les lignes de méta-données, d'en-tête, de soldes ou de texte inutile. Extrais UNIQUEMENT les vraies transactions et retourne-les au format JSON strict. N'INVENTE SOUS AUCUN PRÉTEXTE DES DONNÉES. Si tu ne trouves rien, renvoie []. Le JSON doit être un tableau d'objets avec les clés exactes: 'date' (format YYYY-MM-DD), 'description' (texte nettoyé), 'amount' (nombre flottant, négatif pour les dépenses). NE RENVOIE AUCUN TEXTE AVANT OU APRÈS LE JSON. AUCUNE EXPLICATION.",
-    "sys_prompt_categorizer": "Tu es un classificateur de dépenses. Je vais te donner une liste de catégories existantes et une description de transaction. Tu dois choisir la catégorie la plus appropriée. Retourne UNIQUEMENT un objet JSON avec la clé 'category' contenant le nom exact de la catégorie choisie. Si aucune ne correspond bien, retourne 'category': null. NE RENVOIE AUCUN TEXTE AVANT OU APRÈS LE JSON.",
     "nav_trends": "Tendances",
     "filter_attachments": "Pièces jointes",
     "badge_closed": "Fermé",
@@ -1127,5 +1125,10 @@
     "btn_force_missed": "Aucune paie ce mois-ci",
     "msg_salary_defined": "Salaire défini avec succès",
     "msg_period_validated": "Période validée avec succès",
-    "btn_confirm_action": "Confirmer l'absence ?"
+    "btn_confirm_action": "Confirmer l'absence ?",
+    "import_alert_all_duplicate": "Toutes les opérations de ce relevé sont déjà présentes dans votre base de données. Aucune nouvelle opération ne sera ajoutée.",
+    "import_alert_old_file": "Ce fichier semble être un ancien relevé. La transaction la plus récente du fichier date du {date_import}, alors que vous avez déjà des transactions jusqu'au {date_db} en base.",
+    "import_alert_gap": "Attention, il y a un écart possible de {jours} jours entre votre dernière opération en base ({date_db}) et la plus ancienne de ce fichier ({date_import_debut}). Des transactions intermédiaires sont peut-être manquantes.",
+    "import_alert_obsolete": "La dernière opération de ce fichier date d'il y a plus de 7 jours ({date_import}). Veuillez vérifier s'il s'agit bien de votre relevé le plus récent.",
+    "import_alert_account_changed": "Le compte a été modifié. Veuillez relancer l'analyse (IA ou Directe) pour mettre à jour les alertes de cohérence temporelle pour ce nouveau compte."
 }
