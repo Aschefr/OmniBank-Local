@@ -583,6 +583,12 @@
                 </select>
             </div>
             
+            <div id="importSectionContainer" style="display: none; margin-bottom: 15px; align-items: center; gap: 10px; background: var(--bg-body); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <label style="font-size: 13px; font-weight: 600;" data-i18n="import_select_section_label">Section du relevé :</label>
+                <select id="importSectionSelect" class="inline-input" style="padding: 6px; border-radius: 6px; font-size: 13px; min-width: 200px;" onchange="window.ImportWizard.onSectionChanged()">
+                </select>
+            </div>
+            
             <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 15px;" id="importDataDesc" data-i18n="import_select_method">Veuillez sélectionner une méthode d'analyse pour votre fichier.</p>
             
             <datalist id="importDescList"></datalist>
@@ -593,6 +599,13 @@
             
             <div id="importAlertBox" style="display: none; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; border: 1px solid rgba(230, 126, 34, 0.5); background-color: rgba(230, 126, 34, 0.1); color: var(--text-color);">
                 <!-- Import warning alerts injected here -->
+            </div>
+            
+            <div id="importFiltersContainer" style="display: none; gap: 8px; margin-bottom: 10px; align-items: center; background: var(--bg-body); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px;">
+                <span style="font-weight: 600; color: var(--text-muted);" data-i18n="import_filter_label">Filtrer les opérations :</span>
+                <button class="btn btn-sm" id="btnFilterAll" onclick="window.ImportWizard.setFilter('all')" data-i18n="import_filter_all" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: white; cursor: pointer; transition: all 0.2s;">Toutes</button>
+                <button class="btn btn-sm" id="btnFilterAdd" onclick="window.ImportWizard.setFilter('add')" data-i18n="import_filter_add" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.2s;">À ajouter</button>
+                <button class="btn btn-sm" id="btnFilterReconcile" onclick="window.ImportWizard.setFilter('reconcile')" data-i18n="import_filter_reconcile" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.2s;">À rapprocher</button>
             </div>
             
             <div id="importTableContainer" style="overflow-y: auto; flex: 1; border: 1px solid var(--border-color); border-radius: 8px;">

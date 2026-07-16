@@ -1130,5 +1130,7 @@
     "import_alert_old_file": "Ce fichier semble être un ancien relevé. La transaction la plus récente du fichier date du {date_import}, alors que vous avez déjà des transactions jusqu'au {date_db} en base.",
     "import_alert_gap": "Attention, il y a un écart possible de {jours} jours entre votre dernière opération en base ({date_db}) et la plus ancienne de ce fichier ({date_import_debut}). Des transactions intermédiaires sont peut-être manquantes.",
     "import_alert_obsolete": "La dernière opération de ce fichier date d'il y a plus de 7 jours ({date_import}). Veuillez vérifier s'il s'agit bien de votre relevé le plus récent.",
-    "import_alert_account_changed": "Le compte a été modifié. Veuillez relancer l'analyse (IA ou Directe) pour mettre à jour les alertes de cohérence temporelle pour ce nouveau compte."
+    "import_alert_account_changed": "Le compte a été modifié. Veuillez relancer l'analyse (IA ou Directe) pour mettre à jour les alertes de cohérence temporelle pour ce nouveau compte.",
+    "import_select_section_label": "Section du relevé :",
+    "import_select_section_hint": "Plusieurs comptes détectés. Sélectionnez la section à importer :"
 }

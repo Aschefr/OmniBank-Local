@@ -261,13 +261,13 @@ def check_import_alerts(db, account_id: int, parsed_txs: list):
     return alerts
 
 
-def extract_account_block(raw_data: list, account_name: str, account_type: str) -> list:
+def extract_account_block(raw_data: list, account_name: str, account_type: str, explicit_section_title: str = None) -> list:
     """
     If the spreadsheet contains multiple account sections (e.g. Crédit Agricole multi-account export),
     extract only the rows corresponding to the target account.
     """
     import pandas as pd
-    if not account_name:
+    if not account_name and not explicit_section_title:
         return raw_data
         
     # 1. Identify section headers
@@ -298,36 +298,43 @@ def extract_account_block(raw_data: list, account_name: str, account_type: str) 
     if len(sections) <= 1:
         return raw_data
 
-    # Match the best section
     best_section = None
-    best_score = -1
     
-    name_words = [w.lower() for w in account_name.split() if len(w) > 2]
-    
-    for sec in sections:
-        title = sec["title"].lower()
-        score = 0
+    if explicit_section_title:
+        for sec in sections:
+            if sec["title"] == explicit_section_title:
+                best_section = sec
+                break
+
+    if not best_section:
+        # Fallback to Match the best section by similarity
+        best_score = -1
+        name_words = [w.lower() for w in account_name.split() if len(w) > 2]
         
-        if account_name.lower() in title:
-            score += 10
+        for sec in sections:
+            title = sec["title"].lower()
+            score = 0
             
-        for w in name_words:
-            if w in title:
-                score += 3
+            if account_name.lower() in title:
+                score += 10
                 
-        if 'livret a' in title and 'livret a' in account_name.lower():
-            score += 15
-        elif 'ldd' in title and 'ldd' in account_name.lower():
-            score += 15
-        elif 'dépôt' in title or 'depot' in title or 'courant' in title:
-            if account_type.lower() == 'compte courant' or 'centre-est' in account_name.lower() or 'ile-de-france' in account_name.lower():
-                score += 5
-                
-        if score > best_score:
-            best_score = score
-            best_section = sec
+            for w in name_words:
+                if w in title:
+                    score += 3
+                    
+            if 'livret a' in title and 'livret a' in account_name.lower():
+                score += 15
+            elif 'ldd' in title and 'ldd' in account_name.lower():
+                score += 15
+            elif 'dépôt' in title or 'depot' in title or 'courant' in title:
+                if account_type.lower() == 'compte courant' or 'centre-est' in account_name.lower() or 'ile-de-france' in account_name.lower():
+                    score += 5
+                    
+            if score > best_score:
+                best_score = score
+                best_section = sec
             
-    if best_section and best_score > 0:
+    if best_section:
         start_idx = best_section["title_idx"] if best_section["title_idx"] != -1 else best_section["header_idx"]
         
         end_idx = len(raw_data)
@@ -339,5 +346,84 @@ def extract_account_block(raw_data: list, account_name: str, account_type: str) 
         return raw_data[start_idx:end_idx]
         
     return raw_data
+
+
+def detect_multi_account_sections(raw_data: list, account_name: str, account_type: str) -> dict:
+    """
+    Scans the raw_data for multiple account sections, calculates match confidence score
+    for each, and returns a dictionary summarizing the results.
+    """
+    import pandas as pd
+    sections = []
+    current_title = None
+    current_title_idx = -1
+    
+    for i, row in enumerate(raw_data):
+        non_empty = [x for x in row if pd.notna(x) and str(x).strip() != '']
+        if len(non_empty) == 1:
+            val = str(non_empty[0]).lower()
+            if any(k in val for k in ['compte de dépôt', 'compte de depot', 'compte courant', 'livret', 'ldd', 'compte n°', 'compte nu', 'carte n°', 'carte nu']):
+                current_title = non_empty[0]
+                current_title_idx = i
+                
+        valid_cols = sum(1 for x in row if pd.notna(x) and not str(x).startswith('Unnamed:') and str(x).strip() != '')
+        if valid_cols >= 3 and any(str(x).strip().lower() in ['date', 'date operation', 'date d\'opération'] for x in row):
+            sections.append({
+                "title": current_title or f"Section {len(sections)+1}",
+                "title_idx": current_title_idx,
+                "header_idx": i
+            })
+            current_title = None
+            current_title_idx = -1
+            
+    if len(sections) <= 1:
+        return {
+            "sections": [],
+            "recommended_section": None,
+            "confidence": 100
+        }
+        
+    # Calculate confidence score for each section (mapped to percentage 0-100)
+    scored_sections = []
+    name_words = [w.lower() for w in account_name.split() if len(w) > 2]
+    
+    for sec in sections:
+        title = sec["title"]
+        title_lower = title.lower()
+        score = 0
+        
+        if account_name.lower() in title_lower:
+            score += 60
+            
+        for w in name_words:
+            if w in title_lower:
+                score += 20
+                
+        if 'livret a' in title_lower and 'livret a' in account_name.lower():
+            score += 90
+        elif 'ldd' in title_lower and 'ldd' in account_name.lower():
+            score += 90
+        elif 'dépôt' in title_lower or 'depot' in title_lower or 'courant' in title_lower:
+            if account_type.lower() == 'compte courant' or 'centre-est' in account_name.lower() or 'ile-de-france' in account_name.lower():
+                score += 50
+                
+        confidence = min(score, 100)
+        if confidence == 0:
+            confidence = 10
+            
+        scored_sections.append({
+            "title": title,
+            "confidence": confidence
+        })
+        
+    scored_sections.sort(key=lambda x: x["confidence"], reverse=True)
+    recommended = scored_sections[0]["title"] if scored_sections else None
+    top_confidence = scored_sections[0]["confidence"] if scored_sections else 100
+    
+    return {
+        "sections": [s["title"] for s in scored_sections],
+        "recommended_section": recommended,
+        "confidence": top_confidence
+    }
 
 

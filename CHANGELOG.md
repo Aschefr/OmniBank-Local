@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.69] - 2026-07-16
+
+### Added
+- **Multi-Account Block Parsing 🏦**: Added automatic account segment extraction from multi-account statement exports (e.g. Crédit Agricole single-sheet exports containing concatenated account sections like deposition account, Livret A, LDD).
+- **Match Confidence Index & Dropdown Fallback**: Calculates matching confidence score (0-100%) against target account. Automatically parses matching segment if confidence is high ($\ge$ 50%), and dynamically presents a manual selection dropdown for the segment to import if confidence is low (< 50%).
+- **Import Modal Row Filters 🔍**: Added interactive filters ("All", "To Add", "To Reconcile") in the import verification modal to view and validate transactions by action type.
+
 ## [1.0.68] - 2026-07-16
 
 ### Added

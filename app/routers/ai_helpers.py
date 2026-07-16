@@ -122,6 +122,7 @@ async def categorize_batch(data: dict, db: Session = Depends(get_db)):
 async def import_csv_ai(
     file: UploadFile = File(...),
     account_id: int = Form(None),
+    section_title: str = Form(None),
     db: Session = Depends(get_db)
 ):
     import logging
@@ -145,10 +146,11 @@ async def import_csv_ai(
         raw_data = [df.columns.tolist()] + df.values.tolist()
         
     # Extract only the block matching selected account (if multi-account export)
-    if account_id:
+    if account_id or section_title:
         acc = db.query(Account).filter(Account.id == account_id).first()
-        if acc:
-            raw_data = extract_account_block(raw_data, acc.name, acc.type or "")
+        acc_name = acc.name if acc else ""
+        acc_type = (acc.type or "") if acc else ""
+        raw_data = extract_account_block(raw_data, acc_name, acc_type, explicit_section_title=section_title)
             
     header_idx = -1
     for i, row in enumerate(raw_data):

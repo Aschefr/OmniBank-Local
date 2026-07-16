@@ -45,7 +45,7 @@ window.ImportWizard = {
         document.getElementById('globalCsvFileInput').click();
     },
 
-    onFileSelected(event) {
+    async onFileSelected(event) {
         this.selectedFile = event.target.files[0];
         if (!this.selectedFile) return;
         
@@ -64,6 +64,22 @@ window.ImportWizard = {
             alertBox.innerHTML = '';
         }
         this._lastAnalyzedAccountId = undefined;
+        
+        this.detectedSections = [];
+        this.recommendedSection = null;
+        this.sectionConfidence = 100;
+        
+        const sectionContainer = document.getElementById('importSectionContainer');
+        if (sectionContainer) {
+            sectionContainer.style.display = 'none';
+        }
+        
+        const filtersContainer = document.getElementById('importFiltersContainer');
+        if (filtersContainer) {
+            filtersContainer.style.display = 'none';
+        }
+        
+        await this.reinspectFileSections();
         
         document.getElementById('btnSaveImport').style.display = 'none';
         
@@ -149,6 +165,9 @@ window.ImportWizard = {
         if (accountId) {
             formData.append("account_id", accountId);
         }
+        if (this.detectedSections && this.detectedSections.length > 1 && this.recommendedSection) {
+            formData.append("section_title", this.recommendedSection);
+        }
         
         this.showImportLoading('direct');
         
@@ -179,6 +198,9 @@ window.ImportWizard = {
         const accountId = document.getElementById('importAccountSelect')?.value;
         if (accountId) {
             formData.append("account_id", accountId);
+        }
+        if (this.detectedSections && this.detectedSections.length > 1 && this.recommendedSection) {
+            formData.append("section_title", this.recommendedSection);
         }
         
         this.showImportLoading('ai');
@@ -303,6 +325,13 @@ window.ImportWizard = {
         document.getElementById('importDataDesc').style.display = 'none';
         document.getElementById('importDataTable').style.display = 'table';
         document.getElementById('btnSaveImport').style.display = 'inline-block';
+        
+        const filtersContainer = document.getElementById('importFiltersContainer');
+        if (filtersContainer) {
+            filtersContainer.style.display = 'flex';
+        }
+        this.currentFilter = 'all';
+        this.updateFilterButtons();
         
         const analysisBtns = document.getElementById('importAnalysisButtons');
         if (analysisBtns) analysisBtns.style.display = 'none';
@@ -526,6 +555,10 @@ window.ImportWizard = {
         const box = document.getElementById('balanceVerificationBox');
         if (!box) return;
         
+        if (this.selectedFile) {
+            this.reinspectFileSections();
+        }
+        
         const accountId = document.getElementById('importAccountSelect')?.value;
         
         // Handle account changed warnings
@@ -743,6 +776,151 @@ window.ImportWizard = {
         }
         
         this.finalizeSave(txs, accountId);
+    },
+    
+    populateSectionsDropdown() {
+        const select = document.getElementById('importSectionSelect');
+        if (!select) return;
+        select.innerHTML = '';
+        
+        this.detectedSections.forEach(sec => {
+            const opt = document.createElement('option');
+            opt.value = sec;
+            opt.textContent = sec;
+            if (sec === this.recommendedSection) {
+                opt.selected = true;
+            }
+            select.appendChild(opt);
+        });
+    },
+
+    onSectionChanged() {
+        const select = document.getElementById('importSectionSelect');
+        if (select) {
+            this.recommendedSection = select.value;
+        }
+        
+        document.getElementById('importDataTable').style.display = 'none';
+        document.getElementById('importDataBody').innerHTML = '';
+        this.fileBalance = null;
+        document.getElementById('balanceVerificationBox').style.display = 'none';
+        
+        const alertBox = document.getElementById('importAlertBox');
+        if (alertBox) {
+            alertBox.style.display = 'none';
+            alertBox.innerHTML = '';
+        }
+        
+        document.getElementById('btnSaveImport').style.display = 'none';
+        
+        const saveBtns = document.getElementById('importSaveButtons');
+        if (saveBtns) saveBtns.style.display = 'none';
+        
+        const analysisBtns = document.getElementById('importAnalysisButtons');
+        if (analysisBtns) analysisBtns.style.display = 'flex';
+        
+        const filtersContainer = document.getElementById('importFiltersContainer');
+        if (filtersContainer) {
+            filtersContainer.style.display = 'none';
+        }
+        
+        this._setAnalysisButtonsEnabled(true);
+    },
+    
+    async reinspectFileSections() {
+        if (!this.selectedFile) return;
+        
+        const sectionContainer = document.getElementById('importSectionContainer');
+        const accountId = document.getElementById('importAccountSelect')?.value;
+        
+        const formData = new FormData();
+        formData.append("file", this.selectedFile);
+        if (accountId) {
+            formData.append("account_id", accountId);
+        }
+        
+        try {
+            const res = await fetch("/api/csv/inspect_file", {
+                method: "POST",
+                body: formData
+            });
+            if (res.ok) {
+                const data = await res.json();
+                this.detectedSections = data.sections || [];
+                this.recommendedSection = data.recommended_section || null;
+                this.sectionConfidence = data.confidence || 100;
+                
+                this.populateSectionsDropdown();
+                
+                if (this.detectedSections.length > 1) {
+                    if (this.sectionConfidence < 50) {
+                        if (sectionContainer) {
+                            sectionContainer.style.display = 'flex';
+                        }
+                    } else {
+                        if (sectionContainer) {
+                            sectionContainer.style.display = 'none';
+                        }
+                    }
+                } else {
+                    if (sectionContainer) {
+                        sectionContainer.style.display = 'none';
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Error inspecting file sections:", e);
+        }
+    },
+    
+    setFilter(type) {
+        this.currentFilter = type;
+        this.updateFilterButtons();
+        
+        const rows = document.querySelectorAll('#importDataBody tr');
+        rows.forEach(tr => {
+            const isRec = tr.querySelector('.import-reconciled').value === 'true';
+            const alreadyRec = tr.querySelector('.import-already-rec').value === 'true';
+            
+            if (type === 'all') {
+                tr.style.display = '';
+            } else if (type === 'add') {
+                tr.style.display = !isRec ? '' : 'none';
+            } else if (type === 'reconcile') {
+                tr.style.display = (isRec && !alreadyRec) ? '' : 'none';
+            }
+        });
+    },
+    
+    updateFilterButtons() {
+        const btnAll = document.getElementById('btnFilterAll');
+        const btnAdd = document.getElementById('btnFilterAdd');
+        const btnRec = document.getElementById('btnFilterReconcile');
+        if (!btnAll || !btnAdd || !btnRec) return;
+        
+        const resetBtn = (btn) => {
+            btn.style.background = 'transparent';
+            btn.style.color = 'var(--text-muted)';
+            btn.style.borderColor = 'var(--border-color)';
+        };
+        
+        const activeBtn = (btn) => {
+            btn.style.background = 'var(--accent)';
+            btn.style.color = 'white';
+            btn.style.borderColor = 'var(--accent)';
+        };
+        
+        resetBtn(btnAll);
+        resetBtn(btnAdd);
+        resetBtn(btnRec);
+        
+        if (this.currentFilter === 'all') {
+            activeBtn(btnAll);
+        } else if (this.currentFilter === 'add') {
+            activeBtn(btnAdd);
+        } else if (this.currentFilter === 'reconcile') {
+            activeBtn(btnRec);
+        }
     },
     
     async finalizeSave(txs, accountId) {
