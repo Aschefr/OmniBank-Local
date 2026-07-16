@@ -1268,11 +1268,14 @@ window.BudgetsView = {
 
         try {
             let savedId = id;
+            let actionId = null;
             if (id) {
-                await API.put(`/api/budgets/${id}`, payload);
+                const res = await API.put(`/api/budgets/${id}`, payload);
+                actionId = res.action_id;
             } else {
                 const res = await API.post('/api/budgets/', payload);
                 savedId = res.id;
+                actionId = res.action_id;
             }
             
             // Highlight the new/updated envelope after re-render
@@ -1302,7 +1305,8 @@ window.BudgetsView = {
             }
 
             // Non-blocking toast
-            showToast(id ? window.i18n.t('msg_envelope_updated') : window.i18n.t('msg_envelope_created'), 'success');
+            const toastMsg = id ? window.i18n.t('msg_envelope_updated') : window.i18n.t('msg_envelope_created');
+            showUndoToast(toastMsg, actionId, () => this.loadBudgets().then(() => this.loadStatus()));
         } catch(e) {
             showToast(e.message || window.i18n.t('budget_ai_create_fail'), 'error', 5000);
         }
@@ -1326,10 +1330,11 @@ window.BudgetsView = {
         const action = b.is_closed ? window.i18n.t('budget_reopen_action') : window.i18n.t('budget_close_action');
         if (!await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.tp('budget_confirm_toggle', {action}))) return;
         try {
-            await API.put(`/api/budgets/${id}`, { is_closed: !b.is_closed });
+            const res = await API.put(`/api/budgets/${id}`, { is_closed: !b.is_closed });
             await this.loadBudgets();
             await this.loadStatus();
             window.app.refreshSidebar();
+            showUndoToast(window.i18n.t('msg_envelope_updated'), res.action_id, () => this.loadBudgets().then(() => this.loadStatus()));
         } catch(e) {
             showInlineMessage(window.i18n.t('title_error'), e.message);
         }
@@ -1338,10 +1343,11 @@ window.BudgetsView = {
     async deleteBudget(id) {
         if (!await showInlineConfirm(window.i18n.t('title_deletion'), window.i18n.t('confirm_delete_envelope'))) return;
         try {
-            await API.del(`/api/budgets/${id}`);
+            const res = await API.del(`/api/budgets/${id}`);
             await this.loadBudgets();
             await this.loadStatus();
             window.app.refreshSidebar();
+            showUndoToast(window.i18n.t('msg_envelope_deleted') || 'Budget supprimé', res.action_id, () => this.loadBudgets().then(() => this.loadStatus()));
         } catch(e) {
             showInlineMessage(window.i18n.t('title_info'), e.message);
         }
@@ -1379,7 +1385,7 @@ window.BudgetsView = {
         if (isNaN(amount) || amount <= 0) return;
 
         try {
-            await API.post(`/api/budgets/${budgetId}/allocations`, {
+            const res = await API.post(`/api/budgets/${budgetId}/allocations`, {
                 amount: amount * sign,
                 note: noteInput?.value || null,
                 date: new Date().toISOString().split('T')[0],
@@ -1387,7 +1393,8 @@ window.BudgetsView = {
             document.getElementById('allocationInlineForm')?.remove();
             await this.loadStatus();
             window.app.refreshSidebar();
-            showToast(sign > 0 ? `↑ ${formatCurrency(amount)} ${window.i18n.t('budget_savings_deposit').toLowerCase()}` : `↓ ${formatCurrency(amount)} ${window.i18n.t('budget_savings_withdrawal').toLowerCase()}`, 'success');
+            const toastMsg = sign > 0 ? `↑ ${formatCurrency(amount)} ${window.i18n.t('budget_savings_deposit').toLowerCase()}` : `↓ ${formatCurrency(amount)} ${window.i18n.t('budget_savings_withdrawal').toLowerCase()}`;
+            showUndoToast(toastMsg, res.action_id, () => this.loadStatus());
         } catch(e) {
             showInlineMessage(window.i18n.t('title_error'), e.message);
         }
@@ -1408,11 +1415,12 @@ window.BudgetsView = {
 
     async deleteAllocation(budgetId, allocId, budgetName, year, month) {
         try {
-            await API.del(`/api/budgets/${budgetId}/allocations/${allocId}`);
+            const res = await API.del(`/api/budgets/${budgetId}/allocations/${allocId}`);
             await this.loadStatus();
             window.app.refreshSidebar();
             // Refresh detail view
             await this.showDetail(budgetId, budgetName, year, month);
+            showUndoToast(window.i18n.t('msg_allocation_deleted') || 'Allocation supprimée', res.action_id, () => this.loadStatus().then(() => this.showDetail(budgetId, budgetName, year, month)));
         } catch(e) {
             showInlineMessage(window.i18n.t('title_error'), e.message);
         }

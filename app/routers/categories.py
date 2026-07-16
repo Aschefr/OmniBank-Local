@@ -7,6 +7,7 @@ from app.models import Category, Transaction, RecurrenceTemplate, BudgetCategory
 from sqlalchemy import func
 from datetime import date
 from app.schemas.api_schemas import CategoryBase, CategoryOut
+from app.services.history_service import record_action, snapshot_entity
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
@@ -79,10 +80,14 @@ def create_category(cat: CategoryBase, force_move: bool = False, db: Session = D
         is_used = (tx_count > 0 or tpl_count > 0)
         
         if not is_used or force_move:
+            old_snapshot = snapshot_entity(db_cat)
             db_cat.type = cat.type
             db_cat.is_closed = False # Ensure open
+            db.flush()
+            action_id = record_action(db, "category", db_cat.id, "UPDATE", old_snapshot, snapshot_entity(db_cat))
             db.commit()
             db.refresh(db_cat)
+            db_cat.action_id = action_id
             return db_cat
         else:
             raise HTTPException(
@@ -92,8 +97,11 @@ def create_category(cat: CategoryBase, force_move: bool = False, db: Session = D
             
     new_cat = Category(**cat.dict())
     db.add(new_cat)
+    db.flush()
+    action_id = record_action(db, "category", new_cat.id, "CREATE", None, snapshot_entity(new_cat))
     db.commit()
     db.refresh(new_cat)
+    new_cat.action_id = action_id
     return new_cat
 
 
@@ -103,6 +111,7 @@ def update_category(cat_id: int, cat: CategoryBase, db: Session = Depends(get_db
     if not db_cat:
         raise HTTPException(status_code=404, detail="Category not found")
         
+    old_snapshot = snapshot_entity(db_cat)
     old_name = db_cat.name
     new_name = cat.name
     
@@ -120,8 +129,11 @@ def update_category(cat_id: int, cat: CategoryBase, db: Session = Depends(get_db
         db.query(RecurrenceTemplate).filter(RecurrenceTemplate.category == old_name).update({"category": new_name})
         db.query(BudgetCategory).filter(BudgetCategory.category_name == old_name).update({"category_name": new_name})
         
+    db.flush()
+    action_id = record_action(db, "category", db_cat.id, "UPDATE", old_snapshot, snapshot_entity(db_cat))
     db.commit()
     db.refresh(db_cat)
+    db_cat.action_id = action_id
     return db_cat
 
 @router.delete("/{cat_id}")
@@ -130,6 +142,7 @@ def delete_category(cat_id: int, reallocate_to: str = None, db: Session = Depend
     if not db_cat:
         raise HTTPException(status_code=404, detail="Category not found")
         
+    old_snapshot = snapshot_entity(db_cat)
     old_name = db_cat.name
     
     # If reallocation requested, update existing records
@@ -139,8 +152,9 @@ def delete_category(cat_id: int, reallocate_to: str = None, db: Session = Depend
         db.query(BudgetCategory).filter(BudgetCategory.category_name == old_name).update({"category_name": reallocate_to})
         
     db.delete(db_cat)
+    action_id = record_action(db, "category", cat_id, "DELETE", old_snapshot, None)
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "action_id": action_id}
 
 
 # ─── Improvement_04: Categories filtered by account scope ─────────────────────

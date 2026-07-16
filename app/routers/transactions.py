@@ -6,6 +6,7 @@ from datetime import date, datetime
 from app.database import get_db
 from app.models import Transaction, Account, RecurrenceTemplate
 from app.schemas.api_schemas import TransactionCreate, TransactionUpdate, TransactionOut
+from app.services.history_service import record_action, snapshot_entity
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -55,8 +56,11 @@ def create_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
         template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
         if template:
             template.amount = db_tx.amount
+    db.flush()
+    action_id = record_action(db, "transaction", db_tx.id, "CREATE", None, snapshot_entity(db_tx), user_name=db_tx.created_by)
     db.commit()
     db.refresh(db_tx)
+    db_tx.action_id = action_id
     return db_tx
 
 @router.get("/{tx_id}", response_model=TransactionOut)
@@ -72,6 +76,7 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
     if not db_tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
         
+    old_snapshot = snapshot_entity(db_tx)
     update_data = tx_update.dict(exclude_unset=True)
     # Auto-set audit timestamp if modified_by is present (org mode)
     if "modified_by" in update_data and update_data["modified_by"]:
@@ -115,8 +120,11 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
         template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
         if template:
             template.amount = db_tx.amount
+    db.flush()
+    action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, snapshot_entity(db_tx), user_name=db_tx.modified_by)
     db.commit()
     db.refresh(db_tx)
+    db_tx.action_id = action_id
     return db_tx
 
 @router.delete("/{tx_id}")
@@ -124,9 +132,12 @@ def delete_transaction(tx_id: int, db: Session = Depends(get_db)):
     db_tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
     if not db_tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
+    old_snapshot = snapshot_entity(db_tx)
+    user_name = db_tx.modified_by or db_tx.created_by
     db.delete(db_tx)
+    action_id = record_action(db, "transaction", tx_id, "DELETE", old_snapshot, None, user_name=user_name)
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "action_id": action_id}
 
 @router.post("/{tx_id}/toggle_reconciliation")
 def toggle_reconciliation(tx_id: int, db: Session = Depends(get_db)):
@@ -134,6 +145,7 @@ def toggle_reconciliation(tx_id: int, db: Session = Depends(get_db)):
     if not db_tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
         
+    old_snapshot = snapshot_entity(db_tx)
     if db_tx.reconciliation_date:
         db_tx.reconciliation_date = None
     else:
@@ -143,9 +155,11 @@ def toggle_reconciliation(tx_id: int, db: Session = Depends(get_db)):
         template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
         if template:
             template.amount = db_tx.amount
+    db.flush()
+    action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, snapshot_entity(db_tx), user_name=db_tx.modified_by or db_tx.created_by)
     db.commit()
     db.refresh(db_tx)
-    return {"reconciliation_date": db_tx.reconciliation_date}
+    return {"reconciliation_date": db_tx.reconciliation_date, "action_id": action_id}
 
 @router.post("/{tx_id}/toggle_skip")
 def toggle_skip(tx_id: int, db: Session = Depends(get_db)):
@@ -153,6 +167,7 @@ def toggle_skip(tx_id: int, db: Session = Depends(get_db)):
     if not db_tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
         
+    old_snapshot = snapshot_entity(db_tx)
     if db_tx.is_skipped:
         # Unskip: clear flag and remove auto-reconciliation (amount was never changed)
         db_tx.is_skipped = False
@@ -162,12 +177,15 @@ def toggle_skip(tx_id: int, db: Session = Depends(get_db)):
         db_tx.is_skipped = True
         db_tx.reconciliation_date = date.today()
         
+    db.flush()
+    action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, snapshot_entity(db_tx), user_name=db_tx.modified_by or db_tx.created_by)
     db.commit()
     db.refresh(db_tx)
     return {
         "is_skipped": db_tx.is_skipped,
         "amount": db_tx.amount,
-        "reconciliation_date": db_tx.reconciliation_date
+        "reconciliation_date": db_tx.reconciliation_date,
+        "action_id": action_id
     }
 
 @router.delete("/all/clear", status_code=200)

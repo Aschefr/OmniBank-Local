@@ -822,9 +822,11 @@ window.FormView = {
 
     async executeSave(propagate) {
         try {
+            let actionId = null;
             if (this.currentTxId) {
                 // UPDATE
-                await API.put(`/api/transactions/${this.currentTxId}?propagate=${propagate}`, this.pendingSaveData);
+                const res = await API.put(`/api/transactions/${this.currentTxId}?propagate=${propagate}`, this.pendingSaveData);
+                actionId = res.action_id;
                 
                 // If propagating and recurrence limit changed, update template and regenerate
                 if (propagate && this.currentTxBase && this.currentTxBase.recurrence_id) {
@@ -864,6 +866,7 @@ window.FormView = {
                     txData.recurrence_id = newTpl.id;
                     
                     const newTx = await API.post('/api/transactions/', txData);
+                    actionId = newTx.action_id;
                     if (newTx && newTx.id) createdTxId = newTx.id;
                     await API.post(`/api/recurrences/generate_to_end_of_year?template_id=${newTpl.id}`, {});
                     
@@ -871,6 +874,7 @@ window.FormView = {
                 } else {
                     const txData = { ...this.pendingSaveData, date_saisie: new Date().toISOString().split('T')[0] };
                     const newTx = await API.post('/api/transactions/', txData);
+                    actionId = newTx.action_id;
                     this._recentlyCreatedId = (newTx && newTx.id) ? newTx.id : null;
                 }
             }
@@ -899,6 +903,12 @@ window.FormView = {
             } else {
                 this.close();
             }
+
+            // Show Undo Toast
+            const toastMsg = this.currentTxId 
+                ? (window.i18n.t('toast_tx_updated') || 'Transaction mise à jour')
+                : (window.i18n.t('toast_tx_created') || 'Transaction enregistrée');
+            showUndoToast(toastMsg, actionId);
 
             // Reload descriptions on save
             this.loadDescriptions();
