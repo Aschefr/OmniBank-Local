@@ -1130,5 +1130,7 @@
     "import_alert_old_file": "This file seems to be an old statement. The most recent transaction in the file is from {date_import}, but you already have transactions up to {date_db} in the database.",
     "import_alert_gap": "Warning, there is a potential gap of {jours} days between your last transaction in the database ({date_db}) and the oldest one in this file ({date_import_debut}). Some intermediate transactions might be missing.",
     "import_alert_obsolete": "The last transaction in this file is more than 7 days old ({date_import}). Please check if this is indeed your most recent statement.",
-    "import_alert_account_changed": "Account changed. Please rerun the analysis (AI or Direct) to update the timing alerts for this new account."
+    "import_alert_account_changed": "Account changed. Please rerun the analysis (AI or Direct) to update the timing alerts for this new account.",
+    "import_select_section_label": "Statement section:",
+    "import_select_section_hint": "Multiple accounts detected. Select the section to import:"
 }
