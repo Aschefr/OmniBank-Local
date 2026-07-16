@@ -60,7 +60,11 @@ def heuristic_parse(df):
         # Merge them into a single column
         def parse_amt(val):
             try:
-                return float(str(val).replace('€','').replace(' ','').replace('\u202f','').replace('\xa0','').replace(',','.').strip())
+                parsed = float(str(val).replace('€','').replace(' ','').replace('\u202f','').replace('\xa0','').replace(',','.').strip())
+                import math
+                if math.isnan(parsed) or math.isinf(parsed):
+                    return 0.0
+                return parsed
             except:
                 return 0.0
                 
@@ -103,55 +107,237 @@ def heuristic_parse(df):
 
 def check_reconciliation(db, tx_date, tx_amount, matched_ids=None):
     """
-    Checks if a transaction with the exact amount exists within +/- 15 days.
-    Returns dict with matched DB transaction ID and description, or None.
+    Checks if a transaction with the exact amount exists in the database.
+    First looks for an already-reconciled transaction with a close reconciliation date (+/- 4 days).
+    Then looks for an unreconciled planned transaction with a close operation date (+/- 15 days).
     """
     import pandas as pd
+    from datetime import timedelta
     if pd.isna(tx_date) or pd.isna(tx_amount):
         return None
         
-    start_date = tx_date - timedelta(days=10)
-    end_date = tx_date + timedelta(days=10)
-    
-    # We compare absolute amounts since the new architecture stores absolute amounts
     abs_amount = abs(float(tx_amount))
     epsilon = 0.01
     
-    query = db.query(Transaction).filter(
-        Transaction.date_operation >= start_date,
-        Transaction.date_operation <= end_date,
+    # 1. Search for already reconciled duplicate (ordered by closest date_operation)
+    # Match if reconciliation_date is close (+/- 4 days) OR date_operation is close (+/- 10 days)
+    from sqlalchemy import or_, func
+    start_recon = tx_date - timedelta(days=4)
+    end_recon = tx_date + timedelta(days=4)
+    start_op_limit = tx_date - timedelta(days=10)
+    end_op_limit = tx_date + timedelta(days=10)
+    
+    recon_query = db.query(Transaction).filter(
+        Transaction.reconciliation_date != None,
+        Transaction.amount >= abs_amount - epsilon,
+        Transaction.amount <= abs_amount + epsilon,
+        or_(
+            (Transaction.reconciliation_date >= start_recon) & (Transaction.reconciliation_date <= end_recon),
+            (Transaction.date_operation >= start_op_limit) & (Transaction.date_operation <= end_op_limit)
+        )
+    )
+    if matched_ids:
+        recon_query = recon_query.filter(Transaction.id.notin_(matched_ids))
+        
+    tx_date_str = tx_date.strftime("%Y-%m-%d")
+    recon_query = recon_query.order_by(
+        func.abs(func.julianday(Transaction.date_operation) - func.julianday(tx_date_str))
+    )
+    
+    recon_match = recon_query.first()
+    if recon_match:
+        return {
+            "id": recon_match.id, 
+            "description": recon_match.description,
+            "already_reconciled": True
+        }
+        
+    # 2. Search for unreconciled prediction/planned transaction
+    start_op = tx_date - timedelta(days=15)
+    end_op = tx_date + timedelta(days=15)
+    
+    op_query = db.query(Transaction).filter(
+        Transaction.reconciliation_date == None,
+        Transaction.date_operation >= start_op,
+        Transaction.date_operation <= end_op,
         Transaction.amount >= abs_amount - epsilon,
         Transaction.amount <= abs_amount + epsilon
     )
-    
     if matched_ids:
-        query = query.filter(Transaction.id.notin_(matched_ids))
-    
-    # Prefer unreconciled transactions first (reconciliation_date IS NULL),
-    # then by closest date to the import date.
-    # julianday() requires a string; convert pandas Timestamp to ISO string.
-    from sqlalchemy import case, func, text, literal
+        op_query = op_query.filter(Transaction.id.notin_(matched_ids))
+        
+    from sqlalchemy import func
     tx_date_str = tx_date.strftime("%Y-%m-%d")
-    query = query.order_by(
-        case((Transaction.reconciliation_date == None, 0), else_=1),
+    op_query = op_query.order_by(
         func.abs(func.julianday(Transaction.date_operation) - func.julianday(tx_date_str))
     )
-    match = query.first()
-    
-    if match:
-        is_already_reconciled = match.reconciliation_date is not None
-        if is_already_reconciled:
-            # Only consider already-reconciled transactions as duplicates if they are within 7 days.
-            # Otherwise, it's likely a distinct transaction (e.g., same amount next month)
-            # and we should treat the incoming transaction as a NEW transaction.
-            tx_date_native = tx_date.date() if hasattr(tx_date, 'date') and callable(getattr(tx_date, 'date')) and type(tx_date) is not date else tx_date
-            diff_days = abs((match.date_operation - tx_date_native).days)
-            if diff_days > 7:
-                return None
-
+    op_match = op_query.first()
+    if op_match:
         return {
-            "id": match.id, 
-            "description": match.description,
-            "already_reconciled": is_already_reconciled
+            "id": op_match.id,
+            "description": op_match.description,
+            "already_reconciled": False
         }
+        
     return None
+
+def check_import_alerts(db, account_id: int, parsed_txs: list):
+    """
+    Analyzes the parsed transactions against the existing database transactions
+    for the specified account_id to generate helpful warning alerts.
+    """
+    if not account_id or not parsed_txs:
+        return {}
+        
+    from datetime import datetime, date, timedelta
+    
+    # Extract transaction dates from the import
+    import_dates = []
+    all_reconciled = True
+    
+    for tx in parsed_txs:
+        is_rec = tx.get('is_reconciled', False)
+        already_rec = tx.get('already_reconciled', False)
+        if not (is_rec and already_rec):
+            all_reconciled = False
+            
+        dt_val = tx.get('date_operation') or tx.get('date')
+        if dt_val:
+            try:
+                if isinstance(dt_val, str):
+                    parsed_dt = datetime.strptime(dt_val[:10], "%Y-%m-%d").date()
+                elif isinstance(dt_val, (date, datetime)):
+                    parsed_dt = dt_val.date() if isinstance(dt_val, datetime) else dt_val
+                else:
+                    parsed_dt = None
+                if parsed_dt:
+                    import_dates.append(parsed_dt)
+            except Exception:
+                pass
+
+    alerts = {
+        "all_duplicate": all_reconciled,
+        "is_old_file": False,
+        "has_gap": False,
+        "latest_import_date": None,
+        "latest_db_date": None,
+        "oldest_import_date": None,
+        "is_old_compared_to_today": False
+    }
+    
+    if not import_dates:
+        return alerts
+        
+    latest_import_date = max(import_dates)
+    oldest_import_date = min(import_dates)
+    alerts["latest_import_date"] = latest_import_date.strftime("%Y-%m-%d")
+    alerts["oldest_import_date"] = oldest_import_date.strftime("%Y-%m-%d")
+    
+    # Get the latest transaction date in DB for this account
+    db_tx_query = db.query(Transaction).filter(
+        (Transaction.from_account_id == account_id) | (Transaction.to_account_id == account_id)
+    ).order_by(Transaction.date_operation.desc())
+    
+    latest_db_tx = db_tx_query.first()
+    
+    if latest_db_tx:
+        latest_db_date = latest_db_tx.date_operation
+        alerts["latest_db_date"] = latest_db_date.strftime("%Y-%m-%d")
+        
+        # Case A: The latest transaction in the file is older than the latest transaction in the DB.
+        if latest_import_date < latest_db_date:
+            alerts["is_old_file"] = True
+            
+        # Case B: Potential gap. If the oldest transaction in the file is more recent than the latest in the DB
+        # by more than 3 days.
+        if oldest_import_date > latest_db_date + timedelta(days=3):
+            alerts["has_gap"] = True
+            
+    # Check if the latest import date is significantly older than today
+    today = date.today()
+    if (today - latest_import_date).days > 7:
+        alerts["is_old_compared_to_today"] = True
+        
+    return alerts
+
+
+def extract_account_block(raw_data: list, account_name: str, account_type: str) -> list:
+    """
+    If the spreadsheet contains multiple account sections (e.g. Crédit Agricole multi-account export),
+    extract only the rows corresponding to the target account.
+    """
+    import pandas as pd
+    if not account_name:
+        return raw_data
+        
+    # 1. Identify section headers
+    sections = []
+    current_title = None
+    current_title_idx = -1
+    
+    for i, row in enumerate(raw_data):
+        # Detect section title (usually a single cell or short text with keyword)
+        non_empty = [x for x in row if pd.notna(x) and str(x).strip() != '']
+        if len(non_empty) == 1:
+            val = str(non_empty[0]).lower()
+            if any(k in val for k in ['compte de dépôt', 'compte de depot', 'compte courant', 'livret', 'ldd', 'compte n°', 'compte nu', 'carte n°', 'carte nu']):
+                current_title = non_empty[0]
+                current_title_idx = i
+        
+        # Detect table header
+        valid_cols = sum(1 for x in row if pd.notna(x) and not str(x).startswith('Unnamed:') and str(x).strip() != '')
+        if valid_cols >= 3 and any(str(x).strip().lower() in ['date', 'date operation', 'date d\'opération'] for x in row):
+            sections.append({
+                "title": current_title or f"Section {len(sections)+1}",
+                "title_idx": current_title_idx,
+                "header_idx": i
+            })
+            current_title = None
+            current_title_idx = -1
+
+    if len(sections) <= 1:
+        return raw_data
+
+    # Match the best section
+    best_section = None
+    best_score = -1
+    
+    name_words = [w.lower() for w in account_name.split() if len(w) > 2]
+    
+    for sec in sections:
+        title = sec["title"].lower()
+        score = 0
+        
+        if account_name.lower() in title:
+            score += 10
+            
+        for w in name_words:
+            if w in title:
+                score += 3
+                
+        if 'livret a' in title and 'livret a' in account_name.lower():
+            score += 15
+        elif 'ldd' in title and 'ldd' in account_name.lower():
+            score += 15
+        elif 'dépôt' in title or 'depot' in title or 'courant' in title:
+            if account_type.lower() == 'compte courant' or 'centre-est' in account_name.lower() or 'ile-de-france' in account_name.lower():
+                score += 5
+                
+        if score > best_score:
+            best_score = score
+            best_section = sec
+            
+    if best_section and best_score > 0:
+        start_idx = best_section["title_idx"] if best_section["title_idx"] != -1 else best_section["header_idx"]
+        
+        end_idx = len(raw_data)
+        for sec in sections:
+            sec_start = sec["title_idx"] if sec["title_idx"] != -1 else sec["header_idx"]
+            if sec_start > start_idx:
+                end_idx = min(end_idx, sec_start)
+                
+        return raw_data[start_idx:end_idx]
+        
+    return raw_data
+
+

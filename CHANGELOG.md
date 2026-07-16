@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.68] - 2026-07-16
+
+### Added
+- **Import Validation Alerts 📥**: Added timing and coherence check warnings to the bank statement import screen (for both AI and direct imports) to verify file dates against the database:
+  - **Duplicate Check**: Warns if all transactions in the statement are already present in the database.
+  - **Old File Warning**: Warns if the statement ends before the most recent transaction date in the database for the selected account.
+  - **Gap Detection**: Detects date gaps of more than 3 days between the last transaction in the database and the oldest transaction in the imported statement.
+  - **Obsolescence Alert**: Warns if the most recent transaction in the imported file is more than 7 days old compared to today's date.
+  - **Account Change Check**: Detects if the selected account is changed after analysis and prompts the user to re-run the analysis for updated alerts.
+
 ## [1.0.67] - 2026-07-16
 
 ### Added

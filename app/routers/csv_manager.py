@@ -1,11 +1,11 @@
 from io import StringIO, BytesIO
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Form
 from sqlalchemy.orm import Session
 from fastapi.responses import StreamingResponse
 
 from app.database import get_db
 from app.models import Transaction, Account, Category
-from app.routers.csv_parser import heuristic_parse, check_reconciliation
+from app.routers.csv_parser import heuristic_parse, check_reconciliation, check_import_alerts, extract_account_block
 
 router = APIRouter(prefix="/api/csv", tags=["csv"])
 
@@ -323,7 +323,11 @@ def export_csv(db: Session = Depends(get_db), cols: str = Query(None, descriptio
     return response
 
 @router.post("/analyze_heuristic")
-async def analyze_heuristic(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def analyze_heuristic(
+    file: UploadFile = File(...),
+    account_id: int = Form(None),
+    db: Session = Depends(get_db)
+):
     import pandas as pd
     content = await file.read()
     
@@ -340,6 +344,12 @@ async def analyze_heuristic(file: UploadFile = File(...), db: Session = Depends(
             
     # Pre-process DF to find the real header (Skip metadata rows)
     raw_data = [df.columns.tolist()] + df.values.tolist()
+    
+    # Extract only the block matching selected account (if multi-account export)
+    if account_id:
+        acc = db.query(Account).filter(Account.id == account_id).first()
+        if acc:
+            raw_data = extract_account_block(raw_data, acc.name, acc.type or "")
     
     import json
     try:
@@ -413,7 +423,11 @@ async def analyze_heuristic(file: UploadFile = File(...), db: Session = Depends(
     
     def clean_amt(x):
         try:
-            return float(str(x).replace('€','').replace(' ','').replace('\u202f','').replace('\xa0','').replace(',','.').strip())
+            val = float(str(x).replace('€','').replace(' ','').replace('\u202f','').replace('\xa0','').replace(',','.').strip())
+            import math
+            if math.isnan(val) or math.isinf(val):
+                return 0.0
+            return val
         except:
             return 0.0
             
@@ -472,7 +486,8 @@ async def analyze_heuristic(file: UploadFile = File(...), db: Session = Depends(
             "check_slip_number": check_slip_number
         })
         
-    return {"transactions": results, "file_balance": file_balance}
+    alerts = check_import_alerts(db, account_id, results) if account_id else {}
+    return {"transactions": results, "file_balance": file_balance, "alerts": alerts}
 
 @router.post("/save_batch")
 async def save_batch(data: dict, db: Session = Depends(get_db)):

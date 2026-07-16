@@ -19,8 +19,6 @@
     "btn_clear_db": "Clear Database",
     "alert_clear_db": "Are you sure you want to delete ALL your data (accounts, transactions, budgets, etc.)? This action is irreversible.",
     "nav_history": "History",
-    "sys_prompt_csv_extractor": "You are an expert data parser. You will receive raw text from a bank export (CSV or copied/pasted table). IGNORE all lines of metadata, headers, balances, or useless text. Extract ONLY the real transactions and return them in strict JSON format. DO NOT INVENT DATA UNDER ANY CIRCUMSTANCES. If you find nothing, return []. The JSON must be an array of objects with the exact keys: 'date' (format YYYY-MM-DD), 'description' (cleaned text), 'amount' (floating point number, negative for expenses). DO NOT RETURN ANY TEXT BEFORE OR AFTER THE JSON. NO EXPLANATIONS.",
-    "sys_prompt_categorizer": "You are an expense classifier. I will give you a list of existing categories and a transaction description. You must choose the most appropriate category. Return ONLY a JSON object with the 'category' key containing the exact name of the chosen category. If none match well, return 'category': null. DO NOT RETURN ANY TEXT BEFORE OR AFTER THE JSON.",
     "nav_trends": "Trends",
     "filter_attachments": "Attachments",
     "badge_closed": "Closed",
@@ -1127,5 +1125,10 @@
     "btn_force_missed": "No paycheck this month",
     "msg_salary_defined": "Salary defined successfully",
     "msg_period_validated": "Period validated successfully",
-    "btn_confirm_action": "Confirm?"
+    "btn_confirm_action": "Confirm?",
+    "import_alert_all_duplicate": "All transactions in this statement are already present in your database. No new transactions will be added.",
+    "import_alert_old_file": "This file seems to be an old statement. The most recent transaction in the file is from {date_import}, but you already have transactions up to {date_db} in the database.",
+    "import_alert_gap": "Warning, there is a potential gap of {jours} days between your last transaction in the database ({date_db}) and the oldest one in this file ({date_import_debut}). Some intermediate transactions might be missing.",
+    "import_alert_obsolete": "The last transaction in this file is more than 7 days old ({date_import}). Please check if this is indeed your most recent statement.",
+    "import_alert_account_changed": "Account changed. Please rerun the analysis (AI or Direct) to update the timing alerts for this new account."
 }
