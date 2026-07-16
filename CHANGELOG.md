@@ -5,16 +5,20 @@ All notable changes to this project will be documented in this file.
 ## [1.0.67] - 2026-07-16
 
 ### Added
-- **Centre de Notifications 🔔** : Intégration d'un menu de notifications en haut à droite du header principal pour suivre l'actualité système et vos bilans de santé financière.
-- **Bilans Financiers Périodiques Proactifs (IA) 🧠** : Recevez des rapports automatiques rédigés en quelques phrases courtes par l'assistant IA Ollama. Les bilans incluent un indicateur visuel (🟢, 🟡, 🔴) calculé d'après votre reste à vivre actuel, vos charges régulières et vos anomalies.
-- **Approfondissement en 1 Clic 💬** : Une option dans les notifications de bilan vous permet d'ouvrir instantanément une nouvelle session de chat IA pré-remplie pour obtenir des explications approfondies sur votre bilan.
-- **Configuration & Respect de la vie privée ⚙️** : Les bilans périodiques sont **désactivés par défaut**. Vous pouvez les activer et choisir leur fréquence (quotidienne, hebdomadaire ou mensuelle) à tout moment dans l'onglet **Configuration (Configuration Ollama)**.
+- **Notification Center 🔔**: Integrated a notification menu in the top right of the main header to keep track of system updates and financial health reports.
+- **Proactive Periodic Financial Reports (AI) 🧠**: Receive automated reports written in short summaries by the Ollama AI assistant. Reports include a visual status indicator (🟢, 🟡, 🔴) calculated based on current spendable balance, regular expenses, and anomalies.
+- **1-Click Deep Dive 💬**: An option within financial report notifications lets you immediately launch a pre-populated AI chat session for detailed explanations about your report.
+- **Privacy & Settings ⚙️**: Periodic reports are **disabled by default**. You can enable them and choose their frequency (daily, weekly, or monthly) at any time under the **Configuration (Ollama Settings)** tab.
+- **Paycheck Rejection Assistant 💸**: New correction helper modal activated when rejecting a paycheck, suggesting alternate income candidates and allowing periods to be declared as unpaid.
 
 ### Fixed
-- **Notification en arrière-plan lors de l'abandon du chat** : Implémentation d'une gestion déconnectée/détachée du flux streaming SSE (`_streamDetached`). Le client continue à recevoir la réponse en arrière-plan sans interrompre Ollama et sans provoquer d'erreurs d'abort SSE, permettant une sauvegarde DB automatique et fiable de la réponse.
-- **Notification sur fin de génération** : Création d'une notification système `"Réponse IA disponible 💬"` sur le serveur uniquement lorsque la génération est finalisée et le message persisté. Le clic sur cette notification redirige vers la bonne session de chat avec la réponse complète disponible.
-- **Erreurs de signature de dépendance FastAPI** : Correction des appels internes de `edit_message` et `regenerate` vers `send_message` afin de passer explicitement le paramètre `db=db` et d'éviter l'erreur `Depends object has no attribute query`.
-- **UX du panneau de notifications** : Le clic sur une notification ne ferme plus brusquement le menu déroulant des notifications et change le curseur en pointeur classique (`default`) une fois la notification marquée comme lue.
+- **Background notification on chat abandonment**: Implemented disconnected/detached handling of the SSE streaming connection (`_streamDetached`). The client continues receiving the response in the background without interrupting Ollama or causing SSE abort errors, ensuring reliable automated DB saves of the response.
+- **Notification on generation completion**: Create a system notification `"AI Response Available 💬"` on the server only when the generation is fully finalized and the message is persisted. Clicking this notification redirects to the correct chat session with the full answer.
+- **FastAPI dependency signature errors**: Corrected internal calls to `edit_message` and `regenerate` forwarding to `send_message` to explicitly pass the `db=db` parameter, preventing `Depends object has no attribute query` errors.
+- **Notification panel UX**: Clicking a notification no longer abruptly closes the dropdown menu, and changes the cursor to default pointer style once marked as read.
+- **12-Month Pay History Continuity 📅**: The history modal now displays all months without "holes" using placeholder records with a definition button.
+- **Logical Cycle Start Date Calculation ⏰**: Fixed date range inversion caused by placeholder records erroneously shifting the cycle start date forward.
+- **Targeted Period Validation 🎯**: Declaring a month as unpaid now correctly targets the chosen period with a 0 € override instead of defaulting to the active period.
 
 ## [1.0.66] - 2026-07-14
 

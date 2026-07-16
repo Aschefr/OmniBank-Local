@@ -985,21 +985,39 @@ class App {
         tbody.innerHTML = '';
         
         if (!this.payHistory || this.payHistory.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 15px; color: var(--text-muted);">${window.i18n.t('msg_no_history')}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 15px; color: var(--text-muted);">${window.i18n.t('msg_no_history')}</td></tr>`;
         } else {
             this.payHistory.forEach(tx => {
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = "1px solid var(--border-color)";
-                if (tx.is_override) {
+                if (tx.is_placeholder) {
+                    const defineLabel = window.i18n.t('btn_define_salary') || 'Définir';
+                    const parts = tx.logical_period.split('-');
+                    const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                    const formattedMonth = dateObj.toLocaleDateString(window.i18n.lang || 'fr', { month: 'long', year: 'numeric' });
+                    const capitalizedMonth = formattedMonth.charAt(0).toUpperCase() + formattedMonth.slice(1);
+                    
+                    tr.innerHTML = `
+                        <td style="padding: 8px; color: var(--text-muted); font-weight: 500;">${capitalizedMonth}</td>
+                        <td style="padding: 8px; color: var(--text-muted); font-style: italic;">${window.i18n.t('msg_no_salary_detected') || 'Aucune paie détectée'}</td>
+                        <td style="padding: 8px; text-align: right; color: var(--text-muted); font-weight: bold;">-</td>
+                        <td style="padding: 8px; text-align: center;">
+                            <button onclick="window.app.triggerSelectPaycheck('${tx.logical_period}')" title="${defineLabel}" style="cursor:pointer; background:var(--accent); border:none; color:white; border-radius:4px; padding:3px 8px; font-weight:bold; font-size:11px;">
+                                ➕ ${defineLabel}
+                            </button>
+                        </td>
+                    `;
+                } else if (tx.is_override) {
                     const overrideLabel = window.i18n.t('pay_history_override_label') || 'Correction Manuelle';
                     const restoreLabel = window.i18n.t('btn_restore_default') || 'Restaurer';
+                    const isForced = (tx.amount === 0 && tx.description === 'Période forcée');
                     tr.innerHTML = `
                         <td style="padding: 8px;">
                             ${formatDate(tx.date)} 
                             <span style="display:inline-block; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; vertical-align: middle; margin-left: 4px;">🔧 ${overrideLabel}</span>
                         </td>
                         <td style="padding: 8px; color: var(--text-muted); font-style: italic;">
-                            <button onclick="window.app.deletePayOverride()" style="cursor:pointer; font-size:11px; background:none; border:1px solid var(--border-color); color:var(--text-main); border-radius:4px; padding:3px 6px;">
+                            <button onclick="window.app.deletePayOverride(${isForced})" style="cursor:pointer; font-size:11px; background:none; border:1px solid var(--border-color); color:var(--text-main); border-radius:4px; padding:3px 6px;">
                                 🔄 ${restoreLabel}
                             </button>
                         </td>
@@ -1012,8 +1030,8 @@ class App {
                         <td style="padding: 8px;">${formatDate(tx.date)}</td>
                         <td style="padding: 8px;"><strong>${tx.description}</strong></td>
                         <td style="padding: 8px; text-align: right; color: var(--color-income); font-weight: bold;">${formatCurrency(tx.amount)}</td>
-                        <td style="padding: 8px; text-align: center;">
-                            <button onclick="window.app.rejectPaycheck(${tx.id})" title="${rejectTitle}" style="cursor:pointer; background:none; border:1px solid var(--border-color); color:var(--color-expense); border-radius:4px; padding:3px 8px; font-weight:bold;">
+                        <td style="padding: 8px; text-align: center; white-space: nowrap;">
+                            <button class="btn-reject-pay" data-txid="${tx.id}" title="${rejectTitle}" style="cursor:pointer; background:none; border:1px solid var(--border-color); color:var(--color-expense); border-radius:4px; padding:3px 8px; font-weight:bold; transition: all 0.2s;">
                                 ❌
                             </button>
                         </td>
@@ -1023,28 +1041,196 @@ class App {
             });
         }
         
+        // Attach inline confirm listeners to reject buttons
+        tbody.querySelectorAll('.btn-reject-pay').forEach(btn => {
+            let clickedOnce = false;
+            let timer = null;
+            const originalContent = btn.innerHTML;
+            const originalStyle = btn.style.cssText;
+            
+            btn.onclick = async (e) => {
+                e.stopPropagation();
+                const txId = btn.getAttribute('data-txid');
+                if (!clickedOnce) {
+                    clickedOnce = true;
+                    btn.innerHTML = (window.i18n.t('btn_confirm') || 'Sûr ?');
+                    btn.style.color = '#fff';
+                    btn.style.background = 'var(--color-expense)';
+                    btn.style.borderColor = 'var(--color-expense)';
+                    btn.style.fontSize = '10px';
+                    btn.style.padding = '3px 6px';
+                    
+                    timer = setTimeout(() => {
+                        btn.innerHTML = originalContent;
+                        btn.style.cssText = originalStyle;
+                        clickedOnce = false;
+                    }, 3000);
+                } else {
+                    clearTimeout(timer);
+                    await window.app.executeRejectPaycheck(txId);
+                }
+            };
+        });
+        
         document.getElementById('payHistoryModal').style.display = 'flex';
     }
+
+    async triggerSelectPaycheck(period) {
+        if (!period) return;
+        try {
+            const data = await API.get(`/api/stats/pay_candidates?period=${period}`);
+            document.getElementById('payHistoryModal').style.display = 'none';
+            this.showPayCandidatesModal(data);
+        } catch (e) {
+            console.error("Failed to load pay candidates:", e);
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error') || 'Erreur de connexion');
+        }
+    }
     
-    async rejectPaycheck(txId) {
+    async executeRejectPaycheck(txId) {
         if (!txId) return;
-        const confirmMsg = window.i18n.t('confirm_reject_salary') || 'Are you sure you want to reject this transaction from the paycheck history?';
-        if (await showInlineConfirm(window.i18n.t('confirm_default_title') || 'Confirmation', confirmMsg)) {
-            try {
-                // Update transaction setting is_salary = false
-                await API.put(`/api/transactions/${txId}?propagate=false`, { is_salary: false });
-                
-                // Hide modal and refresh everything
-                document.getElementById('payHistoryModal').style.display = 'none';
-                await this.refreshSidebar();
-                if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
-                    window.TimelineView.loadData();
-                }
-                showToast(window.i18n.t('msg_salary_rejected') || 'Opération rejetée avec succès');
-            } catch (e) {
-                console.error("Failed to reject paycheck", e);
-                showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error') || 'Erreur lors de la sauvegarde');
+        try {
+            // Update transaction setting is_salary = false
+            await API.put(`/api/transactions/${txId}?propagate=false`, { is_salary: false });
+            
+            // Hide modal and refresh everything
+            document.getElementById('payHistoryModal').style.display = 'none';
+            await this.refreshSidebar();
+            if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
+                window.TimelineView.loadData();
             }
+            
+            // Fetch candidate paycheck replacements
+            let candidatesData = null;
+            try {
+                candidatesData = await API.get(`/api/stats/pay_candidates?rejected_tx_id=${txId}`);
+            } catch (err) {
+                console.error("Failed to fetch pay candidates:", err);
+            }
+
+            showToast(window.i18n.t('msg_salary_rejected') || 'Opération rejetée avec succès');
+            
+            // Open candidates helper modal
+            if (candidatesData) {
+                this.showPayCandidatesModal(candidatesData);
+            }
+        } catch (e) {
+            console.error("Failed to reject paycheck", e);
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error') || 'Erreur lors de la sauvegarde');
+        }
+    }
+
+    showPayCandidatesModal(data) {
+        const modal = document.getElementById('payCandidatesModal');
+        if (!modal) return;
+        
+        const periodStr = data.period;
+        
+        const titleEl = document.getElementById('payCandidatesTitle');
+        if (titleEl) {
+            titleEl.textContent = `${window.i18n.t('pay_candidates_title') || 'Correction de la paie'} - ${periodStr}`;
+        }
+        
+        const candidates = data.candidates || [];
+        const tableBody = document.getElementById('payCandidatesTableBody');
+        const container = document.getElementById('payCandidatesListContainer');
+        const emptyMsg = document.getElementById('noPayCandidatesMsg');
+        
+        tableBody.innerHTML = '';
+        
+        if (candidates.length > 0) {
+            candidates.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--border-color)';
+                
+                let statusBadge = '';
+                if (c.is_salary === false) {
+                    const label = window.i18n.t('label_rejected') || 'Rejeté';
+                    const tooltip = window.i18n.t('tooltip_rejected_candidate') || '';
+                    statusBadge = ` <span title="${tooltip}" style="display: inline-block; font-size: 10px; background: rgba(156, 163, 175, 0.15); color: #9ca3af; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 5px; vertical-align: middle; cursor: help;">${label}</span>`;
+                } else if (c.is_salary === true) {
+                    const label = window.i18n.t('label_selected') || 'Sélectionné';
+                    const tooltip = window.i18n.t('tooltip_selected_candidate') || '';
+                    statusBadge = ` <span title="${tooltip}" style="display: inline-block; font-size: 10px; background: rgba(46, 204, 113, 0.15); color: #2ecc71; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 5px; vertical-align: middle; cursor: help;">${label}</span>`;
+                }
+                
+                tr.innerHTML = `
+                    <td style="padding: 8px;">${formatDate(c.date)}</td>
+                    <td style="padding: 8px; font-weight: bold; color: var(--text-normal);">${c.description || ''}${statusBadge}</td>
+                    <td style="padding: 8px; text-align: right; font-weight: bold; color: var(--color-income);">${formatCurrency(c.amount)}</td>
+                    <td style="padding: 8px; text-align: center;">
+                        <button class="btn btn-primary" onclick="window.app.selectPaycheckCandidate(${c.id})" title="${window.i18n.t('btn_apply') || 'Définir comme paie'}" style="padding: 3px 8px; font-size: 12px; border-radius: 4px; background: linear-gradient(135deg, #2ecc71, #27ae60); border: none; box-shadow: 0 4px 10px rgba(46, 204, 113, 0.2); font-weight: bold; color: white;">✔️</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+            container.style.display = 'block';
+            emptyMsg.style.display = 'none';
+        } else {
+            container.style.display = 'none';
+            emptyMsg.style.display = 'block';
+        }
+        
+        // Configure force missed period button
+        const forceBtn = document.getElementById('btnForceMissedPeriod');
+        if (forceBtn) {
+            let clickedOnce = false;
+            let timer = null;
+            const originalText = window.i18n.t('btn_force_missed') || 'Aucune paie ce mois-ci';
+            const originalStyle = forceBtn.style.cssText;
+            
+            // Reset state initially
+            forceBtn.textContent = originalText;
+            forceBtn.style.cssText = originalStyle;
+            
+            forceBtn.onclick = async (e) => {
+                e.stopPropagation();
+                if (!clickedOnce) {
+                    clickedOnce = true;
+                    forceBtn.textContent = '⚠️ ' + (window.i18n.t('btn_confirm_action') || 'Confirmer l\'absence ?');
+                    forceBtn.style.background = 'linear-gradient(135deg, #c0392b, #962d22)';
+                    
+                    timer = setTimeout(() => {
+                        forceBtn.textContent = originalText;
+                        forceBtn.style.cssText = originalStyle;
+                        clickedOnce = false;
+                    }, 4000);
+                } else {
+                    clearTimeout(timer);
+                    try {
+                        await API.post(`/api/stats/validate_pay_period?action=force&period=${periodStr}`);
+                        modal.style.display = 'none';
+                        await this.refreshSidebar();
+                        if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
+                            window.TimelineView.loadData();
+                        }
+                        showToast(window.i18n.t('msg_period_validated') || 'Période validée avec succès');
+                    } catch (e) {
+                        console.error("Failed to force missed period:", e);
+                        showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error') || 'Erreur lors de la validation');
+                    }
+                    clickedOnce = false;
+                }
+            };
+        }
+        
+        modal.style.display = 'flex';
+    }
+    
+    async selectPaycheckCandidate(txId) {
+        if (!txId) return;
+        try {
+            await API.put(`/api/transactions/${txId}?propagate=false`, { is_salary: true });
+            
+            document.getElementById('payCandidatesModal').style.display = 'none';
+            await this.refreshSidebar();
+            if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
+                window.TimelineView.loadData();
+            }
+            showToast(window.i18n.t('msg_salary_defined') || 'Nouvelle paie définie avec succès');
+        } catch (e) {
+            console.error("Failed to select paycheck candidate:", e);
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error') || 'Erreur lors de la modification');
         }
     }
     
@@ -1078,15 +1264,16 @@ class App {
         }
     }
     
-    async deletePayOverride() {
+    async deletePayOverride(clearValidation = false) {
         try {
-            await API.del('/api/stats/override_paycheck');
+            const url = '/api/stats/override_paycheck' + (clearValidation ? '?clear_validation=true' : '');
+            await API.del(url);
             document.getElementById('payOverrideModal').style.display = 'none';
-            document.getElementById('payHistoryModal').style.display = 'none';
             await this.refreshSidebar();
             if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
                 window.TimelineView.loadData();
             }
+            this.showPayHistoryModal();
         } catch (e) {
             console.error("Failed to delete override", e);
             showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error'));

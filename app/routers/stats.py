@@ -232,10 +232,11 @@ def override_paycheck(data: PaycheckOverride, db: Session = Depends(get_db)):
 
 
 @router.post("/validate_pay_period")
-def validate_pay_period(action: str = None, db: Session = Depends(get_db)):
+def validate_pay_period(action: str = None, period: str = None, db: Session = Depends(get_db)):
     from app.models import GlobalConfig
     from app.services.finance_engine import predict_next_paycheck
     from datetime import date
+    import calendar
     
     conf = db.query(GlobalConfig).filter(GlobalConfig.key == "last_validated_pay_period").first()
     conf_date = db.query(GlobalConfig).filter(GlobalConfig.key == "last_validated_pay_date").first()
@@ -249,12 +250,23 @@ def validate_pay_period(action: str = None, db: Session = Depends(get_db)):
             db.commit()
         return {"ok": True, "period": None, "action": "reset"}
         
-    # Get the currently predicted next paycheck date to validate that period!
-    pay_info = predict_next_paycheck(db)
-    next_pay_date = pay_info["date"]
-    period_str = pay_info.get("logical_period")
-    if not period_str:
-        period_str = f"{next_pay_date.year:04d}-{next_pay_date.month:02d}"
+    if period:
+        try:
+            y, m = map(int, period.split('-'))
+            conf_day = db.query(GlobalConfig).filter(GlobalConfig.key == "base_pay_day").first()
+            base_pay_day = int(conf_day.value) if conf_day and conf_day.value else 28
+            last_day = calendar.monthrange(y, m)[1]
+            next_pay_date = date(y, m, min(base_pay_day, last_day))
+            period_str = period
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid period format: {e}")
+    else:
+        # Get the currently predicted next paycheck date to validate that period!
+        pay_info = predict_next_paycheck(db)
+        next_pay_date = pay_info["date"]
+        period_str = pay_info.get("logical_period")
+        if not period_str:
+            period_str = f"{next_pay_date.year:04d}-{next_pay_date.month:02d}"
         
     if conf:
         conf.value = period_str
@@ -292,14 +304,76 @@ def validate_pay_period(action: str = None, db: Session = Depends(get_db)):
     return {"ok": True, "period": period_str, "action": action}
 
 @router.delete("/override_paycheck")
-def delete_override_paycheck(db: Session = Depends(get_db)):
+def delete_override_paycheck(clear_validation: bool = False, db: Session = Depends(get_db)):
     from app.models import GlobalConfig
-    for key in ("override_paycheck_date", "override_paycheck_amount", "override_paycheck_period"):
+    keys = ["override_paycheck_date", "override_paycheck_amount", "override_paycheck_period"]
+    if clear_validation:
+        keys.extend(["last_validated_pay_period", "last_validated_pay_date"])
+        
+    for key in keys:
         override = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
         if override:
             db.delete(override)
     db.commit()
     return {"ok": True}
+
+
+@router.get("/pay_candidates")
+def get_paycheck_candidates(rejected_tx_id: int = None, period: str = None, db: Session = Depends(get_db)):
+    from app.models import Transaction, GlobalConfig
+    from datetime import date, timedelta
+    import calendar
+    
+    # Get base pay day from config
+    conf_day = db.query(GlobalConfig).filter(GlobalConfig.key == "base_pay_day").first()
+    try:
+        base_pay_day = int(conf_day.value) if conf_day and conf_day.value else 28
+    except ValueError:
+        base_pay_day = 28
+        
+    if rejected_tx_id:
+        rejected_tx = db.query(Transaction).filter(Transaction.id == rejected_tx_id).first()
+        if not rejected_tx:
+            raise HTTPException(status_code=404, detail="Rejected transaction not found")
+        tx_date = rejected_tx.date_operation
+        period_str = f"{tx_date.year:04d}-{tx_date.month:02d}"
+    elif period:
+        try:
+            y, m = map(int, period.split('-'))
+            last_day = calendar.monthrange(y, m)[1]
+            tx_date = date(y, m, min(base_pay_day, last_day))
+            period_str = period
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid period format: {e}")
+    else:
+        raise HTTPException(status_code=400, detail="Either rejected_tx_id or period must be provided")
+
+    # Window: +/- 10 days around tx_date
+    window_start = tx_date - timedelta(days=10)
+    window_end = tx_date + timedelta(days=10)
+    
+    # Query all income transactions within that window
+    query = db.query(Transaction).filter(
+        Transaction.type == "income",
+        Transaction.date_operation >= window_start,
+        Transaction.date_operation <= window_end
+    )
+    candidates = query.order_by(Transaction.date_operation.desc()).all()
+    
+    return {
+        "period": period_str,
+        "candidates": [
+            {
+                "id": c.id,
+                "date": c.date_operation.isoformat(),
+                "description": c.description,
+                "amount": c.amount,
+                "category": c.category,
+                "is_salary": c.is_salary
+            }
+            for c in candidates
+        ]
+    }
 
 
 

@@ -246,16 +246,68 @@ def predict_next_paycheck(db: Session):
         window_start = target_date - timedelta(days=5)
         window_end = target_date + timedelta(days=5)
         
-        # Check if there is an override for THIS specific period
+        # 1. Search for real reconciled paycheck in the database first
+        hist_avg = statistics.mean(historical_amounts) if historical_amounts else 1000.0
+        threshold_value = hist_avg * (pay_threshold_percent / 100.0)
+
+        best_income = None
+        for tx in all_incomes:
+            # Filter out transactions explicitly marked as not salary
+            if tx.is_salary is False:
+                continue
+            
+            # Window boundary check (bypassed if explicitly marked as salary for this calendar month)
+            is_in_period = (tx.date_operation.year == y and tx.date_operation.month == m)
+            is_in_window = (window_start <= tx.date_operation <= window_end)
+            if not (is_in_window or (tx.is_salary is True and is_in_period)):
+                continue
+            
+            # Check if marked explicitly as salary, or matches category filter, or exceeds threshold
+            is_valid_salary = False
+            if tx.is_salary is True:
+                is_valid_salary = True
+            else:
+                has_matching_category = (pay_category and tx.category == pay_category)
+                if has_matching_category:
+                    is_valid_salary = True
+                elif tx.amount >= threshold_value:
+                    is_valid_salary = True
+
+            if is_valid_salary:
+                if best_income is None or tx.amount > best_income.amount:
+                    best_income = tx
+                    
+        # 2. Check if there is an override for THIS specific period
         has_override_for_period = False
         if override_period_conf and override_period_conf.value == period_str:
             if override_date_conf and override_date_conf.value:
                 has_override_for_period = True
-                
-        if has_override_for_period:
+
+        # 3. Apply priority logic
+        if best_income:
+            # Real database transaction takes priority
             if i == 0:
                 current_month_received = True
+            historical_amounts.append(best_income.amount)
+            historical_days.append(best_income.date_operation.day)
+            history_records.append({
+                "id": best_income.id,
+                "date": best_income.date_operation.isoformat(),
+                "amount": best_income.amount,
+                "description": best_income.description,
+                "logical_period": period_str
+            })
+        elif has_override_for_period:
+            # Override applies if no real transaction is reconciled yet
             o_date_str = override_date_conf.value
+            if i == 0:
+                # Only mark current month paycheck as received if the override date is today or in the past
+                try:
+                    o_date = date.fromisoformat(o_date_str)
+                    if o_date <= today:
+                        current_month_received = True
+                except:
+                    current_month_received = True
             o_amount = float(override_amount_conf.value) if override_amount_conf and override_amount_conf.value else 0.0
             historical_amounts.append(o_amount)
             
@@ -271,57 +323,8 @@ def predict_next_paycheck(db: Session):
                 "is_override": True,
                 "logical_period": period_str
             })
-            continue # Skip normal DB lookup for this month
-            
-        # Find largest Recettes in this window from pre-loaded data
-        # Threshold is based on the rolling historical average built from older months.
-        hist_avg = statistics.mean(historical_amounts) if historical_amounts else 1000.0
-        threshold_value = hist_avg * (pay_threshold_percent / 100.0)
-
-        best_income = None
-        for tx in all_incomes:
-            # 1. Filter out transactions explicitly marked as not salary
-            if tx.is_salary is False:
-                continue
-            
-            # 2. Window boundary check
-            if not (window_start <= tx.date_operation <= window_end):
-                continue
-            
-            # 3. Check if marked explicitly as salary, or matches category filter, or exceeds threshold
-            is_valid_salary = False
-            if tx.is_salary is True:
-                is_valid_salary = True
-            else:
-                # If pay_category is defined, try matching it. If it doesn't match, we still allow it if it's over threshold
-                # and pay_category isn't an exclusive hard filter (but since user feedback says "category is optional",
-                # matching category makes it a salary regardless of amount, whereas other categories or no category
-                # require the amount threshold).
-                has_matching_category = (pay_category and tx.category == pay_category)
-                if has_matching_category:
-                    is_valid_salary = True
-                elif tx.amount >= threshold_value:
-                    is_valid_salary = True
-
-            if is_valid_salary:
-                if best_income is None or tx.amount > best_income.amount:
-                    best_income = tx
-        
-        if best_income:
-            if i == 0:
-                current_month_received = True
-            historical_amounts.append(best_income.amount)
-            historical_days.append(best_income.date_operation.day)
-            history_records.append({
-                "id": best_income.id,
-                "date": best_income.date_operation.isoformat(),
-                "amount": best_income.amount,
-                "description": best_income.description,
-                "logical_period": period_str
-            })
         elif val_period and val_period.value == period_str:
             # The period was validated but no paycheck was found, and no override exists.
-            # This means it was forced as missed. Inject a 0 entry.
             if i == 0:
                 current_month_received = True
             historical_amounts.append(0.0)
@@ -331,6 +334,15 @@ def predict_next_paycheck(db: Session):
                 "amount": 0.0,
                 "description": "Période forcée",
                 "is_override": True,
+                "logical_period": period_str
+            })
+        else:
+            # No paycheck found, no override, not validated. Append a placeholder.
+            history_records.append({
+                "date": target_date.isoformat(),
+                "amount": None,
+                "description": "Aucune paie détectée",
+                "is_placeholder": True,
                 "logical_period": period_str
             })
 
@@ -393,13 +405,16 @@ def predict_next_paycheck(db: Session):
                     
             if is_valid_override:
                 o_amount = float(override_amount_conf.value) if override_amount_conf and override_amount_conf.value else 0.0
-                # Add override as first entry in history for traceability
-                history_records.insert(0, {
-                    "date": o_date.isoformat(),
-                    "amount": o_amount,
-                    "description": "",
-                    "is_override": True
-                })
+                # Add override as first entry in history for traceability if not already added
+                already_added = any(h.get("logical_period") == logical_period_str for h in history_records)
+                if not already_added:
+                    history_records.insert(0, {
+                        "date": o_date.isoformat(),
+                        "amount": o_amount,
+                        "description": "",
+                        "is_override": True,
+                        "logical_period": logical_period_str
+                    })
                 # Check if period is also validated (for widget state)
                 is_period_validated = bool(val_period and val_period.value >= logical_period_str)
                 val_date = db.query(GlobalConfig).filter(GlobalConfig.key == "last_validated_pay_date").first()
