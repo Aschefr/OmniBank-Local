@@ -146,6 +146,7 @@ class ConfigItem(BaseModel):
     value: str
 
 class ChatSessionCreate(BaseModel):
+    title: Optional[str] = None
     role: str = "advisor"
 
 class ChatSessionUpdate(BaseModel):

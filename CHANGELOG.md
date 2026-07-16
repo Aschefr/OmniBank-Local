@@ -2,13 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.67] - 2026-07-15
+## [1.0.67] - 2026-07-16
 
 ### Added
 - **Centre de Notifications 🔔** : Intégration d'un menu de notifications en haut à droite du header principal pour suivre l'actualité système et vos bilans de santé financière.
 - **Bilans Financiers Périodiques Proactifs (IA) 🧠** : Recevez des rapports automatiques rédigés en quelques phrases courtes par l'assistant IA Ollama. Les bilans incluent un indicateur visuel (🟢, 🟡, 🔴) calculé d'après votre reste à vivre actuel, vos charges régulières et vos anomalies.
 - **Approfondissement en 1 Clic 💬** : Une option dans les notifications de bilan vous permet d'ouvrir instantanément une nouvelle session de chat IA pré-remplie pour obtenir des explications approfondies sur votre bilan.
 - **Configuration & Respect de la vie privée ⚙️** : Les bilans périodiques sont **désactivés par défaut**. Vous pouvez les activer et choisir leur fréquence (quotidienne, hebdomadaire ou mensuelle) à tout moment dans l'onglet **Configuration (Configuration Ollama)**.
+
+### Fixed
+- **Notification en arrière-plan lors de l'abandon du chat** : Implémentation d'une gestion déconnectée/détachée du flux streaming SSE (`_streamDetached`). Le client continue à recevoir la réponse en arrière-plan sans interrompre Ollama et sans provoquer d'erreurs d'abort SSE, permettant une sauvegarde DB automatique et fiable de la réponse.
+- **Notification sur fin de génération** : Création d'une notification système `"Réponse IA disponible 💬"` sur le serveur uniquement lorsque la génération est finalisée et le message persisté. Le clic sur cette notification redirige vers la bonne session de chat avec la réponse complète disponible.
+- **Erreurs de signature de dépendance FastAPI** : Correction des appels internes de `edit_message` et `regenerate` vers `send_message` afin de passer explicitement le paramètre `db=db` et d'éviter l'erreur `Depends object has no attribute query`.
+- **UX du panneau de notifications** : Le clic sur une notification ne ferme plus brusquement le menu déroulant des notifications et change le curseur en pointeur classique (`default`) une fois la notification marquée comme lue.
 
 ## [1.0.66] - 2026-07-14
 

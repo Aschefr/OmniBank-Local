@@ -354,6 +354,94 @@ window.ChatView = {
                 @keyframes spin {
                     to { transform: rotate(360deg); }
                 }
+                .tool-badge {
+                    display: inline-block;
+                    font-size: 10px;
+                    padding: 2px 6px;
+                    background: rgba(51, 102, 255, 0.15);
+                    border: 1px solid rgba(51, 102, 255, 0.3);
+                    border-radius: 4px;
+                    color: var(--accent);
+                    font-family: monospace;
+                    font-weight: 500;
+                    cursor: help;
+                    transition: background 0.2s ease;
+                }
+                .tool-badge:hover {
+                    background: rgba(51, 102, 255, 0.25);
+                }
+                .chat-info-panel {
+                    display: none;
+                    position: absolute;
+                    top: 0;
+                    right: 0;
+                    bottom: 0;
+                    width: 380px;
+                    max-width: 100%;
+                    background: var(--bg-sidebar);
+                    border-left: 1px solid var(--border-color);
+                    z-index: 20;
+                    overflow-y: auto;
+                    padding: 20px;
+                    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2);
+                    animation: slideInRight 0.25s ease;
+                }
+                .chat-info-panel.open {
+                    display: block;
+                }
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                .chat-info-panel h3 {
+                    margin: 0 0 16px 0;
+                    font-size: 16px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .chat-info-section {
+                    margin-bottom: 20px;
+                    padding-bottom: 16px;
+                    border-bottom: 1px solid var(--border-color);
+                }
+                .chat-info-section:last-child {
+                    border-bottom: none;
+                }
+                .chat-info-section h4 {
+                    font-size: 14px;
+                    font-weight: 600;
+                    margin: 0 0 8px 0;
+                    color: var(--accent);
+                }
+                .chat-info-section p {
+                    font-size: 13px;
+                    line-height: 1.6;
+                    color: var(--text-muted);
+                    margin: 0 0 8px 0;
+                }
+                .chat-info-tool-item {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 8px;
+                    font-size: 13px;
+                    padding: 4px 0;
+                    line-height: 1.5;
+                }
+                .chat-info-tool-item .tool-emoji {
+                    font-size: 15px;
+                    flex-shrink: 0;
+                    width: 22px;
+                    text-align: center;
+                }
+                .chat-info-tool-item code {
+                    font-size: 11px;
+                    background: rgba(255,255,255,0.06);
+                    padding: 1px 5px;
+                    border-radius: 3px;
+                    font-family: monospace;
+                    white-space: nowrap;
+                }
             </style>
 
             <div class="chat-wrapper">
@@ -393,6 +481,7 @@ window.ChatView = {
                                 <option value="auditor" data-i18n="chat_role_auditor">${window.i18n.t('chat_role_auditor')}</option>
                             </select>
                             <button class="btn btn-secondary" onclick="window.ChatView.askDefaultQuestion()" data-i18n-title="tooltip_auto_report" title="Demander le rapport automatique de ce rôle" data-i18n="chat_btn_report" style="display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">${window.i18n.t('chat_btn_report')}</button>
+                            <button class="btn btn-secondary btn-sm" onclick="window.ChatView.toggleInfoPanel()" title="${window.i18n.t('chat_info_title') || 'Informations'}" style="padding: 6px 10px; font-size: 14px;">ℹ️</button>
                         </div>
                     </div>
 
@@ -415,9 +504,55 @@ window.ChatView = {
                             <!-- Set dynamically -->
                         </div>
                     </div>
+
+                    <!-- Info Panel -->
+                    <div id="chatInfoPanel" class="chat-info-panel">
+                        <h3>
+                            <span>ℹ️ ${window.i18n.t('chat_info_title')}</span>
+                            <button class="chat-session-btn" onclick="window.ChatView.toggleInfoPanel()" style="font-size:16px;">✕</button>
+                        </h3>
+
+                        <div class="chat-info-section">
+                            <h4>🤖 ${window.i18n.t('chat_info_assistant_title')}</h4>
+                            <p>${window.i18n.t('chat_info_assistant_desc')}</p>
+                        </div>
+
+                        <div class="chat-info-section">
+                            <h4>🔧 ${window.i18n.t('chat_info_tools_title')}</h4>
+                            <p style="margin-bottom:12px;">${window.i18n.t('chat_info_tools_intro')}</p>
+                            <div id="chatInfoToolsList"></div>
+                        </div>
+
+                        <div class="chat-info-section">
+                            <h4>🛡️ ${window.i18n.t('chat_info_validation_title')}</h4>
+                            <p>${window.i18n.t('chat_info_validation_desc')}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
+    },
+
+    destroy() {
+        // If there's an active stream, user is leaving during generation
+        // DON'T abort — let the backend finish generating and save to DB
+        if (this._activeAbortController) {
+            const sessionId = this.activeSessionId;
+            // Mark stream as detached — handleStreamingResponse will skip DOM updates
+            this._streamDetached = true;
+            // Register for notification when generation completes
+            if (sessionId) {
+                fetch(`/api/chat/sessions/${sessionId}/notify-on-complete`, { method: 'POST' }).catch(() => {});
+            }
+            // Don't abort — the fetch will continue in background and finish naturally
+            // The AbortController reference stays so the stream can complete
+            this._activeAbortController = null;
+        }
+        // Clear generation polling timer
+        if (this._generationPollTimer) {
+            clearInterval(this._generationPollTimer);
+            this._generationPollTimer = null;
+        }
     },
 
     async init() {
@@ -431,6 +566,8 @@ window.ChatView = {
         this.pendingActions = {};
         this.tokenUsage = { used: 0, limit: 32768 };
         this._creatingSession = false;
+        this._activeAbortController = null; // Track if a stream is active
+        this._streamDetached = false; // True when user left view during generation
 
         // Fetch actual Ollama config limit
         try {
@@ -460,6 +597,7 @@ window.ChatView = {
         });
 
         await this.loadSessions();
+        this.populateInfoToolsList();
     },
 
     toggleSidebar() {
@@ -469,6 +607,33 @@ window.ChatView = {
             sidebar.classList.toggle('open');
             backdrop.classList.toggle('open');
         }
+    },
+
+    toggleInfoPanel() {
+        const panel = document.getElementById('chatInfoPanel');
+        if (panel) panel.classList.toggle('open');
+    },
+
+    populateInfoToolsList() {
+        const container = document.getElementById('chatInfoToolsList');
+        if (!container) return;
+        const toolOrder = [
+            'get_financial_summary', 'get_net_worth', 'get_account_balances',
+            'search_transactions', 'get_spending_analytics', 'get_budgets_status',
+            'get_recurrence_templates', 'get_net_worth_history', 'get_envelopes_impact',
+            'suggest_transaction_category', 'forecast_balances_history',
+            'detect_anomalies_and_subscriptions', 'apply_transaction_correction',
+            'get_saving_recommendations', 'search_similar_past_spends',
+            'generate_csv_export_link', 'simulate_loan_amortization'
+        ];
+        container.innerHTML = toolOrder.map(name => {
+            const emoji = this._toolEmojiMap[name] || '⚙️';
+            const desc = window.i18n.t(`tool_${name}`) || name;
+            return `<div class="chat-info-tool-item">
+                <span class="tool-emoji">${emoji}</span>
+                <span><code>${name}</code> : ${desc}</span>
+            </div>`;
+        }).join('');
     },
 
     async loadSessions(preventSelectSession = false) {
@@ -744,6 +909,28 @@ window.ChatView = {
         }
     },
 
+    // Tool emoji map — shared by badges and info panel
+    _toolEmojiMap: {
+        'get_financial_summary': '💰',
+        'get_net_worth': '🏦',
+        'get_account_balances': '💳',
+        'search_transactions': '🔍',
+        'get_spending_analytics': '📊',
+        'get_budgets_status': '💸',
+        'get_recurrence_templates': '🔄',
+        'get_net_worth_history': '📉',
+        'get_envelopes_impact': '🔮',
+        'suggest_transaction_category': '🏷️',
+        'forecast_balances_history': '📅',
+        'detect_anomalies_and_subscriptions': '🔎',
+        'apply_transaction_correction': '✏️',
+        'get_saving_recommendations': '💡',
+        'search_similar_past_spends': '📆',
+        'generate_csv_export_link': '📥',
+        'simulate_loan_amortization': '🏠',
+        'get_recent_transactions': '📝'
+    },
+
     formatMessageContent(msg) {
         const isUser = msg.role === 'user';
         let displayContent = msg.content;
@@ -751,6 +938,9 @@ window.ChatView = {
         if (!isUser && window.marked && window.DOMPurify) {
             let rawContent = msg.content;
             let actions = [];
+
+            // Strip TOOLS_USED comment (badges are rendered in renderHistory meta-row)
+            rawContent = rawContent.replace(/<!--\s*TOOLS_USED:\s*[^>]+?\s*-->\n?/, '');
             
             // Match signature {"id": 123, "updates": {...}}
             const actionRegex = /\{\s*"id"\s*:\s*\d+\s*,\s*"updates"\s*:\s*\{[^}]+\}\s*\}/g;
@@ -876,10 +1066,27 @@ window.ChatView = {
             const formattedTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString(window.i18n.lang || 'fr', { hour: '2-digit', minute: '2-digit' }) : '';
             const isLastMsg = index === this.messages.length - 1;
 
+            // Extract tool badges for assistant messages
+            let toolsBadges = '';
+            if (!isUser && msg.content) {
+                const match = msg.content.match(/<!--\s*TOOLS_USED:\s*([^>]+?)\s*-->/);
+                if (match && match[1]) {
+                    const tools = match[1].split(',').map(t => t.trim()).filter(Boolean);
+                    toolsBadges = tools.map(t => {
+                        const emoji = this._toolEmojiMap[t] || '⚙️';
+                        const desc = window.i18n.t(`tool_${t}`) || t;
+                        return `<span class="tool-badge" title="${desc}">${emoji} ${t}</span>`;
+                    }).join(' ');
+                }
+            }
+
             return `
                 <div class="chat-message-row ${msg.role}" id="msg-row-${msg.id || index}">
-                    <div class="chat-message-meta">
-                        <span>${isUser ? window.i18n.t('chat_label_you') : 'Ollama OmniBank'}</span>
+                    <div class="chat-message-meta" style="display:flex; justify-content:space-between; width:100%; align-items:center; gap:10px;">
+                        <div>
+                            <span>${isUser ? window.i18n.t('chat_label_you') : 'Ollama OmniBank'}</span>
+                            ${toolsBadges ? `<span style="margin-left: 8px; display:inline-flex; gap:4px; flex-wrap:wrap;">${toolsBadges}</span>` : ''}
+                        </div>
                         <span style="font-size:9px; opacity:0.7;">${formattedTime}</span>
                     </div>
                     <div class="chat-bubble ${isUser ? 'user' : 'ai'}" id="msg-${index}">
@@ -1019,12 +1226,15 @@ window.ChatView = {
         if (input) input.disabled = true;
 
         try {
+            this._activeAbortController = new AbortController();
             const response = await fetch(`/api/chat/messages/${msgId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: newContent })
+                body: JSON.stringify({ content: newContent }),
+                signal: this._activeAbortController.signal
             });
             await this.handleStreamingResponse(response, aiMsgIndex);
+            this._activeAbortController = null;
         } catch (e) {
             console.error(e);
             this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection')}: ${e.message}*`;
@@ -1081,33 +1291,39 @@ window.ChatView = {
         if (input) input.disabled = true;
 
         try {
+            this._activeAbortController = new AbortController();
+            this._streamDetached = false;
             const response = await fetch(`/api/chat/sessions/${this.activeSessionId}/regenerate`, {
                 method: 'POST'
+                // No signal — we never abort, letting the backend finish and save
             });
             await this.handleStreamingResponse(response, aiMsgIndex);
+            this._activeAbortController = null;
         } catch (e) {
+            this._activeAbortController = null;
+            if (this._streamDetached) { console.log('[Chat] Regenerate completed after user left'); return; }
+            if (e.name === 'AbortError' || (e.message && e.message.includes('aborted'))) { console.log('[Chat] Regenerate aborted'); return; }
             console.error(e);
-            if (aiMsgIndex >= 0) {
+            if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
                 this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection')}: ${e.message}*`;
                 this.messages[aiMsgIndex]._isError = true;
                 this.renderHistory();
             }
         } finally {
-            if (sendBtn) sendBtn.disabled = false;
-            if (input) input.disabled = false;
-            if (aiMsgIndex >= 0) {
-                const hasError = !!this.messages[aiMsgIndex]._isError;
-                if (hasError) {
-                    // Persist error message to DB so it survives F5
-                    try {
-                        await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
-                            content: this.messages[aiMsgIndex].content,
-                            role: "assistant"
-                        });
-                    } catch (e) { console.error("Failed to persist error:", e); }
+            if (!this._streamDetached) {
+                if (sendBtn) sendBtn.disabled = false;
+                if (input) input.disabled = false;
+                if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
+                    const hasError = !!this.messages[aiMsgIndex]._isError;
+                    if (hasError) {
+                        try {
+                            await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                                content: this.messages[aiMsgIndex].content,
+                                role: "assistant"
+                            });
+                        } catch (e) { console.error("Failed to persist error:", e); }
+                    }
                 }
-                await this.loadMessages();
-            } else {
                 await this.loadMessages();
             }
         }
@@ -1278,6 +1494,9 @@ window.ChatView = {
         input.disabled = true;
 
         try {
+            // Track active stream so destroy() knows generation is in progress
+            this._activeAbortController = new AbortController();
+            this._streamDetached = false;
             const response = await fetch(`/api/chat/sessions/${this.activeSessionId}/message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1285,37 +1504,54 @@ window.ChatView = {
                     content: text,
                     lang: window.i18n.lang || 'fr'
                 })
+                // No signal — we never abort, letting the backend finish and save
             });
 
             await this.handleStreamingResponse(response, aiMsgIndex);
+            this._activeAbortController = null;
 
         } catch (e) {
-            console.error(e);
-            this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection') || "Erreur de connexion"}: ${e.message}*`;
-            this.messages[aiMsgIndex]._isError = true;
-            this.renderHistory();
-        } finally {
-            sendBtn.disabled = false;
-            input.disabled = false;
-            input.focus();
-            
-            const hasError = !!this.messages[aiMsgIndex]._isError;
-            
-            if (hasError) {
-                // Persist error message to DB so it survives F5
-                try {
-                    await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
-                        content: this.messages[aiMsgIndex].content,
-                        role: "assistant"
-                    });
-                } catch (e) { console.error("Failed to persist error:", e); }
+            this._activeAbortController = null;
+            if (this._streamDetached) {
+                // User navigated away — backend will save response and create notification
+                console.log('[Chat] Stream completed after user left the view');
+                return;
             }
-            
-            // Only reload sessions if it's the first exchange to get the auto-generated title
-            if (is_first_exchange) {
-                await this.loadSessions(hasError);
-            } else {
-                await this.loadMessages();
+            if (e.name === 'AbortError' || (e.message && e.message.includes('aborted'))) {
+                console.log('[Chat] Stream aborted');
+                return;
+            }
+            console.error(e);
+            if (this.messages && this.messages[aiMsgIndex]) {
+                this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection') || "Erreur de connexion"}: ${e.message}*`;
+                this.messages[aiMsgIndex]._isError = true;
+                this.renderHistory();
+            }
+        } finally {
+            // Guard DOM access — elements may not exist if user left the view
+            if (!this._streamDetached) {
+                const sendBtnF = document.getElementById('chatSendBtn');
+                const inputF = document.getElementById('chatInput');
+                if (sendBtnF) sendBtnF.disabled = false;
+                if (inputF) { inputF.disabled = false; inputF.focus(); }
+                
+                const hasError = this.messages && this.messages[aiMsgIndex] && !!this.messages[aiMsgIndex]._isError;
+                
+                if (hasError) {
+                    try {
+                        await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                            content: this.messages[aiMsgIndex].content,
+                            role: "assistant"
+                        });
+                    } catch (e) { console.error("Failed to persist error:", e); }
+                }
+                
+                if (is_first_exchange) {
+                    await this.loadSessions(hasError);
+                    setTimeout(() => this.loadSessions(true), 6000);
+                } else {
+                    await this.loadMessages();
+                }
             }
         }
     },
@@ -1354,22 +1590,29 @@ window.ChatView = {
                                 streamError = data.error;
                                 aiText += `\n**Erreur:** ${data.error}`;
                             } else if (data.content) {
-                                delete this.messages[aiMsgIndex].status;
+                                if (!this._streamDetached && this.messages[aiMsgIndex]) {
+                                    delete this.messages[aiMsgIndex].status;
+                                }
                                 aiText += data.content;
                             } else if (data.status) {
-                                this.messages[aiMsgIndex].status = data.status;
-                                this.renderHistory();
+                                if (!this._streamDetached && this.messages[aiMsgIndex]) {
+                                    this.messages[aiMsgIndex].status = data.status;
+                                    this.renderHistory();
+                                }
                             } else if (data.token_usage) {
                                 this.tokenUsage = data.token_usage;
                             }
                         } catch (e) {
                             console.error("Parse error on chunk:", dataStr);
                         }
-                        if (streamError) {
+                        if (streamError && !this._streamDetached) {
                             throw new Error(streamError);
                         }
                     }
                 }
+
+                // Skip DOM updates if stream is detached (user left the view)
+                if (this._streamDetached) continue;
 
                 // Detect if user has scrolled up before updating content and scrolling
                 const container = document.getElementById('chatMessages');
@@ -1382,7 +1625,9 @@ window.ChatView = {
                 }
 
                 // Update UI live
-                this.messages[aiMsgIndex].content = aiText;
+                if (this.messages[aiMsgIndex]) {
+                    this.messages[aiMsgIndex].content = aiText;
+                }
                 
                 const bubble = document.getElementById(`msg-${aiMsgIndex}`);
                 if (bubble) {
@@ -1397,8 +1642,8 @@ window.ChatView = {
             }
         }
 
-        // Bug 1 fix: Show error if AI returned nothing
-        if (!aiText.trim()) {
+        // Bug 1 fix: Show error if AI returned nothing (only if not detached)
+        if (!this._streamDetached && !aiText.trim() && this.messages[aiMsgIndex]) {
             this.messages[aiMsgIndex].content = `⚠️ ${window.i18n.t('chat_error_empty_response') || "L'IA n'a pas répondu. Vérifiez votre configuration Ollama dans les paramètres."}`;
             this.messages[aiMsgIndex]._isError = true;
             this.renderHistory();

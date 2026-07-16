@@ -49,6 +49,21 @@ def delete_notification(notification_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
+@router.post("/")
+def create_notification(data: dict, db: Session = Depends(get_db)):
+    """Create a notification (used by frontend when user leaves during AI generation)."""
+    notif = Notification(
+        type=data.get("type", "system"),
+        title=data.get("title", "Notification"),
+        content=data.get("content", ""),
+        link_data=data.get("link_data"),
+        is_read=False
+    )
+    db.add(notif)
+    db.commit()
+    return {"ok": True, "id": notif.id}
+
+
 def get_config_val(db: Session, key: str, default: str) -> str:
     cfg = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
     return cfg.value if cfg else default
@@ -99,18 +114,46 @@ def generate_ai_report_task(db_session_factory, force: bool = False):
         paycheck_date = summary.get("next_predicted_paycheck", {}).get("date", "N/A")
         paycheck_amount = summary.get("next_predicted_paycheck", {}).get("amount", 0.0)
         
+        # Extract forecast end balance (correct keys from forecast_balances_history_tool)
         forecast_end_balance = 0.0
-        if "daily_forecast" in forecast and len(forecast["daily_forecast"]) > 0:
-            forecast_end_balance = forecast["daily_forecast"][-1].get("balance_euros", 0.0)
+        forecast_history = forecast.get("history", [])
+        if forecast_history:
+            forecast_end_balance = forecast_history[-1].get("projected_balance_euros", 0.0)
+        daily_avg_spend = forecast.get("daily_average_variable_spend_euros", 0.0)
             
         anomaly_count = len(anomalies.get("detected_subscriptions", [])) + len(anomalies.get("potential_duplicate_charges", []))
+        
+        # Build list of known recurrence templates enriched with last reconciled amount
+        from app.models import Transaction, RecurrenceTemplate
+        known_recurrences = []
+        templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
+        for t in templates:
+            # Find the last reconciled transaction linked to this template
+            last_reconciled = db.query(Transaction).filter(
+                Transaction.recurrence_id == t.id,
+                Transaction.reconciliation_date.isnot(None)
+            ).order_by(Transaction.date_operation.desc()).first()
+            
+            known_recurrences.append({
+                "description": t.description,
+                "template_amount": t.amount,
+                "last_reconciled_amount": last_reconciled.amount if last_reconciled else t.amount,
+                "type": t.type,
+                "frequency": t.frequency,
+                "day_of_month": t.day_of_month
+            })
         
         context_data = {
             "current_reste_a_vivre": rtl,
             "next_predicted_paycheck_date": paycheck_date,
             "next_predicted_paycheck_amount": paycheck_amount,
             "projected_balance_30_days": forecast_end_balance,
-            "detected_anomalies_or_subscriptions_count": anomaly_count
+            "daily_average_variable_spend": daily_avg_spend,
+            "forecast_includes_recurring_income": True,
+            "detected_anomalies_or_subscriptions_count": anomaly_count,
+            "detected_subscriptions_details": anomalies.get("detected_subscriptions", []),
+            "potential_duplicate_charges": anomalies.get("potential_duplicate_charges", []),
+            "active_recurrence_templates": known_recurrences
         }
         
         # Query Ollama
@@ -127,13 +170,40 @@ Your goal is to write a personal financial health status report for the user bas
 You must return a JSON object with the following schema:
 {
   "summary": "Short 2-sentence summary (French, starting with 🟢, 🟡, or 🔴 depending on status). No markdown tables.",
-  "detailed_analysis": "Detailed financial breakdown (French, structured, with bullet points or paragraphs, explaining the anomalies, projection, and recommendations in detail. Clean markdown formatting allowed.)"
+  "detailed_analysis": "Detailed financial breakdown (French, structured, with bullet points or paragraphs, explaining the projection, budget status, and recommendations in detail. Clean markdown formatting allowed.)"
 }
 
+=== CRITICAL RULES (READ CAREFULLY) ===
+
+RULE 1 — INCOME AND FORECAST:
+- The 'projected_balance_30_days' field ALREADY includes recurring income (salary, etc.) from the user's recurrence templates. The field 'forecast_includes_recurring_income' confirms this.
+- The 'next_predicted_paycheck_date' and 'next_predicted_paycheck_amount' show the user's next expected salary.
+- Do NOT claim the projection ignores income. Do NOT suggest the user is at risk of running out of money if the projected balance is positive and the paycheck is factored in.
+- Base your analysis on the ACTUAL projected balance number, not on assumptions.
+
+RULE 2 — RECURRENCE TEMPLATES vs DETECTED SUBSCRIPTIONS:
+- 'active_recurrence_templates' are the user's EXPLICITLY CONFIGURED recurring transactions (salary, rent, loans, insurance, subscriptions, etc.). These are EXPECTED and NORMAL.
+- Each template has TWO amount fields: 'template_amount' (the amount set when the recurrence was first created — this may be outdated) and 'last_reconciled_amount' (the amount from the most recent bank-reconciled transaction for this recurrence — THIS is the current, real-world amount).
+- ALWAYS use 'last_reconciled_amount' as the reference for what is "normal" for a recurrence, NOT 'template_amount'. Amounts naturally evolve over time (rate changes, insurance adjustments, loan amortization, tax revisions, consumption-based billing, etc.).
+- 'detected_subscriptions_details' are automatically detected from transaction history based on pattern matching.
+- If a detected subscription matches a recurrence template BY DESCRIPTION (even partially), it is a KNOWN, EXPECTED charge. Do NOT flag it as an anomaly.
+- If a detected subscription's amount is close to the 'last_reconciled_amount' of a matching template, this is entirely normal. Do NOT flag it.
+- Do NOT recommend the user to "contact the provider" or "verify the billing" for known recurring charges.
+
+RULE 3 — DUPLICATES:
+- 'potential_duplicate_charges' are flagged when two transactions share the same date, description, and amount.
+- If a potential duplicate matches a known recurrence template, it is very likely a normal monthly charge, NOT a duplicate. Do NOT flag it.
+- Only flag a duplicate if it genuinely appears to be an accidental double payment with no corresponding template.
+
+RULE 4 — TONE AND RECOMMENDATIONS:
+- Be constructive and measured. Do NOT create panic about normal financial situations.
+- Only recommend drastic action ("reduce all spending", "find additional income") if the projected balance is genuinely negative.
+- Focus recommendations on actionable, specific insights rather than generic financial advice.
+
 Strict guidelines for the status emoji in 'summary':
-- 🟢 (Green status) if no anomalies, rest to live is comfortable, and 30-day forecast is positive.
-- 🟡 (Warning status) if rest to live is low or minor anomalies are detected.
-- 🔴 (Critical status) if rest to live is negative, a large budget deficit is projected, or severe duplicate charges are detected.
+- 🟢 (Green) if projected balance is positive, rest to live is comfortable (> 200€), and no real anomalies.
+- 🟡 (Warning) if rest to live is low (< 200€) or there are minor genuine anomalies.
+- 🔴 (Critical) ONLY if rest to live is negative, projected balance is negative, or severe genuine duplicate charges are confirmed.
 
 Return ONLY the raw JSON object, no introduction, no markdown blocks like ```json, just the JSON string."""
 
@@ -157,7 +227,7 @@ Return ONLY the raw JSON object, no introduction, no markdown blocks like ```jso
             logger.info("Shutdown requested before Ollama call. Aborting report generation.")
             return
 
-        resp = httpx.post(f"{url}/api/chat", json=payload, timeout=httpx.Timeout(45.0, connect=10.0))
+        resp = httpx.post(f"{url}/api/chat", json=payload, timeout=httpx.Timeout(300.0, connect=10.0))
         if resp.status_code == 200:
             result = resp.json()
             report_text = result.get("message", {}).get("content", "").strip()
