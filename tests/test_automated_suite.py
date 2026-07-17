@@ -1347,6 +1347,231 @@ def test_update_template_without_reconciled_transactions_does_not_disappear(monk
     client.delete(f"/api/recurrences/{tpl_id}")
 
 
+def test_global_undo_redo_system():
+    # Capture initial states for non-regression assertion
+    init_accounts = client.get("/api/stats/accounts").json()
+    init_dashboard = client.get("/api/stats/dashboard").json()
+
+    # 1. Test Transaction CREATE -> UNDO -> REDO
+    res_tx = client.post("/api/transactions/", json={
+        "date_saisie": "2026-05-29",
+        "date_operation": "2026-05-29",
+        "description": "Undo Test Tx",
+        "amount": 42.0,
+        "type": "expense_var",
+        "category": "Alimentaire",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "reconciliation_date": None
+    })
+    assert res_tx.status_code == 200
+    tx_id = res_tx.json()["id"]
+
+    # Verify transaction exists
+    assert client.get(f"/api/transactions/{tx_id}").status_code == 200
+
+    # Undo last action (should delete the transaction)
+    res_undo = client.post("/api/history/undo_last")
+    assert res_undo.status_code == 200
+    assert res_undo.json()["ok"] is True
+    assert res_undo.json()["entity_type"] == "transaction"
+    assert res_undo.json()["action_type"] == "CREATE"
+
+    # Verify transaction is gone
+    assert client.get(f"/api/transactions/{tx_id}").status_code == 404
+
+    # Redo last action (should re-create the transaction)
+    res_redo = client.post("/api/history/redo_last")
+    assert res_redo.status_code == 200
+    assert res_redo.json()["ok"] is True
+    assert res_redo.json()["entity_type"] == "transaction"
+    assert res_redo.json()["action_type"] == "CREATE"
+
+    # Verify transaction exists again
+    assert client.get(f"/api/transactions/{tx_id}").status_code == 200
+
+    # 2. Test Account UPDATE -> UNDO
+    res_acc = client.get("/api/accounts/")
+    acc_id = res_acc.json()[0]["id"]
+    original_name = res_acc.json()[0]["name"]
+
+    # Update account name
+    client.put(f"/api/accounts/{acc_id}", json={
+        "name": "Updated Acc Name",
+        "type": "Compte courant",
+        "initial_balance": 1500.0,
+        "color": "#123456",
+        "is_closed": False
+    })
+    
+    # Get last action ID
+    res_hist = client.get("/api/history")
+    last_action_id = res_hist.json()[0]["id"]
+    assert res_hist.json()[0]["entity_type"] == "account"
+    assert res_hist.json()[0]["action_type"] == "UPDATE"
+
+    # Verify name is updated
+    assert client.get("/api/accounts/").json()[0]["name"] == "Updated Acc Name"
+
+    # Undo specific action
+    res_specific_undo = client.post(f"/api/history/{last_action_id}/undo")
+    assert res_specific_undo.status_code == 200
+    assert res_specific_undo.json()["ok"] is True
+
+    # Verify name is reverted
+    assert client.get("/api/accounts/").json()[0]["name"] == original_name
+
+    # 3. Test Budget DELETE -> UNDO
+    # Create budget
+    res_bg = client.post("/api/budgets/", json={
+        "name": "Undo Test Budget",
+        "monthly_amount": 100.0,
+        "period": "monthly",
+        "is_project": False,
+        "is_closed": False,
+        "categories": ["Alimentaire"]
+    })
+    assert res_bg.status_code == 200
+    bg_id = res_bg.json()["id"]
+
+    # Delete budget
+    res_del_bg = client.delete(f"/api/budgets/{bg_id}")
+    assert res_del_bg.status_code == 200
+
+    # Verify budget is gone
+    assert len([b for b in client.get("/api/budgets/").json() if b["id"] == bg_id]) == 0
+
+    # Undo last action (DELETE)
+    res_undo_del = client.post("/api/history/undo_last")
+    assert res_undo_del.status_code == 200
+    assert res_undo_del.json()["entity_type"] == "budget"
+    assert res_undo_del.json()["action_type"] == "DELETE"
+
+    # Verify budget and its category relationships are restored
+    bg_list = client.get("/api/budgets/").json()
+    restored_bg = next(b for b in bg_list if b["id"] == bg_id)
+    assert restored_bg["name"] == "Undo Test Budget"
+    assert "Alimentaire" in restored_bg["categories"]
+
+    # 4. Test Category CREATE -> UNDO -> REDO
+    res_cat = client.post("/api/categories/", json={"name": "Undo Test Cat", "type": "expense_var"})
+    assert res_cat.status_code == 200
+    cat_id = res_cat.json()["id"]
+
+    # Undo CREATE category
+    res_undo_cat = client.post("/api/history/undo_last")
+    assert res_undo_cat.status_code == 200
+    assert res_undo_cat.json()["entity_type"] == "category"
+    assert res_undo_cat.json()["action_type"] == "CREATE"
+
+    # Verify category is deleted
+    assert len([c for c in client.get("/api/categories/").json() if c["id"] == cat_id]) == 0
+
+    # Redo CREATE category
+    res_redo_cat = client.post("/api/history/redo_last")
+    assert res_redo_cat.status_code == 200
+
+    # Verify category is restored
+    assert len([c for c in client.get("/api/categories/").json() if c["id"] == cat_id]) == 1
+
+    # 5. Test RecurrenceTemplate CREATE -> UNDO -> REDO
+    res_rec = client.post("/api/recurrences/", json={
+        "amount": 25.0,
+        "description": "Undo Test Recurrence",
+        "frequency": "Monthly",
+        "start_date": "2026-01-15",
+        "category": "Undo Test Cat",
+        "type": "expense_var",
+        "is_active": True,
+        "is_closed": False,
+        "day_of_month": 15
+    })
+    assert res_rec.status_code == 200
+    rec_id = res_rec.json()["id"]
+
+    # Undo CREATE RecurrenceTemplate
+    res_undo_rec = client.post("/api/history/undo_last")
+    assert res_undo_rec.status_code == 200
+    assert res_undo_rec.json()["entity_type"] == "recurrence_template"
+
+    # Verify template is deleted
+    assert len([r for r in client.get("/api/recurrences/?include_closed=true").json() if r["id"] == rec_id]) == 0
+
+    # Redo CREATE RecurrenceTemplate
+    res_redo_rec = client.post("/api/history/redo_last")
+    assert res_redo_rec.status_code == 200
+
+    # Verify template is restored
+    assert len([r for r in client.get("/api/recurrences/?include_closed=true").json() if r["id"] == rec_id]) == 1
+
+    # 6. Test OrgUser CREATE -> UNDO -> REDO
+    res_usr = client.post("/api/org_users/", json={
+        "name": "Undo Test User",
+        "is_active": True,
+        "sort_order": 1
+    })
+    assert res_usr.status_code == 200
+    usr_id = res_usr.json()["id"]
+
+    # Undo CREATE OrgUser
+    res_undo_usr = client.post("/api/history/undo_last")
+    assert res_undo_usr.status_code == 200
+    assert res_undo_usr.json()["entity_type"] == "org_user"
+
+    # Verify user is deleted
+    assert len([u for u in client.get("/api/org_users/").json() if u["id"] == usr_id]) == 0
+
+    # Redo CREATE OrgUser
+    res_redo_usr = client.post("/api/history/redo_last")
+    assert res_redo_usr.status_code == 200
+
+    # Verify user is restored
+    assert len([u for u in client.get("/api/org_users/").json() if u["id"] == usr_id]) == 1
+
+    # Cleanup all 5 created/restored entities (OrgUser, RecurrenceTemplate, Category, Budget, Transaction)
+    # by chaining 5 undos to return to the absolute original state
+    for _ in range(5):
+        res_cleanup = client.post("/api/history/undo_last")
+        assert res_cleanup.status_code == 200
+
+    # Verify that all financial indicators have returned to their exact original values (no regression)
+    final_accounts = client.get("/api/stats/accounts").json()
+    final_dashboard = client.get("/api/stats/dashboard").json()
+
+    assert final_accounts == init_accounts
+    assert final_dashboard == init_dashboard
+
+
+def test_budgets_status_tool_returns_summary():
+    from app.routers.chat import get_budgets_status_tool
+    db = TestingSessionLocal()
+    try:
+        # Create a test budget first to ensure we have data
+        res_bg = client.post("/api/budgets/", json={
+            "name": "Tool Summary Test",
+            "monthly_amount": 120.0,
+            "period": "monthly",
+            "is_project": False,
+            "is_closed": False,
+            "categories": ["Alimentaire"]
+        })
+        assert res_bg.status_code == 200
+        bg_id = res_bg.json()["id"]
+
+        # Call tool
+        res = get_budgets_status_tool(db=db)
+        assert "summary" in res
+        assert "total_budgeted" in res["summary"]
+        assert res["summary"]["total_budgeted"] >= 120.0
+        assert "budgets" in res
+        assert len(res["budgets"]) > 0
+
+        # Clean up
+        client.delete(f"/api/budgets/{bg_id}")
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     build_test_db(engine)
     test_accounts_crud()
@@ -1371,3 +1596,5 @@ if __name__ == "__main__":
     test_auto_close_zeroed_out_template()
     test_dynamic_amount_generation()
     test_update_template_without_reconciled_transactions_does_not_disappear()
+    test_global_undo_redo_system()
+    test_budgets_status_tool_returns_summary()

@@ -216,7 +216,17 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
     status_data = get_budget_status(year=y, month=m, db=db)
     
     envelopes = []
+    total_budgeted = 0.0
+    total_spent_committed = 0.0
+    total_spent_reconciled = 0.0
+    total_income = 0.0
+
     for b in status_data.get("budgets", []):
+        total_budgeted += b.get("budget_amount", 0.0)
+        total_spent_committed += b.get("expenses", 0.0)
+        total_spent_reconciled += b.get("reconciled_expenses", 0.0)
+        total_income += b.get("income", 0.0)
+
         envelopes.append({
             "id": b.get("id"),
             "name": b.get("name"),
@@ -227,7 +237,22 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
             "remaining": b.get("balance", 0.0),
             "percent": b.get("percent", 0.0)
         })
-    return {"year": y, "month": m, "budgets": envelopes}
+
+    net_spent_committed = round(total_spent_committed - total_income, 2)
+    net_spent_reconciled = round(total_spent_reconciled - total_income, 2)
+    total_remaining = round(total_budgeted - net_spent_committed, 2)
+
+    summary = {
+        "total_budgeted": round(total_budgeted, 2),
+        "total_spent_committed": round(total_spent_committed, 2),
+        "total_spent_reconciled": round(total_spent_reconciled, 2),
+        "total_income": round(total_income, 2),
+        "net_spent_committed": net_spent_committed,
+        "net_spent_reconciled": net_spent_reconciled,
+        "total_remaining": total_remaining
+    }
+
+    return {"year": y, "month": m, "summary": summary, "budgets": envelopes}
 
 def get_recurrence_templates_tool(db: Session) -> dict:
     templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
