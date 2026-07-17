@@ -506,18 +506,19 @@ def detect_anomalies_and_subscriptions_tool(db: Session) -> dict:
 
 def apply_transaction_correction_tool(db: Session, transaction_id: int, category: str = None, description: str = None, amount: float = None, type: str = None) -> dict:
     from app.models import Transaction, Category
+    from app.services.history_service import record_action, snapshot_entity
     tx = db.query(Transaction).filter(Transaction.id == int(transaction_id)).first()
     if not tx:
         return {"success": False, "error": "Transaction not found"}
         
+    old_snapshot = snapshot_entity(tx)
     changes = {}
     if category is not None:
-        # Check if category exists or create it
         cat_exists = db.query(Category).filter(Category.name == category).first()
         if not cat_exists:
             new_cat = Category(name=category, type=type or tx.type or "expense_var")
             db.add(new_cat)
-            db.commit()
+            db.flush()
         tx.category = category
         changes["category"] = category
         
@@ -534,10 +535,301 @@ def apply_transaction_correction_tool(db: Session, transaction_id: int, category
         changes["type"] = type
         
     if changes:
+        db.flush()
+        action_id = record_action(db, "transaction", tx.id, "UPDATE", old_snapshot, snapshot_entity(tx))
         db.commit()
-        return {"success": True, "transaction_id": transaction_id, "updated_fields": changes}
+        return {"success": True, "transaction_id": transaction_id, "updated_fields": changes, "action_id": action_id}
         
     return {"success": False, "error": "No fields to update"}
+
+
+def create_budget_envelope_tool(db: Session, name: str, monthly_amount: float, period: str = "monthly", categories: list = None, is_project: bool = False, force_write: bool = False) -> dict:
+    from app.models import Budget
+    
+    dup = db.query(Budget).filter(Budget.name == name, Budget.is_closed == False).first()
+    if dup:
+        return {"success": False, "error": f"L'enveloppe de budget '{name}' existe déjà."}
+        
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+
+    from app.models import BudgetCategory
+    from app.services.history_service import record_action, snapshot_entity
+    b = Budget(
+        name=name,
+        monthly_amount=float(monthly_amount),
+        period=period or "monthly",
+        is_project=is_project,
+        is_closed=False
+    )
+    db.add(b)
+    db.flush()
+    
+    if categories:
+        for cat_name in categories:
+            db.add(BudgetCategory(budget_id=b.id, category_name=cat_name))
+        db.flush()
+        
+    action_id = record_action(db, "budget", b.id, "CREATE", None, snapshot_entity(b, db))
+    db.commit()
+    return {"success": True, "budget_id": b.id, "name": name, "action_id": action_id}
+
+
+def update_budget_envelope_tool(db: Session, budget_id: int, name: str = None, monthly_amount: float = None, period: str = None, categories: list = None, is_closed: bool = None, force_write: bool = False) -> dict:
+    from app.models import Budget
+    
+    b = db.query(Budget).filter(Budget.id == int(budget_id)).first()
+    if not b:
+        return {"success": False, "error": "Budget envelope not found"}
+        
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+
+    from app.models import BudgetCategory
+    from app.services.history_service import record_action, snapshot_entity
+    old_snapshot = snapshot_entity(b, db)
+    
+    if name is not None:
+        b.name = name
+    if monthly_amount is not None:
+        b.monthly_amount = float(monthly_amount)
+    if period is not None:
+        b.period = period
+    if is_closed is not None:
+        b.is_closed = is_closed
+        
+    if categories is not None:
+        db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).delete()
+        for cat_name in categories:
+            db.add(BudgetCategory(budget_id=b.id, category_name=cat_name))
+            
+    db.flush()
+    action_id = record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db))
+    db.commit()
+    return {"success": True, "budget_id": b.id, "action_id": action_id}
+
+
+def delete_budget_envelope_tool(db: Session, budget_id: int, force_write: bool = False) -> dict:
+    from app.models import Budget
+    
+    b = db.query(Budget).filter(Budget.id == int(budget_id)).first()
+    if not b:
+        return {"success": False, "error": "Budget envelope not found"}
+        
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+
+    from app.models import BudgetCategory
+    from app.services.history_service import record_action, snapshot_entity
+    old_snapshot = snapshot_entity(b, db)
+    
+    db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).delete()
+    db.delete(b)
+    db.flush()
+    
+    action_id = record_action(db, "budget", int(budget_id), "DELETE", old_snapshot, None)
+    db.commit()
+    return {"success": True, "budget_id": budget_id, "action_id": action_id}
+
+
+def allocate_savings_funds_tool(db: Session, budget_id: int, amount: float, note: str = None, force_write: bool = False) -> dict:
+    from app.models import Budget
+    
+    b = db.query(Budget).filter(Budget.id == int(budget_id)).first()
+    if not b:
+        return {"success": False, "error": "Savings envelope not found"}
+    if (b.envelope_type or "spending") != "savings":
+        return {"success": False, "error": "This budget envelope is not a savings (tirelire) envelope."}
+        
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+
+    from app.models import BudgetAllocation
+    from app.services.history_service import record_action, snapshot_entity
+    alloc = BudgetAllocation(
+        budget_id=b.id,
+        amount=float(amount),
+        note=note or "Allocation IA"
+    )
+    db.add(alloc)
+    db.flush()
+    
+    action_id = record_action(db, "budget_allocation", alloc.id, "CREATE", None, snapshot_entity(alloc))
+    db.commit()
+    return {"success": True, "budget_id": b.id, "allocation_id": alloc.id, "amount": amount, "action_id": action_id}
+
+
+def create_recurrence_template_tool(db: Session, amount: float, description: str, frequency: str, category: str, type: str, day_of_month: int, force_write: bool = False) -> dict:
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+
+    from app.models import RecurrenceTemplate
+    from app.services.history_service import record_action, snapshot_entity
+    tpl = RecurrenceTemplate(
+        amount=float(amount),
+        description=description,
+        frequency=frequency,
+        category=category,
+        type=type,
+        day_of_month=int(day_of_month),
+        is_closed=False,
+        from_account_id=1  # Default to first account
+    )
+    db.add(tpl)
+    db.flush()
+    
+    action_id = record_action(db, "recurrence_template", tpl.id, "CREATE", None, snapshot_entity(tpl))
+    db.commit()
+    return {"success": True, "template_id": tpl.id, "description": description, "action_id": action_id}
+
+
+def update_recurrence_template_tool(db: Session, template_id: int, amount: float = None, description: str = None, frequency: str = None, category: str = None, type: str = None, day_of_month: int = None, is_active: bool = None, force_write: bool = False) -> dict:
+    from app.models import RecurrenceTemplate
+    
+    tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == int(template_id)).first()
+    if not tpl:
+        return {"success": False, "error": "Recurrence template not found"}
+        
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+
+    from app.services.history_service import record_action, snapshot_entity
+    old_snapshot = snapshot_entity(tpl)
+    
+    if amount is not None:
+        tpl.amount = float(amount)
+    if description is not None:
+        tpl.description = description
+    if frequency is not None:
+        tpl.frequency = frequency
+    if category is not None:
+        tpl.category = category
+    if type is not None:
+        tpl.type = type
+    if day_of_month is not None:
+        tpl.day_of_month = int(day_of_month)
+    if is_active is not None:
+        tpl.is_active = is_active
+        
+    db.flush()
+    action_id = record_action(db, "recurrence_template", tpl.id, "UPDATE", old_snapshot, snapshot_entity(tpl))
+    db.commit()
+    return {"success": True, "template_id": tpl.id, "action_id": action_id}
+
+
+def delete_recurrence_template_tool(db: Session, template_id: int, force_write: bool = False) -> dict:
+    from app.models import RecurrenceTemplate
+    
+    tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == int(template_id)).first()
+    if not tpl:
+        return {"success": False, "error": "Recurrence template not found"}
+        
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+
+    from app.services.history_service import record_action, snapshot_entity
+    old_snapshot = snapshot_entity(tpl)
+    db.delete(tpl)
+    db.flush()
+    
+    action_id = record_action(db, "recurrence_template", int(template_id), "DELETE", old_snapshot, None)
+    db.commit()
+    return {"success": True, "template_id": template_id, "action_id": action_id}
+
+
+def create_category_tool(db: Session, name: str, type: str, force_write: bool = False) -> dict:
+    from app.models import Category
+    
+    dup = db.query(Category).filter(Category.name == name).first()
+    if dup:
+        return {"success": False, "error": f"La catégorie '{name}' existe déjà."}
+        
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+
+    from app.services.history_service import record_action, snapshot_entity
+    cat = Category(name=name, type=type)
+    db.add(cat)
+    db.flush()
+    
+    action_id = record_action(db, "category", cat.id, "CREATE", None, snapshot_entity(cat))
+    db.commit()
+    return {"success": True, "category_id": cat.id, "name": name, "action_id": action_id}
+
+
+def delete_category_tool(db: Session, name: str, force_write: bool = False) -> dict:
+    from app.models import Category
+    
+    cat = db.query(Category).filter(Category.name == name).first()
+    if not cat:
+        return {"success": False, "error": "Category not found"}
+        
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+
+    from app.services.history_service import record_action, snapshot_entity
+    old_snapshot = snapshot_entity(cat)
+    db.delete(cat)
+    db.flush()
+    
+    action_id = record_action(db, "category", cat.id, "DELETE", old_snapshot, None)
+    db.commit()
+    return {"success": True, "name": name, "action_id": action_id}
+
+
+def delete_transaction_tool(db: Session, transaction_id: int, force_write: bool = False) -> dict:
+    from app.models import Transaction
+    from app.services.history_service import record_action, snapshot_entity
+    
+    tx = db.query(Transaction).filter(Transaction.id == int(transaction_id)).first()
+    if not tx:
+        return {"success": False, "error": "Transaction not found"}
+        
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+        
+    old_snapshot = snapshot_entity(tx)
+    db.delete(tx)
+    db.flush()
+    
+    action_id = record_action(db, "transaction", int(transaction_id), "DELETE", old_snapshot, None)
+    db.commit()
+    return {"success": True, "transaction_id": transaction_id, "action_id": action_id}
+
+
+def set_predicted_paycheck_tool(db: Session, amount: float, day_of_month: int, date_override: str = None, force_write: bool = False) -> dict:
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+
+    from app.models import GlobalConfig
+    
+    def _set(key, val):
+        row = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
+        old_val = row.value if row else None
+        if not row:
+            row = GlobalConfig(key=key, value=str(val))
+            db.add(row)
+        else:
+            row.value = str(val)
+        return old_val
+
+    old_amount = _set("payday_amount", amount)
+    old_day = _set("payday_day", day_of_month)
+    
+    old_override = None
+    if date_override is not None:
+        old_override = _set("payday_date_override", date_override)
+        
+    db.flush()
+    db.commit()
+    return {
+        "success": True,
+        "amount": amount,
+        "day_of_month": day_of_month,
+        "date_override": date_override,
+        "previous_amount": old_amount,
+        "previous_day_of_month": old_day
+    }
 
 def get_saving_recommendations_tool(db: Session) -> dict:
     from app.models import Transaction
@@ -960,6 +1252,187 @@ TOOLS = [
                 "required": ["principal", "rate_percent", "years"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_budget_envelope",
+            "description": "Create a new budget envelope with a specific limit, period (monthly, yearly, custom), and optional category names.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name of the budget envelope."},
+                    "monthly_amount": {"type": "number", "description": "Amount allocated to this budget (monthly value)."},
+                    "period": {"type": "string", "description": "Period: monthly, yearly, custom, indefinite."},
+                    "categories": {"type": "array", "items": {"type": "string"}, "description": "List of category names linked to this budget."},
+                    "is_project": {"type": "boolean", "description": "True if this budget is a project (tracked via transactions budget_id)."}
+                },
+                "required": ["name", "monthly_amount"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_budget_envelope",
+            "description": "Update details of an existing budget envelope.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "budget_id": {"type": "integer", "description": "The ID of the budget to update."},
+                    "name": {"type": "string", "description": "New name (optional)."},
+                    "monthly_amount": {"type": "number", "description": "New budget amount (optional)."},
+                    "period": {"type": "string", "description": "New period (optional)."},
+                    "categories": {"type": "array", "items": {"type": "string"}, "description": "New list of categories (optional)."},
+                    "is_closed": {"type": "boolean", "description": "True to archive/close the budget."}
+                },
+                "required": ["budget_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_budget_envelope",
+            "description": "Delete a budget envelope from the database.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "budget_id": {"type": "integer", "description": "The ID of the budget to delete."}
+                },
+                "required": ["budget_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_transaction",
+            "description": "Delete a specific transaction from the database (e.g. to resolve a duplicate entry).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "transaction_id": {"type": "integer", "description": "The ID of the transaction to delete."}
+                },
+                "required": ["transaction_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "allocate_savings_funds",
+            "description": "Add or withdraw funds from a savings envelope (tirelire). Positive amount to deposit, negative to withdraw.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "budget_id": {"type": "integer", "description": "The ID of the savings budget to allocate funds to/from."},
+                    "amount": {"type": "number", "description": "Amount to allocate. Positive for deposit, negative for withdrawal."},
+                    "note": {"type": "string", "description": "Optional comment or reason for this allocation."}
+                },
+                "required": ["budget_id", "amount"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_recurrence_template",
+            "description": "Create a new recurring transaction template (bill, salary, regular transfer).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "amount": {"type": "number", "description": "Transaction amount (positive for income, negative for expense)."},
+                    "description": {"type": "string", "description": "Description of the recurrence."},
+                    "frequency": {"type": "string", "description": "Frequency: Weekly, Bi-weekly, Semi-monthly, Monthly, Quarterly, Semiannual, Yearly."},
+                    "category": {"type": "string", "description": "Category name."},
+                    "type": {"type": "string", "description": "Type: expense_fixed, expense_var, income, transfer, neutral."},
+                    "day_of_month": {"type": "integer", "description": "Day of the month the transaction occurs (1-31)."},
+                    "start_date": {"type": "string", "description": "Start date in YYYY-MM-DD format."}
+                },
+                "required": ["amount", "description", "frequency", "category", "type", "day_of_month"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_recurrence_template",
+            "description": "Update details of an existing recurrence template.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "template_id": {"type": "integer", "description": "The ID of the template to update."},
+                    "amount": {"type": "number", "description": "New amount (optional)."},
+                    "description": {"type": "string", "description": "New description (optional)."},
+                    "frequency": {"type": "string", "description": "New frequency (optional)."},
+                    "category": {"type": "string", "description": "New category name (optional)."},
+                    "type": {"type": "string", "description": "New type (optional)."},
+                    "day_of_month": {"type": "integer", "description": "New day of month (optional)."},
+                    "is_active": {"type": "boolean", "description": "True to activate, False to pause (optional)."}
+                },
+                "required": ["template_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_recurrence_template",
+            "description": "Delete a recurrence template.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "template_id": {"type": "integer", "description": "The ID of the template to delete."}
+                },
+                "required": ["template_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_category",
+            "description": "Create a new transaction category.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name of the new category."},
+                    "type": {"type": "string", "description": "Category type: expense_var, expense_fixed, income, neutral."}
+                },
+                "required": ["name", "type"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_category",
+            "description": "Delete a category from the database.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name of the category to delete."}
+                },
+                "required": ["name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_predicted_paycheck",
+            "description": "Set/override the predicted paycheck details (estimated amount, day of month, or custom date).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "amount": {"type": "number", "description": "Estimated paycheck amount."},
+                    "day_of_month": {"type": "integer", "description": "Estimated day of month."},
+                    "date_override": {"type": "string", "description": "Force a specific date for the next paycheck in YYYY-MM-DD format (optional)."}
+                },
+                "required": ["amount", "day_of_month"]
+            }
+        }
     }
 ]
 
@@ -1013,7 +1486,19 @@ RECONCILIATION & FUTURE TRANSACTIONS RULE:
 - In normal mode, the user manages their budget and expenses between regular pay dates.
 - It is perfectly normal and expected for transactions with a future date (where `date_operation` is in the future relative to the CURRENT DATE REFERENCE above) to be in the "Unreconciled" (Non Rapproché) state, as they represent scheduled/planned operations that have not occurred yet.
 - Do NOT flag future or scheduled transactions as anomalies, forgotten reconciliations, or errors.
-- Only consider a transaction as a potentially forgotten or delayed reconciliation if its date is in the PAST (older than today) and it is still unreconciled."""
+- Only consider a transaction as a potentially forgotten or delayed reconciliation if its date is in the PAST (older than today) and it is still unreconciled.
+
+DUPLICATES & CORRECTIONS RULE:
+- Do NOT correct duplicate transactions by changing their amount (e.g., making it negative or trying to 'cancel' it) or category.
+- To resolve or eliminate a duplicate transaction, you MUST call the `delete_transaction` tool (e.g. to propose its deletion) or explicitly suggest deletion.
+
+WRITE ACTIONS RULE (CRITICAL):
+- When you use any write action tools (like `create_budget_envelope`, `update_budget_envelope`, `delete_budget_envelope`, `allocate_savings_funds`, `create_recurrence_template`, `update_recurrence_template`, `delete_recurrence_template`, `create_category`, `delete_category`, `set_predicted_paycheck`, `delete_transaction`), these actions are NOT applied directly in the database.
+- Instead, they are placed in a queue requiring user validation.
+- Therefore, in your response text, you MUST NOT say "J'ai mis à jour / créé / modifié / supprimé..." or "I have updated / created / modified / deleted...".
+- Instead, you MUST state that you have **prepared the proposed action** (e.g. prepared the paycheck forecast update) and that the user must review and validate it.
+- Example (FR): "J'ai préparé la mise à jour de votre prévision de paie à 2400 € le 29 du mois. Veuillez l'examiner et la valider ci-dessous."
+- Example (EN): "I have prepared the paycheck forecast update to 2400 on the 29th. Please review and validate it below."""
 
     cat_list = ", ".join(f'"{c}"' for c in (categories or []))
     prompt += f"""
@@ -1208,7 +1693,8 @@ async def get_session_messages(id: int, db: Session = Depends(get_db)):
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
     sys_prompt = load_system_prompt(session.role, categories, 'fr')
     
-    used = estimate_tokens(sys_prompt)
+    tools_tokens = estimate_tokens(json.dumps(TOOLS))
+    used = estimate_tokens(sys_prompt) + tools_tokens + 500  # 500 tokens for system prompt wrapper format
     if session.compressed_context:
         used += estimate_tokens(session.compressed_context)
     for m in messages:
@@ -1257,6 +1743,47 @@ async def add_system_message(id: int, req: ChatSendMessage, db: Session = Depend
     db.add(msg)
     db.commit()
     return {"ok": True}
+
+
+class ChatApplyActionRequest(BaseModel):
+    action: str
+    params: dict
+
+
+@router.post("/apply-action")
+async def apply_chat_action(req: ChatApplyActionRequest, db: Session = Depends(get_db)):
+    action = req.action
+    params = req.params
+    
+    if action == "create_budget_envelope":
+        res = create_budget_envelope_tool(db, name=params.get("name"), monthly_amount=params.get("monthly_amount"), period=params.get("period", "monthly"), categories=params.get("categories"), is_project=params.get("is_project", False), force_write=True)
+    elif action == "update_budget_envelope":
+        res = update_budget_envelope_tool(db, budget_id=params.get("budget_id"), name=params.get("name"), monthly_amount=params.get("monthly_amount"), period=params.get("period"), categories=params.get("categories"), is_closed=params.get("is_closed"), force_write=True)
+    elif action == "delete_budget_envelope":
+        res = delete_budget_envelope_tool(db, budget_id=params.get("budget_id"), force_write=True)
+    elif action == "allocate_savings_funds":
+        res = allocate_savings_funds_tool(db, budget_id=params.get("budget_id"), amount=params.get("amount"), note=params.get("note"), force_write=True)
+    elif action == "create_recurrence_template":
+        res = create_recurrence_template_tool(db, amount=params.get("amount"), description=params.get("description"), frequency=params.get("frequency"), category=params.get("category"), type=params.get("type"), day_of_month=params.get("day_of_month"), force_write=True)
+    elif action == "update_recurrence_template":
+        res = update_recurrence_template_tool(db, template_id=params.get("template_id"), amount=params.get("amount"), description=params.get("description"), frequency=params.get("frequency"), category=params.get("category"), type=params.get("type"), day_of_month=params.get("day_of_month"), is_active=params.get("is_active"), force_write=True)
+    elif action == "delete_recurrence_template":
+        res = delete_recurrence_template_tool(db, template_id=params.get("template_id"), force_write=True)
+    elif action == "create_category":
+        res = create_category_tool(db, name=params.get("name"), type=params.get("type"), force_write=True)
+    elif action == "delete_category":
+        res = delete_category_tool(db, name=params.get("name"), force_write=True)
+    elif action == "set_predicted_paycheck":
+        res = set_predicted_paycheck_tool(db, amount=params.get("amount"), day_of_month=params.get("day_of_month"), date_override=params.get("date_override"), force_write=True)
+    elif action == "delete_transaction":
+        res = delete_transaction_tool(db, transaction_id=params.get("transaction_id"), force_write=True)
+    else:
+        raise HTTPException(status_code=400, detail=f"Action '{action}' non reconnue")
+        
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error", "Erreur lors de l'exécution"))
+        
+    return res
 
 @router.post("/sessions/{id}/message")
 async def send_message(id: int, req: ChatSendMessage, request: Request = None, db: Session = Depends(get_db)):
@@ -1336,7 +1863,17 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "get_saving_recommendations": "Génération de vos préconisations d'épargne...",
                     "search_similar_past_spends": "Analyse comparative des dépenses passées...",
                     "generate_csv_export_link": "Génération du lien de téléchargement CSV...",
-                    "simulate_loan_amortization": "Simulation d'amortissement de prêt..."
+                    "simulate_loan_amortization": "Simulation d'amortissement de prêt...",
+                    "create_budget_envelope": "Création de la nouvelle enveloppe de budget...",
+                    "update_budget_envelope": "Mise à jour de l'enveloppe de budget...",
+                    "delete_budget_envelope": "Suppression de l'enveloppe de budget...",
+                    "allocate_savings_funds": "Enregistrement de l'alimentation/retrait de la tirelire...",
+                    "create_recurrence_template": "Création du modèle de transaction récurrente...",
+                    "update_recurrence_template": "Mise à jour du modèle de récurrence...",
+                    "delete_recurrence_template": "Suppression du modèle de récurrence...",
+                    "create_category": "Création de la nouvelle catégorie...",
+                    "delete_category": "Suppression de la catégorie...",
+                    "set_predicted_paycheck": "Mise à jour de la date/montant théorique de salaire..."
                 }
 
                 # Helper: stream a request to Ollama, yield content chunks, return full text
@@ -1424,10 +1961,19 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     assistant_tc_msg = {"role": "assistant", "tool_calls": detected_tool_calls, "content": phase1_text}
                     ollama_msgs.append(assistant_tc_msg)
 
+                    detected_write_actions = []
                     import asyncio
                     for tool_call in detected_tool_calls:
                         fn_name = tool_call["function"]["name"]
                         fn_args = tool_call["function"].get("arguments", {})
+                        
+                        if fn_name in [
+                            "create_budget_envelope", "update_budget_envelope", "delete_budget_envelope",
+                            "allocate_savings_funds", "create_recurrence_template", "update_recurrence_template",
+                            "delete_recurrence_template", "create_category", "delete_category", "set_predicted_paycheck",
+                            "delete_transaction"
+                        ]:
+                            detected_write_actions.append({"action": fn_name, "params": fn_args})
 
                         desc_status = tool_desc_map.get(fn_name, f"Exécution de {fn_name}...")
                         yield f"data: {json.dumps({'status': desc_status})}\n\n"
@@ -1460,6 +2006,28 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                             tool_result = detect_anomalies_and_subscriptions_tool(db)
                         elif fn_name == "apply_transaction_correction":
                             tool_result = apply_transaction_correction_tool(db, fn_args.get("transaction_id"), fn_args.get("category"), fn_args.get("description"), fn_args.get("amount"), fn_args.get("type"))
+                        elif fn_name == "create_budget_envelope":
+                            tool_result = create_budget_envelope_tool(db, fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period", "monthly"), fn_args.get("categories"), fn_args.get("is_project", False))
+                        elif fn_name == "update_budget_envelope":
+                            tool_result = update_budget_envelope_tool(db, fn_args.get("budget_id"), fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period"), fn_args.get("categories"), fn_args.get("is_closed"))
+                        elif fn_name == "delete_budget_envelope":
+                            tool_result = delete_budget_envelope_tool(db, fn_args.get("budget_id"))
+                        elif fn_name == "allocate_savings_funds":
+                            tool_result = allocate_savings_funds_tool(db, fn_args.get("budget_id"), fn_args.get("amount"), fn_args.get("note"))
+                        elif fn_name == "create_recurrence_template":
+                            tool_result = create_recurrence_template_tool(db, fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"))
+                        elif fn_name == "update_recurrence_template":
+                            tool_result = update_recurrence_template_tool(db, fn_args.get("template_id"), fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"), fn_args.get("is_active"))
+                        elif fn_name == "delete_recurrence_template":
+                            tool_result = delete_recurrence_template_tool(db, fn_args.get("template_id"))
+                        elif fn_name == "create_category":
+                            tool_result = create_category_tool(db, fn_args.get("name"), fn_args.get("type"))
+                        elif fn_name == "delete_category":
+                            tool_result = delete_category_tool(db, fn_args.get("name"))
+                        elif fn_name == "set_predicted_paycheck":
+                            tool_result = set_predicted_paycheck_tool(db, fn_args.get("amount"), fn_args.get("day_of_month"), fn_args.get("date_override"))
+                        elif fn_name == "delete_transaction":
+                            tool_result = delete_transaction_tool(db, fn_args.get("transaction_id"))
                         elif fn_name == "get_saving_recommendations":
                             tool_result = get_saving_recommendations_tool(db)
                         elif fn_name == "search_similar_past_spends":
@@ -1507,6 +2075,15 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     # No tool calls — phase1 already streamed everything
                     final_text = phase1_text
 
+                # If write actions were detected, inject validation block at the end
+                if detected_tool_calls and 'detected_write_actions' in locals() and detected_write_actions:
+                    action_str = ""
+                    for action in detected_write_actions:
+                        action_str += f"\n\n```action\n{json.dumps(action, ensure_ascii=False)}\n```"
+                    if action_str:
+                        final_text += action_str
+                        yield f"data: {json.dumps({'content': action_str})}\n\n"
+
                 if not final_text:
                     yield f"data: {json.dumps({'error': 'Le modèle na pas fourni de réponse. Vérifiez votre configuration Ollama.'})}\n\n"
             
@@ -1519,7 +2096,8 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                 
             # Calculate final token usage
             final_messages = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.asc()).all()
-            used_tokens = estimate_tokens(sys_prompt)
+            tools_tokens = estimate_tokens(json.dumps(TOOLS))
+            used_tokens = estimate_tokens(sys_prompt) + tools_tokens + 500
             if session.compressed_context:
                 used_tokens += estimate_tokens(session.compressed_context)
             for m in final_messages:

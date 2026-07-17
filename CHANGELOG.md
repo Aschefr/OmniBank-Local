@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.69] - 2026-07-17
+
+### Added
+- **AI Write Capabilities & Validation Queue (Human-in-the-Loop) 🔐**:
+  - Ollama is equipped with 10 write capability tools (CRUD on budgets, categories, recurrences, tirelires allocations, paycheck prediction).
+  - All write actions called during a chat session are **simulated** (no direct database changes are made by the backend model stream).
+  - The backend intercepts write tool calls and streams an interactive action recommendation box in the chat UI.
+  - Clicking **"Examiner les modifications"** (Review changes) opens a side-by-side comparison modal containing the proposed fields.
+  - The changes are only executed in the database (with full snapshots and Undo/Redo tracking) once the user clicks the final **"Valider"** button.
+  - Dynamic system prompt updates guide the AI assistant to speak in terms of preparation/proposal rather than direct database execution.
+- **Dynamic Undo/Redo Tooltips 💬**:
+  - The top header Undo (↩) and Redo (↪) arrow buttons display dynamic tooltips on hover (`title` attribute) in French detailing the exact action that will be performed (e.g. *« Annuler : Création de l'enveloppe de budget 'Loisirs' (50.0 €) »* or *« Rétablir : Suppression de la charge récurrente 'Netflix' »*).
+- **Internationalization (i18n) Improvements**:
+  - Migrated all AI action boxes, modal headers, action names, parameters, and buttons to the translation layer (`fr.json` / `en.json`), preventing any hardcoded French UI text.
+  - Refined French translations (e.g. changed "Revoir" to "Examiner les modifications").
+
 ## [1.0.68] - 2026-07-16
 
 ### Added

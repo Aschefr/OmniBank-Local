@@ -1587,11 +1587,13 @@ class App {
                 undoBtn.disabled = !status.can_undo;
                 undoBtn.style.opacity = status.can_undo ? "1" : "0.4";
                 undoBtn.style.cursor = status.can_undo ? "pointer" : "not-allowed";
+                undoBtn.title = status.can_undo ? `Annuler : ${status.undo_label}` : (window.i18n.t('history_nothing_to_undo') || "Rien à annuler");
             }
             if (redoBtn) {
                 redoBtn.disabled = !status.can_redo;
                 redoBtn.style.opacity = status.can_redo ? "1" : "0.4";
                 redoBtn.style.cursor = status.can_redo ? "pointer" : "not-allowed";
+                redoBtn.title = status.can_redo ? `Rétablir : ${status.redo_label}` : (window.i18n.t('history_nothing_to_redo') || "Rien à rétablir");
             }
         } catch (e) {
             console.warn("Failed to fetch history status", e);
