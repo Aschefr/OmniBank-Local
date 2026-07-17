@@ -13,6 +13,7 @@ window.escapeHtml = escapeHtml;
 window.ChatView = {
     sessions: [],
     activeSessionId: null,
+    deletingSessionId: null,
     messages: [],
     compressedContext: null,
     editingContext: false,
@@ -683,7 +684,10 @@ window.ChatView = {
         // Event delegation for AI action boxes
         document.getElementById('chatMessages')?.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-action-id]');
-            if (btn) window.ChatView.openActionModal(parseInt(btn.dataset.actionId));
+            if (btn) {
+                const actId = btn.dataset.actionId;
+                window.ChatView.openActionModal(actId.startsWith('act_') ? actId : parseInt(actId));
+            }
         });
 
         await this.loadSessions();
@@ -707,69 +711,69 @@ window.ChatView = {
     populateInfoToolsList() {
         const container = document.getElementById('chatInfoToolsList');
         if (!container) return;
-        
-        const toolOrder = [
-            'get_financial_summary', 'get_net_worth', 'get_account_balances',
-            'search_transactions', 'get_spending_analytics', 'get_budgets_status',
-            'get_recurrence_templates', 'get_net_worth_history', 'get_envelopes_impact',
-            'suggest_transaction_category', 'forecast_balances_history',
-            'detect_anomalies_and_subscriptions', 'apply_transaction_correction',
-            'get_saving_recommendations', 'search_similar_past_spends',
-            'generate_csv_export_link', 'simulate_loan_amortization'
+
+        const groups = [
+            {
+                emoji: '📊',
+                name: window.i18n.t('chat_group_analysis_name') || 'Analyse & Soldes',
+                access: 'readonly',
+                desc: window.i18n.t('chat_group_analysis_desc') || 'Consultation en temps réel du reste à vivre, du patrimoine net global, des soldes de comptes bancaires et de l\'état d\'avancement des enveloppes budgétaires.',
+                tools: 'get_financial_summary, get_net_worth, get_account_balances, get_spending_analytics, get_budgets_status, get_recurrence_templates, get_net_worth_history'
+            },
+            {
+                emoji: '🔍',
+                name: window.i18n.t('chat_group_search_name') || 'Recherche & Classification',
+                access: 'readonly',
+                desc: window.i18n.t('chat_group_search_desc') || 'Recherche d\'opérations multicritères, suggestion intelligente de catégories, détection d\'anomalies ou abonnements et génération d\'exports CSV.',
+                tools: 'search_transactions, search_similar_past_spends, suggest_transaction_category, detect_anomalies_and_subscriptions, generate_csv_export_link'
+            },
+            {
+                emoji: '📈',
+                name: window.i18n.t('chat_group_simulation_name') || 'Simulations & Conseils',
+                access: 'readonly',
+                desc: window.i18n.t('chat_group_simulation_desc') || 'Projections de solde à 30/60/90 jours, simulation d\'impact d\'un achat sur un budget, calcul d\'amortissement de prêt et préconisations d\'épargne.',
+                tools: 'forecast_balances_history, get_envelopes_impact, simulate_loan_amortization, get_saving_recommendations'
+            },
+            {
+                emoji: '⚡',
+                name: window.i18n.t('chat_group_write_name') || 'Actions & Modifications',
+                access: 'validation',
+                desc: window.i18n.t('chat_group_write_desc') || 'Création, modification et suppression directe d\'enveloppes de budget, de modèles de récurrence, de tirelires (alimentation/retrait) et de catégories. (Toutes ces actions sont soumises à la revue et annulables à 100% via l\'historique).',
+                tools: 'apply_transaction_correction, create_budget_envelope, update_budget_envelope, delete_budget_envelope, allocate_savings_funds, create_recurrence_template, update_recurrence_template, delete_recurrence_template, create_category, delete_category, set_predicted_paycheck'
+            }
         ];
 
-        const toolMeta = {
-            get_financial_summary: { access: 'readonly', params: 'none', roles: ['advisor', 'budget_planner'] },
-            get_net_worth: { access: 'readonly', params: 'none', roles: ['advisor', 'simulator'] },
-            get_account_balances: { access: 'readonly', params: 'none', roles: ['advisor', 'simulator', 'alerts'] },
-            search_transactions: { access: 'readonly', params: 'query', roles: ['advisor', 'auditor'] },
-            get_spending_analytics: { access: 'readonly', params: 'date_range', roles: ['advisor', 'optimizer'] },
-            get_budgets_status: { access: 'readonly', params: 'month', roles: ['advisor', 'budget_planner', 'optimizer'] },
-            get_recurrence_templates: { access: 'readonly', params: 'none', roles: ['advisor', 'alerts', 'budget_planner'] },
-            get_net_worth_history: { access: 'readonly', params: 'months_count', roles: ['advisor', 'simulator', 'forecaster'] },
-            get_envelopes_impact: { access: 'readonly', params: 'amount_cat', roles: ['advisor', 'budget_planner', 'simulator'] },
-            suggest_transaction_category: { access: 'readonly', params: 'desc_amount', roles: ['advisor', 'auditor'] },
-            forecast_balances_history: { access: 'readonly', params: 'days', roles: ['advisor', 'forecaster', 'simulator'] },
-            detect_anomalies_and_subscriptions: { access: 'readonly', params: 'none', roles: ['advisor', 'alerts', 'auditor'] },
-            apply_transaction_correction: { access: 'validation', params: 'correction', roles: ['auditor', 'advisor'] },
-            get_saving_recommendations: { access: 'readonly', params: 'none', roles: ['advisor', 'optimizer', 'simulator'] },
-            search_similar_past_spends: { access: 'readonly', params: 'desc', roles: ['advisor', 'optimizer'] },
-            generate_csv_export_link: { access: 'readonly', params: 'export', roles: ['advisor', 'auditor'] },
-            simulate_loan_amortization: { access: 'readonly', params: 'loan', roles: ['simulator'] }
-        };
-        
-        const rows = toolOrder.map(name => {
-            const emoji = this._toolEmojiMap[name] || '⚙️';
-            const desc = window.i18n.t(`tool_${name}`) || name;
-            
-            const meta = toolMeta[name] || { access: 'readonly', params: 'none', roles: [] };
-            
-            // Access badge
-            const isVal = meta.access === 'validation';
-            const accessBadge = `<span class="access-badge badge-${meta.access}">
+        const rows = groups.map(g => {
+            const isVal = g.access === 'validation';
+            const accessBadge = `<span class="access-badge badge-${g.access}">
                 ${window.i18n.t(isVal ? 'chat_info_access_validation' : 'chat_info_access_readonly')}
             </span>`;
-            
-            // Params label
-            const paramsLabel = window.i18n.t(`tool_params_${meta.params}`) || meta.params;
+
+            const toolsHtml = g.tools.split(', ').map(t => {
+                const toolDesc = window.i18n.t(`tool_${t}`) || t;
+                return `<code title="${toolDesc}" style="font-size: 10px; padding: 1px 4px; background: rgba(128,128,128,0.15); border-radius: 4px; color: var(--text-muted); display: inline-block; margin: 1px 2px 1px 0; font-family: monospace; cursor: help;">${t}</code>`;
+            }).join(' ');
 
             return `<tr>
-                <td class="tool-emoji-col">${emoji}</td>
-                <td class="tool-name-col"><code>${name}</code></td>
-                <td class="tool-access-col">${accessBadge}</td>
-                <td class="tool-params-col">${paramsLabel}</td>
-                <td class="tool-desc-col">${desc}</td>
+                <td class="tool-emoji-col" style="font-size: 20px; text-align: center; vertical-align: top; padding-top: 12px; width: 40px;">${g.emoji}</td>
+                <td class="tool-name-col" style="vertical-align: top; padding-top: 10px; width: 30%;">
+                    <strong style="font-size: 14px; color: var(--text-color);">${g.name}</strong>
+                    <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 2px;">
+                        ${toolsHtml}
+                    </div>
+                </td>
+                <td class="tool-access-col" style="vertical-align: top; padding-top: 12px; width: 15%;">${accessBadge}</td>
+                <td class="tool-desc-col" style="vertical-align: top; padding-top: 12px; font-size: 12px; line-height: 1.5; color: var(--text-muted); white-space: normal; word-break: break-word;">${g.desc}</td>
             </tr>`;
         }).join('');
 
-        container.innerHTML = `<table class="chat-info-table">
+        container.innerHTML = `<table class="chat-info-table" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
             <thead>
                 <tr>
                     <th style="padding-left: 0; width: 40px;"></th>
-                    <th>${window.i18n.t('chat_info_header_tool')}</th>
-                    <th>${window.i18n.t('chat_info_header_access')}</th>
-                    <th>${window.i18n.t('chat_info_header_params')}</th>
-                    <th>${window.i18n.t('chat_info_header_desc')}</th>
+                    <th style="width: 30%; text-align: left;">${window.i18n.t('chat_info_header_capability') || 'Capacité'}</th>
+                    <th style="width: 15%; text-align: left;">${window.i18n.t('chat_info_header_access') || 'Accès'}</th>
+                    <th style="text-align: left;">${window.i18n.t('chat_info_header_desc') || 'Description'}</th>
                 </tr>
             </thead>
             <tbody>
@@ -809,16 +813,24 @@ window.ChatView = {
         list.innerHTML = this.sessions.map(s => {
             const isActive = s.id === this.activeSessionId;
             const roleEmoji = s.role === 'simulator' ? '📐' : (s.role === 'alerts' ? '⚠️' : '💬');
+            const isDeleting = this.deletingSessionId === s.id;
             
+            const actionsHtml = isDeleting ? `
+                <button class="chat-session-btn" onclick="window.ChatView.confirmDeleteSession(${s.id})" title="${window.i18n.t('chat_confirm_delete') || 'Confirmer'}" style="color: #ef4444; font-weight: bold;">✔️</button>
+                <button class="chat-session-btn" onclick="window.ChatView.cancelDeleteSession()" title="${window.i18n.t('chat_cancel') || 'Annuler'}">❌</button>
+            ` : `
+                <button class="chat-session-btn" onclick="window.ChatView.startRenameSession(${s.id})" title="${window.i18n.t('chat_edit_msg') || 'Renommer'}">✏️</button>
+                <button class="chat-session-btn" onclick="window.ChatView.deleteSession(${s.id})" title="${window.i18n.t('chat_delete_msg') || 'Supprimer'}">🗑️</button>
+            `;
+
             return `
-                <div class="chat-session-item ${isActive ? 'active' : ''}" onclick="window.ChatView.selectSession(${s.id})" title="${window.escapeHtml(s.title)}">
+                <div class="chat-session-item ${isActive ? 'active' : ''} ${isDeleting ? 'deleting' : ''}" onclick="window.ChatView.selectSession(${s.id})" title="${window.escapeHtml(s.title)}">
                     <span style="font-size:14px;">${roleEmoji}</span>
                     <span class="chat-session-title" id="session-title-container-${s.id}">
                         <span class="chat-session-title-inner" id="session-title-text-${s.id}">${window.escapeHtml(s.title)}</span>
                     </span>
                     <div class="chat-session-actions" onclick="event.stopPropagation();">
-                        <button class="chat-session-btn" onclick="window.ChatView.startRenameSession(${s.id})" title="${window.i18n.t('chat_edit_msg') || 'Renommer'}">✏️</button>
-                        <button class="chat-session-btn" onclick="window.ChatView.deleteSession(${s.id})" title="${window.i18n.t('chat_delete_msg') || 'Supprimer'}">🗑️</button>
+                        ${actionsHtml}
                     </div>
                 </div>
             `;
@@ -955,23 +967,30 @@ window.ChatView = {
     },
 
     async deleteSession(sessionId) {
-        const titleKey = window.i18n.t('title_deletion') || 'Suppression';
-        const msgKey = window.i18n.t('chat_delete_confirm') || 'Supprimer cette conversation ?';
-        if (await showInlineConfirm(titleKey, msgKey)) {
-            try {
-                const resp = await fetch(`/api/chat/sessions/${sessionId}`, {
-                    method: 'DELETE'
-                });
-                if (resp.ok) {
-                    if (this.activeSessionId === sessionId) {
-                        this.activeSessionId = null;
-                    }
-                    await this.loadSessions();
+        this.deletingSessionId = sessionId;
+        this.renderSidebarList();
+    },
+
+    async confirmDeleteSession(sessionId) {
+        try {
+            const resp = await fetch(`/api/chat/sessions/${sessionId}`, {
+                method: 'DELETE'
+            });
+            if (resp.ok) {
+                if (this.activeSessionId === sessionId) {
+                    this.activeSessionId = null;
                 }
-            } catch (e) {
-                console.error("Error deleting session:", e);
+                this.deletingSessionId = null;
+                await this.loadSessions();
             }
+        } catch (e) {
+            console.error("Error deleting session:", e);
         }
+    },
+
+    cancelDeleteSession() {
+        this.deletingSessionId = null;
+        this.renderSidebarList();
     },
 
     async loadMessages(isRestore = false) {
@@ -1096,6 +1115,18 @@ window.ChatView = {
                 }
             });
             
+            // Match signature {"action": "...", "params": {...}}
+            const genericActionRegex = /\{\s*"action"\s*:\s*"[^"]+"\s*,\s*"params"\s*:\s*\{[^}]+\}\s*\}/g;
+            rawContent = rawContent.replace(genericActionRegex, (match) => {
+                try {
+                    const actionObj = JSON.parse(match);
+                    actions.push(actionObj);
+                    return '';
+                } catch (e) {
+                    return match;
+                }
+            });
+            
             rawContent = rawContent.replace(/```(?:action|json)?\s*```/g, '');
 
             // Check for thinking blocks - use placeholders to bypass DOMPurify stripping
@@ -1137,14 +1168,54 @@ window.ChatView = {
                 }
 
                 for (const actionObj of actions) {
-                    this.pendingActions[actionObj.id] = actionObj;
-                    displayContent += `
-                        <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
-                            <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
-                            <div style="font-size: 12px; margin-bottom: 12px;">${window.i18n.t('chat_ai_propose_modify')} #${actionObj.id}.</div>
-                            <button class="btn btn-primary" data-action-id="${actionObj.id}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review')}</button>
-                        </div>
-                    `;
+                    if (actionObj.id !== undefined) {
+                        this.pendingActions[actionObj.id] = actionObj;
+                        displayContent += `
+                            <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
+                                <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
+                                <div style="font-size: 12px; margin-bottom: 12px;">${window.i18n.t('chat_ai_propose_modify')} #${actionObj.id}.</div>
+                                <button class="btn btn-primary" data-action-id="${actionObj.id}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review')}</button>
+                            </div>
+                        `;
+                    } else if (actionObj.action !== undefined) {
+                        const actionId = 'act_' + Math.random().toString(36).substr(2, 9);
+                        this.pendingActions[actionId] = actionObj;
+                        
+                        let desc = window.i18n.tp('chat_action_generic_propose', { action: actionObj.action });
+                        if (actionObj.action === 'create_budget_envelope') {
+                            desc = window.i18n.tp('chat_action_propose_create_budget', { name: actionObj.params.name, amount: actionObj.params.monthly_amount });
+                        } else if (actionObj.action === 'update_budget_envelope') {
+                            desc = window.i18n.tp('chat_action_propose_update_budget', { name: actionObj.params.name || actionObj.params.budget_id });
+                        } else if (actionObj.action === 'delete_budget_envelope') {
+                            desc = window.i18n.tp('chat_action_propose_delete_budget', { id: actionObj.params.budget_id });
+                        } else if (actionObj.action === 'allocate_savings_funds') {
+                            const actKey = actionObj.params.amount >= 0 ? 'chat_action_propose_allocate_savings_action_deposit' : 'chat_action_propose_allocate_savings_action_withdraw';
+                            const actName = window.i18n.t(actKey);
+                            desc = window.i18n.tp('chat_action_propose_allocate_savings', { action: actName, amount: Math.abs(actionObj.params.amount), id: actionObj.params.budget_id });
+                        } else if (actionObj.action === 'create_recurrence_template') {
+                            desc = window.i18n.tp('chat_action_propose_create_recurrence', { desc: actionObj.params.description, amount: actionObj.params.amount });
+                        } else if (actionObj.action === 'update_recurrence_template') {
+                            desc = window.i18n.tp('chat_action_propose_update_recurrence', { desc: actionObj.params.description || actionObj.params.template_id });
+                        } else if (actionObj.action === 'delete_recurrence_template') {
+                            desc = window.i18n.tp('chat_action_propose_delete_recurrence', { id: actionObj.params.template_id });
+                        } else if (actionObj.action === 'create_category') {
+                            desc = window.i18n.tp('chat_action_propose_create_category', { name: actionObj.params.name });
+                        } else if (actionObj.action === 'delete_category') {
+                            desc = window.i18n.tp('chat_action_propose_delete_category', { name: actionObj.params.name });
+                        } else if (actionObj.action === 'set_predicted_paycheck') {
+                            desc = window.i18n.tp('chat_action_propose_set_paycheck', { amount: actionObj.params.amount, day: actionObj.params.day_of_month });
+                        } else if (actionObj.action === 'delete_transaction') {
+                            desc = window.i18n.tp('chat_action_propose_delete_transaction', { id: actionObj.params.transaction_id });
+                        }
+
+                        displayContent += `
+                            <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
+                                <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
+                                <div style="font-size: 12px; margin-bottom: 12px;">${desc}.</div>
+                                <button class="btn btn-primary" data-action-id="${actionId}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review_generic')}</button>
+                            </div>
+                        `;
+                    }
                 }
             }
         } else if (isUser) {
@@ -1564,6 +1635,179 @@ window.ChatView = {
         const actionObj = this.pendingActions[txId];
         if (!actionObj) return;
 
+        if (typeof txId === 'string' && txId.startsWith('act_')) {
+            const descEl = document.getElementById('aiActionModalDesc');
+            if (descEl) descEl.textContent = window.i18n.t('chat_modal_ai_desc_generic') || "L'IA propose d'exécuter l'action suivante. Veuillez vérifier les changements avant de valider.";
+            
+            const actionNames = {
+                create_budget_envelope: window.i18n.t('tool_create_budget_envelope_title') || 'Création d\'une enveloppe de budget',
+                update_budget_envelope: window.i18n.t('tool_update_budget_envelope_title') || 'Modification d\'une enveloppe de budget',
+                delete_budget_envelope: window.i18n.t('tool_delete_budget_envelope_title') || 'Suppression d\'une enveloppe de budget',
+                allocate_savings_funds: window.i18n.t('tool_allocate_savings_funds_title') || 'Alimentation / Retrait de tirelire',
+                create_recurrence_template: window.i18n.t('tool_create_recurrence_template_title') || 'Création d\'une charge récurrente',
+                update_recurrence_template: window.i18n.t('tool_update_recurrence_template_title') || 'Modification d\'une charge récurrente',
+                delete_recurrence_template: window.i18n.t('tool_delete_recurrence_template_title') || 'Suppression d\'une charge récurrente',
+                create_category: window.i18n.t('tool_create_category_title') || 'Création d\'une catégorie',
+                delete_category: window.i18n.t('tool_delete_category_title') || 'Suppression d\'une catégorie',
+                set_predicted_paycheck: window.i18n.t('tool_set_predicted_paycheck_title') || 'Définition du salaire prévisionnel',
+                delete_transaction: window.i18n.t('tool_delete_transaction_title') || 'Suppression d\'une opération'
+            };
+            const friendlyName = actionNames[actionObj.action] || actionObj.action;
+            
+            // Try to resolve current state for update actions
+            let currentEntityState = null;
+            if (actionObj.action === 'update_budget_envelope' || actionObj.action === 'delete_budget_envelope' || actionObj.action === 'allocate_savings_funds') {
+                try {
+                    const r = await fetch('/api/budgets');
+                    if (r.ok) {
+                        const list = await r.json();
+                        const bid = parseInt(actionObj.params.budget_id || actionObj.params.id);
+                        currentEntityState = list.find(b => b.id === bid);
+                    }
+                } catch(e) {}
+            } else if (actionObj.action === 'update_recurrence_template' || actionObj.action === 'delete_recurrence_template') {
+                try {
+                    const r = await fetch('/api/recurrences');
+                    if (r.ok) {
+                        const list = await r.json();
+                        const tid = parseInt(actionObj.params.template_id || actionObj.params.id);
+                        currentEntityState = list.find(tpl => tpl.id === tid);
+                    }
+                } catch(e) {}
+            } else if (actionObj.action === 'delete_transaction') {
+                try {
+                    const tid = parseInt(actionObj.params.transaction_id || actionObj.params.id);
+                    const r = await fetch(`/api/transactions/${tid}`);
+                    if (r.ok) {
+                        currentEntityState = await r.json();
+                    }
+                } catch(e) {}
+            } else if (actionObj.action === 'set_predicted_paycheck') {
+                try {
+                    const r = await fetch('/api/config/');
+                    if (r.ok) {
+                        const cfg = await r.json();
+                        currentEntityState = {
+                            amount: cfg.payday_amount,
+                            day_of_month: cfg.payday_day,
+                            date_override: cfg.payday_date_override
+                        };
+                    }
+                } catch(e) {}
+            }
+
+            let subtitleHtml = '';
+            if (currentEntityState) {
+                const nameOrDesc = currentEntityState.name || currentEntityState.description || currentEntityState.category_name;
+                if (nameOrDesc) {
+                    subtitleHtml = ` — <span style="color: var(--accent); font-weight:600;">${window.escapeHtml(nameOrDesc)}</span>`;
+                }
+            } else if (actionObj.params && (actionObj.params.name || actionObj.params.description)) {
+                const nameOrDesc = actionObj.params.name || actionObj.params.description;
+                subtitleHtml = ` — <span style="color: var(--accent); font-weight:600;">${window.escapeHtml(nameOrDesc)}</span>`;
+            }
+
+            let detailsHtml = `<strong>${window.i18n.tp('chat_modal_recommended_action', { action: friendlyName })}${subtitleHtml}</strong>`;
+            const showComparison = !!currentEntityState;
+
+            detailsHtml += `<table style="width:100%; margin-top:12px; border-collapse:collapse; font-size:12px;">`;
+            if (showComparison) {
+                detailsHtml += `<thead><tr>
+                    <th style="text-align:left; padding:4px 8px; color:var(--text-muted);">${window.i18n.t('chat_modal_parameter')}</th>
+                    <th style="text-align:left; padding:4px 8px; color:var(--text-muted);">${window.i18n.t('chat_th_before') || 'Actuel'}</th>
+                    <th style="text-align:left; padding:4px 8px; color:var(--text-muted);">${window.i18n.t('chat_th_after') || 'Proposé'}</th>
+                </tr></thead><tbody>`;
+            } else {
+                detailsHtml += `<thead><tr>
+                    <th style="text-align:left; padding:4px 8px; color:var(--text-muted);">${window.i18n.t('chat_modal_parameter')}</th>
+                    <th style="text-align:left; padding:4px 8px; color:var(--text-muted);">${window.i18n.t('chat_modal_proposed_value')}</th>
+                </tr></thead><tbody>`;
+            }
+
+            const paramLabels = {
+                id: window.i18n.t('field_label_id') || 'Identifiant',
+                budget_id: window.i18n.t('field_label_budget_id') || 'ID Enveloppe',
+                template_id: window.i18n.t('field_label_template_id') || 'ID Récurrence',
+                name: window.i18n.t('field_label_name') || 'Nom',
+                monthly_amount: window.i18n.t('field_label_amount') || 'Montant mensuel',
+                amount: window.i18n.t('field_label_amount') || 'Montant',
+                period: window.i18n.t('field_label_period') || 'Période',
+                categories: window.i18n.t('field_label_categories') || 'Catégories',
+                is_project: window.i18n.t('field_label_is_project') || 'Est un projet',
+                is_closed: window.i18n.t('field_label_is_closed') || 'Est clôturé',
+                is_active: window.i18n.t('field_label_is_active') || 'Est actif',
+                note: window.i18n.t('field_label_note') || 'Note / Description',
+                description: window.i18n.t('field_label_description') || 'Description',
+                frequency: window.i18n.t('field_label_frequency') || 'Fréquence',
+                category: window.i18n.t('field_label_category') || 'Catégorie',
+                type: window.i18n.t('field_label_type') || 'Type',
+                day_of_month: window.i18n.t('field_label_day_of_month') || 'Jour du mois',
+                date_override: window.i18n.t('field_label_date_override') || 'Date spécifique',
+                new_limit: window.i18n.t('field_label_new_limit') || 'Nouvelle limite',
+                transaction_id: window.i18n.t('field_label_transaction_id') || "ID de l'opération"
+            };
+
+            const valueTranslations = {
+                monthly: window.i18n.t('period_monthly') || 'Mensuel',
+                weekly: window.i18n.t('period_weekly') || 'Hebdomadaire',
+                bimonthly: window.i18n.t('period_bimonthly') || 'Bi-mensuel',
+                indefinite: window.i18n.t('period_indefinite') || 'Indéterminé',
+                true: window.i18n.t('val_true') || 'Oui',
+                false: window.i18n.t('val_false') || 'Non',
+                Monthly: window.i18n.t('rec_monthly') || 'Mensuelle',
+                Weekly: window.i18n.t('rec_weekly') || 'Hebdomadaire',
+                Bimonthly: window.i18n.t('rec_bimonthly') || 'Tous les 2 mois'
+            };
+
+            const translateVal = (v) => {
+                if (v === null || v === undefined) return '—';
+                const s = String(v);
+                if (valueTranslations[s] !== undefined) return valueTranslations[s];
+                if (valueTranslations[s.toLowerCase()] !== undefined) return valueTranslations[s.toLowerCase()];
+                return s;
+            };
+
+            for (const [key, val] of Object.entries(actionObj.params || {})) {
+                let displayVal = val;
+                if (Array.isArray(val)) displayVal = val.join(', ');
+                else if (typeof val === 'object' && val !== null) displayVal = JSON.stringify(val);
+                displayVal = translateVal(displayVal);
+                
+                const label = paramLabels[key] || key;
+
+                if (showComparison) {
+                    let oldVal = currentEntityState[key];
+                    if (oldVal === undefined && key === 'new_limit') oldVal = currentEntityState['monthly_amount']; // Fallback limit
+                    if (Array.isArray(oldVal)) oldVal = oldVal.join(', ');
+                    oldVal = translateVal(oldVal);
+                    
+                    const isIdKey = key === 'id' || key === 'budget_id' || key === 'template_id';
+                    const hasChanged = String(oldVal) !== String(displayVal);
+                    const strikeStyle = (isIdKey || !hasChanged) ? 'none' : 'line-through';
+                    
+                    detailsHtml += `<tr>
+                        <td style="padding:6px 8px; font-weight:600; width:30%;">${label}</td>
+                        <td style="padding:6px 8px; color:var(--text-muted); text-decoration:${strikeStyle}; width:35%;">${oldVal}</td>
+                        <td style="padding:6px 8px; color:var(--accent); font-weight:600; width:35%;">${displayVal}</td>
+                    </tr>`;
+                } else {
+                    detailsHtml += `<tr>
+                        <td style="padding:6px 8px; font-weight:600; width:40%;">${label}</td>
+                        <td style="padding:6px 8px; color:var(--accent); font-weight:600;">${displayVal}</td>
+                    </tr>`;
+                }
+            }
+            detailsHtml += `</tbody></table>`;
+
+            document.getElementById('aiActionDetails').innerHTML = detailsHtml;
+            document.getElementById('aiActionModal').style.display = 'flex';
+            document.getElementById('aiActionConfirmBtn').onclick = () => this.applyGenericAiAction(txId, actionObj);
+            return;
+        }
+
+        const descEl = document.getElementById('aiActionModalDesc');
+        if (descEl) descEl.textContent = window.i18n.t('modal_ai_desc') || "L'IA propose de modifier la transaction suivante. Veuillez vérifier les changements avant d'appliquer.";
+
         let currentTx = null;
         try {
             const resp = await fetch(`/api/transactions/${txId}`);
@@ -1631,6 +1875,53 @@ window.ChatView = {
         } finally {
             btn.disabled = false;
             btn.innerText = window.i18n.t('btn_validate_edit');
+        }
+    },
+
+    async applyGenericAiAction(actionId, actionObj) {
+        const btn = document.getElementById('aiActionConfirmBtn');
+        btn.disabled = true;
+        btn.innerText = window.i18n.t('msg_applying') || 'Application...';
+
+        try {
+            const response = await fetch('/api/chat/apply-action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: actionObj.action,
+                    params: actionObj.params
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.detail || "Erreur de validation");
+            }
+
+            this.closeActionModal();
+            
+            // Add a feedback message in DB and reload
+            const successMsg = `✅ L'action **${actionObj.action}** a été exécutée et validée avec succès.`;
+            await fetch(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: successMsg, lang: window.i18n.lang || 'fr' })
+            });
+            await this.loadMessages();
+            
+            // Refresh sidebar/views
+            if (window.app && typeof window.app.refreshSidebar === 'function') {
+                await window.app.refreshSidebar();
+            }
+            if (window.app && window.app.currentView && typeof window.app.currentView.loadData === 'function') {
+                try { await window.app.currentView.loadData(); } catch(e) {}
+            }
+
+        } catch (error) {
+            showInlineMessage(window.i18n.t('title_error') || 'Erreur', error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Valider';
         }
     },
 
@@ -1810,6 +2101,34 @@ window.ChatView = {
                     this.scrollToBottom();
                 }
                 this.updateTokenUsageIndicator();
+            }
+        }
+
+        // Auto-refresh sidebar and active view if a write tool was used
+        if (aiText.includes('TOOLS_USED:')) {
+            const match = aiText.match(/<!-- TOOLS_USED: ([^>]+) -->/);
+            if (match && match[1]) {
+                const usedTools = match[1].split(',');
+                const writeTools = [
+                    'apply_transaction_correction', 'create_budget_envelope', 'update_budget_envelope',
+                    'delete_budget_envelope', 'allocate_savings_funds', 'create_recurrence_template',
+                    'update_recurrence_template', 'delete_recurrence_template', 'create_category',
+                    'delete_category', 'set_predicted_paycheck'
+                ];
+                const hasWriteTool = usedTools.some(t => writeTools.includes(t.trim()));
+                if (hasWriteTool) {
+                    console.log("[Chat] Write tool detected. Triggering UI refresh...");
+                    if (window.app && typeof window.app.refreshSidebar === 'function') {
+                        await window.app.refreshSidebar();
+                    }
+                    if (window.app && window.app.currentView && typeof window.app.currentView.loadData === 'function') {
+                        try {
+                            await window.app.currentView.loadData();
+                        } catch (loadErr) {
+                            console.error("[Chat] Failed to reload current view data:", loadErr);
+                        }
+                    }
+                }
             }
         }
 

@@ -1,6 +1,6 @@
 # 🧪 OmniBank — Suite de Tests
 
-> **28 tests automatisés** validant l'intégrité de l'application.
+> **29 tests automatisés** validant l'intégrité de l'application.
 
 ---
 
@@ -34,6 +34,7 @@
 - **test_paycheck_threshold_small_income** : Ignore les petits revenus pour la détection automatique du salaire principal.
 - **test_chat_premium_flow** : Sessions de chat IA (Ollama), historique des messages et compression de contexte.
 - **test_budgets_status_tool_returns_summary** : L'outil IA de budgets renvoie bien la synthèse consolidée du mois (budget global, dépenses pointées/engagées, solde restant).
+- **test_ai_write_capabilities_tools** : Les nouveaux outils d'écriture de l'IA (Budgets, Récurrences, Catégories, Paie) modifient correctement la base et s'historisent proprement.
 
 ### 🔑 Licence & Organisation
 - **test_license_validation_flow** : Validation cryptographique des clés de licence locale.

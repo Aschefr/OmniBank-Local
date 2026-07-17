@@ -49,16 +49,64 @@ def purge_history(older_than_days: int = Query(90), db: Session = Depends(get_db
     db.commit()
     return {"ok": True, "message": f"History older than {older_than_days} days purged"}
 
+def make_action_label(action) -> str:
+    if not action:
+        return ""
+    entity_map = {
+        "transaction": "l'opération",
+        "account": "le compte",
+        "budget": "l'enveloppe de budget",
+        "budget_allocation": "l'alimentation de tirelire",
+        "recurrence_template": "la charge récurrente",
+        "category": "la catégorie",
+        "org_user": "l'utilisateur"
+    }
+    action_map = {
+        "CREATE": "Création de",
+        "UPDATE": "Modification de",
+        "DELETE": "Suppression de"
+    }
+    
+    ent = entity_map.get(action.entity_type, action.entity_type)
+    act_type = action_map.get(action.action_type, action.action_type)
+    
+    details = ""
+    try:
+        import json
+        state = action.new_state or action.old_state
+        if state:
+            if isinstance(state, str):
+                state = json.loads(state)
+            if isinstance(state, dict):
+                name = state.get("name") or state.get("description") or state.get("category_name") or state.get("label") or state.get("category")
+                amount = state.get("amount") or state.get("monthly_amount")
+                if name:
+                    details += f" '{name}'"
+                if amount:
+                    details += f" ({amount} €)"
+    except Exception:
+        pass
+        
+    return f"{act_type} {ent}{details}"
+
+
 @router.get("/status")
 def get_history_status(db: Session = Depends(get_db)):
-    last_action = db.query(ActionHistory).order_by(desc(ActionHistory.timestamp)).first()
-    if not last_action:
-        return {"can_undo": False, "can_redo": False}
+    action_to_undo = db.query(ActionHistory).filter(ActionHistory.is_undone == False).order_by(desc(ActionHistory.timestamp)).first()
+    action_to_redo = db.query(ActionHistory).filter(ActionHistory.is_undone == True).order_by(desc(ActionHistory.timestamp)).first()
     
-    can_undo = db.query(ActionHistory).filter(ActionHistory.is_undone == False).order_by(desc(ActionHistory.timestamp)).first() is not None
-    can_redo = db.query(ActionHistory).filter(ActionHistory.is_undone == True).order_by(desc(ActionHistory.timestamp)).first() is not None
+    can_undo = action_to_undo is not None
+    can_redo = action_to_redo is not None
     
-    return {"can_undo": can_undo, "can_redo": can_redo}
+    undo_label = make_action_label(action_to_undo) if can_undo else ""
+    redo_label = make_action_label(action_to_redo) if can_redo else ""
+    
+    return {
+        "can_undo": can_undo,
+        "can_redo": can_redo,
+        "undo_label": undo_label,
+        "redo_label": redo_label
+    }
 
 @router.post("/undo_last")
 def undo_last_action(db: Session = Depends(get_db)):

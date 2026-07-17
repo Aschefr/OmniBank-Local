@@ -1572,6 +1572,69 @@ def test_budgets_status_tool_returns_summary():
         db.close()
 
 
+def test_ai_write_capabilities_tools():
+    from app.routers.chat import (
+        create_budget_envelope_tool,
+        update_budget_envelope_tool,
+        delete_budget_envelope_tool,
+        allocate_savings_funds_tool,
+        create_recurrence_template_tool,
+        update_recurrence_template_tool,
+        delete_recurrence_template_tool,
+        create_category_tool,
+        delete_category_tool,
+        set_predicted_paycheck_tool
+    )
+    db = TestingSessionLocal()
+    try:
+        # 1. Test Budget tools
+        res_bg = create_budget_envelope_tool(db, name="AI Test Budget", monthly_amount=150.0, categories=["Alimentaire"], force_write=True)
+        assert res_bg["success"] is True
+        bg_id = res_bg["budget_id"]
+        
+        # Verify history entry created
+        res_hist = client.get("/api/history")
+        assert res_hist.json()[0]["entity_type"] == "budget"
+        assert res_hist.json()[0]["action_type"] == "CREATE"
+
+        # Update budget
+        res_upd_bg = update_budget_envelope_tool(db, budget_id=bg_id, monthly_amount=200.0, force_write=True)
+        assert res_upd_bg["success"] is True
+        
+        # Delete budget
+        res_del_bg = delete_budget_envelope_tool(db, budget_id=bg_id, force_write=True)
+        assert res_del_bg["success"] is True
+
+        # 2. Test Category tools
+        res_cat = create_category_tool(db, name="AI Test Cat", type="expense_var", force_write=True)
+        assert res_cat["success"] is True
+        
+        res_del_cat = delete_category_tool(db, name="AI Test Cat", force_write=True)
+        assert res_del_cat["success"] is True
+
+        # 3. Test Recurrence tools
+        res_rec = create_recurrence_template_tool(
+            db, amount=-50.0, description="AI Recurrence", frequency="Monthly",
+            category="Alimentaire", type="expense_fixed", day_of_month=5, force_write=True
+        )
+        assert res_rec["success"] is True
+        rec_id = res_rec["template_id"]
+
+        res_upd_rec = update_recurrence_template_tool(db, template_id=rec_id, amount=-60.0, force_write=True)
+        assert res_upd_rec["success"] is True
+
+        res_del_rec = delete_recurrence_template_tool(db, template_id=rec_id, force_write=True)
+        assert res_del_rec["success"] is True
+
+        # 4. Test Paycheck tools
+        res_pay = set_predicted_paycheck_tool(db, amount=3000.0, day_of_month=25, force_write=True)
+        assert res_pay["success"] is True
+        assert res_pay["amount"] == 3000.0
+
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     build_test_db(engine)
     test_accounts_crud()
@@ -1598,3 +1661,4 @@ if __name__ == "__main__":
     test_update_template_without_reconciled_transactions_does_not_disappear()
     test_global_undo_redo_system()
     test_budgets_status_tool_returns_summary()
+    test_ai_write_capabilities_tools()
