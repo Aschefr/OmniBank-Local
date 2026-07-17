@@ -2,24 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.70] - 2026-07-16
+## [1.0.68] - 2026-07-16
 
 ### Added
 - **Global Activity & Undo System 🕓**: Added full write operation tracking (Create, Update, Delete) across transactions, accounts, categories, budgets, recurrence templates, and org users.
 - **Header Undo/Redo Controls**: Added quick interactive Undo (↩) and Redo (↪) arrow buttons in the top header with real-time status updates.
 - **Activity Log View**: Added a dedicated "Actions" panel displaying a paginated history of all modifications with inline action details and undo buttons.
 - **Undo Toasts**: Added a temporary pop-up toast with a ↩ button to instantly reverse any successful action.
-
-## [1.0.69] - 2026-07-16
-
-### Added
 - **Multi-Account Block Parsing 🏦**: Added automatic account segment extraction from multi-account statement exports (e.g. Crédit Agricole single-sheet exports containing concatenated account sections like deposition account, Livret A, LDD).
 - **Match Confidence Index & Dropdown Fallback**: Calculates matching confidence score (0-100%) against target account. Automatically parses matching segment if confidence is high ($\ge$ 50%), and dynamically presents a manual selection dropdown for the segment to import if confidence is low (< 50%).
 - **Import Modal Row Filters 🔍**: Added interactive filters ("All", "To Add", "To Reconcile") in the import verification modal to view and validate transactions by action type.
-
-## [1.0.68] - 2026-07-16
-
-### Added
 - **Import Validation Alerts 📥**: Added timing and coherence check warnings to the bank statement import screen (for both AI and direct imports) to verify file dates against the database:
   - **Duplicate Check**: Warns if all transactions in the statement are already present in the database.
   - **Old File Warning**: Warns if the statement ends before the most recent transaction date in the database for the selected account.

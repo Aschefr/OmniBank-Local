@@ -181,6 +181,9 @@ window.HistoryView = {
                 if (window.app && window.app.updateHeaderHistoryState) {
                     window.app.updateHeaderHistoryState();
                 }
+                if (window.app && window.app.refreshSidebar) {
+                    window.app.refreshSidebar();
+                }
                 await this.loadActions();
             } else {
                 const failMsg = (window.i18n.t('history_undo_fail') || 'Failed to undo').replace('{error}', res.detail || '');
