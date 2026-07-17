@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file.
   - **Gap Detection**: Detects date gaps of more than 3 days between the last transaction in the database and the oldest transaction in the imported statement.
   - **Obsolescence Alert**: Warns if the most recent transaction in the imported file is more than 7 days old compared to today's date.
   - **Account Change Check**: Detects if the selected account is changed after analysis and prompts the user to re-run the analysis for updated alerts.
+- **AI Budget Summary Tool**: Enhanced the `get_budgets_status` tool to return a consolidated financial summary (budgeted, spent, reconciled, remaining) for precise AI reasoning.
+- **AI Chat Auto-Scroll Lock**: Improved manual scroll-lock in the chat panel by utilizing scroll direction detection and a stricter bottom threshold (30px) to prevent accidental re-engagement.
 
 ## [1.0.67] - 2026-07-16
 
