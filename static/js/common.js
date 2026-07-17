@@ -272,6 +272,9 @@ function showUndoToast(message, actionId, onUndoSuccess = null) {
                     const warningMsg = window.i18n.t(`history_undo_warning_cascade`) || 'Warning: cascade entities modified.';
                     setTimeout(() => showToast(warningMsg, 'info', 6000), 1000);
                 }
+                if (window.app && window.app.refreshSidebar) {
+                    window.app.refreshSidebar();
+                }
                 if (onUndoSuccess) {
                     onUndoSuccess();
                 } else {

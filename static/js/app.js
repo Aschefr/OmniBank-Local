@@ -253,6 +253,7 @@ class App {
                         }
                         this.updateHeaderHistoryState();
                         this.loadView(this.currentView);
+                        await this.refreshSidebar();
                     }
                 } catch (e) {
                     showToast("Failed to undo", 'error');
@@ -269,6 +270,7 @@ class App {
                         showToast("Action rétablie avec succès.", 'success');
                         this.updateHeaderHistoryState();
                         this.loadView(this.currentView);
+                        await this.refreshSidebar();
                     }
                 } catch (e) {
                     showToast("Failed to redo", 'error');

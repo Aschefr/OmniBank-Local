@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.59-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.68-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -109,10 +109,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
-## 🆕 Dernières Mises à Jour (v1.0.59)
+## 🆕 Dernières Mises à Jour (v1.0.68)
 
-*   **🤖 Chat IA Premium & RAG** : Interface double-colonne, persistance du défilement des sessions, compression dynamique de contexte, intégration de raccourcis 16K, streaming fluide et correctif de faille XSS.
-*   **📋 Duplication d'Opérations** : Ajout d'un bouton de duplication rapide (`📋`) à gauche du bouton de modification sur la timeline et l'historique général, pré-remplissant instantanément le formulaire avec la date du jour.
+*   **🕓 Système d'Activité Global & Annulation (Undo/Redo)** : Suivi complet de toutes les opérations d'écriture (Création, Modification, Suppression) avec des boutons interactifs Annuler/Rétablir dans le header, un historique détaillé dans le panneau "Actions" et des Toasts d'annulation instantanés.
+*   **🏦 Import Relevés Multi-Comptes & Alertes de Cohérence** : Découpage automatique des exports multi-comptes avec calcul d'un indice de confiance, formulaire de sélection manuelle de segment et alertes automatiques de doublons, de dates obsolètes, de trous de données ou d'écart.
+*   **🤖 Chat IA Premium & RAG (v1.0.59)** : Interface double-colonne, persistance du défilement des sessions, compression dynamique de contexte, intégration de raccourcis 16K, streaming fluide et correctif de faille XSS.
+*   **📋 Duplication d'Opérations (v1.0.59)** : Ajout d'un bouton de duplication rapide (`📋`) à gauche du bouton de modification sur la timeline et l'historique général, pré-remplissant instantanément le formulaire avec la date du jour.
 
 ## 🆕 Dernières Mises à Jour (v1.0.58)
 
@@ -195,7 +197,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.59-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.68-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -297,10 +299,12 @@ Access the interface at `http://localhost:8434`.
 
 ---
 
-## 🆕 Recent Updates (v1.0.59)
+## 🆕 Recent Updates (v1.0.68)
 
-*   **🤖 Premium AI Chat & RAG** : Double-column layout, session scroll persistence, dynamic context compaction, 16K setting shortcut integration, clean streaming responses, and XSS vulnerability patch.
-*   **📋 Transaction Duplication** : Added a quick duplicate button (`📋`) next to the Edit button in the timeline and general history views, pre-filling the entry form with today's date.
+*   **🕓 Global Activity & Undo System (Undo/Redo)**: Full write operation tracking (Create, Update, Delete) with interactive Undo/Redo header controls, dedicated paginated Action history panel, and instant pop-up Undo toasts.
+*   **🏦 Multi-Account Block Parsing & Validation Alerts**: Automatic account segment extraction from concatenated multi-account statement exports with segment match confidence index and automated duplicate detection, old file warnings, gap detection, and statement obsolescence alerts.
+*   **🤖 Premium AI Chat & RAG (v1.0.59)**: Double-column layout, session scroll persistence, dynamic context compaction, 16K setting shortcut integration, clean streaming responses, and XSS vulnerability patch.
+*   **📋 Transaction Duplication (v1.0.59)**: Added a quick duplicate button (`📋`) next to the Edit button in the timeline and general history views, pre-filling the entry form with today's date.
 
 ## 🆕 Recent Updates (v1.0.58)
 
