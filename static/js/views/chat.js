@@ -1280,14 +1280,25 @@ window.ChatView = {
 
         // Attach scroll & input listeners to save position & detect manual scroll-up instantly
         if (!container.dataset.hasScrollListener) {
-            // 1. Classical scroll listener to save history position & re-engage auto-scroll when close to bottom
+            // 1. Classical scroll listener to save history position & detect scroll direction
+            let lastScrollTop = container.scrollTop;
             container.addEventListener('scroll', () => {
                 if (this.activeSessionId) {
                     sessionStorage.setItem(`chatScrollPos_${this.activeSessionId}`, container.scrollTop);
                 }
-                const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
-                if (atBottom) {
-                    this.userHasScrolledUp = false;
+                const currentScrollTop = container.scrollTop;
+                const scrollingUp = currentScrollTop < lastScrollTop;
+                lastScrollTop = currentScrollTop;
+
+                if (scrollingUp) {
+                    // Instantly lock autoscroll when user scrolls up
+                    this.userHasScrolledUp = true;
+                } else {
+                    // Re-engage autoscroll only if scrolling down and hitting the bottom within 30px
+                    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 30;
+                    if (atBottom) {
+                        this.userHasScrolledUp = false;
+                    }
                 }
             });
 
