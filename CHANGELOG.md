@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.68] - 2026-07-16
+## [1.0.68] - 2026-07-18
 
 ### Added
 - **Global Activity & Undo System 🕓**: Full write operation tracking (CRUD) across all entities. Header undo/redo arrows, paginated "Actions" panel, and toast notifications for instant reversal.
@@ -15,6 +15,11 @@ All notable changes to this project will be documented in this file.
 - **AI Write Capabilities & Validation Queue (Human-in-the-Loop) 🔐**: 10 CRUD tools for Ollama — all writes are simulated, reviewed via side-by-side comparison modal, and only committed on explicit user validation.
 - **i18n Improvements**: Migrated all AI action boxes, modals, and buttons to translation layer; refined French translations.
 - **Improved AI Chat Context Compression**: New buffered compression with user feedback indicator ("Compression en cours..."), 90% threshold, and synced LLM summary call. Compressed summary appears as a collapsible bubble in the conversation timeline with inline editing, delete (reverts to raw sliding window), and regenerate (with custom instruction via dedicated modal). Fully non-destructive — all messages preserved in DB. Crash recovery resets stuck compression after 5 min.
+- **Chat IA Cancellation Persistence**: Interrupted responses (either via new message stream, context regeneration, or message edits) now correctly display the cancel banner and persist in the database, surviving page refreshes (F5).
+- **Stop Button on Message Edits**: The "Stop" button is now visible and fully functional when saving an edited user message.
+- **Global Undo/Redo Header Synchronization**: Global Undo/Redo arrows in the header now update immediately upon any backend write operation (such as AI tool executions) or tab switches.
+- **Friendly Tool Badges in Chat**: Replaced raw technical tool names on badges with localized friendly descriptions.
+- **Tool Call Execution English Localization**: Localized status messages while the backend is executing tools when using the English interface.
 
 ### Fixed
 - **Undo/Redo Tooltips i18n**: Action labels in undo/redo tooltips are now fully translated based on user language (was hardcoded in French from backend). Includes prepositional forms per language (FR: "de l'", "du", "de la" / EN: "of").
