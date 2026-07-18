@@ -329,3 +329,33 @@ function showUndoToast(message, actionId, onUndoSuccess = null) {
         }
     }, 8000);
 }
+
+window.formatHistoryLabel = function (data) {
+    if (!data || !data.entity_type || !data.action_type) return '';
+
+    const actionText = window.i18n.t('history_action_' + data.action_type.toLowerCase());
+    const entityPrepKey = 'history_entity_prep_' + data.entity_type;
+    const entityPrepForm = window.i18n.t(entityPrepKey);
+    const hasPrep = entityPrepForm && entityPrepForm !== entityPrepKey;
+    const actionEntity = hasPrep
+        ? actionText + ' ' + entityPrepForm
+        : actionText + ' ' + (window.i18n.t('history_entity_' + data.entity_type) || data.entity_type);
+
+    if (data.name && data.amount != null) {
+        return window.i18n.tp('history_action_compose', {
+            action: actionEntity,
+            name: data.name,
+            amount: String(data.amount).replace('.', ',')
+        });
+    }
+    if (data.name) {
+        return window.i18n.tp('history_action_compose_name', {
+            action: actionEntity,
+            name: data.name
+        });
+    }
+    if (data.amount != null) {
+        return actionEntity + ' (' + String(data.amount).replace('.', ',') + ' €)';
+    }
+    return actionEntity;
+};

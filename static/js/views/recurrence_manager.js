@@ -8,7 +8,7 @@ window.RecurrenceView = {
     render() {
         const durationFilter = this.activeDurationFilter || 'all';
         const periodFilter = this.activePeriodFilter || 'all';
-        const viewMode = this.currentViewMode || 'table';
+        const viewMode = this.currentViewMode || localStorage.getItem('recurrences_viewMode') || 'table';
         
         const durationClass = (f) => durationFilter === f ? 'active' : '';
         const periodClass = (f) => periodFilter === f ? 'active' : '';

@@ -12,7 +12,7 @@ from datetime import date
 from app.database import get_db
 from app.models import GlobalConfig, Transaction, Account, Category, RecurrenceTemplate, Budget, ChatSession, ChatMessage
 from app.services.finance_engine import calculate_balances, get_net_worth
-from app.schemas.api_schemas import ChatSessionCreate, ChatSessionUpdate, ChatContextUpdate, ChatSendMessage, ChatMessageUpdate
+from app.schemas.api_schemas import ChatSessionCreate, ChatSessionUpdate, ChatContextUpdate, ChatRegenerateContext, ChatSendMessage, ChatMessageUpdate
 
 import logging
 
@@ -802,7 +802,30 @@ def set_predicted_paycheck_tool(db: Session, amount: float, day_of_month: int, d
         return {"success": True, "pending_validation": True}
 
     from app.models import GlobalConfig
-    
+    from app.services.finance_engine import predict_next_paycheck
+    from app.services.history_service import record_action
+    import calendar
+
+    # Use the actual logical period so the override applies to the right month
+    pay_info = predict_next_paycheck(db)
+    period = pay_info.get("logical_period")
+
+    from datetime import date as dt
+    today = dt.today()
+
+    # Build override date from date_override or day_of_month in the logical period's month
+    if date_override:
+        actual_date_override = date_override
+    elif period:
+        y, m = period.split("-")
+        try:
+            actual_date_override = dt(int(y), int(m), day_of_month).isoformat()
+        except ValueError:
+            last_day = calendar.monthrange(int(y), int(m))[1]
+            actual_date_override = dt(int(y), int(m), last_day).isoformat()
+    else:
+        actual_date_override = today.isoformat()
+
     def _set(key, val):
         row = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
         old_val = row.value if row else None
@@ -813,12 +836,20 @@ def set_predicted_paycheck_tool(db: Session, amount: float, day_of_month: int, d
             row.value = str(val)
         return old_val
 
-    old_amount = _set("payday_amount", amount)
-    old_day = _set("payday_day", day_of_month)
-    
-    old_override = None
-    if date_override is not None:
-        old_override = _set("payday_date_override", date_override)
+    old_amount = _set("override_paycheck_amount", amount)
+    old_period = _set("override_paycheck_period", period)
+    old_date = _set("override_paycheck_date", actual_date_override)
+
+    record_action(db, "paycheck_override", 0, "UPDATE", {
+        "override_paycheck_amount": old_amount,
+        "override_paycheck_period": old_period,
+        "override_paycheck_date": old_date,
+    }, {
+        "override_paycheck_amount": str(amount),
+        "override_paycheck_period": period,
+        "override_paycheck_date": actual_date_override,
+        "amount": amount,
+    })
         
     db.flush()
     db.commit()
@@ -828,7 +859,6 @@ def set_predicted_paycheck_tool(db: Session, amount: float, day_of_month: int, d
         "day_of_month": day_of_month,
         "date_override": date_override,
         "previous_amount": old_amount,
-        "previous_day_of_month": old_day
     }
 
 def get_saving_recommendations_tool(db: Session) -> dict:
@@ -1520,47 +1550,103 @@ If none fits, propose a short and precise new category name. Only propose one JS
 def estimate_tokens(text: str) -> int:
     return len(text) // 4
 
-def run_context_compaction(db: Session, session: ChatSession, messages: List[ChatMessage], cfg: dict):
-    if len(messages) <= 4:
-        return
+def start_compression(db: Session, session: ChatSession, messages: List[ChatMessage], cfg: dict, lang: str = "fr", custom_instruction: str = None, trigger_msg_id: int = None) -> str | None:
+    """Compress conversation history into compressed_context without deleting any messages.
     
-    to_compress = messages[:-4]
+    Compresses from the last compression point (or beginning) up to the last AI message
+    before the trigger. The trigger message and the future AI response remain uncompressed.
+    Uses dedicated LLM parameters (temperature=0.1, num_predict=2048) for faithful, concise summaries.
+    Returns the new compressed_context string, or None on failure.
+    """
+    # Compress all messages from the last boundary (or beginning) up to (not including) the trigger
+    if trigger_msg_id:
+        if session.last_compressed_message_id:
+            to_compress = [m for m in messages if m.id > session.last_compressed_message_id and m.id < trigger_msg_id]
+        else:
+            to_compress = [m for m in messages if m.id < trigger_msg_id]
+    else:
+        # Fallback (regenerate without trigger): use existing last_compressed_message_id or compress all
+        if session.last_compressed_message_id:
+            to_compress = [m for m in messages if m.id > session.last_compressed_message_id]
+        else:
+            to_compress = messages
     
+    if not to_compress:
+        return None  # Nothing new to compress
+
     formatted_history = []
+    if session.compressed_context:
+        formatted_history.append(f"[Previously compressed summary]\n{session.compressed_context}\n\n[New messages to add to summary]")
     for msg in to_compress:
         role_prefix = "U" if msg.role == "user" else "A"
         formatted_history.append(f"{role_prefix}: {msg.content}")
     history_text = "\n".join(formatted_history)
-    
-    if session.compressed_context:
-        history_text = f"Previously compacted memory:\n{session.compressed_context}\n\nNew messages to compact:\n{history_text}"
-        
-    prompt = history_text + """
 
-=== INSTRUCTIONS (CRITICAL — READ CAREFULLY) ===
-You are a text compactor. Rewrite the text ABOVE using minimum characters.
+    # Prompt in English, with language instruction for the response
+    lang_instruction = ""
+    if lang and lang.lower() == "fr":
+        lang_instruction = "\nIMPORTANT: Write the summary in French."
+    elif lang and lang.lower() != "en":
+        lang_instruction = f"\nIMPORTANT: Write the summary in {lang}."
+    else:
+        lang_instruction = "\nIMPORTANT: Write the summary in English."
+
+    custom_instr_block = ""
+    if custom_instruction:
+        custom_instr_block = f"\nAdditional user instruction for this summary: {custom_instruction}"
+
+    prompt = f"""{history_text}
+
+=== COMPRESSION INSTRUCTIONS (CRITICAL — READ CAREFULLY) ===
+You are a memory compactor for a financial AI assistant. Summarize the conversation ABOVE.
 
 RULES:
-1. Output ONLY the compacted text. No commentary, no intro.
-2. Keep the SAME language as the input (French→French, English→English).
-3. Use U: for user, A: for assistant.
-4. Remove ALL greetings, politeness, filler, reformulations, repetitions.
-5. Convert verbose explanations to telegraphic notes.
-6. KEEP ALL technical details.
-7. KEEP conversation flow (who said what, in order).
-8. Target: ~50% of original size.
+1. Output ONLY the summary. No intro, no commentary, no titles.
+2. Use bullet points for key facts. Keep it dense and informative.
+3. U: = user said, A: = assistant said.
+4. Remove ALL greetings, politeness, filler, repetitions.
+5. KEEP ALL financial data: amounts, dates, account names, categories, decisions made.
+6. KEEP conversation flow (who asked what, what was decided).
+7. Target: 30-50% of original size.{lang_instruction}{custom_instr_block}
 
-NOW COMPACT THE TEXT ABOVE. Output ONLY the compacted result:"""
+NOW WRITE THE SUMMARY BELOW:"""
+
+    # Use dedicated compression parameters: lower temperature for faithfulness, limited output length
+    compression_cfg = dict(cfg)
+    compression_cfg["temperature"] = 0.1
+    compression_options = {"temperature": 0.1, "num_ctx": cfg["num_ctx"], "num_predict": 2048}
 
     try:
-        compacted = call_ollama_sync(prompt, cfg)
+        compacted = call_ollama_sync(prompt, compression_cfg, extra_options={"num_predict": 2048})
         if compacted:
-            session.compressed_context = compacted.strip()
-            for msg in to_compress:
-                db.delete(msg)
+            compacted = compacted.strip()
+            # If this is a subsequent compression, push the old context onto the stack
+            if session.bubble_after_id and session.compressed_context:
+                import json
+                stack = json.loads(session.compression_stack) if session.compression_stack else []
+                stack.append({
+                    "context": session.compressed_context,
+                    "after_id": session.bubble_after_id
+                })
+                session.compression_stack = json.dumps(stack)
+
+            session.compressed_context = compacted
+            # Track the last message ID that is now covered by the compressed context
+            session.last_compressed_message_id = to_compress[-1].id
+            # Place bubble after the last compressed message (not after the trigger)
+            session.bubble_after_id = to_compress[-1].id
+            session.compressing = False
+            session.buffered_message = None
+            session.compression_started_at = None
             db.commit()
+            db.refresh(session)
+            return compacted
     except Exception as e:
-        print(f"Error during context compaction: {e}")
+        logger.error(f"[Compression] Error during start_compression: {e}")
+        session.compressing = False
+        session.compression_started_at = None
+        db.commit()
+    return None
 
 def generate_session_title(db_session_factory, session_id: int, user_message: str, cfg: dict):
     """Generate a session title in a background task using its own DB session.
@@ -1697,11 +1783,20 @@ async def get_session_messages(id: int, db: Session = Depends(get_db)):
     used = estimate_tokens(sys_prompt) + tools_tokens + 500  # 500 tokens for system prompt wrapper format
     if session.compressed_context:
         used += estimate_tokens(session.compressed_context)
-    for m in messages:
+    # Filter messages to only count those after last_compressed_message_id
+    if session.last_compressed_message_id:
+        messages_for_tokens = [m for m in messages if m.id > session.last_compressed_message_id]
+    else:
+        messages_for_tokens = messages
+    for m in messages_for_tokens:
         used += estimate_tokens(m.content)
         
     return {
         "compressed_context": session.compressed_context,
+        "compressing": bool(session.compressing),
+        "last_compressed_message_id": session.last_compressed_message_id,
+        "bubble_after_id": session.bubble_after_id,
+        "compression_stack": session.compression_stack,
         "messages": [{
             "id": m.id,
             "role": m.role,
@@ -1723,12 +1818,90 @@ async def update_session_context(id: int, req: ChatContextUpdate, db: Session = 
     db.commit()
     return {"ok": True}
 
+@router.delete("/sessions/{id}/compressed-context")
+async def delete_compressed_context(id: int, db: Session = Depends(get_db)):
+    """Remove the compressed context summary. The conversation reverts to raw mode
+    (natural LLM sliding window). Next time 90% is reached, compression triggers again."""
+    session = db.query(ChatSession).filter(ChatSession.id == id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    session.compressed_context = None
+    session.last_compressed_message_id = None
+    session.bubble_after_id = None
+    session.compression_stack = None
+    session.compressing = False
+    session.buffered_message = None
+    session.compression_started_at = None
+    db.commit()
+    return {"ok": True}
+
+@router.get("/sessions/{id}/compression-status")
+async def get_compression_status(id: int, db: Session = Depends(get_db)):
+    """Return current compression state. Used by frontend polling during active compression."""
+    session = db.query(ChatSession).filter(ChatSession.id == id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    return {
+        "compressing": bool(session.compressing),
+        "compressed_context": session.compressed_context,
+        "last_compressed_message_id": session.last_compressed_message_id,
+        "bubble_after_id": session.bubble_after_id,
+        "compression_stack": session.compression_stack
+    }
+
+@router.post("/sessions/{id}/regenerate-compressed-context")
+async def regenerate_compressed_context(id: int, req: ChatRegenerateContext, db: Session = Depends(get_db)):
+    """Re-run the compression with an optional custom instruction, replacing the existing summary."""
+    session = db.query(ChatSession).filter(ChatSession.id == id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    
+    cfg = get_ollama_config(db)
+    if not cfg["enabled"] or not cfg["url"] or not cfg["model"]:
+        raise HTTPException(status_code=400, detail="Ollama URL ou Modèle non configuré.")
+    
+    messages = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.asc()).all()
+    
+    # Reset compression point and stack so we compress the full conversation
+    session.last_compressed_message_id = None
+    session.bubble_after_id = None
+    session.compression_stack = None
+    db.commit()
+
+    new_context = start_compression(db, session, messages, cfg, custom_instruction=req.instruction)
+    if new_context is None:
+        raise HTTPException(status_code=500, detail="La compression a échoué. Vérifiez votre configuration Ollama.")
+    
+    return {"compressed_context": new_context}
+
 @router.delete("/messages/{id}")
 async def delete_message(id: int, db: Session = Depends(get_db)):
     message = db.query(ChatMessage).filter(ChatMessage.id == id).first()
     if not message:
         raise HTTPException(status_code=404, detail="Message non trouvé")
+
+    session_id = message.session_id
+
+    # Cascade delete: all subsequent messages in the session
+    subsequent = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id,
+        ChatMessage.timestamp > message.timestamp
+    ).all()
+    for m in subsequent:
+        db.delete(m)
+
+    # Delete the message itself
     db.delete(message)
+
+    # If the deleted message is before or at the compression boundary,
+    # clear the compressed context (the summary references deleted content)
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if session and session.last_compressed_message_id and message.id <= session.last_compressed_message_id:
+        session.compressed_context = None
+        session.last_compressed_message_id = None
+        session.bubble_after_id = None
+        session.compression_stack = None
+
     db.commit()
     return {"ok": True}
 
@@ -1810,41 +1983,94 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
     # Check if first message to trigger title generation
     is_first_exchange = (len(messages) == 1)
     
-    # Context Compaction check
+    # Context Compression check
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
     sys_prompt = load_system_prompt(session.role, categories, req.lang)
     
     options = {"temperature": cfg["temperature"], "num_ctx": cfg["num_ctx"]}
     
-    # Estimate token budget
-    total_tokens = estimate_tokens(sys_prompt)
+    # Estimate token budget — only count messages AFTER the last compression point
+    tools_tokens = estimate_tokens(json.dumps(TOOLS))
+    total_tokens = estimate_tokens(sys_prompt) + tools_tokens + 500
     if session.compressed_context:
         total_tokens += estimate_tokens(session.compressed_context)
-    for m in messages:
+    if session.last_compressed_message_id:
+        messages_after_compression = [m for m in messages if m.id > session.last_compressed_message_id]
+    else:
+        messages_after_compression = messages
+    for m in messages_after_compression:
         total_tokens += estimate_tokens(m.content)
-        
-    if total_tokens > int(cfg["num_ctx"] * 0.75):
-        run_context_compaction(db, session, messages, cfg)
-        # Reload messages after compaction
-        messages = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.asc()).all()
-        
-    # Construct Ollama prompt payload
-    ollama_msgs = [{"role": "system", "content": sys_prompt}]
-    if session.compressed_context:
-        ollama_msgs.append({
-            "role": "system", 
-            "content": f"[SYSTEM NOTICE: The following is a compacted memory summary of the older messages in this conversation. Keep it in mind for context.]\n{session.compressed_context}"
-        })
-    for m in messages:
-        ollama_msgs.append({"role": m.role, "content": m.content})
-        
+    
+    # Check if compression is needed at 90% threshold
+    needs_compression = (total_tokens > int(cfg["num_ctx"] * 0.85))
+    
+    # Build Ollama payload — always use filtered messages (those after compression point)
+    def build_ollama_payload(current_session, current_messages):
+        """Build Ollama message list, filtering out messages already covered by compressed_context."""
+        sys_content = sys_prompt
+        # Include all historical compression contexts from the stack
+        if current_session.compression_stack:
+            import json as _json
+            try:
+                stack = _json.loads(current_session.compression_stack)
+                for entry in stack:
+                    sys_content += f"\n\n[COMPRESSED HISTORY]\n{entry['context']}"
+            except Exception:
+                pass
+        if current_session.compressed_context:
+            sys_content += f"\n\n[CONTEXT SUMMARY — earlier conversation]\n{current_session.compressed_context}"
+        payload_msgs = [{"role": "system", "content": sys_content}]
+        # Only include messages AFTER the compression point
+        if current_session.last_compressed_message_id:
+            filtered = [m for m in current_messages if m.id > current_session.last_compressed_message_id]
+        else:
+            filtered = current_messages
+        for m in filtered:
+            payload_msgs.append({"role": m.role, "content": m.content})
+        return payload_msgs
+    
+    ollama_msgs = build_ollama_payload(session, messages)
+    
     async def generate_response():
+        nonlocal ollama_msgs  # Allow reassigning after compression
         final_text = ""
         _response_saved = False
         _done_sent = False
+        _client_disconnected = False
         _tools_meta = ""
         _generating_sessions.add(id)
         try:
+            # --- Compression step (synchronous, inside the SSE generator) ---
+            if needs_compression:
+                from datetime import datetime as _dt
+                # Mark session as compressing
+                session.compressing = True
+                session.compression_started_at = _dt.utcnow()
+                db.commit()
+                # Notify frontend that compression is starting
+                yield f"data: {json.dumps({'compressing': True})}\n\n"
+                # Run compression synchronously (blocking) within the generator
+                new_context = start_compression(db, session, messages, cfg, lang=req.lang, trigger_msg_id=user_msg.id)
+                db.refresh(session)
+                # Rebuild the Ollama payload with updated session state
+                updated_messages = db.query(ChatMessage).filter(
+                    ChatMessage.session_id == id
+                ).order_by(ChatMessage.timestamp.asc()).all()
+                ollama_msgs = build_ollama_payload(session, updated_messages)
+                # Compute token_usage after compression (immediate feedback for the token counter)
+                tools_tokens_post = estimate_tokens(json.dumps(TOOLS))
+                used_post = estimate_tokens(sys_prompt) + tools_tokens_post + 500
+                if session.compressed_context:
+                    used_post += estimate_tokens(session.compressed_context)
+                if session.last_compressed_message_id:
+                    post_msgs = [m for m in updated_messages if m.id > session.last_compressed_message_id]
+                else:
+                    post_msgs = updated_messages
+                for m in post_msgs:
+                    used_post += estimate_tokens(m.content)
+                # Notify frontend that compression is done
+                yield f"data: {json.dumps({'compressing': False, 'compressed_context': new_context or '', 'last_compressed_message_id': session.last_compressed_message_id, 'bubble_after_id': session.bubble_after_id, 'compression_stack': session.compression_stack, 'token_usage': {'used': used_post, 'limit': cfg['num_ctx']}})}\n\n"
+
             async with httpx.AsyncClient() as client:
                 tool_desc_map = {
                     "get_financial_summary": "Analyse du reste à vivre et des prévisions de salaire...",
@@ -1953,6 +2179,9 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                                 if d.get('content'):
                                     final_text += d['content']
                             except: pass
+                        if request and await request.is_disconnected():
+                            _client_disconnected = True
+                            return
                         yield chunk
 
                 # ─── Phase 2: If tool calls detected, execute and re-stream ───
@@ -1964,6 +2193,9 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     detected_write_actions = []
                     import asyncio
                     for tool_call in detected_tool_calls:
+                        if request and await request.is_disconnected():
+                            _client_disconnected = True
+                            return
                         fn_name = tool_call["function"]["name"]
                         fn_args = tool_call["function"].get("arguments", {})
                         
@@ -2069,6 +2301,9 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                                     if d.get('content'):
                                         final_text += d['content']
                                 except: pass
+                            if request and await request.is_disconnected():
+                                _client_disconnected = True
+                                return
                             yield chunk
 
                 else:
@@ -2094,13 +2329,17 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                 db.commit()
                 _response_saved = True
                 
-            # Calculate final token usage
+            # Calculate final token usage — filter by compression point
             final_messages = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.asc()).all()
-            tools_tokens = estimate_tokens(json.dumps(TOOLS))
-            used_tokens = estimate_tokens(sys_prompt) + tools_tokens + 500
+            tools_tokens_final = estimate_tokens(json.dumps(TOOLS))
+            used_tokens = estimate_tokens(sys_prompt) + tools_tokens_final + 500
             if session.compressed_context:
                 used_tokens += estimate_tokens(session.compressed_context)
-            for m in final_messages:
+            if session.last_compressed_message_id:
+                final_msgs_filtered = [m for m in final_messages if m.id > session.last_compressed_message_id]
+            else:
+                final_msgs_filtered = final_messages
+            for m in final_msgs_filtered:
                 used_tokens += estimate_tokens(m.content)
                 
             yield f"data: {json.dumps({'token_usage': {'used': used_tokens, 'limit': cfg['num_ctx']}})}\n\n"
@@ -2119,6 +2358,9 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
             # If we reach here, the client received everything — no notification needed
             _done_sent = True
                 
+        except GeneratorExit:
+            _client_disconnected = True
+            raise
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -2126,7 +2368,7 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
             
         finally:
             # Safety net: if Ollama failed mid-stream and response wasn't saved, save what we have
-            if final_text and not _response_saved:
+            if final_text and not _response_saved and not _client_disconnected:
                 try:
                     bot_msg = ChatMessage(session_id=id, role="assistant", content=_tools_meta + final_text)
                     db.add(bot_msg)
@@ -2159,7 +2401,7 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
     return StreamingResponse(generate_response(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"})
 
 @router.post("/sessions/{id}/regenerate")
-async def regenerate_response(id: int, db: Session = Depends(get_db)):
+async def regenerate_response(id: int, request: Request = None, db: Session = Depends(get_db)):
     session = db.query(ChatSession).filter(ChatSession.id == id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session non trouvée")
@@ -2181,7 +2423,7 @@ async def regenerate_response(id: int, db: Session = Depends(get_db)):
     db.delete(last_user_msg)
     db.commit()
     
-    return await send_message(id, req, db=db)
+    return await send_message(id, req, request=request, db=db)
 
 @router.put("/messages/{id}")
 async def edit_message(id: int, req: ChatMessageUpdate, db: Session = Depends(get_db)):
