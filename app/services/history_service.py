@@ -113,6 +113,55 @@ def undo_action(db, action: ActionHistory):
         # Delete the entity
         entity = db.query(model_class).filter(model_class.id == action.entity_id).first()
         if entity:
+            if action.entity_type == "transaction":
+                recurrence_id = getattr(entity, "recurrence_id", None)
+                if recurrence_id:
+                    # Look for sibling CREATE action of recurrence_template
+                    from sqlalchemy import desc
+                    sibling_action = db.query(ActionHistory).filter(
+                        ActionHistory.entity_type == "recurrence_template",
+                        ActionHistory.entity_id == recurrence_id,
+                        ActionHistory.action_type == "CREATE",
+                        ActionHistory.is_undone == False
+                    ).order_by(desc(ActionHistory.timestamp)).first()
+                    if sibling_action:
+                        diff = abs((action.timestamp - sibling_action.timestamp).total_seconds())
+                        if diff <= 10.0:
+                            # Check if there is an older active creation action for a transaction of the same recurrence
+                            has_older = False
+                            older_tx_actions = db.query(ActionHistory).filter(
+                                ActionHistory.entity_type == "transaction",
+                                ActionHistory.action_type == "CREATE",
+                                ActionHistory.is_undone == False,
+                                ActionHistory.id < action.id
+                            ).all()
+                            for old_act in older_tx_actions:
+                                try:
+                                    st = json.loads(old_act.new_state) if old_act.new_state else {}
+                                    if st.get("recurrence_id") == recurrence_id:
+                                        has_older = True
+                                        break
+                                except Exception:
+                                    pass
+
+                            if not has_older:
+                                # Sibling creation action exists, is close, and this is the first transaction.
+                                # Delete the template and all its unreconciled transactions.
+                                sibling_entity = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == recurrence_id).first()
+                                if sibling_entity:
+                                    db.delete(sibling_entity)
+                                db.query(Transaction).filter(
+                                    Transaction.recurrence_id == recurrence_id,
+                                    Transaction.reconciliation_date == None
+                                ).delete()
+                                sibling_action.is_undone = True
+            elif action.entity_type == "recurrence_template":
+                # Delete any generated unreconciled transactions for this template
+                db.query(Transaction).filter(
+                    Transaction.recurrence_id == action.entity_id,
+                    Transaction.reconciliation_date == None
+                ).delete()
+
             db.delete(entity)
         else:
             return False, "Entity to delete not found"
@@ -142,7 +191,11 @@ def undo_action(db, action: ActionHistory):
         if action.entity_type == "category":
             warning = "category_delete_warning"
         elif action.entity_type == "recurrence_template":
-            warning = "recurrence_delete_warning"
+            # Automatically generate transactions for this restored template
+            db.flush()
+            from app.routers.recurrences import generate_recurrences
+            generate_recurrences(template_id=action.entity_id, db=db)
+            warning = None  # No warning needed since they are generated automatically
         elif action.entity_type == "account":
             warning = "account_delete_warning"
 
@@ -172,10 +225,45 @@ def redo_action(db, action: ActionHistory):
     if action.action_type == "CREATE":
         # Re-create the entity (since undo deleted it)
         new_state = json.loads(action.new_state) if action.new_state else {}
+
+        # Handle grouped recurrence creation first if this is a transaction
+        if action.entity_type == "transaction":
+            recurrence_id = new_state.get("recurrence_id")
+            if recurrence_id:
+                from sqlalchemy import desc
+                sibling_action = db.query(ActionHistory).filter(
+                    ActionHistory.entity_type == "recurrence_template",
+                    ActionHistory.entity_id == recurrence_id,
+                    ActionHistory.action_type == "CREATE",
+                    ActionHistory.is_undone == True
+                ).order_by(desc(ActionHistory.timestamp)).first()
+                if sibling_action:
+                    diff = abs((action.timestamp - sibling_action.timestamp).total_seconds())
+                    if diff <= 10.0:
+                        sibling_state = json.loads(sibling_action.new_state) if sibling_action.new_state else {}
+                        sibling_entity = RecurrenceTemplate()
+                        restore_state(sibling_entity, sibling_state, db)
+                        sibling_entity.id = recurrence_id
+                        db.add(sibling_entity)
+                        sibling_action.is_undone = False
+
         new_entity = model_class()
         restore_state(new_entity, new_state, db)
         new_entity.id = action.entity_id
         db.add(new_entity)
+
+        # If we just redid a recurrence template creation or transaction with a grouped template,
+        # regenerate future instances to ensure they are present.
+        if action.entity_type == "transaction":
+            recurrence_id = new_state.get("recurrence_id")
+            if recurrence_id:
+                db.flush()
+                from app.routers.recurrences import generate_recurrences
+                generate_recurrences(template_id=recurrence_id, db=db)
+        elif action.entity_type == "recurrence_template":
+            db.flush()
+            from app.routers.recurrences import generate_recurrences
+            generate_recurrences(template_id=action.entity_id, db=db)
 
     elif action.action_type == "UPDATE":
         # Restore new state
@@ -190,6 +278,12 @@ def redo_action(db, action: ActionHistory):
         # Re-delete the entity (since undo re-created it)
         entity = db.query(model_class).filter(model_class.id == action.entity_id).first()
         if entity:
+            if action.entity_type == "recurrence_template":
+                # Delete unreconciled transactions generated by this template
+                db.query(Transaction).filter(
+                    Transaction.recurrence_id == action.entity_id,
+                    Transaction.reconciliation_date == None
+                ).delete()
             db.delete(entity)
         else:
             return False, "Entity to delete not found"
