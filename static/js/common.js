@@ -17,7 +17,11 @@ const API = {
             body: JSON.stringify(data)
         });
         if (!res.ok) throw new Error(await res.text());
-        return res.json();
+        const json = await res.json();
+        if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
+            window.app.updateHeaderHistoryState();
+        }
+        return json;
     },
     async put(endpoint, data) {
         const res = await fetch(endpoint, {
@@ -26,12 +30,20 @@ const API = {
             body: JSON.stringify(data)
         });
         if (!res.ok) throw new Error(await res.text());
-        return res.json();
+        const json = await res.json();
+        if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
+            window.app.updateHeaderHistoryState();
+        }
+        return json;
     },
     async del(endpoint) {
         const res = await fetch(endpoint, { method: 'DELETE' });
         if (!res.ok) throw new Error(await res.text());
-        return res.json();
+        const json = await res.json();
+        if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
+            window.app.updateHeaderHistoryState();
+        }
+        return json;
     }
 };
 
