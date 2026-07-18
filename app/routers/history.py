@@ -90,6 +90,33 @@ def make_action_label(action) -> str:
     return f"{act_type} {ent}{details}"
 
 
+def _extract(action):
+    """Return {entity_type, action_type, name?, amount?} or None."""
+    if not action:
+        return None
+    name = None
+    amount = None
+    try:
+        import json
+        st = action.new_state or action.previous_state
+        if st:
+            if isinstance(st, str):
+                st = json.loads(st)
+            if isinstance(st, dict):
+                name = (st.get("name") or st.get("description") or
+                        st.get("category_name") or st.get("label") or
+                        st.get("category"))
+                amount = st.get("amount") or st.get("monthly_amount")
+    except Exception:
+        pass
+    return {
+        "entity_type": action.entity_type,
+        "action_type": action.action_type,
+        "name": name,
+        "amount": amount
+    }
+
+
 @router.get("/status")
 def get_history_status(db: Session = Depends(get_db)):
     action_to_undo = db.query(ActionHistory).filter(ActionHistory.is_undone == False).order_by(desc(ActionHistory.timestamp)).first()
@@ -98,14 +125,11 @@ def get_history_status(db: Session = Depends(get_db)):
     can_undo = action_to_undo is not None
     can_redo = action_to_redo is not None
     
-    undo_label = make_action_label(action_to_undo) if can_undo else ""
-    redo_label = make_action_label(action_to_redo) if can_redo else ""
-    
     return {
         "can_undo": can_undo,
         "can_redo": can_redo,
-        "undo_label": undo_label,
-        "redo_label": redo_label
+        "undo": _extract(action_to_undo) if can_undo else None,
+        "redo": _extract(action_to_redo) if can_redo else None
     }
 
 @router.post("/undo_last")

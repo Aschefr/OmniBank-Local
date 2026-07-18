@@ -16,11 +16,22 @@ window.ChatView = {
     deletingSessionId: null,
     messages: [],
     compressedContext: null,
+    lastCompressedMessageId: null,
+    bubbleAfterMsgId: null,
+    compressionStack: null,
+    isCompressing: false,
     editingContext: false,
     editingMsgId: null,
+    confirmDeleteMsgId: null,
+    confirmDeleteContext: false,
     pendingActions: {},
     tokenUsage: { used: 0, limit: 32768 },
+    contextBubbleOpen: false,
+    pendingMessage: null,
+    _messageReleased: false,
+    _aiMsgIndex: null,
     _creatingSession: false,
+    _compressionPollTimer: null,
 
     render() {
         return `
@@ -192,6 +203,19 @@ window.ChatView = {
                     color: #fff;
                     border-bottom-right-radius: 4px;
                 }
+                .chat-bubble.user.pending {
+                    opacity: 0.5;
+                    pointer-events: none;
+                }
+                .pending-badge {
+                    font-size: 10px;
+                    color: #f59e0b;
+                    font-weight: 600;
+                    white-space: nowrap;
+                    background: rgba(245,158,11,0.12);
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                }
                 .chat-bubble.ai {
                     background: var(--bg-sidebar);
                     color: var(--text-color);
@@ -237,25 +261,131 @@ window.ChatView = {
                     color: var(--text-color);
                     border-color: var(--text-muted);
                 }
-                .context-block {
-                    margin-bottom: 10px;
-                    border: 1px solid rgba(245, 158, 11, 0.3);
-                    background: rgba(245, 158, 11, 0.05);
+                .chat-message-actions.confirm-active {
+                    opacity: 1 !important;
+                }
+                .chat-delete-confirm-text {
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    margin-right: 4px;
+                    white-space: nowrap;
+                }
+                .chat-delete-confirm-btn {
+                    color: var(--danger) !important;
+                    border-color: var(--danger) !important;
+                }
+                #chatSendBtn.btn-stop {
+                    background: var(--danger) !important;
+                    border-color: var(--danger) !important;
+                    color: #fff !important;
+                    box-shadow: none !important;
+                }
+                .context-bubble {
+                    align-self: center;
+                    width: 90%;
+                    max-width: 680px;
+                    border: 1px solid rgba(245, 158, 11, 0.5);
+                    border-left: 3px solid #f59e0b;
+                    background: var(--bg-sidebar, #fefcf5);
+                    background-color: var(--bg-sidebar, #fefcf5);
                     border-radius: 8px;
-                    padding: 10px;
+                    padding: 8px;
+                    margin: 8px 0;
+                    display: flex;
+                    flex-direction: column;
+                    transition: border-color 0.2s ease;
+                    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.08);
                 }
-                .context-details {
-                    font-size: 13px;
+                .context-bubble:hover {
+                    border-color: rgba(245, 158, 11, 0.6);
                 }
-                .context-summary {
+                .context-bubble-header {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
+                    padding: 10px 14px;
                     cursor: pointer;
-                    font-weight: 600;
+                    user-select: none;
+                    gap: 8px;
+                    background: rgba(245, 158, 11, 0.06);
                 }
-                .context-summary::-webkit-details-marker {
+                .context-bubble-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 12px;
+                    font-weight: 700;
                     color: #f59e0b;
+                }
+                .context-bubble-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    opacity: 0;
+                    transition: opacity 0.2s ease;
+                }
+                .context-bubble:hover .context-bubble-actions,
+                .context-bubble-header:active .context-bubble-actions {
+                    opacity: 1;
+                }
+                .context-action-btn {
+                    background: rgba(245, 158, 11, 0.12);
+                    border: 1px solid rgba(245, 158, 11, 0.25);
+                    color: #f59e0b;
+                    font-size: 11px;
+                    cursor: pointer;
+                    border-radius: 6px;
+                    padding: 3px 10px;
+                    white-space: nowrap;
+                    transition: background 0.15s ease;
+                    font-weight: 500;
+                }
+                .context-action-btn:hover {
+                    background: rgba(245, 158, 11, 0.25);
+                }
+                .context-action-btn.danger:hover {
+                    background: rgba(239, 68, 68, 0.15);
+                    border-color: rgba(239, 68, 68, 0.4);
+                    color: #ef4444;
+                }
+                .context-bubble-body {
+                    padding: 0 14px 14px 17px;
+                    display: none;
+                    min-height: 20px;
+                }
+                .context-bubble-body.open {
+                    display: block;
+                }
+                .context-bubble-text {
+                    font-size: 12px;
+                    line-height: 1.6;
+                    color: #f59e0b;
+                    font-style: normal;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    opacity: 0.9;
+                }
+                .compressing-indicator {
+                    align-self: center;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 8px 16px;
+                    background: rgba(245, 158, 11, 0.08);
+                    border: 1px solid rgba(245, 158, 11, 0.25);
+                    border-radius: 10px;
+                    font-size: 12px;
+                    color: #f59e0b;
+                    width: 90%;
+                    max-width: 680px;
+                    margin: 4px 0;
+                }
+                .context-delete-confirm {
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
                 }
                 .edit-textarea {
                     width: 100%;
@@ -574,15 +704,30 @@ window.ChatView = {
                         <!-- Messages dynamically rendered -->
                     </div>
 
+                    <div id="chatTimelineIndicator" style="display:none; align-self:center; width:90%; max-width:680px; padding:8px 16px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:10px; font-size:12px; color:#f59e0b; margin:0 auto 8px;">
+                        <span style="display:inline-block; width:10px; height:10px; border:2px solid #f59e0b; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:8px;"></span>
+                        <span id="chatTimelineIndicatorText"></span>
+                    </div>
+
                     <div style="padding: 15px; border-top: 1px solid var(--border-color); background: var(--bg-sidebar); display: flex; flex-direction: column; gap: 8px;">
                         <div style="display: flex; gap: 10px;">
                             <textarea id="chatInput" class="inline-input" data-i18n-placeholder="chat_ph_message" placeholder="Posez une question sur vos finances..." 
                                 style="flex: 1; resize: none; border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; min-height: 44px; max-height: 120px;" 
                                 onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); window.ChatView.sendMessage(); }"></textarea>
                             
+                            <div id="pendingMessageContainer" style="flex:1; display:none; flex-direction:row; align-items:center; border:1px solid var(--border-color); padding:12px; border-radius:8px; min-height:44px; background:var(--bg-surface); gap:8px;">
+                                <span id="pendingMessageText" style="flex:1; font-size:14px; color:var(--text-secondary); opacity:0.7; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+                                <span style="font-size:10px; color:#f59e0b; font-weight:600; white-space:nowrap;" data-i18n="chat_message_pending">${window.i18n.t('chat_message_pending')}</span>
+                            </div>
+
                             <button class="btn btn-primary" id="chatSendBtn" onclick="window.ChatView.sendMessage()" style="padding: 0 20px;" data-i18n="chat_btn_send">
                                 ${window.i18n.t('chat_btn_send')}
                             </button>
+                        </div>
+                        <!-- Compression Status -->
+                        <div id="chatCompressionStatus" style="display:none; font-size:11px; text-align:right; font-weight:500; color:#f59e0b;">
+                            <span style="display:inline-block; width:10px; height:10px; border:2px solid #f59e0b; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:4px;"></span>
+                            <span id="chatCompressionStatusText"></span>
                         </div>
                         <!-- Token Usage Indicator -->
                         <div id="chatTokenIndicator" style="font-size: 11px; text-align: right; font-weight: 500; transition: color 0.3s ease;">
@@ -620,6 +765,19 @@ window.ChatView = {
                         </div>
                     </div>
                 </div>
+
+                <!-- Context Re-generation Modal -->
+                <div id="contextRegenerateModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:2000; align-items:center; justify-content:center; backdrop-filter:blur(4px); animation:fadeIn 0.2s ease;" onclick="if(event.target===this) window.ChatView.closeRegenerateModal()">
+                    <div style="background:var(--bg-sidebar); border:1px solid var(--border-color); border-radius:12px; width:95%; max-width:500px; padding:24px; box-shadow:0 20px 50px rgba(0,0,0,0.5); animation:scaleIn 0.25s cubic-bezier(0.34,1.56,0.64,1);">
+                        <h3 style="margin:0 0 8px 0; font-size:16px; display:flex; align-items:center; gap:8px;">🔄 <span id="contextRegenerateTitle"></span></h3>
+                        <p style="margin:0 0 16px 0; font-size:13px; color:var(--text-muted);">Le résumé actuel sera remplacé par le nouveau résumé généré.</p>
+                        <textarea id="contextRegenerateInstruction" class="edit-textarea" style="min-height:80px;"></textarea>
+                        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+                            <button class="btn btn-secondary" onclick="window.ChatView.closeRegenerateModal()"><span id="contextRegenerateCancelBtn"></span></button>
+                            <button class="btn btn-primary" id="contextRegenerateSubmitBtn" onclick="window.ChatView.submitRegenerate()"><span id="contextRegenerateBtnLabel"></span></button>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     },
@@ -644,6 +802,11 @@ window.ChatView = {
             clearInterval(this._generationPollTimer);
             this._generationPollTimer = null;
         }
+        // Clear compression polling timer
+        if (this._compressionPollTimer) {
+            clearInterval(this._compressionPollTimer);
+            this._compressionPollTimer = null;
+        }
     },
 
     async init() {
@@ -652,13 +815,23 @@ window.ChatView = {
         this.activeSessionId = savedSessionId ? parseInt(savedSessionId) : null;
         this.messages = [];
         this.compressedContext = null;
+        this.lastCompressedMessageId = null;
+        this.isCompressing = false;
         this.editingContext = false;
         this.editingMsgId = null;
+        this.confirmDeleteMsgId = null;
+        this.confirmDeleteContext = false;
         this.pendingActions = {};
+        this.pendingMessage = null;
+        this._messageReleased = false;
+        this._aiMsgIndex = null;
         this.tokenUsage = { used: 0, limit: 32768 };
         this._creatingSession = false;
         this._activeAbortController = null; // Track if a stream is active
+        this._streamReader = null; // Reference to active SSE reader for cancellation
+        this._stopRequested = false;
         this._streamDetached = false; // True when user left view during generation
+        this._compressionPollTimer = null;
 
         // Fetch actual Ollama config limit
         try {
@@ -855,6 +1028,7 @@ window.ChatView = {
         sessionStorage.setItem('chatActiveSessionId', sessionId);
         this.editingContext = false;
         this.editingMsgId = null;
+        this.confirmDeleteMsgId = null;
         
         // Close drawer if on mobile
         const sidebar = document.getElementById('chatSidebar');
@@ -873,8 +1047,10 @@ window.ChatView = {
             if (roleSelect) roleSelect.value = session.role;
         }
 
+        this.userHasScrolledUp = false;
         this.renderSidebarList();
         await this.loadMessages(isRestore);
+        this.scrollToBottom();
     },
 
     async createNewSession() {
@@ -1001,10 +1177,17 @@ window.ChatView = {
                 const data = await resp.json();
                 this.messages = data.messages;
                 this.compressedContext = data.compressed_context;
+                this.lastCompressedMessageId = data.last_compressed_message_id;
+                this.bubbleAfterMsgId = data.bubble_after_id || null;
+                this.compressionStack = data.compression_stack || null;
+                this.isCompressing = data.compressing || false;
                 if (data.token_usage) {
                     this.tokenUsage = data.token_usage;
                 }
                 this.renderHistory(isRestore);
+
+                // Check compression status if compressing
+                this._checkCompressionStatus();
 
                 // Check if the server is still generating a response for this session
                 const lastMsg = this.messages[this.messages.length - 1];
@@ -1242,42 +1425,114 @@ window.ChatView = {
 
         let html = '';
 
-        // Render compressed context if present
+        // Build context bubble HTML for each historical stack entry + the current context
+        // Parse stack entries (prior compressions)
+        let stackEntries = [];
+        if (this.compressionStack) {
+            try { stackEntries = JSON.parse(this.compressionStack); } catch (e) {}
+        }
+
+        // Collect all bubbles with their anchor position
+        let bubbles = [];
+
+        // Stack entries are read-only (historical)
+        stackEntries.forEach((entry, idx) => {
+            const tokenEstimate = Math.ceil((entry.context || '').length / 4);
+            bubbles.push({
+                after_id: entry.after_id,
+                html: `
+                    <div class="context-bubble context-bubble-stack" id="context-bubble-stack-${idx}">
+                        <div class="context-bubble-header" onclick="event.stopPropagation();">
+                            <div class="context-bubble-title">
+                                <span>▶ 🗜️ ${window.i18n.t('chat_context_collapsed')} (${tokenEstimate} tokens)</span>
+                            </div>
+                        </div>
+                        <div class="context-bubble-body open">
+                            <div class="context-bubble-text">${window.escapeHtml(entry.context)}</div>
+                        </div>
+                    </div>
+                `
+            });
+        });
+
+        // Current context (latest, editable)
         if (this.compressedContext !== null && this.compressedContext !== undefined) {
             const tokenEstimate = Math.ceil(this.compressedContext.length / 4);
-            html += `
-                <div class="context-block">
-                    <details class="context-details" ${this.editingContext ? 'open' : ''}>
-                        <summary class="context-summary" onclick="if(window.ChatView.editingContext) event.preventDefault();">
-                            <span>🗜️ ${window.i18n.t('chat_context_label')}</span>
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:11px; opacity:0.8;">${tokenEstimate} tokens</span>
-                                <button class="chat-session-btn" onclick="event.stopPropagation(); window.ChatView.editingContext = true; window.ChatView.renderHistory();" title="Éditer le contexte">✏️</button>
+            const bubbleOpen = this.contextBubbleOpen || this.editingContext;
+            const anchorId = this.bubbleAfterMsgId || this.lastCompressedMessageId;
+            bubbles.push({
+                after_id: anchorId,
+                isCurrent: true,
+                html: `
+                    <div class="context-bubble" id="context-bubble">
+                        <div class="context-bubble-header" onclick="event.stopPropagation(); window.ChatView.contextBubbleOpen = !window.ChatView.contextBubbleOpen; window.ChatView.renderHistory();">
+                            <div class="context-bubble-title">
+                                <span>${bubbleOpen ? '▼' : '▶'} 🗜️ ${window.i18n.t('chat_context_collapsed')} (${tokenEstimate} tokens)</span>
                             </div>
-                        </summary>
-                        <div style="margin-top:10px;">
+                            <div class="context-bubble-actions">
+                                ${!this.confirmDeleteContext ? `
+                                    <button class="context-action-btn" onclick="event.stopPropagation(); window.ChatView.editingContext = true; window.ChatView.renderHistory();" title="${window.i18n.t('chat_context_btn_edit')}">✏️</button>
+                                    <button class="context-action-btn danger" onclick="event.stopPropagation(); window.ChatView.confirmDeleteContext = true; window.ChatView.renderHistory();" title="${window.i18n.t('chat_context_btn_delete')}">🗑️</button>
+                                    <button class="context-action-btn" onclick="event.stopPropagation(); window.ChatView.showRegenerateModal()" title="${window.i18n.t('chat_context_btn_regenerate')}">🔄</button>
+                                ` : `
+                                    <span class="context-delete-confirm">${window.i18n.t('chat_context_delete_confirm')}</span>
+                                    <button class="context-action-btn danger" onclick="event.stopPropagation(); window.ChatView.deleteCompressedContext()">${window.i18n.t('btn_confirm')}</button>
+                                    <button class="context-action-btn" onclick="event.stopPropagation(); window.ChatView.confirmDeleteContext = false; window.ChatView.renderHistory();">${window.i18n.t('btn_cancel')}</button>
+                                `}
+                            </div>
+                        </div>
+                        <div class="context-bubble-body ${bubbleOpen ? 'open' : ''}">
                             ${this.editingContext ? `
-                                <textarea id="editContextTextarea" class="edit-textarea">${window.escapeHtml(this.compressedContext)}</textarea>
-                                <div style="margin-top:8px; display:flex; gap:6px; justify-content:flex-end;">
+                                <textarea id="editContextTextarea" class="edit-textarea" style="min-height:80px;">${window.escapeHtml(this.compressedContext)}</textarea>
+                                <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:8px;">
                                     <button class="btn btn-primary btn-sm" onclick="window.ChatView.saveContextEdit()" style="font-size:12px; padding:2px 8px;">✓</button>
                                     <button class="btn btn-secondary btn-sm" onclick="window.ChatView.editingContext = false; window.ChatView.renderHistory();" style="font-size:12px; padding:2px 8px;">✕</button>
                                 </div>
                             ` : `
-                                <div style="font-size:12px; line-height:1.4; white-space:pre-wrap; color:var(--text-muted); font-style:italic;">
-                                    ${this.compressedContext ? window.escapeHtml(this.compressedContext) : `<em>${window.i18n.t('chat_context_empty')}</em>`}
-                                </div>
+                                <div class="context-bubble-text">${window.escapeHtml(this.compressedContext)}</div>
                             `}
                         </div>
-                    </details>
-                </div>
-            `;
+                    </div>
+                `
+            });
         }
 
-        // Render conversation timeline
-        html += this.messages.map((msg, index) => {
+        // Compute insertion index for each bubble
+        let insertions = {};  // index -> [html strings]
+        bubbles.forEach(bubble => {
+            let insertIdx = -1;
+            if (bubble.after_id) {
+                for (let i = 0; i < this.messages.length; i++) {
+                    if (this.messages[i].id === bubble.after_id) {
+                        insertIdx = i + 1;
+                        break;
+                    }
+                }
+            }
+            if (insertIdx < 0) {
+                for (let i = this.messages.length - 1; i >= 0; i--) {
+                    if (this.messages[i].role === 'user') {
+                        insertIdx = i + 1;
+                        break;
+                    }
+                }
+            }
+            if (insertIdx < 0) insertIdx = 0;
+            if (!insertions[insertIdx]) insertions[insertIdx] = [];
+            insertions[insertIdx].push(bubble.html);
+        });
+
+        // Render conversation timeline with bubbles interleaved at correct positions
+        html = '';
+        for (let i = 0; i < this.messages.length; i++) {
+            // Insert any bubbles that belong before this message
+            if (insertions[i]) {
+                html += insertions[i].join('');
+            }
+            const msg = this.messages[i];
             const isUser = msg.role === 'user';
             const formattedTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString(window.i18n.lang || 'fr', { hour: '2-digit', minute: '2-digit' }) : '';
-            const isLastMsg = index === this.messages.length - 1;
+            const isLastMsg = i === this.messages.length - 1;
 
             // Extract tool badges for assistant messages
             let toolsBadges = '';
@@ -1293,8 +1548,8 @@ window.ChatView = {
                 }
             }
 
-            return `
-                <div class="chat-message-row ${msg.role}" id="msg-row-${msg.id || index}">
+            html += `
+                <div class="chat-message-row ${msg.role}" id="msg-row-${msg.id || i}">
                     <div class="chat-message-meta" style="display:flex; justify-content:space-between; width:100%; align-items:center; gap:10px;">
                         <div>
                             <span>${isUser ? window.i18n.t('chat_label_you') : 'Ollama OmniBank'}</span>
@@ -1302,8 +1557,9 @@ window.ChatView = {
                         </div>
                         <span style="font-size:9px; opacity:0.7;">${formattedTime}</span>
                     </div>
-                    <div class="chat-bubble ${isUser ? 'user' : 'ai'}" id="msg-${index}">
-                        ${this.editingMsgId === msg.id ? `
+                    <div class="chat-bubble ${isUser ? 'user' : 'ai'}${msg._pending ? ' pending' : ''}" id="msg-${i}">
+                        ${msg._pending ? `<div style="display:flex; align-items:center; gap:6px;"><span style="flex:1; opacity:0.5;">${window.escapeHtml(msg.content)}</span><span class="pending-badge" data-i18n="chat_message_pending">${window.i18n.t('chat_message_pending')}</span></div>` : ''}
+                        ${!msg._pending && this.editingMsgId === msg.id ? `
                             <div class="chat-bubble-edit-container">
                                 <textarea id="editMsgTextarea-${msg.id}" class="edit-textarea">${window.escapeHtml(msg.content)}</textarea>
                                 <div style="display:flex; gap:6px; justify-content:flex-end;">
@@ -1311,27 +1567,39 @@ window.ChatView = {
                                     <button class="btn btn-secondary btn-sm" onclick="window.ChatView.editingMsgId = null; window.ChatView.renderHistory();" style="font-size:12px; padding:2px 8px;">✕</button>
                                 </div>
                             </div>
-                        ` : this.formatMessageContent(msg)}
+                        ` : (!msg._pending ? this.formatMessageContent(msg) : '')}
                     </div>
                     
-                    <!-- Inline actions -->
-                    <div class="chat-message-actions">
-                        ${isUser ? `
-                            <button class="chat-message-action-btn" onclick="window.ChatView.startEditMessage(${msg.id})" title="${window.i18n.t('chat_edit_msg')}">✏️</button>
-                        ` : ''}
-                        ${(!isUser && isLastMsg) ? `
-                            <button class="chat-message-action-btn" onclick="window.ChatView.regenerateAiResponse()" title="${window.i18n.t('chat_regenerate')}">🔄</button>
-                        ` : ''}
-                        <button class="chat-message-action-btn" onclick="window.ChatView.deleteMessage(${msg.id})" title="${window.i18n.t('chat_delete_msg')}">🗑️</button>
+                    <!-- Inline actions (hidden for pending messages) -->
+                    <div class="chat-message-actions${this.confirmDeleteMsgId === msg.id ? ' confirm-active' : ''}" ${msg._pending ? 'style="display:none;"' : ''}>
+                        ${this.confirmDeleteMsgId === msg.id ? `
+                            <span class="chat-delete-confirm-text">${window.i18n.t('chat_delete_msg_confirm')}</span>
+                            <button class="chat-message-action-btn chat-delete-confirm-btn" onclick="window.ChatView.executeDeleteMessage(${msg.id})">${window.i18n.t('btn_confirm')}</button>
+                            <button class="chat-message-action-btn" onclick="window.ChatView.cancelDeleteMessage()">${window.i18n.t('btn_cancel')}</button>
+                        ` : `
+                            ${isUser ? `
+                                <button class="chat-message-action-btn" onclick="window.ChatView.startEditMessage(${msg.id})" title="${window.i18n.t('chat_edit_msg')}">✏️</button>
+                            ` : ''}
+                            ${(!isUser && isLastMsg) ? `
+                                <button class="chat-message-action-btn" onclick="window.ChatView.regenerateAiResponse()" title="${window.i18n.t('chat_regenerate')}">🔄</button>
+                            ` : ''}
+                            <button class="chat-message-action-btn" onclick="window.ChatView.deleteMessage(${msg.id})" title="${window.i18n.t('chat_delete_msg')}">🗑️</button>
+                        `}
                     </div>
                 </div>
             `;
-        }).join('');
+        }
+
+        // Insert any bubbles that belong after the last message
+        if (insertions[this.messages.length]) {
+            html += insertions[this.messages.length].join('');
+        }
 
         // Snapshot scroll position before re-rendering
         const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
 
         container.innerHTML = html;
+        this._updateCompressionUI();
         this.updateTokenUsageIndicator();
         this.renderMath();
 
@@ -1487,21 +1755,44 @@ window.ChatView = {
         }
     },
 
-    async deleteMessage(msgId) {
-        const titleKey = window.i18n.t('title_deletion') || 'Suppression';
-        const msgKey = window.i18n.t('chat_delete_msg_confirm') || 'Supprimer ce message ?';
-        if (await showInlineConfirm(titleKey, msgKey)) {
-            try {
-                const resp = await fetch(`/api/chat/messages/${msgId}`, {
-                    method: 'DELETE'
-                });
-                if (resp.ok) {
-                    await this.loadMessages();
-                }
-            } catch (e) {
-                console.error("Error deleting message:", e);
+    deleteMessage(msgId) {
+        this.confirmDeleteMsgId = msgId;
+        this.renderHistory();
+    },
+
+    async executeDeleteMessage(msgId) {
+        this.confirmDeleteMsgId = null;
+        try {
+            const resp = await fetch(`/api/chat/messages/${msgId}`, {
+                method: 'DELETE'
+            });
+            if (resp.ok) {
+                await this.loadMessages();
             }
+        } catch (e) {
+            console.error("Error deleting message:", e);
         }
+    },
+
+    cancelDeleteMessage() {
+        this.confirmDeleteMsgId = null;
+        this.renderHistory();
+    },
+
+    stopGeneration() {
+        this._stopRequested = true;
+        if (this._streamReader) {
+            try { this._streamReader.cancel(); } catch (e) {}
+            this._streamReader = null;
+        }
+        if (this._activeAbortController) {
+            this._activeAbortController.abort();
+            this._activeAbortController = null;
+        }
+        const sendBtn = document.getElementById('chatSendBtn');
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.classList.remove('btn-stop'); sendBtn.textContent = window.i18n.t('chat_btn_send'); sendBtn.onclick = () => this.sendMessage(); }
+        const input = document.getElementById('chatInput');
+        if (input) { input.disabled = false; input.focus(); }
     },
 
     async regenerateAiResponse() {
@@ -1517,7 +1808,7 @@ window.ChatView = {
 
         const sendBtn = document.getElementById('chatSendBtn');
         const input = document.getElementById('chatInput');
-        if (sendBtn) sendBtn.disabled = true;
+        if (sendBtn) { sendBtn.classList.add('btn-stop'); sendBtn.textContent = window.i18n.t('chat_btn_stop'); sendBtn.onclick = () => this.stopGeneration(); sendBtn.disabled = false; }
         if (input) input.disabled = true;
 
         if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
@@ -1527,15 +1818,15 @@ window.ChatView = {
             this._activeAbortController = new AbortController();
             this._streamDetached = false;
             const response = await fetch(`/api/chat/sessions/${this.activeSessionId}/regenerate`, {
-                method: 'POST'
-                // No signal — we never abort, letting the backend finish and save
+                method: 'POST',
+                signal: this._activeAbortController.signal
             });
             await this.handleStreamingResponse(response, aiMsgIndex);
             this._activeAbortController = null;
         } catch (e) {
             this._activeAbortController = null;
             if (this._streamDetached) { console.log('[Chat] Regenerate completed after user left'); return; }
-            if (e.name === 'AbortError' || (e.message && e.message.includes('aborted'))) { console.log('[Chat] Regenerate aborted'); return; }
+            if (this._stopRequested || e.name === 'AbortError' || (e.message && (e.message.includes('aborted') || e.message.includes('cancel')))) { console.log('[Chat] Regenerate aborted by user'); return; }
             console.error(e);
             if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
                 this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection')}: ${e.message}*`;
@@ -1547,20 +1838,32 @@ window.ChatView = {
                 window.app.setFastNotificationsPolling(false);
             }
             if (!this._streamDetached) {
-                if (sendBtn) sendBtn.disabled = false;
+                if (sendBtn) { sendBtn.disabled = false; sendBtn.classList.remove('btn-stop'); sendBtn.textContent = window.i18n.t('chat_btn_send'); sendBtn.onclick = () => this.sendMessage(); }
                 if (input) input.disabled = false;
-                if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
-                    const hasError = !!this.messages[aiMsgIndex]._isError;
-                    if (hasError) {
-                        try {
-                            await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
-                                content: this.messages[aiMsgIndex].content,
-                                role: "assistant"
-                            });
-                        } catch (e) { console.error("Failed to persist error:", e); }
+                if (this._stopRequested) {
+                    if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
+                        const stopMsg = window.i18n.t('chat_generation_stopped') || 'Generation stopped';
+                        const cur = this.messages[aiMsgIndex].content || '';
+                        this.messages[aiMsgIndex].content = (cur.includes('typing-indicator') || !cur.trim() ? '' : cur + '\n\n') + '🛑 _' + stopMsg + '_';
+                        this.messages[aiMsgIndex].status = null;
+                        delete this.messages[aiMsgIndex]._isError;
+                        this._stopRequested = false;
+                        this.renderHistory();
                     }
+                } else {
+                    if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
+                        const hasError = !!this.messages[aiMsgIndex]._isError;
+                        if (hasError) {
+                            try {
+                                await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                                    content: this.messages[aiMsgIndex].content,
+                                    role: "assistant"
+                                });
+                            } catch (e) { console.error("Failed to persist error:", e); }
+                        }
+                    }
+                    await this.loadMessages();
                 }
-                await this.loadMessages();
             }
         }
     },
@@ -1610,9 +1913,37 @@ window.ChatView = {
         this.sendMessage();
     },
 
+    _updateCompressionUI() {
+        const statusEl = document.getElementById('chatCompressionStatus');
+        const textEl = document.getElementById('chatCompressionStatusText');
+        const indicator = document.getElementById('chatTokenIndicator');
+        const timelineEl = document.getElementById('chatTimelineIndicator');
+        const timelineText = document.getElementById('chatTimelineIndicatorText');
+        if (this.isCompressing) {
+            if (statusEl) {
+                statusEl.style.display = 'block';
+                if (textEl) textEl.textContent = window.i18n.t('chat_compressing_in_progress');
+            }
+            if (indicator) indicator.style.display = 'none';
+            if (timelineEl) timelineEl.style.display = 'flex';
+            if (timelineText) timelineText.textContent = window.i18n.t('chat_compressing_in_progress');
+        } else {
+            if (statusEl) statusEl.style.display = 'none';
+            if (indicator) indicator.style.display = '';
+            if (timelineEl) timelineEl.style.display = 'none';
+        }
+        this.updateTokenUsageIndicator();
+    },
+
     updateTokenUsageIndicator() {
         const indicator = document.getElementById('chatTokenIndicator');
         if (!indicator) return;
+
+        if (this.isCompressing) {
+            indicator.style.color = '#f59e0b';
+            indicator.textContent = window.i18n.t('chat_compressing_in_progress');
+            return;
+        }
 
         const percent = Math.min(100, Math.round((this.tokenUsage.used / this.tokenUsage.limit) * 100));
         let color = '#10b981'; // Green
@@ -1629,6 +1960,99 @@ window.ChatView = {
             .replace('{used}', this.tokenUsage.used.toLocaleString())
             .replace('{limit}', this.tokenUsage.limit.toLocaleString())
             .replace('{percent}', percent);
+    },
+
+    async deleteCompressedContext() {
+        if (!this.activeSessionId) return;
+        try {
+            const resp = await fetch(`/api/chat/sessions/${this.activeSessionId}/compressed-context`, {
+                method: 'DELETE'
+            });
+            if (resp.ok) {
+                this.confirmDeleteContext = false;
+                this.editingContext = false;
+                this.bubbleAfterMsgId = null;
+                await this.loadMessages();
+            }
+        } catch (e) {
+            console.error("Error deleting compressed context:", e);
+        }
+    },
+
+    showRegenerateModal() {
+        const modal = document.getElementById('contextRegenerateModal');
+        if (!modal) return;
+        document.getElementById('contextRegenerateTitle').textContent = window.i18n.t('chat_context_regenerate_title');
+        document.getElementById('contextRegenerateInstruction').value = '';
+        document.getElementById('contextRegenerateCancelBtn').textContent = window.i18n.t('btn_cancel');
+        document.getElementById('contextRegenerateBtnLabel').textContent = window.i18n.t('chat_context_regenerate_btn');
+        modal.style.display = 'flex';
+    },
+
+    closeRegenerateModal() {
+        const modal = document.getElementById('contextRegenerateModal');
+        if (modal) modal.style.display = 'none';
+    },
+
+    async submitRegenerate() {
+        const modal = document.getElementById('contextRegenerateModal');
+        const submitBtn = document.getElementById('contextRegenerateSubmitBtn');
+        if (!modal || !submitBtn) return;
+        const instruction = document.getElementById('contextRegenerateInstruction')?.value.trim() || '';
+        submitBtn.disabled = true;
+        submitBtn.textContent = window.i18n.t('chat_context_regenerating');
+        try {
+            const resp = await fetch(`/api/chat/sessions/${this.activeSessionId}/regenerate-compressed-context`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ instruction })
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                this.compressedContext = data.compressed_context;
+                this.editingContext = false;
+                this.confirmDeleteContext = false;
+                this.closeRegenerateModal();
+                this.renderHistory();
+            }
+        } catch (e) {
+            console.error("Error regenerating context:", e);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = window.i18n.t('chat_context_regenerate_btn');
+        }
+    },
+
+    _checkCompressionStatus() {
+        if (!this.activeSessionId || !this.isCompressing) return;
+        this._stopCompressionPolling();
+        this._startCompressionPolling();
+    },
+
+    _startCompressionPolling() {
+        if (this._compressionPollTimer) return;
+        this._compressionPollTimer = setInterval(async () => {
+            try {
+                const resp = await fetch(`/api/chat/sessions/${this.activeSessionId}/compression-status`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (!data.compressing) {
+                        this.isCompressing = false;
+                        this._stopCompressionPolling();
+                        await this.loadMessages();
+                    }
+                }
+            } catch (e) {
+                console.error("Compression polling error:", e);
+            }
+        }, 2000);
+    },
+
+    _stopCompressionPolling() {
+        if (this._compressionPollTimer) {
+            clearInterval(this._compressionPollTimer);
+            this._compressionPollTimer = null;
+        }
     },
 
     async openActionModal(txId) {
@@ -1688,9 +2112,9 @@ window.ChatView = {
                     if (r.ok) {
                         const cfg = await r.json();
                         currentEntityState = {
-                            amount: cfg.payday_amount,
-                            day_of_month: cfg.payday_day,
-                            date_override: cfg.payday_date_override
+                            amount: parseFloat(cfg.override_paycheck_amount) || null,
+                            day_of_month: parseInt(cfg.base_pay_day) || null,
+                            date_override: cfg.override_paycheck_date || null
                         };
                     }
                 } catch(e) {}
@@ -1925,35 +2349,68 @@ window.ChatView = {
         }
     },
 
+    _updatePendingMessageUI() {
+        const container = document.getElementById('pendingMessageContainer');
+        const textEl = document.getElementById('pendingMessageText');
+        const input = document.getElementById('chatInput');
+        if (!container || !textEl || !input) return;
+        if (this.pendingMessage && !this._messageReleased) {
+            textEl.textContent = this.pendingMessage;
+            container.style.display = 'flex';
+            input.style.display = 'none';
+        } else {
+            container.style.display = 'none';
+            input.style.display = '';
+        }
+    },
+
+    _markLastUserPending() {
+        // Mark the last user message and its AI placeholder as "pending" (compression in progress)
+        // The bubble shows grayed out with an "en attente" badge instead of being removed
+        if (!this.messages || this.messages.length < 2) return;
+        const msg = this.messages[this.messages.length - 2];
+        if (msg && msg.role === 'user') {
+            msg._pending = true;
+        }
+    },
+
+    _unmarkLastUserPending() {
+        // Remove the pending marker from the last user message
+        for (let i = this.messages.length - 1; i >= 0; i--) {
+            if (this.messages[i].role === 'user' && this.messages[i]._pending) {
+                this.messages[i]._pending = false;
+                break;
+            }
+        }
+    },
+
     async sendMessage() {
         if (!this.activeSessionId) return;
-        this.userHasScrolledUp = false; // Reset scroll lock on user action
+        this.userHasScrolledUp = false;
 
         const input = document.getElementById('chatInput');
         const text = input.value.trim();
         if (!text) return;
 
-        // Add user message
         this.messages.push({ role: 'user', content: text });
         input.value = '';
         input.style.height = 'auto';
-        
-        // Add empty AI message placeholder
         this.messages.push({ role: 'assistant', content: '<div class="typing-indicator"><span></span><span></span><span></span></div>' });
         const aiMsgIndex = this.messages.length - 1;
-        
-        const is_first_exchange = (this.messages.length <= 2);
+        const isFirstExchange = (this.messages.length <= 2);
         this.renderHistory();
-        
+
         const sendBtn = document.getElementById('chatSendBtn');
-        sendBtn.disabled = true;
+        sendBtn.classList.add('btn-stop');
+        sendBtn.textContent = window.i18n.t('chat_btn_stop');
+        sendBtn.onclick = () => this.stopGeneration();
+        sendBtn.disabled = false;
         input.disabled = true;
 
         if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
             window.app.setFastNotificationsPolling(true);
         }
         try {
-            // Track active stream so destroy() knows generation is in progress
             this._activeAbortController = new AbortController();
             this._streamDetached = false;
             const response = await fetch(`/api/chat/sessions/${this.activeSessionId}/message`, {
@@ -1962,8 +2419,8 @@ window.ChatView = {
                 body: JSON.stringify({
                     content: text,
                     lang: window.i18n.lang || 'fr'
-                })
-                // No signal — we never abort, letting the backend finish and save
+                }),
+                signal: this._activeAbortController.signal
             });
 
             await this.handleStreamingResponse(response, aiMsgIndex);
@@ -1972,15 +2429,16 @@ window.ChatView = {
         } catch (e) {
             this._activeAbortController = null;
             if (this._streamDetached) {
-                // User navigated away — backend will save response and create notification
                 console.log('[Chat] Stream completed after user left the view');
                 return;
             }
-            if (e.name === 'AbortError' || (e.message && e.message.includes('aborted'))) {
-                console.log('[Chat] Stream aborted');
+            if (this._stopRequested || e.name === 'AbortError' || (e.message && (e.message.includes('aborted') || e.message.includes('cancel')))) {
+                console.log('[Chat] Stream aborted by user');
                 return;
             }
             console.error(e);
+            // Unmark pending if compression failed mid-way
+            this._unmarkLastUserPending();
             if (this.messages && this.messages[aiMsgIndex]) {
                 this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection') || "Erreur de connexion"}: ${e.message}*`;
                 this.messages[aiMsgIndex]._isError = true;
@@ -1990,31 +2448,44 @@ window.ChatView = {
             if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
                 window.app.setFastNotificationsPolling(false);
             }
-            // Guard DOM access — elements may not exist if user left the view
             if (!this._streamDetached) {
                 const sendBtnF = document.getElementById('chatSendBtn');
                 const inputF = document.getElementById('chatInput');
-                if (sendBtnF) sendBtnF.disabled = false;
+                if (sendBtnF) { sendBtnF.disabled = false; sendBtnF.classList.remove('btn-stop'); sendBtnF.textContent = window.i18n.t('chat_btn_send'); sendBtnF.onclick = () => this.sendMessage(); }
                 if (inputF) { inputF.disabled = false; inputF.focus(); }
                 
-                const hasError = this.messages && this.messages[aiMsgIndex] && !!this.messages[aiMsgIndex]._isError;
-                
-                if (hasError) {
-                    try {
-                        await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
-                            content: this.messages[aiMsgIndex].content,
-                            role: "assistant"
-                        });
-                    } catch (e) { console.error("Failed to persist error:", e); }
-                }
-                
-                if (is_first_exchange) {
-                    await this.loadSessions(hasError);
-                    setTimeout(() => this.loadSessions(true), 6000);
+                if (this._stopRequested) {
+                    if (this.messages && this.messages[aiMsgIndex]) {
+                        const stopMsg = window.i18n.t('chat_generation_stopped') || 'Generation stopped';
+                        const cur = this.messages[aiMsgIndex].content || '';
+                        this.messages[aiMsgIndex].content = (cur.includes('typing-indicator') || !cur.trim() ? '' : cur + '\n\n') + '🛑 _' + stopMsg + '_';
+                        this.messages[aiMsgIndex].status = null;
+                        delete this.messages[aiMsgIndex]._isError;
+                        this._stopRequested = false;
+                        this.renderHistory();
+                    }
                 } else {
-                    await this.loadMessages();
+                    const hasError = this.messages && this.messages[aiMsgIndex] && !!this.messages[aiMsgIndex]._isError;
+                    
+                    if (hasError) {
+                        try {
+                            await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                                content: this.messages[aiMsgIndex].content,
+                                role: "assistant"
+                            });
+                        } catch (e) { console.error("Failed to persist error:", e); }
+                    }
+                    
+                    if (isFirstExchange) {
+                        await this.loadSessions(hasError);
+                        setTimeout(() => this.loadSessions(true), 6000);
+                    } else {
+                        await this.loadMessages();
+                    }
                 }
             }
+            this._unmarkLastUserPending();
+            this._updatePendingMessageUI();
         }
     },
 
@@ -2025,12 +2496,14 @@ window.ChatView = {
         }
 
         const reader = response.body.getReader();
+        this._streamReader = reader;
         const decoder = new TextDecoder('utf-8');
 
         let done = false;
         let aiText = '';
-        this.userHasScrolledUp = false; // Reset at the start of streaming
+        this.userHasScrolledUp = false;
 
+        try {
         while (!done) {
             const { value, done: readerDone } = await reader.read();
             done = readerDone;
@@ -2063,6 +2536,28 @@ window.ChatView = {
                                 }
                             } else if (data.token_usage) {
                                 this.tokenUsage = data.token_usage;
+                            } else if (data.compressing === true) {
+                                this._markLastUserPending();
+                                this.isCompressing = true;
+                                this._updateCompressionUI();
+                                this.renderHistory();
+                            } else if (data.compressing === false) {
+                                this.isCompressing = false;
+                                this._unmarkLastUserPending();
+                                if (data.compressed_context) {
+                                    this.compressedContext = data.compressed_context;
+                                }
+                                if (data.last_compressed_message_id) {
+                                    this.lastCompressedMessageId = data.last_compressed_message_id;
+                                }
+                                if (data.bubble_after_id) {
+                                    this.bubbleAfterMsgId = data.bubble_after_id;
+                                }
+                                if (data.compression_stack) {
+                                    this.compressionStack = data.compression_stack;
+                                }
+                                this._updateCompressionUI();
+                                this.renderHistory();
                             }
                         } catch (e) {
                             console.error("Parse error on chunk:", dataStr);
@@ -2073,20 +2568,16 @@ window.ChatView = {
                     }
                 }
 
-                // Skip DOM updates if stream is detached (user left the view)
                 if (this._streamDetached) continue;
 
-                // Detect if user has scrolled up before updating content and scrolling
                 const container = document.getElementById('chatMessages');
                 if (container && !this.userHasScrolledUp) {
-                    // If the user is more than 150px away from the bottom, they scrolled up
                     const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 150;
                     if (!isAtBottom) {
                         this.userHasScrolledUp = true;
                     }
                 }
 
-                // Update UI live
                 if (this.messages[aiMsgIndex]) {
                     this.messages[aiMsgIndex].content = aiText;
                 }
@@ -2137,6 +2628,9 @@ window.ChatView = {
             this.messages[aiMsgIndex].content = `⚠️ ${window.i18n.t('chat_error_empty_response') || "L'IA n'a pas répondu. Vérifiez votre configuration Ollama dans les paramètres."}`;
             this.messages[aiMsgIndex]._isError = true;
             this.renderHistory();
+        }
+        } finally {
+            this._streamReader = null;
         }
     }
 };

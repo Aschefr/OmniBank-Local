@@ -140,6 +140,13 @@ class ChatSession(Base):
     title = Column(String, default="Nouvelle conversation")
     role = Column(String, default="advisor")
     compressed_context = Column(Text, nullable=True)
+    # Compression v2: track compression state without deleting messages
+    last_compressed_message_id = Column(Integer, nullable=True)  # ID of last message included in compression
+    bubble_after_id = Column(Integer, nullable=True)              # ID of the last compressed message (bubble placed after this)
+    compressing = Column(Boolean, default=False)                  # True while compression is running
+    buffered_message = Column(Text, nullable=True)               # User message held while compression runs
+    compression_started_at = Column(DateTime, nullable=True)     # Timestamp for crash-recovery detection
+    compression_stack = Column(Text, nullable=True)              # JSON array of prior {context, after_id} entries
     created_at = Column(DateTime, default=datetime.utcnow)
 
     messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")

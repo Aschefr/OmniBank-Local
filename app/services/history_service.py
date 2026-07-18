@@ -3,7 +3,8 @@ from datetime import date, datetime
 from sqlalchemy import Date, DateTime
 from app.models import (
     ActionHistory, Transaction, Account, Category, Budget,
-    BudgetCategory, BudgetAllocation, RecurrenceTemplate, OrgUser
+    BudgetCategory, BudgetAllocation, RecurrenceTemplate, OrgUser,
+    GlobalConfig
 )
 
 MODEL_MAPPING = {
@@ -72,10 +73,35 @@ def record_action(db, entity_type: str, entity_id: int, action_type: str, previo
     db.flush()
     return history_entry.id
 
+def _restore_global_configs(db, state: dict, is_undo: bool):
+    """Restore GlobalConfig rows from a composite snapshot (paycheck_override)."""
+    if not state:
+        return
+    for key, val in state.items():
+        if key == "amount":
+            continue
+        row = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
+        if val is None:
+            if row:
+                db.delete(row)
+        else:
+            if not row:
+                row = GlobalConfig(key=key, value=val)
+                db.add(row)
+            else:
+                row.value = val
+
 def undo_action(db, action: ActionHistory):
     """Reverts the changes recorded in action."""
     if action.is_undone:
         return False, "Action already undone"
+
+    if action.entity_type == "paycheck_override":
+        prev = json.loads(action.previous_state) if action.previous_state else {}
+        _restore_global_configs(db, prev, is_undo=True)
+        action.is_undone = True
+        db.flush()
+        return True, None
 
     model_class = MODEL_MAPPING.get(action.entity_type)
     if not model_class:
@@ -129,6 +155,13 @@ def redo_action(db, action: ActionHistory):
     """Reapplies the changes of an undone action."""
     if not action.is_undone:
         return False, "Action is not undone"
+
+    if action.entity_type == "paycheck_override":
+        new_st = json.loads(action.new_state) if action.new_state else {}
+        _restore_global_configs(db, new_st, is_undo=False)
+        action.is_undone = False
+        db.flush()
+        return True, None
 
     model_class = MODEL_MAPPING.get(action.entity_type)
     if not model_class:
