@@ -1703,6 +1703,148 @@ def test_ai_write_capabilities_tools():
         db.close()
 
 
+def test_grouped_recurrence_undo_redo_and_restore():
+    """Verify that:
+    1. Undoing the first transaction of a newly created recurrence template also undoes the template creation itself (and deletes generated instances).
+    2. Redoing this creation restores both the template, the transaction, and regenerates future instances.
+    3. Undoing a template DELETE automatically regenerates all its future occurrences.
+    4. Undoing a subsequent transaction only deletes that transaction and keeps the template.
+    """
+    # 1. Create a Recurrence Template
+    res_tpl = client.post("/api/recurrences/", json={
+        "amount": 49.99,
+        "description": "Bi-Annual Subscription",
+        "frequency": "Semi-Annually",
+        "category": "Loisirs",
+        "type": "expense_fixed",
+        "day_of_month": 15,
+        "from_account_id": 1,
+        "to_account_id": None
+    })
+    assert res_tpl.status_code == 200
+    tpl = res_tpl.json()
+    tpl_id = tpl["id"]
+
+    # 2. Create the first transaction linked to it
+    res_tx = client.post("/api/transactions/", json={
+        "date_saisie": "2026-07-18",
+        "date_operation": "2026-07-15",
+        "description": "Bi-Annual Subscription",
+        "amount": 49.99,
+        "type": "expense_fixed",
+        "category": "Loisirs",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "recurrence_id": tpl_id
+    })
+    assert res_tx.status_code == 200
+    tx_id = res_tx.json()["id"]
+
+    # 3. Propagate/generate to the end of the year (simulating UI flow)
+    res_gen = client.post(f"/api/recurrences/generate_to_end_of_year?template_id={tpl_id}")
+    assert res_gen.status_code == 200
+
+    # Ensure future instances were generated
+    db = TestingSessionLocal()
+    try:
+        from app.models import Transaction, RecurrenceTemplate
+        all_txs = db.query(Transaction).filter(Transaction.recurrence_id == tpl_id).all()
+        # Should have the first transaction plus 1 semi-annual occurrence (approx 6 months later)
+        assert len(all_txs) >= 2
+    finally:
+        db.close()
+
+    # 4. Undo the last action (the transaction CREATE, which is grouped with the template CREATE)
+    res_undo = client.post("/api/history/undo_last")
+    assert res_undo.status_code == 200
+    assert res_undo.json()["ok"] is True
+
+    # Verify both the transaction AND the template are gone, and all generated instances are cleaned up
+    db = TestingSessionLocal()
+    try:
+        tpl_in_db = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+        txs_in_db = db.query(Transaction).filter(Transaction.recurrence_id == tpl_id).all()
+        assert tpl_in_db is None, "Grouped template was not deleted on undo!"
+        assert len(txs_in_db) == 0, "Transactions generated from template were not cleaned up!"
+    finally:
+        db.close()
+
+    # 5. Redo the action
+    res_redo = client.post("/api/history/redo_last")
+    assert res_redo.status_code == 200
+    assert res_redo.json()["ok"] is True
+
+    # Verify template, first transaction and generated occurrences are restored
+    db = TestingSessionLocal()
+    try:
+        tpl_in_db = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+        txs_in_db = db.query(Transaction).filter(Transaction.recurrence_id == tpl_id).all()
+        assert tpl_in_db is not None, "Template was not restored on redo!"
+        assert len(txs_in_db) >= 2, "Transactions were not restored/regenerated on redo!"
+    finally:
+        db.close()
+
+    # 6. Test delete restoration (DELETE -> UNDO)
+    # Delete the template (which cascades to delete unreconciled transactions)
+    res_del = client.delete(f"/api/recurrences/{tpl_id}")
+    assert res_del.status_code == 200
+
+    # Verify deleted in DB
+    db = TestingSessionLocal()
+    try:
+        tpl_in_db = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+        txs_in_db = db.query(Transaction).filter(Transaction.recurrence_id == tpl_id, Transaction.reconciliation_date == None).all()
+        assert tpl_in_db is None
+        assert len(txs_in_db) == 0
+    finally:
+        db.close()
+
+    # Undo the DELETE
+    res_undo_del = client.post("/api/history/undo_last")
+    assert res_undo_del.status_code == 200
+
+    # Verify template is restored AND future instances are automatically regenerated
+    db = TestingSessionLocal()
+    try:
+        tpl_in_db = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+        txs_in_db = db.query(Transaction).filter(Transaction.recurrence_id == tpl_id).all()
+        assert tpl_in_db is not None, "Restored template not found!"
+        assert len(txs_in_db) >= 2, "Restored template transactions were not automatically regenerated!"
+    finally:
+        db.close()
+
+    # 7. Test subsequent transaction independence (only deletes the transaction, keeps the template)
+    # Add a new transaction (simulating a subsequent occurrence or a later manual addition)
+    res_subseq_tx = client.post("/api/transactions/", json={
+        "date_saisie": "2026-07-18",
+        "date_operation": "2026-12-15",
+        "description": "Bi-Annual Subscription (manual)",
+        "amount": 49.99,
+        "type": "expense_fixed",
+        "category": "Loisirs",
+        "from_account_id": 1,
+        "to_account_id": None,
+        "recurrence_id": tpl_id
+    })
+    assert res_subseq_tx.status_code == 200
+    subseq_tx_id = res_subseq_tx.json()["id"]
+
+    # Wait a tiny bit (not needed here but simulate time elapsed)
+    # Undo this subsequent transaction CREATE
+    res_undo_subseq = client.post("/api/history/undo_last")
+    assert res_undo_subseq.status_code == 200
+
+    # Verify only the subsequent transaction is deleted, but the template remains
+    db = TestingSessionLocal()
+    try:
+        subseq_in_db = db.query(Transaction).filter(Transaction.id == subseq_tx_id).first()
+        tpl_in_db = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+        assert subseq_in_db is None, "Subsequent transaction was not deleted!"
+        assert tpl_in_db is not None, "Template was incorrectly deleted when undoing subsequent transaction!"
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     build_test_db(engine)
     test_accounts_crud()
@@ -1730,3 +1872,4 @@ if __name__ == "__main__":
     test_global_undo_redo_system()
     test_budgets_status_tool_returns_summary()
     test_ai_write_capabilities_tools()
+    test_grouped_recurrence_undo_redo_and_restore()
