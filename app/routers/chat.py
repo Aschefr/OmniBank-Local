@@ -1912,6 +1912,14 @@ async def add_system_message(id: int, req: ChatSendMessage, db: Session = Depend
     session = db.query(ChatSession).filter(ChatSession.id == id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session non trouvée")
+    
+    if req.update_last_assistant:
+        last_msg = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.desc()).first()
+        if last_msg and last_msg.role == "assistant":
+            last_msg.content = req.content
+            db.commit()
+            return {"ok": True}
+
     msg = ChatMessage(session_id=id, role=req.role or "assistant", content=req.content)
     db.add(msg)
     db.commit()
@@ -2426,7 +2434,7 @@ async def regenerate_response(id: int, request: Request = None, db: Session = De
     return await send_message(id, req, request=request, db=db)
 
 @router.put("/messages/{id}")
-async def edit_message(id: int, req: ChatMessageUpdate, db: Session = Depends(get_db)):
+async def edit_message(id: int, req: ChatMessageUpdate, request: Request = None, db: Session = Depends(get_db)):
     message = db.query(ChatMessage).filter(ChatMessage.id == id).first()
     if not message or message.role != "user":
         raise HTTPException(status_code=400, detail="Seuls les messages utilisateur peuvent être édités")
@@ -2447,7 +2455,7 @@ async def edit_message(id: int, req: ChatMessageUpdate, db: Session = Depends(ge
     
     # Send the new edited content
     send_req = ChatSendMessage(content=req.content)
-    return await send_message(session_id, send_req, db=db)
+    return await send_message(session_id, send_req, request=request, db=db)
 
 class AutoCatRequest(BaseModel):
     description: str

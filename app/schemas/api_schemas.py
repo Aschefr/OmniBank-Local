@@ -167,6 +167,7 @@ class ChatSendMessage(BaseModel):
     content: str
     lang: str = "fr"
     role: Optional[str] = None
+    update_last_assistant: Optional[bool] = False
 
 class ChatMessageUpdate(BaseModel):
     content: str
