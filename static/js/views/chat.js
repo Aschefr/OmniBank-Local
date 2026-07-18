@@ -1714,7 +1714,12 @@ window.ChatView = {
 
         const sendBtn = document.getElementById('chatSendBtn');
         const input = document.getElementById('chatInput');
-        if (sendBtn) sendBtn.disabled = true;
+        if (sendBtn) {
+            sendBtn.classList.add('btn-stop');
+            sendBtn.textContent = window.i18n.t('chat_btn_stop');
+            sendBtn.onclick = () => this.stopGeneration();
+            sendBtn.disabled = false;
+        }
         if (input) input.disabled = true;
 
         if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
@@ -1731,27 +1736,61 @@ window.ChatView = {
             await this.handleStreamingResponse(response, aiMsgIndex);
             this._activeAbortController = null;
         } catch (e) {
+            this._activeAbortController = null;
+            if (this._stopRequested || e.name === 'AbortError' || (e.message && (e.message.includes('aborted') || e.message.includes('cancel')))) {
+                console.log('[Chat] Edit response aborted by user');
+                return;
+            }
             console.error(e);
-            this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection')}: ${e.message}*`;
+            this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection') || "Erreur de connexion"}: ${e.message}*`;
             this.messages[aiMsgIndex]._isError = true;
             this.renderHistory();
         } finally {
             if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
                 window.app.setFastNotificationsPolling(false);
             }
-            if (sendBtn) sendBtn.disabled = false;
-            if (input) input.disabled = false;
-            const hasError = !!this.messages[aiMsgIndex]._isError;
-            if (hasError) {
-                // Persist error message to DB so it survives F5
-                try {
-                    await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
-                        content: this.messages[aiMsgIndex].content,
-                        role: "assistant"
-                    });
-                } catch (e) { console.error("Failed to persist error:", e); }
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('btn-stop');
+                sendBtn.textContent = window.i18n.t('chat_btn_send');
+                sendBtn.onclick = () => this.sendMessage();
             }
-            await this.loadMessages();
+            if (input) {
+                input.disabled = false;
+                input.focus();
+            }
+            if (this._stopRequested) {
+                if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
+                    const stopMsg = window.i18n.t('chat_generation_stopped') || 'Generation stopped';
+                    const cur = this.messages[aiMsgIndex].content || '';
+                    this.messages[aiMsgIndex].content = (cur.includes('typing-indicator') || !cur.trim() ? '' : cur + '\n\n') + '🛑 _' + stopMsg + '_';
+                    this.messages[aiMsgIndex].status = null;
+                    delete this.messages[aiMsgIndex]._isError;
+                    this._stopRequested = false;
+                    this.renderHistory();
+
+                    try {
+                        await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                            content: this.messages[aiMsgIndex].content,
+                            role: "assistant",
+                            update_last_assistant: true
+                        });
+                    } catch (e) { console.error("Failed to persist cancel:", e); }
+                    await this.loadMessages();
+                }
+            } else {
+                const hasError = !!this.messages[aiMsgIndex]._isError;
+                if (hasError) {
+                    // Persist error message to DB so it survives F5
+                    try {
+                        await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                            content: this.messages[aiMsgIndex].content,
+                            role: "assistant"
+                        });
+                    } catch (e) { console.error("Failed to persist error:", e); }
+                }
+                await this.loadMessages();
+            }
         }
     },
 
@@ -1849,6 +1888,15 @@ window.ChatView = {
                         delete this.messages[aiMsgIndex]._isError;
                         this._stopRequested = false;
                         this.renderHistory();
+
+                        try {
+                            await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                                content: this.messages[aiMsgIndex].content,
+                                role: "assistant",
+                                update_last_assistant: true
+                            });
+                        } catch (e) { console.error("Failed to persist cancel:", e); }
+                        await this.loadMessages();
                     }
                 } else {
                     if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
@@ -2463,6 +2511,21 @@ window.ChatView = {
                         delete this.messages[aiMsgIndex]._isError;
                         this._stopRequested = false;
                         this.renderHistory();
+
+                        try {
+                            await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                                content: this.messages[aiMsgIndex].content,
+                                role: "assistant",
+                                update_last_assistant: true
+                            });
+                        } catch (e) { console.error("Failed to persist cancel:", e); }
+
+                        if (isFirstExchange) {
+                            await this.loadSessions(false);
+                            setTimeout(() => this.loadSessions(true), 6000);
+                        } else {
+                            await this.loadMessages();
+                        }
                     }
                 } else {
                     const hasError = this.messages && this.messages[aiMsgIndex] && !!this.messages[aiMsgIndex]._isError;
@@ -2623,8 +2686,8 @@ window.ChatView = {
             }
         }
 
-        // Bug 1 fix: Show error if AI returned nothing (only if not detached)
-        if (!this._streamDetached && !aiText.trim() && this.messages[aiMsgIndex]) {
+        // Bug 1 fix: Show error if AI returned nothing (only if not detached and not stopped by user)
+        if (!this._streamDetached && !this._stopRequested && !aiText.trim() && this.messages[aiMsgIndex]) {
             this.messages[aiMsgIndex].content = `⚠️ ${window.i18n.t('chat_error_empty_response') || "L'IA n'a pas répondu. Vérifiez votre configuration Ollama dans les paramètres."}`;
             this.messages[aiMsgIndex]._isError = true;
             this.renderHistory();
