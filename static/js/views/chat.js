@@ -1543,7 +1543,7 @@ window.ChatView = {
                     toolsBadges = tools.map(t => {
                         const emoji = this._toolEmojiMap[t] || '⚙️';
                         const desc = window.i18n.t(`tool_${t}`) || t;
-                        return `<span class="tool-badge" title="${desc}">${emoji} ${t}</span>`;
+                        return `<span class="tool-badge" title="${t}">${emoji} ${desc}</span>`;
                     }).join(' ');
                 }
             }
@@ -2373,7 +2373,8 @@ window.ChatView = {
             this.closeActionModal();
             
             // Add a feedback message in DB and reload
-            const successMsg = `✅ L'action **${actionObj.action}** a été exécutée et validée avec succès.`;
+            const actionTitle = window.i18n.t(`tool_${actionObj.action}_title`) || window.i18n.t(`tool_${actionObj.action}`) || actionObj.action;
+            const successMsg = `✅ L'action **${actionTitle}** a été exécutée et validée avec succès.`;
             await fetch(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

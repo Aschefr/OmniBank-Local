@@ -1385,6 +1385,7 @@ class App {
     loadView(viewName) {
         this.currentView = viewName;
         localStorage.setItem('omni_current_view', viewName);
+        this.updateHeaderHistoryState();
         
         // Update nav buttons active state
         document.querySelectorAll('.nav-btn').forEach(b => {
