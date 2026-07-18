@@ -2080,7 +2080,7 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                 yield f"data: {json.dumps({'compressing': False, 'compressed_context': new_context or '', 'last_compressed_message_id': session.last_compressed_message_id, 'bubble_after_id': session.bubble_after_id, 'compression_stack': session.compression_stack, 'token_usage': {'used': used_post, 'limit': cfg['num_ctx']}})}\n\n"
 
             async with httpx.AsyncClient() as client:
-                tool_desc_map = {
+                tool_desc_map_fr = {
                     "get_financial_summary": "Analyse du reste à vivre et des prévisions de salaire...",
                     "get_net_worth": "Consultation du patrimoine net global...",
                     "get_account_balances": "Interrogation du solde des comptes...",
@@ -2109,6 +2109,36 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "delete_category": "Suppression de la catégorie...",
                     "set_predicted_paycheck": "Mise à jour de la date/montant théorique de salaire..."
                 }
+                tool_desc_map_en = {
+                    "get_financial_summary": "Analyzing left-to-live and paycheck forecasts...",
+                    "get_net_worth": "Consulting global net worth...",
+                    "get_account_balances": "Checking account balances...",
+                    "search_transactions": "Searching transactions...",
+                    "get_spending_analytics": "Calculating spending statistics...",
+                    "get_budgets_status": "Verifying budget envelopes...",
+                    "get_recurrence_templates": "Checking recurring charges...",
+                    "get_net_worth_history": "Analyzing net worth history...",
+                    "get_envelopes_impact": "Simulating budget impact...",
+                    "suggest_transaction_category": "Looking for category suggestion...",
+                    "forecast_balances_history": "Calculating balance forecasts...",
+                    "detect_anomalies_and_subscriptions": "Searching for subscriptions and duplicates...",
+                    "apply_transaction_correction": "Applying transaction update...",
+                    "get_saving_recommendations": "Generating savings recommendations...",
+                    "search_similar_past_spends": "Comparing past spends...",
+                    "generate_csv_export_link": "Generating CSV export link...",
+                    "simulate_loan_amortization": "Simulating loan amortization...",
+                    "create_budget_envelope": "Creating new budget envelope...",
+                    "update_budget_envelope": "Updating budget envelope...",
+                    "delete_budget_envelope": "Deleting budget envelope...",
+                    "allocate_savings_funds": "Recording piggy bank deposit/withdrawal...",
+                    "create_recurrence_template": "Creating recurring transaction template...",
+                    "update_recurrence_template": "Updating recurrence template...",
+                    "delete_recurrence_template": "Deleting recurrence template...",
+                    "create_category": "Creating new category...",
+                    "delete_category": "Deleting category...",
+                    "set_predicted_paycheck": "Updating predicted paycheck day/amount..."
+                }
+                tool_desc_map = tool_desc_map_en if req.lang == "en" else tool_desc_map_fr
 
                 # Helper: stream a request to Ollama, yield content chunks, return full text
                 async def _stream_ollama(payload_data):
