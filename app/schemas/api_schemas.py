@@ -160,6 +160,9 @@ class ChatSessionUpdate(BaseModel):
 class ChatContextUpdate(BaseModel):
     compressed_context: str
 
+class ChatRegenerateContext(BaseModel):
+    instruction: Optional[str] = None  # Optional user instruction to orient the summary
+
 class ChatSendMessage(BaseModel):
     content: str
     lang: str = "fr"

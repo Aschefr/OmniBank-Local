@@ -952,6 +952,74 @@ def test_chat_premium_flow():
     assert len(res.json()) == 0
 
 
+def test_chat_delete_message_keeps_context_after_compression():
+    """When deleting a message AFTER the compression point, compressed context must remain."""
+    from app.models import ChatSession as CS, ChatMessage as CM
+
+    # 1. Create session
+    res = client.post("/api/chat/sessions", json={"role": "advisor"})
+    assert res.status_code == 200
+    session_id = res.json()["id"]
+
+    # 2. Add messages: U1, A1, U2, A2
+    for content, role in [("Hello", "user"), ("Hi there", "assistant"), ("Budget?", "user"), ("Here it is", "assistant")]:
+        res = client.post(f"/api/chat/sessions/{session_id}/system-message", json={"content": content, "role": role})
+        assert res.status_code == 200
+
+    # 3. Verify messages
+    res = client.get(f"/api/chat/sessions/{session_id}/messages")
+    assert res.status_code == 200
+    data = res.json()
+    msgs = data["messages"]
+    assert len(msgs) == 4
+    a2_id = msgs[3]["id"]  # Last assistant = compression boundary
+
+    # 4. Set compressed context via DB (simulate compression having run)
+    db = TestingSessionLocal()
+    try:
+        session = db.query(CS).filter(CS.id == session_id).first()
+        session.compressed_context = "Summarized history up to A2"
+        session.last_compressed_message_id = a2_id
+        db.commit()
+    finally:
+        db.close()
+
+    # 5. Add U3 = trigger message (after compression point)
+    res = client.post(f"/api/chat/sessions/{session_id}/system-message", json={"content": "What about savings?", "role": "user"})
+    assert res.status_code == 200
+    res = client.get(f"/api/chat/sessions/{session_id}/messages")
+    u3 = res.json()["messages"][4]
+    u3_id = u3["id"]
+    assert u3_id > a2_id  # U3 is AFTER the compression point
+
+    # 6. Set bubble_after_id = U3 (as compression would do)
+    db = TestingSessionLocal()
+    try:
+        session = db.query(CS).filter(CS.id == session_id).first()
+        session.bubble_after_id = u3_id
+        db.commit()
+    finally:
+        db.close()
+
+    # 7. Verify compressed context is present before delete
+    res = client.get(f"/api/chat/sessions/{session_id}/messages")
+    assert res.json()["compressed_context"] == "Summarized history up to A2"
+
+    # 8. Delete U3 (message RIGHT AFTER the compression point)
+    res = client.delete(f"/api/chat/messages/{u3_id}")
+    assert res.status_code == 200
+
+    # 9. Verify the compressed context is STILL present (bubble must stay)
+    res = client.get(f"/api/chat/sessions/{session_id}/messages")
+    data = res.json()
+    assert data["compressed_context"] == "Summarized history up to A2", \
+        f"Compressed context was cleared! Got: {data['compressed_context']}"
+    assert data["last_compressed_message_id"] == a2_id, \
+        "last_compressed_message_id was cleared!"
+    assert data["bubble_after_id"] == u3_id, \
+        "bubble_after_id was cleared!"
+
+
 def test_weekly_recurrence_and_strict_id_deduplication():
     # 1. Create a Weekly recurrence template
     res_tpl = client.post("/api/recurrences/", json={

@@ -89,7 +89,8 @@ window.HistoryView = {
             "budget": "history_entity_budget",
             "budget_allocation": "history_entity_budget_allocation",
             "recurrence_template": "history_entity_recurrence_template",
-            "org_user": "history_entity_org_user"
+            "org_user": "history_entity_org_user",
+            "paycheck_override": "history_entity_paycheck_override"
         };
 
         tbody.innerHTML = this.actions.map(act => {
@@ -109,6 +110,10 @@ window.HistoryView = {
                     if (act.entity_type === 'transaction') {
                         const amtStr = state.amount ? ` (${parseFloat(state.amount).toFixed(2)} €)` : "";
                         detail = `${state.description || 'Sans description'}${amtStr}`;
+                    } else if (act.entity_type === 'paycheck_override') {
+                        const amtStr = state.amount ? `${parseFloat(state.amount).toFixed(2)} €` : "";
+                        const period = state.override_paycheck_period || "";
+                        detail = `${amtStr}${period ? ` (${period})` : ""}`;
                     } else if (act.entity_type === 'budget_allocation') {
                         const amtStr = state.amount ? ` (${parseFloat(state.amount).toFixed(2)} €)` : "";
                         detail = `${state.note || 'Allocation'}${amtStr}`;

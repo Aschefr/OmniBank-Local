@@ -163,6 +163,11 @@ def init_db():
                         title TEXT DEFAULT 'Nouvelle conversation',
                         role TEXT DEFAULT 'advisor',
                         compressed_context TEXT,
+                        last_compressed_message_id INTEGER,
+                        bubble_after_id INTEGER,
+                        compressing BOOLEAN DEFAULT 0,
+                        buffered_message TEXT,
+                        compression_started_at TIMESTAMP,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """))
@@ -263,6 +268,63 @@ def init_db():
                 pass
             try:
                 conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '11')"))
+            except Exception:
+                pass
+            conn.commit()
+
+        if schema_version < 12:
+            # Schema v12: Compression v2 — track compression state without deleting messages
+            try:
+                conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN last_compressed_message_id INTEGER"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN compressing BOOLEAN DEFAULT 0"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN buffered_message TEXT"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN compression_started_at TIMESTAMP"))
+            except Exception:
+                pass
+            # Crash-recovery: reset any sessions stuck in compressing=True from previous runs
+            try:
+                conn.execute(text("""
+                    UPDATE chat_sessions SET compressing = 0
+                    WHERE compressing = 1
+                    AND compression_started_at < datetime('now', '-5 minutes')
+                """))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '12')"))
+            except Exception:
+                pass
+            conn.commit()
+
+        if schema_version < 13:
+            # Schema v13: bubble_after_id for correct context bubble placement after F5
+            try:
+                conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN bubble_after_id INTEGER"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '13')"))
+            except Exception:
+                pass
+            conn.commit()
+
+        if schema_version < 14:
+            # Schema v14: compression_stack for multi-bubble support
+            try:
+                conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN compression_stack TEXT"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '14')"))
             except Exception:
                 pass
             conn.commit()

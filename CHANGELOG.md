@@ -2,40 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.69] - 2026-07-17
-
-### Added
-- **AI Write Capabilities & Validation Queue (Human-in-the-Loop) 🔐**:
-  - Ollama is equipped with 10 write capability tools (CRUD on budgets, categories, recurrences, tirelires allocations, paycheck prediction).
-  - All write actions called during a chat session are **simulated** (no direct database changes are made by the backend model stream).
-  - The backend intercepts write tool calls and streams an interactive action recommendation box in the chat UI.
-  - Clicking **"Examiner les modifications"** (Review changes) opens a side-by-side comparison modal containing the proposed fields.
-  - The changes are only executed in the database (with full snapshots and Undo/Redo tracking) once the user clicks the final **"Valider"** button.
-  - Dynamic system prompt updates guide the AI assistant to speak in terms of preparation/proposal rather than direct database execution.
-- **Dynamic Undo/Redo Tooltips 💬**:
-  - The top header Undo (↩) and Redo (↪) arrow buttons display dynamic tooltips on hover (`title` attribute) in French detailing the exact action that will be performed (e.g. *« Annuler : Création de l'enveloppe de budget 'Loisirs' (50.0 €) »* or *« Rétablir : Suppression de la charge récurrente 'Netflix' »*).
-- **Internationalization (i18n) Improvements**:
-  - Migrated all AI action boxes, modal headers, action names, parameters, and buttons to the translation layer (`fr.json` / `en.json`), preventing any hardcoded French UI text.
-  - Refined French translations (e.g. changed "Revoir" to "Examiner les modifications").
-
 ## [1.0.68] - 2026-07-16
 
 ### Added
-- **Global Activity & Undo System 🕓**: Added full write operation tracking (Create, Update, Delete) across transactions, accounts, categories, budgets, recurrence templates, and org users.
-- **Header Undo/Redo Controls**: Added quick interactive Undo (↩) and Redo (↪) arrow buttons in the top header with real-time status updates.
-- **Activity Log View**: Added a dedicated "Actions" panel displaying a paginated history of all modifications with inline action details and undo buttons.
-- **Undo Toasts**: Added a temporary pop-up toast with a ↩ button to instantly reverse any successful action.
-- **Multi-Account Block Parsing 🏦**: Added automatic account segment extraction from multi-account statement exports (e.g. Crédit Agricole single-sheet exports containing concatenated account sections like deposition account, Livret A, LDD).
-- **Match Confidence Index & Dropdown Fallback**: Calculates matching confidence score (0-100%) against target account. Automatically parses matching segment if confidence is high ($\ge$ 50%), and dynamically presents a manual selection dropdown for the segment to import if confidence is low (< 50%).
-- **Import Modal Row Filters 🔍**: Added interactive filters ("All", "To Add", "To Reconcile") in the import verification modal to view and validate transactions by action type.
-- **Import Validation Alerts 📥**: Added timing and coherence check warnings to the bank statement import screen (for both AI and direct imports) to verify file dates against the database:
-  - **Duplicate Check**: Warns if all transactions in the statement are already present in the database.
-  - **Old File Warning**: Warns if the statement ends before the most recent transaction date in the database for the selected account.
-  - **Gap Detection**: Detects date gaps of more than 3 days between the last transaction in the database and the oldest transaction in the imported statement.
-  - **Obsolescence Alert**: Warns if the most recent transaction in the imported file is more than 7 days old compared to today's date.
-  - **Account Change Check**: Detects if the selected account is changed after analysis and prompts the user to re-run the analysis for updated alerts.
-- **AI Budget Summary Tool**: Enhanced the `get_budgets_status` tool to return a consolidated financial summary (budgeted, spent, reconciled, remaining) for precise AI reasoning.
-- **AI Chat Auto-Scroll Lock**: Improved manual scroll-lock in the chat panel by utilizing scroll direction detection and a stricter bottom threshold (30px) to prevent accidental re-engagement.
+- **Global Activity & Undo System 🕓**: Full write operation tracking (CRUD) across all entities. Header undo/redo arrows, paginated "Actions" panel, and toast notifications for instant reversal.
+- **Multi-Account Block Parsing 🏦**: Automatic segment extraction from concatenated multi-account bank exports (e.g. Crédit Agricole single-sheet exports with Livret A, LDD, etc.).
+- **Match Confidence Index**: Confidence score (0-100%) with auto-parse above 50% and manual segment selection dropdown below 50%.
+- **Import Modal Row Filters 🔍**: "All / To Add / To Reconcile" filter tabs in the import verification modal.
+- **Import Validation Alerts 📥**: Duplicate, old file, gap (>3d), obsolescence (>7d), and account-change detection warnings on statement import.
+- **AI Budget Summary Tool**: Consolidated `get_budgets_status` tool returning budgeted/spent/reconciled/remaining for AI reasoning.
+- **AI Chat Auto-Scroll Lock**: Direction-aware lock with 30px bottom threshold to prevent accidental re-engagement.
+- **AI Write Capabilities & Validation Queue (Human-in-the-Loop) 🔐**: 10 CRUD tools for Ollama — all writes are simulated, reviewed via side-by-side comparison modal, and only committed on explicit user validation.
+- **i18n Improvements**: Migrated all AI action boxes, modals, and buttons to translation layer; refined French translations.
+- **Improved AI Chat Context Compression**: New buffered compression with user feedback indicator ("Compression en cours..."), 90% threshold, and synced LLM summary call. Compressed summary appears as a collapsible bubble in the conversation timeline with inline editing, delete (reverts to raw sliding window), and regenerate (with custom instruction via dedicated modal). Fully non-destructive — all messages preserved in DB. Crash recovery resets stuck compression after 5 min.
+
+### Fixed
+- **Undo/Redo Tooltips i18n**: Action labels in undo/redo tooltips are now fully translated based on user language (was hardcoded in French from backend). Includes prepositional forms per language (FR: "de l'", "du", "de la" / EN: "of").
 
 ## [1.0.67] - 2026-07-16
 

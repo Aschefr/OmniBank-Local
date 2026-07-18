@@ -173,6 +173,7 @@ class App {
                     // Rerender active view and refresh sidebar in real-time
                     await window.app.refreshSidebar();
                     window.app.loadView(window.app.currentView);
+                    window.app.updateHeaderHistoryState();
                 });
             });
             
@@ -267,7 +268,7 @@ class App {
                     redoBtn.disabled = true;
                     const res = await API.post('/api/history/redo_last');
                     if (res.ok) {
-                        showToast("Action rétablie avec succès.", 'success');
+                        showToast(window.i18n.t('history_redo_success') || 'Action rétablie avec succès.', 'success');
                         this.updateHeaderHistoryState();
                         this.loadView(this.currentView);
                         await this.refreshSidebar();
@@ -1587,13 +1588,17 @@ class App {
                 undoBtn.disabled = !status.can_undo;
                 undoBtn.style.opacity = status.can_undo ? "1" : "0.4";
                 undoBtn.style.cursor = status.can_undo ? "pointer" : "not-allowed";
-                undoBtn.title = status.can_undo ? `Annuler : ${status.undo_label}` : (window.i18n.t('history_nothing_to_undo') || "Rien à annuler");
+                undoBtn.title = status.can_undo && status.undo
+                    ? `${window.i18n.t('history_undo_prefix')} : ${window.formatHistoryLabel(status.undo)}`
+                    : window.i18n.t('history_nothing_to_undo');
             }
             if (redoBtn) {
                 redoBtn.disabled = !status.can_redo;
                 redoBtn.style.opacity = status.can_redo ? "1" : "0.4";
                 redoBtn.style.cursor = status.can_redo ? "pointer" : "not-allowed";
-                redoBtn.title = status.can_redo ? `Rétablir : ${status.redo_label}` : (window.i18n.t('history_nothing_to_redo') || "Rien à rétablir");
+                redoBtn.title = status.can_redo && status.redo
+                    ? `${window.i18n.t('history_redo_prefix')} : ${window.formatHistoryLabel(status.redo)}`
+                    : window.i18n.t('history_nothing_to_redo');
             }
         } catch (e) {
             console.warn("Failed to fetch history status", e);
