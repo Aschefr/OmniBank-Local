@@ -254,6 +254,31 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
 
     return {"year": y, "month": m, "summary": summary, "budgets": envelopes}
 
+def get_monthly_overview_tool(db: Session, year: int = None, month: int = None) -> dict:
+    import calendar
+    today = date.today()
+    try:
+        y = int(year) if year is not None else today.year
+        m = int(month) if month is not None else today.month
+    except (ValueError, TypeError):
+        return {"error": "Invalid year or month format. Expected integers."}
+        
+    start_date = date(y, m, 1)
+    end_date = date(y, m, calendar.monthrange(y, m)[1])
+    
+    budgets = get_budgets_status_tool(db, y, m)
+    spending = get_spending_analytics_tool(db, start_date.isoformat(), end_date.isoformat())
+    summary = get_financial_summary_tool(db)
+    balances = get_balances_tool(db)
+    
+    return {
+        "period": {"year": y, "month": m},
+        "budget_status": budgets,
+        "spending_analytics": spending,
+        "financial_summary": summary,
+        "account_balances": balances
+    }
+
 def get_recurrence_templates_tool(db: Session) -> dict:
     templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
     return {"templates": [
@@ -369,7 +394,7 @@ def suggest_transaction_category_tool(db: Session, description: str) -> dict:
 
 def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     from datetime import date, timedelta
-    from app.services.finance_engine import calculate_balances, get_main_account
+    from app.services.finance_engine import calculate_balances, get_main_account, predict_next_paycheck
     from app.models import RecurrenceTemplate, Transaction
     
     try:
@@ -403,6 +428,25 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     ).all()
     total_var_spent_30d = sum(t.amount for t in past_var_txs)
     daily_avg_var_spend = round(total_var_spent_30d / 30.0, 2)
+
+    # Collect predicted paycheck(s) that fall within the forecast window.
+    # This is critical: if the user's salary is NOT a RecurrenceTemplate, it would
+    # otherwise be missing from the projection, causing a false "going negative" alert.
+    projected_income_events = []
+    try:
+        paycheck = predict_next_paycheck(db)
+        pay_date = paycheck.get("date")
+        pay_amount = paycheck.get("amount", 0.0)
+        if pay_amount and pay_amount > 0 and isinstance(pay_date, date):
+            if today < pay_date <= end_date:
+                projected_income_events.append({
+                    "date": pay_date.isoformat(),
+                    "amount_euros": pay_amount,
+                    "source": "predicted_paycheck",
+                    "logical_period": paycheck.get("logical_period", "")
+                })
+    except Exception:
+        pass
     
     # Project chronologically day-by-day
     points = [{"date": today.isoformat(), "projected_balance_euros": current_balance}]
@@ -430,17 +474,29 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
                     running_balance += t.amount
                 elif t.from_account_id == account.id and t.type in ("expense_fixed", "expense_var"):
                     running_balance -= t.amount
+
+        # Inject predicted paycheck on its expected date
+        for income_event in projected_income_events:
+            if income_event["date"] == sim_date.isoformat():
+                running_balance += income_event["amount_euros"]
                     
         points.append({
             "date": sim_date.isoformat(),
             "projected_balance_euros": round(running_balance, 2)
         })
         
+    income_note = (
+        f"{len(projected_income_events)} salaire(s) prévu(s) inclus dans cette projection."
+        if projected_income_events
+        else "Aucun salaire prévu trouvé dans la fenêtre de projection. Si votre salaire n'est pas configuré comme récurrence, mettez à jour via set_predicted_paycheck."
+    )
     return {
         "checking_account": account.name,
         "daily_average_variable_spend_euros": daily_avg_var_spend,
         "daily_average_note": "Variable spending only (non-recurring). Recurring charges applied separately via templates.",
         "forecast_days": days,
+        "projected_income_events": projected_income_events,
+        "income_note": income_note,
         "history": points
     }
 
@@ -1100,7 +1156,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_spending_analytics",
-            "description": "Get aggregated spending and income statistics for a specific period, grouped by category and transaction type.",
+            "description": "Get aggregated raw spending and income statistics for a specific period, grouped by category and transaction type. Do NOT use this tool for tracking budget envelope limits or remaining budget envelope balances — use get_budgets_status for that.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1121,7 +1177,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_budgets_status",
-            "description": "Get status of all budget envelopes and savings for a specific year and month.",
+            "description": "Get consumption progress and remaining balances of all budget envelopes and savings for a specific year and month. Use this to check if envelopes are overspent or how much budget is left, NOT for raw spending reports.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1194,11 +1250,31 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "forecast_balances_history",
-            "description": "Forecast account balances and left-to-live trend over next 30, 60, or 90 days using recurring transactions and average historical spend.",
+            "description": "Forecast account balances and left-to-live trend over next 30, 60, or 90 days. This simulation ALREADY automatically includes future recurring templates and predicted paychecks (salaries/income). Do NOT assume future income is missing from the forecast results.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "days": {"type": "integer", "description": "Number of days to forecast (30, 60, 90). Default is 30."}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_monthly_overview",
+            "description": "Get a comprehensive monthly overview including budget envelopes status, category spending statistics, rest-to-live details, next paycheck predictions, and account balances in one single tool call. Use this as a starting point when the user asks about their monthly budget status or overall financial situation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "year": {
+                        "type": "integer",
+                        "description": "Optional year. Defaults to current year."
+                    },
+                    "month": {
+                        "type": "integer",
+                        "description": "Optional month (1-12). Defaults to current month."
+                    }
                 }
             }
         }
@@ -2107,7 +2183,8 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "delete_recurrence_template": "Suppression du modèle de récurrence...",
                     "create_category": "Création de la nouvelle catégorie...",
                     "delete_category": "Suppression de la catégorie...",
-                    "set_predicted_paycheck": "Mise à jour de la date/montant théorique de salaire..."
+                    "set_predicted_paycheck": "Mise à jour de la date/montant théorique de salaire...",
+                    "get_monthly_overview": "Récupération de l'aperçu budgétaire mensuel..."
                 }
                 tool_desc_map_en = {
                     "get_financial_summary": "Analyzing left-to-live and paycheck forecasts...",
@@ -2136,7 +2213,8 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "delete_recurrence_template": "Deleting recurrence template...",
                     "create_category": "Creating new category...",
                     "delete_category": "Deleting category...",
-                    "set_predicted_paycheck": "Updating predicted paycheck day/amount..."
+                    "set_predicted_paycheck": "Updating predicted paycheck day/amount...",
+                    "get_monthly_overview": "Fetching monthly budget overview..."
                 }
                 tool_desc_map = tool_desc_map_en if req.lang == "en" else tool_desc_map_fr
 
@@ -2193,61 +2271,81 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     # Attach results as a special final yield
                     yield {"_result": collected_text, "_tool_calls": collected_tool_calls}
 
-                # ─── Phase 1: Stream with tools ───
-                payload = {
-                    "model": model,
-                    "messages": ollama_msgs,
-                    "tools": TOOLS,
-                    "stream": True,
-                    "options": options,
-                    "keep_alive": "30m"
+                # ─── Multi-turn Tool Loop (max 4 iterations for agentic behavior) ───
+                import asyncio as _asyncio
+                _WRITE_TOOLS = {
+                    "create_budget_envelope", "update_budget_envelope", "delete_budget_envelope",
+                    "allocate_savings_funds", "create_recurrence_template", "update_recurrence_template",
+                    "delete_recurrence_template", "create_category", "delete_category", "set_predicted_paycheck",
+                    "delete_transaction"
                 }
+                MAX_TOOL_ITERATIONS = 4
+                all_tool_names = []
+                detected_write_actions = []
+                iteration = 0
 
-                phase1_text = ""
-                detected_tool_calls = []
-                async for chunk in _stream_ollama(payload):
-                    if isinstance(chunk, dict) and "_result" in chunk:
-                        phase1_text = chunk["_result"]
-                        detected_tool_calls = chunk["_tool_calls"]
-                    else:
-                        # Accumulate text progressively for safety (client may disconnect)
-                        if isinstance(chunk, str) and chunk.startswith('data: '):
-                            try:
-                                d = json.loads(chunk[6:].strip())
-                                if d.get('content'):
-                                    final_text += d['content']
-                            except: pass
-                        if request and await request.is_disconnected():
-                            _client_disconnected = True
-                            return
-                        yield chunk
+                while iteration < MAX_TOOL_ITERATIONS:
+                    payload = {
+                        "model": model,
+                        "messages": ollama_msgs,
+                        "tools": TOOLS,
+                        "stream": True,
+                        "options": options,
+                        "keep_alive": "30m"
+                    }
 
-                # ─── Phase 2: If tool calls detected, execute and re-stream ───
-                if detected_tool_calls:
-                    # Build assistant message with tool_calls for Ollama history
-                    assistant_tc_msg = {"role": "assistant", "tool_calls": detected_tool_calls, "content": phase1_text}
-                    ollama_msgs.append(assistant_tc_msg)
+                    phase_text = ""
+                    detected_tool_calls = []
+                    async for chunk in _stream_ollama(payload):
+                        if isinstance(chunk, dict) and "_result" in chunk:
+                            phase_text = chunk["_result"]
+                            detected_tool_calls = chunk["_tool_calls"]
+                        else:
+                            if isinstance(chunk, str) and chunk.startswith('data: '):
+                                try:
+                                    d = json.loads(chunk[6:].strip())
+                                    if d.get('content'):
+                                        final_text += d['content']
+                                except: pass
+                            if request and await request.is_disconnected():
+                                _client_disconnected = True
+                                return
+                            yield chunk
 
-                    detected_write_actions = []
-                    import asyncio
+                    if not detected_tool_calls:
+                        # No tool calls — this is the final text response, stop the loop
+                        final_text = phase_text
+                        break
+
+                    # Tool calls detected: clear any text streamed so far (it was just thinking)
+                    # and signal the frontend to reset the bubble before the final response.
+                    if phase_text.strip() or iteration > 0:
+                        final_text = ""
+                        yield f"data: {json.dumps({'clear_text': True, 'iteration': iteration + 1})}\n\n"
+
+                    # Append assistant turn (with tool_calls) to Ollama message history
+                    ollama_msgs.append({"role": "assistant", "tool_calls": detected_tool_calls, "content": phase_text})
+
                     for tool_call in detected_tool_calls:
                         if request and await request.is_disconnected():
                             _client_disconnected = True
                             return
+
                         fn_name = tool_call["function"]["name"]
                         fn_args = tool_call["function"].get("arguments", {})
-                        
-                        if fn_name in [
-                            "create_budget_envelope", "update_budget_envelope", "delete_budget_envelope",
-                            "allocate_savings_funds", "create_recurrence_template", "update_recurrence_template",
-                            "delete_recurrence_template", "create_category", "delete_category", "set_predicted_paycheck",
-                            "delete_transaction"
-                        ]:
+
+                        # Check disconnect BEFORE executing write tools to prevent partial writes
+                        if fn_name in _WRITE_TOOLS:
+                            if request and await request.is_disconnected():
+                                _client_disconnected = True
+                                return
                             detected_write_actions.append({"action": fn_name, "params": fn_args})
 
                         desc_status = tool_desc_map.get(fn_name, f"Exécution de {fn_name}...")
+                        if iteration > 0:
+                            desc_status = f"🔄 Tour {iteration + 1} — {desc_status}"
                         yield f"data: {json.dumps({'status': desc_status})}\n\n"
-                        await asyncio.sleep(0.8)
+                        await _asyncio.sleep(0.8)
 
                         tool_result = {}
                         if fn_name == "get_financial_summary":
@@ -2262,6 +2360,8 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                             tool_result = get_spending_analytics_tool(db, fn_args.get("start_date"), fn_args.get("end_date"))
                         elif fn_name == "get_budgets_status":
                             tool_result = get_budgets_status_tool(db, fn_args.get("year"), fn_args.get("month"))
+                        elif fn_name == "get_monthly_overview":
+                            tool_result = get_monthly_overview_tool(db, fn_args.get("year"), fn_args.get("month"))
                         elif fn_name == "get_recurrence_templates":
                             tool_result = get_recurrence_templates_tool(db)
                         elif fn_name == "get_net_worth_history":
@@ -2309,47 +2409,21 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                         else:
                             tool_result = {"error": f"Tool '{fn_name}' is not supported or defined."}
 
+                        all_tool_names.append(fn_name)
                         ollama_msgs.append({
                             "role": "tool",
                             "name": fn_name,
                             "content": json.dumps(tool_result, ensure_ascii=False)
                         })
 
-                    # Track tools metadata for DB
-                    fn_names = [tc["function"]["name"] for tc in detected_tool_calls]
-                    _tools_meta = f"<!-- TOOLS_USED: {','.join(fn_names)} -->\n"
+                    iteration += 1
 
-                    # Phase 2b: Stream final response with tool results (no tools this time)
-                    payload_final = {
-                        "model": model,
-                        "messages": ollama_msgs,
-                        "stream": True,
-                        "options": options,
-                        "keep_alive": "30m"
-                    }
-                    final_text = ""  # Reset for phase2 (will be re-accumulated)
-                    async for chunk in _stream_ollama(payload_final):
-                        if isinstance(chunk, dict) and "_result" in chunk:
-                            final_text = chunk["_result"]
-                        else:
-                            # Accumulate text progressively for safety (client may disconnect)
-                            if isinstance(chunk, str) and chunk.startswith('data: '):
-                                try:
-                                    d = json.loads(chunk[6:].strip())
-                                    if d.get('content'):
-                                        final_text += d['content']
-                                except: pass
-                            if request and await request.is_disconnected():
-                                _client_disconnected = True
-                                return
-                            yield chunk
-
-                else:
-                    # No tool calls — phase1 already streamed everything
-                    final_text = phase1_text
+                # Persist tool usage metadata (used by frontend for sidebar auto-refresh)
+                if all_tool_names:
+                    _tools_meta = f"<!-- TOOLS_USED: {','.join(all_tool_names)} -->\n"
 
                 # If write actions were detected, inject validation block at the end
-                if detected_tool_calls and 'detected_write_actions' in locals() and detected_write_actions:
+                if detected_write_actions:
                     action_str = ""
                     for action in detected_write_actions:
                         action_str += f"\n\n```action\n{json.dumps(action, ensure_ascii=False)}\n```"

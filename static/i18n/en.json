@@ -1269,5 +1269,9 @@
     "chat_context_regenerate_instruction_placeholder": "Optional instruction (e.g. focus on recurring expenses)",
     "chat_context_regenerate_btn": "Regenerate",
     "chat_context_regenerating": "Regenerating summary...",
-    "chat_message_pending": "waiting"
+    "chat_message_pending": "waiting",
+    "config_ai_optimal_hint": "💡 Optimal settings for Gemma 4 / Lightweight models:",
+    "config_ai_temp_hint_detail": "Low temperature (0.1) is best for strict tasks (categorization, parsing). Moderate temperature (0.4) is ideal for chat and reasoning.",
+    "config_ai_ctx_hint_detail": "A context size of 16384 (16K) or more is highly recommended to fit all tool descriptions and chat history. Note: changing these settings forces Ollama to reload the model, causing a delay on the first query.",
+    "tool_get_monthly_overview_title": "Global Monthly Overview"
 }

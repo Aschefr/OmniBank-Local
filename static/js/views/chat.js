@@ -2600,6 +2600,14 @@ window.ChatView = {
                                 }
                             } else if (data.token_usage) {
                                 this.tokenUsage = data.token_usage;
+                            } else if (data.clear_text) {
+                                // Backend started a new tool iteration — reset the visible bubble
+                                // to avoid showing stale "thinking" text from the previous round.
+                                aiText = '';
+                                if (!this._streamDetached && this.messages[aiMsgIndex]) {
+                                    this.messages[aiMsgIndex].content = '';
+                                    delete this.messages[aiMsgIndex].status;
+                                }
                             } else if (data.compressing === true) {
                                 this._markLastUserPending();
                                 this.isCompressing = true;
