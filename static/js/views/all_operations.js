@@ -379,7 +379,7 @@ window.AllOperationsView = {
         const searchInput = document.getElementById('historySearch');
         const typeFilter = document.getElementById('historyTypeFilter');
         
-        const q = searchInput ? searchInput.value.toLowerCase() : '';
+        const q = searchInput ? window.cleanStringForSearch(searchInput.value) : '';
         const tType = typeFilter ? typeFilter.value : '';
         const selectedCats = window.MultiSelect.getSelected('historyCategoryFilter');
 
@@ -397,11 +397,11 @@ window.AllOperationsView = {
         let filtered = this.transactions;
         if (q) {
             filtered = filtered.filter(tx => 
-                (tx.description || '').toLowerCase().includes(q) ||
-                (tx.category || '').toLowerCase().includes(q) ||
+                window.cleanStringForSearch(tx.description || '').includes(q) ||
+                window.cleanStringForSearch(tx.category || '').includes(q) ||
                 (tx.amount || '').toString().includes(q) ||
-                (this.accountNames[tx.from_account_id] || '').toLowerCase().includes(q) ||
-                (this.accountNames[tx.to_account_id] || '').toLowerCase().includes(q) ||
+                window.cleanStringForSearch(this.accountNames[tx.from_account_id] || '').includes(q) ||
+                window.cleanStringForSearch(this.accountNames[tx.to_account_id] || '').includes(q) ||
                 (tx.date_operation || '').includes(q)
             );
         }
