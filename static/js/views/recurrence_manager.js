@@ -414,7 +414,7 @@ window.RecurrenceView = {
     
     getFilteredTemplates() {
         const templates = this.lastDisplayTemplates || [];
-        const q = (document.getElementById('recurrenceSearch')?.value || '').toLowerCase().trim();
+        const q = window.cleanStringForSearch(document.getElementById('recurrenceSearch')?.value || '');
         const durationFilter = this.activeDurationFilter || 'all';
         const periodFilter = this.activePeriodFilter || 'all';
         
@@ -428,9 +428,9 @@ window.RecurrenceView = {
             
             // Text search
             if (q) {
-                const descText = (t.description || '').toLowerCase();
-                const catText = (t.category || '').toLowerCase();
-                const freqText = (t.frequency || '').toLowerCase();
+                const descText = window.cleanStringForSearch(t.description || '');
+                const catText = window.cleanStringForSearch(t.category || '');
+                const freqText = window.cleanStringForSearch(t.frequency || '');
                 const amountText = (t.displayAmount || 0).toString().toLowerCase();
                 if (!descText.includes(q) && !catText.includes(q) && !freqText.includes(q) && !amountText.includes(q)) {
                     return false;
