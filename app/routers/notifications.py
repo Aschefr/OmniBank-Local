@@ -150,6 +150,8 @@ def generate_ai_report_task(db_session_factory, force: bool = False):
             "projected_balance_30_days": forecast_end_balance,
             "daily_average_variable_spend": daily_avg_spend,
             "forecast_includes_recurring_income": True,
+            "forecast_projected_income_events": forecast.get("projected_income_events", []),
+            "forecast_income_note": forecast.get("income_note", ""),
             "detected_anomalies_or_subscriptions_count": anomaly_count,
             "detected_subscriptions_details": anomalies.get("detected_subscriptions", []),
             "potential_duplicate_charges": anomalies.get("potential_duplicate_charges", []),
@@ -176,9 +178,9 @@ You must return a JSON object with the following schema:
 === CRITICAL RULES (READ CAREFULLY) ===
 
 RULE 1 — INCOME AND FORECAST:
-- The 'projected_balance_30_days' field ALREADY includes recurring income (salary, etc.) from the user's recurrence templates. The field 'forecast_includes_recurring_income' confirms this.
-- The 'next_predicted_paycheck_date' and 'next_predicted_paycheck_amount' show the user's next expected salary.
-- Do NOT claim the projection ignores income. Do NOT suggest the user is at risk of running out of money if the projected balance is positive and the paycheck is factored in.
+- The 'projected_balance_30_days' field ALREADY includes recurring income (salary, etc.) from the user's recurrence templates AND the predicted paychecks listed in 'forecast_projected_income_events'.
+- The predicted paycheck dates and amounts show when and how much the user is expected to receive.
+- Do NOT claim the projection ignores income or salaries. Do NOT suggest the user is at risk of running out of money if the projected balance is positive and the paychecks are factored in.
 - Base your analysis on the ACTUAL projected balance number, not on assumptions.
 
 RULE 2 — RECURRENCE TEMPLATES vs DETECTED SUBSCRIPTIONS:
