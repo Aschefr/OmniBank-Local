@@ -6,6 +6,7 @@ window.BudgetsView = {
     aiEnabled: false,
     _directEdit: false, // true when modal was opened directly in edit mode (not via detail)
     customPeriod: { enabled: false, start: null, end: null }, // custom period with toggle
+    selectedCategories: [], // Persistent state for category selection during edits
 
     render() {
         const cfg = window.app && window.app.config ? window.app.config : {};
@@ -98,7 +99,7 @@ window.BudgetsView = {
                                     data-i18n-placeholder="budget_cat_search_placeholder"
                                     placeholder="${window.i18n.t('budget_cat_search_placeholder') || 'Search category...'}"
                                     style="width:100%;margin-top:6px;margin-bottom:4px;font-size:12px;padding:6px 10px;border-radius:6px;"
-                                    oninput="window.BudgetsView.renderCatCheckboxes(window.BudgetsView.getSelectedCats())">
+                                    oninput="window.BudgetsView.renderCatCheckboxes(window.BudgetsView.selectedCategories)">
                                 <div id="budgetCatCheckboxes" style="display:block;margin-top:8px;max-height:450px;overflow-y:auto;padding:12px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border-color);">
                                     <!-- Filled dynamically -->
                                 </div>
@@ -259,7 +260,7 @@ window.BudgetsView = {
             this.categories = await API.get('/api/categories/');
         }
         this.catAverages = await API.get('/api/categories/averages').catch(() => ({}));
-        this.renderCatCheckboxes(this.getSelectedCats());
+        this.renderCatCheckboxes(this.selectedCategories);
     },
 
     renderAccountCheckboxes(selected = []) {
@@ -335,11 +336,12 @@ window.BudgetsView = {
         }
 
         let html = '';
-        const searchTerm = (document.getElementById('budgetCatSearch')?.value || '').toLowerCase();
+        const searchTerm = document.getElementById('budgetCatSearch')?.value || '';
+        const cleanTerm = window.cleanStringForSearch(searchTerm);
 
         for (const key of ['expense_fixed', 'expense_var', 'income', 'neutral', 'other']) {
-            const visibleCats = searchTerm
-                ? groups[key].cats.filter(c => c.name.toLowerCase().includes(searchTerm))
+            const visibleCats = cleanTerm
+                ? groups[key].cats.filter(c => window.cleanStringForSearch(c.name).includes(cleanTerm))
                 : groups[key].cats;
             if (visibleCats.length === 0) continue;
 
@@ -373,7 +375,7 @@ window.BudgetsView = {
 
                 html += `
                     <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:var(--bg-surface);padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};transition:all 0.2s;">
-                        <input type="checkbox" name="budgetCat" value="${c.name}" ${isSelected ? 'checked' : ''} onchange="this.parentElement.style.borderColor = this.checked ? 'var(--accent)' : 'var(--border-color)'">
+                        <input type="checkbox" name="budgetCat" value="${c.name}" ${isSelected ? 'checked' : ''} onchange="window.BudgetsView.toggleCategorySelection(this)">
                         <div style="display:flex;flex-direction:column;gap:2px;overflow:hidden;flex:1;">
                             <span style="font-weight:${isSelected ? '600' : 'normal'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.name}">${c.name}</span>
                             <div style="display:flex;gap:4px;">
@@ -394,11 +396,27 @@ window.BudgetsView = {
         return [...document.querySelectorAll('input[name="budgetCat"]:checked')].map(el => el.value);
     },
 
+    toggleCategorySelection(el) {
+        el.parentElement.style.borderColor = el.checked ? 'var(--accent)' : 'var(--border-color)';
+        const textSpan = el.parentElement.querySelector('span');
+        if (textSpan) {
+            textSpan.style.fontWeight = el.checked ? '600' : 'normal';
+        }
+        const catName = el.value;
+        if (el.checked) {
+            if (!this.selectedCategories.includes(catName)) {
+                this.selectedCategories.push(catName);
+            }
+        } else {
+            this.selectedCategories = this.selectedCategories.filter(c => c !== catName);
+        }
+    },
+
     onPeriodChange() {
         const period = document.getElementById('newBudgetPeriod')?.value;
         const customDates = document.getElementById('budgetCustomDates');
         if (customDates) customDates.style.display = period === 'custom' ? 'block' : 'none';
-        this.renderCatCheckboxes(this.getSelectedCats());
+        this.renderCatCheckboxes(this.selectedCategories);
     },
 
     toggleType() {
@@ -1155,7 +1173,12 @@ window.BudgetsView = {
         document.getElementById('budgetTypeCategory').checked = true;
         this.toggleType();
         this.renderAccountCheckboxes([]);
-        this.renderCatCheckboxes([]);
+        
+        // Reset category search and state
+        const catSearch = document.getElementById('budgetCatSearch');
+        if (catSearch) catSearch.value = '';
+        this.selectedCategories = [];
+        this.renderCatCheckboxes(this.selectedCategories);
         
         document.getElementById('budgetFormSection').style.display = 'block';
         document.getElementById('budgetUnifiedModal').style.display = 'flex';
@@ -1200,7 +1223,12 @@ window.BudgetsView = {
         }
         this.toggleType();
         this.renderAccountCheckboxes(b.account_ids || []);
-        this.renderCatCheckboxes(b.categories || []);
+        
+        // Reset category search and initialize state
+        const catSearch = document.getElementById('budgetCatSearch');
+        if (catSearch) catSearch.value = '';
+        this.selectedCategories = b.categories || [];
+        this.renderCatCheckboxes(this.selectedCategories);
 
         document.getElementById('budgetFormSection').style.display = 'block';
         
@@ -1240,7 +1268,12 @@ window.BudgetsView = {
         }
         this.toggleType();
         this.renderAccountCheckboxes(b.account_ids || []);
-        this.renderCatCheckboxes(b.categories || []);
+        
+        // Reset category search and initialize state
+        const catSearch = document.getElementById('budgetCatSearch');
+        if (catSearch) catSearch.value = '';
+        this.selectedCategories = b.categories || [];
+        this.renderCatCheckboxes(this.selectedCategories);
 
         document.getElementById('budgetFormSection').style.display = 'block';
         document.getElementById('budgetUnifiedModal').style.display = 'flex';
@@ -1253,7 +1286,7 @@ window.BudgetsView = {
         const period = document.getElementById('newBudgetPeriod').value;
         const isProject = document.getElementById('budgetTypeProject').checked;
         const isSavings = document.getElementById('budgetTypeSavings')?.checked;
-        const categories = (isProject || isSavings) ? [] : this.getSelectedCats();
+        const categories = (isProject || isSavings) ? [] : this.selectedCategories;
 
         if (!name) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_name_required'));
         if (isNaN(amount) || amount < 0) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));

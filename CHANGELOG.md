@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.69] - 2026-07-19
+
+### Added
+- **Accent-Insensitive Search 🔍**: Implemented accent-insensitive and case-insensitive search capability across Dashboard (Timeline), Operations History, Recurrence templates, and Budget envelope categories.
+
+### Fixed
+- **Budget Envelope Category Selection bug 💰**: Resolved an issue where filtering categories during budget editing would cause hidden checked categories to be lost on save. Selection is now managed in JS state instead of relying purely on visible DOM elements.
+
 ## [1.0.68] - 2026-07-18
 
 ### Added

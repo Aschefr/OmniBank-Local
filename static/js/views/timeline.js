@@ -470,7 +470,7 @@ window.TimelineView = {
         const typeFilter = document.getElementById('timelineTypeFilter');
         const attachFilter = document.getElementById('timelineAttachmentFilter');
         
-        const q = searchInput ? searchInput.value.toLowerCase() : '';
+        const q = searchInput ? window.cleanStringForSearch(searchInput.value) : '';
         const tType = typeFilter ? typeFilter.value : '';
         const selectedCats = window.MultiSelect.getSelected('timelineCategoryFilter');
         const tAttach = attachFilter ? attachFilter.checked : false;
@@ -479,8 +479,8 @@ window.TimelineView = {
         let filtered = this.transactions;
         if (q) {
             filtered = filtered.filter(tx => 
-                (tx.description || '').toLowerCase().includes(q) ||
-                (tx.category || '').toLowerCase().includes(q) ||
+                window.cleanStringForSearch(tx.description || '').includes(q) ||
+                window.cleanStringForSearch(tx.category || '').includes(q) ||
                 (tx.amount || '').toString().includes(q)
             );
         }

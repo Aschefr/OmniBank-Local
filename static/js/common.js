@@ -371,3 +371,12 @@ window.formatHistoryLabel = function (data) {
     }
     return actionEntity;
 };
+
+window.cleanStringForSearch = function(str) {
+    if (!str) return '';
+    return str.toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+};
+
