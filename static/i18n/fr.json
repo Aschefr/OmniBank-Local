@@ -1269,5 +1269,9 @@
     "chat_context_regenerate_instruction_placeholder": "Instruction optionnelle (ex: focalise-toi sur les dépenses récurrentes)",
     "chat_context_regenerate_btn": "Re-générer",
     "chat_context_regenerating": "Re-génération du résumé en cours...",
-    "chat_message_pending": "en attente"
+    "chat_message_pending": "en attente",
+    "config_ai_optimal_hint": "💡 Configuration optimale pour Gemma 4 / Modèles légers :",
+    "config_ai_temp_hint_detail": "Une température trop basse (0.1) rend le modèle rigide (idéal pour l'import/catégorisation). Une température modérée (0.4) convient pour le chat et l'analyse.",
+    "config_ai_ctx_hint_detail": "Une taille de contexte de 16384 (16K) ou plus est vivement recommandée pour accueillir les descriptions d'outils et l'historique du chat. Attention : modifier ces réglages force Ollama à recharger le modèle en mémoire, ce qui ralentit la première réponse.",
+    "tool_get_monthly_overview_title": "Aperçu global mensuel"
 }

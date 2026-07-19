@@ -71,6 +71,14 @@ window.ConfigView = {
                     </div>
                 </div>
 
+                <div style="margin-top: 10px; padding: 10px; border-radius: 8px; background: rgba(51, 102, 255, 0.05); border: 1px dashed var(--accent);">
+                    <h5 style="margin: 0 0 5px 0; font-size: 11px; font-weight: bold; color: var(--accent);" data-i18n="config_ai_optimal_hint">${window.i18n.t('config_ai_optimal_hint')}</h5>
+                    <ul style="margin: 0; padding-left: 15px; font-size: 10px; color: var(--text-muted); line-height: 1.4;">
+                        <li data-i18n="config_ai_temp_hint_detail">${window.i18n.t('config_ai_temp_hint_detail')}</li>
+                        <li style="margin-top: 4px;" data-i18n="config_ai_ctx_hint_detail">${window.i18n.t('config_ai_ctx_hint_detail')}</li>
+                    </ul>
+                </div>
+
                 <hr style="border:none; border-top:1px solid var(--border-color); margin:18px 0;">
 
                 <div style="margin-top: 15px;">
