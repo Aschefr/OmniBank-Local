@@ -4,6 +4,7 @@ from sqlalchemy import desc
 from app.database import get_db
 from app.models import ActionHistory
 from app.services import history_service
+from app.services.history_service import check_undo_safety
 
 router = APIRouter(prefix="/api/history", tags=["history"])
 
@@ -25,12 +26,28 @@ def get_history(limit: int = 50, offset: int = 0, db: Session = Depends(get_db))
         })
     return res
 
+@router.get("/{action_id}/check")
+def check_undo_endpoint(action_id: int, db: Session = Depends(get_db)):
+    """Vérifie si l'annulation d'une action est sûre avant de procéder."""
+    action = db.query(ActionHistory).filter(ActionHistory.id == action_id).first()
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found")
+    return check_undo_safety(db, action)
+
 @router.post("/{action_id}/undo")
 def undo_action_endpoint(action_id: int, db: Session = Depends(get_db)):
     action = db.query(ActionHistory).filter(ActionHistory.id == action_id).first()
     if not action:
         raise HTTPException(status_code=404, detail="Action not found")
-        
+
+    # Vérification de sécurité des dépendances
+    safety = check_undo_safety(db, action)
+    if not safety["safe"]:
+        raise HTTPException(status_code=409, detail={
+            "reason": safety["reason"],
+            "conflicts": safety["conflicts"]
+        })
+
     try:
         success, warning = history_service.undo_action(db, action)
         if not success:
