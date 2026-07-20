@@ -64,3 +64,5 @@ CLAUDE.md
 
 src-tauri/resources/
 corrections/
+api_error.txt
+pytest_output.txt
