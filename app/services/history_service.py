@@ -1,6 +1,6 @@
 import json
 from datetime import date, datetime
-from sqlalchemy import Date, DateTime
+from sqlalchemy import Date, DateTime, desc
 from app.models import (
     ActionHistory, Transaction, Account, Category, Budget,
     BudgetCategory, BudgetAllocation, RecurrenceTemplate, OrgUser,
@@ -17,6 +17,118 @@ MODEL_MAPPING = {
     "org_user": OrgUser,
     "ai_fact": AIFact
 }
+
+
+def check_undo_safety(db, action: ActionHistory) -> dict:
+    """Vérifie si l'annulation d'une action est sûre vis-à-vis des dépendances.
+    Retourne {"safe": bool, "reason": str|None, "conflicts": list}.
+    """
+    if action.is_undone:
+        return {"safe": False, "reason": "already_undone", "conflicts": []}
+
+    conflicts = []
+
+    # --- Undo CREATE = suppression de l'entité : vérifier les dépendances ---
+    if action.action_type == "CREATE":
+        entity_id = action.entity_id
+
+        if action.entity_type == "account":
+            # Transactions liées à ce compte
+            tx_count = db.query(Transaction).filter(
+                (Transaction.from_account_id == entity_id) |
+                (Transaction.to_account_id == entity_id)
+            ).count()
+            if tx_count > 0:
+                conflicts.append(f"account_has_transactions:{tx_count}")
+
+            # Récurrences liées à ce compte
+            rec_count = db.query(RecurrenceTemplate).filter(
+                (RecurrenceTemplate.from_account_id == entity_id) |
+                (RecurrenceTemplate.to_account_id == entity_id)
+            ).count()
+            if rec_count > 0:
+                conflicts.append(f"account_has_recurrences:{rec_count}")
+
+        elif action.entity_type == "budget":
+            # BudgetCategory liées
+            cat_count = db.query(BudgetCategory).filter(
+                BudgetCategory.budget_id == entity_id
+            ).count()
+            if cat_count > 0:
+                conflicts.append(f"budget_has_categories:{cat_count}")
+
+            # BudgetAllocation liées
+            alloc_count = db.query(BudgetAllocation).filter(
+                BudgetAllocation.budget_id == entity_id
+            ).count()
+            if alloc_count > 0:
+                conflicts.append(f"budget_has_allocations:{alloc_count}")
+
+            # Transactions assignées à ce budget
+            tx_count = db.query(Transaction).filter(
+                Transaction.budget_id == entity_id
+            ).count()
+            if tx_count > 0:
+                conflicts.append(f"budget_has_transactions:{tx_count}")
+
+        elif action.entity_type == "category":
+            # Extraire le nom de la catégorie depuis le snapshot
+            try:
+                state = json.loads(action.new_state) if action.new_state else {}
+                cat_name = state.get("name", "")
+            except Exception:
+                cat_name = ""
+
+            if cat_name:
+                # Transactions utilisant cette catégorie
+                tx_count = db.query(Transaction).filter(
+                    Transaction.category == cat_name
+                ).count()
+                if tx_count > 0:
+                    conflicts.append(f"category_has_transactions:{tx_count}")
+
+                # BudgetCategory liées
+                bc_count = db.query(BudgetCategory).filter(
+                    BudgetCategory.category_name == cat_name
+                ).count()
+                if bc_count > 0:
+                    conflicts.append(f"category_has_budgets:{bc_count}")
+
+        elif action.entity_type == "recurrence_template":
+            # Transactions réconciliées liées (non-supprimables)
+            rec_tx = db.query(Transaction).filter(
+                Transaction.recurrence_id == entity_id,
+                Transaction.reconciliation_date != None
+            ).count()
+            if rec_tx > 0:
+                conflicts.append(f"recurrence_has_reconciled:{rec_tx}")
+
+    # --- Undo UPDATE : vérifier si un UPDATE plus récent existe ---
+    elif action.action_type == "UPDATE":
+        newer_update = db.query(ActionHistory).filter(
+            ActionHistory.entity_type == action.entity_type,
+            ActionHistory.entity_id == action.entity_id,
+            ActionHistory.action_type == "UPDATE",
+            ActionHistory.is_undone == False,
+            ActionHistory.id > action.id
+        ).first()
+
+        if newer_update:
+            conflicts.append(f"update_state_conflict:{newer_update.id}")
+
+    # --- Undo DELETE = re-création : vérifier conflit de clé primaire ---
+    elif action.action_type == "DELETE":
+        model_class = MODEL_MAPPING.get(action.entity_type)
+        if model_class:
+            existing = db.query(model_class).filter(
+                model_class.id == action.entity_id
+            ).first()
+            if existing:
+                conflicts.append(f"pk_conflict:{action.entity_id}")
+
+    safe = len(conflicts) == 0
+    reason = conflicts[0].split(":")[0] if conflicts else None
+    return {"safe": safe, "reason": reason, "conflicts": conflicts}
 
 def default_serializer(obj):
     if isinstance(obj, (date, datetime)):

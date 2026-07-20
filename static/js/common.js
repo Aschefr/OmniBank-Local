@@ -55,6 +55,11 @@ function showInlineConfirm(titleKey, messageKey) {
         const btnOk = document.getElementById('confirmOk');
         const btnCancel = document.getElementById('confirmCancel');
 
+        // Set button labels
+        btnOk.textContent = window.i18n.t('btn_confirm') || 'Confirmer';
+        btnCancel.textContent = window.i18n.t('btn_cancel') || 'Annuler';
+        btnCancel.style.display = 'inline-block';
+
         // i18n.t returns the key itself if not found — fall back to raw text
         const resolveText = (keyOrText) => {
             const translated = window.i18n.t(keyOrText);
@@ -90,6 +95,10 @@ function showInlineMessage(titleText, messageText) {
         const btnOk = document.getElementById('confirmOk');
         const btnCancel = document.getElementById('confirmCancel');
 
+        // Set button labels
+        btnOk.textContent = window.i18n.t('btn_ok') || 'Compris';
+        btnCancel.style.display = 'none';
+
         const resolveText = (keyOrText) => {
             const translated = window.i18n.t(keyOrText);
             return translated === keyOrText ? keyOrText : translated;
@@ -101,8 +110,6 @@ function showInlineMessage(titleText, messageText) {
         } else {
             messageEl.textContent = msgContent;
         }
-        
-        btnCancel.style.display = 'none';
 
         modal.style.display = 'flex';
 
