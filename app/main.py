@@ -184,7 +184,7 @@ _spa_html_cache = None
 def _get_spa_html():
     """Read index.html and inject cache-busting query strings into local asset URLs."""
     global _spa_html_cache
-    if _spa_html_cache:
+    if _spa_html_cache and getattr(sys, 'frozen', False):
         return _spa_html_cache
     
     index_path = os.path.join(resource_path("static"), "index.html")

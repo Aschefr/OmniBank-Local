@@ -135,9 +135,15 @@ window.HistoryView = {
             
             // Check if action can be undone
             const canUndo = !act.is_undone;
+            const undoText = window.i18n.t('history_undo_btn') || '↩ Annuler';
+            const undoneText = window.i18n.t('history_undone') || 'Annulée';
+            const detailsText = window.i18n.t('history_detail_btn') || '🔍 Détails';
+
             const undoBtn = act.is_undone 
-                ? `<span style="color: var(--text-muted); font-size:11px;" data-i18n="history_undone">Annulée</span>`
-                : `<button class="btn btn-secondary" onclick="window.HistoryView.triggerUndo(${act.id})" style="padding: 3px 8px; font-size: 11px;" data-i18n="history_undo_btn">↩ Annuler</button>`;
+                ? `<span style="color: var(--text-muted); font-size:11px;">${undoneText}</span>`
+                : `<button class="btn btn-secondary" onclick="window.HistoryView.triggerUndo(${act.id})" style="padding: 3px 8px; font-size: 11px;">${undoText}</button>`;
+
+            const detailBtn = `<button class="btn btn-secondary" onclick="window.HistoryView.showDetails(${act.id})" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">${detailsText}</button>`;
 
             return `
                 <tr style="border-bottom: 1px solid var(--border-color); vertical-align: middle;">
@@ -150,7 +156,7 @@ window.HistoryView = {
                     <td style="padding: 10px 15px; font-weight: 500; white-space: nowrap;">${entityText}</td>
                     <td style="padding: 10px 15px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${detail}</td>
                     <td style="padding: 10px 15px; color: var(--text-muted); white-space: nowrap;">${act.user_name || '-'}</td>
-                    <td style="padding: 10px 15px; text-align: right; white-space: nowrap;">${undoBtn}</td>
+                    <td style="padding: 10px 15px; text-align: right; white-space: nowrap;">${detailBtn}${undoBtn}</td>
                 </tr>
             `;
         }).join('');
@@ -251,5 +257,219 @@ window.HistoryView = {
             console.error("Purge failed", e);
             showToast("Failed to purge", "error");
         }
+    },
+
+    async showDetails(actionId) {
+        const act = this.actions.find(a => a.id === actionId);
+        if (!act) return;
+
+        const modal = document.getElementById('actionDetailModal');
+        const titleEl = document.getElementById('actionDetailTitle');
+        const contentEl = document.getElementById('actionDetailContent');
+        if (!modal || !contentEl) return;
+
+        titleEl.textContent = `${window.i18n.t('history_modal_title') || "Détails de l'action"} #${act.id}`;
+        contentEl.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted);">${window.i18n.t('loading') || 'Chargement...'}</div>`;
+        modal.style.display = 'flex';
+
+        // Fetch reference data to resolve IDs
+        let accounts = [];
+        let budgets = [];
+        let recurrences = [];
+        try {
+            const [accs, buds, recs] = await Promise.all([
+                API.get('/api/accounts/').catch(() => []),
+                API.get('/api/budgets/').catch(() => []),
+                API.get('/api/recurrences/?include_closed=true').catch(() => [])
+            ]);
+            accounts = accs;
+            budgets = buds;
+            recurrences = recs;
+        } catch (e) {
+            console.warn("Failed to load reference data for detail mapping", e);
+        }
+
+        const getAccountName = (id) => {
+            const acc = accounts.find(a => a.id === parseInt(id));
+            return acc ? `${acc.name} (${acc.type})` : `ID: ${id}`;
+        };
+        const getBudgetName = (id) => {
+            const b = budgets.find(x => x.id === parseInt(id));
+            return b ? b.name : `ID: ${id}`;
+        };
+        const getRecurrenceName = (id) => {
+            const r = recurrences.find(x => x.id === parseInt(id));
+            return r ? r.description : `ID: ${id}`;
+        };
+
+        const formatValue = (key, val) => {
+            if (val === undefined || val === null || val === '') return '-';
+            if (key === 'from_account_id' || key === 'to_account_id') {
+                return getAccountName(val);
+            }
+            if (key === 'budget_id') {
+                return getBudgetName(val);
+            }
+            if (key === 'recurrence_id') {
+                return getRecurrenceName(val);
+            }
+            if (key === 'amount' || key === 'monthly_amount') {
+                return `${parseFloat(val).toFixed(2).replace('.', ',')} €`;
+            }
+            if (typeof val === 'boolean') {
+                return val ? 'Oui' : 'Non';
+            }
+            return String(val);
+        };
+
+        let prev = null;
+        let next = null;
+        try {
+            prev = act.previous_state ? JSON.parse(act.previous_state) : null;
+            next = act.new_state ? JSON.parse(act.new_state) : null;
+        } catch (e) {
+            console.error("Failed to parse states", e);
+        }
+
+        const formattedDate = act.timestamp ? new Date(act.timestamp).toLocaleString() : "";
+        const actionConf = {
+            "CREATE": { text: "history_action_create", color: "#10b981" },
+            "UPDATE": { text: "history_action_update", color: "#f59e0b" },
+            "DELETE": { text: "history_action_delete", color: "#ff5630" }
+        }[act.action_type] || { text: act.action_type, color: "var(--text-main)" };
+
+        const entityTypes = {
+            "transaction": "history_entity_transaction",
+            "account": "history_entity_account",
+            "category": "history_entity_category",
+            "budget": "history_entity_budget",
+            "budget_allocation": "history_entity_budget_allocation",
+            "recurrence_template": "history_entity_recurrence_template",
+            "org_user": "history_entity_org_user",
+            "paycheck_override": "history_entity_paycheck_override"
+        };
+        const actionText = window.i18n.t(actionConf.text) || act.action_type;
+        const entityText = window.i18n.t(entityTypes[act.entity_type] || act.entity_type) || act.entity_type;
+
+        // General Info Section
+        let html = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; background: rgba(0,0,0,0.1); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <div><strong>${window.i18n.t('history_col_date') || 'Date / Heure'} :</strong> <span style="color: var(--text-muted);">${formattedDate}</span></div>
+                <div><strong>${window.i18n.t('history_col_user') || 'Utilisateur'} :</strong> <span style="color: var(--text-muted);">${act.user_name || '-'}</span></div>
+                <div><strong>${window.i18n.t('history_col_action') || 'Action'} :</strong> <span style="color: ${actionConf.color}; font-weight: 600;">${actionText}</span></div>
+                <div><strong>${window.i18n.t('history_col_entity') || 'Entité'} :</strong> <span style="color: var(--text-muted); font-weight: 500;">${entityText} (ID: ${act.entity_id})</span></div>
+            </div>
+        `;
+
+        // State Details Section
+        if (act.action_type === 'UPDATE' && prev && next) {
+            const allKeys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)]))
+                .filter(k => !k.startsWith('_'));
+
+            const changedKeys = allKeys.filter(k => JSON.stringify(prev[k]) !== JSON.stringify(next[k]));
+            const unchangedKeys = allKeys.filter(k => JSON.stringify(prev[k]) === JSON.stringify(next[k]));
+
+            html += `
+                <h4 style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>🔄 ${window.i18n.t('history_diff_title') || 'Comparatif des modifications'}</span>
+                    <button class="btn btn-secondary" onclick="window.HistoryView.toggleUnchangedFields()" style="padding: 2px 6px; font-size: 11px;" id="btnToggleUnchanged">${window.i18n.t('history_show_unchanged') || 'Afficher les champs inchangés'}</button>
+                </h4>
+                <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; margin-bottom: 15px;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.15);">
+                            <th style="padding: 8px 10px;">${window.i18n.t('history_diff_col_field') || 'Champ'}</th>
+                            <th style="padding: 8px 10px;">${window.i18n.t('history_diff_col_old') || 'Ancienne valeur'}</th>
+                            <th style="padding: 8px 10px;">${window.i18n.t('history_diff_col_new') || 'Nouvelle valeur'}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            // Changed keys
+            changedKeys.forEach(k => {
+                const valOld = formatValue(k, prev[k]);
+                const valNew = formatValue(k, next[k]);
+                html += `
+                    <tr style="border-bottom: 1px solid var(--border-color); font-family: monospace;">
+                        <td style="padding: 8px 10px; font-weight: 600; color: var(--text-main);">${k}</td>
+                        <td style="padding: 8px 10px; background: rgba(255, 86, 48, 0.1); color: #ff5630;">${valOld}</td>
+                        <td style="padding: 8px 10px; background: rgba(16, 185, 129, 0.1); color: #10b981;">${valNew}</td>
+                    </tr>
+                `;
+            });
+
+            // Unchanged keys
+            unchangedKeys.forEach(k => {
+                const val = formatValue(k, prev[k]);
+                html += `
+                    <tr class="unchanged-field-row" style="border-bottom: 1px solid var(--border-color); font-family: monospace; display: none; opacity: 0.6;">
+                        <td style="padding: 8px 10px; font-weight: 600;">${k}</td>
+                        <td style="padding: 8px 10px;">${val}</td>
+                        <td style="padding: 8px 10px;">${val}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+        } else {
+            // CREATE or DELETE
+            const state = next || prev;
+            if (state) {
+                const keys = Object.keys(state).filter(k => !k.startsWith('_'));
+                html += `
+                    <h4 style="margin-bottom: 10px;">📋 ${window.i18n.t('history_state_title') || 'Attributs de l\'entité'}</h4>
+                    <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.15);">
+                                <th style="padding: 8px 10px;">${window.i18n.t('history_diff_col_field') || 'Champ'}</th>
+                                <th style="padding: 8px 10px;">${window.i18n.t('history_diff_col_value') || 'Valeur'}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                keys.forEach(k => {
+                    const val = formatValue(k, state[k]);
+                    html += `
+                        <tr style="border-bottom: 1px solid var(--border-color); font-family: monospace;">
+                            <td style="padding: 8px 10px; font-weight: 600; color: var(--text-main);">${k}</td>
+                            <td style="padding: 8px 10px; color: var(--text-muted);">${val}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                html += `<div style="text-align: center; color: var(--text-muted); padding: 20px;">${window.i18n.t('history_no_state_details') || 'Aucun détail d\'état disponible.'}</div>`;
+            }
+        }
+
+        contentEl.innerHTML = html;
+    },
+
+    closeDetails() {
+        const modal = document.getElementById('actionDetailModal');
+        if (modal) modal.style.display = 'none';
+    },
+
+    toggleUnchangedFields() {
+        const rows = document.querySelectorAll('.unchanged-field-row');
+        const btn = document.getElementById('btnToggleUnchanged');
+        if (!btn || rows.length === 0) return;
+
+        const isHidden = rows[0].style.display === 'none';
+        rows.forEach(row => {
+            row.style.display = isHidden ? 'table-row' : 'none';
+        });
+
+        btn.textContent = isHidden
+            ? (window.i18n.t('history_hide_unchanged') || 'Masquer les champs inchangés')
+            : (window.i18n.t('history_show_unchanged') || 'Afficher les champs inchangés');
     }
 };
