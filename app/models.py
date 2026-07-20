@@ -186,7 +186,12 @@ class ActionHistory(Base):
     is_undone = Column(Boolean, default=False)
     user_name = Column(String, nullable=True)       # Org user name if active
 
-
-
-
-
+class AIFact(Base):
+    __tablename__ = "ai_facts"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("org_users.id"), nullable=True)
+    session_id = Column(Integer, ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=True)
+    fact_key = Column(String, nullable=False, index=True)
+    fact_value = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

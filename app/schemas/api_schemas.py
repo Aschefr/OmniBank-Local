@@ -168,6 +168,7 @@ class ChatSendMessage(BaseModel):
     lang: str = "fr"
     role: Optional[str] = None
     update_last_assistant: Optional[bool] = False
+    user_name: Optional[str] = None
 
 class ChatMessageUpdate(BaseModel):
     content: str
@@ -190,6 +191,29 @@ class OrgUserUpdate(BaseModel):
 class OrgUserOut(OrgUserBase):
     id: int
     action_id: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
+
+# Phase 3: AI Facts memory editor schemas
+class AIFactBase(BaseModel):
+    fact_key: str
+    fact_value: str
+    session_id: Optional[int] = None
+    user_id: Optional[int] = None
+
+class AIFactCreate(AIFactBase):
+    private_to_session: Optional[bool] = False
+    user_name: Optional[str] = None
+
+class AIFactUpdate(BaseModel):
+    fact_value: str
+
+class AIFactOut(AIFactBase):
+    id: int
+    user_name: Optional[str] = None
 
     class Config:
         orm_mode = True

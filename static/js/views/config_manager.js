@@ -370,6 +370,7 @@ window.ConfigView = {
             if (aiReportsFreqSel && this.configData.ai_reports_frequency) {
                 aiReportsFreqSel.value = this.configData.ai_reports_frequency;
             }
+
         } catch (e) {
             console.error("Failed to load config", e);
         }
@@ -381,7 +382,7 @@ window.ConfigView = {
         if (settings) {
             settings.style.display = enabled ? 'block' : 'none';
         }
-        
+
         // Toggle Chat Nav Button instantly
         document.querySelectorAll('.nav-btn[data-view="chat"]').forEach(btn => {
             btn.style.display = enabled ? '' : 'none';
