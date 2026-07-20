@@ -4,7 +4,7 @@ from sqlalchemy import Date, DateTime
 from app.models import (
     ActionHistory, Transaction, Account, Category, Budget,
     BudgetCategory, BudgetAllocation, RecurrenceTemplate, OrgUser,
-    GlobalConfig
+    GlobalConfig, AIFact
 )
 
 MODEL_MAPPING = {
@@ -14,7 +14,8 @@ MODEL_MAPPING = {
     "budget": Budget,
     "budget_allocation": BudgetAllocation,
     "recurrence_template": RecurrenceTemplate,
-    "org_user": OrgUser
+    "org_user": OrgUser,
+    "ai_fact": AIFact
 }
 
 def default_serializer(obj):

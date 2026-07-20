@@ -12,7 +12,7 @@ from datetime import date
 from app.database import get_db
 from app.models import GlobalConfig, Transaction, Account, Category, RecurrenceTemplate, Budget, ChatSession, ChatMessage
 from app.services.finance_engine import calculate_balances, get_net_worth
-from app.schemas.api_schemas import ChatSessionCreate, ChatSessionUpdate, ChatContextUpdate, ChatRegenerateContext, ChatSendMessage, ChatMessageUpdate
+from app.schemas.api_schemas import ChatSessionCreate, ChatSessionUpdate, ChatContextUpdate, ChatRegenerateContext, ChatSendMessage, ChatMessageUpdate, AIFactCreate, AIFactUpdate, AIFactOut
 
 import logging
 
@@ -1083,6 +1083,75 @@ def get_financial_summary_tool(db: Session) -> dict:
         }
     }
 
+def store_financial_fact_tool(db: Session, key: str, value: str, private_to_session: bool = False, session_id: int = None, user_name: str = None) -> dict:
+    from app.models import AIFact, OrgUser
+    try:
+        logger.info(f"[store_financial_fact_tool] key={key}, value={value}, private={private_to_session}, session_id={session_id}, user_name={user_name}")
+        user_id = None
+        if user_name:
+            user = db.query(OrgUser).filter(OrgUser.name == user_name).first()
+            if user:
+                user_id = user.id
+        
+        # Check if fact already exists
+        query = db.query(AIFact).filter(AIFact.fact_key == key)
+        if user_id:
+            query = query.filter(AIFact.user_id == user_id)
+        else:
+            query = query.filter(AIFact.user_id.is_(None))
+            
+        if private_to_session and session_id:
+            query = query.filter(AIFact.session_id == session_id)
+        else:
+            query = query.filter(AIFact.session_id.is_(None))
+            
+        existing = query.first()
+        if existing:
+            existing.fact_value = str(value)
+        else:
+            new_fact = AIFact(
+                user_id=user_id,
+                session_id=session_id if private_to_session else None,
+                fact_key=key,
+                fact_value=str(value)
+            )
+            db.add(new_fact)
+        db.commit()
+        logger.info(f"[store_financial_fact_tool] Fact '{key}' successfully saved.")
+        return {"ok": True, "message": f"Fact '{key}' successfully saved."}
+    except Exception as e:
+        logger.error(f"[store_financial_fact_tool] Error saving fact '{key}': {e}", exc_info=True)
+        return {"error": str(e)}
+
+def forget_financial_fact_tool(db: Session, key: str, private_to_session: bool = False, session_id: int = None, user_name: str = None) -> dict:
+    from app.models import AIFact, OrgUser
+    try:
+        user_id = None
+        if user_name:
+            user = db.query(OrgUser).filter(OrgUser.name == user_name).first()
+            if user:
+                user_id = user.id
+                
+        query = db.query(AIFact).filter(AIFact.fact_key == key)
+        if user_id:
+            query = query.filter(AIFact.user_id == user_id)
+        else:
+            query = query.filter(AIFact.user_id.is_(None))
+            
+        if private_to_session and session_id:
+            query = query.filter(AIFact.session_id == session_id)
+        else:
+            query = query.filter(AIFact.session_id.is_(None))
+            
+        fact = query.first()
+        if fact:
+            db.delete(fact)
+            db.commit()
+            return {"ok": True, "message": f"Fact '{key}' successfully forgotten."}
+        return {"ok": False, "message": f"Fact '{key}' not found."}
+    except Exception as e:
+        return {"error": str(e)}
+
 TOOLS = [
     {
         "type": "function",
@@ -1539,10 +1608,41 @@ TOOLS = [
                 "required": ["amount", "day_of_month"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "store_financial_fact",
+            "description": "Store a persistent financial fact about the user (e.g., rent amount, financial goals, recurring events) to the memory database. Set private_to_session to true if the fact should only be remembered within this chat session, or false if it should be remembered globally across all conversations.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string", "description": "Unique technical key for the fact (e.g. 'monthly_rent_euros', 'savings_goal_euros')."},
+                    "value": {"type": "string", "description": "The fact value (could be a number, short text, or JSON string)."},
+                    "private_to_session": {"type": "boolean", "description": "If true, this fact is isolated to this conversation. If false, it is shared across all conversations. Default is false."}
+                },
+                "required": ["key", "value"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "forget_financial_fact",
+            "description": "Delete a persistent financial fact about the user from the memory database. Key and private_to_session must match the parameters used when storing.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string", "description": "Technical key of the fact to delete."},
+                    "private_to_session": {"type": "boolean", "description": "Must match the visibility setting used when storing. Default is false."}
+                },
+                "required": ["key"]
+            }
+        }
     }
 ]
 
-def load_system_prompt(role: str = 'advisor', categories: list = None, lang: str = 'fr') -> str:
+def load_system_prompt(role: str = 'advisor', categories: list = None, lang: str = 'fr', db: Session = None, session_id: int = None, user_name: str = None) -> str:
     if role == 'simulator':
         prompt = """You are the Project Simulation Engine for OmniBank.
 Your goal is to help the user simulate financial projects (purchasing a house, planning a trip, taking a loan) and compute their impact on the user's net worth and budgets.
@@ -1615,6 +1715,45 @@ Replace 123 with the real transaction ID, and specify in "updates" the fields to
 This JSON block will trigger an interactive human-in-the-loop review button in the UI for the user to confirm.
 EXISTING CATEGORIES (prefer these): {cat_list}
 If none fits, propose a short and precise new category name. Only propose one JSON action at a time."""
+
+    if db:
+        from app.models import AIFact, OrgUser
+        import json
+        try:
+            # Resolve user_id if user_name is active
+            user_id = None
+            if user_name:
+                user = db.query(OrgUser).filter(OrgUser.name == user_name).first()
+                if user:
+                    user_id = user.id
+            
+            # Query shared facts + user's facts + current session's facts
+            query = db.query(AIFact)
+            if user_id:
+                query = query.filter((AIFact.user_id == user_id) | (AIFact.user_id.is_(None)))
+            else:
+                query = query.filter(AIFact.user_id.is_(None))
+                
+            if session_id:
+                query = query.filter((AIFact.session_id == session_id) | (AIFact.session_id.is_(None)))
+            else:
+                query = query.filter(AIFact.session_id.is_(None))
+                
+            facts = query.all()
+            facts_dict = {f.fact_key: f.fact_value for f in facts} if facts else {}
+            
+            prompt += f"\n\nPERSISTENT USER FACTS (MENTAL IMAGE):\n{json.dumps(facts_dict, ensure_ascii=False, indent=2)}"
+            prompt += """
+Use these persistent facts to guide your responses. You can update or delete them using `store_financial_fact` and `forget_financial_fact`.
+
+MEMORY & PERSISTENT FACTS RULE:
+- You must actively and proactively maintain a mental model of the user.
+- Whenever the user shares a significant long-term personal or financial fact (for example: projects like buying a car, purchasing a home, vacation plans, savings goals, monthly rent changes, salary updates, job changes, family status, or general preferences), you MUST immediately call `store_financial_fact` to save it to the memory database. Do not ask for permission, just save it so it persists for future conversations.
+- If the user provides new details that contradict or update an existing fact, immediately use `store_financial_fact` with the same key to update it.
+- If the user explicitly asks you to forget a piece of information or if it's no longer true, use `forget_financial_fact` to delete it.
+"""
+        except Exception as e:
+            pass
 
     if lang == 'fr':
         prompt += "\n\nIMPORTANT: You must write your response in French."
@@ -1845,7 +1984,7 @@ async def notify_on_complete(id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 @router.get("/sessions/{id}/messages")
-async def get_session_messages(id: int, db: Session = Depends(get_db)):
+async def get_session_messages(id: int, user_name: Optional[str] = None, db: Session = Depends(get_db)):
     session = db.query(ChatSession).filter(ChatSession.id == id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session non trouvée")
@@ -1853,7 +1992,7 @@ async def get_session_messages(id: int, db: Session = Depends(get_db)):
     
     cfg = get_ollama_config(db)
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
-    sys_prompt = load_system_prompt(session.role, categories, 'fr')
+    sys_prompt = load_system_prompt(session.role, categories, 'fr', db=db, session_id=session.id, user_name=user_name)
     
     tools_tokens = estimate_tokens(json.dumps(TOOLS))
     used = estimate_tokens(sys_prompt) + tools_tokens + 500  # 500 tokens for system prompt wrapper format
@@ -2069,7 +2208,7 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
     
     # Context Compression check
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
-    sys_prompt = load_system_prompt(session.role, categories, req.lang)
+    sys_prompt = load_system_prompt(session.role, categories, req.lang, db=db, session_id=session.id, user_name=req.user_name)
     
     options = {"temperature": cfg["temperature"], "num_ctx": cfg["num_ctx"]}
     
@@ -2279,9 +2418,17 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "delete_recurrence_template", "create_category", "delete_category", "set_predicted_paycheck",
                     "delete_transaction"
                 }
+                _CACHEABLE_READ_TOOLS = {
+                    "get_financial_summary", "get_net_worth", "get_account_balances",
+                    "search_transactions", "get_spending_analytics", "get_budgets_status",
+                    "get_monthly_overview", "get_recurrence_templates", "get_net_worth_history",
+                    "get_saving_recommendations", "search_similar_past_spends",
+                    "detect_anomalies_and_subscriptions"
+                }
                 MAX_TOOL_ITERATIONS = 4
                 all_tool_names = []
                 detected_write_actions = []
+                loop_read_cache = {}
                 iteration = 0
 
                 while iteration < MAX_TOOL_ITERATIONS:
@@ -2347,67 +2494,85 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                         yield f"data: {json.dumps({'status': desc_status})}\n\n"
                         await _asyncio.sleep(0.8)
 
-                        tool_result = {}
-                        if fn_name == "get_financial_summary":
-                            tool_result = get_financial_summary_tool(db)
-                        elif fn_name == "get_net_worth":
-                            tool_result = get_net_worth_tool(db)
-                        elif fn_name == "get_account_balances":
-                            tool_result = get_balances_tool(db)
-                        elif fn_name == "search_transactions":
-                            tool_result = search_transactions_tool(db, fn_args.get("description_query"), fn_args.get("category"), fn_args.get("type"), fn_args.get("start_date"), fn_args.get("end_date"), fn_args.get("min_amount"), fn_args.get("max_amount"), fn_args.get("limit", 50))
-                        elif fn_name == "get_spending_analytics":
-                            tool_result = get_spending_analytics_tool(db, fn_args.get("start_date"), fn_args.get("end_date"))
-                        elif fn_name == "get_budgets_status":
-                            tool_result = get_budgets_status_tool(db, fn_args.get("year"), fn_args.get("month"))
-                        elif fn_name == "get_monthly_overview":
-                            tool_result = get_monthly_overview_tool(db, fn_args.get("year"), fn_args.get("month"))
-                        elif fn_name == "get_recurrence_templates":
-                            tool_result = get_recurrence_templates_tool(db)
-                        elif fn_name == "get_net_worth_history":
-                            tool_result = get_net_worth_history_tool(db, fn_args.get("months", 12))
-                        elif fn_name == "get_envelopes_impact":
-                            tool_result = get_envelopes_impact_tool(db, fn_args.get("amount"), fn_args.get("budget_id"))
-                        elif fn_name == "suggest_transaction_category":
-                            tool_result = suggest_transaction_category_tool(db, fn_args.get("description"))
-                        elif fn_name == "forecast_balances_history":
-                            tool_result = forecast_balances_history_tool(db, fn_args.get("days", 30))
-                        elif fn_name == "detect_anomalies_and_subscriptions":
-                            tool_result = detect_anomalies_and_subscriptions_tool(db)
-                        elif fn_name == "apply_transaction_correction":
-                            tool_result = apply_transaction_correction_tool(db, fn_args.get("transaction_id"), fn_args.get("category"), fn_args.get("description"), fn_args.get("amount"), fn_args.get("type"))
-                        elif fn_name == "create_budget_envelope":
-                            tool_result = create_budget_envelope_tool(db, fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period", "monthly"), fn_args.get("categories"), fn_args.get("is_project", False))
-                        elif fn_name == "update_budget_envelope":
-                            tool_result = update_budget_envelope_tool(db, fn_args.get("budget_id"), fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period"), fn_args.get("categories"), fn_args.get("is_closed"))
-                        elif fn_name == "delete_budget_envelope":
-                            tool_result = delete_budget_envelope_tool(db, fn_args.get("budget_id"))
-                        elif fn_name == "allocate_savings_funds":
-                            tool_result = allocate_savings_funds_tool(db, fn_args.get("budget_id"), fn_args.get("amount"), fn_args.get("note"))
-                        elif fn_name == "create_recurrence_template":
-                            tool_result = create_recurrence_template_tool(db, fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"))
-                        elif fn_name == "update_recurrence_template":
-                            tool_result = update_recurrence_template_tool(db, fn_args.get("template_id"), fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"), fn_args.get("is_active"))
-                        elif fn_name == "delete_recurrence_template":
-                            tool_result = delete_recurrence_template_tool(db, fn_args.get("template_id"))
-                        elif fn_name == "create_category":
-                            tool_result = create_category_tool(db, fn_args.get("name"), fn_args.get("type"))
-                        elif fn_name == "delete_category":
-                            tool_result = delete_category_tool(db, fn_args.get("name"))
-                        elif fn_name == "set_predicted_paycheck":
-                            tool_result = set_predicted_paycheck_tool(db, fn_args.get("amount"), fn_args.get("day_of_month"), fn_args.get("date_override"))
-                        elif fn_name == "delete_transaction":
-                            tool_result = delete_transaction_tool(db, fn_args.get("transaction_id"))
-                        elif fn_name == "get_saving_recommendations":
-                            tool_result = get_saving_recommendations_tool(db)
-                        elif fn_name == "search_similar_past_spends":
-                            tool_result = search_similar_past_spends_tool(db, fn_args.get("keyword"))
-                        elif fn_name == "generate_csv_export_link":
-                            tool_result = generate_csv_export_link_tool(db, fn_args.get("category"), fn_args.get("start_date"), fn_args.get("end_date"), fn_args.get("type"))
-                        elif fn_name == "simulate_loan_amortization":
-                            tool_result = simulate_loan_amortization_tool(db, fn_args.get("principal"), fn_args.get("rate_percent"), fn_args.get("years"))
-                        else:
-                            tool_result = {"error": f"Tool '{fn_name}' is not supported or defined."}
+                        tool_result = None
+                        if fn_name in _CACHEABLE_READ_TOOLS:
+                            cache_key = f"{fn_name}:{json.dumps(fn_args, sort_keys=True)}"
+                            if cache_key in loop_read_cache:
+                                tool_result = loop_read_cache[cache_key]
+                                logger.info(f"[Chat Cache] Served tool '{fn_name}' from loop cache")
+
+                        if tool_result is None:
+                            if fn_name == "get_financial_summary":
+                                tool_result = get_financial_summary_tool(db)
+                            elif fn_name == "get_net_worth":
+                                tool_result = get_net_worth_tool(db)
+                            elif fn_name == "get_account_balances":
+                                tool_result = get_balances_tool(db)
+                            elif fn_name == "search_transactions":
+                                tool_result = search_transactions_tool(db, fn_args.get("description_query"), fn_args.get("category"), fn_args.get("type"), fn_args.get("start_date"), fn_args.get("end_date"), fn_args.get("min_amount"), fn_args.get("max_amount"), fn_args.get("limit", 50))
+                            elif fn_name == "get_spending_analytics":
+                                tool_result = get_spending_analytics_tool(db, fn_args.get("start_date"), fn_args.get("end_date"))
+                            elif fn_name == "get_budgets_status":
+                                tool_result = get_budgets_status_tool(db, fn_args.get("year"), fn_args.get("month"))
+                            elif fn_name == "get_monthly_overview":
+                                tool_result = get_monthly_overview_tool(db, fn_args.get("year"), fn_args.get("month"))
+                            elif fn_name == "get_recurrence_templates":
+                                tool_result = get_recurrence_templates_tool(db)
+                            elif fn_name == "get_net_worth_history":
+                                tool_result = get_net_worth_history_tool(db, fn_args.get("months", 12))
+                            elif fn_name == "get_envelopes_impact":
+                                tool_result = get_envelopes_impact_tool(db, fn_args.get("amount"), fn_args.get("budget_id"))
+                            elif fn_name == "suggest_transaction_category":
+                                tool_result = suggest_transaction_category_tool(db, fn_args.get("description"))
+                            elif fn_name == "forecast_balances_history":
+                                tool_result = forecast_balances_history_tool(db, fn_args.get("days", 30))
+                            elif fn_name == "detect_anomalies_and_subscriptions":
+                                tool_result = detect_anomalies_and_subscriptions_tool(db)
+                            elif fn_name == "apply_transaction_correction":
+                                tool_result = apply_transaction_correction_tool(db, fn_args.get("transaction_id"), fn_args.get("category"), fn_args.get("description"), fn_args.get("amount"), fn_args.get("type"))
+                            elif fn_name == "create_budget_envelope":
+                                tool_result = create_budget_envelope_tool(db, fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period", "monthly"), fn_args.get("categories"), fn_args.get("is_project", False))
+                            elif fn_name == "update_budget_envelope":
+                                tool_result = update_budget_envelope_tool(db, fn_args.get("budget_id"), fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period"), fn_args.get("categories"), fn_args.get("is_closed"))
+                            elif fn_name == "delete_budget_envelope":
+                                tool_result = delete_budget_envelope_tool(db, fn_args.get("budget_id"))
+                            elif fn_name == "allocate_savings_funds":
+                                tool_result = allocate_savings_funds_tool(db, fn_args.get("budget_id"), fn_args.get("amount"), fn_args.get("note"))
+                            elif fn_name == "create_recurrence_template":
+                                tool_result = create_recurrence_template_tool(db, fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"))
+                            elif fn_name == "update_recurrence_template":
+                                tool_result = update_recurrence_template_tool(db, fn_args.get("template_id"), fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"), fn_args.get("is_active"))
+                            elif fn_name == "delete_recurrence_template":
+                                tool_result = delete_recurrence_template_tool(db, fn_args.get("template_id"))
+                            elif fn_name == "create_category":
+                                tool_result = create_category_tool(db, fn_args.get("name"), fn_args.get("type"))
+                            elif fn_name == "delete_category":
+                                tool_result = delete_category_tool(db, fn_args.get("name"))
+                            elif fn_name == "set_predicted_paycheck":
+                                tool_result = set_predicted_paycheck_tool(db, fn_args.get("amount"), fn_args.get("day_of_month"), fn_args.get("date_override"))
+                            elif fn_name == "delete_transaction":
+                                tool_result = delete_transaction_tool(db, fn_args.get("transaction_id"))
+                            elif fn_name == "get_saving_recommendations":
+                                tool_result = get_saving_recommendations_tool(db)
+                            elif fn_name == "search_similar_past_spends":
+                                tool_result = search_similar_past_spends_tool(db, fn_args.get("keyword"))
+                            elif fn_name == "generate_csv_export_link":
+                                tool_result = generate_csv_export_link_tool(db, fn_args.get("category"), fn_args.get("start_date"), fn_args.get("end_date"), fn_args.get("type"))
+                            elif fn_name == "simulate_loan_amortization":
+                                tool_result = simulate_loan_amortization_tool(db, fn_args.get("principal"), fn_args.get("rate_percent"), fn_args.get("years"))
+                            elif fn_name == "store_financial_fact":
+                                tool_result = store_financial_fact_tool(db, fn_args.get("key"), fn_args.get("value"), fn_args.get("private_to_session", False), session_id=session.id, user_name=req.user_name)
+                                yield f"data: {json.dumps({'fact_update': {'action': 'store', 'key': fn_args.get('key')}})}\n\n"
+                            elif fn_name == "forget_financial_fact":
+                                tool_result = forget_financial_fact_tool(db, fn_args.get("key"), fn_args.get("private_to_session", False), session_id=session.id, user_name=req.user_name)
+                                yield f"data: {json.dumps({'fact_update': {'action': 'forget', 'key': fn_args.get('key')}})}\n\n"
+                            else:
+                                tool_result = {"error": f"Tool '{fn_name}' is not supported or defined."}
+
+                            # Cache the result if cacheable
+                            if fn_name in _CACHEABLE_READ_TOOLS:
+                                cache_key = f"{fn_name}:{json.dumps(fn_args, sort_keys=True)}"
+                                loop_read_cache[cache_key] = tool_result
 
                         all_tool_names.append(fn_name)
                         ollama_msgs.append({
@@ -2602,5 +2767,103 @@ Réponds avec SEULEMENT le nom, sans ponctuation, sans explication."""
             suggested = data.get("message", {}).get("content", "").strip().strip('"').strip("'")
             return {"category": suggested, "existing_categories": categories}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── API endpoints for manual AIFacts management ─────────────────────────────
+
+@router.get("/facts", response_model=List[AIFactOut])
+def get_ai_facts(user_name: Optional[str] = None, db: Session = Depends(get_db)):
+    from app.models import AIFact, OrgUser
+    try:
+        user_id = None
+        if user_name:
+            user = db.query(OrgUser).filter(OrgUser.name == user_name).first()
+            if user:
+                user_id = user.id
+
+        query = db.query(AIFact)
+        if user_id:
+            query = query.filter((AIFact.user_id == user_id) | (AIFact.user_id.is_(None)))
+        else:
+            query = query.filter(AIFact.user_id.is_(None))
+
+        facts = query.all()
+        
+        # Map user_name for outputs
+        res = []
+        for f in facts:
+            u_name = None
+            if f.user_id:
+                u = db.query(OrgUser).filter(OrgUser.id == f.user_id).first()
+                if u:
+                    u_name = u.name
+            
+            res.append(AIFactOut(
+                id=f.id,
+                fact_key=f.fact_key,
+                fact_value=f.fact_value,
+                session_id=f.session_id,
+                user_id=f.user_id,
+                user_name=u_name
+            ))
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/facts")
+def update_or_create_ai_fact(req: AIFactCreate, db: Session = Depends(get_db)):
+    from app.models import AIFact, OrgUser
+    try:
+        user_id = None
+        if req.user_name:
+            user = db.query(OrgUser).filter(OrgUser.name == req.user_name).first()
+            if user:
+                user_id = user.id
+
+        # Query existing fact
+        query = db.query(AIFact).filter(AIFact.fact_key == req.fact_key)
+        if user_id:
+            query = query.filter(AIFact.user_id == user_id)
+        else:
+            query = query.filter(AIFact.user_id.is_(None))
+
+        if req.private_to_session and req.session_id:
+            query = query.filter(AIFact.session_id == req.session_id)
+        else:
+            query = query.filter(AIFact.session_id.is_(None))
+
+        existing = query.first()
+        
+        if existing:
+            existing.fact_value = req.fact_value
+        else:
+            new_fact = AIFact(
+                fact_key=req.fact_key,
+                fact_value=req.fact_value,
+                session_id=req.session_id if req.private_to_session else None,
+                user_id=user_id
+            )
+            db.add(new_fact)
+        
+        db.commit()
+        return {"ok": True}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/facts/{fact_id}")
+def delete_ai_fact(fact_id: int, db: Session = Depends(get_db)):
+    from app.models import AIFact
+    try:
+        fact = db.query(AIFact).filter(AIFact.id == fact_id).first()
+        if not fact:
+            raise HTTPException(status_code=404, detail="Fait non trouvé")
+        
+        db.delete(fact)
+        db.commit()
+        return {"ok": True}
+    except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
