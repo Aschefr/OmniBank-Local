@@ -107,21 +107,24 @@ window.HistoryView = {
                 const state = next || prev;
 
                 if (state) {
+                    const name = state.name || state.description || state.category_name || state.label || state.category;
+                    const amount = state.amount !== undefined && state.amount !== null ? state.amount : state.monthly_amount;
+                    const amtStr = amount !== undefined && amount !== null ? ` (${parseFloat(amount).toFixed(2).replace('.', ',')} €)` : "";
+
                     if (act.entity_type === 'transaction') {
-                        const amtStr = state.amount ? ` (${parseFloat(state.amount).toFixed(2)} €)` : "";
-                        detail = `${state.description || 'Sans description'}${amtStr}`;
+                        detail = `${name || 'Sans description'}${amtStr}`;
                     } else if (act.entity_type === 'paycheck_override') {
-                        const amtStr = state.amount ? `${parseFloat(state.amount).toFixed(2)} €` : "";
                         const period = state.override_paycheck_period || "";
-                        detail = `${amtStr}${period ? ` (${period})` : ""}`;
+                        const valStr = amount !== undefined && amount !== null ? `${parseFloat(amount).toFixed(2).replace('.', ',')} €` : "";
+                        detail = `${valStr}${period ? ` (${period})` : ""}`;
                     } else if (act.entity_type === 'budget_allocation') {
-                        const amtStr = state.amount ? ` (${parseFloat(state.amount).toFixed(2)} €)` : "";
                         detail = `${state.note || 'Allocation'}${amtStr}`;
                     } else if (act.entity_type === 'recurrence_template') {
-                        const amtStr = state.amount ? ` (${parseFloat(state.amount).toFixed(2)} €)` : "";
-                        detail = `${state.description || 'Modèle'}${amtStr}`;
+                        detail = `${name || 'Modèle'}${amtStr}`;
+                    } else if (act.entity_type === 'budget') {
+                        detail = `${name || 'Sans nom'}${amtStr}`;
                     } else {
-                        detail = state.name || state.description || `ID: ${act.entity_id}`;
+                        detail = `${name || 'ID: ' + act.entity_id}${amtStr}`;
                     }
                 }
             } catch (err) {
@@ -173,6 +176,41 @@ window.HistoryView = {
 
     async triggerUndo(actionId) {
         try {
+            // 1. Vérification de sécurité des dépendances
+            const check = await API.get(`/api/history/${actionId}/check`);
+
+            if (!check.safe) {
+                // Construire le message de blocage
+                const reasonMessages = {
+                    "already_undone": window.i18n.t('history_check_already_undone') || "Cette action a déjà été annulée.",
+                    "account_has_transactions": window.i18n.t('history_check_account_has_tx') || "Impossible : des opérations existent sur ce compte.",
+                    "account_has_recurrences": window.i18n.t('history_check_account_has_rec') || "Impossible : des charges récurrentes existent sur ce compte.",
+                    "budget_has_categories": window.i18n.t('history_check_budget_has_cats') || "Impossible : des catégories sont liées à cette enveloppe.",
+                    "budget_has_allocations": window.i18n.t('history_check_budget_has_allocs') || "Impossible : des alimentations existent sur cette enveloppe.",
+                    "budget_has_transactions": window.i18n.t('history_check_budget_has_tx') || "Impossible : des opérations sont assignées à cette enveloppe.",
+                    "category_has_transactions": window.i18n.t('history_check_cat_has_tx') || "Impossible : des opérations utilisent cette catégorie.",
+                    "category_has_budgets": window.i18n.t('history_check_cat_has_budgets') || "Impossible : des enveloppes de budget utilisent cette catégorie.",
+                    "recurrence_has_reconciled": window.i18n.t('history_check_rec_has_reconciled') || "Impossible : des opérations réconciliées sont liées à ce modèle.",
+                    "update_state_conflict": window.i18n.t('history_check_update_conflict') || "Impossible : une modification plus récente existe sur cette entité.",
+                    "pk_conflict": window.i18n.t('history_check_pk_conflict') || "Impossible : l'entité existe déjà avec cet identifiant."
+                };
+
+                const msg = reasonMessages[check.reason] || (window.i18n.t('history_check_generic_block') || "Annulation impossible en raison de dépendances existantes.");
+                await showInlineMessage(
+                    window.i18n.t('history_check_blocked_title') || "⛔ Annulation bloquée",
+                    msg
+                );
+                return;
+            }
+
+            // 2. Confirmation inline avant exécution
+            const confirmed = await showInlineConfirm(
+                window.i18n.t('history_confirm_undo_title') || "Confirmer l'annulation",
+                window.i18n.t('history_confirm_undo_msg') || "Êtes-vous sûr de vouloir annuler cette action ? Cette opération est elle-même irréversible."
+            );
+            if (!confirmed) return;
+
+            // 3. Exécution de l'annulation
             const res = await API.post(`/api/history/${actionId}/undo`);
             if (res.ok) {
                 const successMsg = window.i18n.t('history_undo_success') || 'Action successfully undone.';
