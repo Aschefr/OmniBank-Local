@@ -648,6 +648,9 @@ class App {
                         sessionStorage.setItem('omni_current_user', name);
                         label.textContent = name;
                         menu.style.display = 'none';
+                        if (this.currentView === 'configuration' && window.ConfigView && typeof window.ConfigView.fetchFacts === 'function') {
+                            window.ConfigView.fetchFacts();
+                        }
                     });
                 });
 

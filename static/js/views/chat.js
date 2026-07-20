@@ -36,6 +36,15 @@ window.ChatView = {
     render() {
         return `
             <style>
+                @keyframes brain-glow {
+                    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.1); }
+                    50% { transform: scale(1.15); box-shadow: 0 0 15px 5px rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.3); }
+                    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); background: rgba(139, 92, 246, 0.1); }
+                }
+                .brain-pulse-active {
+                    animation: brain-glow 1.2s ease-in-out infinite;
+                    border-color: rgba(139, 92, 246, 0.6) !important;
+                }
                 .chat-wrapper {
                     display: flex;
                     height: calc(100vh - 160px);
@@ -696,6 +705,7 @@ window.ChatView = {
                                 <option value="auditor" data-i18n="chat_role_auditor">${window.i18n.t('chat_role_auditor')}</option>
                             </select>
                             <button class="btn btn-secondary" onclick="window.ChatView.askDefaultQuestion()" data-i18n-title="tooltip_auto_report" title="Demander le rapport automatique de ce rôle" data-i18n="chat_btn_report" style="display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">${window.i18n.t('chat_btn_report')}</button>
+                            <button class="btn btn-secondary btn-sm" id="chatMemoryBtn" onclick="window.ChatView.toggleMemoryModal()" title="${window.i18n.t('chat_btn_memory') || 'Mémoire IA'}" style="padding: 6px 10px; font-size: 14px;">🧠</button>
                             <button class="btn btn-secondary btn-sm" onclick="window.ChatView.toggleInfoPanel()" title="${window.i18n.t('chat_info_title') || 'Informations'}" style="padding: 6px 10px; font-size: 14px;">ℹ️</button>
                         </div>
                     </div>
@@ -760,6 +770,56 @@ window.ChatView = {
                                 <div class="chat-info-section" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
                                     <h4>🛡️ ${window.i18n.t('chat_info_validation_title')}</h4>
                                     <p>${window.i18n.t('chat_info_validation_desc')}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Memory Modal -->
+                    <div id="chatMemoryPanel" class="chat-info-panel" onclick="if(event.target === this) window.ChatView.toggleMemoryModal()">
+                        <div class="chat-info-modal" style="max-width: 800px;">
+                            <div class="chat-info-modal-header">
+                                <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;" data-i18n="config_ai_memory_title">
+                                    <span>🧠 ${window.i18n.t('config_ai_memory_title')}</span>
+                                </h3>
+                                <button class="chat-session-btn" onclick="window.ChatView.toggleMemoryModal()" style="font-size: 20px; background: transparent; border: none; cursor: pointer; color: var(--text-muted);">✕</button>
+                            </div>
+
+                            <div class="chat-info-modal-body">
+                                <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_ai_memory_desc">
+                                    ${window.i18n.t('config_ai_memory_desc')}
+                                </p>
+                                
+                                <div style="overflow-x: auto; margin-bottom: 15px;">
+                                    <table class="table" style="width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.01); border-radius: 8px;">
+                                        <thead>
+                                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                                <th style="text-align: left; padding: 10px; font-size: 11px; font-weight: bold; color: var(--accent); text-transform: uppercase;" data-i18n="config_ai_memory_col_key">Clé</th>
+                                                <th style="text-align: left; padding: 10px; font-size: 11px; font-weight: bold; color: var(--accent); text-transform: uppercase;" data-i18n="config_ai_memory_col_value">Valeur</th>
+                                                <th style="text-align: left; padding: 10px; font-size: 11px; font-weight: bold; color: var(--accent); text-transform: uppercase;" data-i18n="config_ai_memory_col_scope">Portée</th>
+                                                <th style="text-align: right; padding: 10px;"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="aiMemoryListContainer">
+                                            <!-- Dynamically loaded -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="flex-row-mobile-col" style="display: flex; gap: 10px; align-items: center; background: rgba(51, 102, 255, 0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(51, 102, 255, 0.1); flex-wrap: wrap;">
+                                    <div style="flex: 1; min-width: 150px;">
+                                        <input type="text" id="new_fact_key" class="inline-input" placeholder="${window.i18n.t('config_ai_memory_ph_key')}" style="border: 1px solid var(--border-color); padding: 8px; font-size: 12px; width: 100%;">
+                                    </div>
+                                    <div style="flex: 2; min-width: 200px;">
+                                        <input type="text" id="new_fact_value" class="inline-input" placeholder="${window.i18n.t('config_ai_memory_ph_value')}" style="border: 1px solid var(--border-color); padding: 8px; font-size: 12px; width: 100%;">
+                                    </div>
+                                    <div id="new_fact_private_container" style="display: flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap;">
+                                        <input type="checkbox" id="new_fact_private" style="cursor: pointer;">
+                                        <label for="new_fact_private" style="cursor: pointer;" data-i18n="config_ai_memory_scope_session">${window.i18n.t('config_ai_memory_scope_session')}</label>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-primary" onclick="window.ChatView.addFactManual()" style="padding: 8px 16px; font-size: 12px; font-weight: 500; height: auto;" data-i18n="config_ai_memory_btn_add">➕ Ajouter</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -879,6 +939,150 @@ window.ChatView = {
     toggleInfoPanel() {
         const panel = document.getElementById('chatInfoPanel');
         if (panel) panel.classList.toggle('open');
+    },
+
+    toggleMemoryModal() {
+        const panel = document.getElementById('chatMemoryPanel');
+        if (panel) {
+            const isOpen = panel.classList.toggle('open');
+            if (isOpen) {
+                // Ensure correct default checkbox state and visibility
+                const activeSession = this.activeSessionId;
+                const privateContainer = document.getElementById('new_fact_private_container');
+                const privateCheckbox = document.getElementById('new_fact_private');
+                if (privateContainer && privateCheckbox) {
+                    if (activeSession) {
+                        privateContainer.style.display = 'flex';
+                        privateCheckbox.checked = true; // default private to session if session open
+                    } else {
+                        privateContainer.style.display = 'none';
+                        privateCheckbox.checked = false;
+                    }
+                }
+                this.fetchFacts();
+            }
+        }
+    },
+
+    async fetchFacts() {
+        const container = document.getElementById('aiMemoryListContainer');
+        if (!container) return;
+        
+        try {
+            const activeUser = sessionStorage.getItem('omni_current_user') || '';
+            let url = '/api/chat/facts';
+            if (activeUser) {
+                url += `?user_name=${encodeURIComponent(activeUser)}`;
+            }
+            
+            const facts = await API.get(url);
+            if (!facts || facts.length === 0) {
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 15px;" data-i18n="config_ai_memory_no_facts">
+                            ${window.i18n.t('config_ai_memory_no_facts')}
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            container.innerHTML = facts.map(f => {
+                const scopeLabel = f.session_id 
+                    ? `<span class="badge" style="background: rgba(51, 102, 255, 0.1); color: var(--accent); font-size: 10px; padding: 2px 6px; border-radius: 4px;">${window.i18n.t('config_ai_memory_scope_session')} (ID: ${f.session_id})</span>`
+                    : `<span class="badge" style="background: rgba(0, 200, 83, 0.1); color: var(--color-income); font-size: 10px; padding: 2px 6px; border-radius: 4px;">${window.i18n.t('config_ai_memory_scope_global')}</span>`;
+                
+                return `
+                    <tr id="fact-row-${f.id}" style="border-bottom: 1px solid var(--border-color);">
+                        <td style="font-weight: 500; font-size: 11px; color: var(--text-color); font-family: monospace; padding: 10px; width: 30%;">${f.fact_key}</td>
+                        <td style="padding: 10px; width: 45%;">
+                            <input type="text" id="fact-input-${f.id}" class="inline-input" value="${f.fact_value}" style="border: 1px solid var(--border-color); padding: 5px; font-size: 12px; width: 100%;" onchange="window.ChatView.saveFactInline(${f.id})">
+                        </td>
+                        <td style="padding: 10px; white-space: nowrap; width: 15%;">${scopeLabel}</td>
+                        <td style="padding: 10px; text-align: right; white-space: nowrap; width: 10%;">
+                            <button class="btn btn-secondary" onclick="window.ChatView.deleteFact(${f.id})" style="padding: 4px 8px; font-size: 11px; height: auto;">
+                                🗑️ ${window.i18n.t('config_ai_memory_btn_delete')}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (e) {
+            console.error("Failed to fetch AI facts", e);
+        }
+    },
+
+    async saveFactInline(id) {
+        const input = document.getElementById(`fact-input-${id}`);
+        if (!input) return;
+        
+        try {
+            const activeUser = sessionStorage.getItem('omni_current_user') || '';
+            let url = '/api/chat/facts';
+            if (activeUser) url += `?user_name=${encodeURIComponent(activeUser)}`;
+            const facts = await API.get(url);
+            const fact = facts.find(f => f.id === id);
+            if (!fact) return;
+            
+            await API.post('/api/chat/facts', {
+                fact_key: fact.fact_key,
+                fact_value: input.value,
+                session_id: fact.session_id,
+                private_to_session: !!fact.session_id,
+                user_name: activeUser
+            });
+            showToast("Mémoire mise à jour !", "success", 2000);
+            this.fetchFacts();
+        } catch (e) {
+            console.error("Failed to save fact inline", e);
+            showToast("Erreur de sauvegarde", "error", 2000);
+        }
+    },
+
+    async deleteFact(id) {
+        if (!confirm("Voulez-vous vraiment oublier cette information ?")) return;
+        try {
+            await API.del(`/api/chat/facts/${id}`);
+            showToast("Information oubliée !", "success", 2000);
+            this.fetchFacts();
+        } catch (e) {
+            console.error("Failed to delete fact", e);
+            showToast("Erreur de suppression", "error", 2000);
+        }
+    },
+
+    async addFactManual() {
+        const keyInput = document.getElementById('new_fact_key');
+        const valInput = document.getElementById('new_fact_value');
+        const privateCheckbox = document.getElementById('new_fact_private');
+        if (!keyInput || !valInput) return;
+        
+        const key = keyInput.value.trim();
+        const val = valInput.value.trim();
+        if (!key || !val) {
+            showToast("Veuillez remplir la clé et la valeur.", "error", 2000);
+            return;
+        }
+        
+        try {
+            const activeUser = sessionStorage.getItem('omni_current_user') || '';
+            const privateToSession = privateCheckbox ? privateCheckbox.checked : false;
+            
+            await API.post('/api/chat/facts', {
+                fact_key: key,
+                fact_value: val,
+                session_id: privateToSession ? this.activeSessionId : null,
+                private_to_session: privateToSession,
+                user_name: activeUser
+            });
+            keyInput.value = '';
+            valInput.value = '';
+            showToast("Fait ajouté !", "success", 2000);
+            this.fetchFacts();
+        } catch (e) {
+            console.error("Failed to add fact manually", e);
+            showToast("Erreur d'ajout", "error", 2000);
+        }
     },
 
     populateInfoToolsList() {
@@ -1024,6 +1228,14 @@ window.ChatView = {
     },
 
     async selectSession(sessionId, isRestore = false) {
+        // If there's an active stream on the previous session, detach it so it can complete in background
+        if (this._activeAbortController && this.activeSessionId && this.activeSessionId !== sessionId) {
+            const oldSessionId = this.activeSessionId;
+            this._streamDetached = true;
+            fetch(`/api/chat/sessions/${oldSessionId}/notify-on-complete`, { method: 'POST' }).catch(() => {});
+            this._activeAbortController = null;
+        }
+
         this.activeSessionId = sessionId;
         sessionStorage.setItem('chatActiveSessionId', sessionId);
         this.editingContext = false;
@@ -1045,6 +1257,23 @@ window.ChatView = {
 
             const roleSelect = document.getElementById('chatRoleSelect');
             if (roleSelect) roleSelect.value = session.role;
+        }
+
+        // Refresh facts modal if open
+        const panel = document.getElementById('chatMemoryPanel');
+        if (panel && panel.classList.contains('open')) {
+            const privateContainer = document.getElementById('new_fact_private_container');
+            const privateCheckbox = document.getElementById('new_fact_private');
+            if (privateContainer && privateCheckbox) {
+                if (sessionId) {
+                    privateContainer.style.display = 'flex';
+                    privateCheckbox.checked = true;
+                } else {
+                    privateContainer.style.display = 'none';
+                    privateCheckbox.checked = false;
+                }
+            }
+            this.fetchFacts();
         }
 
         this.userHasScrolledUp = false;
@@ -2122,7 +2351,9 @@ window.ChatView = {
                 create_category: window.i18n.t('tool_create_category_title') || 'Création d\'une catégorie',
                 delete_category: window.i18n.t('tool_delete_category_title') || 'Suppression d\'une catégorie',
                 set_predicted_paycheck: window.i18n.t('tool_set_predicted_paycheck_title') || 'Définition du salaire prévisionnel',
-                delete_transaction: window.i18n.t('tool_delete_transaction_title') || 'Suppression d\'une opération'
+                delete_transaction: window.i18n.t('tool_delete_transaction_title') || 'Suppression d\'une opération',
+                store_financial_fact: window.i18n.t('tool_store_financial_fact_title') || 'Mémorisation d\'une information',
+                forget_financial_fact: window.i18n.t('tool_forget_financial_fact_title') || 'Oubli d\'une information'
             };
             const friendlyName = actionNames[actionObj.action] || actionObj.action;
             
@@ -2216,7 +2447,10 @@ window.ChatView = {
                 day_of_month: window.i18n.t('field_label_day_of_month') || 'Jour du mois',
                 date_override: window.i18n.t('field_label_date_override') || 'Date spécifique',
                 new_limit: window.i18n.t('field_label_new_limit') || 'Nouvelle limite',
-                transaction_id: window.i18n.t('field_label_transaction_id') || "ID de l'opération"
+                transaction_id: window.i18n.t('field_label_transaction_id') || "ID de l'opération",
+                key: window.i18n.t('field_label_key') || 'Clé de mémoire',
+                value: window.i18n.t('field_label_value') || 'Valeur à mémoriser',
+                private_to_session: window.i18n.t('field_label_private_to_session') || 'Privé à cette conversation'
             };
 
             const valueTranslations = {
@@ -2600,6 +2834,21 @@ window.ChatView = {
                                 }
                             } else if (data.token_usage) {
                                 this.tokenUsage = data.token_usage;
+                            } else if (data.fact_update) {
+                                const brainBtn = document.getElementById('chatMemoryBtn');
+                                if (brainBtn) {
+                                    brainBtn.classList.remove('brain-pulse-active');
+                                    void brainBtn.offsetWidth; // Trigger reflow
+                                    brainBtn.classList.add('brain-pulse-active');
+                                    setTimeout(() => {
+                                        brainBtn.classList.remove('brain-pulse-active');
+                                    }, 3600);
+                                }
+                                showToast(`🧠 IA : Information mémorisée (${data.fact_update.key}) !`, "success", 3000);
+                                const panel = document.getElementById('chatMemoryPanel');
+                                if (panel && panel.classList.contains('open')) {
+                                    this.fetchFacts();
+                                }
                             } else if (data.clear_text) {
                                 // Backend started a new tool iteration — reset the visible bubble
                                 // to avoid showing stale "thinking" text from the previous round.
