@@ -123,6 +123,7 @@ class BudgetAllocation(Base):
     amount = Column(Float, nullable=False)         # Positive = deposit, Negative = withdrawal
     date = Column(Date, nullable=False)
     note = Column(String, nullable=True)            # Ex: "Mise de côté mars"
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True) # Account/livret backing these savings funds
     created_at = Column(String, nullable=True)      # ISO timestamp
 
 class OrgUser(Base):
