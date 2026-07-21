@@ -1274,6 +1274,9 @@ class App {
             if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
                 window.TimelineView.loadData();
             }
+            if (window.BudgetsView && typeof window.BudgetsView.loadStatus === 'function') {
+                window.BudgetsView.loadStatus();
+            }
             showToast(window.i18n.t('msg_salary_defined') || 'Nouvelle paie définie avec succès');
         } catch (e) {
             console.error("Failed to select paycheck candidate:", e);
@@ -1305,6 +1308,9 @@ class App {
             if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
                 window.TimelineView.loadData();
             }
+            if (window.BudgetsView && typeof window.BudgetsView.loadStatus === 'function') {
+                window.BudgetsView.loadStatus();
+            }
         } catch (e) {
             console.error("Failed to save override", e);
             showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error'));
@@ -1319,6 +1325,9 @@ class App {
             await this.refreshSidebar();
             if (this.currentView === 'dashboard' && window.TimelineView.loadData) {
                 window.TimelineView.loadData();
+            }
+            if (window.BudgetsView && typeof window.BudgetsView.loadStatus === 'function') {
+                window.BudgetsView.loadStatus();
             }
             this.showPayHistoryModal();
         } catch (e) {

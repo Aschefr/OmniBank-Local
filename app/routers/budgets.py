@@ -61,6 +61,7 @@ class AllocationCreate(BaseModel):
     amount: float
     date: Optional[str] = None  # YYYY-MM-DD, defaults to today
     note: Optional[str] = None
+    account_id: Optional[int] = None
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -104,7 +105,31 @@ def _budget_to_dict(b: Budget, db: Session) -> dict:
 @router.get("/")
 def get_budgets(db: Session = Depends(get_db)):
     budgets = db.query(Budget).order_by(Budget.name).all()
-    return [_budget_to_dict(b, db) for b in budgets]
+    if not budgets:
+        return []
+    
+    budget_ids = [b.id for b in budgets]
+    all_cats = db.query(BudgetCategory).filter(BudgetCategory.budget_id.in_(budget_ids)).all()
+    cats_by_budget = {}
+    for c in all_cats:
+        cats_by_budget.setdefault(c.budget_id, []).append(c.category_name)
+        
+    return [
+        {
+            "id": b.id,
+            "name": b.name,
+            "monthly_amount": b.monthly_amount,
+            "period": b.period,
+            "is_project": b.is_project,
+            "is_closed": b.is_closed,
+            "categories": cats_by_budget.get(b.id, []),
+            "start_date": b.start_date.isoformat() if b.start_date else None,
+            "end_date": b.end_date.isoformat() if b.end_date else None,
+            "account_ids": _parse_account_ids(b.account_ids),
+            "envelope_type": b.envelope_type or "spending",
+        }
+        for b in budgets
+    ]
 
 
 @router.post("/")
@@ -247,7 +272,7 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
 
     # ── 4. Bulk-load transactions ─────────────────────────────────────────────
     # We load ALL transactions that could match ANY budget, using the widest
-    # possible filter.  This is at most 2 queries:
+    # possible filter. This is at most 2 queries:
     #   A) budget_id-linked transactions (for savings + project envelopes)
     #   B) category-based transactions (for spending envelopes)
 
@@ -256,17 +281,33 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                            if (b.envelope_type or "spending") == "savings" or b.is_project]
     txs_by_budget_id = {}
     if budget_id_linked_ids:
-        linked_txs = db.query(Transaction).filter(Transaction.budget_id.in_(budget_id_linked_ids)).all()
+        linked_txs = db.query(
+            Transaction.budget_id,
+            Transaction.from_account_id,
+            Transaction.to_account_id,
+            Transaction.type,
+            Transaction.amount,
+            Transaction.reconciliation_date
+        ).filter(Transaction.budget_id.in_(budget_id_linked_ids)).all()
         for tx in linked_txs:
             txs_by_budget_id.setdefault(tx.budget_id, []).append(tx)
 
     # (B) Category-based transactions (for spending envelopes: indefinite, custom, yearly, monthly)
-    # Load them ALL in one query — the broadest superset we might need.
+    # Load them in a single query grouped by key dimensions to let SQLite do the aggregation.
     spending_budgets = [b for b in budgets
                        if (b.envelope_type or "spending") != "savings" and not b.is_project]
     all_category_txs = []
     if spending_budgets:
-        tx_query = db.query(Transaction).filter(
+        from sqlalchemy import func
+        tx_query = db.query(
+            Transaction.from_account_id,
+            Transaction.to_account_id,
+            Transaction.type,
+            Transaction.category,
+            Transaction.reconciliation_date,
+            Transaction.date_operation,
+            func.sum(func.abs(Transaction.amount)).label("amount")
+        ).filter(
             Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
         )
         
@@ -288,6 +329,14 @@ def get_budget_status(year: int = None, month: int = None, date_start: str = Non
                 min_date = min(dates)
                 tx_query = tx_query.filter(Transaction.date_operation >= min_date)
                 
+        tx_query = tx_query.group_by(
+            Transaction.from_account_id,
+            Transaction.to_account_id,
+            Transaction.type,
+            Transaction.category,
+            Transaction.reconciliation_date,
+            Transaction.date_operation
+        )
         all_category_txs = tx_query.all()
 
     # ── 5. Process each budget in memory ──────────────────────────────────────
@@ -818,6 +867,7 @@ def get_allocations(budget_id: int, db: Session = Depends(get_db)):
             "amount": a.amount,
             "date": a.date.isoformat() if a.date else None,
             "note": a.note,
+            "account_id": a.account_id,
             "created_at": a.created_at,
         }
         for a in allocs
@@ -829,12 +879,38 @@ def create_allocation(budget_id: int, data: AllocationCreate, db: Session = Depe
     b = db.query(Budget).filter(Budget.id == budget_id).first()
     if not b:
         raise HTTPException(status_code=404, detail="Budget non trouvé.")
+        
+    # Validation for withdrawals: cannot withdraw more than what is hosted on the target account
+    if data.amount < 0:
+        from app.services.finance_engine import get_main_account
+        main_account = get_main_account(db)
+        main_acc_id = main_account.id if main_account else None
+        
+        target_acc_id = data.account_id if data.account_id is not None else main_acc_id
+        
+        allocs = db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == budget_id).all()
+        current_hosted = 0.0
+        for a in allocs:
+            a_acc_id = a.account_id if a.account_id is not None else main_acc_id
+            if a_acc_id == target_acc_id:
+                current_hosted += a.amount
+                
+        withdrawal_amount = abs(data.amount)
+        if withdrawal_amount > round(current_hosted, 2) + 0.001:
+            acc_obj = db.query(Account).filter(Account.id == target_acc_id).first() if target_acc_id else None
+            acc_name = acc_obj.name if acc_obj else "Compte principal"
+            raise HTTPException(
+                status_code=400,
+                detail=f"Retrait impossible : le compte '{acc_name}' ne contient que {round(current_hosted, 2):,.2f} € d'épargne dans cette tirelire.".replace(",", " ").replace(".", ",")
+            )
+
     from datetime import datetime
     alloc = BudgetAllocation(
         budget_id=budget_id,
         amount=data.amount,
         date=_safe_parse_budget_date(data.date, "date") if data.date else date.today(),
         note=data.note,
+        account_id=data.account_id,
         created_at=datetime.now().isoformat(),
     )
     db.add(alloc)
@@ -848,8 +924,146 @@ def create_allocation(budget_id: int, data: AllocationCreate, db: Session = Depe
         "amount": alloc.amount,
         "date": alloc.date.isoformat() if alloc.date else None,
         "note": alloc.note,
+        "account_id": alloc.account_id,
         "created_at": alloc.created_at,
         "action_id": action_id,
+    }
+
+
+@router.get("/capacity")
+def get_budget_capacity(db: Session = Depends(get_db)):
+    """
+    Returns the budget capacity metrics:
+    - Monthly: Sum of active monthly budgets vs monthly average income (last 6 months).
+    - Yearly: Sum of active yearly budgets vs yearly average income (last 12 months).
+    - Available balances per account (real vs available after deducting savings).
+    """
+    from datetime import date, timedelta
+    from app.services.finance_engine import get_accounts_available_balances
+    
+    today = date.today()
+    six_months_ago = today - timedelta(days=180)
+    one_year_ago = today - timedelta(days=365)
+    
+    start_of_year = date(today.year, 1, 1)
+    remaining_months = 12 - today.month
+
+    # 1. Check if we are in Org Mode or Personal Mode
+    org_mode_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
+    is_org_mode = (org_mode_conf and org_mode_conf.value == "true")
+    
+    # Query all income transactions for YTD and 6-month calculations
+    income_txs = db.query(Transaction.amount, Transaction.date_operation).filter(
+        Transaction.type == "income",
+        Transaction.date_operation >= one_year_ago,
+        Transaction.date_operation <= today
+    ).all()
+
+    ytd_income = sum(tx.amount for tx in income_txs if tx.date_operation >= start_of_year)
+    six_month_income = sum(tx.amount for tx in income_txs if tx.date_operation >= six_months_ago)
+    
+    avg_monthly_income = 0.0
+    if not is_org_mode:
+        from app.services.finance_engine import predict_next_paycheck
+        paycheck_data = predict_next_paycheck(db)
+        if paycheck_data and paycheck_data.get("amount", 0.0) > 0:
+            avg_monthly_income = round(paycheck_data["amount"], 2)
+            
+    if avg_monthly_income == 0.0:
+        avg_monthly_income = round(six_month_income / 6.0, 2)
+        
+    # Projected yearly income: YTD actual income + (remaining months * baseline monthly income)
+    avg_yearly_income = round(ytd_income + (remaining_months * avg_monthly_income), 2)
+    
+    # 2. Calculate actual historical expenses (for YTD and fallback)
+    expense_txs = db.query(Transaction.amount, Transaction.date_operation).filter(
+        Transaction.type.in_(["expense_fixed", "expense_var"]),
+        Transaction.date_operation >= one_year_ago,
+        Transaction.date_operation <= today
+    ).all()
+    
+    ytd_expenses = sum(abs(tx.amount) for tx in expense_txs if tx.date_operation >= start_of_year)
+    six_month_expenses = sum(abs(tx.amount) for tx in expense_txs if tx.date_operation >= six_months_ago)
+    
+    avg_monthly_expenses = round(six_month_expenses / 6.0, 2)
+    # Projected yearly expenses for fallback: YTD actual + (remaining months * avg monthly expenses)
+    avg_yearly_expenses = round(ytd_expenses + (remaining_months * avg_monthly_expenses), 2)
+    
+    # 3. Sum active budget allocations
+    active_budgets = db.query(Budget).filter(Budget.is_closed == False).all()
+    explicit_monthly_budgeted = sum(b.monthly_amount for b in active_budgets if b.period in ("monthly", None) and (b.envelope_type or "spending") != "savings")
+    explicit_yearly_budgeted = sum(b.monthly_amount for b in active_budgets if b.period == "yearly" and (b.envelope_type or "spending") != "savings")
+    
+    # Monthly capacity: use explicit monthly envelopes if any, else fallback to historical average expenses
+    is_monthly_fallback = False
+    if explicit_monthly_budgeted > 0:
+        effective_monthly_budgeted = explicit_monthly_budgeted
+    else:
+        effective_monthly_budgeted = avg_monthly_expenses
+        is_monthly_fallback = True
+
+    # Yearly capacity: use explicit yearly envelopes + annualized monthly envelopes if any, else fallback to historical average expenses
+    is_yearly_fallback = False
+    if explicit_yearly_budgeted > 0 or explicit_monthly_budgeted > 0:
+        effective_yearly_budgeted = explicit_yearly_budgeted + (explicit_monthly_budgeted * 12.0)
+    else:
+        effective_yearly_budgeted = avg_yearly_expenses
+        is_yearly_fallback = True
+
+    # Build detailed calculation explanations for tooltips (income & budgeted/expenses)
+    if not is_org_mode and avg_monthly_income > 0 and paycheck_data and paycheck_data.get("amount", 0.0) > 0:
+        monthly_details_fr = "Basé sur votre salaire mensuel prédit / configuré."
+        monthly_details_en = "Based on your predicted / configured monthly salary."
+        
+        yearly_details_fr = f"Recettes réelles de l'année en cours (YTD : {round(ytd_income, 2):,.2f} €) + salaires prévus pour les {remaining_months} mois restants ({remaining_months} × {round(avg_monthly_income, 2):,.2f} €).".replace(",", " ").replace(".", ",")
+        yearly_details_en = f"Actual YTD receipts ({round(ytd_income, 2):,.2f} €) + projected salary for remaining {remaining_months} months ({remaining_months} × {round(avg_monthly_income, 2):,.2f} €)."
+    else:
+        monthly_details_fr = "Basé sur la moyenne glissante des recettes des 6 derniers mois."
+        monthly_details_en = "Based on the 6-month rolling average of receipts."
+        
+        yearly_details_fr = f"Recettes réelles de l'année en cours (YTD : {round(ytd_income, 2):,.2f} €) + recettes moyennes pour les {remaining_months} mois restants ({remaining_months} × {round(avg_monthly_income, 2):,.2f} €).".replace(",", " ").replace(".", ",")
+        yearly_details_en = f"Actual YTD receipts ({round(ytd_income, 2):,.2f} €) + average receipts for remaining {remaining_months} months ({remaining_months} × {round(avg_monthly_income, 2):,.2f} €)."
+
+    # Budgeted / Expenses calculation details
+    if is_monthly_fallback:
+        monthly_budgeted_details_fr = f"Moyenne glissante des dépenses réelles des 6 derniers mois ({round(six_month_expenses, 2):,.2f} € / 6).".replace(",", " ").replace(".", ",")
+        monthly_budgeted_details_en = f"Rolling 6-month average of actual expenses ({round(six_month_expenses, 2):,.2f} € / 6)."
+    else:
+        monthly_budgeted_details_fr = "Somme de vos enveloppes mensuelles actives configurées."
+        monthly_budgeted_details_en = "Sum of your configured active monthly envelopes."
+
+    if is_yearly_fallback:
+        yearly_budgeted_details_fr = f"Dépenses réelles de l'année en cours (YTD : {round(ytd_expenses, 2):,.2f} €) + dépenses moyennes pour les {remaining_months} mois restants ({remaining_months} × {round(avg_monthly_expenses, 2):,.2f} €).".replace(",", " ").replace(".", ",")
+        yearly_budgeted_details_en = f"Actual YTD expenses ({round(ytd_expenses, 2):,.2f} €) + average expenses for remaining {remaining_months} months ({remaining_months} × {round(avg_monthly_expenses, 2):,.2f} €)."
+    else:
+        yearly_budgeted_details_fr = "Somme des enveloppes annuelles + (enveloppes mensuelles × 12)."
+        yearly_budgeted_details_en = "Sum of yearly envelopes + (monthly envelopes × 12)."
+
+    # 4. Available balances
+    account_balances = get_accounts_available_balances(db)
+    
+    return {
+        "monthly": {
+            "budgeted": round(effective_monthly_budgeted, 2),
+            "average_income": avg_monthly_income,
+            "engagement_ratio": round((effective_monthly_budgeted / avg_monthly_income * 100) if avg_monthly_income > 0 else 0, 1),
+            "is_fallback": is_monthly_fallback,
+            "details_fr": monthly_details_fr,
+            "details_en": monthly_details_en,
+            "budgeted_details_fr": monthly_budgeted_details_fr,
+            "budgeted_details_en": monthly_budgeted_details_en,
+        },
+        "yearly": {
+            "budgeted": round(effective_yearly_budgeted, 2),
+            "average_income": avg_yearly_income,
+            "engagement_ratio": round((effective_yearly_budgeted / avg_yearly_income * 100) if avg_yearly_income > 0 else 0, 1),
+            "is_fallback": is_yearly_fallback,
+            "details_fr": yearly_details_fr,
+            "details_en": yearly_details_en,
+            "budgeted_details_fr": yearly_budgeted_details_fr,
+            "budgeted_details_en": yearly_budgeted_details_en,
+        },
+        "accounts": list(account_balances.values())
     }
 
 

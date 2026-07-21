@@ -105,16 +105,82 @@ def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date)
     ).all()
     savings_total = 0.0
     for sb in savings_budgets:
-        # Manual allocations
-        allocs = db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == sb.id).all()
+        # Manual allocations on this main account
+        allocs = db.query(BudgetAllocation).filter(
+            BudgetAllocation.budget_id == sb.id,
+            (BudgetAllocation.account_id == account.id) | (BudgetAllocation.account_id == None)
+        ).all()
         alloc_balance = sum(a.amount for a in allocs)  # positive = deposit, negative = withdrawal
-        # Transactions assigned via budget_id
-        txs = db.query(Transaction).filter(Transaction.budget_id == sb.id).all()
+        # Transactions assigned via budget_id on this main account
+        txs = db.query(Transaction).filter(
+            Transaction.budget_id == sb.id,
+            (Transaction.from_account_id == account.id) | (Transaction.to_account_id == account.id)
+        ).all()
         tx_income = sum(abs(t.amount) for t in txs if t.type == "income")
         tx_expenses = sum(abs(t.amount) for t in txs if t.type != "income")
         savings_total += (tx_income - tx_expenses) + alloc_balance
 
     return round(current_balance - expenses_sum - max(savings_total, 0), 2)
+
+def get_accounts_available_balances(db: Session):
+    """
+    Calculates the real and available (virtual) balance for all accounts.
+    Available balance = Real balance (reconciled only) - active savings allocated to that account.
+    """
+    from app.models import Budget, BudgetAllocation
+    main_account = get_main_account(db)
+    main_acc_id = main_account.id if main_account else None
+    
+    # 1. Real balances (reconciled)
+    real_balances = calculate_balances(db, only_reconciled=True)
+    
+    # 2. Query all active savings budgets
+    savings_budgets = db.query(Budget).filter(
+        Budget.envelope_type == "savings",
+        Budget.is_closed == False
+    ).all()
+    
+    # 3. Sum savings allocations per account
+    savings_by_account = {}
+    savings_ids = [sb.id for sb in savings_budgets]
+    
+    if savings_ids:
+        # Bulk load allocations
+        allocs = db.query(BudgetAllocation).filter(BudgetAllocation.budget_id.in_(savings_ids)).all()
+        for a in allocs:
+            acc_id = a.account_id if a.account_id is not None else main_acc_id
+            if acc_id:
+                savings_by_account[acc_id] = savings_by_account.get(acc_id, 0.0) + a.amount
+                
+        # Bulk load transactions linked to savings budgets
+        txs = db.query(Transaction).filter(Transaction.budget_id.in_(savings_ids)).all()
+        for tx in txs:
+            # Income (deposits) on account
+            if tx.type == "income" and tx.to_account_id:
+                savings_by_account[tx.to_account_id] = savings_by_account.get(tx.to_account_id, 0.0) + abs(tx.amount)
+            # Expense (withdrawals) from account
+            elif tx.type != "income" and tx.from_account_id:
+                savings_by_account[tx.from_account_id] = savings_by_account.get(tx.from_account_id, 0.0) - abs(tx.amount)
+                
+    # 4. Compile results
+    accounts = db.query(Account).filter(Account.is_closed == False).all()
+    results = {}
+    for acc in accounts:
+        real_bal = real_balances.get(acc.id, 0.0)
+        sav_bal = savings_by_account.get(acc.id, 0.0)
+        # Ensure savings balance isn't negative
+        sav_bal = max(sav_bal, 0.0)
+        avail_bal = round(real_bal - sav_bal, 2)
+        results[acc.id] = {
+            "account_id": acc.id,
+            "name": acc.name,
+            "type": acc.type,
+            "color": acc.color,
+            "real_balance": real_bal,
+            "savings_allocated": round(sav_bal, 2),
+            "available_balance": avail_bal
+        }
+    return results
 
 def get_overdraft_warning(db: Session, account_id: int = None, current_date: date = None):
     """

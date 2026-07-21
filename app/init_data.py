@@ -329,6 +329,18 @@ def init_db():
                 pass
             conn.commit()
 
+        if schema_version < 15:
+            # Schema v15: Add account_id to budget_allocations for savings tracking
+            try:
+                conn.execute(text("ALTER TABLE budget_allocations ADD COLUMN account_id INTEGER REFERENCES accounts(id)"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '15')"))
+            except Exception:
+                pass
+            conn.commit()
+
 
 
 def wipe_db(db: Session):
