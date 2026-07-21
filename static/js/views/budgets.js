@@ -3,6 +3,7 @@ window.BudgetsView = {
     budgets: [],
     categories: [],
     statusData: null,
+    capacityData: null,
     aiEnabled: false,
     _directEdit: false, // true when modal was opened directly in edit mode (not via detail)
     customPeriod: { enabled: false, start: null, end: null }, // custom period with toggle
@@ -167,6 +168,17 @@ window.BudgetsView = {
         // Per-type status data
         this.statusByType = { monthly: null, yearly: null, indefinite: null, custom: null };
         this.savingsOverflow = null; // Loaded from dashboard for overflow visual
+
+        // Inject initial loading spinner while fetching all budgets/stats
+        const container = document.getElementById('budgetStatusContainer');
+        if (container) {
+            container.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:16px; color:var(--text-muted);">
+                    <div style="width:40px; height:40px; border:3px solid rgba(99, 102, 241, 0.15); border-top-color:var(--accent); border-radius:50%; animation: importSpin 0.8s linear infinite;"></div>
+                    <span style="font-size:14px; font-weight:600; color:var(--text-main); animation: importPulse 1.8s ease-in-out infinite;" data-i18n="budget_loading">${window.i18n.t('budget_loading') || 'Chargement des budgets...'}</span>
+                </div>
+            `;
+        }
 
         await Promise.all([this.loadBudgets(), this.loadAccounts(), this.loadCategories(), this.loadAllStatuses(), this.checkAI(), this.loadSavingsOverflow()]);
         // Re-render after all data is loaded to ensure this.accounts is available for colored badges
@@ -471,13 +483,15 @@ window.BudgetsView = {
 
     async loadAllStatuses() {
         try {
-            const [monthly, yearly, indefinite, custom] = await Promise.all([
+            const [monthly, yearly, indefinite, custom, capacity] = await Promise.all([
                 API.get(this._buildStatusUrl('monthly')),
                 API.get(this._buildStatusUrl('yearly')),
                 API.get(this._buildStatusUrl('indefinite')),
                 API.get(this._buildStatusUrl('custom')),
+                API.get('/api/budgets/capacity'),
             ]);
             this.statusByType = { monthly, yearly, indefinite, custom };
+            this.capacityData = capacity;
             this._mergeStatusData();
             this.renderStatus();
         } catch(e) {
@@ -488,7 +502,12 @@ window.BudgetsView = {
 
     async loadStatusForType(type) {
         try {
-            this.statusByType[type] = await API.get(this._buildStatusUrl(type));
+            const [status, capacity] = await Promise.all([
+                API.get(this._buildStatusUrl(type)),
+                API.get('/api/budgets/capacity')
+            ]);
+            this.statusByType[type] = status;
+            this.capacityData = capacity;
             this._mergeStatusData();
             this.renderStatus();
         } catch(e) {
@@ -524,11 +543,170 @@ window.BudgetsView = {
         }
     },
 
+    toggleCapacityPanel(checked) {
+        localStorage.setItem('show_budget_capacity_panel', checked ? 'true' : 'false');
+        this.renderStatus();
+    },
+
+    _buildAccountSelect(selectId, hostedPerAccount) {
+        const activeAccounts = this.accounts ? this.accounts.filter(a => !a.is_closed) : [];
+        
+        // Find main checking account (type == 'Compte courant' or fallback to first)
+        const mainAccount = activeAccounts.find(a => a.type === 'Compte courant' || a.is_main) || (activeAccounts.length > 0 ? activeAccounts[0] : null);
+        const secondaryAccounts = mainAccount ? activeAccounts.filter(a => a.id !== mainAccount.id) : activeAccounts;
+
+        // Calculate hosted total for main account ('main' key or mainAccount.id key)
+        let mainHosted = (hostedPerAccount['main'] || 0.0);
+        if (mainAccount && hostedPerAccount[mainAccount.id]) {
+            mainHosted += hostedPerAccount[mainAccount.id];
+        }
+
+        const mainAccTitle = mainAccount ? `${mainAccount.name} (${window.i18n.t('budget_main_account_tag') || 'Compte principal'})` : (window.i18n.t('budget_alloc_default_account') || 'Compte courant principal');
+        const suffix = window.i18n.t('budget_hosted_suffix') || 'dans la tirelire';
+        const tooltip = window.i18n.t('budget_alloc_select_tooltip') || 'Compte bancaire source (Dépôt) ou destination (Retrait)';
+
+        const mainOptionLabel = `🏦 ${mainAccTitle} · ${formatCurrency(mainHosted)} ${suffix}`;
+
+        const optionsHtml = secondaryAccounts.map(a => {
+            const h = hostedPerAccount[a.id] || 0.0;
+            return `<option value="${a.id}">🏦 ${a.name} · ${formatCurrency(h)} ${suffix}</option>`;
+        }).join('');
+
+        return `
+            <select id="${selectId}" class="inline-input" title="${tooltip}" style="font-size:12px;padding:6px 10px;border-radius:6px;min-width:200px;max-width:260px;">
+                <option value="">${mainOptionLabel}</option>
+                ${optionsHtml}
+            </select>
+        `;
+    },
+
     renderStatus() {
         const container = document.getElementById('budgetStatusContainer');
         if (!this.statusData || this.statusData.budgets.length === 0) {
             container.innerHTML = `<p style="color:var(--text-muted);padding:10px 0;">${window.i18n.t('budget_no_active')}</p>`;
             return;
+        }
+
+        const showCapacity = localStorage.getItem('show_budget_capacity_panel') !== 'false';
+        const panelHelpText = window.i18n.t('budget_capacity_tooltip') || "À quoi sert ce panneau ?\nLa capacité budgétaire compare l'ensemble de vos enveloppes à vos recettes/revenus. C'est un outil prédictif basé sur le passé à titre indicatif.";
+
+        const toggleHeaderHtml = `
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border-color);">
+                <label style="display:inline-flex; align-items:center; gap:10px; cursor:pointer; user-select:none;">
+                    <span class="toggle-switch" style="flex-shrink:0;">
+                        <input type="checkbox" id="toggleCapacityPanel" ${showCapacity ? 'checked' : ''} onchange="window.BudgetsView.toggleCapacityPanel(this.checked)">
+                        <span class="slider"></span>
+                    </span>
+                    <strong style="font-size:13px; color:var(--text-main); font-weight:600;">${window.i18n.t('budget_capacity_panel_title') || 'Capacité budgétaire & Impact sur les comptes'}</strong>
+                </label>
+                <span title="${panelHelpText}" style="cursor:help; display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:10px; font-weight:bold; font-family:sans-serif; vertical-align:middle; line-height:1; user-select:none;">i</span>
+            </div>
+        `;
+
+        let capacityHtml = '';
+        if (showCapacity && this.capacityData) {
+            const isOrg = window.app?.config?.enable_org_mode === 'true';
+            const incomeLabel = isOrg ? (window.i18n.t('budget_capacity_receipts') || 'Recettes') : (window.i18n.t('budget_capacity_income') || 'Revenus');
+            
+            const monthlyRatio = this.capacityData.monthly.engagement_ratio;
+            const monthlyColor = monthlyRatio > 100 ? '#ff5630' : monthlyRatio >= 85 ? '#f59e0b' : '#10b981';
+            
+            const yearlyRatio = this.capacityData.yearly.engagement_ratio;
+            const yearlyColor = yearlyRatio > 100 ? '#ff5630' : yearlyRatio >= 85 ? '#f59e0b' : '#10b981';
+            
+            // Build account list HTML
+            let accountsHtml = '';
+            if (this.capacityData.accounts && this.capacityData.accounts.length > 0) {
+                accountsHtml = `
+                    <div style="margin-top:16px; border-top:1px solid var(--border-color); padding-top:12px;">
+                        <strong style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">${window.i18n.t('budget_accounts_impact') || 'Impact sur les comptes & livrets'}</strong>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:10px;">
+                            ${this.capacityData.accounts.map(acc => {
+                                const accColor = acc.color || 'var(--accent)';
+                                const hasSavings = acc.savings_allocated > 0;
+                                return `
+                                    <div style="background:var(--bg-base); border:1px solid var(--border-color); border-radius:8px; padding:10px; display:flex; flex-direction:column; gap:4px;">
+                                        <div style="display:flex; align-items:center; gap:6px; font-weight:600; font-size:12px;">
+                                            <span style="width:8px;height:8px;border-radius:50%;background:${accColor};"></span>
+                                            <span>${acc.name}</span>
+                                        </div>
+                                        <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:2px;">
+                                            <span style="color:var(--text-muted);">${window.i18n.t('budget_real_balance') || 'Solde réel'}</span>
+                                            <span class="privacy-blur" style="font-weight:600;">${formatCurrency(acc.real_balance)}</span>
+                                        </div>
+                                        ${hasSavings ? `
+                                        <div style="display:flex; justify-content:space-between; font-size:11px; color:#f59e0b;">
+                                            <span>${window.i18n.t('budget_savings_reserved') || 'Épargne réservée'}</span>
+                                            <span class="privacy-blur">- ${formatCurrency(acc.savings_allocated)}</span>
+                                        </div>
+                                        ` : ''}
+                                        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; border-top:1px dashed var(--border-color); padding-top:4px; margin-top:2px;">
+                                            <span>${window.i18n.t('budget_available_balance') || 'Disponible virtuel'}</span>
+                                            <span class="privacy-blur" style="color:${hasSavings ? 'var(--accent)' : 'inherit'};">${formatCurrency(acc.available_balance)}</span>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            const monthlyLabelKey = this.capacityData.monthly.is_fallback ? 'budget_capacity_expenses' : 'budget_capacity_budgeted';
+            const yearlyLabelKey = this.capacityData.yearly.is_fallback ? 'budget_capacity_expenses' : 'budget_capacity_budgeted';
+
+            const monthlyLabel = window.i18n.t(monthlyLabelKey) || (this.capacityData.monthly.is_fallback ? 'Dépenses moyennes' : 'Budgétisé');
+            const yearlyLabel = window.i18n.t(yearlyLabelKey) || (this.capacityData.yearly.is_fallback ? 'Dépenses moyennes' : 'Budgétisé');
+
+            const lang = window.i18n.currentLang || 'fr';
+            const monthlyDetails = (lang === 'en' ? this.capacityData.monthly.details_en : this.capacityData.monthly.details_fr) || '';
+            const yearlyDetails = (lang === 'en' ? this.capacityData.yearly.details_en : this.capacityData.yearly.details_fr) || '';
+
+            const monthlyBudgetedDetails = (lang === 'en' ? this.capacityData.monthly.budgeted_details_en : this.capacityData.monthly.budgeted_details_fr) || '';
+            const yearlyBudgetedDetails = (lang === 'en' ? this.capacityData.yearly.budgeted_details_en : this.capacityData.yearly.budgeted_details_fr) || '';
+
+            const monthlyInfoIcon = monthlyDetails ? `<span title="${monthlyDetails}" style="cursor:help; margin-left:4px; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:9px; font-weight:bold; font-family:sans-serif; vertical-align:middle; line-height:1; user-select:none;">i</span>` : '';
+            const yearlyInfoIcon = yearlyDetails ? `<span title="${yearlyDetails}" style="cursor:help; margin-left:4px; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:9px; font-weight:bold; font-family:sans-serif; vertical-align:middle; line-height:1; user-select:none;">i</span>` : '';
+
+            const monthlyBudgetedInfoIcon = monthlyBudgetedDetails ? `<span title="${monthlyBudgetedDetails}" style="cursor:help; margin-left:4px; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:9px; font-weight:bold; font-family:sans-serif; vertical-align:middle; line-height:1; user-select:none;">i</span>` : '';
+            const yearlyBudgetedInfoIcon = yearlyBudgetedDetails ? `<span title="${yearlyBudgetedDetails}" style="cursor:help; margin-left:4px; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:9px; font-weight:bold; font-family:sans-serif; vertical-align:middle; line-height:1; user-select:none;">i</span>` : '';
+
+            capacityHtml = `
+                <div class="capacity-panel" style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; padding:18px; margin-bottom:24px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px;">
+                        <!-- Monthly capacity -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:6px;">
+                                <span>${window.i18n.t('budget_capacity_monthly') || 'Capacité mensuelle'}</span>
+                                <span style="color:${monthlyColor};">${monthlyRatio}%</span>
+                            </div>
+                            <div style="background:rgba(128,128,128,0.15); border-radius:999px; height:8px; overflow:hidden; margin-bottom:6px;">
+                                <div style="width:${Math.min(monthlyRatio, 100)}%; height:100%; background:${monthlyColor}; border-radius:999px;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted);">
+                                <span>${monthlyLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.monthly.budgeted)}</span>${monthlyBudgetedInfoIcon}</span>
+                                <span>${incomeLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.monthly.average_income)}</span>${monthlyInfoIcon}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Yearly capacity -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:6px;">
+                                <span>${window.i18n.t('budget_capacity_yearly') || 'Capacité annuelle'}</span>
+                                <span style="color:${yearlyColor};">${yearlyRatio}%</span>
+                            </div>
+                            <div style="background:rgba(128,128,128,0.15); border-radius:999px; height:8px; overflow:hidden; margin-bottom:6px;">
+                                <div style="width:${Math.min(yearlyRatio, 100)}%; height:100%; background:${yearlyColor}; border-radius:999px;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted);">
+                                <span>${yearlyLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.yearly.budgeted)}</span>${yearlyBudgetedInfoIcon}</span>
+                                <span>${incomeLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.yearly.average_income)}</span>${yearlyInfoIcon}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ${accountsHtml}
+                </div>
+            `;
         }
 
         // Per-type label and date params
@@ -552,7 +730,7 @@ window.BudgetsView = {
             }
         }
 
-        let fullHtml = '';
+        let fullHtml = toggleHeaderHtml + capacityHtml;
 
         // ── Helper: per-type date controls ─────────────────────────────────
         const renderDateControls = (period) => {
@@ -1036,8 +1214,15 @@ window.BudgetsView = {
                 const goalReached = balance >= goal && goal > 0;
                 const barColor = goalReached ? '#f59e0b' : '#10b981';
 
-                title.innerHTML = `🏦 ${budgetName} ${tempWithdrawn > 0 ? `<span style="color:#ef4444; font-size:11px; font-weight:600; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px; margin-left:8px;" title="${window.i18n.t('savings_temp_withdrawn') || 'Temporarily withdrawn'}">⚠ -${formatCurrency(tempWithdrawn)}</span>` : ''}`;
                 const safeName = budgetName.replace(/'/g, "\\'");
+
+                const hostedPerAccount = {};
+                for (const a of allocs) {
+                    const key = a.account_id || 'main';
+                    hostedPerAccount[key] = (hostedPerAccount[key] || 0.0) + a.amount;
+                }
+
+                const accountSelectDetail = this._buildAccountSelect('detailAllocAccountId', hostedPerAccount);
 
                 graph.innerHTML = `<div style="margin-bottom:10px;">
                     <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:3px;">
@@ -1056,11 +1241,16 @@ window.BudgetsView = {
                         <span style="color:${goalReached ? '#f59e0b' : 'var(--text-muted)'};font-weight:600;">${goalReached ? '🎯 ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(goal - balance))}</span> ${goalReached ? window.i18n.t('budget_savings_goal_reached') : window.i18n.t('budget_savings_remaining')}</span>
                     </div>
                 </div>
-                <div style="display:flex;gap:8px;align-items:center;padding:12px;background:var(--bg-surface);border:1px solid rgba(245,158,11,0.3);border-radius:8px;flex-wrap:wrap;margin-bottom:8px;">
-                    <input type="number" id="detailAllocAmount" class="inline-input" placeholder="${window.i18n.t('budget_savings_add_placeholder')}" step="0.01" style="width:100px;font-size:12px;padding:6px 10px;border-radius:6px;">
-                    <input type="text" id="detailAllocNote" class="inline-input" placeholder="${window.i18n.t('budget_savings_note_placeholder')}" style="flex:1;min-width:120px;font-size:12px;padding:6px 10px;border-radius:6px;">
-                    <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, 1, '${safeName}', ${year}, ${month})">↑ ${window.i18n.t('budget_savings_deposit')}</button>
-                    <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, -1, '${safeName}', ${year}, ${month})">↓ ${window.i18n.t('budget_savings_withdrawal')}</button>
+                <div style="display:flex;flex-direction:column;gap:10px;padding:12px;background:var(--bg-surface);border:1px solid rgba(245,158,11,0.3);border-radius:8px;margin-bottom:12px;">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                        <input type="number" id="detailAllocAmount" class="inline-input" placeholder="${window.i18n.t('budget_savings_add_placeholder')}" step="0.01" style="width:110px;font-size:12px;padding:6px 10px;border-radius:6px;">
+                        ${accountSelectDetail}
+                        <input type="text" id="detailAllocNote" class="inline-input" placeholder="${window.i18n.t('budget_savings_note_placeholder')}" style="flex:1;min-width:140px;font-size:12px;padding:6px 10px;border-radius:6px;">
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">
+                        <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, 1, '${safeName}', ${year}, ${month})">↑ ${window.i18n.t('budget_savings_deposit')}</button>
+                        <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, -1, '${safeName}', ${year}, ${month})">↓ ${window.i18n.t('budget_savings_withdrawal')}</button>
+                    </div>
                 </div>`;
 
                 // Merge txs and allocs into a single list sorted by date
@@ -1072,8 +1262,10 @@ window.BudgetsView = {
                     });
                 }
                 for (const a of allocs) {
+                    const acc = this.accounts?.find(ac => ac.id === a.account_id);
+                    const accLabel = acc ? ` <span style="font-size:10px;color:var(--accent);background:var(--bg-base);padding:1px 4px;border-radius:4px;margin-left:4px;">🏦 ${acc.name}</span>` : '';
                     items.push({
-                        type: 'alloc', id: a.id, date: a.date, description: a.note || (a.amount > 0 ? window.i18n.t('budget_savings_deposit') : window.i18n.t('budget_savings_withdrawal')),
+                        type: 'alloc', id: a.id, date: a.date, description: (a.note || (a.amount > 0 ? window.i18n.t('budget_savings_deposit') : window.i18n.t('budget_savings_withdrawal'))) + accLabel,
                         amount: Math.abs(a.amount), isIncome: a.amount > 0
                     });
                 }
@@ -1218,6 +1410,8 @@ window.BudgetsView = {
 
         if (b.is_project) {
             document.getElementById('budgetTypeProject').checked = true;
+        } else if ((b.envelope_type || 'spending') === 'savings') {
+            document.getElementById('budgetTypeSavings').checked = true;
         } else {
             document.getElementById('budgetTypeCategory').checked = true;
         }
@@ -1388,7 +1582,7 @@ window.BudgetsView = {
 
     // ── Piggy Bank (Tirelire) methods ─────────────────────────────────────────
 
-    showAllocationForm(budgetId) {
+    async showAllocationForm(budgetId) {
         // Remove any existing allocation form
         const existing = document.getElementById('allocationInlineForm');
         if (existing) existing.remove();
@@ -1396,16 +1590,33 @@ window.BudgetsView = {
         const card = document.querySelector(`[data-budget-id="${budgetId}"]`);
         if (!card) return;
 
+        // Fetch current allocations for this piggy bank to calculate hosted amounts per account
+        let hostedPerAccount = {};
+        try {
+            const allocs = await API.get(`/api/budgets/${budgetId}/allocations`);
+            for (const a of allocs) {
+                const key = a.account_id || 'main';
+                hostedPerAccount[key] = (hostedPerAccount[key] || 0.0) + a.amount;
+            }
+        } catch(e) {}
+
+        const accountSelect = this._buildAccountSelect('allocAccountId', hostedPerAccount);
+
         const form = document.createElement('div');
         form.id = 'allocationInlineForm';
-        form.style.cssText = 'display:flex;gap:8px;align-items:center;padding:12px;margin-top:8px;background:var(--bg-surface);border:1px solid rgba(245,158,11,0.3);border-radius:8px;flex-wrap:wrap;';
+        form.style.cssText = 'display:flex;flex-direction:column;gap:10px;padding:12px;margin-top:8px;background:var(--bg-surface);border:1px solid rgba(245,158,11,0.3);border-radius:8px;';
         form.onclick = (e) => e.stopPropagation();
         form.innerHTML = `
-            <input type="number" id="allocAmount" class="inline-input" placeholder="${window.i18n.t('budget_savings_add_placeholder')}" step="0.01" style="width:100px;font-size:12px;padding:4px 8px;border-radius:4px;">
-            <input type="text" id="allocNote" class="inline-input" placeholder="${window.i18n.t('budget_savings_note_placeholder')}" style="flex:1;min-width:120px;font-size:12px;padding:4px 8px;border-radius:4px;">
-            <button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="window.BudgetsView.addAllocation(${budgetId}, 1)">↑ ${window.i18n.t('budget_savings_deposit')}</button>
-            <button class="btn btn-secondary" style="padding:4px 12px;font-size:11px;" onclick="window.BudgetsView.addAllocation(${budgetId}, -1)">↓ ${window.i18n.t('budget_savings_withdrawal')}</button>
-            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="document.getElementById('allocationInlineForm')?.remove()">✕</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <input type="number" id="allocAmount" class="inline-input" placeholder="${window.i18n.t('budget_savings_add_placeholder')}" step="0.01" style="width:110px;font-size:12px;padding:6px 10px;border-radius:6px;">
+                ${accountSelect}
+                <input type="text" id="allocNote" class="inline-input" placeholder="${window.i18n.t('budget_savings_note_placeholder')}" style="flex:1;min-width:140px;font-size:12px;padding:6px 10px;border-radius:6px;">
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">
+                <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="window.BudgetsView.addAllocation(${budgetId}, 1)">↑ ${window.i18n.t('budget_savings_deposit')}</button>
+                <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="window.BudgetsView.addAllocation(${budgetId}, -1)">↓ ${window.i18n.t('budget_savings_withdrawal')}</button>
+                <button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="document.getElementById('allocationInlineForm')?.remove()">✕</button>
+            </div>
         `;
         card.appendChild(form);
         document.getElementById('allocAmount')?.focus();
@@ -1414,14 +1625,17 @@ window.BudgetsView = {
     async addAllocation(budgetId, sign) {
         const amountInput = document.getElementById('allocAmount');
         const noteInput = document.getElementById('allocNote');
+        const accSelect = document.getElementById('allocAccountId');
         const amount = parseFloat(amountInput?.value);
         if (isNaN(amount) || amount <= 0) return;
+        const account_id = accSelect && accSelect.value ? parseInt(accSelect.value) : null;
 
         try {
             const res = await API.post(`/api/budgets/${budgetId}/allocations`, {
                 amount: amount * sign,
                 note: noteInput?.value || null,
                 date: new Date().toISOString().split('T')[0],
+                account_id: account_id,
             });
             document.getElementById('allocationInlineForm')?.remove();
             await this.loadStatus();
@@ -1462,14 +1676,17 @@ window.BudgetsView = {
     async addAllocationFromDetail(budgetId, sign, budgetName, year, month) {
         const amountInput = document.getElementById('detailAllocAmount');
         const noteInput = document.getElementById('detailAllocNote');
+        const accSelect = document.getElementById('detailAllocAccountId');
         const amount = parseFloat(amountInput?.value);
         if (isNaN(amount) || amount <= 0) return;
+        const account_id = accSelect && accSelect.value ? parseInt(accSelect.value) : null;
 
         try {
             await API.post(`/api/budgets/${budgetId}/allocations`, {
                 amount: amount * sign,
                 note: noteInput?.value || null,
                 date: new Date().toISOString().split('T')[0],
+                account_id: account_id,
             });
             await this.loadStatus();
             window.app.refreshSidebar();

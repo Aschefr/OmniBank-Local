@@ -1,5 +1,17 @@
 // common.js
 
+async function _handleApiError(res) {
+    const text = await res.text();
+    let errMsg = text;
+    try {
+        const json = JSON.parse(text);
+        if (json && json.detail) {
+            errMsg = typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail);
+        }
+    } catch(e) {}
+    throw new Error(errMsg);
+}
+
 const API = {
     async get(endpoint) {
         // Prevent browser caching by appending a timestamp
@@ -7,7 +19,7 @@ const API = {
         const url = `${endpoint}${separator}_t=${Date.now()}`;
         
         const res = await fetch(url);
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) await _handleApiError(res);
         return res.json();
     },
     async post(endpoint, data) {
@@ -16,7 +28,7 @@ const API = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) await _handleApiError(res);
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
             window.app.updateHeaderHistoryState();
@@ -29,7 +41,7 @@ const API = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) await _handleApiError(res);
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
             window.app.updateHeaderHistoryState();
@@ -38,7 +50,7 @@ const API = {
     },
     async del(endpoint) {
         const res = await fetch(endpoint, { method: 'DELETE' });
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) await _handleApiError(res);
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
             window.app.updateHeaderHistoryState();
