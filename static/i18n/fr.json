@@ -1512,5 +1512,6 @@
   "ai_sim_gap_higher": "Dépenses de {amount} supérieures à vos revenus repère",
   "ai_sim_gap_lower": "Dépenses de {amount} inférieures à vos revenus repère",
   "ai_sim_total_format": "Budget de {total} ({pct}% de vos revenus repère)",
-  "ai_sim_total_format_status": "Budget de {total} ({pct}% de vos revenus repère — {status})"
+  "ai_sim_total_format_status": "Budget de {total} ({pct}% de vos revenus repère — {status})",
+  "ai_budget_badge_click_apply": "Cliquer pour utiliser le montant {amount} pour cette enveloppe"
 }

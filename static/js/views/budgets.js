@@ -2934,6 +2934,29 @@ window.BudgetsView = {
         }
     },
 
+    applyBadgeAmountToAiProposal(i, val) {
+        if (!this.aiProposals || !this.aiProposals[i]) return;
+        const p = this.aiProposals[i];
+        const num = parseFloat(val);
+        if (isNaN(num) || num < 0) return;
+
+        if (p.is_fixed && !p.unlocked) {
+            p.unlocked = true;
+        }
+
+        p.suggested_amount = Math.round(num * 100) / 100;
+
+        const input = document.getElementById(`aiProposalAmount_${i}`);
+        if (input) {
+            input.value = p.suggested_amount.toFixed(2);
+            input.disabled = false;
+            input.style.opacity = '1';
+        }
+
+        this.updateAiImpactSimulation();
+        this.renderAiProposalsList();
+    },
+
     toggleUnlockFixedProposal(i) {
         if (!this.aiProposals || !this.aiProposals[i]) return;
         this.aiProposals[i].unlocked = !this.aiProposals[i].unlocked;
@@ -3209,15 +3232,18 @@ window.BudgetsView = {
                                     ? (window.i18n.t('budget_pace_yearly') || 'Moyenne annuelle :')
                                     : (window.i18n.t(labelPaceKey) || (window.i18n.t('budget_pace_general') || `Rythme ${windowMonths}m :`));
 
+                                const applyTitleCur = (window.i18n.t('ai_budget_badge_click_apply') || 'Cliquer pour utiliser le montant {amount} pour cette enveloppe').replace('{amount}', formatCurrency(valCur));
+                                const applyTitlePace = (window.i18n.t('ai_budget_badge_click_apply') || 'Cliquer pour utiliser le montant {amount} pour cette enveloppe').replace('{amount}', formatCurrency(valPace));
+
                                 const badgeCurrentHtml = `
-                                    <span style="font-size:11px;background:var(--bg-base);padding:3px 8px;border-radius:6px;border:1px solid ${isCurrentExceeded ? 'rgba(239, 68, 68, 0.35)' : 'var(--border-color)'};color:${isCurrentExceeded ? '#f87171' : 'var(--text-muted)'};" title="${isCurrentExceeded ? 'Attention : vos dépenses réelles dépassent le budget proposé !' : 'Dépenses réelles enregistrées sur les catégories incluses'}">
-                                        ${labelCur} <strong>${formatCurrency(valCur)}</strong>
+                                    <span onclick="window.BudgetsView.applyBadgeAmountToAiProposal(${i}, ${valCur})" style="cursor:pointer;font-size:11px;background:var(--bg-base);padding:3px 8px;border-radius:6px;border:1px solid ${isCurrentExceeded ? 'rgba(239, 68, 68, 0.45)' : 'var(--border-color)'};color:${isCurrentExceeded ? '#f87171' : 'var(--text-muted)'};transition:all 0.15s ease;" title="${applyTitleCur}">
+                                        ${labelCur} <strong style="text-decoration:underline;text-decoration-style:dotted;">${formatCurrency(valCur)}</strong>
                                     </span>
                                 `;
 
                                 const badgePaceHtml = `
-                                    <span style="font-size:11px;background:var(--bg-base);padding:3px 8px;border-radius:6px;border:1px solid ${isPaceExceeded ? 'rgba(239, 68, 68, 0.35)' : 'var(--border-color)'};color:${isPaceExceeded ? '#f87171' : 'var(--text-muted)'};" title="${isPaceExceeded ? 'Attention : votre rythme de dépense habituel dépasse le budget proposé !' : 'Moyenne constatée sur l\'historique pour les catégories incluses'}">
-                                        ${labelPace} <strong>${formatCurrency(valPace)}</strong>
+                                    <span onclick="window.BudgetsView.applyBadgeAmountToAiProposal(${i}, ${valPace})" style="cursor:pointer;font-size:11px;background:var(--bg-base);padding:3px 8px;border-radius:6px;border:1px solid ${isPaceExceeded ? 'rgba(239, 68, 68, 0.45)' : 'var(--border-color)'};color:${isPaceExceeded ? '#f87171' : 'var(--text-muted)'};transition:all 0.15s ease;" title="${applyTitlePace}">
+                                        ${labelPace} <strong style="text-decoration:underline;text-decoration-style:dotted;">${formatCurrency(valPace)}</strong>
                                     </span>
                                 `;
 
