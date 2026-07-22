@@ -4,7 +4,9 @@ from sqlalchemy import extract
 from pydantic import BaseModel
 from datetime import date
 from typing import Optional, List
+import json
 import logging
+import re
 from collections import defaultdict
 from app.database import get_db
 from app.models import Budget, BudgetCategory, BudgetAllocation, Transaction, GlobalConfig, Account
@@ -697,12 +699,18 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
     import statistics
 
     window_start = anchor_date - relativedelta(months=window_months)
+    # Ensure current month full coverage up to end of current month
+    end_of_current_month = date(anchor_date.year, anchor_date.month, 1) + relativedelta(months=1, days=-1)
 
-    # Query expense transactions in the window
+    # Query expense transactions in the window (including standard 'expense' type and any negative amounts)
+    from sqlalchemy import or_
     txs = db.query(Transaction).filter(
         Transaction.date_operation >= window_start,
-        Transaction.date_operation <= anchor_date,
-        Transaction.type.in_(["expense_fixed", "expense_var"]),
+        Transaction.date_operation <= end_of_current_month,
+        or_(
+            Transaction.type.in_(["expense", "expense_fixed", "expense_var"]),
+            Transaction.amount < 0
+        )
     ).all()
 
     cat_monthly: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
@@ -742,7 +750,13 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
                 yearly_recurrence_cats.add(t.category)
                 yearly_recurrence_sums[t.category] += abs(t.amount or 0.0)
 
-    if not cat_monthly:
+    # Fetch all registered categories in DB to ensure no unused category is omitted
+    from app.models import Category
+    db_cat_names = set(c[0] for c in db.query(Category.name).all() if c[0])
+    tx_cat_names = set(c[0] for c in db.query(Transaction.category).distinct().all() if c[0])
+    all_all_cats = (db_cat_names | tx_cat_names) - already_used_cats
+
+    if not cat_monthly and not all_all_cats:
         return {}
 
     # Calculate overall median monthly spending per active category to detect exceptional spikes
@@ -750,10 +764,12 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
     median_cat_avg = statistics.median(all_cat_totals) if all_cat_totals else 100.0
 
     result = {}
+    # 1. Process active categories with transactions in analysis window
     for cat, monthly_sums in cat_monthly.items():
         total = sum(monthly_sums.values())
         active_months_cnt = len(monthly_sums)
-        avg = round(total / max(active_months_cnt, 1), 2)
+        # Average monthly expenditure across the full analysis window for variable expenses
+        avg = round(total / max(window_months, 1), 2)
         
         desc_counts = cat_descriptions.get(cat, {})
         top_descs = [d for d, _ in sorted(desc_counts.items(), key=lambda x: -x[1])[:5]]
@@ -761,7 +777,7 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
         # Fixed amount detection: For expense_fixed, use the exact sum of the most recent active month
         monthly_values = list(monthly_sums.values())
         is_fixed = (cat_type.get(cat) == "expense_fixed")
-        fixed_amount = avg
+        fixed_amount = round(total / max(active_months_cnt, 1), 2)
 
         if is_fixed and monthly_values:
             # Find the most recent active month's exact sum for this fixed category
@@ -797,8 +813,18 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
                 suggested_period = "monthly"
             total_year_val = round(total, 2)
 
+        # Calculate current active month spent and 3-month recent average
+        current_month_key = anchor_date.strftime("%Y-%m")
+        current_month_spent = round(monthly_sums.get(current_month_key, 0.0), 2)
+
+        m3_keys = [(anchor_date - relativedelta(months=i)).strftime("%Y-%m") for i in range(3)]
+        sum_3m = sum(monthly_sums.get(k, 0.0) for k in m3_keys)
+        recent_3m_avg = round(sum_3m / 3.0, 2)
+
         result[cat] = {
             "avg": fixed_amount if is_fixed else avg,
+            "current_month_spent": current_month_spent,
+            "recent_3m_avg": recent_3m_avg,
             "total_year": total_year_val,
             "active_months_cnt": active_months_cnt,
             "suggested_period": suggested_period,
@@ -808,6 +834,23 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
             "fixed_amount": fixed_amount,
             "is_exceptional": is_exceptional,
         }
+
+    # 2. Process inactive unused categories (no transactions in analysis window)
+    for cat in all_all_cats:
+        if cat not in result:
+            result[cat] = {
+                "avg": 0.0,
+                "current_month_spent": 0.0,
+                "recent_3m_avg": 0.0,
+                "total_year": 0.0,
+                "active_months_cnt": 0,
+                "suggested_period": "monthly",
+                "type": "expense_var",
+                "top_descs": [],
+                "is_fixed": False,
+                "fixed_amount": 0.0,
+                "is_exceptional": False,
+            }
 
     return result
 
@@ -827,6 +870,83 @@ AI_TASK_STATUS = {
 
 class AiSuggestRequest(BaseModel):
     window_months: int = 3
+    lang: Optional[str] = "fr"
+
+
+def _extract_json_envelopes(cleaned_raw: str) -> list[dict]:
+    """
+    Robustly parses LLM JSON outputs supporting multiple envelope schema formats:
+    - Array of objects: [{"name": "Santé", "categories": ["Dentiste"]}]
+    - Wrapped dict: {"envelopes": [{"name": "Santé", "categories": ["Dentiste"]}]}
+    - Key-value dict mapping envelope name to categories array: {"Santé": ["Dentiste"], "Assurances": ["Assurance"]}
+    - Regex fallback for loose/truncated JSON objects
+    """
+    parsed_objs = []
+    
+    # 1. Direct json parse
+    try:
+        data_json = json.loads(cleaned_raw)
+        if isinstance(data_json, list):
+            for item in data_json:
+                if isinstance(item, dict):
+                    if "name" in item or "title" in item or "enveloppe" in item:
+                        parsed_objs.append(item)
+                    elif len(item) == 1:
+                        k, v = next(iter(item.items()))
+                        if isinstance(v, list):
+                            parsed_objs.append({"name": k, "categories": v})
+        elif isinstance(data_json, dict):
+            # Check wrapper list keys
+            for key in ["envelopes", "proposals", "enveloppes", "budgets", "categories", "suggestions", "items", "data", "result", "enveloppes_budgetaires", "propositions"]:
+                if key in data_json and isinstance(data_json[key], list):
+                    for item in data_json[key]:
+                        if isinstance(item, dict):
+                            if "name" in item or "title" in item or "enveloppe" in item:
+                                parsed_objs.append(item)
+                            elif len(item) == 1:
+                                k, v = next(iter(item.items()))
+                                if isinstance(v, list):
+                                    parsed_objs.append({"name": k, "categories": v})
+                    break
+
+            if not parsed_objs:
+                # Direct key-value dict: {"Santé": ["Dentiste"], "Assurances": ["Assurance"]}
+                for k, v in data_json.items():
+                    if isinstance(v, list) and len(v) > 0:
+                        if isinstance(v[0], str):
+                            parsed_objs.append({"name": k, "categories": v})
+                        elif isinstance(v[0], dict):
+                            parsed_objs.extend(v)
+    except Exception as err:
+        logger.warning(f"[AI Budget] Échec json.loads: {err}")
+
+    # 2. Extract outermost JSON array [...]
+    if not parsed_objs:
+        array_match = re.search(r'\[.*\]', cleaned_raw, re.DOTALL)
+        if array_match:
+            try:
+                data = json.loads(array_match.group(0))
+                if isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict):
+                            if "name" in item or "title" in item or "enveloppe" in item:
+                                parsed_objs.append(item)
+            except Exception:
+                pass
+
+    # 3. Fallback to line-by-line or regex object extraction
+    if not parsed_objs:
+        matches = re.findall(r'\{[^{}]*\}', cleaned_raw, re.DOTALL)
+        for m in matches:
+            try:
+                item = json.loads(m)
+                if isinstance(item, dict):
+                    if "name" in item or "title" in item or "enveloppe" in item:
+                        parsed_objs.append(item)
+            except Exception:
+                pass
+
+    return parsed_objs
 
 
 @router.get("/ai_suggest/status")
@@ -834,6 +954,19 @@ def get_ai_suggest_status():
     if AI_TASK_STATUS["state"] in ["PREPARING", "SENDING", "THINKING", "PARSING"] and AI_TASK_STATUS.get("start_time"):
         AI_TASK_STATUS["elapsed_seconds"] = int(time.time() - AI_TASK_STATUS["start_time"])
     return AI_TASK_STATUS
+
+
+@router.post("/ai_suggest/cancel")
+def cancel_ai_suggest():
+    global AI_TASK_STATUS
+    AI_TASK_STATUS.update({
+        "state": "IDLE",
+        "step_key": "ai_status_idle",
+        "elapsed_seconds": 0,
+        "start_time": None,
+        "error": None,
+    })
+    return {"status": "cancelled"}
 
 
 @router.post("/ai_suggest")
@@ -892,60 +1025,65 @@ def ai_suggest_budgets(data: Optional[AiSuggestRequest] = None, db: Session = De
 
     cat_data = _compute_monthly_averages_for_ai(db, already_used_cats, anchor_date, window_months=window_months)
 
+    # Auto-extend analysis window to 6m or 12m if no transactions found in requested window for unused categories
+    active_cats = [c for c, info in cat_data.items() if info.get("avg", 0) > 0 or info.get("total_year", 0) > 0]
+    effective_window = window_months
+    if len(active_cats) == 0 and window_months < 12:
+        for try_w in (6, 12):
+            if try_w > window_months:
+                try_data = _compute_monthly_averages_for_ai(db, already_used_cats, anchor_date, window_months=try_w)
+                try_active = [c for c, info in try_data.items() if info.get("avg", 0) > 0 or info.get("total_year", 0) > 0]
+                if len(try_active) > 0 or try_w == 12:
+                    cat_data = try_data
+                    effective_window = try_w
+                    window_months = try_w
+                    logger.info(f"[AI Budget] Auto-extended analysis window to {effective_window} months")
+                    break
+
     if not cat_data:
-        raise HTTPException(status_code=400, detail="Toutes vos dépenses sont déjà covered par vos enveloppes actuelles.")
+        raise HTTPException(status_code=400, detail="Toutes vos dépenses sont déjà couvertes par vos enveloppes actuelles.")
 
     nb_cats = len(cat_data)
 
     cat_lines = []
     for cat, info in sorted(cat_data.items(), key=lambda x: -x[1]["avg"]):
-        period_str = "ANNUEL" if info.get("suggested_period") == "yearly" else "MENSUEL"
-        fix_str = "FIXE" if info["is_fixed"] else "VARIABLE"
-        desc_str = f" | Exemples: {', '.join(info['top_descs'][:3])}" if info["top_descs"] else ""
-        cat_lines.append(f'- Catégorie: "{cat}" | Récurrence: {period_str} | Nature: {fix_str}{desc_str}')
+        period_str = "ANNUAL" if info.get("suggested_period") == "yearly" else "MONTHLY"
+        fix_str = "FIXED" if info["is_fixed"] else "VARIABLE"
+        desc_str = f" | Examples: {', '.join(info['top_descs'][:3])}" if info["top_descs"] else ""
+        cat_lines.append(f'- Category: "{cat}" | Recurrence: {period_str} | Type: {fix_str}{desc_str}')
     formatted_cats = "\n".join(cat_lines)
 
-    prompt = f"""Tu es un conseiller financier personnel expert. Analyse ces {nb_cats} catégories financières réelles et leurs caractéristiques :
+    target_lang = "English" if (data and data.lang == "en") else "French"
+
+    prompt = f"""You are an expert personal financial advisor. Analyze these {nb_cats} real financial spending categories:
 
 {formatted_cats}
 
-MISSION OBLIGATOIRE : Regroupe TOUTES ces catégories dans EXACTEMENT 10 à 14 enveloppes budgétaires thématiques très précises, spécifiques et ciblées.
+TASK: Group these categories into 10 to 14 precise, targeted thematic budget envelopes.
 
-EXEMPLES D'ENVELOPPES FINES RECHERCHÉES (Adapte impérativement les noms selon les dépenses réelles) :
-- "Prêts Immobiliers & Crédits" (ex: Prêt 20 ans, Prêt 25 ans, Prêt Conso)
-- "Assurances & Protection Foyer" (ex: CA Assurance Habitation, Prot. juridique, Prot. vie)
-- "Charges Foyer, Énergie & Impôts" (ex: Facture énergie, Octopus, Impôts, Taxe foncière)
-- "Abonnements Télécom & Fibre" (ex: Telecoms, Free Fibre, Sosh Mobile)
-- "Services Cloud & Outils IA" (ex: OVH, Google One 5TB, IA, Distrokid)
-- "Plateformes, Médias & Musique" (ex: Abonnement loisir, Logiciel Musique, Floatplane)
-- "Entretien Auto & Carburant" (ex: Automobile, Delko, Essence, Parkings)
-- "Péages & Transports Routiers" (ex: Transport Routier, Péage tickets, Péages, AREA)
-- "Courses & Alimentation" (ex: Courses, Auchan, Boulangerie, Picard)
-- "Santé & Soins Personnels" (ex: Pharmacie, Médecin, Coiffure)
-- "Équipement & Bricolage Foyer" (ex: Bricole de maison, Réno. Maison, Amazon)
-- "Tech & Matériel Informatique" (ex: Informatique, Électronique)
-- "Sorties & Restaurants" (ex: Restaurant, Cinéma, McDo, Kinepolis)
-- "Loisirs, Gaming & Hobbies" (ex: Steam, Airsoft, Jeux fdj, Vacances, Loisir)
+RULES:
+1. Create between 10 and 14 specific envelopes. Do not create huge mixed groups.
+2. Separate loans/mortgages from insurance, telecom from cloud services, and vehicle maintenance from toll fees.
+3. In the "categories" list for each envelope, include ONLY the exact category names from the input list.
+4. EVERY input category MUST be assigned to an envelope.
 
-CONSIGNES STRICTES DE PARSING ET CONTENU :
-1. Crée IMPÉRATIVEMENT entre 10 et 14 enveloppes très ciblées (INTERDIT de créer de gros blocs mixtes comme "Prêts, Assurances & Logement" ou "Charges Foyer & Assurances" ! Separe les prêts des assurances, les télécoms des abonnements cloud, et l'automobile des péages).
-2. Dans la liste "categories" de chaque enveloppe, indique UNIQUEMENT et STRICTEMENT le nom exact de la catégorie entre guillemets sans les métadonnées.
-3. CHAQUE catégorie figurant dans la liste d'entrée DOIT être assignée à une enveloppe.
+LANGUAGE REQUIREMENT:
+Write all envelope names and reason justifications in {target_lang}.
 
-Format de réponse (JSON uniquement, au format objet avec la clé "envelopes") :
+Response format (JSON object with key "envelopes"):
 {{
   "envelopes": [
-    {{"name": "Nom de l'Enveloppe", "categories": ["NomExactCat1", "NomExactCat2"], "reason": "Justification"}},
+    {{"name": "Envelope Name in {target_lang}", "categories": ["ExactCatName1", "ExactCatName2"], "reason": "Justification in {target_lang}"}},
     ...
   ]
 }}"""
 
-    # Pass format="json" and num_predict=2000 (sufficient for 10-14 JSON envelopes)
+    # Pass format="json" and num_predict=4000 (sufficient for 10-14 JSON envelopes)
     AI_TASK_STATUS["state"] = "SENDING"
     AI_TASK_STATUS["step_key"] = "ai_status_sending"
 
     try:
-        raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 2000, "format": "json"})
+        raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 4000, "format": "json"})
     except Exception as e:
         AI_TASK_STATUS["state"] = "ERROR"
         AI_TASK_STATUS["step_key"] = "ai_status_error"
@@ -957,53 +1095,7 @@ Format de réponse (JSON uniquement, au format objet avec la clé "envelopes") :
 
     import re
     cleaned_raw = re.sub(r'```(?:json)?', '', raw).strip()
-
-    logger.debug(f"[AI Budget] Réponse brute LLM (tronquée 2000 chars) :\n{cleaned_raw[:2000]}")
-
-    parsed_objs = []
-    
-    # 1. Direct JSON parse
-    try:
-        data_json = json.loads(cleaned_raw)
-        if isinstance(data_json, list):
-            parsed_objs = data_json
-        elif isinstance(data_json, dict):
-            # Check common keys used by various LLM models
-            for key in ["envelopes", "proposals", "enveloppes", "budgets", "categories", "suggestions", "items", "data", "result", "enveloppes_budgetaires", "propositions"]:
-                if key in data_json and isinstance(data_json[key], list):
-                    parsed_objs = data_json[key]
-                    break
-            if not parsed_objs:
-                # Search for any key containing a list of dicts with name/categories
-                for k, v in data_json.items():
-                    if isinstance(v, list) and len(v) > 0 and isinstance(v[0], dict):
-                        parsed_objs = v
-                        break
-            if not parsed_objs:
-                parsed_objs = [data_json]
-    except Exception as err:
-        logger.warning(f"[AI Budget] Échec direct json.loads: {err}")
-
-    # 2. Extract outermost JSON array [...]
-    if not parsed_objs:
-        array_match = re.search(r'\[.*\]', cleaned_raw, re.DOTALL)
-        if array_match:
-            try:
-                data = json.loads(array_match.group(0))
-                if isinstance(data, list):
-                    parsed_objs = data
-            except Exception:
-                pass
-
-    # 3. Fallback to line-by-line or regex object extraction
-    if not parsed_objs:
-        matches = re.findall(r'\{[^{}]*\}', cleaned_raw, re.DOTALL)
-        for m in matches:
-            try:
-                parsed_objs.append(json.loads(m))
-            except Exception:
-                pass
-
+    parsed_objs = _extract_json_envelopes(cleaned_raw)
     logger.debug(f"[AI Budget] {len(parsed_objs)} objets JSON parsés depuis la réponse LLM")
 
     import unicodedata
@@ -1099,11 +1191,32 @@ Format de réponse (JSON uniquement, au format objet avec la clé "envelopes") :
         cats_str = ", ".join(sub_cats)
 
         if is_all_fixed:
-            justification = f"Charge fixe contractuelle ({cats_str}){merchant_str}."
+            if data and data.lang == "en":
+                cats_str = ", ".join(sub_cats)
+                merchant_str = f" with sample transactions: {', '.join(unique_merchants)}" if unique_merchants else ""
+                justification = f"Contractual fixed expense ({cats_str}){merchant_str}."
+            else:
+                cats_str = ", ".join(sub_cats)
+                merchant_str = f" avec exemples d'opérations : {', '.join(unique_merchants)}" if unique_merchants else ""
+                justification = f"Charge fixe contractuelle ({cats_str}){merchant_str}."
         elif all_exceptional:
-            justification = f"Dépense ponctuelle/projet détectée ({cats_str}){merchant_str}."
+            if data and data.lang == "en":
+                cats_str = ", ".join(sub_cats)
+                merchant_str = f" with sample transactions: {', '.join(unique_merchants)}" if unique_merchants else ""
+                justification = f"One-off/project expense detected ({cats_str}){merchant_str}."
+            else:
+                cats_str = ", ".join(sub_cats)
+                merchant_str = f" avec exemples d'opérations : {', '.join(unique_merchants)}" if unique_merchants else ""
+                justification = f"Dépense ponctuelle/projet détectée ({cats_str}){merchant_str}."
         else:
-            justification = f"Basé sur les {window_months} derniers mois ({cats_str}){merchant_str}."
+            if data and data.lang == "en":
+                cats_str = ", ".join(sub_cats)
+                merchant_str = f" with sample transactions: {', '.join(unique_merchants)}" if unique_merchants else ""
+                justification = f"Based on the last {window_months} months ({cats_str}){merchant_str}."
+            else:
+                cats_str = ", ".join(sub_cats)
+                merchant_str = f" avec exemples d'opérations : {', '.join(unique_merchants)}" if unique_merchants else ""
+                justification = f"Basé sur les {window_months} derniers mois ({cats_str}){merchant_str}."
 
         cat_details = {
             c: {"amount": cat_amounts[c], "top_descs": cat_data[c]["top_descs"], "is_fixed": cat_data[c]["is_fixed"]}
@@ -1116,6 +1229,9 @@ Format de réponse (JSON uniquement, au format objet avec la clé "envelopes") :
         else:
             historical_actual_amount = round(sum(cat_data[c]["avg"] for c in sub_cats), 2)
 
+        current_month_spent = round(sum(cat_data[c].get("current_month_spent", 0.0) for c in sub_cats), 2)
+        recent_3m_avg = round(sum(cat_data[c].get("recent_3m_avg", 0.0) for c in sub_cats), 2)
+
         return {
             "name": name,
             "categories": sub_cats,
@@ -1123,6 +1239,8 @@ Format de réponse (JSON uniquement, au format objet avec la clé "envelopes") :
             "cat_details": cat_details,
             "suggested_amount": base_amount,
             "historical_actual_amount": historical_actual_amount,
+            "current_month_spent": current_month_spent,
+            "recent_3m_avg": recent_3m_avg,
             "suggested_period": suggested_period,
             "is_fixed": is_all_fixed,
             "has_fixed_mix": False,
@@ -1169,75 +1287,23 @@ Format de réponse (JSON uniquement, au format objet avec la clé "envelopes") :
                     used_in_proposals.update(clean_cats)
                     proposals.append(_build_proposal(name, clean_cats, reason))
 
-    # Assign orphan categories into existing LLM proposals if any exist, or fallback to thematic buckets
+    # Collect unclassified orphan categories
     orphan_cats = [c for c in cat_data.keys() if c not in used_in_proposals]
-    logger.debug(f"[AI Budget] {len(proposals)} enveloppes LLM acceptées, {len(orphan_cats)} catégories orphelines sur {len(cat_data)}")
+    logger.debug(f"[AI Budget] {len(proposals)} enveloppes LLM acceptées, {len(orphan_cats)} catégories non classées sur {len(cat_data)}")
     
-    if orphan_cats:
-        logger.debug(f"[AI Budget] Catégories orphelines : {orphan_cats}")
-        if proposals:
-            # Distribute orphan categories into existing proposals matching their period/nature
-            for c in orphan_cats:
-                c_period = cat_data[c].get("suggested_period", "monthly")
-                # Find matching proposal
-                matched_prop = None
-                for p in proposals:
-                    if p["suggested_period"] == c_period:
-                        matched_prop = p
-                        break
-                if not matched_prop:
-                    matched_prop = proposals[0]
-                matched_prop["categories"].append(c)
-                # Re-build amounts for updated proposal
-                updated_prop = _build_proposal(matched_prop["name"], matched_prop["categories"], matched_prop.get("justification"))
-                matched_prop.update(updated_prop)
-                used_in_proposals.add(c)
-        else:
-            # Complete thematic fallback if LLM produced 0 valid proposals (create 6-7 thematic envelopes)
-            thematic_buckets = {
-                "Prêts Immobiliers & Crédits": [],
-                "Assurances & Protection Foyer": [],
-                "Charges Foyer, Énergie & Impôts": [],
-                "Abonnements Télécom & Fibre": [],
-                "Services Cloud & Outils IA": [],
-                "Entretien Auto & Carburant": [],
-                "Péages & Transports Routiers": [],
-                "Courses & Alimentation": [],
-                "Santé & Soins Personnels": [],
-                "Équipement & Bricolage Foyer": [],
-                "Sorties, Loisirs & Hobbies": [],
-            }
+    unclassified_categories = []
+    for c in orphan_cats:
+        unclassified_categories.append({
+            "name": c,
+            "avg": cat_data[c]["avg"],
+            "current_month_spent": cat_data[c].get("current_month_spent", 0.0),
+            "recent_3m_avg": cat_data[c].get("recent_3m_avg", 0.0),
+            "total_year": cat_data[c].get("total_year", 0.0),
+            "suggested_period": cat_data[c].get("suggested_period", "monthly"),
+            "top_descs": cat_data[c].get("top_descs", []),
+        })
 
-            for c in orphan_cats:
-                c_lower = c.lower()
-                if any(w in c_lower for w in ["prêt", "pret", "conso", "crédit", "credit"]):
-                    thematic_buckets["Prêts Immobiliers & Crédits"].append(c)
-                elif any(w in c_lower for w in ["assurance", "prot"]):
-                    thematic_buckets["Assurances & Protection Foyer"].append(c)
-                elif any(w in c_lower for w in ["impot", "énergie", "energie", "logement", "foyer", "facture"]):
-                    thematic_buckets["Charges Foyer, Énergie & Impôts"].append(c)
-                elif any(w in c_lower for w in ["telecom", "fibre", "mobile", "sosh", "free"]):
-                    thematic_buckets["Abonnements Télécom & Fibre"].append(c)
-                elif any(w in c_lower for w in ["cloud", "google", "ovh", "distrokid", "ia", "domaine", "service"]):
-                    thematic_buckets["Services Cloud & Outils IA"].append(c)
-                elif any(w in c_lower for w in ["auto", "essence", "delko", "carburant"]):
-                    thematic_buckets["Entretien Auto & Carburant"].append(c)
-                elif any(w in c_lower for w in ["péage", "peage", "transport", "routier", "parking", "park"]):
-                    thematic_buckets["Péages & Transports Routiers"].append(c)
-                elif any(w in c_lower for w in ["course", "boulang", "habillement", "vetement", "repas", "auchan", "picard"]):
-                    thematic_buckets["Courses & Alimentation"].append(c)
-                elif any(w in c_lower for w in ["medecin", "médecin", "pharmacie", "coiffure", "santé", "sante", "soin"]):
-                    thematic_buckets["Santé & Soins Personnels"].append(c)
-                elif any(w in c_lower for w in ["tech", "electronique", "électronique", "informatique", "amazon", "bricol", "réno"]):
-                    thematic_buckets["Équipement & Bricolage Foyer"].append(c)
-                else:
-                    thematic_buckets["Sorties, Loisirs & Hobbies"].append(c)
-
-            for b_name, b_cats in thematic_buckets.items():
-                if b_cats:
-                    proposals.append(_build_proposal(b_name, b_cats))
-
-    if not proposals:
+    if not proposals and not unclassified_categories:
         raise HTTPException(status_code=500, detail="L'IA n'a pas pu générer de propositions valides.")
 
     # 4. Salary Capping & Prorating Logic:
@@ -1262,20 +1328,189 @@ Format de réponse (JSON uniquement, au format objet avec la clé "envelopes") :
         for p in proposals:
             if not p["is_fixed"] and not p["is_exceptional"]:
                 p["suggested_amount"] = round(p["suggested_amount"] * effective_ratio, 2)
-                p["justification"] += " (Ajusté au salaire disponible)"
+                for cat in p["cat_amounts"]:
+                    p["cat_amounts"][cat] = round(p["cat_amounts"][cat] * effective_ratio, 2)
+                adjusted_suffix = " (Adjusted to available salary)" if (data and data.lang == "en") else " (Ajusté au salaire disponible)"
+                p["justification"] += adjusted_suffix
 
     result_payload = {
         "proposals": proposals,
+        "unclassified_categories": unclassified_categories,
+        "cat_averages": {c: cat_data[c]["avg"] for c in cat_data},
         "regular_salary": regular_salary,
         "already_engaged_monthly": round(already_engaged_monthly, 2),
         "available_monthly_budget": round(available_monthly_budget, 2),
         "is_capped": is_capped,
-        "window_months": window_months,
+        "window_months": effective_window,
+        "requested_window_months": data.window_months if data else 3,
+        "effective_window_months": effective_window,
     }
     AI_TASK_STATUS["state"] = "SUCCESS"
     AI_TASK_STATUS["step_key"] = "ai_status_success"
     AI_TASK_STATUS["result"] = result_payload
     return result_payload
+
+
+class AiRefineRequest(BaseModel):
+    window_months: int = 3
+    lang: Optional[str] = "fr"
+    existing_proposals: list[dict] = []
+    unclassified_categories: list[dict] = []
+
+
+@router.post("/ai_suggest/refine")
+def ai_refine_budgets(data: AiRefineRequest, db: Session = Depends(get_db)):
+    """
+    Refines unclassified categories using an AI second pass to place them into existing proposals or create targeted new ones.
+    """
+    from app.routers.chat import get_ollama_config, call_ollama_sync
+
+    if not data.unclassified_categories:
+        return {"proposals": data.existing_proposals, "unclassified_categories": []}
+
+    cfg = get_ollama_config(db)
+    if not cfg.get("enabled"):
+        raise HTTPException(status_code=400, detail="IA non activée dans les paramètres.")
+
+    # 1. Existing budgets for already used categories
+    existing_budgets = db.query(Budget).filter(Budget.is_closed == False).all()
+    already_used_cats = set()
+    for b in existing_budgets:
+        for c in db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all():
+            already_used_cats.add(c.category_name)
+
+    latest_past_tx = db.query(Transaction).filter(
+        Transaction.date_operation <= date.today()
+    ).order_by(Transaction.date_operation.desc()).first()
+    anchor_date = latest_past_tx.date_operation if latest_past_tx else date.today()
+
+    cat_data = _compute_monthly_averages_for_ai(db, already_used_cats, anchor_date, window_months=data.window_months)
+
+    unclassified_names = [item.get("name") if isinstance(item, dict) else item for item in data.unclassified_categories]
+    unclassified_cats = [c for c in unclassified_names if c in cat_data]
+
+    if not unclassified_cats:
+        return {"proposals": data.existing_proposals, "unclassified_categories": []}
+
+    existing_names = [p.get("name") for p in data.existing_proposals if p.get("name")]
+    
+    cat_lines = []
+    for cat in unclassified_cats:
+        info = cat_data[cat]
+        period_str = "ANNUAL" if info.get("suggested_period") == "yearly" else "MONTHLY"
+        desc_str = f" | Examples: {', '.join(info['top_descs'][:3])}" if info["top_descs"] else ""
+        cat_lines.append(f'- Category: "{cat}" | Recurrence: {period_str}{desc_str}')
+    formatted_cats = "\n".join(cat_lines)
+
+    existing_env_str = ", ".join(f'"{n}"' for n in existing_names)
+
+    target_lang = "English" if data.lang == "en" else "French"
+
+    prompt = f"""You are an expert personal financial advisor. Here are {len(unclassified_cats)} unclassified financial categories:
+
+{formatted_cats}
+
+Current budget envelopes: [{existing_env_str}]
+
+TASK: Assign EVERY unclassified category above to the most appropriate existing envelope OR create a new dedicated envelope for it.
+
+LANGUAGE REQUIREMENT:
+Write envelope names and reason justifications in {target_lang}.
+
+Response format (JSON object with key "envelopes"):
+{{
+  "envelopes": [
+    {{"name": "Existing or New Envelope Name in {target_lang}", "categories": ["ExactCatName1"], "reason": "Justification in {target_lang}"}},
+    ...
+  ]
+}}"""
+
+    try:
+        raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 1500, "format": "json"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur d'affinage IA : {str(e)}")
+
+    import re
+    cleaned_raw = re.sub(r'```(?:json)?', '', raw).strip()
+
+    parsed_objs = _extract_json_envelopes(cleaned_raw)
+
+    # Merge refined categories into existing proposals or build new ones
+    updated_proposals = list(data.existing_proposals)
+    placed_cats = set()
+
+    for obj in parsed_objs:
+        if isinstance(obj, dict):
+            name = obj.get("name") or obj.get("title") or obj.get("enveloppe")
+            cats = obj.get("categories") or obj.get("cats") or []
+            if isinstance(cats, str):
+                cats = [c.strip().strip('"').strip("'") for c in cats.split(',') if c.strip()]
+            if not name or not cats or not isinstance(cats, list):
+                continue
+
+            valid_cats = [c for c in cats if c in cat_data and c not in placed_cats]
+            if not valid_cats:
+                continue
+
+            # Check if matching existing proposal
+            matched_prop = None
+            for p in updated_proposals:
+                if (p.get("name") or "").strip().lower() == name.strip().lower():
+                    matched_prop = p
+                    break
+
+            if matched_prop:
+                matched_prop["categories"].extend(valid_cats)
+                # Recalculate amounts
+                sub_cats = list(dict.fromkeys(matched_prop["categories"]))
+                matched_prop["categories"] = sub_cats
+                for c in valid_cats:
+                    c_period = cat_data[c].get("suggested_period", "monthly")
+                    c_val = cat_data[c]["avg"] if c_period == "monthly" else round(cat_data[c]["total_year"] / 12.0, 2)
+                    matched_prop["cat_amounts"][c] = c_val
+                matched_prop["suggested_amount"] = round(sum(matched_prop["cat_amounts"].values()), 2)
+            else:
+                # Build new proposal
+                cat_amounts = {}
+                for c in valid_cats:
+                    c_period = cat_data[c].get("suggested_period", "monthly")
+                    cat_amounts[c] = cat_data[c]["avg"] if c_period == "monthly" else round(cat_data[c]["total_year"] / 12.0, 2)
+                base_amount = round(sum(cat_amounts.values()), 2)
+                updated_proposals.append({
+                    "name": name,
+                    "categories": valid_cats,
+                    "cat_amounts": cat_amounts,
+                    "cat_details": {c: {"amount": cat_amounts[c], "top_descs": cat_data[c]["top_descs"], "is_fixed": cat_data[c]["is_fixed"]} for c in valid_cats},
+                    "suggested_amount": base_amount,
+                    "historical_actual_amount": base_amount,
+                    "current_month_spent": round(sum(cat_data[c].get("current_month_spent", 0.0) for c in valid_cats), 2),
+                    "recent_3m_avg": round(sum(cat_data[c].get("recent_3m_avg", 0.0) for c in valid_cats), 2),
+                    "suggested_period": "monthly",
+                    "is_fixed": False,
+                    "has_fixed_mix": False,
+                    "fixed_sum": 0.0,
+                    "is_exceptional": False,
+                    "justification": f"Enveloppe d'affinage IA ({', '.join(valid_cats)}).",
+                })
+            placed_cats.update(valid_cats)
+
+    remaining_unclassified = [
+        {
+            "name": c,
+            "avg": cat_data[c]["avg"],
+            "current_month_spent": cat_data[c].get("current_month_spent", 0.0),
+            "recent_3m_avg": cat_data[c].get("recent_3m_avg", 0.0),
+            "total_year": cat_data[c].get("total_year", 0.0),
+            "suggested_period": cat_data[c].get("suggested_period", "monthly"),
+            "top_descs": cat_data[c].get("top_descs", []),
+        }
+        for c in unclassified_cats if c not in placed_cats
+    ]
+
+    return {
+        "proposals": updated_proposals,
+        "unclassified_categories": remaining_unclassified,
+    }
 
 
 # ─── Allocation CRUD (for savings / tirelire envelopes) ───────────────────────
