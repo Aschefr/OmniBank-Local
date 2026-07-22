@@ -18,9 +18,56 @@ window.BudgetsView = {
             <div class="view-header" style="position:sticky;top:-32px;z-index:10;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <h2 style="margin:0;" data-i18n="budget_title">${window.i18n.t('budget_title')}</h2>
                 <div class="history-filters" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <button id="budgetAiBtn" class="btn btn-secondary" style="white-space:nowrap; ${aiDisp}" onclick="window.BudgetsView.requestAiSuggestions()" data-i18n="budget_btn_suggestions">${window.i18n.t('budget_btn_suggestions')}</button>
+                    <button id="budgetAiBtn" class="btn btn-secondary" style="white-space:nowrap; ${aiDisp}" onclick="window.BudgetsView.openAiWindowModal()" data-i18n="budget_btn_suggestions">${window.i18n.t('budget_btn_suggestions')}</button>
                     <button class="btn btn-secondary" style="white-space:nowrap;color:#ef4444;border-color:rgba(239,68,68,0.4);" onclick="window.BudgetsView.showBulkDeleteModal()" data-i18n="budget_btn_bulk_delete">${window.i18n.t('budget_btn_bulk_delete') || '🗑️ Nettoyer'}</button>
                     <button class="btn btn-primary" style="white-space:nowrap;" onclick="window.BudgetsView.showAddForm()" data-i18n="budget_btn_new">${window.i18n.t('budget_btn_new')}</button>
+                </div>
+            </div>
+
+            <!-- Modal Sélection préalable de la période d'analyse IA -->
+            <div id="aiWindowSelectionModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+                <div style="background:var(--bg-surface);border:1px solid var(--accent);border-radius:16px;max-width:540px;width:100%;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:18px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
+                        <h3 style="margin:0;font-size:16px;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+                            <span>🔮</span> <span data-i18n="ai_modal_window_title">${window.i18n.t('ai_modal_window_title') || '🔮 Suggestions Budgétaires par l\'IA'}</span>
+                        </h3>
+                        <button class="btn btn-secondary" onclick="window.BudgetsView.closeAiWindowModal()" style="padding:4px 10px;font-size:12px;">✕</button>
+                    </div>
+
+                    <p style="font-size:13px;color:var(--text-muted);margin:0;" data-i18n="ai_modal_window_subtitle">
+                        ${window.i18n.t('ai_modal_window_subtitle') || 'Choisissez la période d\'historique bancaire à analyser pour calculer vos enveloppes :'}
+                    </p>
+
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <label style="display:flex;align-items:flex-start;gap:12px;background:var(--bg-base);border:2px solid var(--accent);padding:12px 16px;border-radius:10px;cursor:pointer;transition:all 0.2s ease;" onclick="window.BudgetsView.selectModalAiWindow(3, this)">
+                            <input type="radio" name="modalAiWindowOption" value="3" checked style="margin-top:3px;accent-color:var(--accent);">
+                            <div style="display:flex;flex-direction:column;gap:2px;">
+                                <strong style="font-size:13px;color:var(--text-main);" data-i18n="ai_modal_win_3m_title">${window.i18n.t('ai_modal_win_3m_title') || '3 Mois (Recommandé)'}</strong>
+                                <span style="font-size:11px;color:var(--text-muted);" data-i18n="ai_modal_win_3m_desc">${window.i18n.t('ai_modal_win_3m_desc') || 'Idéal pour s\'adapter à vos habitudes de dépense récentes.'}</span>
+                            </div>
+                        </label>
+
+                        <label style="display:flex;align-items:flex-start;gap:12px;background:var(--bg-base);border:1px solid var(--border-color);padding:12px 16px;border-radius:10px;cursor:pointer;transition:all 0.2s ease;" onclick="window.BudgetsView.selectModalAiWindow(6, this)">
+                            <input type="radio" name="modalAiWindowOption" value="6" style="margin-top:3px;accent-color:var(--accent);">
+                            <div style="display:flex;flex-direction:column;gap:2px;">
+                                <strong style="font-size:13px;color:var(--text-main);" data-i18n="ai_modal_win_6m_title">${window.i18n.t('ai_modal_win_6m_title') || '6 Mois (Lissage moyen)'}</strong>
+                                <span style="font-size:11px;color:var(--text-muted);" data-i18n="ai_modal_win_6m_desc">${window.i18n.t('ai_modal_win_6m_desc') || 'Parfait pour lisser les dépenses saisonnières et semi-annuelles.'}</span>
+                            </div>
+                        </label>
+
+                        <label style="display:flex;align-items:flex-start;gap:12px;background:var(--bg-base);border:1px solid var(--border-color);padding:12px 16px;border-radius:10px;cursor:pointer;transition:all 0.2s ease;" onclick="window.BudgetsView.selectModalAiWindow(12, this)">
+                            <input type="radio" name="modalAiWindowOption" value="12" style="margin-top:3px;accent-color:var(--accent);">
+                            <div style="display:flex;flex-direction:column;gap:2px;">
+                                <strong style="font-size:13px;color:var(--text-main);" data-i18n="ai_modal_win_12m_title">${window.i18n.t('ai_modal_win_12m_title') || '12 Mois (Vue annuelle complète)'}</strong>
+                                <span style="font-size:11px;color:var(--text-muted);" data-i18n="ai_modal_win_12m_desc">${window.i18n.t('ai_modal_win_12m_desc') || 'Capturer l\'ensemble des charges annuelles, abonnements et impôts.'}</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:10px;border-top:1px solid var(--border-color);">
+                        <button class="btn btn-secondary" onclick="window.BudgetsView.closeAiWindowModal()">${window.i18n.t('budget_bulk_delete_cancel') || 'Annuler'}</button>
+                        <button class="btn btn-primary" onclick="window.BudgetsView.confirmAiWindowSelection()" style="background:var(--accent);font-weight:700;padding:8px 18px;" data-i18n="ai_modal_btn_start">${window.i18n.t('ai_modal_btn_start') || '🚀 Lancer l\'analyse IA'}</button>
+                    </div>
                 </div>
             </div>
 
@@ -60,100 +107,164 @@ window.BudgetsView = {
             </div>
 
             <!-- AI Suggestions panel -->
-            <div id="budgetAiPanel" style="display:none;margin-bottom:24px;background:var(--bg-surface);border:1px solid var(--accent);border-radius:12px;padding:18px;">
-                
-                <!-- Global Action Toolbar (Top of Panel) -->
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
-                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                        <!-- Window Months Selector -->
-                        <span style="font-size:12px;color:var(--text-muted);font-weight:600;margin-right:2px;" data-i18n="ai_budget_window">${window.i18n.t('ai_budget_window') || 'Fenêtre :'}</span>
-                        <button id="aiWinBtn3" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(3)" data-i18n="ai_budget_window_3m">⚡ 3 mois</button>
-                        <button id="aiWinBtn6" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(6)" data-i18n="ai_budget_window_6m">⚖️ 6 mois</button>
-                        <button id="aiWinBtn12" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(12)" data-i18n="ai_budget_window_12m">📅 12 mois</button>
-                        
-                        <div style="height:16px;width:1px;background:var(--border-color);margin:0 4px;"></div>
-                        
-                        <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="window.BudgetsView.toggleAllAiProposals(true)" data-i18n="ai_budget_select_all">${window.i18n.t('ai_budget_select_all') || 'Tout cocher'}</button>
-                        <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="window.BudgetsView.toggleAllAiProposals(false)" data-i18n="ai_budget_deselect_all">${window.i18n.t('ai_budget_deselect_all') || 'Tout décocher'}</button>
-                        
-                        <div style="height:16px;width:1px;background:var(--border-color);margin:0 4px;"></div>
-                        
-                        <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="window.BudgetsView.adjustAiProposals(0.90)" data-i18n="ai_budget_strategy_frugal">✂️ -10%</button>
-                        <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="window.BudgetsView.adjustAiProposals(1.10)" data-i18n="ai_budget_strategy_prudent">🛡️ +10%</button>
-                        <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="window.BudgetsView.adjustAiProposals(1.00, true)" data-i18n="ai_budget_strategy_reset">🔄 Réinitialiser (100%)</button>
+            ${(() => {
+                const hasProposals = (this.aiProposals && this.aiProposals.length > 0) || (this.unclassifiedCategories && this.unclassifiedCategories.length > 0);
+                const isClosed = sessionStorage.getItem('budget_ai_panel_closed') === 'true';
+                const showPanel = hasProposals && !isClosed;
+                return `<div id="budgetAiPanel" style="${showPanel ? 'display:block;' : 'display:none;'}background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;padding:16px 20px;margin-bottom:24px;box-shadow:var(--shadow-md);">`;
+            })()}
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border-color);flex-wrap:wrap;gap:10px;">
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <span style="font-weight:700;font-size:13px;color:var(--text-main);" data-i18n="ai_budget_window">${window.i18n.t('ai_budget_window') || 'Historique d\'analyse :'}</span>
+                        <span title="${window.i18n.t('ai_sim_tt_history_help') || 'La fenêtre détermine la profondeur de l\'historique analysée par l\'IA pour lisser vos moyennes mensuelles/annuelles, détecter les récurrences et couvrir l\'ensemble de vos catégories de dépenses.'}" style="cursor:help;margin-right:4px;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
+                        <button id="aiWinBtn3" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(3)" data-i18n="ai_budget_window_3m">3 mois</button>
+                        <button id="aiWinBtn6" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(6)" data-i18n="ai_budget_window_6m">6 mois</button>
+                        <button id="aiWinBtn12" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(12)" data-i18n="ai_budget_window_12m">12 mois</button>
                     </div>
 
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <button id="budgetAiAcceptSelectedBtn" class="btn btn-primary" style="padding:5px 14px;font-size:12px;font-weight:600;" onclick="window.BudgetsView.acceptSelectedProposals()" data-i18n="ai_budget_accept_selected">
-                            ✨ Créer les enveloppes sélectionnées
-                        </button>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <span style="font-size:11px;color:var(--text-muted);font-weight:600;" data-i18n="ai_budget_select_label">${window.i18n.t('ai_budget_select_label') || 'Sélection :'}</span>
+                        <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.toggleAllAiProposals(true)" data-i18n="ai_budget_select_all">${window.i18n.t('ai_budget_select_all') || 'Tout cocher'}</button>
+                        <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.toggleAllAiProposals(false)" data-i18n="ai_budget_deselect_all">${window.i18n.t('ai_budget_deselect_all') || 'Tout décocher'}</button>
+                        <div style="height:16px;width:1px;background:var(--border-color);margin:0 4px;"></div>
                         <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;" onclick="window.BudgetsView.closeAiPanel()" data-i18n="budget_ai_close">✕ Fermer</button>
                     </div>
                 </div>
 
-                <!-- Impact Simulator Header (Mensuel) -->
-                <div id="aiImpactSimulator" style="background:var(--bg-base);border:1px solid var(--border-color);border-radius:10px;padding:12px 16px;margin-bottom:14px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+                <!-- Impact Simulator Box (2 Distinct Separate Progress Bars) -->
+                <div id="aiImpactSimulator" style="background:var(--bg-base);border:1px solid var(--border-color);border-radius:10px;padding:14px 16px;margin-bottom:14px;display:flex;flex-direction:column;gap:14px;">
+                    
+                    <!-- Header: Title + Salary input + Selected count -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                         <strong style="color:var(--accent);font-size:14px;display:flex;align-items:center;gap:6px;">
                             <span>⚡</span> <span data-i18n="ai_budget_sim_monthly_title">${window.i18n.t('ai_budget_sim_monthly_title') || 'Impact mensuel prévisionnel'}</span>
                         </strong>
-                        <div style="display:flex;gap:10px;align-items:center;">
+                        
+                        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                             <span id="aiSimSalaryBadge" style="font-size:11px;background:var(--bg-surface);padding:3px 10px;border-radius:6px;border:1px solid var(--border-color);color:var(--text-muted);display:flex;align-items:center;gap:6px;">
-                                <span data-i18n="ai_budget_salary_ref">${window.i18n.t('ai_budget_salary_ref') || '💼 Salaire repère :'}</span> 
+                                <span data-i18n="ai_sim_salary_input_label">${window.i18n.t('ai_sim_salary_input_label') || '💼 Revenus repère :'}</span> 
                                 <input id="aiSimSalaryInput" type="number" step="10" style="width:80px;text-align:right;font-size:12px;font-weight:700;padding:2px 4px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-base);color:var(--accent);" oninput="window.BudgetsView.updateCustomSalary(this.value)"> €
                             </span>
                             <span id="aiSimSelectedCount" style="font-size:12px;color:var(--text-muted);font-weight:600;">0 / 0 sélectionnées</span>
                         </div>
                     </div>
 
-                    <!-- Progress bar Mensuelle -->
-                    <div style="width:100%;height:8px;background:var(--border-color);border-radius:4px;overflow:hidden;position:relative;margin-bottom:8px;">
-                        <div id="aiSimProgressBarCurrent" style="height:100%;background:var(--accent);width:0%;position:absolute;top:0;left:0;transition:width 0.3s ease;" title="Engagé mensuel actuel"></div>
-                        <div id="aiSimProgressBarImpact" style="height:100%;background:#3b82f6;width:0%;position:absolute;top:0;left:0;opacity:0.8;transition:all 0.3s ease;" title="Nouvel impact mensuel"></div>
+                    <!-- BARRE 1 : Capacité vs Revenu -->
+                    <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;flex-wrap:wrap;gap:6px;">
+                            <span style="font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:4px;">
+                                💼 <span data-i18n="ai_sim_gauge_capacity_income">${window.i18n.t('ai_sim_gauge_capacity_income') || 'Capacité vs Revenus'}</span>
+                            </span>
+                            <div style="display:flex;gap:12px;font-size:11px;color:var(--text-muted);align-items:center;flex-wrap:wrap;">
+                                <span><span data-i18n="ai_sim_lbl_engaged">${window.i18n.t('ai_sim_lbl_engaged') || 'Actuel :'}</span> <strong id="aiSimCurrentVal" style="color:var(--text-main);">0,00 €/m</strong></span>
+                                <span><span data-i18n="ai_sim_lbl_impact_val">${window.i18n.t('ai_sim_lbl_impact_val') || '+ Propositions :'}</span> <strong id="aiSimImpactVal" style="color:#3b82f6;">+0,00 €/m</strong></span>
+                                <span style="background:var(--bg-base);padding:2px 8px;border-radius:6px;border:1px solid var(--border-color);display:inline-flex;align-items:center;gap:4px;">
+                                    <strong id="aiSimPercentBadge" style="font-size:11px;font-weight:700;">Budget de 0,00 €/m (0%)</strong>
+                                </span>
+                            </div>
+                        </div>
+                        <div style="position:relative;margin-top:14px;margin-bottom:2px;">
+                            <!-- Floating Salary Badge over marker line -->
+                            <div id="aiSimSalaryMarkerBadge1" style="display:none;position:absolute;top:-18px;transform:translateX(-50%);background:#8b5cf6;color:#ffffff;font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;z-index:3;white-space:nowrap;box-shadow:0 2px 6px rgba(139,92,246,0.4);" title="${window.i18n.t('ai_sim_salary_marker_title') || 'Limite des revenus repère'}">
+                                💼 <span id="aiSimSalaryMarkerVal1">2 400 €</span>
+                            </div>
+                            <div style="width:100%;height:8px;background:var(--border-color);border-radius:4px;overflow:hidden;position:relative;">
+                                <div id="aiSimProgressBarCurrent" style="height:100%;background:var(--accent);width:0%;position:absolute;top:0;left:0;transition:width 0.3s ease;" title="Enveloppes mensuelles actuelles"></div>
+                                <div id="aiSimProgressBarImpact" style="height:100%;background:#3b82f6;width:0%;position:absolute;top:0;left:0;opacity:0.8;transition:all 0.3s ease;" title="Nouveau budget proposé"></div>
+                                <div id="aiSimSalaryMarker1" style="display:none;position:absolute;top:0;bottom:0;width:2px;background:#c084fc;z-index:2;box-shadow:0 0 4px #c084fc;" title="${window.i18n.t('ai_sim_salary_marker_title') || 'Limite des revenus repère'}"></div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);flex-wrap:wrap;gap:6px;">
-                        <div>
-                            <span data-i18n="ai_budget_simulator_capacity">${window.i18n.t('ai_budget_simulator_capacity') || 'Capacité engagée :'}</span>
-                            <span title="${window.i18n.t('ai_budget_sim_tt_capacity') || 'Somme des enveloppes mensuelles déjà existantes et actives.'}" style="cursor:help;margin-right:4px;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
-                            <strong id="aiSimCurrentVal" style="color:var(--text-main);">0,00 €/mois</strong>
+                    <!-- BARRE 2 : Couverture Dépenses Réelles -->
+                    <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;flex-wrap:wrap;gap:6px;">
+                            <span style="font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:4px;">
+                                📊 <span data-i18n="ai_sim_gauge_real_coverage">${window.i18n.t('ai_sim_gauge_real_coverage') || 'Couverture Dépenses Réelles'}</span>
+                            </span>
+                            <div style="display:flex;gap:12px;font-size:11px;color:var(--text-muted);align-items:center;flex-wrap:wrap;">
+                                <span><span id="aiSimRealPaceLabel">${(window.i18n.t('ai_sim_lbl_real_pace') || 'Moyenne de dépenses ({months}m) :').replace('{months}', '3')}</span> <strong id="aiSimRealPaceVal" style="color:var(--text-main);">0,00 €/m</strong></span>
+                                <span><span data-i18n="ai_sim_lbl_proposed">${window.i18n.t('ai_sim_lbl_proposed') || 'Budget proposé :'}</span> <strong id="aiSimProposedVal" style="color:#60a5fa;">0,00 €/m</strong></span>
+                                <span style="background:var(--bg-base);padding:2px 8px;border-radius:6px;border:1px solid var(--border-color);">
+                                    <strong id="aiSimGapVal" style="color:#36b37e;font-size:11px;">0,00 €/m</strong>
+                                </span>
+                            </div>
                         </div>
-                        <div>
-                            <span data-i18n="ai_budget_simulator_impact">${window.i18n.t('ai_budget_simulator_impact') || 'Impact sélection :'}</span>
-                            <span title="${window.i18n.t('ai_budget_sim_tt_impact') || 'Somme mensuelle (enveloppes mensuelles + annuelles/12) des propositions cochées ci-dessous.'}" style="cursor:help;margin-right:4px;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
-                            <strong id="aiSimImpactVal" style="color:#3b82f6;">+0,00 €/mois</strong>
-                        </div>
-                        <div>
-                            <span data-i18n="ai_budget_total_projected">${window.i18n.t('ai_budget_total_projected') || 'Total prévisionnel :'}</span>
-                            <span title="${window.i18n.t('ai_budget_sim_tt_total') || 'Total mensuel prévisionnel une fois les enveloppes sélectionnées créées.'}" style="cursor:help;margin-right:4px;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
-                            <strong id="aiSimTotalVal" style="color:var(--text-main);">0,00 €/mois</strong>
+                        <div style="position:relative;margin-top:14px;margin-bottom:2px;">
+                            <!-- Floating Salary Badge over marker line 2 -->
+                            <div id="aiSimSalaryMarkerBadge2" style="display:none;position:absolute;top:-18px;transform:translateX(-50%);background:#8b5cf6;color:#ffffff;font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;z-index:3;white-space:nowrap;box-shadow:0 2px 6px rgba(139,92,246,0.4);" title="Limite du salaire repère">
+                                💼 <span id="aiSimSalaryMarkerVal2">2 400 €</span>
+                            </div>
+                            <div style="width:100%;height:8px;background:var(--border-color);border-radius:4px;overflow:hidden;position:relative;">
+                                <div id="aiSimProgressBarRealCovered" style="height:100%;background:#36b37e;width:0%;position:absolute;top:0;left:0;transition:all 0.3s ease;" title="Dépenses couvertes par le budget"></div>
+                                <div id="aiSimProgressBarRealUncovered" style="height:100%;background:#ef4444;width:0%;position:absolute;top:0;left:0;opacity:0.9;transition:all 0.3s ease;" title="Dépenses non couvertes (dépassement)"></div>
+                                <div id="aiSimSalaryMarker2" style="display:none;position:absolute;top:0;bottom:0;width:2px;background:#c084fc;z-index:2;box-shadow:0 0 4px #c084fc;" title="Limite Salaire Repère"></div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- CARDE 3 : Ajustement des montants proposée -->
+                    <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span style="font-size:12px;font-weight:700;color:var(--text-main);" data-i18n="ai_sim_lbl_adjust_proposals_title">${window.i18n.t('ai_sim_lbl_adjust_proposals_title') || '⚡ Modifier le montant des enveloppes pour les :'}</span>
+                            <span title="${window.i18n.t('ai_sim_tt_adjust_help') || 'Ajustez globalement les montants des enveloppes d\'un seul clic ou calibrez-les sur vos dépenses et revenus.'}" style="cursor:help;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.adjustAiProposals(0.90)" title="${window.i18n.t('ai_sim_tt_frugal') || 'Réduit les propositions de 10% pour maximiser votre épargne mensuelle (Frugal)'}" data-i18n="ai_budget_strategy_frugal_clean">✂️ Réduire de 10%</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.adjustAiProposals(1.10)" title="${window.i18n.t('ai_sim_tt_prudent') || 'Ajoute 10% de marge de sécurité pour absorber les imprévus (Prudent)'}" data-i18n="ai_budget_strategy_prudent_clean">🛡️ Augmenter de 10%</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.alignAiProposalsToIncome()" title="${window.i18n.t('ai_sim_tt_income_aligned') || 'Ajuste les enveloppes pour que le budget total corresponde exactement à votre salaire repère'}" data-i18n="ai_budget_strategy_income_clean">⚖️ Aligner sur les revenus</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:#60a5fa;border-color:rgba(96,165,250,0.4);" onclick="window.BudgetsView.alignAiProposalsToCurrentMonth()" title="${window.i18n.t('ai_sim_tt_cur_month') || 'Ajuste chaque enveloppe exactement sur les dépenses constatées ce mois-ci'}" data-i18n="ai_budget_strategy_month_clean">📅 Aligner sur le mois</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:#36b37e;border-color:rgba(54,179,126,0.4);" onclick="window.BudgetsView.alignAiProposalsToRealSpending()" title="${window.i18n.t('ai_sim_tt_avg_pace') || 'Ajuste chaque enveloppe sur la moyenne des dépenses constatées sur l\'historique'}" data-i18n="ai_budget_strategy_avg_clean">📊 Aligner sur la moyenne</button>
+                        </div>
+                    </div>
+
                 </div>
 
-                <!-- Compact Proposal Table Container -->
-                <div style="position:relative;">
-                    <div id="aiLoadingOverlay" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15, 23, 42, 0.85);backdrop-filter:blur(4px);z-index:10;border-radius:10px;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--text-main);padding:20px;">
+                <!-- Historical Comparison Warning Alert -->
+                <div id="aiSimHistoricalComparisonAlert" style="display:none;background:rgba(239, 68, 68, 0.12);border:1px solid rgba(239, 68, 68, 0.35);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#f87171;align-items:center;gap:10px;"></div>
+
+
+                <!-- Proposal Table & Loading Overlay Container -->
+                <div>
+                    <div id="aiLoadingOverlay" style="display:none;min-height:180px;width:100%;background:var(--bg-base);border:1px solid var(--border-color);border-radius:10px;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--text-main);padding:24px;margin-bottom:14px;">
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <svg class="animate-spin" style="width:28px;height:28px;color:#c084fc;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <svg class="animate-spin" style="width:26px;height:26px;color:#c084fc;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <strong id="aiLoadingText" style="font-size:14px;color:var(--text-main);">📊 Préparation des données bancaires...</strong>
+                            <strong id="aiLoadingText" style="font-size:14px;color:var(--text-main);" data-i18n="ai_status_preparing">${window.i18n.t('ai_status_preparing') || 'Préparation des données bancaires...'}</strong>
                         </div>
 
-                        <div id="aiTimerBadge" style="font-size:12px;background:rgba(139,92,246,0.15);color:#c084fc;padding:4px 12px;border-radius:12px;border:1px solid rgba(139,92,246,0.3);font-weight:700;">
-                            ⏱️ 0s / 300s max
+                        <div id="aiTimerBadge" style="font-size:12px;background:rgba(139,92,246,0.15);color:#c084fc;padding:4px 14px;border-radius:12px;border:1px solid rgba(139,92,246,0.3);font-weight:700;">
+                            0s / 300s max
                         </div>
 
                         <div id="aiStepperContainer" style="display:flex;gap:8px;font-size:11px;color:var(--text-muted);margin-top:6px;flex-wrap:wrap;justify-content:center;">
-                            <span id="aiStep_PREPARING" style="padding:3px 9px;border-radius:6px;background:var(--bg-surface);border:1px solid var(--border-color);transition:all 0.3s ease;">1. 📊 Données</span>
-                            <span id="aiStep_SENDING" style="padding:3px 9px;border-radius:6px;background:var(--bg-surface);border:1px solid var(--border-color);transition:all 0.3s ease;">2. 🚀 Envoi LLM</span>
-                            <span id="aiStep_THINKING" style="padding:3px 9px;border-radius:6px;background:var(--bg-surface);border:1px solid var(--border-color);transition:all 0.3s ease;">3. 🧠 Réflexion</span>
-                            <span id="aiStep_PARSING" style="padding:3px 9px;border-radius:6px;background:var(--bg-surface);border:1px solid var(--border-color);transition:all 0.3s ease;">4. 🔍 Structuration</span>
+                            <span id="aiStep_PREPARING" data-i18n="ai_step_preparing" style="padding:4px 10px;border-radius:6px;background:var(--bg-surface);border:1px solid var(--border-color);transition:all 0.3s ease;">${window.i18n.t('ai_step_preparing') || '1. Données'}</span>
+                            <span id="aiStep_SENDING" data-i18n="ai_step_sending" style="padding:4px 10px;border-radius:6px;background:var(--bg-surface);border:1px solid var(--border-color);transition:all 0.3s ease;">${window.i18n.t('ai_step_sending') || '2. Envoi LLM'}</span>
+                            <span id="aiStep_THINKING" data-i18n="ai_step_thinking" style="padding:4px 10px;border-radius:6px;background:var(--bg-surface);border:1px solid var(--border-color);transition:all 0.3s ease;">${window.i18n.t('ai_step_thinking') || '3. Réflexion'}</span>
+                            <span id="aiStep_PARSING" data-i18n="ai_step_parsing" style="padding:4px 10px;border-radius:6px;background:var(--bg-surface);border:1px solid var(--border-color);transition:all 0.3s ease;">${window.i18n.t('ai_step_parsing') || '4. Structuration'}</span>
                         </div>
+
+                        <!-- Parsing progress bar animation for step 4 -->
+                        <div id="aiParsingProgressBarContainer" style="display:none;width:100%;max-width:320px;height:4px;background:var(--border-color);border-radius:2px;overflow:hidden;margin-top:6px;">
+                            <div id="aiParsingProgressBar" style="width:0%;height:100%;background:linear-gradient(90deg, #8b5cf6, #3b82f6);transition:width 2s cubic-bezier(0.4, 0, 0.2, 1);border-radius:2px;"></div>
+                        </div>
+
+                        <button onclick="window.BudgetsView.cancelAiSuggestions()" class="btn btn-secondary" style="margin-top:8px;padding:4px 14px;font-size:12px;color:#ef4444;border-color:rgba(239,68,68,0.4);" data-i18n="ai_btn_stop">
+                            ${window.i18n.t('ai_btn_stop') || "Arrêter l'analyse"}
+                        </button>
                     </div>
                     <div id="budgetAiProposals" style="display:flex;flex-direction:column;gap:6px;"></div>
+
+                    <!-- Sticky bottom bar: primary CTA always visible while scrolling -->
+                    <div id="aiStickyBar" style="display:none;position:sticky;bottom:0;z-index:10;background:var(--bg-surface);border-top:1px solid var(--border-color);border-radius:0 0 10px 10px;padding:10px 14px;margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 -4px 12px rgba(0,0,0,0.15);">
+                        <span id="aiStickyCount" style="font-size:12px;color:var(--text-muted);font-weight:600;"></span>
+                        <button class="btn btn-primary" style="padding:7px 20px;font-size:13px;font-weight:700;" onclick="window.BudgetsView.acceptSelectedProposals()" data-i18n="ai_budget_accept_selected">
+                            ✨ ${window.i18n.t('ai_budget_accept_selected') || 'Créer les enveloppes sélectionnées'}
+                        </button>
+                    </div>
+                </div>
                 </div>
             </div>
 
@@ -1290,6 +1401,13 @@ window.BudgetsView = {
             this._pendingHighlightName = null;
             setTimeout(() => this._highlightByName(name), 100);
         }
+
+        // Re-render active AI suggestions panel after language change or view refresh
+        if (this.aiProposals && this.aiProposals.length > 0) {
+            setTimeout(() => {
+                this.renderAiProposalsList();
+            }, 50);
+        }
     },
 
     _highlightByName(budgetName) {
@@ -1854,7 +1972,40 @@ window.BudgetsView = {
 
     // ── AI Suggestions ────────────────────────────────────────────────────────
 
+    openAiWindowModal() {
+        const modal = document.getElementById('aiWindowSelectionModal');
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    },
+
+    closeAiWindowModal() {
+        const modal = document.getElementById('aiWindowSelectionModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    },
+
+    selectModalAiWindow(months, element) {
+        const radio = element.querySelector('input[type="radio"]');
+        if (radio) radio.checked = true;
+
+        const labels = document.querySelectorAll('#aiWindowSelectionModal label');
+        labels.forEach(lbl => {
+            lbl.style.border = '1px solid var(--border-color)';
+        });
+        element.style.border = '2px solid var(--accent)';
+    },
+
+    confirmAiWindowSelection() {
+        const selectedRadio = document.querySelector('input[name="modalAiWindowOption"]:checked');
+        const months = selectedRadio ? parseInt(selectedRadio.value) : 3;
+        this.closeAiWindowModal();
+        this.requestAiSuggestions(months);
+    },
+
     async requestAiSuggestions(windowMonths = 3) {
+        sessionStorage.removeItem('budget_ai_panel_closed');
         const btn = document.getElementById('budgetAiBtn');
         btn.disabled = true;
         btn.innerHTML = `<svg class="animate-spin" style="width:14px;height:14px;margin-right:6px;display:inline-block;vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1862,25 +2013,31 @@ window.BudgetsView = {
             <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg> ${window.i18n.t('budget_ai_analyzing')}`;
         
-        // Highlight active window button pill
-        [3, 6, 12].forEach(m => {
-            const b = document.getElementById(`aiWinBtn${m}`);
-            if (b) {
-                if (m === windowMonths) {
-                    b.classList.remove('btn-secondary');
-                    b.classList.add('btn-primary');
-                } else {
-                    b.classList.remove('btn-primary');
-                    b.classList.add('btn-secondary');
-                }
-            }
-        });
+        this.updateAiWindowButtonsState(windowMonths);
 
-        // Disable buttons & show loading overlay banner while re-analyzing
+        // Show AI panel immediately with progress overlay & stepper animation, clear previous proposals and alert for a clean initial loading state
+        const panel = document.getElementById('budgetAiPanel');
         const container = document.getElementById('budgetAiProposals');
         const overlay = document.getElementById('aiLoadingOverlay');
-        const loadingText = document.getElementById('aiLoadingText');
+        const simulator = document.getElementById('aiImpactSimulator');
+        const alertBanner = document.getElementById('aiSimHistoricalComparisonAlert');
+        const stickyBar = document.getElementById('aiStickyBar');
 
+        this.aiProposals = [];
+        this.unclassifiedCategories = [];
+
+        if (simulator) simulator.style.display = 'none';
+        if (alertBanner) alertBanner.style.display = 'none';
+        if (stickyBar) stickyBar.style.display = 'none';
+        if (container) {
+            container.innerHTML = '';
+            container.style.opacity = '1';
+            container.style.pointerEvents = 'auto';
+        }
+
+        if (panel) {
+            panel.style.display = 'block';
+        }
         if (overlay) {
             overlay.style.display = 'flex';
         }
@@ -1889,46 +2046,175 @@ window.BudgetsView = {
             container.style.pointerEvents = 'none';
         }
 
+        if (this.currentAiSuggestAbortController) {
+            try { 
+                this.currentAiSuggestAbortController.abort();
+                await API.post('/api/budgets/ai_suggest/cancel');
+            } catch(e) {}
+        }
+        this.currentAiSuggestAbortController = new AbortController();
+
         // Start live polling of status
-        let pollTimer = setInterval(async () => {
+        if (this.aiPollTimer) clearInterval(this.aiPollTimer);
+        this.aiPollTimer = setInterval(async () => {
             try {
                 const status = await API.get('/api/budgets/ai_suggest/status');
                 if (status && status.state) {
-                    this.updateAiPipelineStatusUI(status);
-                    if (window.app && window.app.updateAiNavBadge) {
-                        window.app.updateAiNavBadge(status);
+                    if (status.state === 'ERROR' || status.state === 'IDLE') {
+                        this.resetAiBtnAndOverlay();
+                    } else {
+                        this.updateAiPipelineStatusUI(status);
+                        if (window.app && window.app.updateAiNavBadge) {
+                            window.app.updateAiNavBadge(status);
+                        }
                     }
                 }
             } catch (e) {}
         }, 1000);
 
         try {
-            const result = await API.post('/api/budgets/ai_suggest', { window_months: windowMonths });
+            const currentLang = (window.i18n && window.i18n.currentLang) ? window.i18n.currentLang : 'fr';
+            const result = await API.post('/api/budgets/ai_suggest', { window_months: windowMonths, lang: currentLang }, { signal: this.currentAiSuggestAbortController.signal });
+            await this.playParsingAnimation();
             this.aiSuggestMeta = result;
+            const effWin = result.effective_window_months || result.window_months || windowMonths;
+            this.updateAiWindowButtonsState(windowMonths, effWin);
             this.renderAiProposals(result.proposals || []);
         } catch(e) {
+            if (e.name === 'AbortError') {
+                return;
+            }
             const msg = e.message || '';
+            if (panel && (!this.aiProposals || !this.aiProposals.length)) {
+                panel.style.display = 'none';
+            }
             if (msg.includes('non activ') || msg.includes('400')) {
                 showInlineMessage(window.i18n.t('title_info'), msg || window.i18n.t('budget_ai_not_enabled'));
             } else {
                 showInlineMessage(window.i18n.t('title_error'), msg || window.i18n.t('budget_ai_error'));
             }
         } finally {
-            clearInterval(pollTimer);
-            if (window.app && window.app.updateAiNavBadge) {
-                window.app.updateAiNavBadge(null);
-            }
-            if (overlay) overlay.style.display = 'none';
-            if (container) {
-                container.style.opacity = '1';
-                container.style.pointerEvents = 'auto';
-            }
-            btn.disabled = false;
-            btn.textContent = window.i18n.t('budget_btn_suggestions');
+            this.resetAiBtnAndOverlay();
         }
     },
 
+    updateAiWindowButtonsState(activeWindow, effectiveWindow = null) {
+        const wins = [3, 6, 12];
+        const targetWin = effectiveWindow || activeWindow;
+
+        wins.forEach(w => {
+            const btn = document.getElementById(`btnAiWindow_${w}`);
+            if (btn) {
+                if (w === targetWin) {
+                    btn.className = 'btn btn-primary';
+                    btn.style.opacity = '1';
+                    btn.style.pointerEvents = 'auto';
+                    btn.disabled = false;
+                } else if (effectiveWindow && w < effectiveWindow) {
+                    // Window had no active transactions and was auto-extended
+                    btn.className = 'btn btn-secondary';
+                    btn.style.opacity = '0.35';
+                    btn.style.cursor = 'not-allowed';
+                    btn.disabled = true;
+                    btn.title = window.i18n.t('ai_budget_window_auto_extended') || `Aucune dépense sur ${w} mois — analyse étendue à ${effectiveWindow} mois`;
+                } else {
+                    btn.className = 'btn btn-secondary';
+                    btn.style.opacity = '1';
+                    btn.style.pointerEvents = 'auto';
+                    btn.disabled = false;
+                    btn.title = '';
+                }
+            }
+        });
+    },
+
+    async cancelAiSuggestions() {
+        if (this.currentAiSuggestAbortController) {
+            try { this.currentAiSuggestAbortController.abort(); } catch(e) {}
+            this.currentAiSuggestAbortController = null;
+        }
+        try {
+            await API.post('/api/budgets/ai_suggest/cancel');
+        } catch(e) {}
+        this.resetAiBtnAndOverlay();
+    },
+
+    resetAiBtnAndOverlay() {
+        if (this.aiPollTimer) {
+            clearInterval(this.aiPollTimer);
+            this.aiPollTimer = null;
+        }
+        if (this._aiPollTimer) {
+            clearInterval(this._aiPollTimer);
+            this._aiPollTimer = null;
+        }
+        const btn = document.getElementById('budgetAiBtn');
+        const overlay = document.getElementById('aiLoadingOverlay');
+        const container = document.getElementById('budgetAiProposals');
+
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = window.i18n.t('budget_btn_suggestions') || '✨ Suggestions IA';
+        }
+        if (overlay) overlay.style.display = 'none';
+        if (container) {
+            container.style.opacity = '1';
+            container.style.pointerEvents = 'auto';
+        }
+        if (window.app && window.app.updateAiNavBadge) {
+            window.app.updateAiNavBadge(null);
+        }
+    },
+
+    async playParsingAnimation() {
+        this.isPlayingParsingAnimation = true;
+        const pContainer = document.getElementById('aiParsingProgressBarContainer');
+        const pBar = document.getElementById('aiParsingProgressBar');
+        const loadingText = document.getElementById('aiLoadingText');
+
+        // Force steps 1-3 to completed (green) and step 4 to active (vibrant purple)
+        const steps = ['PREPARING', 'SENDING', 'THINKING', 'PARSING'];
+        steps.forEach((st) => {
+            const el = document.getElementById(`aiStep_${st}`);
+            if (el) {
+                if (st === 'PARSING') {
+                    el.style.background = 'rgba(139,92,246,0.35)';
+                    el.style.borderColor = '#c084fc';
+                    el.style.color = '#ffffff';
+                    el.style.fontWeight = 'bold';
+                } else {
+                    el.style.background = 'rgba(34,197,94,0.15)';
+                    el.style.borderColor = '#22c55e';
+                    el.style.color = '#4ade80';
+                    el.style.fontWeight = 'normal';
+                }
+            }
+        });
+
+        if (loadingText) {
+            loadingText.textContent = (window.i18n && window.i18n.t) ? (window.i18n.t('ai_step_parsing') || 'Structuration des enveloppes...') : 'Structuration des enveloppes...';
+        }
+
+        if (pContainer && pBar) {
+            pContainer.style.display = 'block';
+            pBar.style.width = '0%';
+            void pBar.offsetWidth; // Force CSS reflow
+            pBar.style.width = '100%';
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            pContainer.style.display = 'none';
+            pBar.style.width = '0%';
+        }
+        this.isPlayingParsingAnimation = false;
+    },
+
     updateAiPipelineStatusUI(status) {
+        if (this.isPlayingParsingAnimation) return;
+
+        if (!status || status.state === 'ERROR' || status.state === 'IDLE') {
+            this.resetAiBtnAndOverlay();
+            return;
+        }
+
         const btn = document.getElementById('budgetAiBtn');
         const loadingText = document.getElementById('aiLoadingText');
         const timerBadge = document.getElementById('aiTimerBadge');
@@ -1936,12 +2222,17 @@ window.BudgetsView = {
         const stepText = (window.i18n && window.i18n.t && status.step_key) ? (window.i18n.t(status.step_key) || status.step_key) : status.step_key;
         const elapsed = status.elapsed_seconds || 0;
 
+        let activeState = status.state;
+        if (activeState === 'SENDING' && elapsed >= 3) {
+            activeState = 'THINKING';
+        }
+
         if (btn && status.state && status.state !== 'IDLE' && status.state !== 'SUCCESS' && status.state !== 'ERROR') {
-            btn.disabled = true;
-            btn.innerHTML = `<svg class="animate-spin" style="width:14px;height:14px;margin-right:6px;display:inline-block;vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            btn.disabled = false;
+            btn.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;"><svg class="animate-spin" style="width:14px;height:14px;display:inline-block;vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg> ${stepText} (${elapsed}s)`;
+            </svg> ${stepText} (${elapsed}s) <button onclick="event.stopPropagation(); window.BudgetsView.cancelAiSuggestions()" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:bold;cursor:pointer;margin-left:4px;" title="Arrêter l'analyse IA">⛔ ${window.i18n.t('btn_stop') || 'Arrêter'}</button></span>`;
         }
 
         if (loadingText && status.step_key) {
@@ -1955,31 +2246,44 @@ window.BudgetsView = {
         steps.forEach((st) => {
             const el = document.getElementById(`aiStep_${st}`);
             if (el) {
-                if (st === status.state) {
-                    el.style.background = 'rgba(139,92,246,0.3)';
+                if (st === activeState) {
+                    el.style.background = 'rgba(139,92,246,0.35)';
                     el.style.borderColor = '#c084fc';
                     el.style.color = '#ffffff';
                     el.style.fontWeight = 'bold';
-                } else if (steps.indexOf(st) < steps.indexOf(status.state)) {
+                } else if (steps.indexOf(st) < steps.indexOf(activeState)) {
                     el.style.background = 'rgba(34,197,94,0.15)';
                     el.style.borderColor = '#22c55e';
                     el.style.color = '#4ade80';
+                    el.style.fontWeight = 'normal';
                 } else {
                     el.style.background = 'var(--bg-surface)';
                     el.style.borderColor = 'var(--border-color)';
                     el.style.color = 'var(--text-muted)';
+                    el.style.fontWeight = 'normal';
                 }
             }
         });
     },
 
     async checkAiTaskStatusOnMount() {
+        if (sessionStorage.getItem('budget_ai_panel_closed') === 'true') return;
         try {
             const status = await API.get('/api/budgets/ai_suggest/status');
             if (status && status.state) {
                 if (['PREPARING', 'SENDING', 'THINKING', 'PARSING'].includes(status.state)) {
+                    const panel = document.getElementById('budgetAiPanel');
                     const overlay = document.getElementById('aiLoadingOverlay');
                     const container = document.getElementById('budgetAiProposals');
+                    const simulator = document.getElementById('aiImpactSimulator');
+                    const alertBanner = document.getElementById('aiSimHistoricalComparisonAlert');
+                    const stickyBar = document.getElementById('aiStickyBar');
+
+                    if (panel) panel.style.display = 'block';
+                    if (simulator) simulator.style.display = 'none';
+                    if (alertBanner) alertBanner.style.display = 'none';
+                    if (stickyBar) stickyBar.style.display = 'none';
+
                     if (overlay) overlay.style.display = 'flex';
                     if (container) {
                         container.style.opacity = '0.3';
@@ -1995,6 +2299,7 @@ window.BudgetsView = {
                                 this.updateAiPipelineStatusUI(curStatus);
                                 if (curStatus.state === 'SUCCESS' && curStatus.result) {
                                     clearInterval(this._aiPollTimer);
+                                    await this.playParsingAnimation();
                                     if (overlay) overlay.style.display = 'none';
                                     if (container) {
                                         container.style.opacity = '1';
@@ -2075,15 +2380,61 @@ window.BudgetsView = {
     },
 
     renderAiProposals(proposals) {
-        this.aiProposals = proposals.map(p => ({
-            ...p,
-            original_amount: p.suggested_amount,
-            period: p.suggested_period || 'monthly',
-            selected: true
-        }));
+        this.allCatDetails = {};
+        if (this.aiSuggestMeta) {
+            if (this.aiSuggestMeta.cat_details) {
+                Object.assign(this.allCatDetails, this.aiSuggestMeta.cat_details);
+            }
+            if (this.aiSuggestMeta.unclassified_details) {
+                Object.assign(this.allCatDetails, this.aiSuggestMeta.unclassified_details);
+            }
+        }
+
+        this.aiProposals = proposals.map(p => {
+            const cat_amounts = { ...(p.cat_amounts || {}) };
+            if (p.cat_details) {
+                for (const [c, details] of Object.entries(p.cat_details)) {
+                    if (details) {
+                        this.allCatDetails[c] = details;
+                        if (details.amount !== undefined) {
+                            cat_amounts[c] = details.amount;
+                        }
+                    }
+                }
+            }
+            return {
+                ...p,
+                cat_amounts,
+                original_amount: p.suggested_amount,
+                period: p.suggested_period || 'monthly',
+                selected: true
+            };
+        });
+        this.unclassifiedCategories = (this.aiSuggestMeta && this.aiSuggestMeta.unclassified_categories) || [];
         this.renderAiProposalsList();
-        const panel = document.getElementById('budgetAiPanel');
-        if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+
+    toggleAiOptionsDropdown(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('aiOptionsDropdownMenu');
+        if (!menu) return;
+
+        const isVisible = menu.style.display === 'flex';
+        menu.style.display = isVisible ? 'none' : 'flex';
+
+        if (!isVisible && !this._aiDropdownOutsideListener) {
+            this._aiDropdownOutsideListener = (evt) => {
+                const container = document.getElementById('btnAiOptionsDropdown');
+                if (menu && !menu.contains(evt.target) && container && !container.contains(evt.target)) {
+                    menu.style.display = 'none';
+                    document.removeEventListener('click', this._aiDropdownOutsideListener);
+                    this._aiDropdownOutsideListener = null;
+                }
+            };
+            setTimeout(() => {
+                document.addEventListener('click', this._aiDropdownOutsideListener);
+            }, 10);
+        }
     },
 
     adjustAiProposals(multiplier, isAbsoluteReset = false) {
@@ -2106,7 +2457,95 @@ window.BudgetsView = {
             const input = document.getElementById(`aiProposalAmount_${i}`);
             if (input) input.value = p.suggested_amount;
         });
-        this.updateAiImpactSimulation();
+        this.renderAiProposalsList();
+    },
+
+    alignAiProposalsToRealSpending() {
+        if (!this.aiProposals) return;
+        this.aiProposals.forEach((p, i) => {
+            if (p.is_fixed) return;
+
+            let realMonthlyPace = 0;
+            if (p.recent_3m_avg !== undefined) {
+                realMonthlyPace = p.recent_3m_avg;
+            } else if (p.historical_actual_amount !== undefined) {
+                realMonthlyPace = (p.period === 'yearly' ? (p.historical_actual_amount / 12.0) : p.historical_actual_amount);
+            }
+
+            if (realMonthlyPace > 0) {
+                const targetAmt = (p.period === 'yearly') ? Math.round(realMonthlyPace * 12.0 * 100) / 100 : Math.round(realMonthlyPace * 100) / 100;
+                p.suggested_amount = targetAmt;
+                const input = document.getElementById(`aiProposalAmount_${i}`);
+                if (input) input.value = p.suggested_amount;
+            }
+        });
+        this.renderAiProposalsList();
+    },
+
+    alignAiProposalsToCurrentMonth() {
+        if (!this.aiProposals) return;
+        this.aiProposals.forEach((p, i) => {
+            if (p.is_fixed) return;
+
+            let curSpent = 0;
+            if (p.current_month_spent !== undefined) {
+                curSpent = p.current_month_spent;
+            } else if (p.categories && p.categories.length) {
+                p.categories.forEach(c => {
+                    if (this.catMonthSpent && this.catMonthSpent[c] !== undefined) {
+                        curSpent += Math.abs(this.catMonthSpent[c]);
+                    }
+                });
+            }
+
+            if (curSpent > 0) {
+                const targetAmt = (p.period === 'yearly') ? Math.round(curSpent * 12.0 * 100) / 100 : Math.round(curSpent * 100) / 100;
+                p.suggested_amount = targetAmt;
+                const input = document.getElementById(`aiProposalAmount_${i}`);
+                if (input) input.value = p.suggested_amount;
+            }
+        });
+        this.renderAiProposalsList();
+    },
+
+    alignAiProposalsToIncome() {
+        if (!this.aiProposals) return;
+        
+        const salaryInput = document.getElementById('aiSimSalaryInput');
+        let regularSalary = salaryInput ? parseFloat(salaryInput.value) : 0;
+        if (isNaN(regularSalary) || regularSalary <= 0) {
+            regularSalary = (this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.income_ref || 0) : 0;
+        }
+        if (regularSalary <= 0) return;
+
+        const currentMonthlyCapacity = (this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.budgeted || 0) : 0;
+        const availableForNewEnvelopes = Math.max(0, regularSalary - currentMonthlyCapacity);
+
+        let fixedTotal = 0;
+        let variableTotal = 0;
+
+        this.aiProposals.forEach(p => {
+            if (p.selected === false) return;
+            const monthlyAmt = p.period === 'yearly' ? (p.suggested_amount / 12.0) : p.suggested_amount;
+            if (p.is_fixed) {
+                fixedTotal += monthlyAmt;
+            } else {
+                variableTotal += monthlyAmt;
+            }
+        });
+
+        const remainingForVariables = Math.max(0, availableForNewEnvelopes - fixedTotal);
+        if (variableTotal > 0) {
+            const ratio = remainingForVariables / variableTotal;
+            this.aiProposals.forEach(p => {
+                if (p.selected !== false && (!p.is_fixed || p.unlocked)) {
+                    const currentMonthly = p.period === 'yearly' ? (p.suggested_amount / 12.0) : p.suggested_amount;
+                    const newMonthly = currentMonthly * ratio;
+                    p.suggested_amount = p.period === 'yearly' ? Math.round(newMonthly * 12.0 * 100) / 100 : Math.round(newMonthly * 100) / 100;
+                }
+            });
+        }
+        this.renderAiProposalsList();
     },
 
     toggleAllAiProposals(checked) {
@@ -2128,8 +2567,8 @@ window.BudgetsView = {
         if (this.aiProposals && this.aiProposals[index]) {
             this.aiProposals[index].period = period;
             const unitSpan = document.getElementById(`aiProposalUnit_${index}`);
-            if (unitSpan) unitSpan.textContent = (period === 'yearly' ? '€/an' : '€/mois');
-            this.updateAiImpactSimulation();
+            if (unitSpan) unitSpan.textContent = (period === 'yearly' ? (window.i18n.t('budget_unit_yearly') || '€/an') : (window.i18n.t('budget_unit_monthly') || '€/mois'));
+            this.renderAiProposalsList();
         }
     },
 
@@ -2137,8 +2576,28 @@ window.BudgetsView = {
         const num = parseFloat(val);
         if (this.aiProposals && this.aiProposals[index] && !isNaN(num) && num >= 0) {
             this.aiProposals[index].suggested_amount = num;
-            this.updateAiImpactSimulation();
+            this.renderAiProposalsList();
         }
+    },
+
+    setSimMode(mode) {
+        this.aiSimMode = mode;
+        const btnIncome = document.getElementById('btnAiSimModeIncome');
+        const btnSpending = document.getElementById('btnAiSimModeSpending');
+        if (btnIncome && btnSpending) {
+            if (mode === 'income') {
+                btnIncome.style.background = 'var(--accent)';
+                btnIncome.style.color = '#fff';
+                btnSpending.style.background = 'transparent';
+                btnSpending.style.color = 'var(--text-muted)';
+            } else {
+                btnSpending.style.background = 'var(--accent)';
+                btnSpending.style.color = '#fff';
+                btnIncome.style.background = 'transparent';
+                btnIncome.style.color = 'var(--text-muted)';
+            }
+        }
+        this.updateAiImpactSimulation();
     },
 
     updateAiImpactSimulation() {
@@ -2196,48 +2655,228 @@ window.BudgetsView = {
             salaryInput.value = regularSalary.toFixed(2);
         }
 
+        const countText = (window.i18n && window.i18n.t) 
+            ? (window.i18n.t('ai_budget_selected_format') || '{selected} / {total} sélectionnées').replace('{selected}', selected.length).replace('{total}', proposals.length)
+            : `${selected.length} / ${proposals.length} sélectionnées`;
+
         const countSpan = document.getElementById('aiSimSelectedCount');
-        if (countSpan) countSpan.textContent = `${selected.length} / ${proposals.length} sélectionnées`;
+        if (countSpan) countSpan.textContent = countText;
 
-        const curValEl = document.getElementById('aiSimCurrentVal');
-        if (curValEl) curValEl.textContent = `${formatCurrency(currentMonthlyCapacity)}/mois`;
+        // Sync sticky bottom bar
+        const stickyBar = document.getElementById('aiStickyBar');
+        const stickyCount = document.getElementById('aiStickyCount');
+        if (stickyBar) stickyBar.style.display = proposals.length > 0 ? 'flex' : 'none';
+        if (stickyCount) stickyCount.textContent = countText;
 
-        const impValEl = document.getElementById('aiSimImpactVal');
-        if (impValEl) impValEl.textContent = `+${formatCurrency(impactMonthly)}/mois`;
-
-        const totValEl = document.getElementById('aiSimTotalVal');
-        if (totValEl) {
-            totValEl.textContent = `${formatCurrency(totalProjectedMonthly)}/mois`;
-            totValEl.style.color = isExceededMonthly ? '#ef4444' : 'var(--text-main)';
-        }
-
-        const barCur = document.getElementById('aiSimProgressBarCurrent');
-        if (barCur) {
-            barCur.style.width = `${currentPctMonthly}%`;
-            barCur.style.background = isExceededMonthly ? '#ef4444' : 'var(--accent)';
-        }
-
-        const barImp = document.getElementById('aiSimProgressBarImpact');
-        if (barImp) {
-            barImp.style.left = `${currentPctMonthly}%`;
-            barImp.style.width = `${Math.max(0, totalPctMonthly - currentPctMonthly)}%`;
-            barImp.style.background = isExceededMonthly ? '#dc2626' : '#3b82f6';
-        }
-
-        // Compare total proposed budget vs actual historical spent for selected proposals
-        let totalHistoricalMonthlySpent = 0;
+        // Compare total proposed budget vs recent 3-month monthly pace for selected proposals
+        let totalRecent3mMonthly = 0;
         selected.forEach(p => {
-            if (p.historical_actual_amount !== undefined) {
-                totalHistoricalMonthlySpent += (p.period === 'yearly' ? (p.historical_actual_amount / 12.0) : p.historical_actual_amount);
+            if (p.recent_3m_avg !== undefined) {
+                totalRecent3mMonthly += p.recent_3m_avg;
+            } else if (p.historical_actual_amount !== undefined) {
+                totalRecent3mMonthly += (p.period === 'yearly' ? (p.historical_actual_amount / 12.0) : p.historical_actual_amount);
             }
         });
 
+        // --- SHARED DYNAMIC SCALE ---
+        // Scale 100% width against the maximum of (Salary, Total Projected Budget, Real Spent)
+        const maxScale = Math.max(1, regularSalary, totalProjectedMonthly, totalRecent3mMonthly);
+
+        // --- BARRE 1 : Utilisation de la Paie ---
+        const barCur = document.getElementById('aiSimProgressBarCurrent');
+        const barImp = document.getElementById('aiSimProgressBarImpact');
+
+        const salaryPct = regularSalary > 0 ? (totalProjectedMonthly / regularSalary) * 100 : 0;
+        let barColor = '#3b82f6';
+        let badgeColor = 'var(--accent)';
+        let statusBadgeText = '';
+
+        if (regularSalary > 0 && totalProjectedMonthly > regularSalary) {
+            if (salaryPct <= 115) {
+                barColor = '#f59e0b'; // Amber / Orange
+                badgeColor = '#f59e0b';
+                statusBadgeText = window.i18n.t('ai_sim_status_savings_drawn') || '📙 Sollicite l\'épargne';
+            } else {
+                barColor = '#ef4444'; // Red
+                badgeColor = '#ef4444';
+                statusBadgeText = window.i18n.t('ai_sim_status_overbudget') || '⚠️ Budget élevé';
+            }
+        }
+
+        if (barCur && barImp) {
+            const currentW = (currentMonthlyCapacity / maxScale) * 100;
+            const impactW = (impactMonthly / maxScale) * 100;
+
+            barCur.style.width = `${currentW}%`;
+            barCur.style.background = 'var(--accent)';
+
+            barImp.style.left = `${currentW}%`;
+            barImp.style.width = `${impactW}%`;
+            barImp.style.background = barColor;
+        }
+
+        const curValEl = document.getElementById('aiSimCurrentVal');
+        if (curValEl) curValEl.textContent = `${formatCurrency(currentMonthlyCapacity)}/m`;
+
+        const impValEl = document.getElementById('aiSimImpactVal');
+        if (impValEl) impValEl.textContent = `+${formatCurrency(impactMonthly)}/m`;
+
+        const pctBadge = document.getElementById('aiSimPercentBadge');
+        if (pctBadge) {
+            const pctVal = regularSalary > 0 ? Math.round((totalProjectedMonthly / regularSalary) * 100) : 0;
+            const totalStr = `${formatCurrency(totalProjectedMonthly)}/m`;
+            let fullText = '';
+            if (statusBadgeText) {
+                const tpl = window.i18n.t('ai_sim_total_format_status') || 'Budget de {total} ({pct}% de vos revenus repère — {status})';
+                fullText = tpl.replace('{total}', totalStr).replace('{pct}', pctVal).replace('{status}', statusBadgeText);
+            } else {
+                const tpl = window.i18n.t('ai_sim_total_format') || 'Budget de {total} ({pct}% de vos revenus repère)';
+                fullText = tpl.replace('{total}', totalStr).replace('{pct}', pctVal);
+            }
+            pctBadge.textContent = fullText;
+            pctBadge.style.color = badgeColor;
+        }
+
+        // --- BARRE 2 : Couverture Dépenses Réelles ---
+        const windowMonths = (this.aiSuggestMeta && this.aiSuggestMeta.window_months) ? this.aiSuggestMeta.window_months : 3;
+        const realPaceLabelEl = document.getElementById('aiSimRealPaceLabel');
+        if (realPaceLabelEl) {
+            const paceTpl = window.i18n.t('ai_sim_lbl_real_pace') || 'Moyenne de dépenses ({months}m) :';
+            realPaceLabelEl.textContent = paceTpl.replace('{months}', windowMonths);
+        }
+
+        const realPaceEl = document.getElementById('aiSimRealPaceVal');
+        if (realPaceEl) realPaceEl.textContent = `${formatCurrency(totalRecent3mMonthly)}/m`;
+
+        const proposedEl = document.getElementById('aiSimProposedVal');
+        if (proposedEl) proposedEl.textContent = `${formatCurrency(impactMonthly)}/m`;
+
+        const gapEl = document.getElementById('aiSimGapVal');
+        const gapVal = impactMonthly - totalRecent3mMonthly;
+
+        if (gapEl) {
+            const absGapStr = `${formatCurrency(Math.abs(gapVal))}/m`;
+            if (gapVal >= 0) {
+                const tplLower = window.i18n.t('ai_sim_gap_lower') || 'Dépenses de {amount} inférieures à vos revenus repère';
+                gapEl.textContent = tplLower.replace('{amount}', absGapStr);
+                gapEl.style.color = '#36b37e';
+            } else {
+                const tplHigher = window.i18n.t('ai_sim_gap_higher') || 'Dépenses de {amount} supérieures à vos revenus repère';
+                gapEl.textContent = tplHigher.replace('{amount}', absGapStr);
+                gapEl.style.color = Math.abs(gapVal) > (regularSalary * 0.15) ? '#ef4444' : '#f59e0b';
+            }
+        }
+
+        const barRealCovered = document.getElementById('aiSimProgressBarRealCovered');
+        const barRealUncovered = document.getElementById('aiSimProgressBarRealUncovered');
+
+        if (barRealCovered && barRealUncovered) {
+            const coveredAmt = Math.min(totalRecent3mMonthly, impactMonthly);
+            const uncoveredAmt = Math.max(0, totalRecent3mMonthly - impactMonthly);
+
+            const coveredW = (coveredAmt / maxScale) * 100;
+            const uncoveredW = (uncoveredAmt / maxScale) * 100;
+
+            barRealCovered.style.width = `${coveredW}%`;
+            barRealUncovered.style.left = `${coveredW}%`;
+            barRealUncovered.style.width = `${uncoveredW}%`;
+            barRealUncovered.style.background = Math.abs(gapVal) > (regularSalary * 0.15) ? '#ef4444' : '#f59e0b';
+        }
+
+        // --- SALARY REPERE VERTICAL MARKERS & FLOATING BADGES ---
+        const marker1 = document.getElementById('aiSimSalaryMarker1');
+        const marker2 = document.getElementById('aiSimSalaryMarker2');
+        const badge1 = document.getElementById('aiSimSalaryMarkerBadge1');
+        const badge2 = document.getElementById('aiSimSalaryMarkerBadge2');
+        const val1 = document.getElementById('aiSimSalaryMarkerVal1');
+        const val2 = document.getElementById('aiSimSalaryMarkerVal2');
+
+        const salaryStr = formatCurrency(regularSalary);
+
+        if (regularSalary > 0) {
+            const salaryPos = Math.min(100, Math.max(0, (regularSalary / maxScale) * 100));
+            if (marker1) {
+                marker1.style.display = 'block';
+                marker1.style.left = `${salaryPos}%`;
+            }
+            if (marker2) {
+                marker2.style.display = 'block';
+                marker2.style.left = `${salaryPos}%`;
+            }
+            if (badge1) {
+                badge1.style.display = 'block';
+                badge1.style.left = `${salaryPos}%`;
+                if (val1) val1.textContent = salaryStr;
+            }
+            if (badge2) {
+                badge2.style.display = 'block';
+                badge2.style.left = `${salaryPos}%`;
+                if (val2) val2.textContent = salaryStr;
+            }
+        } else {
+            if (marker1) marker1.style.display = 'none';
+            if (marker2) marker2.style.display = 'none';
+            if (badge1) badge1.style.display = 'none';
+            if (badge2) badge2.style.display = 'none';
+        }
+
+        // --- SMART ACTIONABLE GUIDANCE BANNER (Hierarchical & Non-Contradictory) ---
         const alertBanner = document.getElementById('aiSimHistoricalComparisonAlert');
         if (alertBanner) {
-            if (selected.length > 0 && totalHistoricalMonthlySpent > impactMonthly && (totalHistoricalMonthlySpent - impactMonthly) > 5) {
-                const diff = totalHistoricalMonthlySpent - impactMonthly;
+            const isSalaryExceeded = regularSalary > 0 && (totalProjectedMonthly - regularSalary) > 1.0;
+            const isPaceShort = selected.length > 0 && (totalRecent3mMonthly - impactMonthly) > 10.0;
+
+            if (isSalaryExceeded) {
+                // Priority 1: Salary Overbudget — Guide user to balance to income
+                const salaryDiff = totalProjectedMonthly - regularSalary;
                 alertBanner.style.display = 'flex';
-                alertBanner.innerHTML = `⚠️ <strong>Attention Dépenses Réelles :</strong> Vos dépenses réelles constatées en moyenne sur ces catégories (${formatCurrency(totalHistoricalMonthlySpent)}/mois) dépassent le budget proposé de <strong>+${formatCurrency(diff)}/mois</strong>. Vos enveloppes créées risqueront d'être dépassées.`;
+                alertBanner.style.alignItems = 'center';
+                alertBanner.style.justifyContent = 'space-between';
+                alertBanner.style.background = salaryPct > 115 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)';
+                alertBanner.style.border = `1px solid ${salaryPct > 115 ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`;
+                alertBanner.style.color = salaryPct > 115 ? '#f87171' : '#fbbf24';
+
+                const guidanceTitle = window.i18n.t('ai_sim_guidance_title') || 'Conseil d\'action :';
+                const template = window.i18n.t('ai_sim_guidance_salary_exceeded') || 'Budget total ({total}) supérieur au salaire (+{diff}).';
+                const msgText = `💡 <strong>${guidanceTitle}</strong> ${template.replace('{total}', formatCurrency(totalProjectedMonthly)).replace('{diff}', formatCurrency(salaryDiff))}`;
+                const tooltipAutoBalance = window.i18n.t('ai_sim_tooltip_auto_balance') || 'Ajuster automatiquement les enveloppes variables pour que le budget total corresponde exactement au salaire disponible.';
+
+                alertBanner.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;">
+                        <span>${msgText}</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+                        <button onclick="window.BudgetsView.alignAiProposalsToIncome()" style="background:#8b5cf6;color:#ffffff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(139,92,246,0.3);" title="${tooltipAutoBalance}">
+                            ${window.i18n.t('ai_sim_btn_auto_balance') || '⚖️ Équilibrer à 100% de la paie'}
+                        </button>
+                    </div>
+                `;
+            } else if (isPaceShort) {
+                // Priority 2: Salary is respected (100%), but historical spending was higher. Inform user without breaking 100% balance.
+                const diff = totalRecent3mMonthly - impactMonthly;
+                const windowMonths = (this.aiSuggestMeta && this.aiSuggestMeta.window_months) ? this.aiSuggestMeta.window_months : 3;
+
+                alertBanner.style.display = 'flex';
+                alertBanner.style.alignItems = 'center';
+                alertBanner.style.justifyContent = 'space-between';
+                alertBanner.style.background = 'rgba(59, 130, 246, 0.1)';
+                alertBanner.style.border = '1px solid rgba(59, 130, 246, 0.3)';
+                alertBanner.style.color = '#60a5fa';
+
+                const guidanceTitle = window.i18n.t('ai_sim_info_title') || 'Information :';
+                const template = window.i18n.t('ai_sim_info_balanced') || 'Budget équilibré sur la paie ({salary}). Vos dépenses passées sur {months}m étaient de {spending} (+{gap}). Pensez à modérer ces dépenses.';
+                const formattedMsg = template
+                    .replace('{salary}', formatCurrency(regularSalary))
+                    .replace('{months}', windowMonths)
+                    .replace('{spending}', formatCurrency(totalRecent3mMonthly) + '/m')
+                    .replace('{gap}', formatCurrency(diff) + '/m');
+                const msgText = `ℹ️ <strong>${guidanceTitle}</strong> ${formattedMsg}`;
+
+                alertBanner.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;">
+                        <span>${msgText}</span>
+                    </div>
+                `;
             } else {
                 alertBanner.style.display = 'none';
             }
@@ -2295,6 +2934,68 @@ window.BudgetsView = {
         }
     },
 
+    toggleUnlockFixedProposal(i) {
+        if (!this.aiProposals || !this.aiProposals[i]) return;
+        this.aiProposals[i].unlocked = !this.aiProposals[i].unlocked;
+        const input = document.getElementById(`aiProposalAmount_${i}`);
+        if (input) {
+            if (this.aiProposals[i].unlocked) {
+                input.disabled = false;
+                input.style.opacity = '1';
+                input.style.cursor = 'text';
+                input.focus();
+                input.select();
+            } else {
+                input.disabled = true;
+                input.style.opacity = '0.65';
+                input.style.cursor = 'not-allowed';
+            }
+        }
+        this.renderAiProposalsList();
+    },
+
+    removeAiProposal(proposalIndex) {
+        if (!this.aiProposals || !this.aiProposals[proposalIndex]) return;
+        this.aiProposals.splice(proposalIndex, 1);
+        this.renderAiProposalsList();
+    },
+
+    addCategoryToAiProposal(proposalIndex, categoryName) {
+        if (!this.aiProposals || !this.aiProposals[proposalIndex] || !categoryName) return;
+        const p = this.aiProposals[proposalIndex];
+        if (!p.categories) p.categories = [];
+        if (p.categories.includes(categoryName)) return;
+
+        p.categories.push(categoryName);
+
+        // Determine value to add from cat_amounts, cat_details or catAverages
+        let addedVal = 0;
+        if (p.cat_amounts && p.cat_amounts[categoryName] !== undefined) {
+            addedVal = p.cat_amounts[categoryName];
+        } else if (p.cat_details && p.cat_details[categoryName] && p.cat_details[categoryName].amount !== undefined) {
+            addedVal = p.cat_details[categoryName].amount;
+        } else if (this.catAverages && this.catAverages[categoryName] !== undefined) {
+            const avg = Math.abs(this.catAverages[categoryName]);
+            addedVal = p.period === 'yearly' ? avg * 12.0 : avg;
+        } else if (p.suggested_amount > 0 && (p.categories.length - 1) > 0) {
+            addedVal = Math.round((p.suggested_amount / (p.categories.length - 1)) * 100) / 100;
+        }
+
+        if (addedVal > 0) {
+            p.suggested_amount = Math.round((p.suggested_amount + addedVal) * 100) / 100;
+            p.original_amount = Math.round((p.original_amount + addedVal) * 100) / 100;
+            if (!p.cat_amounts) p.cat_amounts = {};
+            p.cat_amounts[categoryName] = addedVal;
+        }
+
+        // Remove from unclassified categories if present
+        if (this.unclassifiedCategories) {
+            this.unclassifiedCategories = this.unclassifiedCategories.filter(c => c !== categoryName);
+        }
+
+        this.renderAiProposalsList();
+    },
+
     removeCategoryFromAiProposal(proposalIndex, categoryName) {
         if (!this.aiProposals || !this.aiProposals[proposalIndex]) return;
         const p = this.aiProposals[proposalIndex];
@@ -2302,16 +3003,34 @@ window.BudgetsView = {
         // Remove category from array
         p.categories = (p.categories || []).filter(c => c !== categoryName);
         
-        // Recalculate amount if category details metadata exists or adjust proportionally
+        // Add to unclassified categories list if not already present
+        if (!this.unclassifiedCategories) this.unclassifiedCategories = [];
+        if (!this.unclassifiedCategories.includes(categoryName)) {
+            this.unclassifiedCategories.push(categoryName);
+        }
+        
+        // Recalculate amount
+        let removedVal = 0;
         if (p.cat_amounts && p.cat_amounts[categoryName] !== undefined) {
-            const removedVal = p.cat_amounts[categoryName];
+            removedVal = p.cat_amounts[categoryName];
+        } else if (p.cat_details && p.cat_details[categoryName] && p.cat_details[categoryName].amount !== undefined) {
+            removedVal = p.cat_details[categoryName].amount;
+        } else if (this.catAverages && this.catAverages[categoryName] !== undefined) {
+            const avg = Math.abs(this.catAverages[categoryName]);
+            removedVal = p.period === 'yearly' ? avg * 12.0 : avg;
+        } else if (p.categories.length > 0) {
+            const oldLen = p.categories.length + 1;
+            removedVal = p.suggested_amount / oldLen;
+        } else {
+            removedVal = p.suggested_amount;
+        }
+
+        if (removedVal > 0) {
             p.suggested_amount = Math.max(0, Math.round((p.suggested_amount - removedVal) * 100) / 100);
             p.original_amount = Math.max(0, Math.round((p.original_amount - removedVal) * 100) / 100);
-        } else if (p.categories.length > 0) {
-            // Proportional reduction if individual category amounts are not itemized
-            const oldLen = p.categories.length + 1;
-            p.suggested_amount = Math.max(0, Math.round((p.suggested_amount * (p.categories.length / oldLen)) * 100) / 100);
-        } else {
+        }
+
+        if (p.categories.length === 0) {
             p.suggested_amount = 0;
             p.selected = false;
         }
@@ -2320,16 +3039,56 @@ window.BudgetsView = {
         this.renderAiProposalsList();
     },
 
+    updateAiWindowButtonsState(activeMonths) {
+        const months = activeMonths || (this.aiSuggestMeta && this.aiSuggestMeta.window_months) || 3;
+        [3, 6, 12].forEach(m => {
+            const b = document.getElementById(`aiWinBtn${m}`);
+            if (b) {
+                if (m === months) {
+                    b.classList.remove('btn-secondary');
+                    b.classList.add('btn-primary');
+                } else {
+                    b.classList.remove('btn-primary');
+                    b.classList.add('btn-secondary');
+                }
+            }
+        });
+    },
+
     renderAiProposalsList() {
         const panel = document.getElementById('budgetAiPanel');
         const container = document.getElementById('budgetAiProposals');
-        panel.style.display = 'block';
+        const simulator = document.getElementById('aiImpactSimulator');
+        if (panel) panel.style.display = 'block';
 
         const proposals = this.aiProposals || [];
-        if (!proposals.length) {
+        const unclassified = this.unclassifiedCategories || [];
+
+        const windowMonths = (this.aiSuggestMeta && this.aiSuggestMeta.window_months) || 3;
+        this.updateAiWindowButtonsState(windowMonths);
+
+        if (simulator) {
+            simulator.style.display = (proposals.length || unclassified.length) ? 'block' : 'none';
+        }
+
+        if (!proposals.length && !unclassified.length) {
             container.innerHTML = `<p style="color:var(--text-muted);padding:10px;">${window.i18n.t('budget_ai_no_proposals') || 'Aucune nouvelle proposition.'}</p>`;
             return;
         }
+
+        // Collect categories assigned across ALL current proposals to exclude them from the dropdown dynamically
+        const allUsedProposalCats = new Set();
+        proposals.forEach(prop => {
+            (prop.categories || []).forEach(c => allUsedProposalCats.add(c));
+        });
+
+        // Collect categories assigned to existing active budget envelopes
+        const existingBudgetCats = new Set();
+        (this.budgets || []).forEach(b => {
+            if (!b.is_closed) {
+                (b.categories || []).forEach(c => existingBudgetCats.add(c));
+            }
+        });
 
         const monthlyProposals = proposals.map((p, origIndex) => ({ ...p, origIndex })).filter(p => p.period === 'monthly');
         const yearlyProposals = proposals.map((p, origIndex) => ({ ...p, origIndex })).filter(p => p.period === 'yearly');
@@ -2358,10 +3117,37 @@ window.BudgetsView = {
                 return `
                     <span class="ai-cat-badge" title="${tooltipText.replace(/"/g, '&quot;')}" style="background:var(--bg-surface);border:1px solid var(--border-color);padding:2px 7px;border-radius:4px;font-size:10px;color:var(--text-muted);display:inline-flex;align-items:center;gap:4px;cursor:help;">
                         ${c}
-                        <span onclick="event.stopPropagation(); window.BudgetsView.removeCategoryFromAiProposal(${i}, '${c.replace(/'/g, "\\'")}')" style="cursor:pointer;color:#ef4444;font-weight:bold;margin-left:2px;font-size:11px;" title="Retirer cette catégorie de l'enveloppe">✕</span>
+                        <button onclick="event.stopPropagation(); window.BudgetsView.removeCategoryFromAiProposal(${i}, '${c.replace(/'/g, "\\'")}')" aria-label="Retirer la catégorie ${c.replace(/"/g, '')}" style="cursor:pointer;color:#ef4444;font-weight:bold;margin-left:2px;font-size:10px;background:none;border:none;padding:0;line-height:1;">✕</button>
                     </span>
                 `;
             }).join('');
+
+            // Available unused expense categories (excluding receipts/transfers, existing active envelopes, and categories in any AI proposal)
+            const currentCats = p.categories || [];
+            const availableCats = (this.categories || []).filter(c => {
+                const isExcludedType = c.type === 'income' || c.type === 'neutral';
+                const isUsedInAnyProposal = allUsedProposalCats.has(c.name);
+                const isUsedInActiveBudget = existingBudgetCats.has(c.name);
+                const hasSpending = (this.catAverages && this.catAverages[c.name] && Math.abs(this.catAverages[c.name]) > 0.01);
+                return !isExcludedType && !isUsedInAnyProposal && !isUsedInActiveBudget && !currentCats.includes(c.name) && hasSpending;
+            });
+
+            let addCatSelectHtml = '';
+            if (availableCats.length > 0) {
+                const addCatLabel = window.i18n.t('ai_budget_add_category') || '➕ Catégorie';
+                addCatSelectHtml = `
+                    <select onchange="if(this.value){ window.BudgetsView.addCategoryToAiProposal(${i}, this.value); }" 
+                            style="background:var(--bg-surface);border:1px dashed var(--accent);color:var(--accent);padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;outline:none;max-width:160px;text-overflow:ellipsis;"
+                            title="${window.i18n.t('ai_budget_add_category') || 'Ajouter une catégorie inutilisée'}">
+                        <option value="" disabled selected>${addCatLabel}</option>
+                        ${availableCats.map(c => {
+                            const avg = (this.catAverages && this.catAverages[c.name]) ? Math.abs(this.catAverages[c.name]) : 0;
+                            const avgStr = avg > 0 ? ` (${formatCurrency(avg)})` : '';
+                            return `<option value="${c.name.replace(/"/g, '&quot;')}">${c.name}${avgStr}</option>`;
+                        }).join('')}
+                    </select>
+                `;
+            }
 
             return `
                 <div id="aiProposal_${i}" style="${bgTint}border-radius:8px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;">
@@ -2372,40 +3158,99 @@ window.BudgetsView = {
                             <input type="checkbox" class="ai-proposal-checkbox" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);" ${p.selected ? 'checked' : ''} onchange="window.BudgetsView.toggleAiProposal(${i}, this.checked)">
                             
                             <div style="display:flex;flex-direction:column;gap:2px;">
-                                <div style="display:flex;align-items:center;gap:8px;">
-                                    <strong style="font-size:13px;color:var(--text-main);">🎯 ${p.name}</strong>
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                    <strong style="font-size:13px;color:var(--text-main);">${p.name}</strong>
                                     ${periodBadge}
-                                    ${p.is_fixed ? `<span style="font-size:10px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Charge fixe contractuelle non modifiable">${window.i18n.t('ai_budget_fixed_badge') || '🔒 100% Fixe'}</span>` : ''}
-                                    ${p.has_fixed_mix ? `<span style="font-size:10px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Inclut ${p.fixed_sum}€/mois de charges fixes contractuelles">🔒 Inclut ${p.fixed_sum}€ fixe</span>` : ''}
-                                    ${p.is_exceptional ? `<span style="font-size:10px;background:#312e81;color:#a5b4fc;padding:1px 6px;border-radius:4px;border:1px solid #4338ca;" title="Dépense ponctuelle / projet">${window.i18n.t('ai_budget_project_badge') || '🏗️ Projet'}</span>` : ''}
+                                    ${p.is_fixed ? `<span style="font-size:10px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Charge fixe contractuelle non modifiable">${window.i18n.t('ai_budget_fixed_badge') || 'Fixe'}</span>` : ''}
+                                    ${p.has_fixed_mix ? `<span style="font-size:10px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Inclut ${p.fixed_sum}€/mois de charges fixes contractuelles">Inclut ${p.fixed_sum}€ fixe</span>` : ''}
+                                    ${p.is_exceptional ? `<span style="font-size:10px;background:#312e81;color:#a5b4fc;padding:1px 6px;border-radius:4px;border:1px solid #4338ca;" title="Dépense ponctuelle / projet">${window.i18n.t('ai_budget_project_badge') || 'Projet'}</span>` : ''}
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Right: Amount input, historical actual comparison badge, & unit -->
+                        <!-- Right: Amount input, historical actual comparison badge, unit & delete button -->
                         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;">
-                            ${p.historical_actual_amount !== undefined ? `
-                                <span style="font-size:11px;background:var(--bg-base);padding:3px 8px;border-radius:6px;border:1px solid ${p.suggested_amount < p.historical_actual_amount ? 'rgba(239, 68, 68, 0.35)' : 'var(--border-color)'};color:${p.suggested_amount < p.historical_actual_amount ? '#f87171' : 'var(--text-muted)'};" title="Moyenne réelle des dépenses constatées dans vos comptes sur cette période">
-                                    📊 Constaté réel : <strong>${p.historical_actual_amount.toFixed(2)} ${isYearly ? '€/an' : '€/mois'}</strong>
-                                </span>
+                            ${(() => {
+                                const envLimit = p.suggested_amount;
+                                
+                                let curSpentSum = p.current_month_spent;
+                                if (curSpentSum === undefined || curSpentSum === null) {
+                                    curSpentSum = (p.categories || []).reduce((sum, c) => {
+                                        const details = (this.allCatDetails && this.allCatDetails[c]);
+                                        const val = details && details.current_month_spent !== undefined ? parseFloat(details.current_month_spent) : 0;
+                                        return sum + (isNaN(val) ? 0 : val);
+                                    }, 0);
+                                }
+
+                                let paceAvgSum = p.recent_3m_avg;
+                                if (paceAvgSum === undefined || paceAvgSum === null) {
+                                    paceAvgSum = (p.categories || []).reduce((sum, c) => {
+                                        const catAvg = (this.aiSuggestMeta && this.aiSuggestMeta.cat_averages && this.aiSuggestMeta.cat_averages[c] !== undefined)
+                                            ? Math.abs(this.aiSuggestMeta.cat_averages[c])
+                                            : ((this.catAverages && this.catAverages[c] !== undefined) ? Math.abs(this.catAverages[c]) : 0);
+                                        const val = parseFloat(catAvg);
+                                        return sum + (isNaN(val) ? 0 : val);
+                                    }, 0);
+                                }
+
+                                const valCur = isYearly ? (curSpentSum * 12.0) : curSpentSum;
+                                const valPace = isYearly ? (paceAvgSum * 12.0) : paceAvgSum;
+
+                                const isCurrentExceeded = (valCur - envLimit) > 0.05;
+                                const isPaceExceeded = (valPace - envLimit) > 0.05;
+
+                                const labelCur = isYearly 
+                                    ? (window.i18n.t('budget_spent_this_year') || 'Constaté (an) :')
+                                    : (window.i18n.t('budget_spent_this_month') || 'Constaté ce mois :');
+
+                                const windowMonths = (this.aiSuggestMeta && this.aiSuggestMeta.window_months) ? this.aiSuggestMeta.window_months : 3;
+                                const labelPaceKey = isYearly ? 'budget_pace_yearly' : `budget_pace_${windowMonths}m`;
+                                const labelPace = isYearly
+                                    ? (window.i18n.t('budget_pace_yearly') || 'Moyenne annuelle :')
+                                    : (window.i18n.t(labelPaceKey) || (window.i18n.t('budget_pace_general') || `Rythme ${windowMonths}m :`));
+
+                                const badgeCurrentHtml = `
+                                    <span style="font-size:11px;background:var(--bg-base);padding:3px 8px;border-radius:6px;border:1px solid ${isCurrentExceeded ? 'rgba(239, 68, 68, 0.35)' : 'var(--border-color)'};color:${isCurrentExceeded ? '#f87171' : 'var(--text-muted)'};" title="${isCurrentExceeded ? 'Attention : vos dépenses réelles dépassent le budget proposé !' : 'Dépenses réelles enregistrées sur les catégories incluses'}">
+                                        ${labelCur} <strong>${formatCurrency(valCur)}</strong>
+                                    </span>
+                                `;
+
+                                const badgePaceHtml = `
+                                    <span style="font-size:11px;background:var(--bg-base);padding:3px 8px;border-radius:6px;border:1px solid ${isPaceExceeded ? 'rgba(239, 68, 68, 0.35)' : 'var(--border-color)'};color:${isPaceExceeded ? '#f87171' : 'var(--text-muted)'};" title="${isPaceExceeded ? 'Attention : votre rythme de dépense habituel dépasse le budget proposé !' : 'Moyenne constatée sur l\'historique pour les catégories incluses'}">
+                                        ${labelPace} <strong>${formatCurrency(valPace)}</strong>
+                                    </span>
+                                `;
+
+                                return badgeCurrentHtml + badgePaceHtml;
+                            })()}
+                            <input id="aiProposalAmount_${i}" type="number" step="0.01" value="${p.suggested_amount.toFixed(2)}" ${(p.is_fixed && !p.unlocked) ? `disabled title="${window.i18n.t('ai_budget_unlock_fixed_help') || 'Charge fixe contractuelle. Cliquez sur le crayon ✏️ pour autoriser la modification manuelle.'}"` : ''} style="width:95px;text-align:right;font-size:13px;font-weight:700;padding:4px 8px;border-radius:6px;border:1px solid var(--border-color);background:${(p.is_fixed && !p.unlocked) ? 'var(--bg-base)' : 'var(--bg-surface)'};color:${isYearly ? '#c084fc' : 'var(--accent)'}; ${(p.is_fixed && !p.unlocked) ? 'opacity:0.65;cursor:not-allowed;' : ''}" oninput="window.BudgetsView.updateAiProposalAmount(${i}, this.value)">
+                            ${p.is_fixed ? `
+                                <button type="button" class="btn btn-secondary" onclick="window.BudgetsView.toggleUnlockFixedProposal(${i})" style="padding:3px 6px;font-size:11px;background:transparent;border:1px solid ${p.unlocked ? 'rgba(54,179,126,0.4)' : 'rgba(56,189,248,0.4)'};color:${p.unlocked ? '#36b37e' : '#38bdf8'};cursor:pointer;margin-left:2px;" title="${p.unlocked ? 'Verrouiller le montant fixe' : (window.i18n.t('ai_budget_unlock_fixed_help') || 'Charge fixe contractuelle. Cliquez sur le crayon pour autoriser la modification manuelle.')}">
+                                    ${p.unlocked ? '🔓' : '✏️'}
+                                </button>
                             ` : ''}
-                            <input id="aiProposalAmount_${i}" type="number" step="0.01" value="${p.suggested_amount.toFixed(2)}" ${p.is_fixed ? 'disabled title="Charge fixe exacte non modifiable par le mode stratégie"' : ''} style="width:95px;text-align:right;font-size:13px;font-weight:700;padding:4px 8px;border-radius:6px;border:1px solid var(--border-color);background:${p.is_fixed ? 'var(--bg-base)' : 'var(--bg-surface)'};color:${isYearly ? '#c084fc' : 'var(--accent)'};" oninput="window.BudgetsView.updateAiProposalAmount(${i}, this.value)">
-                            <span id="aiProposalUnit_${i}" style="font-size:12px;color:${isYearly ? '#c084fc' : 'var(--text-muted)'};font-weight:600;">${isYearly ? '€/an' : '€/mois'}</span>
+                            <span id="aiProposalUnit_${i}" style="font-size:12px;color:${isYearly ? '#c084fc' : 'var(--text-muted)'};font-weight:600;">${isYearly ? (window.i18n.t('budget_unit_yearly') || '€/an') : (window.i18n.t('budget_unit_monthly') || '€/mois')}</span>
+                            <button class="btn btn-secondary" onclick="window.BudgetsView.removeAiProposal(${i})" style="padding:3px 7px;font-size:11px;color:#ef4444;border-color:rgba(239,68,68,0.3);background:transparent;margin-left:4px;" title="${window.i18n.t('ai_budget_delete_proposal') || 'Supprimer la suggestion'}">✕</button>
                         </div>
                     </div>
 
-                    <!-- Bottom row: Justification info & Categories badges (forced left-aligned column layout) -->
+                    <!-- Bottom row: Justification info & Categories badges -->
                     <div style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--text-muted);padding-top:4px;border-top:1px dashed var(--border-color);">
-                        <div style="display:flex;align-items:center;gap:4px;">
-                            <span>ℹ️</span> <span>${p.justification || p.reason || ''}</span>
+                        <div style="display:flex;align-items:flex-start;gap:4px;">
+                            <span style="flex-shrink:0;margin-top:1px;">ℹ️</span> <span>${p.justification || p.reason || ''}</span>
                         </div>
-                        ${categoryBadgesHtml ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;">${categoryBadgesHtml}</div>` : ''}
+                        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px;">
+                            ${categoryBadgesHtml}
+                            ${addCatSelectHtml}
+                        </div>
                     </div>
                 </div>
             `;
+
         };
 
-        let html = '<div id="aiSimHistoricalComparisonAlert" style="display:none;align-items:center;gap:10px;background:rgba(239, 68, 68, 0.12);border:1px solid rgba(239, 68, 68, 0.35);color:#f87171;padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;"></div>';
+        let html = '';
+
         if (monthlyProposals.length > 0) {
             html += `
                 <div style="margin-bottom:14px;">
@@ -2471,9 +3316,127 @@ window.BudgetsView = {
             `;
         }
 
+        html += this.renderAiUnclassifiedPanelHtml();
+
         container.innerHTML = html;
 
         this.updateAiImpactSimulation();
+    },
+
+    renderAiUnclassifiedPanelHtml() {
+        const unclassified = this.unclassifiedCategories || [];
+        if (!unclassified.length) return '';
+
+        const proposals = this.aiProposals || [];
+
+        const unclassifiedBadges = unclassified.map((uItem) => {
+            const name = typeof uItem === 'string' ? uItem : uItem.name;
+            const avg = typeof uItem === 'object' && uItem.avg ? uItem.avg : (this.catAverages && this.catAverages[name] ? Math.abs(this.catAverages[name]) : 0);
+            const avgStr = avg > 0 ? ` (${formatCurrency(avg)}/mois)` : '';
+
+            // Build tooltip title with detailed operation examples if available
+            let tooltipText = name;
+            const details = (this.allCatDetails && this.allCatDetails[name])
+                ? this.allCatDetails[name]
+                : ((this.aiSuggestMeta && this.aiSuggestMeta.unclassified_details && this.aiSuggestMeta.unclassified_details[name]) 
+                    ? this.aiSuggestMeta.unclassified_details[name] 
+                    : ((this.aiSuggestMeta && this.aiSuggestMeta.cat_details && this.aiSuggestMeta.cat_details[name]) ? this.aiSuggestMeta.cat_details[name] : null));
+
+            if (details) {
+                const amountVal = (details.amount !== undefined) ? formatCurrency(details.amount) : (avg > 0 ? formatCurrency(avg) : '0,00 €');
+                const merchantsLabel = window.i18n.t('ai_budget_tooltip_merchants') || "Exemples d'opérations :";
+                const merchantsStr = details.top_descs && details.top_descs.length ? `\n${merchantsLabel} ${details.top_descs.join(', ')}` : '';
+                tooltipText = `📊 ${name} : ${amountVal}/mois${merchantsStr}`;
+            } else if (avg > 0) {
+                tooltipText = `📊 ${name} : ${formatCurrency(avg)}/mois`;
+            }
+
+            let assignOptions = proposals.map((p, pIdx) => `<option value="${pIdx}">${p.name}</option>`).join('');
+
+            return `
+                <div style="background:var(--bg-surface);border:1px solid var(--border-color);padding:8px 12px;border-radius:8px;display:flex;align-items:center;gap:10px;font-size:12px;"
+                     title="${tooltipText.replace(/"/g, '&quot;')}" style="cursor:help;">
+                    <span style="font-weight:600;color:var(--text-main);cursor:help;" title="${tooltipText.replace(/"/g, '&quot;')}">📌 ${name}${avgStr}</span>
+                    <select onchange="if(this.value!==''){ window.BudgetsView.assignUnclassifiedCategory('${name.replace(/'/g, "\\'")}', parseInt(this.value)); }" 
+                            style="background:var(--bg-base);border:1px solid var(--border-color);color:var(--accent);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;outline:none;max-width:220px;"
+                            title="${window.i18n.t('ai_budget_assign_to') || 'Ajouter à une enveloppe...'}">
+                        <option value="" disabled selected>${window.i18n.t('ai_budget_assign_to') || 'Ajouter à une enveloppe...'}</option>
+                        ${assignOptions}
+                    </select>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div id="aiUnclassifiedPanel" style="background:var(--bg-base);border:1px dashed var(--accent);border-radius:10px;padding:14px 16px;margin-top:14px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+                    <strong style="color:var(--accent);font-size:13px;">
+                        ${(window.i18n.t('ai_budget_unclassified_title') || '📌 Catégories non classées')} (${unclassified.length})
+                    </strong>
+                    <button id="btnAiRefine" class="btn btn-secondary" onclick="window.BudgetsView.refineUnclassifiedWithAi()" style="padding:4px 12px;font-size:12px;font-weight:600;color:var(--accent);border-color:var(--accent);background:var(--bg-surface);">
+                        ${window.i18n.t('ai_budget_btn_refine') || '🪄 Affiner les omises avec l\'IA'}
+                    </button>
+                </div>
+                <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px 0;">
+                    ${window.i18n.t('ai_budget_unclassified_subtitle') || 'Ces catégories contiennent des dépenses réelles mais n\'ont pas été incluses dans les enveloppes proposées par l\'IA.'}
+                </p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    ${unclassifiedBadges}
+                </div>
+            </div>
+        `;
+    },
+
+    assignUnclassifiedCategory(catName, proposalIndex) {
+        if (!this.aiProposals || !this.aiProposals[proposalIndex]) return;
+        this.addCategoryToAiProposal(proposalIndex, catName);
+        this.unclassifiedCategories = (this.unclassifiedCategories || []).filter(u => (typeof u === 'string' ? u : u.name) !== catName);
+        this.renderAiProposalsList();
+    },
+
+    async refineUnclassifiedWithAi() {
+        if (!this.unclassifiedCategories || !this.unclassifiedCategories.length) return;
+        const btn = document.getElementById('btnAiRefine');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin" style="width:13px;height:13px;margin-right:6px;display:inline-block;vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ${window.i18n.t('ai_budget_refining') || 'Affinage IA en cours...'}`;
+        }
+
+        try {
+            const windowMonths = (this.aiSuggestMeta && this.aiSuggestMeta.window_months) ? this.aiSuggestMeta.window_months : 3;
+            const formattedUnclassified = (this.unclassifiedCategories || []).map(u => {
+                if (typeof u === 'string') {
+                    const name = u;
+                    const avg = (this.catAverages && this.catAverages[name]) ? Math.abs(this.catAverages[name]) : 0;
+                    return { name: name, avg: avg };
+                }
+                return { name: u.name || String(u), avg: u.avg || 0 };
+            });
+
+            const currentLang = (window.i18n && window.i18n.currentLang) ? window.i18n.currentLang : 'fr';
+            const res = await API.post('/api/budgets/ai_suggest/refine', {
+                window_months: windowMonths,
+                lang: currentLang,
+                existing_proposals: this.aiProposals || [],
+                unclassified_categories: formattedUnclassified
+            });
+
+            if (res && res.proposals) {
+                this.aiProposals = res.proposals.map(p => ({
+                    ...p,
+                    cat_amounts: p.cat_amounts || {},
+                    original_amount: p.suggested_amount,
+                    period: p.suggested_period || 'monthly',
+                    selected: true
+                }));
+                this.unclassifiedCategories = res.unclassified_categories || [];
+                this.renderAiProposalsList();
+            }
+        } catch(e) {
+            showInlineMessage(window.i18n.t('title_error'), e.message || 'Erreur lors de l\'affinage IA.');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
     },
 
     async acceptSelectedProposals() {
@@ -2567,7 +3530,9 @@ window.BudgetsView = {
     },
 
     closeAiPanel() {
-        document.getElementById('budgetAiPanel').style.display = 'none';
+        sessionStorage.setItem('budget_ai_panel_closed', 'true');
+        const panel = document.getElementById('budgetAiPanel');
+        if (panel) panel.style.display = 'none';
     },
 };
 
