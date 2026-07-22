@@ -47,24 +47,45 @@ def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
     """Blocking (sync) call to Ollama — use from non-async endpoints only.
     extra_options: additional Ollama options (e.g. num_predict) merged on top of defaults."""
     import httpx as _httpx
+    from fastapi import HTTPException
+
     url = (cfg.get("url") or "").rstrip("/")
     model = cfg.get("model") or ""
     if not url or not model:
-        raise ValueError("Ollama URL ou modèle non configuré.")
+        raise HTTPException(status_code=400, detail="Ollama URL ou modèle non configuré dans les paramètres.")
     options = {"temperature": cfg.get("temperature", 0.3), "num_ctx": cfg.get("num_ctx", 4096)}
+    format_opt = None
     if extra_options:
-        options.update(extra_options)
-    resp = _httpx.post(
-        f"{url}/api/chat",
-        json={
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "options": options,
-        },
-        timeout=120.0,
-    )
-    return resp.json().get("message", {}).get("content", "")
+        opts_copy = dict(extra_options)
+        format_opt = opts_copy.pop("format", None)
+        options.update(opts_copy)
+
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "options": options,
+    }
+    if format_opt:
+        payload["format"] = format_opt
+
+    try:
+        resp = _httpx.post(
+            f"{url}/api/chat",
+            json=payload,
+            timeout=_httpx.Timeout(300.0, connect=10.0),
+        )
+        if resp.status_code != 200:
+            err_text = resp.text[:300] if resp.text else f"Code HTTP {resp.status_code}"
+            raise HTTPException(status_code=502, detail=f"Erreur Ollama ({resp.status_code}) : {err_text}")
+        
+        res_json = resp.json()
+        content = res_json.get("message", {}).get("content", "")
+        if not content or not content.strip():
+            raise HTTPException(status_code=502, detail="Le modèle Ollama a renvoyé une réponse vide.")
+        return content
+    except _httpx.RequestError as exc:
+        raise HTTPException(status_code=503, detail=f"Impossible de contacter le serveur Ollama ({url}) : {exc}")
 
 def get_net_worth_tool(db: Session) -> dict:
     return {
@@ -2755,7 +2776,7 @@ Si aucune ne convient vraiment, propose un nom court (2-3 mots max).
 Réponds avec SEULEMENT le nom, sans ponctuation, sans explication."""
 
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
             resp = await client.post(f"{url}/api/chat", json={
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],

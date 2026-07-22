@@ -18,6 +18,12 @@ class App {
         return typeKey;
     }
 
+    updateAiNavBadge(status) {
+        // Nav badge disabled to prevent shifting top menu layout
+        const badge = document.getElementById('aiGlobalNavBadge');
+        if (badge) badge.style.display = 'none';
+    }
+
     async init() {
         // Init i18n
         await window.i18n.init();
