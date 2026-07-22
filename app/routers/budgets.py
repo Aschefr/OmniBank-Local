@@ -1078,24 +1078,28 @@ Response format (JSON object with key "envelopes"):
   ]
 }}"""
 
-    # Pass format="json" and num_predict=4000 (sufficient for 10-14 JSON envelopes)
     AI_TASK_STATUS["state"] = "SENDING"
     AI_TASK_STATUS["step_key"] = "ai_status_sending"
 
+    raw = ""
     try:
-        raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 4000, "format": "json"})
+        raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 2500, "format": "json"})
     except Exception as e:
-        AI_TASK_STATUS["state"] = "ERROR"
-        AI_TASK_STATUS["step_key"] = "ai_status_error"
-        AI_TASK_STATUS["error"] = str(e)
-        raise e
+        logger.warning(f"[AI Budget] Premier essai Ollama json avec format=json échoué: {e}")
+
+    if not raw or not raw.strip():
+        try:
+            logger.info("[AI Budget] Tentative 2 sans format='json' strict...")
+            raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 2500})
+        except Exception as e2:
+            logger.warning(f"[AI Budget] Tentative 2 Ollama échouée: {e2}")
 
     AI_TASK_STATUS["state"] = "PARSING"
     AI_TASK_STATUS["step_key"] = "ai_status_parsing"
 
     import re
-    cleaned_raw = re.sub(r'```(?:json)?', '', raw).strip()
-    parsed_objs = _extract_json_envelopes(cleaned_raw)
+    cleaned_raw = re.sub(r'```(?:json)?', '', raw or "").strip()
+    parsed_objs = _extract_json_envelopes(cleaned_raw) if cleaned_raw else []
     logger.debug(f"[AI Budget] {len(parsed_objs)} objets JSON parsés depuis la réponse LLM")
 
     import unicodedata
