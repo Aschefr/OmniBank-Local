@@ -1529,5 +1529,7 @@
   "import_filter_reconcile": "À rapprocher",
   "loading": "Chargement...",
   "modal_export_desc": "Exporter vos données au format CSV.",
-  "modal_export_title": "Exporter les données"
+  "modal_export_title": "Exporter les données",
+  "ai_budget_strategy_recommended_clean": "🤖 Recommandé par l'IA",
+  "ai_sim_tt_recommended": "Rétablit les montants initiaux intelligemment suggérés par l'IA lors de l'analyse."
 }
