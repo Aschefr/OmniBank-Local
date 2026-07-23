@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.models import (
     Account, Transaction, Category, RecurrenceTemplate,
-    Budget, BudgetCategory, GlobalConfig, Notification
+    Budget, BudgetCategory, GlobalConfig, Notification, ExchangeRate
 )
 
 def build_test_db(engine_or_path="data/omnibank_test.db"):

@@ -238,8 +238,20 @@ window.FormView = {
         const skipBtn = document.getElementById('op_skip_btn');
         if (skipBtn) {
             skipBtn.style.display = tx.recurrence_id ? 'inline-flex' : 'none';
-            this._updateSkipBtnUI();
         }
+
+        const foreignBox = document.getElementById('op_foreign_currency_box');
+        if (foreignBox) {
+            if (tx.original_amount) {
+                foreignBox.style.display = 'block';
+                document.getElementById('op_original_amount').value = tx.original_amount;
+                document.getElementById('op_original_currency').value = tx.original_currency || 'USD';
+            } else {
+                foreignBox.style.display = 'none';
+                document.getElementById('op_original_amount').value = '';
+            }
+        }
+        this._updateSkipBtnUI();
 
         this.applyConfigVisibility();
         this.toggleRecurrenceFields();
@@ -764,7 +776,22 @@ window.FormView = {
                 }
                 return null;
             })(),
-            is_skipped: this._isSkipped === true
+            is_skipped: this._isSkipped === true,
+            original_amount: (() => {
+                const box = document.getElementById('op_foreign_currency_box');
+                if (box && box.style.display !== 'none') {
+                    const v = parseFloat(document.getElementById('op_original_amount')?.value);
+                    return isNaN(v) ? null : v;
+                }
+                return null;
+            })(),
+            original_currency: (() => {
+                const box = document.getElementById('op_foreign_currency_box');
+                if (box && box.style.display !== 'none') {
+                    return document.getElementById('op_original_currency')?.value || null;
+                }
+                return null;
+            })()
         };
 
         // Phase 9: Inject org user audit fields
@@ -957,6 +984,115 @@ window.FormView = {
             btn.style.borderColor = '';
             btn.style.color = '';
             btn.querySelector('[data-i18n="form_skip_btn_label"]').textContent = window.i18n.t('form_skip_btn_label') || 'Ignorer';
+        }
+    },
+
+    async toggleForeignCurrency() {
+        const box = document.getElementById('op_foreign_currency_box');
+        if (!box) return;
+        const isHidden = box.style.display === 'none';
+        box.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) {
+            await this.convertForeignAmount(true);
+        }
+    },
+
+    async fetchRateOnline() {
+        const btn = document.getElementById('op_rate_refresh_btn');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+        try {
+            const res = await API.post('/api/config/exchange-rates/fetch-online', {});
+            await this.convertForeignAmount(false);
+            showToast(window.i18n.tp('toast_rates_updated', { count: res.updated || 1 }) || 'Taux de change actualisés', 'success');
+        } catch (e) {
+            console.error('Error fetching rate online', e);
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = window.i18n.t('op_btn_refresh_rate') || '🔄 Actualiser le taux'; }
+        }
+    },
+
+    onCustomRateInput() {
+        const origAmount = parseFloat(document.getElementById('op_original_amount')?.value);
+        const customRate = parseFloat(document.getElementById('op_custom_rate')?.value);
+        if (isNaN(origAmount) || isNaN(customRate) || customRate <= 0) return;
+
+        document.getElementById('op_amount').value = (origAmount * customRate).toFixed(2);
+    },
+
+    async convertForeignAmount(autoFetch = false) {
+        const origCurr = document.getElementById('op_original_currency')?.value || 'USD';
+        
+        // Get target currency
+        let targetCurr = window.appBaseCurrency || 'EUR';
+        const fromAccId = document.getElementById('op_from_account')?.value;
+        if (fromAccId) {
+            const acc = this.accounts.find(a => a.id == fromAccId);
+            if (acc && acc.currency) targetCurr = acc.currency;
+        }
+
+        const labelFrom = document.getElementById('op_rate_custom_label');
+        const labelTo = document.getElementById('op_rate_target_label');
+        if (labelFrom) labelFrom.textContent = `1 ${origCurr} =`;
+        if (labelTo) labelTo.textContent = targetCurr;
+
+        if (origCurr === targetCurr) {
+            document.getElementById('op_custom_rate').value = '1.0000';
+            const origAmount = parseFloat(document.getElementById('op_original_amount')?.value);
+            if (!isNaN(origAmount)) document.getElementById('op_amount').value = origAmount.toFixed(2);
+            document.getElementById('op_rate_info_text').textContent = 'Même devise';
+            return;
+        }
+
+        try {
+            let rates = await API.get('/api/config/exchange-rates');
+            let rateObj = rates.find(r => r.from_currency === origCurr && r.to_currency === targetCurr);
+
+            if (!rateObj && autoFetch) {
+                try {
+                    await API.post('/api/config/exchange-rates/fetch-online', {});
+                    rates = await API.get('/api/config/exchange-rates');
+                    rateObj = rates.find(r => r.from_currency === origCurr && r.to_currency === targetCurr);
+                } catch (err) {}
+            }
+
+            let effectiveRate = null;
+            let updatedAtStr = '';
+
+            if (rateObj) {
+                effectiveRate = rateObj.rate;
+                if (rateObj.updated_at) {
+                    let rawStr = String(rateObj.updated_at);
+                    if (!rawStr.endsWith('Z') && !rawStr.includes('+')) {
+                        rawStr += 'Z';
+                    }
+                    const d = new Date(rawStr);
+                    const pad = n => n < 10 ? '0'+n : n;
+                    updatedAtStr = `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                }
+            } else {
+                const revRateObj = rates.find(r => r.from_currency === targetCurr && r.to_currency === origCurr);
+                if (revRateObj && revRateObj.rate) {
+                    effectiveRate = 1.0 / revRateObj.rate;
+                }
+            }
+
+            if (effectiveRate) {
+                const customRateInput = document.getElementById('op_custom_rate');
+                // Fill custom rate input if empty or auto-updating
+                customRateInput.value = effectiveRate.toFixed(4);
+                
+                const infoEl = document.getElementById('op_rate_info_text');
+                if (infoEl) {
+                    infoEl.textContent = updatedAtStr ? `Taux officiel (MàJ : ${updatedAtStr})` : 'Taux local';
+                }
+
+                const origAmount = parseFloat(document.getElementById('op_original_amount')?.value);
+                if (!isNaN(origAmount)) {
+                    document.getElementById('op_amount').value = (origAmount * effectiveRate).toFixed(2);
+                }
+            }
+        } catch (e) {
+            console.error('Error converting foreign currency amount', e);
         }
     }
 };

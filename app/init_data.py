@@ -341,6 +341,61 @@ def init_db():
                 pass
             conn.commit()
 
+        if schema_version < 16:
+            # Schema v16: Multi-currency support
+            try:
+                conn.execute(text("ALTER TABLE accounts ADD COLUMN currency TEXT DEFAULT 'EUR'"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE transactions ADD COLUMN original_amount FLOAT"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE transactions ADD COLUMN original_currency TEXT"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS exchange_rates (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        from_currency TEXT NOT NULL,
+                        to_currency TEXT NOT NULL,
+                        rate REAL NOT NULL,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+            except Exception:
+                pass
+
+            # Seed default base_currency in global_config if missing
+            try:
+                conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('base_currency', 'EUR')"))
+            except Exception:
+                pass
+
+            # Seed default offline exchange rates if table is empty
+            try:
+                rate_count = conn.execute(text("SELECT COUNT(*) FROM exchange_rates")).scalar()
+                if rate_count == 0:
+                    default_rates = [
+                        ("USD", "EUR", 0.92), ("EUR", "USD", 1.087),
+                        ("GBP", "EUR", 1.17), ("EUR", "GBP", 0.855),
+                        ("CHF", "EUR", 1.05), ("EUR", "CHF", 0.952),
+                        ("CAD", "EUR", 0.68), ("EUR", "CAD", 1.47),
+                        ("JPY", "EUR", 0.006), ("EUR", "JPY", 166.67),
+                    ]
+                    for f, t, r in default_rates:
+                        conn.execute(text("INSERT INTO exchange_rates (from_currency, to_currency, rate) VALUES (:f, :t, :r)"), {"f": f, "t": t, "r": r})
+            except Exception:
+                pass
+
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '16')"))
+            except Exception:
+                pass
+            conn.commit()
+
 
 
 def wipe_db(db: Session):

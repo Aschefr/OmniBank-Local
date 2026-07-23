@@ -157,6 +157,18 @@ window.SetupWizard = {
                     </button>
                 </div>
 
+                <div style="margin-top: 15px; text-align: center;">
+                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_base_currency_label">${window.i18n.t('config_base_currency_label') || 'Devise Principale Globale'}</label>
+                    <select id="wizBaseCurrency" class="wizard-input" style="margin-top: 5px; text-align: center; max-width: 220px; margin-left: auto; margin-right: auto; display: block;">
+                        <option value="EUR" ${(window.appBaseCurrency || 'EUR') === 'EUR' ? 'selected' : ''}>EUR (€) - Euro</option>
+                        <option value="USD" ${window.appBaseCurrency === 'USD' ? 'selected' : ''}>USD ($) - Dollar US</option>
+                        <option value="GBP" ${window.appBaseCurrency === 'GBP' ? 'selected' : ''}>GBP (£) - Livre Sterling</option>
+                        <option value="CHF" ${window.appBaseCurrency === 'CHF' ? 'selected' : ''}>CHF - Franc Suisse</option>
+                        <option value="CAD" ${window.appBaseCurrency === 'CAD' ? 'selected' : ''}>CAD (CA$) - Dollar Canadien</option>
+                        <option value="JPY" ${window.appBaseCurrency === 'JPY' ? 'selected' : ''}>JPY (¥) - Yen Japonais</option>
+                    </select>
+                </div>
+
                 <div class="wizard-org-toggle">
                     <label class="wizard-ai-toggle-row" style="justify-content:center; gap:14px;">
                         <span>🏢</span>
@@ -178,6 +190,7 @@ window.SetupWizard = {
 
     async _saveOrgMode() {
         this._orgMode = document.getElementById('wizOrgToggle')?.checked || false;
+        const baseCurr = document.getElementById('wizBaseCurrency')?.value || 'EUR';
 
         // Phase 10: License check when enabling org mode
         if (this._orgMode) {
@@ -196,13 +209,15 @@ window.SetupWizard = {
 
         try {
             const val = this._orgMode ? 'true' : 'false';
-            await API.post('/api/config/', { enable_org_mode: val });
+            await API.post('/api/config/', { enable_org_mode: val, base_currency: baseCurr });
+            window.appBaseCurrency = baseCurr;
             if (window.app) {
                 if (!window.app.config) window.app.config = {};
                 window.app.config.enable_org_mode = val;
+                window.app.config.base_currency = baseCurr;
             }
         } catch (e) {
-            console.error('[SetupWizard] Erreur sauvegarde mode org', e);
+            console.error('[SetupWizard] Erreur sauvegarde mode org & devise', e);
         }
         this._nav(1);
     },
@@ -237,6 +252,17 @@ window.SetupWizard = {
                                 <option value="Assurance Vie">${window.i18n.t('wizard_type_life_ins')}</option>
                                 <option value="PER">${window.i18n.t('wizard_type_per')}</option>
                                 <option value="Autre">${window.i18n.t('wizard_type_other')}</option>
+                            </select>
+                        </div>
+                        <div class="wizard-form-field" style="flex:0.8;">
+                            <label data-i18n="acc_th_currency">${window.i18n.t('acc_th_currency') || 'Devise'}</label>
+                            <select id="wizAccCurrency" class="wizard-input">
+                                <option value="EUR" ${(window.appBaseCurrency || 'EUR') === 'EUR' ? 'selected' : ''}>EUR (€)</option>
+                                <option value="USD" ${window.appBaseCurrency === 'USD' ? 'selected' : ''}>USD ($)</option>
+                                <option value="GBP" ${window.appBaseCurrency === 'GBP' ? 'selected' : ''}>GBP (£)</option>
+                                <option value="CHF" ${window.appBaseCurrency === 'CHF' ? 'selected' : ''}>CHF</option>
+                                <option value="CAD" ${window.appBaseCurrency === 'CAD' ? 'selected' : ''}>CAD (CA$)</option>
+                                <option value="JPY" ${window.appBaseCurrency === 'JPY' ? 'selected' : ''}>JPY (¥)</option>
                             </select>
                         </div>
                         <div class="wizard-form-field" style="flex:1;">
@@ -274,14 +300,15 @@ window.SetupWizard = {
         }
         return this.createdAccounts.map((acc, i) => {
             const isMain = acc.id === this._mainAccountId;
+            const curr = acc.currency || window.appBaseCurrency || 'EUR';
             return `
             <div class="wizard-account-card">
                 <button class="wizard-star-btn ${isMain ? 'active' : ''}" onclick="window.SetupWizard._setMainAccount(${acc.id})" title="${window.i18n.t('acc_set_main')}">${isMain ? '⭐' : '☆'}</button>
                 <div class="wizard-account-info">
                     <strong>${acc.name}</strong>
-                    <span class="wizard-account-type">${acc.type}</span>
+                    <span class="wizard-account-type">${acc.type} <small style="opacity:0.8;">(${curr})</small></span>
                 </div>
-                <div class="wizard-account-balance">${formatCurrency(acc.initial_balance)}</div>
+                <div class="wizard-account-balance">${formatCurrency(acc.initial_balance, curr)}</div>
                 <button class="wizard-btn-remove" onclick="window.SetupWizard._removeAccount(${i})">✕</button>
             </div>
         `;
@@ -292,6 +319,7 @@ window.SetupWizard = {
         const name = document.getElementById('wizAccName').value.trim();
         const type = document.getElementById('wizAccType').value;
         const balance = parseFloat(document.getElementById('wizAccBalance').value) || 0;
+        const currency = document.getElementById('wizAccCurrency')?.value || window.appBaseCurrency || 'EUR';
 
         if (!name) {
             showToast(window.i18n.t('wizard_toast_name_required'), 'error');
@@ -308,7 +336,7 @@ window.SetupWizard = {
             const palette = (typeof ACCOUNT_COLORS !== 'undefined') ? ACCOUNT_COLORS : ['#3366ff','#36b37e','#ff5630','#ffab00','#00b8d9','#6554c0','#ff8a65','#e91e8a','#8bc34a','#795548'];
             const usedColors = this.createdAccounts.map(a => a.color).filter(Boolean);
             let color = palette.find(c => !usedColors.includes(c)) || palette[this.createdAccounts.length % palette.length];
-            const created = await API.post('/api/accounts/', { name, type, initial_balance: balance, is_closed: false, color });
+            const created = await API.post('/api/accounts/', { name, type, initial_balance: balance, is_closed: false, color, currency });
             this.createdAccounts.push(created);
             // Re-render accounts list + clear fields
             document.getElementById('wizAccountsList').innerHTML = this._renderAccountsList();

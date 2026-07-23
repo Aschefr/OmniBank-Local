@@ -294,6 +294,59 @@ window.ConfigView = {
                     <div id="autoBackupStatusPanel"></div>
                 </div>
             </div>
+
+            <!-- Multi-Currency & Exchange Rates Settings -->
+            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <h3 style="display:flex; align-items:center; gap:8px; margin:0 0 15px 0;" data-i18n="config_currency_title">💱 Devises & Taux de Change</h3>
+                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_currency_desc">Configurez la devise principale de l'application et les taux de conversion hors-ligne pour la valeur nette globale.</p>
+                
+                <div class="flex-row-mobile-col" style="display: flex; gap: 20px; margin-bottom: 20px; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_base_currency_label">Devise Principale Globale</label>
+                        <select id="conf_base_currency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.saveBaseCurrency()">
+                            <option value="EUR">EUR (€) - Euro</option>
+                            <option value="USD">USD ($) - Dollar US</option>
+                            <option value="GBP">GBP (£) - Livre Sterling</option>
+                            <option value="CHF">CHF (CHF) - Franc Suisse</option>
+                            <option value="CAD">CAD (CA$) - Dollar Canadien</option>
+                            <option value="JPY">JPY (¥) - Yen Japonais</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display:flex; align-items:center; justify-content:space-between; margin: 15px 0 10px 0;">
+                    <h4 style="margin:0; font-size: 13px;" data-i18n="config_exchange_rates_title">Grille des Taux de Change (Hors-Ligne)</h4>
+                    <span id="rateCountBadge" class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px;">0 devises</span>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
+                    <input type="text" id="rate_from" class="inline-input" placeholder="De (ex: USD)" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
+                    <input type="text" id="rate_to" class="inline-input" placeholder="Vers (ex: EUR)" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
+                    <input type="number" id="rate_value" class="inline-input" placeholder="Taux (ex: 0.92)" step="0.0001" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 120px; font-size: 12px;">
+                    <button class="btn btn-secondary" onclick="window.ConfigView.addExchangeRate()" style="font-size:12px; padding:5px 10px;" data-i18n="config_btn_add_rate">➕ Ajouter</button>
+                    <button class="btn btn-secondary" id="btnFetchOnlineRates" onclick="window.ConfigView.fetchOnlineRates()" style="margin-left: auto; font-size:12px; padding:5px 10px;" data-i18n="config_btn_fetch_online">🌐 Actualiser en ligne</button>
+                </div>
+
+                <div style="margin-bottom: 8px;">
+                    <input type="text" id="rateSearchInput" class="inline-input" placeholder="🔍 Rechercher une devise (USD, GBP, CHF...)" style="width:100%; font-size:11px; padding:5px 10px; border:1px solid var(--border-color); border-radius:6px;" oninput="window.ConfigView.filterExchangeRates()">
+                </div>
+
+                <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
+                    <table class="data-table" style="width: 100%; margin: 0; font-size: 12px;">
+                        <thead style="position: sticky; top: 0; background: var(--bg-surface); z-index: 2; border-bottom: 2px solid var(--border-color);">
+                            <tr>
+                                <th data-i18n="config_th_from">De</th>
+                                <th data-i18n="config_th_to">Vers</th>
+                                <th data-i18n="config_th_rate">Taux</th>
+                                <th style="width: 60px; text-align: right;" data-i18n="acc_th_actions">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="exchangeRatesBody">
+                            <!-- Rendered dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         `;
     },
 
@@ -358,6 +411,13 @@ window.ConfigView = {
                 maxSel.value = this.configData.auto_backup_max_count;
             }
             this._refreshAutoBackupStatus();
+
+            // Multi-Currency
+            const baseCurrSel = document.getElementById('conf_base_currency');
+            if (baseCurrSel && this.configData.base_currency) {
+                baseCurrSel.value = this.configData.base_currency;
+            }
+            this.loadExchangeRates();
 
             // AI reports configuration loading
             const aiReportsToggle = document.getElementById('conf_ai_reports_enabled');
@@ -1574,6 +1634,128 @@ window.ConfigView = {
         } catch (e) {
             console.error('[AutoBackup] Download failed', e);
             showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_error_generic', {error: e.message || e}));
+        }
+    },
+
+    async saveBaseCurrency() {
+        const val = document.getElementById('conf_base_currency').value;
+        try {
+            await API.post('/api/config/', { base_currency: val });
+            window.appBaseCurrency = val;
+            showToast(window.i18n.t('toast_config_saved') || 'Devise de référence enregistrée', 'success');
+            if (window.app && window.app.refreshAll) {
+                window.app.refreshAll();
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('Erreur lors de la sauvegarde de la devise', 'error');
+        }
+    },
+
+    ratesData: [],
+
+    async loadExchangeRates() {
+        const tbody = document.getElementById('exchangeRatesBody');
+        if (!tbody) return;
+
+        try {
+            this.ratesData = await API.get('/api/config/exchange-rates') || [];
+            this.filterExchangeRates();
+        } catch (e) {
+            console.error(e);
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--danger); padding:10px;">Erreur de chargement des taux de change</td></tr>`;
+        }
+    },
+
+    filterExchangeRates() {
+        const tbody = document.getElementById('exchangeRatesBody');
+        const countBadge = document.getElementById('rateCountBadge');
+        if (!tbody) return;
+
+        const query = (document.getElementById('rateSearchInput')?.value || '').trim().toLowerCase();
+        const filtered = this.ratesData.filter(r =>
+            r.from_currency.toLowerCase().includes(query) ||
+            r.to_currency.toLowerCase().includes(query)
+        );
+
+        if (countBadge) {
+            countBadge.textContent = `${this.ratesData.length} devises`;
+        }
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:10px;">${this.ratesData.length === 0 ? 'Aucun taux de change enregistré' : 'Aucun résultat trouvé'}</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(r => `
+            <tr>
+                <td><strong style="color:var(--primary);">${r.from_currency}</strong></td>
+                <td><strong>${r.to_currency}</strong></td>
+                <td>1 ${r.from_currency} = <strong>${r.rate}</strong> ${r.to_currency}</td>
+                <td style="text-align: right;">
+                    <button class="btn btn-sm btn-danger" onclick="window.ConfigView.deleteExchangeRate(${r.id})" style="padding: 1px 5px; font-size: 10px;" title="Supprimer">✕</button>
+                </td>
+            </tr>
+        `).join('');
+    },
+
+    async addExchangeRate() {
+        const fromEl = document.getElementById('rate_from');
+        const toEl = document.getElementById('rate_to');
+        const valEl = document.getElementById('rate_value');
+
+        const fromCurr = fromEl.value.trim().toUpperCase();
+        const toCurr = toEl.value.trim().toUpperCase();
+        const rate = parseFloat(valEl.value);
+
+        if (!fromCurr || !toCurr || isNaN(rate) || rate <= 0) {
+            return showToast('Veuillez saisir des devises valides et un taux positif', 'error');
+        }
+
+        try {
+            await API.post('/api/config/exchange-rates', {
+                from_currency: fromCurr,
+                to_currency: toCurr,
+                rate: rate
+            });
+            fromEl.value = '';
+            toEl.value = '';
+            valEl.value = '';
+            showToast('Taux de change enregistré', 'success');
+            await this.loadExchangeRates();
+        } catch (e) {
+            console.error(e);
+            showToast(e.message || 'Erreur lors de l\'enregistrement du taux', 'error');
+        }
+    },
+
+    async deleteExchangeRate(id) {
+        try {
+            await API.del(`/api/config/exchange-rates/${id}`);
+            showToast('Taux de change supprimé', 'success');
+            await this.loadExchangeRates();
+        } catch (e) {
+            console.error(e);
+            showToast('Erreur lors de la suppression', 'error');
+        }
+    },
+
+    async fetchOnlineRates() {
+        const btn = document.getElementById('btnFetchOnlineRates');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Actualisation...'; }
+
+        try {
+            const res = await API.post('/api/config/exchange-rates/fetch-online', {});
+            showToast(window.i18n.tp('config_toast_rates_updated', {count: res.updated}) || `${res.updated} taux de change mis à jour en ligne`, 'success');
+            await this.loadExchangeRates();
+        } catch (e) {
+            console.error(e);
+            showToast('Impossible d\'actualiser les taux (vérifiez votre connexion)', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🌐 Actualiser en ligne';
+            }
         }
     }
 };
