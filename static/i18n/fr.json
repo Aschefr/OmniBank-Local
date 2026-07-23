@@ -1531,5 +1531,7 @@
   "modal_export_desc": "Exporter vos données au format CSV.",
   "modal_export_title": "Exporter les données",
   "ai_budget_strategy_recommended_clean": "🤖 Recommandé par l'IA",
-  "ai_sim_tt_recommended": "Rétablit les montants initiaux intelligemment suggérés par l'IA lors de l'analyse."
+  "ai_sim_tt_recommended": "Rétablit les montants initiaux intelligemment suggérés par l'IA lors de l'analyse.",
+  "budget_btn_sync_committed": "⚡ Aligner",
+  "budget_sync_to_committed_tt": "Ajuster le montant de l'enveloppe sur le montant engagé ({amount})"
 }
