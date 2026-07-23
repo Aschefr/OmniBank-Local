@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.70] - 2026-07-23
+
+### Added
+- **Full Budgets Module Refactor 💡**: Refactored and modularized frontend architecture (`budgets_core`, `budgets_render`, `budgets_ai`, `budgets_modals`) and backend (`budget_service.py`) for improved maintainability and faster rendering.
+- **Advanced AI Budget Simulator 🧠**:
+  - Humanized and explanatory AI status pipeline with automatic Ollama retries and fallback mechanisms.
+  - Granular thematic envelope breakdowns and automatic budget capacity calculation.
+  - Real spending balance comparison badges and clickable history badges to directly apply suggested amounts.
+  - ⚡ Sync button for committed expenses to instantly align budget amounts.
+  - Exact cent matching for fixed charges and corrected average calculation for monthly/yearly categories.
+- **Action History & Auditability 📜**:
+  - Added deep dive details modal for undoable actions with dynamic entity name resolution (accounts, budgets, recurrences).
+  - Smart dependency verification and inline confirmation before action reversal.
+  - Automatic exclusion of AI facts/memories from global audit history.
+
+### Fixed & Improved
+- **AI Assistant & Chat Optimizations 💬**:
+  - Optimized local LLM proactive memory and refined backend tool usage.
+  - Cleaned up and reorganized unwanted categories suggested by AI.
+  - Automatically hidden suggestion panel when no recommendation is needed.
+  - Fixed scroll issues during bulk budget envelope deletions.
+- **Maintenance & i18n 🌐**:
+  - Automated alphabetical sorting and key alignment across i18n files (FR / EN).
+  - Removed frugal/austerity wording in favor of a neutral and supportive tone.
+
 ## [1.0.69] - 2026-07-19
 
 ### Added
