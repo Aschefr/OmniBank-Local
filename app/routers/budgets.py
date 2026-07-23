@@ -766,10 +766,26 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
     result = {}
     # 1. Process active categories with transactions in analysis window
     for cat, monthly_sums in cat_monthly.items():
+        raw_amounts = cat_amounts_list.get(cat, [])
+        cat_median = statistics.median(raw_amounts) if raw_amounts else 0.0
+
+        # Outlier detection: transactions significantly higher than category median (> 2.5x median & > 200€)
+        # Outliers are isolated to prevent inflating regular monthly budget envelopes
+        regular_amounts = []
+        outlier_amounts = []
+        for amt in raw_amounts:
+            if cat_median > 0 and amt > max(2.5 * cat_median, 200.0) and len(raw_amounts) >= 3:
+                outlier_amounts.append(amt)
+            else:
+                regular_amounts.append(amt)
+
+        # Total recurring spending excluding exceptional spikes
+        recurring_total = sum(regular_amounts) if regular_amounts else sum(raw_amounts)
         total = sum(monthly_sums.values())
         active_months_cnt = len(monthly_sums)
-        # Average monthly expenditure across the full analysis window for variable expenses
-        avg = round(total / max(window_months, 1), 2)
+
+        # Average monthly expenditure using recurring amounts only for variable expenses
+        avg = round(recurring_total / max(window_months, 1), 2)
         
         desc_counts = cat_descriptions.get(cat, {})
         top_descs = [d for d, _ in sorted(desc_counts.items(), key=lambda x: -x[1])[:5]]
@@ -784,14 +800,13 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
             sorted_months = sorted(monthly_sums.keys(), reverse=True)
             most_recent_month = sorted_months[0]
             fixed_amount = round(monthly_sums[most_recent_month], 2)
-        elif len(cat_amounts_list[cat]) >= 2:
-            amounts = cat_amounts_list[cat]
-            if len(set(amounts)) == 1:
+        elif len(raw_amounts) >= 2:
+            if len(set(raw_amounts)) == 1:
                 is_fixed = True
-                fixed_amount = round(amounts[0], 2)
+                fixed_amount = round(raw_amounts[0], 2)
 
-        # Exceptional project expense detection (2x median & <= 2 active months)
-        is_exceptional = (avg > (2.0 * median_cat_avg)) and (active_months_cnt <= 2) and (cat_type.get(cat) == "expense_var")
+        # Exceptional project expense detection (has isolated outliers or avg > 2x median)
+        is_exceptional = bool(outlier_amounts) or ((avg > (2.0 * median_cat_avg)) and (active_months_cnt <= 2) and (cat_type.get(cat) == "expense_var"))
 
         # Period detection: PRIORITIZE explicit RecurrenceTemplate frequency if registered as yearly/semi-annually
         if cat in yearly_recurrence_cats:
@@ -813,13 +828,25 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
                 suggested_period = "monthly"
             total_year_val = round(total, 2)
 
-        # Calculate current active month spent and 3-month recent average
+        # Calculate current month spent — strictly current calendar month (no fallback to old months)
         current_month_key = anchor_date.strftime("%Y-%m")
         current_month_spent = round(monthly_sums.get(current_month_key, 0.0), 2)
 
-        m3_keys = [(anchor_date - relativedelta(months=i)).strftime("%Y-%m") for i in range(3)]
-        sum_3m = sum(monthly_sums.get(k, 0.0) for k in m3_keys)
-        recent_3m_avg = round(sum_3m / 3.0, 2)
+        # Calculate recent average with SEPARATE logic for monthly vs yearly categories
+        if suggested_period == "yearly":
+            # Annuel : équivalent mensuel = total annuel / 12
+            # Évite qu'une dépense annuelle ponctuelle soit gonflée en moyenne mensuelle
+            recent_3m_avg = round(total_year_val / 12.0, 2)
+        else:
+            # Mensuel : moyenne sur les 3 derniers mois CALENDAIRES (y compris mois à 0€)
+            # Évite que les dépenses sporadiques soient reportées à leur pleine valeur d'occurrence
+            recent_calendar_months = []
+            cursor = date(anchor_date.year, anchor_date.month, 1)
+            for _ in range(min(3, window_months)):
+                recent_calendar_months.append(cursor.strftime("%Y-%m"))
+                cursor = cursor - relativedelta(months=1)
+            sum_recent = sum(monthly_sums.get(k, 0.0) for k in recent_calendar_months)
+            recent_3m_avg = round(sum_recent / max(len(recent_calendar_months), 1), 2)
 
         result[cat] = {
             "avg": fixed_amount if is_fixed else avg,
@@ -1083,14 +1110,15 @@ Response format (JSON object with key "envelopes"):
 
     raw = ""
     try:
-        raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 2500, "format": "json"})
+        # Standard call with json format (reuses current Ollama VRAM context/options)
+        raw = call_ollama_sync(prompt, cfg, extra_options={"format": "json"})
     except Exception as e:
-        logger.warning(f"[AI Budget] Premier essai Ollama json avec format=json échoué: {e}")
+        logger.warning(f"[AI Budget] Premier essai Ollama json échoué: {e}")
 
     if not raw or not raw.strip():
         try:
-            logger.info("[AI Budget] Tentative 2 sans format='json' strict...")
-            raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 2500})
+            logger.info("[AI Budget] Tentative 2 avec appel Ollama standard...")
+            raw = call_ollama_sync(prompt, cfg)
         except Exception as e2:
             logger.warning(f"[AI Budget] Tentative 2 Ollama échouée: {e2}")
 

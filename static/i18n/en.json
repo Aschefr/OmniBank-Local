@@ -1509,8 +1509,8 @@
   "ai_sim_info_balanced": "Information: Budget balanced to income ({salary}). Your past spending over {months}m was {spending} (+{gap}). Consider moderating these expenses.",
   "ai_sim_salary_input_label": "💼 Reference Income:",
   "ai_sim_salary_marker_title": "Reference income limit",
-  "ai_sim_gap_higher": "Expenses {amount} higher than your reference income",
-  "ai_sim_gap_lower": "Expenses {amount} lower than your reference income",
+  "ai_sim_gap_higher": "Proposals {amount} higher than past spending (Comfort margin)",
+  "ai_sim_gap_lower": "Proposals {amount} lower than past spending (Savings effort)",
   "ai_sim_total_format": "Budget of {total} ({pct}% of reference income)",
   "ai_sim_total_format_status": "Budget of {total} ({pct}% of reference income — {status})",
   "ai_budget_badge_click_apply": "Click to apply {amount} to this envelope"

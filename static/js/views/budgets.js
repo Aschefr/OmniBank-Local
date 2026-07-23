@@ -2523,27 +2523,42 @@ window.BudgetsView = {
 
         let fixedTotal = 0;
         let variableTotal = 0;
+        const activeVariableProposals = [];
 
         this.aiProposals.forEach(p => {
             if (p.selected === false) return;
             const monthlyAmt = p.period === 'yearly' ? (p.suggested_amount / 12.0) : p.suggested_amount;
-            if (p.is_fixed) {
+            if (p.is_fixed && !p.unlocked) {
                 fixedTotal += monthlyAmt;
             } else {
                 variableTotal += monthlyAmt;
+                activeVariableProposals.push(p);
             }
         });
 
         const remainingForVariables = Math.max(0, availableForNewEnvelopes - fixedTotal);
-        if (variableTotal > 0) {
+        if (variableTotal > 0 && activeVariableProposals.length > 0) {
             const ratio = remainingForVariables / variableTotal;
-            this.aiProposals.forEach(p => {
-                if (p.selected !== false && (!p.is_fixed || p.unlocked)) {
-                    const currentMonthly = p.period === 'yearly' ? (p.suggested_amount / 12.0) : p.suggested_amount;
-                    const newMonthly = currentMonthly * ratio;
-                    p.suggested_amount = p.period === 'yearly' ? Math.round(newMonthly * 12.0 * 100) / 100 : Math.round(newMonthly * 100) / 100;
-                }
+            let computedVariableTotal = 0;
+
+            activeVariableProposals.forEach(p => {
+                const currentMonthly = p.period === 'yearly' ? (p.suggested_amount / 12.0) : p.suggested_amount;
+                const newMonthly = currentMonthly * ratio;
+                p.suggested_amount = p.period === 'yearly' ? Math.round(newMonthly * 12.0 * 100) / 100 : Math.round(newMonthly * 100) / 100;
+                const finalMonthly = p.period === 'yearly' ? (p.suggested_amount / 12.0) : p.suggested_amount;
+                computedVariableTotal += finalMonthly;
             });
+
+            // Remainder adjustment (cent-exact balancing on the last variable proposal)
+            const diff = Math.round((remainingForVariables - computedVariableTotal) * 100) / 100;
+            if (Math.abs(diff) >= 0.01) {
+                const lastP = activeVariableProposals[activeVariableProposals.length - 1];
+                if (lastP) {
+                    const lastMonthly = lastP.period === 'yearly' ? (lastP.suggested_amount / 12.0) : lastP.suggested_amount;
+                    const adjustedMonthly = Math.max(0, lastMonthly + diff);
+                    lastP.suggested_amount = lastP.period === 'yearly' ? Math.round(adjustedMonthly * 12.0 * 100) / 100 : Math.round(adjustedMonthly * 100) / 100;
+                }
+            }
         }
         this.renderAiProposalsList();
     },
@@ -3196,25 +3211,37 @@ window.BudgetsView = {
                             ${(() => {
                                 const envLimit = p.suggested_amount;
                                 
-                                let curSpentSum = p.current_month_spent;
-                                if (curSpentSum === undefined || curSpentSum === null) {
-                                    curSpentSum = (p.categories || []).reduce((sum, c) => {
-                                        const details = (this.allCatDetails && this.allCatDetails[c]);
-                                        const val = details && details.current_month_spent !== undefined ? parseFloat(details.current_month_spent) : 0;
-                                        return sum + (isNaN(val) ? 0 : val);
-                                    }, 0);
-                                }
+                                const curSpentSum = (p.categories || []).reduce((sum, c) => {
+                                    let val = 0;
+                                    if (p.cat_details && p.cat_details[c] && p.cat_details[c].current_month_spent !== undefined && p.cat_details[c].current_month_spent > 0) {
+                                        val = p.cat_details[c].current_month_spent;
+                                    } else if (this.allCatDetails && this.allCatDetails[c] && this.allCatDetails[c].current_month_spent !== undefined && this.allCatDetails[c].current_month_spent > 0) {
+                                        val = this.allCatDetails[c].current_month_spent;
+                                    } else if (this.catMonthSpent && this.catMonthSpent[c] !== undefined && Math.abs(this.catMonthSpent[c]) > 0) {
+                                        val = Math.abs(this.catMonthSpent[c]);
+                                    } else if (p.cat_details && p.cat_details[c] && p.cat_details[c].recent_3m_avg !== undefined) {
+                                        val = p.cat_details[c].recent_3m_avg;
+                                    } else if (this.aiSuggestMeta && this.aiSuggestMeta.cat_averages && this.aiSuggestMeta.cat_averages[c] !== undefined) {
+                                        val = Math.abs(this.aiSuggestMeta.cat_averages[c]);
+                                    } else if (this.catAverages && this.catAverages[c] !== undefined) {
+                                        val = Math.abs(this.catAverages[c]);
+                                    }
+                                    const parsed = parseFloat(val);
+                                    return sum + (isNaN(parsed) ? 0 : parsed);
+                                }, 0);
 
-                                let paceAvgSum = p.recent_3m_avg;
-                                if (paceAvgSum === undefined || paceAvgSum === null) {
-                                    paceAvgSum = (p.categories || []).reduce((sum, c) => {
-                                        const catAvg = (this.aiSuggestMeta && this.aiSuggestMeta.cat_averages && this.aiSuggestMeta.cat_averages[c] !== undefined)
-                                            ? Math.abs(this.aiSuggestMeta.cat_averages[c])
-                                            : ((this.catAverages && this.catAverages[c] !== undefined) ? Math.abs(this.catAverages[c]) : 0);
-                                        const val = parseFloat(catAvg);
-                                        return sum + (isNaN(val) ? 0 : val);
-                                    }, 0);
-                                }
+                                const paceAvgSum = (p.categories || []).reduce((sum, c) => {
+                                    let val = 0;
+                                    if (p.cat_amounts && p.cat_amounts[c] !== undefined) {
+                                        val = p.cat_amounts[c];
+                                    } else if (this.aiSuggestMeta && this.aiSuggestMeta.cat_averages && this.aiSuggestMeta.cat_averages[c] !== undefined) {
+                                        val = Math.abs(this.aiSuggestMeta.cat_averages[c]);
+                                    } else if (this.catAverages && this.catAverages[c] !== undefined) {
+                                        val = Math.abs(this.catAverages[c]);
+                                    }
+                                    const parsed = parseFloat(val);
+                                    return sum + (isNaN(parsed) ? 0 : parsed);
+                                }, 0);
 
                                 const valCur = isYearly ? (curSpentSum * 12.0) : curSpentSum;
                                 const valPace = isYearly ? (paceAvgSum * 12.0) : paceAvgSum;
