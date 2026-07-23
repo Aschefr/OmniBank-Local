@@ -1533,5 +1533,10 @@
   "ai_budget_strategy_recommended_clean": "🤖 AI Recommended",
   "ai_sim_tt_recommended": "Restores the initial amounts smartly recommended by the AI analysis.",
   "budget_btn_sync_committed": "⚡ Sync",
-  "budget_sync_to_committed_tt": "Align budget amount to committed spending ({amount})"
+  "budget_sync_to_committed_tt": "Align budget amount to committed spending ({amount})",
+  "ai_sim_advice_salary_exceeded_high": "🚨 <strong>Significant budget overrun:</strong> Proposed budget ({total}) exceeds baseline salary ({salary}) by +{diff} ({pct}% of income). To avoid drawing on savings, consider using the <em>⚖️ Align to income</em> button or reducing variable envelopes.",
+  "ai_sim_advice_salary_exceeded_light": "⚠️ <strong>Budget slightly above income:</strong> Proposed envelopes show a minor excess of +{diff} over your salary ({salary}). A small adjustment on variable spending will balance your monthly budget.",
+  "ai_sim_advice_effort_needed": "📊 <strong>Budget under salary with savings effort:</strong> Your projected budget ({total}) is well within salary ({salary}), but requires a spending reduction of {gap}/month compared to historical spending over {months} months ({spending}/month).",
+  "ai_sim_advice_savings_capacity": "✨ <strong>Healthy budget with savings capacity:</strong> Proposed budget ({total}) uses {pct}% of your baseline income, generating an estimated monthly savings capacity of +{savings}/month ({savingsPct}% of income).",
+  "ai_sim_advice_balanced_ideal": "💡 <strong>Ideally balanced budget:</strong> Proposed envelopes ({total}) respect your baseline salary ({salary}), leaving {remaining}/month safety margin."
 }

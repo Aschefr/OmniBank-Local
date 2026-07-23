@@ -1533,5 +1533,10 @@
   "ai_budget_strategy_recommended_clean": "🤖 Recommandé par l'IA",
   "ai_sim_tt_recommended": "Rétablit les montants initiaux intelligemment suggérés par l'IA lors de l'analyse.",
   "budget_btn_sync_committed": "⚡ Aligner",
-  "budget_sync_to_committed_tt": "Ajuster le montant de l'enveloppe sur le montant engagé ({amount})"
+  "budget_sync_to_committed_tt": "Ajuster le montant de l'enveloppe sur le montant engagé ({amount})",
+  "ai_sim_advice_salary_exceeded_high": "🚨 <strong>Dépassement budgétaire important :</strong> Le budget prévisionnel ({total}) excède votre salaire repère ({salary}) de +{diff} ({pct}% de la paie). Pour éviter de solliciter votre épargne chaque mois, vous pouvez utiliser le bouton <em>⚖️ Aligner sur les revenus</em> ou réduire les enveloppes variables.",
+  "ai_sim_advice_salary_exceeded_light": "⚠️ <strong>Budget légèrement supérieur aux revenus :</strong> Vos enveloppes prévoient un léger dépassement de +{diff} par rapport à votre salaire ({salary}). Un ajustement mineur sur vos dépenses variables permettra d'équilibrer parfaitement votre budget.",
+  "ai_sim_advice_effort_needed": "📊 <strong>Budget sous le salaire avec effort de sobriété :</strong> Votre budget prévisionnel ({total}) est bien contenu sous votre salaire ({salary}), mais il exige un effort d'économie de {gap}/m par rapport à vos dépenses constatées sur {months} mois ({spending}/m).",
+  "ai_sim_advice_savings_capacity": "✨ <strong>Budget sain avec capacité d'épargne :</strong> Votre budget prévisionnel ({total}) consomme {pct}% de votre salaire repère, dégageant une capacité d'épargne estimée à +{savings}/m ({savingsPct}% des revenus).",
+  "ai_sim_advice_balanced_ideal": "💡 <strong>Budget idéalement équilibré :</strong> Vos enveloppes prévisionnelles ({total}) respectent votre revenu repère ({salary}), laissant {remaining}/m de marge de sécurité."
 }

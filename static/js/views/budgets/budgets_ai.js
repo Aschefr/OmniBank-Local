@@ -891,58 +891,96 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         const alertBanner = document.getElementById('aiSimHistoricalComparisonAlert');
         if (alertBanner) {
-            const isSalaryExceeded = regularSalary > 0 && (totalProjectedMonthly - regularSalary) > 1.0;
-            const isPaceShort = selected.length > 0 && (totalRecent3mMonthly - impactMonthly) > 10.0;
+            const windowMonths = (this.aiSuggestMeta && this.aiSuggestMeta.window_months) ? this.aiSuggestMeta.window_months : 3;
+            const diffSalary = totalProjectedMonthly - regularSalary;
 
-            if (isSalaryExceeded) {
-                const salaryDiff = totalProjectedMonthly - regularSalary;
+            if (regularSalary > 0 && diffSalary > 1.0) {
+                // Budget > Salary
+                const isHighOverrun = salaryPct > 110;
                 alertBanner.style.display = 'flex';
                 alertBanner.style.alignItems = 'center';
-                alertBanner.style.justifyContent = 'space-between';
-                alertBanner.style.background = salaryPct > 115 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)';
-                alertBanner.style.border = `1px solid ${salaryPct > 115 ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`;
-                alertBanner.style.color = salaryPct > 115 ? '#f87171' : '#fbbf24';
+                alertBanner.style.padding = '10px 14px';
+                alertBanner.style.background = isHighOverrun ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)';
+                alertBanner.style.border = `1px solid ${isHighOverrun ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`;
+                alertBanner.style.color = isHighOverrun ? '#f87171' : '#fbbf24';
 
-                const guidanceTitle = window.i18n.t('ai_sim_guidance_title') || 'Conseil d\'action :';
-                const template = window.i18n.t('ai_sim_guidance_salary_exceeded') || 'Budget total ({total}) supérieur au salaire (+{diff}).';
-                const msgText = `💡 <strong>${guidanceTitle}</strong> ${template.replace('{total}', formatCurrency(totalProjectedMonthly)).replace('{diff}', formatCurrency(salaryDiff))}`;
-                const tooltipAutoBalance = window.i18n.t('ai_sim_tooltip_auto_balance') || 'Ajuster automatiquement les enveloppes variables pour que le budget total corresponde exactement au salaire disponible.';
+                const key = isHighOverrun ? 'ai_sim_advice_salary_exceeded_high' : 'ai_sim_advice_salary_exceeded_light';
+                const defaultMsg = isHighOverrun
+                    ? `🚨 <strong>Dépassement budgétaire important :</strong> Le budget prévisionnel ({total}) excède votre salaire repère ({salary}) de +{diff} ({pct}% de la paie). Pour éviter de solliciter votre épargne chaque mois, vous pouvez utiliser le bouton <em>⚖️ Aligner sur les revenus</em> ou réduire les enveloppes variables.`
+                    : `⚠️ <strong>Budget légèrement supérieur aux revenus :</strong> Vos enveloppes prévoient un léger dépassement de +{diff} par rapport à votre salaire ({salary}). Un ajustement mineur sur vos dépenses variables permettra d'équilibrer parfaitement votre budget.`;
 
-                alertBanner.innerHTML = `
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;">
-                        <span>${msgText}</span>
-                    </div>
-                    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
-                        <button onclick="window.BudgetsView.alignAiProposalsToIncome()" style="background:#8b5cf6;color:#ffffff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(139,92,246,0.3);" title="${tooltipAutoBalance}">
-                            ${window.i18n.t('ai_sim_btn_auto_balance') || '⚖️ Équilibrer à 100% de la paie'}
-                        </button>
-                    </div>
-                `;
-            } else if (isPaceShort) {
-                const diff = totalRecent3mMonthly - impactMonthly;
-                const windowMonths = (this.aiSuggestMeta && this.aiSuggestMeta.window_months) ? this.aiSuggestMeta.window_months : 3;
+                const msgText = (window.i18n.t(key) || defaultMsg)
+                    .replace('{total}', formatCurrency(totalProjectedMonthly))
+                    .replace('{salary}', formatCurrency(regularSalary))
+                    .replace('{diff}', formatCurrency(diffSalary))
+                    .replace('{pct}', Math.round(salaryPct));
 
+                alertBanner.innerHTML = `<div style="font-size:12px;line-height:1.4;">${msgText}</div>`;
+
+            } else if (selected.length > 0 && totalRecent3mMonthly > 0 && (totalRecent3mMonthly - impactMonthly) > 50.0) {
+                // Budget < Salary, but Historical Spending > Proposed Budget
+                const gap = totalRecent3mMonthly - impactMonthly;
                 alertBanner.style.display = 'flex';
                 alertBanner.style.alignItems = 'center';
-                alertBanner.style.justifyContent = 'space-between';
+                alertBanner.style.padding = '10px 14px';
                 alertBanner.style.background = 'rgba(59, 130, 246, 0.1)';
                 alertBanner.style.border = '1px solid rgba(59, 130, 246, 0.3)';
                 alertBanner.style.color = '#60a5fa';
 
-                const guidanceTitle = window.i18n.t('ai_sim_info_title') || 'Information :';
-                const template = window.i18n.t('ai_sim_info_balanced') || 'Budget équilibré sur la paie ({salary}). Vos dépenses passées sur {months}m étaient de {spending} (+{gap}). Pensez à modérer ces dépenses.';
-                const formattedMsg = template
-                    .replace('{salary}', formatCurrency(regularSalary))
-                    .replace('{months}', windowMonths)
-                    .replace('{spending}', formatCurrency(totalRecent3mMonthly) + '/m')
-                    .replace('{gap}', formatCurrency(diff) + '/m');
-                const msgText = `ℹ️ <strong>${guidanceTitle}</strong> ${formattedMsg}`;
+                const defaultMsg = `📊 <strong>Budget sous le salaire avec effort de sobriété :</strong> Votre budget prévisionnel ({total}) est bien contenu sous votre salaire ({salary}), mais il exige un effort d'économie de {gap}/m par rapport à vos dépenses constatées sur {months} mois ({spending}/m).`;
 
-                alertBanner.innerHTML = `
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;">
-                        <span>${msgText}</span>
-                    </div>
-                `;
+                const msgText = (window.i18n.t('ai_sim_advice_effort_needed') || defaultMsg)
+                    .replace('{total}', formatCurrency(totalProjectedMonthly))
+                    .replace('{salary}', formatCurrency(regularSalary))
+                    .replace('{gap}', formatCurrency(gap))
+                    .replace('{months}', windowMonths)
+                    .replace('{spending}', formatCurrency(totalRecent3mMonthly));
+
+                alertBanner.innerHTML = `<div style="font-size:12px;line-height:1.4;">${msgText}</div>`;
+
+            } else if (regularSalary > 0 && salaryPct <= 90) {
+                // Budget <= 90% of Salary
+                const savings = regularSalary - totalProjectedMonthly;
+                const savingsPct = Math.round((savings / regularSalary) * 100);
+
+                alertBanner.style.display = 'flex';
+                alertBanner.style.alignItems = 'center';
+                alertBanner.style.padding = '10px 14px';
+                alertBanner.style.background = 'rgba(16, 185, 129, 0.1)';
+                alertBanner.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+                alertBanner.style.color = '#34d399';
+
+                const defaultMsg = `✨ <strong>Budget sain avec capacité d'épargne :</strong> Votre budget prévisionnel ({total}) consomme {pct}% de votre salaire repère, dégageant une capacité d'épargne estimée à +{savings}/m ({savingsPct}% des revenus).`;
+
+                const msgText = (window.i18n.t('ai_sim_advice_savings_capacity') || defaultMsg)
+                    .replace('{total}', formatCurrency(totalProjectedMonthly))
+                    .replace('{salary}', formatCurrency(regularSalary))
+                    .replace('{pct}', Math.round(salaryPct))
+                    .replace('{savings}', formatCurrency(savings))
+                    .replace('{savingsPct}', savingsPct);
+
+                alertBanner.innerHTML = `<div style="font-size:12px;line-height:1.4;">${msgText}</div>`;
+
+            } else if (regularSalary > 0 && salaryPct <= 100) {
+                // Budget 90% - 100% of Salary
+                const remaining = regularSalary - totalProjectedMonthly;
+
+                alertBanner.style.display = 'flex';
+                alertBanner.style.alignItems = 'center';
+                alertBanner.style.padding = '10px 14px';
+                alertBanner.style.background = 'rgba(16, 185, 129, 0.1)';
+                alertBanner.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+                alertBanner.style.color = '#34d399';
+
+                const defaultMsg = `💡 <strong>Budget idéalement équilibré :</strong> Vos enveloppes prévisionnelles ({total}) respectent votre revenu repère ({salary}), laissant {remaining}/m de marge de sécurité.`;
+
+                const msgText = (window.i18n.t('ai_sim_advice_balanced_ideal') || defaultMsg)
+                    .replace('{total}', formatCurrency(totalProjectedMonthly))
+                    .replace('{salary}', formatCurrency(regularSalary))
+                    .replace('{remaining}', formatCurrency(remaining));
+
+                alertBanner.innerHTML = `<div style="font-size:12px;line-height:1.4;">${msgText}</div>`;
+
             } else {
                 alertBanner.style.display = 'none';
             }
