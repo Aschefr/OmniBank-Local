@@ -30,7 +30,15 @@ window.AccountsView = {
                         </select>
                         <input type="text" id="acc_type_custom" class="inline-input" data-i18n-placeholder="acc_ph_type" placeholder="Type personnalisé..." style="border:1px solid var(--border-color); padding: 5px; display:none;">
                     </div>
-                    <input type="number" id="acc_balance" class="inline-input" data-i18n-placeholder="ph_initial_balance" placeholder="Solde Initial (€)" step="0.01" style="border:1px solid var(--border-color); padding: 5px; flex: 1;">
+                    <select id="acc_currency" class="inline-input" style="border:1px solid var(--border-color); padding: 5px; flex: 0.8;">
+                        <option value="EUR">EUR (€)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="CHF">CHF (CHF)</option>
+                        <option value="CAD">CAD (CA$)</option>
+                        <option value="JPY">JPY (¥)</option>
+                    </select>
+                    <input type="number" id="acc_balance" class="inline-input" data-i18n-placeholder="ph_initial_balance" placeholder="Solde Initial" step="0.01" style="border:1px solid var(--border-color); padding: 5px; flex: 1;">
                     <div style="display:flex; flex-direction:column; gap:4px;">
                         <label style="font-size:11px; font-weight:600; color:var(--text-muted);" data-i18n="acc_th_color">${window.i18n.t('acc_th_color')}</label>
                         <div id="accNewColorPicker" class="acc-color-picker">
@@ -48,6 +56,7 @@ window.AccountsView = {
                         <tr>
                             <th data-i18n="acc_th_name">${window.i18n.t('acc_th_name')}</th>
                             <th data-i18n="acc_th_type">${window.i18n.t('acc_th_type')}</th>
+                            <th data-i18n="acc_th_currency">${window.i18n.t('acc_th_currency') || 'Devise'}</th>
                             <th data-i18n="acc_th_initial_balance">${window.i18n.t('acc_th_initial_balance')}</th>
                             <th data-i18n="acc_th_color">${window.i18n.t('acc_th_color')}</th>
                             <th class="col-actions" style="width: 190px; min-width: 190px;" data-i18n="acc_th_actions">${window.i18n.t('acc_th_actions')}</th>
@@ -129,6 +138,7 @@ window.AccountsView = {
         tbody.innerHTML = this.accounts.map(acc => {
             const isMain = acc.id === this.mainAccountId;
             const color = acc.color || ACCOUNT_COLORS[0];
+            const curr = acc.currency || 'EUR';
             return `
             <tr style="${acc.is_closed ? 'opacity: 0.6;' : ''}">
                 <td>
@@ -137,7 +147,8 @@ window.AccountsView = {
                     ${acc.is_closed ? `<span data-i18n="badge_closed" style="background:var(--danger); color:#fff; padding:2px 5px; border-radius:4px; font-size:10px; margin-left:5px; font-weight:bold;">${window.i18n.t('badge_closed') || 'Fermé'}</span>` : ''}
                 </td>
                 <td>${acc.type}</td>
-                <td><span class="privacy-blur">${formatCurrency(acc.initial_balance)}</span></td>
+                <td><span class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-weight:bold; padding:2px 6px; border-radius:4px; font-size:11px;">${curr}</span></td>
+                <td><span class="privacy-blur">${formatCurrency(acc.initial_balance, curr)}</span></td>
                 <td>
                     <span class="acc-color-dot" style="background:${color}; cursor:pointer;" onclick="window.AccountsView.openColorPopover(${acc.id}, this)" title="${window.i18n.t('acc_color_label')}"></span>
                 </td>
@@ -197,7 +208,8 @@ window.AccountsView = {
                 type: acc.type,
                 initial_balance: acc.initial_balance,
                 is_closed: acc.is_closed,
-                color: color
+                color: color,
+                currency: acc.currency || 'EUR'
             });
             this._closePopover();
             await this.loadData();
@@ -213,13 +225,15 @@ window.AccountsView = {
             const customVal = document.getElementById('acc_type_custom').value;
             const type = selVal === '__other__' ? (customVal || window.i18n.t('default_account_type')) : selVal;
             const color = document.getElementById('accNewColor').value || this._nextColor();
+            const currency = document.getElementById('acc_currency') ? document.getElementById('acc_currency').value : 'EUR';
 
             const data = {
                 name: document.getElementById('acc_name').value,
                 type: type,
                 initial_balance: parseFloat(document.getElementById('acc_balance').value) || 0,
                 is_closed: false,
-                color: color
+                color: color,
+                currency: currency
             };
             if (!data.name) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_name_required'));
             
@@ -276,7 +290,8 @@ window.AccountsView = {
                     type: acc.type,
                     initial_balance: acc.initial_balance,
                     is_closed: !acc.is_closed,
-                    color: acc.color
+                    color: acc.color,
+                    currency: acc.currency || 'EUR'
                 });
                 await this.loadData();
                 window.app.refreshSidebar();
@@ -302,6 +317,7 @@ window.AccountsView = {
         const knownTypes = ['Compte courant', 'Livret', 'PEA', 'Assurance Vie', 'PER'];
         const isCustomType = !knownTypes.includes(acc.type);
         const currentColor = acc.color || ACCOUNT_COLORS[0];
+        const currentCurrency = acc.currency || 'EUR';
 
         const typeOptions = [
             { value: 'Compte courant', label: window.i18n.t('wizard_type_checking') },
@@ -311,6 +327,10 @@ window.AccountsView = {
             { value: 'PER', label: window.i18n.t('wizard_type_per') },
             { value: '__other__', label: window.i18n.t('wizard_type_other') }
         ].map(o => `<option value="${o.value}" ${(isCustomType ? o.value === '__other__' : acc.type === o.value) ? 'selected' : ''}>${o.label}</option>`).join('');
+
+        const currencyOpts = ['EUR', 'USD', 'GBP', 'CHF', 'CAD', 'JPY'].map(c =>
+            `<option value="${c}" ${currentCurrency === c ? 'selected' : ''}>${c}</option>`
+        ).join('');
 
         const modalHtml = `
         <div id="accEditModal" class="modal-overlay" style="display:flex;z-index:9999;">
@@ -328,6 +348,10 @@ window.AccountsView = {
                             if (this.value === '__other__') { custom.style.display='block'; custom.focus(); } else { custom.style.display='none'; custom.value=''; }
                         ">${typeOptions}</select>
                         <input type="text" id="accEditTypeCustom" class="inline-input" value="${isCustomType ? acc.type : ''}" placeholder="${window.i18n.t('acc_ph_type')}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;margin-top:6px;display:${isCustomType ? 'block' : 'none'};">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_currency') || 'Devise'}</label>
+                        <select id="accEditCurrency" class="inline-input" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">${currencyOpts}</select>
                     </div>
                     <div>
                         <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_initial_balance')}</label>
@@ -367,6 +391,8 @@ window.AccountsView = {
         const typeCustom = document.getElementById('accEditTypeCustom').value.trim();
         const type = typeSelect === '__other__' ? (typeCustom || window.i18n.t('default_account_type')) : typeSelect;
 
+        const currency = document.getElementById('accEditCurrency').value;
+
         const balanceStr = document.getElementById('accEditBalance').value;
         const balance = parseFloat(balanceStr.replace(',', '.'));
         if (isNaN(balance)) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
@@ -379,7 +405,8 @@ window.AccountsView = {
                 type: type,
                 initial_balance: balance,
                 is_closed: acc.is_closed,
-                color: color
+                color: color,
+                currency: currency
             });
             this._closeEditModal();
             await this.loadData();

@@ -31,6 +31,9 @@ class App {
         // Load Global Config
         try {
             this.config = await API.get('/api/config/');
+            if (this.config && this.config.base_currency) {
+                window.appBaseCurrency = this.config.base_currency;
+            }
         } catch (e) {
             console.error("Failed to load global config", e);
             this.config = {};
@@ -286,6 +289,15 @@ class App {
             };
         }
         this.updateHeaderHistoryState();
+    }
+
+    async refreshAll() {
+        await this.refreshSidebar();
+        if (this.currentView && this.views[this.currentView] && typeof this.views[this.currentView].init === 'function') {
+            await this.views[this.currentView].init();
+        } else if (this.currentView) {
+            this.loadView(this.currentView);
+        }
     }
 
     _initNotifications() {

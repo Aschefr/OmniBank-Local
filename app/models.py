@@ -13,6 +13,7 @@ class Account(Base):
     initial_balance = Column(Float, default=0.0)
     is_closed = Column(Boolean, default=False)
     color = Column(String, nullable=True)  # Hex color for badge display (e.g. "#3366ff")
+    currency = Column(String, default="EUR")  # Currency code (e.g. "EUR", "USD", "GBP", "CHF")
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -55,6 +56,10 @@ class Transaction(Base):
     # Skipped recurring occurrence flag (True = skipped/paused, False/None = regular)
     is_skipped = Column(Boolean, default=False, nullable=True)
 
+    # Multi-currency support
+    original_amount = Column(Float, nullable=True)
+    original_currency = Column(String, nullable=True)
+
     # Phase 9: Multi-user audit (org mode)
     created_by = Column(String, nullable=True)     # Org user name who created
     modified_by = Column(String, nullable=True)     # Last org user who modified
@@ -66,6 +71,15 @@ class GlobalConfig(Base):
     
     key = Column(String, primary_key=True)
     value = Column(String)
+
+class ExchangeRate(Base):
+    __tablename__ = "exchange_rates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    from_currency = Column(String, nullable=False, index=True) # e.g. "USD"
+    to_currency = Column(String, nullable=False, index=True)   # e.g. "EUR"
+    rate = Column(Float, nullable=False)                        # 1 USD = rate EUR
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class Category(Base):
     __tablename__ = "categories"

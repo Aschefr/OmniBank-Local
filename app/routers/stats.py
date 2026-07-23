@@ -51,6 +51,7 @@ def get_accounts(db: Session = Depends(get_db)):
             "type": acc.type,
             "is_closed": acc.is_closed,
             "color": acc.color,
+            "currency": getattr(acc, "currency", "EUR") or "EUR",
             "balance": balances.get(acc.id, 0.0)
         })
     return result
