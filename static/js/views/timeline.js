@@ -733,6 +733,8 @@ window.TimelineView = {
 
             const attachHtml = tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}" onclick="window.TimelineView._openAttachment('${tx.attachments.replace(/'/g, "\\'")}')">📎</span>` : '-';
 
+            const origSubtext = (tx.original_amount && tx.original_currency) ? `<div style="font-size: 10px; font-weight: 500; opacity: 0.8; color: var(--accent); white-space: nowrap;">🌐 ${formatCurrency(tx.original_amount, tx.original_currency)}</div>` : '';
+
             return `
             <tr data-id="${tx.id}" class="${rowClass}" ${idAttr}>
                 <td class="row-marker"></td>
@@ -743,6 +745,7 @@ window.TimelineView = {
                 <td class="col-cat" data-label="${window.i18n.t('dl_category')}" style="white-space: nowrap;" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
                 <td class="col-amount" data-label="${window.i18n.t('dl_amount')}">
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>
+                    ${origSubtext}
                 </td>
                 <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}" style="text-align: center;">
                     ${reconcileHTML}

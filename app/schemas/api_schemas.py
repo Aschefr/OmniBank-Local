@@ -36,6 +36,8 @@ class TransactionBase(BaseModel):
     modified_at: Optional[str] = None
     is_salary: Optional[bool] = None
     is_skipped: Optional[bool] = False
+    original_amount: Optional[float] = None
+    original_currency: Optional[str] = None
 
     _val_date_saisie = validator('date_saisie', allow_reuse=True)(_validate_date_range)
     _val_date_op = validator('date_operation', allow_reuse=True)(_validate_date_range)
@@ -56,6 +58,8 @@ class TransactionUpdate(BaseModel):
     recurrence_day_2: Optional[int] = None
     is_salary: Optional[bool] = None
     is_skipped: Optional[bool] = None
+    original_amount: Optional[float] = None
+    original_currency: Optional[str] = None
 
     _val_date_op = validator('date_operation', allow_reuse=True)(_validate_date_range)
     _val_recon = validator('reconciliation_date', allow_reuse=True)(_validate_date_range)
@@ -75,6 +79,7 @@ class TransactionOut(TransactionBase):
 
     class Config:
         orm_mode = True
+        from_attributes = True
 
 class CategoryBase(BaseModel):
     name: str
@@ -136,6 +141,7 @@ class AccountBase(BaseModel):
     initial_balance: float
     is_closed: bool = False
     color: Optional[str] = None
+    currency: Optional[str] = "EUR"
 
 class AccountOut(AccountBase):
     id: int
@@ -214,6 +220,22 @@ class AIFactUpdate(BaseModel):
 class AIFactOut(AIFactBase):
     id: int
     user_name: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
+
+class ExchangeRateBase(BaseModel):
+    from_currency: str
+    to_currency: str
+    rate: float
+
+class ExchangeRateCreate(ExchangeRateBase):
+    pass
+
+class ExchangeRateOut(ExchangeRateBase):
+    id: int
 
     class Config:
         orm_mode = True

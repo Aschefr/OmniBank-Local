@@ -1873,3 +1873,56 @@ if __name__ == "__main__":
     test_budgets_status_tool_returns_summary()
     test_ai_write_capabilities_tools()
     test_grouped_recurrence_undo_redo_and_restore()
+
+
+def test_multi_currency_support():
+    # 1. Test Base Currency configuration
+    res = client.post("/api/config/", json={"base_currency": "USD"})
+    assert res.status_code == 200
+    res_cfg = client.get("/api/config/")
+    assert res_cfg.json().get("base_currency") == "USD"
+
+    # 2. Test Account Currency creation and retrieval
+    res_acc = client.post("/api/accounts/", json={
+        "name": "Compte Dollar US",
+        "type": "Compte courant",
+        "initial_balance": 100.0,
+        "is_closed": False,
+        "color": "#3366ff",
+        "currency": "USD"
+    })
+    assert res_acc.status_code == 200
+    acc_data = res_acc.json()
+    assert acc_data["currency"] == "USD"
+
+    # 3. Test Exchange Rates API CRUD
+    res_rate = client.post("/api/config/exchange-rates", json={
+        "from_currency": "USD",
+        "to_currency": "EUR",
+        "rate": 0.92
+    })
+    assert res_rate.status_code == 200
+    rates = client.get("/api/config/exchange-rates").json()
+    assert any(r["from_currency"] == "USD" and r["to_currency"] == "EUR" for r in rates)
+
+    # 4. Test Transaction creation with original currency & foreign amount
+    res_tx = client.post("/api/transactions/", json={
+        "date_saisie": "2026-07-01",
+        "date_operation": "2026-07-01",
+        "description": "Achat New York",
+        "amount": 92.0,
+        "type": "expense_var",
+        "category": "Alimentaire",
+        "from_account_id": acc_data["id"],
+        "original_amount": 100.0,
+        "original_currency": "USD"
+    })
+    assert res_tx.status_code == 200, res_tx.text
+    tx_json = res_tx.json()
+    assert tx_json["original_amount"] == 100.0
+    assert tx_json["original_currency"] == "USD"
+
+    # 5. Test Online Rates fetch endpoint
+    res_online = client.post("/api/config/exchange-rates/fetch-online")
+    # Should return 200 if internet is available, or 502/500 if offline
+    assert res_online.status_code in [200, 500, 502]

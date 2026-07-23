@@ -387,8 +387,35 @@
                         <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_amount">Montant*</label>
                         <div style="display:flex; align-items:center; gap:6px; background: var(--bg-input); padding: 0 10px 0 0; border-radius: 6px; border: 1px solid var(--border-color);">
                             <input type="number" id="op_amount" class="inline-input" step="0.01" style="flex: 1; font-size: 15px; font-weight: 700; border: none; background: transparent; padding: 8px 10px;" placeholder="0.00">
-                            <span style="font-size: 14px; font-weight: 600; color: var(--text-muted);">€</span>
+                            <span id="op_amount_curr_symbol" style="font-size: 14px; font-weight: 600; color: var(--text-muted);">€</span>
                         </div>
+                        <div style="margin-top: 4px; text-align: right;">
+                            <a href="#" onclick="window.FormView.toggleForeignCurrency(); return false;" style="font-size: 10px; color: var(--primary); text-decoration: none;" data-i18n="op_link_foreign_currency">🌐 Devise étrangère</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="op_foreign_currency_box" style="display: none; background: var(--bg-input); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: -6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 10px; color: var(--text-muted);">
+                        <span style="font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;" data-i18n="op_foreign_currency_title">Saisie en Devise Étrangère</span>
+                        <span id="op_rate_info_text"></span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="number" id="op_original_amount" class="inline-input" step="0.01" placeholder="Montant orig." style="flex: 1.2; font-size: 12px; padding: 6px 8px;" oninput="window.FormView.convertForeignAmount()">
+                        <select id="op_original_currency" class="inline-input" style="width: 85px; font-size: 12px; padding: 6px 4px;" onchange="window.FormView.convertForeignAmount(true)">
+                            <option value="USD">USD ($)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="CHF">CHF</option>
+                            <option value="CAD">CAD</option>
+                            <option value="JPY">JPY</option>
+                        </select>
+                        <div style="display: flex; align-items: center; gap: 4px; background: var(--bg-surface); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border-color); white-space: nowrap;">
+                            <span style="font-size: 11px; color: var(--text-muted);" id="op_rate_custom_label">1 USD =</span>
+                            <input type="number" id="op_custom_rate" class="inline-input" step="0.0001" placeholder="Taux" style="width: 75px; font-size: 12px; font-weight: 600; padding: 3px 4px; text-align: center; border: 1px solid var(--border-color);" oninput="window.FormView.onCustomRateInput()">
+                            <span style="font-size: 11px; color: var(--text-muted);" id="op_rate_target_label">EUR</span>
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="op_rate_refresh_btn" onclick="window.FormView.fetchRateOnline()" style="padding: 5px 8px; font-size: 11px; border-radius: 6px; flex-shrink: 0;" data-i18n="op_btn_refresh_rate">🔄 Actualiser le taux</button>
                     </div>
                 </div>
 

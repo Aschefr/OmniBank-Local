@@ -492,6 +492,7 @@ window.AllOperationsView = {
             if (tx.is_monthly) recText = window.i18n.t('rec_monthly');
             if (tx.is_yearly) recText = window.i18n.t('rec_yearly');
             if (tx.is_bimonthly) recText = window.i18n.t('rec_bimonthly');
+            const origSubtext = (tx.original_amount && tx.original_currency) ? `<div style="font-size: 10px; font-weight: 500; opacity: 0.8; color: var(--accent); white-space: nowrap;">🌐 ${formatCurrency(tx.original_amount, tx.original_currency)}</div>` : '';
 
             return `
             <tr data-id="${tx.id}" class="${rowClass}" ${idAttr}>
@@ -503,6 +504,7 @@ window.AllOperationsView = {
                 <td class="col-cat" data-label="${window.i18n.t('dl_category')}" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
                 <td class="col-amount" data-label="${window.i18n.t('dl_amount')}">
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>
+                    ${origSubtext}
                 </td>
                 <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}" style="text-align: center;">${tx.is_skipped ? `<span style="font-size:11px; font-weight: 600; color: #64748b; background: rgba(100, 116, 139, 0.1); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(100, 116, 139, 0.2); white-space: nowrap;">${window.i18n.t('rec_status_skipped') || '⏭️ Ignorée'}</span>` : formatDate(tx.reconciliation_date) || '-'}</td>
                 <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && this.budgetsMap[tx.budget_id]) ? this.budgetsMap[tx.budget_id] : (tx.category && this.categoryToBudgetMap && this.categoryToBudgetMap[tx.category]) ? this.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>

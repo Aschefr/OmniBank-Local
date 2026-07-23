@@ -1,7 +1,29 @@
 from datetime import date
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from app.models import Account, Transaction, GlobalConfig
+from app.models import Account, Transaction, GlobalConfig, ExchangeRate
+
+def get_base_currency(db: Session) -> str:
+    conf = db.query(GlobalConfig).filter(GlobalConfig.key == "base_currency").first()
+    return conf.value.upper() if conf and conf.value else "EUR"
+
+def convert_currency(db: Session, amount: float, from_curr: str, to_curr: str) -> float:
+    if not amount or not from_curr or not to_curr or from_curr.upper() == to_curr.upper():
+        return amount
+    from_curr = from_curr.upper()
+    to_curr = to_curr.upper()
+    
+    # Direct rate
+    rate_obj = db.query(ExchangeRate).filter(ExchangeRate.from_currency == from_curr, ExchangeRate.to_currency == to_curr).first()
+    if rate_obj and rate_obj.rate:
+        return amount * rate_obj.rate
+        
+    # Reverse rate
+    rev_obj = db.query(ExchangeRate).filter(ExchangeRate.from_currency == to_curr, ExchangeRate.to_currency == from_curr).first()
+    if rev_obj and rev_obj.rate:
+        return amount / rev_obj.rate
+        
+    return amount
 
 def calculate_balances(db: Session, end_date: date = None, only_reconciled: bool = False):
     """
@@ -38,9 +60,18 @@ def calculate_balances(db: Session, end_date: date = None, only_reconciled: bool
 
 def get_net_worth(db: Session, end_date: date = None, only_reconciled: bool = False):
     balances = calculate_balances(db, end_date, only_reconciled)
-    closed_accounts = db.query(Account).filter(Account.is_closed == True).all()
-    closed_ids = set(a.id for a in closed_accounts)
-    total = sum(v for k, v in balances.items() if k not in closed_ids)
+    accounts = db.query(Account).all()
+    base_curr = get_base_currency(db)
+    acc_map = {a.id: a for a in accounts}
+    
+    total = 0.0
+    for acc_id, balance in balances.items():
+        acc = acc_map.get(acc_id)
+        if acc and not acc.is_closed:
+            acc_currency = getattr(acc, "currency", None) or base_curr
+            converted_bal = convert_currency(db, balance, acc_currency, base_curr)
+            total += converted_bal
+            
     return round(total, 2)
 
 def get_main_account(db: Session):

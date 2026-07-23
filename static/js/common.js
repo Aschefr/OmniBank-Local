@@ -168,8 +168,17 @@ function showInlinePrompt(titleText, defaultValue = '') {
     });
 }
 
-function formatCurrency(amount) {
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+window.appBaseCurrency = 'EUR';
+
+function formatCurrency(amount, currencyCode) {
+    const code = (currencyCode || window.appBaseCurrency || 'EUR').toUpperCase();
+    const num = (amount === null || amount === undefined || isNaN(amount)) ? 0 : Number(amount);
+    try {
+        const lang = (window.i18n && window.i18n.currentLang === 'en') ? 'en-US' : 'fr-FR';
+        return new Intl.NumberFormat(lang, { style: 'currency', currency: code }).format(num);
+    } catch (e) {
+        return `${num.toFixed(2)} ${code}`;
+    }
 }
 
 function formatDate(dateString) {

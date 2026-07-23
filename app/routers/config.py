@@ -50,3 +50,87 @@ async def get_ollama_models(db: Session = Depends(get_db)):
             return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- Exchange Rates Endpoints ---
+from app.models import ExchangeRate
+from app.schemas.api_schemas import ExchangeRateCreate, ExchangeRateOut
+
+@router.get("/exchange-rates")
+def get_exchange_rates(db: Session = Depends(get_db)):
+    rates = db.query(ExchangeRate).all()
+    return [{"id": r.id, "from_currency": r.from_currency, "to_currency": r.to_currency, "rate": r.rate, "updated_at": r.updated_at.isoformat() if r.updated_at else None} for r in rates]
+
+@router.post("/exchange-rates")
+def save_exchange_rate(data: ExchangeRateCreate, db: Session = Depends(get_db)):
+    from_curr = data.from_currency.upper().strip()
+    to_curr = data.to_currency.upper().strip()
+    if from_curr == to_curr:
+        raise HTTPException(status_code=400, detail="Source and target currencies must be different")
+    
+    rate_obj = db.query(ExchangeRate).filter(
+        ExchangeRate.from_currency == from_curr,
+        ExchangeRate.to_currency == to_curr
+    ).first()
+    
+    if rate_obj:
+        rate_obj.rate = data.rate
+    else:
+        rate_obj = ExchangeRate(from_currency=from_curr, to_currency=to_curr, rate=data.rate)
+        db.add(rate_obj)
+    db.commit()
+    db.refresh(rate_obj)
+    return {"id": rate_obj.id, "from_currency": rate_obj.from_currency, "to_currency": rate_obj.to_currency, "rate": rate_obj.rate}
+
+@router.delete("/exchange-rates/{rate_id}")
+def delete_exchange_rate(rate_id: int, db: Session = Depends(get_db)):
+    rate_obj = db.query(ExchangeRate).filter(ExchangeRate.id == rate_id).first()
+    if not rate_obj:
+        raise HTTPException(status_code=404, detail="Exchange rate not found")
+    db.delete(rate_obj)
+    db.commit()
+    return {"ok": True}
+
+@router.post("/exchange-rates/fetch-online")
+async def fetch_online_exchange_rates(db: Session = Depends(get_db)):
+    base_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "base_currency").first()
+    base_curr = base_conf.value.upper() if base_conf and base_conf.value else "EUR"
+    
+    url = f"https://api.frankfurter.dev/v1/latest?base={base_curr}"
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, timeout=10.0)
+            if resp.status_code != 200:
+                raise HTTPException(status_code=502, detail="Impossible de contacter l'API publique des taux de change")
+            data = resp.json()
+            rates = data.get("rates", {})
+            
+            updated_count = 0
+            for curr_code, rate_val in rates.items():
+                if rate_val and isinstance(rate_val, (int, float)):
+                    # Direct rate: base_curr -> curr_code
+                    r_obj = db.query(ExchangeRate).filter(
+                        ExchangeRate.from_currency == base_curr,
+                        ExchangeRate.to_currency == curr_code
+                    ).first()
+                    if r_obj:
+                        r_obj.rate = float(rate_val)
+                    else:
+                        r_obj = ExchangeRate(from_currency=base_curr, to_currency=curr_code, rate=float(rate_val))
+                        db.add(r_obj)
+                        
+                    # Reverse rate: curr_code -> base_curr
+                    rev_obj = db.query(ExchangeRate).filter(
+                        ExchangeRate.from_currency == curr_code,
+                        ExchangeRate.to_currency == base_curr
+                    ).first()
+                    if rev_obj:
+                        rev_obj.rate = round(1.0 / float(rate_val), 6)
+                    else:
+                        rev_obj = ExchangeRate(from_currency=curr_code, to_currency=base_curr, rate=round(1.0 / float(rate_val), 6))
+                        db.add(rev_obj)
+                    updated_count += 1
+                    
+            db.commit()
+            return {"ok": True, "base_currency": base_curr, "updated": updated_count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la mise à jour des taux : {str(e)}")
