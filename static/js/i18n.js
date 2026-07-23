@@ -41,12 +41,18 @@ class I18nManager {
         });
     }
 
-    t(key) {
-        return this.translations[key] || key;
+    t(key, fallback = null) {
+        if (this.translations[key] !== undefined && this.translations[key] !== null) {
+            return this.translations[key];
+        }
+        return fallback !== null ? fallback : key;
     }
 
-    tp(key, params = {}) {
-        let str = this.translations[key] || key;
+    tp(key, params = {}, fallback = null) {
+        let str = this.translations[key];
+        if (str === undefined || str === null) {
+            str = fallback !== null ? fallback : key;
+        }
         for (const [k, v] of Object.entries(params)) {
             str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
         }

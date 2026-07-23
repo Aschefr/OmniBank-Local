@@ -1513,5 +1513,21 @@
   "ai_sim_gap_lower": "Propositions inférieures de {amount} à vos dépenses constatées (Effort d'économie)",
   "ai_sim_total_format": "Budget de {total} ({pct}% de vos revenus repère)",
   "ai_sim_total_format_status": "Budget de {total} ({pct}% de vos revenus repère — {status})",
-  "ai_budget_badge_click_apply": "Cliquer pour utiliser le montant {amount} pour cette enveloppe"
+  "ai_budget_badge_click_apply": "Cliquer pour utiliser le montant {amount} pour cette enveloppe",
+  "ai_budget_window_3m": "3 mois",
+  "ai_budget_window_6m": "6 mois",
+  "ai_budget_window_12m": "12 mois",
+  "ai_sim_lbl_pay_usage_title": "Utilisation de la paie mensuelle :",
+  "ai_sim_lbl_real_pace_title": "Moyenne de dépenses :",
+  "ai_sim_tt_pay_usage_help": "Compare le budget projeté à vos revenus repère.",
+  "ai_sim_tt_real_pace_help": "Compare le budget proposé à vos dépenses passées réelles.",
+  "btn_edit_recurrence": "Modifier la récurrence",
+  "cat_search_ph": "Rechercher une catégorie...",
+  "import_filter_add": "À ajouter",
+  "import_filter_all": "Tous",
+  "import_filter_label": "Filtre :",
+  "import_filter_reconcile": "À rapprocher",
+  "loading": "Chargement...",
+  "modal_export_desc": "Exporter vos données au format CSV.",
+  "modal_export_title": "Exporter les données"
 }

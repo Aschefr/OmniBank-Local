@@ -1513,5 +1513,21 @@
   "ai_sim_gap_lower": "Proposals {amount} lower than past spending (Savings effort)",
   "ai_sim_total_format": "Budget of {total} ({pct}% of reference income)",
   "ai_sim_total_format_status": "Budget of {total} ({pct}% of reference income — {status})",
-  "ai_budget_badge_click_apply": "Click to apply {amount} to this envelope"
+  "ai_budget_badge_click_apply": "Click to apply {amount} to this envelope",
+  "ai_budget_window_3m": "3 months",
+  "ai_budget_window_6m": "6 months",
+  "ai_budget_window_12m": "12 months",
+  "ai_sim_lbl_pay_usage_title": "Monthly salary usage:",
+  "ai_sim_lbl_real_pace_title": "Spending average:",
+  "ai_sim_tt_pay_usage_help": "Compares projected budget to reference income.",
+  "ai_sim_tt_real_pace_help": "Compares proposed budget to real past spending.",
+  "btn_edit_recurrence": "Edit recurrence",
+  "cat_search_ph": "Search category...",
+  "import_filter_add": "To add",
+  "import_filter_all": "All",
+  "import_filter_label": "Filter:",
+  "import_filter_reconcile": "To reconcile",
+  "loading": "Loading...",
+  "modal_export_desc": "Export your data to CSV format.",
+  "modal_export_title": "Export data"
 }
