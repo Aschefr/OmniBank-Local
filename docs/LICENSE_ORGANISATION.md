@@ -10,7 +10,6 @@
 **L'Éditeur** :  
 Amify Studio — Auto-Entreprise  
 SIRET : 909 651 507 00016  
-65 Rue du Moulin, 38510 Vézeronce-Curtin  
 contact@amify-studio.fr — amify-studio.fr  
 Ci-après dénommé « **l'Éditeur** »
 
@@ -47,7 +46,7 @@ La licence inclut l'accès aux mises à jour du Module publiées par l'Éditeur,
 
 ## Article 3 — Prix et paiement
 
-Le prix de la licence est de **600,00 € TTC** (six cents euros), payable en une seule fois.
+Le prix de la licence est de **800,00 € TTC** (six cents euros), payable en une seule fois.
 
 Le paiement est dû avant la remise de la clé de licence. La clé est délivrée par voie électronique après réception du paiement intégral.
 
