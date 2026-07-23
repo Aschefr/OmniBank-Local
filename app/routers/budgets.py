@@ -713,6 +713,9 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
         )
     ).all()
 
+    from app.models import Category
+    closed_cat_names = set(c[0] for c in db.query(Category.name).filter(Category.is_closed == True).all() if c[0])
+
     cat_monthly: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     cat_type: dict[str, str] = {}
     cat_descriptions: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
@@ -724,7 +727,7 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
             continue
 
         cat = tx.category or "Sans catégorie"
-        if cat in already_used_cats:
+        if cat in already_used_cats or cat in closed_cat_names:
             continue
 
         month_key = tx.date_operation.strftime("%Y-%m")
@@ -750,11 +753,10 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
                 yearly_recurrence_cats.add(t.category)
                 yearly_recurrence_sums[t.category] += abs(t.amount or 0.0)
 
-    # Fetch all registered categories in DB to ensure no unused category is omitted
-    from app.models import Category
-    db_cat_names = set(c[0] for c in db.query(Category.name).all() if c[0])
+    # Fetch all registered active categories in DB to ensure no unused category is omitted (excluding closed ones)
+    db_cat_names = set(c[0] for c in db.query(Category.name).filter(Category.is_closed == False).all() if c[0])
     tx_cat_names = set(c[0] for c in db.query(Transaction.category).distinct().all() if c[0])
-    all_all_cats = (db_cat_names | tx_cat_names) - already_used_cats
+    all_all_cats = (db_cat_names | tx_cat_names) - already_used_cats - closed_cat_names
 
     if not cat_monthly and not all_all_cats:
         return {}
@@ -1093,6 +1095,7 @@ RULES:
 2. Separate loans/mortgages from insurance, telecom from cloud services, and vehicle maintenance from toll fees.
 3. In the "categories" list for each envelope, include ONLY the exact category names from the input list.
 4. EVERY input category MUST be assigned to an envelope.
+5. Respect the Recurrence (ANNUAL vs MONTHLY) specified for each category. NEVER mix ANNUAL categories and MONTHLY categories together in the same envelope. Create separate envelopes for ANNUAL expenses.
 
 LANGUAGE REQUIREMENT:
 Write all envelope names and reason justifications in {target_lang}.
@@ -1188,13 +1191,13 @@ Response format (JSON object with key "envelopes"):
     used_in_proposals = set()
 
     # --- Helper to build a proposal dict from a list of categories ---
-    def _build_proposal(name, sub_cats, reason_override=None):
+    def _build_proposal(name, sub_cats, reason_override=None, period_override=None):
         is_all_fixed = all(cat_data[c]["is_fixed"] or cat_data[c]["type"] == "expense_fixed" for c in sub_cats)
         all_exceptional = all(cat_data[c]["is_exceptional"] for c in sub_cats)
         
         yearly_count = sum(1 for c in sub_cats if cat_data[c].get("suggested_period") == "yearly")
         monthly_count = len(sub_cats) - yearly_count
-        suggested_period = "yearly" if yearly_count > monthly_count else "monthly"
+        suggested_period = period_override or ("yearly" if yearly_count > monthly_count else "monthly")
 
         cat_amounts = {}
         for c in sub_cats:
@@ -1251,7 +1254,13 @@ Response format (JSON object with key "envelopes"):
                 justification = f"Basé sur les {window_months} derniers mois ({cats_str}){merchant_str}."
 
         cat_details = {
-            c: {"amount": cat_amounts[c], "top_descs": cat_data[c]["top_descs"], "is_fixed": cat_data[c]["is_fixed"]}
+            c: {
+                "amount": cat_amounts[c],
+                "top_descs": cat_data[c]["top_descs"],
+                "is_fixed": cat_data[c]["is_fixed"],
+                "current_month_spent": cat_data[c].get("current_month_spent", 0.0),
+                "recent_3m_avg": cat_data[c].get("recent_3m_avg", 0.0),
+            }
             for c in sub_cats
         }
 
@@ -1305,19 +1314,22 @@ Response format (JSON object with key "envelopes"):
             clean_cats = resolved_cats
 
             if clean_cats:
+                # Clean any pre-existing period suffixes from LLM generated name
+                clean_name = re.sub(r'\s*\((?:Mensuel|Mensuels|Annuel|Annuels|Monthly|Yearly)\)', '', name, flags=re.IGNORECASE).strip()
+
                 # Only split if the LLM mixed monthly and yearly categories in the same envelope
                 monthly_cats = [c for c in clean_cats if cat_data[c].get("suggested_period", "monthly") == "monthly"]
                 yearly_cats = [c for c in clean_cats if cat_data[c].get("suggested_period") == "yearly"]
 
                 if monthly_cats and yearly_cats:
-                    # Real mix: split into two sub-proposals, preserving original LLM name
+                    # Real mix: split into two sub-proposals, preserving original LLM base name and strictly setting periods
                     used_in_proposals.update(clean_cats)
-                    proposals.append(_build_proposal(f"{name}", monthly_cats, reason))
-                    proposals.append(_build_proposal(f"{name} (Annuels)", yearly_cats, reason))
+                    proposals.append(_build_proposal(f"{clean_name}", monthly_cats, reason, period_override="monthly"))
+                    proposals.append(_build_proposal(f"{clean_name} (Annuels)", yearly_cats, reason, period_override="yearly"))
                 else:
-                    # No mix: keep the LLM's envelope intact
+                    # No mix: keep the clean base name
                     used_in_proposals.update(clean_cats)
-                    proposals.append(_build_proposal(name, clean_cats, reason))
+                    proposals.append(_build_proposal(clean_name, clean_cats, reason))
 
     # Collect unclassified orphan categories
     orphan_cats = [c for c in cat_data.keys() if c not in used_in_proposals]
@@ -1493,14 +1505,26 @@ Response format (JSON object with key "envelopes"):
 
             if matched_prop:
                 matched_prop["categories"].extend(valid_cats)
-                # Recalculate amounts
+                # Recalculate amounts & details
                 sub_cats = list(dict.fromkeys(matched_prop["categories"]))
                 matched_prop["categories"] = sub_cats
+                if "cat_details" not in matched_prop:
+                    matched_prop["cat_details"] = {}
                 for c in valid_cats:
                     c_period = cat_data[c].get("suggested_period", "monthly")
                     c_val = cat_data[c]["avg"] if c_period == "monthly" else round(cat_data[c]["total_year"] / 12.0, 2)
                     matched_prop["cat_amounts"][c] = c_val
+                    matched_prop["cat_details"][c] = {
+                        "amount": c_val,
+                        "top_descs": cat_data[c].get("top_descs", []),
+                        "is_fixed": cat_data[c].get("is_fixed", False),
+                        "current_month_spent": cat_data[c].get("current_month_spent", 0.0),
+                        "recent_3m_avg": cat_data[c].get("recent_3m_avg", 0.0),
+                    }
                 matched_prop["suggested_amount"] = round(sum(matched_prop["cat_amounts"].values()), 2)
+                matched_prop["current_month_spent"] = round(sum(cat_data[c].get("current_month_spent", 0.0) for c in sub_cats if c in cat_data), 2)
+                matched_prop["recent_3m_avg"] = round(sum(cat_data[c].get("recent_3m_avg", 0.0) for c in sub_cats if c in cat_data), 2)
+                matched_prop["historical_actual_amount"] = round(sum(cat_data[c].get("avg", 0.0) if matched_prop.get("suggested_period") != "yearly" else cat_data[c].get("total_year", 0.0) for c in sub_cats if c in cat_data), 2)
             else:
                 # Build new proposal
                 cat_amounts = {}
@@ -1512,7 +1536,7 @@ Response format (JSON object with key "envelopes"):
                     "name": name,
                     "categories": valid_cats,
                     "cat_amounts": cat_amounts,
-                    "cat_details": {c: {"amount": cat_amounts[c], "top_descs": cat_data[c]["top_descs"], "is_fixed": cat_data[c]["is_fixed"]} for c in valid_cats},
+                    "cat_details": {c: {"amount": cat_amounts[c], "top_descs": cat_data[c]["top_descs"], "is_fixed": cat_data[c]["is_fixed"], "current_month_spent": cat_data[c].get("current_month_spent", 0.0), "recent_3m_avg": cat_data[c].get("recent_3m_avg", 0.0)} for c in valid_cats},
                     "suggested_amount": base_amount,
                     "historical_actual_amount": base_amount,
                     "current_month_spent": round(sum(cat_data[c].get("current_month_spent", 0.0) for c in valid_cats), 2),
@@ -1689,24 +1713,34 @@ def get_budget_capacity(db: Session = Depends(get_db)):
     explicit_monthly_budgeted = sum(b.monthly_amount for b in active_budgets if b.period in ("monthly", None) and (b.envelope_type or "spending") != "savings")
     explicit_yearly_budgeted = sum(b.monthly_amount for b in active_budgets if b.period == "yearly" and (b.envelope_type or "spending") != "savings")
     
-    # Monthly capacity: use explicit monthly envelopes if any
+    # Monthly capacity: use explicit monthly envelopes if any, else fallback to historical avg_monthly_expenses
     is_monthly_fallback = False
     if explicit_monthly_budgeted > 0:
         effective_monthly_budgeted = explicit_monthly_budgeted
     else:
-        effective_monthly_budgeted = 0.0
+        effective_monthly_budgeted = avg_monthly_expenses
         is_monthly_fallback = True
 
-    # Yearly capacity: use explicit yearly envelopes + annualized monthly envelopes if any
+    # Yearly capacity: use explicit yearly envelopes + annualized monthly envelopes if any, else fallback to historical avg_yearly_expenses
     is_yearly_fallback = False
     if explicit_yearly_budgeted > 0 or explicit_monthly_budgeted > 0:
         effective_yearly_budgeted = explicit_yearly_budgeted + (explicit_monthly_budgeted * 12.0)
     else:
-        effective_yearly_budgeted = 0.0
+        effective_yearly_budgeted = avg_yearly_expenses
         is_yearly_fallback = True
 
     # Build detailed calculation explanations for tooltips (income & budgeted/expenses)
-    if not is_org_mode and avg_monthly_income > 0 and paycheck_data and paycheck_data.get("amount", 0.0) > 0:
+    if is_monthly_fallback:
+        # In fallback mode (no envelopes), use 6-month average income to match 6-month average expenses window
+        fallback_avg_income = round(six_month_income / 6.0, 2)
+        if fallback_avg_income > 0:
+            avg_monthly_income = fallback_avg_income
+            avg_yearly_income = round(ytd_income + (remaining_months * avg_monthly_income), 2)
+        monthly_details_fr = "Basé sur la moyenne glissante des recettes des 6 derniers mois (aligné sur l'analyse des dépenses)."
+        monthly_details_en = "Based on the 6-month rolling average of receipts (aligned with spending analysis)."
+        yearly_details_fr = f"Recettes réelles de l'année en cours (YTD : {round(ytd_income, 2):,.2f} €) + recettes moyennes pour les {remaining_months} mois restants ({remaining_months} × {round(avg_monthly_income, 2):,.2f} €).".replace(",", " ").replace(".", ",")
+        yearly_details_en = f"Actual YTD receipts ({round(ytd_income, 2):,.2f} €) + average receipts for remaining {remaining_months} months ({remaining_months} × {round(avg_monthly_income, 2):,.2f} €)."
+    elif not is_org_mode and avg_monthly_income > 0 and paycheck_data and paycheck_data.get("amount", 0.0) > 0:
         monthly_details_fr = "Basé sur votre salaire mensuel prédit / configuré."
         monthly_details_en = "Based on your predicted / configured monthly salary."
         
@@ -1721,15 +1755,15 @@ def get_budget_capacity(db: Session = Depends(get_db)):
 
     # Budgeted / Expenses calculation details
     if is_monthly_fallback:
-        monthly_budgeted_details_fr = "Aucune enveloppe mensuelle existante."
-        monthly_budgeted_details_en = "No existing monthly envelope."
+        monthly_budgeted_details_fr = "Aucune enveloppe configurée. Estimation basée sur la moyenne de vos dépenses réelles des 6 derniers mois."
+        monthly_budgeted_details_en = "No configured envelope. Estimated based on your average real spending over the last 6 months."
     else:
         monthly_budgeted_details_fr = "Somme de vos enveloppes mensuelles actives configurées."
         monthly_budgeted_details_en = "Sum of your configured active monthly envelopes."
 
     if is_yearly_fallback:
-        yearly_budgeted_details_fr = "Aucune enveloppe annuelle existante."
-        yearly_budgeted_details_en = "No existing yearly envelope."
+        yearly_budgeted_details_fr = "Aucune enveloppe configurée. Estimation basée sur vos dépenses YTD + la moyenne projetée sur l'année."
+        yearly_budgeted_details_en = "No configured envelope. Estimated based on YTD spending + projected yearly average."
     else:
         yearly_budgeted_details_fr = "Somme des enveloppes annuelles + (enveloppes mensuelles × 12)."
         yearly_budgeted_details_en = "Sum of yearly envelopes + (monthly envelopes × 12)."

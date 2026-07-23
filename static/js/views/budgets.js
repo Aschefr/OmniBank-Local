@@ -2465,15 +2465,16 @@ window.BudgetsView = {
         this.aiProposals.forEach((p, i) => {
             if (p.is_fixed) return;
 
+            const pPeriod = p.period || p.suggested_period || 'monthly';
             let realMonthlyPace = 0;
-            if (p.recent_3m_avg !== undefined) {
+            if (p.recent_3m_avg !== undefined && p.recent_3m_avg > 0) {
                 realMonthlyPace = p.recent_3m_avg;
             } else if (p.historical_actual_amount !== undefined) {
-                realMonthlyPace = (p.period === 'yearly' ? (p.historical_actual_amount / 12.0) : p.historical_actual_amount);
+                realMonthlyPace = (pPeriod === 'yearly' ? (p.historical_actual_amount / 12.0) : p.historical_actual_amount);
             }
 
             if (realMonthlyPace > 0) {
-                const targetAmt = (p.period === 'yearly') ? Math.round(realMonthlyPace * 12.0 * 100) / 100 : Math.round(realMonthlyPace * 100) / 100;
+                const targetAmt = (pPeriod === 'yearly') ? Math.round(realMonthlyPace * 12.0 * 100) / 100 : Math.round(realMonthlyPace * 100) / 100;
                 p.suggested_amount = targetAmt;
                 const input = document.getElementById(`aiProposalAmount_${i}`);
                 if (input) input.value = p.suggested_amount;
@@ -2487,23 +2488,32 @@ window.BudgetsView = {
         this.aiProposals.forEach((p, i) => {
             if (p.is_fixed) return;
 
+            const pPeriod = p.period || p.suggested_period || 'monthly';
+
+            // Sum current_month_spent from per-category details (now enriched by backend)
             let curSpent = 0;
-            if (p.current_month_spent !== undefined) {
-                curSpent = p.current_month_spent;
-            } else if (p.categories && p.categories.length) {
-                p.categories.forEach(c => {
-                    if (this.catMonthSpent && this.catMonthSpent[c] !== undefined) {
-                        curSpent += Math.abs(this.catMonthSpent[c]);
-                    }
-                });
+            let hasCatData = false;
+            (p.categories || []).forEach(c => {
+                let val = 0;
+                if (p.cat_details && p.cat_details[c] && p.cat_details[c].current_month_spent !== undefined) {
+                    val = p.cat_details[c].current_month_spent;
+                    hasCatData = true;
+                } else if (this.allCatDetails && this.allCatDetails[c] && this.allCatDetails[c].current_month_spent !== undefined) {
+                    val = this.allCatDetails[c].current_month_spent;
+                    hasCatData = true;
+                }
+                curSpent += (parseFloat(val) || 0);
+            });
+
+            // Fallback to proposal-level current_month_spent if no per-category data
+            if (!hasCatData && p.current_month_spent !== undefined) {
+                curSpent = parseFloat(p.current_month_spent) || 0;
             }
 
-            if (curSpent > 0) {
-                const targetAmt = (p.period === 'yearly') ? Math.round(curSpent * 12.0 * 100) / 100 : Math.round(curSpent * 100) / 100;
-                p.suggested_amount = targetAmt;
-                const input = document.getElementById(`aiProposalAmount_${i}`);
-                if (input) input.value = p.suggested_amount;
-            }
+            const targetAmt = (pPeriod === 'yearly') ? Math.round(curSpent * 12.0 * 100) / 100 : Math.round(curSpent * 100) / 100;
+            p.suggested_amount = targetAmt;
+            const input = document.getElementById(`aiProposalAmount_${i}`);
+            if (input) input.value = p.suggested_amount;
         });
         this.renderAiProposalsList();
     },
@@ -2514,11 +2524,19 @@ window.BudgetsView = {
         const salaryInput = document.getElementById('aiSimSalaryInput');
         let regularSalary = salaryInput ? parseFloat(salaryInput.value) : 0;
         if (isNaN(regularSalary) || regularSalary <= 0) {
-            regularSalary = (this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.income_ref || 0) : 0;
+            regularSalary = this.customSalaryOverride || 0;
+        }
+        if (regularSalary <= 0) {
+            regularSalary = (this.aiSuggestMeta && this.aiSuggestMeta.regular_salary) ? this.aiSuggestMeta.regular_salary : 0;
+        }
+        if (regularSalary <= 0) {
+            regularSalary = (this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.average_income || this.capacityData.monthly.income_ref || 0) : 0;
         }
         if (regularSalary <= 0) return;
 
-        const currentMonthlyCapacity = (this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.budgeted || 0) : 0;
+        const currentMonthlyCapacity = (this.aiSuggestMeta && this.aiSuggestMeta.already_engaged_monthly !== undefined)
+            ? this.aiSuggestMeta.already_engaged_monthly
+            : ((this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.budgeted || 0) : 0);
         const availableForNewEnvelopes = Math.max(0, regularSalary - currentMonthlyCapacity);
 
         let fixedTotal = 0;
@@ -2527,12 +2545,19 @@ window.BudgetsView = {
 
         this.aiProposals.forEach(p => {
             if (p.selected === false) return;
-            const monthlyAmt = p.period === 'yearly' ? (p.suggested_amount / 12.0) : p.suggested_amount;
+            const pPeriod = p.period || p.suggested_period || 'monthly';
+            const monthlyAmt = pPeriod === 'yearly' ? (p.suggested_amount / 12.0) : p.suggested_amount;
             if (p.is_fixed && !p.unlocked) {
                 fixedTotal += monthlyAmt;
             } else {
-                variableTotal += monthlyAmt;
-                activeVariableProposals.push(p);
+                // If suggested_amount was reset to 0, use original_amount or historical_actual_amount as weighting baseline
+                let baseVal = monthlyAmt;
+                if (baseVal <= 0) {
+                    const orig = p.original_amount || p.historical_actual_amount || 0;
+                    baseVal = pPeriod === 'yearly' ? (orig / 12.0) : orig;
+                }
+                variableTotal += baseVal;
+                activeVariableProposals.push({ p, baseVal, pPeriod });
             }
         });
 
@@ -2541,22 +2566,22 @@ window.BudgetsView = {
             const ratio = remainingForVariables / variableTotal;
             let computedVariableTotal = 0;
 
-            activeVariableProposals.forEach(p => {
-                const currentMonthly = p.period === 'yearly' ? (p.suggested_amount / 12.0) : p.suggested_amount;
-                const newMonthly = currentMonthly * ratio;
-                p.suggested_amount = p.period === 'yearly' ? Math.round(newMonthly * 12.0 * 100) / 100 : Math.round(newMonthly * 100) / 100;
-                const finalMonthly = p.period === 'yearly' ? (p.suggested_amount / 12.0) : p.suggested_amount;
+            activeVariableProposals.forEach(({ p, baseVal, pPeriod }) => {
+                const newMonthly = baseVal * ratio;
+                p.suggested_amount = pPeriod === 'yearly' ? Math.round(newMonthly * 12.0 * 100) / 100 : Math.round(newMonthly * 100) / 100;
+                const finalMonthly = pPeriod === 'yearly' ? (p.suggested_amount / 12.0) : p.suggested_amount;
                 computedVariableTotal += finalMonthly;
             });
 
             // Remainder adjustment (cent-exact balancing on the last variable proposal)
             const diff = Math.round((remainingForVariables - computedVariableTotal) * 100) / 100;
             if (Math.abs(diff) >= 0.01) {
-                const lastP = activeVariableProposals[activeVariableProposals.length - 1];
-                if (lastP) {
-                    const lastMonthly = lastP.period === 'yearly' ? (lastP.suggested_amount / 12.0) : lastP.suggested_amount;
+                const lastObj = activeVariableProposals[activeVariableProposals.length - 1];
+                if (lastObj) {
+                    const { p: lastP, pPeriod: lastPeriod } = lastObj;
+                    const lastMonthly = lastPeriod === 'yearly' ? (lastP.suggested_amount / 12.0) : lastP.suggested_amount;
                     const adjustedMonthly = Math.max(0, lastMonthly + diff);
-                    lastP.suggested_amount = lastP.period === 'yearly' ? Math.round(adjustedMonthly * 12.0 * 100) / 100 : Math.round(adjustedMonthly * 100) / 100;
+                    lastP.suggested_amount = lastPeriod === 'yearly' ? Math.round(adjustedMonthly * 12.0 * 100) / 100 : Math.round(adjustedMonthly * 100) / 100;
                 }
             }
         }
@@ -3213,18 +3238,10 @@ window.BudgetsView = {
                                 
                                 const curSpentSum = (p.categories || []).reduce((sum, c) => {
                                     let val = 0;
-                                    if (p.cat_details && p.cat_details[c] && p.cat_details[c].current_month_spent !== undefined && p.cat_details[c].current_month_spent > 0) {
+                                    if (p.cat_details && p.cat_details[c] && p.cat_details[c].current_month_spent !== undefined) {
                                         val = p.cat_details[c].current_month_spent;
-                                    } else if (this.allCatDetails && this.allCatDetails[c] && this.allCatDetails[c].current_month_spent !== undefined && this.allCatDetails[c].current_month_spent > 0) {
+                                    } else if (this.allCatDetails && this.allCatDetails[c] && this.allCatDetails[c].current_month_spent !== undefined) {
                                         val = this.allCatDetails[c].current_month_spent;
-                                    } else if (this.catMonthSpent && this.catMonthSpent[c] !== undefined && Math.abs(this.catMonthSpent[c]) > 0) {
-                                        val = Math.abs(this.catMonthSpent[c]);
-                                    } else if (p.cat_details && p.cat_details[c] && p.cat_details[c].recent_3m_avg !== undefined) {
-                                        val = p.cat_details[c].recent_3m_avg;
-                                    } else if (this.aiSuggestMeta && this.aiSuggestMeta.cat_averages && this.aiSuggestMeta.cat_averages[c] !== undefined) {
-                                        val = Math.abs(this.aiSuggestMeta.cat_averages[c]);
-                                    } else if (this.catAverages && this.catAverages[c] !== undefined) {
-                                        val = Math.abs(this.catAverages[c]);
                                     }
                                     const parsed = parseFloat(val);
                                     return sum + (isNaN(parsed) ? 0 : parsed);
