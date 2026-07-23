@@ -3188,7 +3188,7 @@ window.BudgetsView = {
             // Available unused expense categories (excluding receipts/transfers, existing active envelopes, and categories in any AI proposal)
             const currentCats = p.categories || [];
             const availableCats = (this.categories || []).filter(c => {
-                const isExcludedType = c.type === 'income' || c.type === 'neutral';
+                const isExcludedType = c.type === 'income' || c.type === 'neutral' || c.type === 'transfer' || c.type === 'Recettes' || c.type === 'Transfert' || c.type === 'Neutre';
                 const isUsedInAnyProposal = allUsedProposalCats.has(c.name);
                 const isUsedInActiveBudget = existingBudgetCats.has(c.name);
                 const hasSpending = (this.catAverages && this.catAverages[c.name] && Math.abs(this.catAverages[c.name]) > 0.01);
