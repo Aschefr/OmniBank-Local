@@ -294,8 +294,47 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         });
     },
 
+    saveAiStateToSession() {
+        try {
+            if (this.aiProposals !== undefined && this.aiProposals !== null) {
+                const data = {
+                    proposals: this.aiProposals,
+                    unclassified: this.unclassifiedCategories || [],
+                    meta: this.aiSuggestMeta || null
+                };
+                sessionStorage.setItem('omni_ai_proposals_state', JSON.stringify(data));
+            }
+        } catch (e) {}
+    },
+
+    loadAiStateFromSession() {
+        try {
+            const raw = sessionStorage.getItem('omni_ai_proposals_state');
+            if (raw) {
+                const data = JSON.parse(raw);
+                if (data && Array.isArray(data.proposals)) {
+                    this.aiSuggestMeta = data.meta;
+                    this.unclassifiedCategories = data.unclassified || [];
+                    this.aiProposals = data.proposals;
+                    return true;
+                }
+            }
+        } catch (e) {}
+        return false;
+    },
+
+    clearAiStateFromSession() {
+        sessionStorage.removeItem('omni_ai_proposals_state');
+    },
+
     async checkAiTaskStatusOnMount() {
         if (sessionStorage.getItem('budget_ai_panel_closed') === 'true') return;
+
+        if (this.loadAiStateFromSession() && this.aiProposals) {
+            this.renderAiProposalsList();
+            return;
+        }
+
         try {
             const status = await API.get('/api/budgets/ai_suggest/status');
             if (status && status.state) {
@@ -446,22 +485,30 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     alignAiProposalsToRealSpending() {
         if (!this.aiProposals) return;
         this.aiProposals.forEach((p, i) => {
-            if (p.is_fixed) return;
+            if (p.is_fixed && !p.unlocked) return;
 
-            const pPeriod = p.period || p.suggested_period || 'monthly';
-            let realMonthlyPace = 0;
-            if (p.recent_3m_avg !== undefined && p.recent_3m_avg > 0) {
-                realMonthlyPace = p.recent_3m_avg;
-            } else if (p.historical_actual_amount !== undefined) {
-                realMonthlyPace = (pPeriod === 'yearly' ? (p.historical_actual_amount / 12.0) : p.historical_actual_amount);
-            }
+            const isYearly = (p.period || p.suggested_period) === 'yearly';
+            const paceAvgSum = (p.categories || []).reduce((sum, c) => {
+                let val = 0;
+                if (p.cat_amounts && p.cat_amounts[c] !== undefined) {
+                    val = p.cat_amounts[c];
+                } else if (p.cat_details && p.cat_details[c] && p.cat_details[c].amount !== undefined) {
+                    val = p.cat_details[c].amount;
+                } else if (this.aiSuggestMeta && this.aiSuggestMeta.cat_averages && this.aiSuggestMeta.cat_averages[c] !== undefined) {
+                    const monthlyAvg = Math.abs(this.aiSuggestMeta.cat_averages[c]);
+                    val = isYearly ? (monthlyAvg * 12.0) : monthlyAvg;
+                } else if (this.catAverages && this.catAverages[c] !== undefined) {
+                    const monthlyAvg = Math.abs(this.catAverages[c]);
+                    val = isYearly ? (monthlyAvg * 12.0) : monthlyAvg;
+                }
+                const parsed = parseFloat(val);
+                return sum + (isNaN(parsed) ? 0 : parsed);
+            }, 0);
 
-            if (realMonthlyPace > 0) {
-                const targetAmt = (pPeriod === 'yearly') ? Math.round(realMonthlyPace * 12.0 * 100) / 100 : Math.round(realMonthlyPace * 100) / 100;
-                p.suggested_amount = targetAmt;
-                const input = document.getElementById(`aiProposalAmount_${i}`);
-                if (input) input.value = p.suggested_amount;
-            }
+            const targetAmt = Math.round(paceAvgSum * 100) / 100;
+            p.suggested_amount = targetAmt;
+            const input = document.getElementById(`aiProposalAmount_${i}`);
+            if (input) input.value = p.suggested_amount;
         });
         this.renderAiProposalsList();
     },
@@ -469,30 +516,35 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     alignAiProposalsToCurrentMonth() {
         if (!this.aiProposals) return;
         this.aiProposals.forEach((p, i) => {
-            if (p.is_fixed) return;
+            if (p.is_fixed && !p.unlocked) return;
 
-            const pPeriod = p.period || p.suggested_period || 'monthly';
-
-            let curSpent = 0;
-            let hasCatData = false;
-            (p.categories || []).forEach(c => {
+            const isYearly = (p.period || p.suggested_period) === 'yearly';
+            const curSpentSum = (p.categories || []).reduce((sum, c) => {
                 let val = 0;
                 if (p.cat_details && p.cat_details[c] && p.cat_details[c].current_month_spent !== undefined) {
                     val = p.cat_details[c].current_month_spent;
-                    hasCatData = true;
                 } else if (this.allCatDetails && this.allCatDetails[c] && this.allCatDetails[c].current_month_spent !== undefined) {
                     val = this.allCatDetails[c].current_month_spent;
-                    hasCatData = true;
                 }
-                curSpent += (parseFloat(val) || 0);
-            });
+                const parsed = parseFloat(val);
+                return sum + (isNaN(parsed) ? 0 : parsed);
+            }, 0);
 
-            if (!hasCatData && p.current_month_spent !== undefined) {
-                curSpent = parseFloat(p.current_month_spent) || 0;
-            }
-
-            const targetAmt = (pPeriod === 'yearly') ? Math.round(curSpent * 12.0 * 100) / 100 : Math.round(curSpent * 100) / 100;
+            const targetAmt = isYearly ? Math.round(curSpentSum * 12.0 * 100) / 100 : Math.round(curSpentSum * 100) / 100;
             p.suggested_amount = targetAmt;
+            const input = document.getElementById(`aiProposalAmount_${i}`);
+            if (input) input.value = p.suggested_amount;
+        });
+        this.renderAiProposalsList();
+    },
+
+    resetAiProposalsToOriginal() {
+        if (!this.aiProposals) return;
+        this.aiProposals.forEach((p, i) => {
+            if (p.is_fixed && !p.unlocked) return;
+
+            const orig = p.original_amount !== undefined ? p.original_amount : p.suggested_amount;
+            p.suggested_amount = Math.round(orig * 100) / 100;
             const input = document.getElementById(`aiProposalAmount_${i}`);
             if (input) input.value = p.suggested_amount;
         });
@@ -630,15 +682,19 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 : ((this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.income || 0) : 0);
         }
 
-        const currentMonthlyCapacity = (this.aiSuggestMeta && this.aiSuggestMeta.already_engaged_monthly !== undefined)
-            ? this.aiSuggestMeta.already_engaged_monthly
-            : ((this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.budgeted || 0) : 0);
+        let currentMonthlyCapacity = 0;
+        if (this.aiSuggestMeta && this.aiSuggestMeta.already_engaged_monthly !== undefined) {
+            currentMonthlyCapacity = this.aiSuggestMeta.already_engaged_monthly;
+        } else if (this.capacityData && this.capacityData.monthly && !this.capacityData.monthly.is_fallback) {
+            currentMonthlyCapacity = this.capacityData.monthly.budgeted || 0;
+        }
 
         let impactMonthly = 0;
         let impactYearlyOnly = 0;
 
         selected.forEach(p => {
-            if (p.period === 'yearly') {
+            const pPeriod = p.suggested_period || p.period || 'monthly';
+            if (pPeriod === 'yearly') {
                 impactMonthly += (p.suggested_amount / 12.0);
                 impactYearlyOnly += p.suggested_amount;
             } else {
@@ -654,7 +710,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             regularYearlySalary = regularSalary > 0 ? (regularSalary * 12.0) : 0;
         }
 
-        const currentYearlyCapacity = (this.capacityData && this.capacityData.yearly) ? (this.capacityData.yearly.budgeted || 0) : 0;
+        let currentYearlyCapacity = 0;
+        if (this.capacityData && this.capacityData.yearly && !this.capacityData.yearly.is_fallback) {
+            currentYearlyCapacity = this.capacityData.yearly.budgeted || 0;
+        }
         const baselineSalaryYearly = regularYearlySalary > 0 ? regularYearlySalary : 1;
         const totalProjectedYearly = currentYearlyCapacity + impactYearlyOnly;
         const isExceededYearly = (regularYearlySalary > 0 && totalProjectedYearly > regularYearlySalary);
@@ -681,11 +740,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         let totalRecent3mMonthly = 0;
         selected.forEach(p => {
-            if (p.recent_3m_avg !== undefined) {
-                totalRecent3mMonthly += p.recent_3m_avg;
-            } else if (p.historical_actual_amount !== undefined) {
-                totalRecent3mMonthly += (p.period === 'yearly' ? (p.historical_actual_amount / 12.0) : p.historical_actual_amount);
-            }
+            const pPeriod = p.suggested_period || p.period || 'monthly';
+            const histAmt = p.historical_actual_amount !== undefined 
+                ? p.historical_actual_amount 
+                : (p.recent_3m_avg !== undefined ? p.recent_3m_avg : p.suggested_amount);
+            totalRecent3mMonthly += (pPeriod === 'yearly' ? (histAmt / 12.0) : histAmt);
         });
 
         const maxScale = Math.max(1, regularSalary, totalProjectedMonthly, totalRecent3mMonthly);
@@ -694,11 +753,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const barImp = document.getElementById('aiSimProgressBarImpact');
 
         const salaryPct = regularSalary > 0 ? (totalProjectedMonthly / regularSalary) * 100 : 0;
+        const diffSalary = totalProjectedMonthly - regularSalary;
         let barColor = '#3b82f6';
         let badgeColor = 'var(--accent)';
         let statusBadgeText = '';
 
-        if (regularSalary > 0 && totalProjectedMonthly > regularSalary) {
+        if (regularSalary > 0 && diffSalary > 0.05) {
             if (salaryPct <= 115) {
                 barColor = '#f59e0b';
                 badgeColor = '#f59e0b';
@@ -708,6 +768,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 badgeColor = '#ef4444';
                 statusBadgeText = window.i18n.t('ai_sim_status_overbudget') || '⚠️ Budget élevé';
             }
+        } else if (regularSalary > 0 && Math.abs(diffSalary) <= 0.05) {
+            barColor = 'var(--accent)';
+            badgeColor = '#10b981';
+            statusBadgeText = window.i18n.t('ai_sim_status_balanced') || '✨ Équilibré';
         }
 
         if (barCur && barImp) {
@@ -762,12 +826,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         if (gapEl) {
             const absGapStr = `${formatCurrency(Math.abs(gapVal))}/m`;
-            if (gapVal >= 0) {
-                const tplLower = window.i18n.t('ai_sim_gap_lower') || 'Dépenses de {amount} inférieures à vos revenus repère';
+            if (gapVal <= 0) {
+                const tplLower = window.i18n.t('ai_sim_gap_lower') || 'Propositions inférieures de {amount} à vos dépenses constatées (Effort d\'économie)';
                 gapEl.textContent = tplLower.replace('{amount}', absGapStr);
                 gapEl.style.color = '#36b37e';
             } else {
-                const tplHigher = window.i18n.t('ai_sim_gap_higher') || 'Dépenses de {amount} supérieures à vos revenus repère';
+                const tplHigher = window.i18n.t('ai_sim_gap_higher') || 'Propositions supérieures de {amount} à vos dépenses constatées';
                 gapEl.textContent = tplHigher.replace('{amount}', absGapStr);
                 gapEl.style.color = Math.abs(gapVal) > (regularSalary * 0.15) ? '#ef4444' : '#f59e0b';
             }
@@ -980,6 +1044,17 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
     removeAiProposal(proposalIndex) {
         if (!this.aiProposals || !this.aiProposals[proposalIndex]) return;
+        const p = this.aiProposals[proposalIndex];
+
+        if (!this.unclassifiedCategories) this.unclassifiedCategories = [];
+
+        (p.categories || []).forEach(catName => {
+            const exists = this.unclassifiedCategories.some(u => (typeof u === 'string' ? u : u.name) === catName);
+            if (!exists) {
+                this.unclassifiedCategories.push(catName);
+            }
+        });
+
         this.aiProposals.splice(proposalIndex, 1);
         this.renderAiProposalsList();
     },
@@ -1190,16 +1265,18 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                     if (p.cat_amounts && p.cat_amounts[c] !== undefined) {
                                         val = p.cat_amounts[c];
                                     } else if (this.aiSuggestMeta && this.aiSuggestMeta.cat_averages && this.aiSuggestMeta.cat_averages[c] !== undefined) {
-                                        val = Math.abs(this.aiSuggestMeta.cat_averages[c]);
+                                        const monthlyAvg = Math.abs(this.aiSuggestMeta.cat_averages[c]);
+                                        val = isYearly ? (monthlyAvg * 12.0) : monthlyAvg;
                                     } else if (this.catAverages && this.catAverages[c] !== undefined) {
-                                        val = Math.abs(this.catAverages[c]);
+                                        const monthlyAvg = Math.abs(this.catAverages[c]);
+                                        val = isYearly ? (monthlyAvg * 12.0) : monthlyAvg;
                                     }
                                     const parsed = parseFloat(val);
                                     return sum + (isNaN(parsed) ? 0 : parsed);
                                 }, 0);
 
                                 const valCur = isYearly ? (curSpentSum * 12.0) : curSpentSum;
-                                const valPace = isYearly ? (paceAvgSum * 12.0) : paceAvgSum;
+                                const valPace = paceAvgSum;
 
                                 const isCurrentExceeded = (valCur - envLimit) > 0.05;
                                 const isPaceExceeded = (valPace - envLimit) > 0.05;
@@ -1243,9 +1320,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </div>
 
                     <div style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--text-muted);padding-top:4px;border-top:1px dashed var(--border-color);">
-                        <div style="display:flex;align-items:flex-start;gap:4px;">
-                            <span style="flex-shrink:0;margin-top:1px;">ℹ️</span> <span>${p.justification || p.reason || ''}</span>
-                        </div>
+                        ${(p.justification || p.reason) ? `
+                            <div style="display:flex;align-items:flex-start;gap:4px;">
+                                <span style="flex-shrink:0;margin-top:1px;">ℹ️</span> <span>${p.justification || p.reason}</span>
+                            </div>
+                        ` : ''}
                         <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px;">
                             ${categoryBadgesHtml}
                             ${addCatSelectHtml}
@@ -1325,6 +1404,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         container.innerHTML = html;
 
         this.updateAiImpactSimulation();
+        this.saveAiStateToSession();
     },
 
     renderAiUnclassifiedPanelHtml() {
@@ -1416,11 +1496,25 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 return { name: u.name || String(u), avg: u.avg || 0 };
             });
 
+            const formattedProposals = (this.aiProposals || []).map(p => ({
+                name: p.name || '',
+                categories: p.categories || [],
+                cat_amounts: p.cat_amounts || {},
+                cat_details: p.cat_details || {},
+                suggested_amount: p.suggested_amount || 0,
+                historical_actual_amount: p.historical_actual_amount !== undefined ? p.historical_actual_amount : p.suggested_amount,
+                original_amount: p.original_amount !== undefined ? p.original_amount : p.suggested_amount,
+                suggested_period: p.suggested_period || p.period || 'monthly',
+                is_fixed: !!p.is_fixed,
+                justification: p.justification || p.reason || '',
+                reason: p.justification || p.reason || ''
+            }));
+
             const currentLang = (window.i18n && window.i18n.currentLang) ? window.i18n.currentLang : 'fr';
             const res = await API.post('/api/budgets/ai_suggest/refine', {
                 window_months: windowMonths,
                 lang: currentLang,
-                existing_proposals: this.aiProposals || [],
+                existing_proposals: formattedProposals,
                 unclassified_categories: formattedUnclassified
             });
 
@@ -1428,15 +1522,18 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 this.aiProposals = res.proposals.map(p => ({
                     ...p,
                     cat_amounts: p.cat_amounts || {},
-                    original_amount: p.suggested_amount,
-                    period: p.suggested_period || 'monthly',
+                    original_amount: p.original_amount !== undefined ? p.original_amount : p.suggested_amount,
+                    historical_actual_amount: p.historical_actual_amount !== undefined ? p.historical_actual_amount : p.suggested_amount,
+                    justification: p.justification || p.reason || '',
+                    period: p.suggested_period || p.period || 'monthly',
                     selected: true
                 }));
                 this.unclassifiedCategories = res.unclassified_categories || [];
                 this.renderAiProposalsList();
             }
         } catch(e) {
-            showInlineMessage(window.i18n.t('title_error'), e.message || 'Erreur lors de l\'affinage IA.');
+            const msg = (e.message && e.message !== 'Internal Server Error') ? e.message : 'Une erreur serveur est survenue lors de l\'affinage IA. Veuillez réessayer.';
+            showInlineMessage(window.i18n.t('title_error'), msg);
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -1551,6 +1648,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
     closeAiPanel() {
         sessionStorage.setItem('budget_ai_panel_closed', 'true');
+        this.clearAiStateFromSession();
         this.aiProposals = [];
         this.unclassifiedCategories = [];
         const panel = document.getElementById('budgetAiPanel');
