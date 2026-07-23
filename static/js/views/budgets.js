@@ -3122,10 +3122,15 @@ window.BudgetsView = {
         const panel = document.getElementById('budgetAiPanel');
         const container = document.getElementById('budgetAiProposals');
         const simulator = document.getElementById('aiImpactSimulator');
-        if (panel) panel.style.display = 'block';
 
         const proposals = this.aiProposals || [];
         const unclassified = this.unclassifiedCategories || [];
+
+        if (sessionStorage.getItem('budget_ai_panel_closed') === 'true' || (!proposals.length && !unclassified.length)) {
+            if (panel) panel.style.display = 'none';
+            return;
+        }
+        if (panel) panel.style.display = 'block';
 
         const windowMonths = (this.aiSuggestMeta && this.aiSuggestMeta.window_months) || 3;
         this.updateAiWindowButtonsState(windowMonths);
@@ -3524,6 +3529,7 @@ window.BudgetsView = {
         }
 
         let count = 0;
+        const createdNames = new Set();
         try {
             for (const p of proposals) {
                 await API.post('/api/budgets/', {
@@ -3534,8 +3540,16 @@ window.BudgetsView = {
                     categories: p.categories || [],
                 });
                 count++;
+                createdNames.add(p.name);
             }
-            this.closeAiPanel();
+
+            this.aiProposals = (this.aiProposals || []).filter(p => !createdNames.has(p.name));
+            if (!this.aiProposals.length) {
+                this.closeAiPanel();
+            } else {
+                this.renderAiProposalsList();
+            }
+
             await this.loadBudgets();
             await this.loadAllStatuses();
             window.app.refreshSidebar();
@@ -3561,7 +3575,7 @@ window.BudgetsView = {
             await API.post('/api/budgets/', {
                 name: proposal.name,
                 monthly_amount: proposal.suggested_amount,
-                period: 'monthly',
+                period: proposal.period || 'monthly',
                 is_project: false,
                 categories: proposal.categories || [],
             });
@@ -3569,9 +3583,19 @@ window.BudgetsView = {
             // Highlight the newly created envelope after re-render
             this._pendingHighlightName = proposal.name;
 
+            if (this.aiProposals) {
+                this.aiProposals = this.aiProposals.filter(p => p.name !== proposal.name);
+            }
+
             await this.loadBudgets();
             await this.loadStatus();
             window.app.refreshSidebar();
+
+            if (!this.aiProposals || !this.aiProposals.length) {
+                this.closeAiPanel();
+            } else {
+                this.renderAiProposalsList();
+            }
             
             if(btn) {
                 btn.innerHTML = window.i18n.t('msg_envelope_created_badge');
@@ -3601,6 +3625,8 @@ window.BudgetsView = {
 
     closeAiPanel() {
         sessionStorage.setItem('budget_ai_panel_closed', 'true');
+        this.aiProposals = [];
+        this.unclassifiedCategories = [];
         const panel = document.getElementById('budgetAiPanel');
         if (panel) panel.style.display = 'none';
     },
