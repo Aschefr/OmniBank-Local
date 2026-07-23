@@ -1531,5 +1531,7 @@
   "modal_export_desc": "Export your data to CSV format.",
   "modal_export_title": "Export data",
   "ai_budget_strategy_recommended_clean": "🤖 AI Recommended",
-  "ai_sim_tt_recommended": "Restores the initial amounts smartly recommended by the AI analysis."
+  "ai_sim_tt_recommended": "Restores the initial amounts smartly recommended by the AI analysis.",
+  "budget_btn_sync_committed": "⚡ Sync",
+  "budget_sync_to_committed_tt": "Align budget amount to committed spending ({amount})"
 }
