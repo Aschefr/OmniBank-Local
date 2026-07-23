@@ -702,19 +702,25 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
     # Ensure current month full coverage up to end of current month
     end_of_current_month = date(anchor_date.year, anchor_date.month, 1) + relativedelta(months=1, days=-1)
 
-    # Query expense transactions in the window (including standard 'expense' type and any negative amounts)
+    from app.models import Category
     from sqlalchemy import or_
+
+    # Fetch non-expense category names (income, neutral, transfer) or closed categories
+    non_expense_or_closed_cats = set(
+        c[0] for c in db.query(Category.name).filter(
+            or_(
+                Category.is_closed == True,
+                Category.type.in_(["income", "neutral", "transfer", "Recettes", "Transfert", "Neutre"])
+            )
+        ).all() if c[0]
+    )
+
+    # Query strictly expense transactions in the analysis window
     txs = db.query(Transaction).filter(
         Transaction.date_operation >= window_start,
         Transaction.date_operation <= end_of_current_month,
-        or_(
-            Transaction.type.in_(["expense", "expense_fixed", "expense_var"]),
-            Transaction.amount < 0
-        )
+        Transaction.type.in_(["expense", "expense_fixed", "expense_var", "Dépenses fixes", "Dépenses variables"])
     ).all()
-
-    from app.models import Category
-    closed_cat_names = set(c[0] for c in db.query(Category.name).filter(Category.is_closed == True).all() if c[0])
 
     cat_monthly: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     cat_type: dict[str, str] = {}
@@ -722,12 +728,12 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
     cat_amounts_list: dict[str, list[float]] = defaultdict(list)
 
     for tx in txs:
-        # Guarantee strictly that neutral/transfer operations (type 'transfer', 'neutral' or having from/to account) are excluded
-        if tx.type in ["transfer", "neutral"] or (tx.from_account_id and tx.to_account_id):
+        # Guarantee strictly that neutral, transfer, or income operations are excluded
+        if tx.type in ["income", "transfer", "neutral", "Recettes", "Transfert", "Neutre"] or (tx.from_account_id and tx.to_account_id):
             continue
 
         cat = tx.category or "Sans catégorie"
-        if cat in already_used_cats or cat in closed_cat_names:
+        if cat in already_used_cats or cat in non_expense_or_closed_cats:
             continue
 
         month_key = tx.date_operation.strftime("%Y-%m")
@@ -753,10 +759,23 @@ def _compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor
                 yearly_recurrence_cats.add(t.category)
                 yearly_recurrence_sums[t.category] += abs(t.amount or 0.0)
 
-    # Fetch all registered active categories in DB to ensure no unused category is omitted (excluding closed ones)
-    db_cat_names = set(c[0] for c in db.query(Category.name).filter(Category.is_closed == False).all() if c[0])
-    tx_cat_names = set(c[0] for c in db.query(Transaction.category).distinct().all() if c[0])
-    all_all_cats = (db_cat_names | tx_cat_names) - already_used_cats - closed_cat_names
+    # Fetch all registered active expense categories in DB (excluding income, transfer, neutral, and closed)
+    db_expense_cats = set(
+        c[0] for c in db.query(Category.name).filter(
+            Category.is_closed == False,
+            or_(
+                Category.type.is_(None),
+                Category.type.in_(["expense", "expense_fixed", "expense_var", "Dépenses fixes", "Dépenses variables"])
+            ),
+            ~Category.type.in_(["income", "neutral", "transfer", "Recettes", "Transfert", "Neutre"])
+        ).all() if c[0]
+    )
+    tx_expense_cats = set(
+        c[0] for c in db.query(Transaction.category).filter(
+            Transaction.type.in_(["expense", "expense_fixed", "expense_var", "Dépenses fixes", "Dépenses variables"])
+        ).distinct().all() if c[0]
+    )
+    all_all_cats = (db_expense_cats | tx_expense_cats) - already_used_cats - non_expense_or_closed_cats
 
     if not cat_monthly and not all_all_cats:
         return {}
@@ -1096,6 +1115,7 @@ RULES:
 3. In the "categories" list for each envelope, include ONLY the exact category names from the input list.
 4. EVERY input category MUST be assigned to an envelope.
 5. Respect the Recurrence (ANNUAL vs MONTHLY) specified for each category. NEVER mix ANNUAL categories and MONTHLY categories together in the same envelope. Create separate envelopes for ANNUAL expenses.
+6. Budget envelopes are strictly for EXPENSE categories. Never group or suggest income, salary, or transfer categories.
 
 LANGUAGE REQUIREMENT:
 Write all envelope names and reason justifications in {target_lang}.
