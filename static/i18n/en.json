@@ -1529,5 +1529,7 @@
   "import_filter_reconcile": "To reconcile",
   "loading": "Loading...",
   "modal_export_desc": "Export your data to CSV format.",
-  "modal_export_title": "Export data"
+  "modal_export_title": "Export data",
+  "ai_budget_strategy_recommended_clean": "🤖 AI Recommended",
+  "ai_sim_tt_recommended": "Restores the initial amounts smartly recommended by the AI analysis."
 }

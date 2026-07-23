@@ -652,7 +652,7 @@ def ai_refine_budgets_service(window_months: int, lang: Optional[str], existing_
     ).order_by(Transaction.date_operation.desc()).first()
     anchor_date = latest_past_tx.date_operation if latest_past_tx else date.today()
 
-    cat_data = compute_monthly_averages_for_ai(db, already_used_cats, anchor_date, window_months=window_months)
+    cat_data = compute_monthly_averages_for_ai(db, set(), anchor_date, window_months=window_months)
 
     unclassified_names = [item.get("name") if isinstance(item, dict) else item for item in unclassified_categories]
     unclassified_cats = [c for c in unclassified_names if c in cat_data]
@@ -723,11 +723,17 @@ Response format (JSON object with key "envelopes"):
                     break
 
             if matched_prop:
+                if "categories" not in matched_prop or matched_prop["categories"] is None:
+                    matched_prop["categories"] = []
                 matched_prop["categories"].extend(valid_cats)
                 sub_cats = list(dict.fromkeys(matched_prop["categories"]))
                 matched_prop["categories"] = sub_cats
-                if "cat_details" not in matched_prop:
+
+                if "cat_details" not in matched_prop or matched_prop["cat_details"] is None:
                     matched_prop["cat_details"] = {}
+                if "cat_amounts" not in matched_prop or matched_prop["cat_amounts"] is None:
+                    matched_prop["cat_amounts"] = {}
+
                 for c in valid_cats:
                     c_period = cat_data[c].get("suggested_period", "monthly")
                     c_val = cat_data[c]["avg"] if c_period == "monthly" else round(cat_data[c]["total_year"] / 12.0, 2)
@@ -743,17 +749,21 @@ Response format (JSON object with key "envelopes"):
                 matched_prop["current_month_spent"] = round(sum(cat_data[c].get("current_month_spent", 0.0) for c in sub_cats if c in cat_data), 2)
                 matched_prop["recent_3m_avg"] = round(sum(cat_data[c].get("recent_3m_avg", 0.0) for c in sub_cats if c in cat_data), 2)
                 matched_prop["historical_actual_amount"] = round(sum(cat_data[c].get("avg", 0.0) if matched_prop.get("suggested_period") != "yearly" else cat_data[c].get("total_year", 0.0) for c in sub_cats if c in cat_data), 2)
+                if not matched_prop.get("justification"):
+                    reason_val = obj.get("reason") or obj.get("justification")
+                    matched_prop["justification"] = reason_val if reason_val else f"Affinage IA (+{', '.join(valid_cats)})."
             else:
                 cat_amounts = {}
                 for c in valid_cats:
                     c_period = cat_data[c].get("suggested_period", "monthly")
                     cat_amounts[c] = cat_data[c]["avg"] if c_period == "monthly" else round(cat_data[c]["total_year"] / 12.0, 2)
                 base_amount = round(sum(cat_amounts.values()), 2)
+                new_justif = obj.get("reason") or obj.get("justification") or f"Enveloppe d'affinage IA ({', '.join(valid_cats)})."
                 updated_proposals.append({
                     "name": name,
                     "categories": valid_cats,
                     "cat_amounts": cat_amounts,
-                    "cat_details": {c: {"amount": cat_amounts[c], "top_descs": cat_data[c]["top_descs"], "is_fixed": cat_data[c]["is_fixed"], "current_month_spent": cat_data[c].get("current_month_spent", 0.0), "recent_3m_avg": cat_data[c].get("recent_3m_avg", 0.0)} for c in valid_cats},
+                    "cat_details": {c: {"amount": cat_amounts[c], "top_descs": cat_data[c].get("top_descs", []), "is_fixed": cat_data[c].get("is_fixed", False), "current_month_spent": cat_data[c].get("current_month_spent", 0.0), "recent_3m_avg": cat_data[c].get("recent_3m_avg", 0.0)} for c in valid_cats},
                     "suggested_amount": base_amount,
                     "historical_actual_amount": base_amount,
                     "current_month_spent": round(sum(cat_data[c].get("current_month_spent", 0.0) for c in valid_cats), 2),
@@ -763,7 +773,7 @@ Response format (JSON object with key "envelopes"):
                     "has_fixed_mix": False,
                     "fixed_sum": 0.0,
                     "is_exceptional": False,
-                    "justification": f"Enveloppe d'affinage IA ({', '.join(valid_cats)}).",
+                    "justification": new_justif,
                 })
             placed_cats.update(valid_cats)
 
