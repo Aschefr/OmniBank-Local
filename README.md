@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.69-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.70-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -148,6 +148,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 *   **🔧 Correctif Sidebar — Montant "Dépenses non rapprochées avant paie"** : Le montant affiché dans l'encart du bandeau latéral gauche excluait incorrectement les virements internes (ex : Virement vers livret, virement entre comptes), provoquant un écart avec le total affiché dans l'onglet Historique. Les deux valeurs sont désormais cohérentes.
 
+## 🆕 Dernières Mises à Jour (v1.0.70)
+
+*   **💡 Refonte intégrale du module Budgets** : Modularisation de l'architecture frontend (`budgets_core`, `budgets_render`, `budgets_ai`, `budgets_modals`) et backend (`budget_service.py`) pour une meilleure maintenabilité et un rendu ultra-rapide.
+*   **🧠 Simulateur Budgétaire IA Avancé** : Pipeline de statut IA explicatif, enveloppes thématiques précises, badges de comparaison avec le reste à vivre réel et bouton ⚡ de synchronisation des dépenses engagées.
+*   **📜 Historique & Traçabilité des Actions** : Modal de détails approfondis pour les actions annulables avec résolution dynamique des noms d'entités (comptes, budgets, récurrences) et confirmation inline.
+
 ## 🆕 Dernières Mises à Jour (v1.0.45)
 
 *   **🔧 Correctif critique — Récurrences dupliquées** : Correction d'un bug majeur où la clôture du mois courant générait des dizaines d'opérations récurrentes en doublon pour des templates abandonnés ou désactivés.
@@ -197,7 +203,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.69-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.70-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -337,6 +343,12 @@ Access the interface at `http://localhost:8434`.
 ## 🆕 Recent Updates (v1.0.46)
 
 *   **🔧 Sidebar Fix — "Unreconciled expenses before pay" amount**: The amount shown in the left sidebar widget incorrectly included internal transfers (e.g., transfers to savings accounts), causing a discrepancy with the total displayed in the History tab. Both values are now consistent.
+
+## 🆕 Recent Updates (v1.0.70)
+
+*   **💡 Complete Budgets Module Refactor**: Modular frontend (`budgets_core`, `budgets_render`, `budgets_ai`, `budgets_modals`) and backend (`budget_service.py`) architecture for enhanced maintainability and faster rendering.
+*   **🧠 Advanced AI Budget Simulator**: Explanatory AI status pipeline, fine-grained thematic envelopes, real spending comparison badges, and instant ⚡ sync for committed expenses.
+*   **📜 Action History & Auditability**: Deep dive details modal for undoable actions with dynamic entity name resolution (accounts, budgets, recurrences) and smart inline confirmation.
 
 ## 🆕 Recent Updates (v1.0.45)
 
