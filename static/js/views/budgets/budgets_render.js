@@ -667,6 +667,17 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 }).join(' ');
             }
 
+            const showSyncBtn = (b.expenses !== undefined && b.expenses > 0 && Math.abs(b.expenses - b.budget_amount) > 0.009);
+            const syncTitle = showSyncBtn ? (window.i18n.t('budget_sync_to_committed_tt') || 'Ajuster le montant du budget sur le montant engagé ({amount})').replace('{amount}', formatCurrency(b.expenses)) : '';
+
+            const syncBtnHtml = showSyncBtn ? `
+                <button type="button" class="btn btn-secondary" style="padding:2px 7px;font-size:10px;font-weight:700;color:var(--accent);border-color:rgba(59,130,246,0.35);background:rgba(59,130,246,0.1);cursor:pointer;display:inline-flex;align-items:center;gap:3px;" 
+                        onclick="window.BudgetsView.updateAmount(${b.id}, ${b.expenses})" 
+                        title="${syncTitle}">
+                    ${window.i18n.t('budget_btn_sync_committed') || '⚡ Aligner'}
+                </button>
+            ` : '';
+
             return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" class="budget-envelope-card ${overBudget ? 'over-budget' : ''}" style="${closedStyle}">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px;">
                         <div style="flex:1;">
@@ -687,6 +698,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:11px;color:var(--text-muted);">
                         <span>${periodLabel}</span>
                         <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
+                            ${syncBtnHtml}
                             <input type="number" class="inline-input" style="width:80px;text-align:right;padding:2px 6px;font-size:12px;border-radius:4px;" value="${b.budget_amount}" min="0" step="0.01" onchange="window.BudgetsView.updateAmount(${b.id}, this.value)"> €
                         </div>
                     </div>
@@ -696,9 +708,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <div style="position:absolute;top:0;left:0;width:${recExpPct}%;height:100%;background:${barColor};border-radius:999px;"></div>
                     </div>
                     <div style="display:flex;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:4px;">
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;" onclick="event.stopPropagation()">
                             <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(b.reconciled_expenses || 0)} ${window.i18n.t('budget_reconciled')}</span>
-                            <span class="privacy-blur" style="color:var(--text-muted);font-size:11px;align-self:flex-end;">(${formatCurrency(b.expenses || 0)} ${window.i18n.t('budget_committed')})</span>
+                            <span class="privacy-blur" style="color:var(--text-muted);font-size:11px;align-self:flex-end;${showSyncBtn ? 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;' : ''}" ${showSyncBtn ? `onclick="window.BudgetsView.updateAmount(${b.id}, ${b.expenses})" title="${syncTitle}"` : ''}>(${formatCurrency(b.expenses || 0)} ${window.i18n.t('budget_committed')})</span>
                             ${incomeHtml}
                         </div>
                         <span style="color:${overBudget ? '#ff5630' : 'var(--text-muted)'}">${overBudget ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(b.remaining))}</span> ${overBudget ? window.i18n.t('budget_exceeded_label') : window.i18n.t('budget_remaining_label')}</span>
