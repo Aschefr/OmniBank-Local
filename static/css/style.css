@@ -1300,8 +1300,15 @@ select.inline-input:focus option:checked {
        - print-page-break-forced : saut de page après (uniquement entre tableaux, jamais sur le dernier)
        - print-page-break-auto   : le navigateur décide — évite la page vide en fin de document */
     .print-page-break-forced {
-        page-break-after: always;
-        break-after: page;
+        page-break-after: always !important;
+        break-after: page !important;
+        display: block !important;
+    }
+
+    .print-page-break-before-forced {
+        page-break-before: always !important;
+        break-before: page !important;
+        display: block !important;
     }
 
     .print-page-break-auto {
