@@ -152,13 +152,17 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <span id="aiSimPercentBadge" style="font-size:12px;font-weight:700;color:var(--accent);">0 € (0% du salaire)</span>
                         </div>
 
-                        <div style="position:relative;width:100%;height:10px;background:var(--border-color);border-radius:5px;overflow:visible;margin:4px 0 8px 0;">
+                        <div style="position:relative;width:100%;height:10px;background:var(--border-color);border-radius:5px;overflow:visible;margin:22px 0 4px 0;">
+                            <div id="aiSimSalaryMarkerBadge1" style="display:none;position:absolute;top:-20px;z-index:4;transform:translateX(-50%);background:#c084fc;color:#ffffff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.25);" title="Salaire Repère">
+                                💼 <span id="aiSimSalaryMarkerVal1">0 €</span>
+                            </div>
                             <div style="width:100%;height:100%;border-radius:5px;overflow:hidden;position:relative;">
                                 <div id="aiSimProgressBarCurrent" style="height:100%;background:var(--accent);width:0%;position:absolute;top:0;left:0;transition:width 0.3s ease;" title="Budget déjà engagé"></div>
                                 <div id="aiSimProgressBarImpact" style="height:100%;background:#3b82f6;width:0%;position:absolute;top:0;left:0;opacity:0.85;transition:all 0.3s ease;" title="Impact des propositions cochées"></div>
                             </div>
                             <div id="aiSimSalaryMarker1" style="display:none;position:absolute;top:0;bottom:0;width:2px;background:#c084fc;z-index:2;box-shadow:0 0 4px #c084fc;" title="Limite Salaire Repère"></div>
                         </div>
+                        <div id="aiSimScaleTicks1" style="position:relative;width:100%;height:16px;margin-bottom:4px;"></div>
                     </div>
 
                     <!-- BARRE 2 : Couverture des Dépenses Réelles -->
@@ -171,13 +175,17 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <span id="aiSimGapVal" style="font-size:12px;font-weight:700;">0 €</span>
                         </div>
 
-                        <div style="position:relative;width:100%;height:10px;background:var(--border-color);border-radius:5px;overflow:visible;margin:4px 0 2px 0;">
+                        <div style="position:relative;width:100%;height:10px;background:var(--border-color);border-radius:5px;overflow:visible;margin:22px 0 4px 0;">
+                            <div id="aiSimSalaryMarkerBadge2" style="display:none;position:absolute;top:-20px;z-index:4;transform:translateX(-50%);background:#c084fc;color:#ffffff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.25);" title="Salaire Repère">
+                                💼 <span id="aiSimSalaryMarkerVal2">0 €</span>
+                            </div>
                             <div style="width:100%;height:100%;border-radius:5px;overflow:hidden;position:relative;">
                                 <div id="aiSimProgressBarRealCovered" style="height:100%;background:#36b37e;width:0%;position:absolute;top:0;left:0;transition:width 0.3s ease;" title="Dépenses réelles couvertes par le budget"></div>
                                 <div id="aiSimProgressBarRealUncovered" style="height:100%;background:#ef4444;width:0%;position:absolute;top:0;left:0;opacity:0.9;transition:all 0.3s ease;" title="Dépenses non couvertes (dépassement)"></div>
-                                <div id="aiSimSalaryMarker2" style="display:none;position:absolute;top:0;bottom:0;width:2px;background:#c084fc;z-index:2;box-shadow:0 0 4px #c084fc;" title="Limite Salaire Repère"></div>
                             </div>
+                            <div id="aiSimSalaryMarker2" style="display:none;position:absolute;top:0;bottom:0;width:2px;background:#c084fc;z-index:2;box-shadow:0 0 4px #c084fc;" title="Limite Salaire Repère"></div>
                         </div>
+                        <div id="aiSimScaleTicks2" style="position:relative;width:100%;height:16px;"></div>
                     </div>
 
                     <!-- CARDE 3 : Ajustement des montants proposée -->

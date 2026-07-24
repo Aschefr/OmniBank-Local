@@ -84,7 +84,9 @@ def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
         if not content or not content.strip():
             raise HTTPException(status_code=502, detail="Le modèle Ollama a renvoyé une réponse vide.")
         return content
-    except _httpx.RequestError as exc:
+    except HTTPException:
+        raise
+    except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Impossible de contacter le serveur Ollama ({url}) : {exc}")
 
 def get_net_worth_tool(db: Session) -> dict:

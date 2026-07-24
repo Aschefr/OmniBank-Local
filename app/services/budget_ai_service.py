@@ -380,17 +380,32 @@ Response format (JSON object with key "envelopes"):
     AI_TASK_STATUS["step_key"] = "ai_status_sending"
 
     raw = ""
+    last_error_msg = ""
     try:
         raw = call_ollama_sync(prompt, cfg, extra_options={"format": "json"})
+    except HTTPException as e:
+        last_error_msg = e.detail
+        logger.warning(f"[AI Budget] Premier essai Ollama json échoué: {e.detail}")
     except Exception as e:
+        last_error_msg = str(e)
         logger.warning(f"[AI Budget] Premier essai Ollama json échoué: {e}")
 
     if not raw or not raw.strip():
         try:
             logger.info("[AI Budget] Tentative 2 avec appel Ollama standard...")
             raw = call_ollama_sync(prompt, cfg)
+        except HTTPException as e2:
+            last_error_msg = e2.detail
+            logger.warning(f"[AI Budget] Tentative 2 Ollama échouée: {e2.detail}")
         except Exception as e2:
+            last_error_msg = str(e2)
             logger.warning(f"[AI Budget] Tentative 2 Ollama échouée: {e2}")
+
+    if not raw or not raw.strip():
+        err_detail = f"Impossible de communiquer avec le modèle IA Ollama : {last_error_msg}".strip()
+        AI_TASK_STATUS["state"] = "ERROR"
+        AI_TASK_STATUS["error"] = err_detail
+        raise HTTPException(status_code=502, detail=err_detail)
 
     AI_TASK_STATUS["state"] = "PARSING"
     AI_TASK_STATUS["step_key"] = "ai_status_parsing"
@@ -589,8 +604,11 @@ Response format (JSON object with key "envelopes"):
             "top_descs": cat_data[c].get("top_descs", []),
         })
 
-    if not proposals and not unclassified_categories:
-        raise HTTPException(status_code=500, detail="L'IA n'a pas pu générer de propositions valides.")
+    if not proposals:
+        err_detail = "L'IA n'a pas pu générer de propositions d'enveloppes valides. Vérifiez le modèle Ollama configuré."
+        AI_TASK_STATUS["state"] = "ERROR"
+        AI_TASK_STATUS["error"] = err_detail
+        raise HTTPException(status_code=500, detail=err_detail)
 
     total_new_fixed_monthly = sum(
         (p["suggested_amount"] / 12.0 if p["suggested_period"] == "yearly" else p["suggested_amount"])
