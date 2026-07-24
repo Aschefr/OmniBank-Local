@@ -1588,5 +1588,8 @@
     "export_add_page_break": "Add page break",
     "export_sec_page_break_card": "Document page break",
     "export_type_pagebreak": "Page break before",
-    "export_type_pagebreak_tooltip": "Insert a page break before this table"
+    "export_type_pagebreak_tooltip": "Insert a page break before this table",
+    "export_select_year": "Year:",
+    "export_date_start": "From:",
+    "export_date_end": "To:"
 }
