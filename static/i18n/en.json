@@ -1617,7 +1617,7 @@
     "ai_wizard_fallback_notice": "⚠️ AI did not return the expected data format. Deterministic fallback envelopes were created based on your actual spending. You can retry the full process with AI.",
     "ai_wizard_btn_retry_llm": "🔄 Retry with AI",
     "ai_wizard_step1_all_classified": "All your spending categories have been successfully classified into suggested envelopes!",
-    "ai_wizard_step2_advice_balanced": "✨ <strong>Ideally balanced budget:</strong> Your envelopes ({spending}€/mo) fit well within your reference income ({salary}€/mo), leaving {diff}€/mo safety margin.",
+    "ai_wizard_step2_advice_balanced": "✨ <strong>Balanced forecast budget:</strong> Your envelopes ({spending}€/m) fit under your benchmark salary ({salary}€/m), generating {diff}€/m in theoretical savings. <em>Warning: your actual recorded spending ({est}€/m) exceeds this target! Without a real reduction in your spending, your envelopes risk being systematically exceeded.</em>",
     "ai_wizard_step2_advice_over": "🚨 <strong>Budget warning:</strong> Your envelopes ({spending}€/mo) exceed your reference income ({salary}€/mo) by +{diff}€/mo. Use the quick adjustment buttons below to balance.",
     "ai_wizard_step2_interpret_title": "💡 How to interpret & decide?",
     "ai_wizard_step2_interpret_body": "If your envelopes exceed your salary, reduce by 10% or align with income. If lower, you are building monthly savings capacity!",
@@ -1628,7 +1628,7 @@
     "ai_sim_legend_title": "Legend:",
     "ai_sim_legend_envelopes": "Envelopes amount",
     "ai_sim_legend_salary": "Income / Reference salary",
-    "ai_sim_legend_estimated": "Estimated expenses (historical)",
+    "ai_sim_legend_estimated": "Estimated expenses (smoothed average)",
     "ai_sim_matrix_case1": "📊 <strong>Proactive savings goal:</strong> Your forecast envelopes ({env}) are set -{gap} below your historical spending pace ({est}). You target actual savings while maintaining an estimated monthly buffer of +{savings}/mo ({savingsPct}% of income).",
     "ai_sim_matrix_case2": "✨ <strong>Balanced budget structure:</strong> Envelopes ({env}) cover historical expenses ({est}) while maintaining a net savings buffer of +{savings} ({savingsPct}% of income).",
     "ai_sim_matrix_case3": "⚠️ <strong>Forecast over-allocation:</strong> Envelopes ({env}) exceed income by +{diff}. Actual historical spending ({est}) remains under salary ({sal}).",
@@ -1637,5 +1637,9 @@
     "ai_sim_matrix_case6": "💡 <strong>Perfect cash flow balance:</strong> Envelopes ({env}), actual spending ({est}), and income ({sal}) are aligned.",
     "ai_sim_matrix_case_effort_exceeded": "📊 <strong>Savings goal with overspending risk:</strong> Your envelopes ({env}) target alignment with income ({sal}). However, actual spending ({est}) exceeds your target by +{gap}. Without actual spending reduction, envelopes will likely be overspent.",
     "ai_sim_matrix_case_effort_ok": "📊 <strong>Proactive savings goal:</strong> Forecast envelopes ({env}) are set -{gap} below historical spending ({est}), aiming for actual savings while preserving a +{savings} buffer.",
-    "ai_wizard_btn_reset": "🤖 Align with AI suggestions"
+    "ai_wizard_btn_reset": "🤖 Align with AI suggestions",
+    "ai_budget_tooltip_outlier_excess": "📌 Capping applied: +{amount}€ in isolated one-off exceptional expenses",
+    "ai_wizard_step3_fixed_note": "📌 This envelope only contains recurring expenses with identical amounts each month.",
+    "ai_wizard_step3_del_proposal": "🗑️ Delete envelope",
+    "ai_budget_tooltip_examples": "Examples:"
 }

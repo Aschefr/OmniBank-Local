@@ -1617,7 +1617,7 @@
     "ai_wizard_fallback_notice": "⚠️ L'IA n'a pas renvoyé le format de données attendu. Des enveloppes de secours déterministes ont été créées sur vos données réelles. Vous pouvez relancer le processus complet avec l'IA.",
     "ai_wizard_btn_retry_llm": "🔄 Ré-essayer avec l'IA",
     "ai_wizard_step1_all_classified": "Toutes vos catégories de dépenses ont été classées avec succès dans les enveloppes proposées !",
-    "ai_wizard_step2_advice_balanced": "✨ <strong>Budget idéalement équilibré :</strong> Vos enveloppes ({spending}€/m) s'inscrivent parfaitement dans votre salaire repère ({salary}€/m), dégageant {diff}€/m de marge de sécurité.",
+    "ai_wizard_step2_advice_balanced": "✨ <strong>Budget prévisionnel équilibré :</strong> Vos enveloppes ({spending}€/m) s'inscrivent sous votre salaire repère ({salary}€/m), dégageant {diff}€/m d'épargne théorique. <em>Attention : vos dépenses réelles constatées ({est}€/m) dépassent cette cible ! Sans réduction effective de vos dépenses réelles, vos enveloppes risquent d'être systématiquement dépassées.</em>",
     "ai_wizard_step2_advice_over": "🚨 <strong>Attention au dépassement :</strong> Vos enveloppes ({spending}€/m) dépassent votre salaire repère ({salary}€/m) de +{diff}€/m. Utilisez les boutons d'ajustement ci-dessous pour équilibrer.",
     "ai_wizard_step2_interpret_title": "💡 Comment interpréter & décider ?",
     "ai_wizard_step2_interpret_body": "Si vos enveloppes dépassent votre salaire, réduisez de 10% ou alignez sur les revenus. Si elles sont inférieures, vous dégagez une capacité d'épargne régulière !",
@@ -1628,7 +1628,7 @@
     "ai_sim_legend_title": "Légende :",
     "ai_sim_legend_envelopes": "Montant des enveloppes",
     "ai_sim_legend_salary": "Revenus / Salaire repère",
-    "ai_sim_legend_estimated": "Dépenses estimées (historique)",
+    "ai_sim_legend_estimated": "Dépenses estimées (moyenne lissée)",
     "ai_sim_matrix_case1": "📊 <strong>Objectif d'épargne proactive :</strong> Vos enveloppes prévisionnelles ({env}) s'inscrivent -{gap} sous votre rythme de dépenses historique ({est}). Vous visez une économie réelle tout en gardant une capacité d'épargne estimée à +{savings}/m ({savingsPct}% des revenus).",
     "ai_sim_matrix_case2": "✨ <strong>Structure budgétaire équilibrée :</strong> Vos enveloppes ({env}) couvrent vos dépenses historiques ({est}) tout en préservant une marge nette d'épargne de +{savings} ({savingsPct}% des revenus).",
     "ai_sim_matrix_case3": "⚠️ <strong>Sur-allocation prévisionnelle :</strong> Le total de vos enveloppes ({env}) excède vos revenus de +{diff}. <em>Vos dépenses réelles historiques ({est}) restent sous votre salaire ({sal}).</em>",
@@ -1637,5 +1637,9 @@
     "ai_sim_matrix_case6": "💡 <strong>Équilibre parfait des flux :</strong> Vos enveloppes ({env}), vos dépenses réelles ({est}) et votre salaire ({sal}) sont parfaitement alignés.",
     "ai_sim_matrix_case_effort_exceeded": "📊 <strong>Objectif d'épargne avec risque de dépassement :</strong> Vos enveloppes ({env}) ciblent un équilibre sur vos revenus ({sal}). Cependant, vos dépenses constatées ({est}) dépassent votre cible de +{gap}. Sans réduction effective de vos dépenses réelles, vos enveloppes risquent d'être systématiquement dépassées.",
     "ai_sim_matrix_case_effort_ok": "📊 <strong>Objectif d'épargne proactive :</strong> Vos enveloppes prévisionnelles ({env}) s'inscrivent -{gap} sous votre rythme de dépenses historique ({est}). Vous visez une économie réelle tout en gardant une capacité d'épargne estimée à +{savings} ({savingsPct}% des revenus).",
-    "ai_wizard_btn_reset": "🤖 Aligner avec suggestions IA"
+    "ai_wizard_btn_reset": "🤖 Aligner avec suggestions IA",
+    "ai_budget_tooltip_outlier_excess": "📌 Écrêtage appliqué: +{amount}€ de dépenses ponctuelles d'exception isolées",
+    "ai_wizard_step3_fixed_note": "📌 Cette enveloppe ne contient que des dépenses récurrentes identiques chaque mois.",
+    "ai_wizard_step3_del_proposal": "🗑️ Supprimer l'enveloppe",
+    "ai_budget_tooltip_examples": "Exemples :"
 }

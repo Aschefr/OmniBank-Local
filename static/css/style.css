@@ -3203,5 +3203,29 @@ input:checked + .slider:before {
     border-radius: 50%;
 }
 
+/* Interactivité des segments & badges de catégories d'enveloppe */
+.ai-seg-item, .ai-cat-badge {
+    transition: all 0.25s ease-in-out;
+}
+
+.ai-seg-item.ai-seg-muted {
+    background: rgba(145, 158, 171, 0.25) !important;
+    opacity: 0.75;
+}
+
+.ai-seg-item.ai-seg-active,
+.ai-seg-item:hover {
+    opacity: 1 !important;
+    z-index: 10;
+    filter: brightness(1.15);
+}
+
+.ai-cat-badge:hover {
+    background: var(--bg-surface) !important;
+    border-color: var(--border-color) !important;
+}
+
+
+
 
 
