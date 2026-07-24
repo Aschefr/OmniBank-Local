@@ -668,6 +668,7 @@ window.AnalyticsView = {
 
     showExportModal() {
         if (!this.data || !this.data.by_type) return;
+        if (document.getElementById('exportPdfModal')) return;
 
         // Extract years safely as strings
         const yearsSet = new Set();
@@ -729,8 +730,10 @@ window.AnalyticsView = {
         try { savedCols = JSON.parse(localStorage.getItem('print_settings_cols')); } catch (e) { }
         if (!Array.isArray(savedCols)) savedCols = Object.keys(colSettings).filter(k => colSettings[k]);
 
-        const savedIncludeDetails = localStorage.getItem('print_settings_include_details') !== 'false';
-        const savedForcePageBreak = localStorage.getItem('print_settings_force_page_break') === 'true';
+        const savedIncludeDetails = (localStorage.getItem('print_sec_enabled_transactions_list') ?? localStorage.getItem('print_settings_include_details')) !== 'false';
+        const savedIncludePieChart = (localStorage.getItem('print_sec_enabled_pie_chart') ?? localStorage.getItem('print_settings_include_pie_chart')) !== 'false';
+        const savedIncludeBarChart = (localStorage.getItem('print_sec_enabled_bar_chart') ?? localStorage.getItem('print_settings_include_bar_chart')) !== 'false';
+        const savedIncludeSignature = (localStorage.getItem('print_sec_enabled_signature') ?? localStorage.getItem('print_settings_include_signature')) === 'true';
         const savedTitleFontSize = localStorage.getItem('print_settings_title_font_size') || 'medium';
         const savedTableFontSize = localStorage.getItem('print_settings_table_font_size') || 'medium';
 
@@ -738,23 +741,31 @@ window.AnalyticsView = {
             const translatedType = window.app.getTypeLabel(type);
             const cats = Object.keys(this.data.by_type[type].categories || {}).sort();
             const typeChecked = savedTypes.includes(type);
+            const typePageBreak = localStorage.getItem(`print_type_pagebreak_${type}`) === 'true';
 
             const catsHtml = cats.map(cat => {
                 const catChecked = !savedCats || savedCats.includes(cat);
                 return `
                 <label style="display:flex;align-items:center;gap:8px;margin-left:20px;cursor:pointer;font-size:12px;">
-                    <input type="checkbox" class="export-cat-cb" data-type="${type}" value="${cat.replace(/"/g, '&quot;')}" ${catChecked ? 'checked' : ''}> ${cat}
+                    <input type="checkbox" class="export-cat-cb" data-type="${type}" value="${cat.replace(/"/g, '&quot;')}" ${catChecked ? 'checked' : ''} onchange="window.AnalyticsView._saveExportCategorySelection()"> ${cat}
                 </label>`;
             }).join('');
 
             return `
-            <div style="margin-bottom: 12px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 8px;">
-                <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;margin-bottom:6px;">
-                    <input type="checkbox" class="export-type-cb" value="${type}" ${typeChecked ? 'checked' : ''} onchange="
-                        const cbs = this.parentElement.parentElement.querySelectorAll('.export-cat-cb');
-                        cbs.forEach(cb => cb.checked = this.checked);
-                    "> ${translatedType}
-                </label>
+            <div style="margin-bottom: 12px; background: rgba(0,0,0,0.02); padding: 8px 12px; border-radius: 8px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                    <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;">
+                        <input type="checkbox" class="export-type-cb" value="${type}" ${typeChecked ? 'checked' : ''} onchange="
+                            const cbs = this.parentElement.parentElement.parentElement.querySelectorAll('.export-cat-cb');
+                            cbs.forEach(cb => cb.checked = this.checked);
+                            window.AnalyticsView._saveExportCategorySelection();
+                        "> ${translatedType}
+                    </label>
+                    <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px; cursor:pointer; background:rgba(0,0,0,0.04); padding:2px 8px; border-radius:4px;" title="${window.i18n.t('export_type_pagebreak_tooltip') || 'Insérer un saut de page avant ce tableau'}">
+                        <input type="checkbox" class="export-type-pagebreak-cb" data-type="${type}" ${typePageBreak ? 'checked' : ''} onchange="localStorage.setItem('print_type_pagebreak_${type}', this.checked)">
+                        <span>✂️ ${window.i18n.t('export_type_pagebreak') || 'Saut de page avant'}</span>
+                    </label>
+                </div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:6px;">
                     ${catsHtml}
                 </div>
@@ -788,128 +799,222 @@ window.AnalyticsView = {
         const savedLogoB64 = localStorage.getItem('print_header_logo') || null;
         const savedLogoLeft = localStorage.getItem('print_logo_left') !== 'false';
         const savedLogoRight = localStorage.getItem('print_logo_right') !== 'false';
+
         const orgHeaderHtml = isOrgMode ? `
-        <div style="margin-bottom: 20px; padding: 14px; background: rgba(99,102,241,0.06); border-radius: 10px; border: 1px solid rgba(99,102,241,0.2);">
-            <h4 style="margin:0 0 12px 0;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_header_section') || 'Document header'}</h4>
+        <div style="padding: 12px; background: rgba(99,102,241,0.06); border-radius: 8px; border: 1px solid rgba(99,102,241,0.2);">
             <div style="display:flex;flex-direction:column;gap:10px;">
-                <input type="text" id="exportHeaderTitle" class="inline-input" placeholder="${window.i18n.t('export_header_title_placeholder') || 'Document title'}" value="${savedHeaderTitle.replace(/"/g, '&quot;')}" style="width:100%;" oninput="localStorage.setItem('print_header_title', this.value)">
+                <input type="text" id="exportHeaderTitle" class="inline-input" list="exportTitlePresets" placeholder="${window.i18n.t('export_header_title_placeholder') || 'Titre du document'}" value="${savedHeaderTitle.replace(/"/g, '&quot;')}" style="width:100%;" oninput="localStorage.setItem('print_header_title', this.value)">
+                <datalist id="exportTitlePresets">
+                    <option value="${window.i18n.t('export_preset_annual') || 'Bilan Financier Annuel'}">
+                    <option value="${window.i18n.t('export_preset_result') || 'Compte de Résultat'}">
+                    <option value="${window.i18n.t('export_preset_cse') || 'Rapport de Trésorerie CSE / Association'}">
+                    <option value="${window.i18n.t('export_preset_personal') || 'Synthèse des Comptes Personnels'}">
+                </datalist>
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                    <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px;" onclick="document.getElementById('exportLogoFileInput').click()">${window.i18n.t('export_header_logo_import') || 'Import logo'}</button>
+                    <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px;" onclick="document.getElementById('exportLogoFileInput').click()">${window.i18n.t('export_header_logo_import') || 'Importer logo'}</button>
                     <input type="file" id="exportLogoFileInput" accept="image/*" style="display:none;" onchange="window.AnalyticsView._handleLogoUpload(this)">
-                    ${savedLogoB64 ? `<button class="btn btn-danger" style="font-size:12px;padding:6px 14px;" onclick="localStorage.removeItem('print_header_logo');this.previousElementSibling.previousElementSibling.previousElementSibling.style.display='none';this.remove()">${window.i18n.t('export_header_logo_remove') || 'Remove logo'}</button>` : ''}
+                    ${savedLogoB64 ? `<button class="btn btn-danger" style="font-size:12px;padding:6px 14px;" onclick="localStorage.removeItem('print_header_logo');this.previousElementSibling.previousElementSibling.previousElementSibling.style.display='none';this.remove()">${window.i18n.t('export_header_logo_remove') || 'Supprimer logo'}</button>` : ''}
                 </div>
                 ${savedLogoB64 ? `<img id="exportLogoPreview" src="${savedLogoB64}" style="max-height:60px;max-width:200px;border-radius:6px;border:1px solid var(--border-color);object-fit:contain;">` : '<div id="exportLogoPreview"></div>'}
                 <div style="display:flex;gap:16px;flex-wrap:wrap;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
                         <input type="checkbox" id="exportLogoLeft" ${savedLogoLeft ? 'checked' : ''} style="accent-color:var(--accent);" onchange="localStorage.setItem('print_logo_left', this.checked)">
-                        ${window.i18n.t('export_logo_position_left') || 'Logo on left'}
+                        ${window.i18n.t('export_logo_position_left') || 'Logo à gauche'}
                     </label>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
                         <input type="checkbox" id="exportLogoRight" ${savedLogoRight ? 'checked' : ''} style="accent-color:var(--accent);" onchange="localStorage.setItem('print_logo_right', this.checked)">
-                        ${window.i18n.t('export_logo_position_right') || 'Logo on right'}
+                        ${window.i18n.t('export_logo_position_right') || 'Logo à droite'}
                     </label>
                 </div>
             </div>
         </div>` : '';
 
+        // Construction des 8 cartes réordonnables
+        const sectionDefs = {
+            header: {
+                title: `🏛️ ${window.i18n.t('export_sec_header') || 'En-tête & Titre du document'}`,
+                isEnabled: localStorage.getItem('print_sec_enabled_header') !== 'false',
+                content: orgHeaderHtml,
+                isOrgOnly: true
+            },
+            kpi: {
+                title: `📌 ${window.i18n.t('export_sec_kpi') || 'Synthèse des indicateurs clés (Recettes, Dépenses, Résultat Net)'}`,
+                isEnabled: localStorage.getItem('print_sec_enabled_kpi') !== 'false',
+                content: ''
+            },
+            pie_chart: {
+                title: `📊 ${window.i18n.t('export_sec_pie_chart') || 'Graphique Camembert (Répartition des dépenses)'}`,
+                isEnabled: savedIncludePieChart,
+                content: ''
+            },
+            bar_chart: {
+                title: `📈 ${window.i18n.t('export_sec_bar_chart') || 'Graphique à Barres (Comparatif mensuel)'}`,
+                isEnabled: savedIncludeBarChart,
+                content: ''
+            },
+            balances: {
+                title: `💳 ${window.i18n.t('export_sec_balances') || 'Situation des comptes & livrets'}`,
+                isEnabled: localStorage.getItem('print_sec_enabled_balances') !== 'false',
+                content: `<div id="exportBalanceCheckboxes" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:6px;background:rgba(0,0,0,0.02);padding:10px;border-radius:8px;"></div>`
+            },
+            type_tables: {
+                title: `📋 ${window.i18n.t('export_sec_type_tables') || 'Tableaux croisés par Type & Catégories'}`,
+                isEnabled: localStorage.getItem('print_sec_enabled_type_tables') !== 'false',
+                content: `
+                    <div style="margin-bottom:12px;">
+                        <h5 style="margin-bottom:6px;color:var(--text-muted);font-size:11px;text-transform:uppercase;">${window.i18n.t('export_annual_totals_section') || 'Colonnes de Totaux Annuels'}</h5>
+                        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                            ${availableYears.map(y => `
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
+                                    <input type="checkbox" class="export-year-total-cb" value="${y}" ${savedYearsTotals.includes(y) ? 'checked' : ''}> ${y}
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ${typesHtml}`
+            },
+            transactions_list: {
+                title: `📑 ${window.i18n.t('export_sec_transactions_list') || 'Détail des opérations'}`,
+                isEnabled: savedIncludeDetails,
+                content: `
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:10px;background:rgba(0,0,0,0.02);padding:10px;border-radius:8px;">
+                        ${colsHtml}
+                    </div>`
+            },
+            signature: {
+                title: `✍️ ${window.i18n.t('export_sec_signature') || 'Validation & Bloc de signature (Trésorier / Président)'}`,
+                isEnabled: savedIncludeSignature,
+                content: '',
+                isOrgOnly: true
+            }
+        };
+
+        const defaultOrder = ['header', 'kpi', 'pie_chart', 'bar_chart', 'balances', 'type_tables', 'transactions_list', 'signature'];
+        let savedOrder;
+        try { savedOrder = JSON.parse(localStorage.getItem('print_sections_order')); } catch (e) { }
+        if (!Array.isArray(savedOrder)) savedOrder = defaultOrder;
+        defaultOrder.forEach(id => { if (!savedOrder.includes(id)) savedOrder.push(id); });
+
+        let sectionsCardsHtml = savedOrder.map(secId => {
+            if (secId.startsWith('page_break_')) {
+                return `
+                <div class="export-section-card page-break-card" data-section-id="${secId}" draggable="true" style="margin-bottom:10px; border:1px dashed var(--accent); border-radius:8px; background:rgba(99,102,241,0.04); overflow:hidden;">
+                    <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:grab;">
+                        <span class="drag-handle" style="cursor:grab; font-size:16px; color:var(--accent); padding:0 4px;" title="${window.i18n.t('export_drag_handle') || 'Glisser pour réordonner'}">☰</span>
+                        <strong style="font-size:13px; flex:1; color:var(--accent); user-select:none;">✂️ ${window.i18n.t('export_sec_page_break_card') || 'Saut de page de document'}</strong>
+                        <div style="display:flex; gap:4px; align-items:center;">
+                            <button type="button" class="btn btn-secondary" style="font-size:10px; padding:2px 6px;" onclick="window.AnalyticsView._moveSectionCard('${secId}', -1)" title="${window.i18n.t('export_move_up') || 'Monter'}">▲</button>
+                            <button type="button" class="btn btn-secondary" style="font-size:10px; padding:2px 6px;" onclick="window.AnalyticsView._moveSectionCard('${secId}', 1)" title="${window.i18n.t('export_move_down') || 'Descendre'}">▼</button>
+                            <button type="button" class="btn btn-secondary" style="font-size:11px; padding:2px 8px; margin-left:4px; color:#ef4444; border-color:rgba(239,68,68,0.3);" onclick="window.AnalyticsView._removePageBreakCard('${secId}')" title="${window.i18n.t('btn_delete') || 'Supprimer'}">🗑️</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            const def = sectionDefs[secId];
+            if (!def) return '';
+            if (def.isOrgOnly && !isOrgMode) return '';
+
+            const isCollapsed = localStorage.getItem(`print_sec_collapsed_${secId}`) !== 'false';
+            const hasContent = !!def.content;
+
+            return `
+            <div class="export-section-card" data-section-id="${secId}" draggable="true" style="margin-bottom:10px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-surface); overflow:hidden;">
+                <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:rgba(0,0,0,0.02); border-bottom:${hasContent && !isCollapsed ? '1px solid var(--border-color)' : 'none'}; cursor:grab;">
+                    <span class="drag-handle" style="cursor:grab; font-size:16px; color:var(--text-muted); padding:0 4px;" title="${window.i18n.t('export_drag_handle') || 'Glisser pour réordonner'}">☰</span>
+                    <input type="checkbox" id="sec_enable_${secId}" class="sec-enable-cb" ${def.isEnabled ? 'checked' : ''} style="accent-color:var(--accent); width:16px; height:16px;" onchange="window.AnalyticsView._onSectionEnableChange('${secId}', this.checked)">
+                    <strong style="font-size:13px; flex:1; user-select:none; cursor:${hasContent ? 'pointer' : 'default'};" ${hasContent ? `onclick="window.AnalyticsView._toggleSectionCard('${secId}')"` : ''}>${def.title}</strong>
+                    <div style="display:flex; gap:4px; align-items:center;">
+                        <button type="button" class="btn btn-secondary" style="font-size:10px; padding:2px 6px;" onclick="window.AnalyticsView._moveSectionCard('${secId}', -1)" title="${window.i18n.t('export_move_up') || 'Monter'}">▲</button>
+                        <button type="button" class="btn btn-secondary" style="font-size:10px; padding:2px 6px;" onclick="window.AnalyticsView._moveSectionCard('${secId}', 1)" title="${window.i18n.t('export_move_down') || 'Descendre'}">▼</button>
+                        ${hasContent ? `
+                        <button type="button" class="btn btn-secondary" style="font-size:11px; padding:2px 8px; margin-left:4px;" onclick="window.AnalyticsView._toggleSectionCard('${secId}')">
+                            <span id="sec_chev_${secId}">${isCollapsed ? '▶' : '▼'}</span>
+                        </button>` : ''}
+                    </div>
+                </div>
+                ${hasContent ? `<div id="sec_body_${secId}" style="padding:12px 14px; display:${isCollapsed ? 'none' : 'block'};">${def.content}</div>` : ''}
+            </div>`;
+        }).join('');
+
         const modalHtml = `
         <div id="exportPdfModal" class="modal-overlay" style="display:flex;z-index:9999;">
-            <div class="modal" style="width:700px; max-width:90vw; max-height:90vh; display:flex; flex-direction:column;">
-                <h3 style="margin-bottom: 16px;">${window.i18n.t('export_modal_title')}</h3>
-                <div style="flex:1; overflow-y:auto; padding-right:10px;">
-                    ${orgHeaderHtml}
-                    <div style="margin-bottom: 20px;">
-                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_detailed_period') || 'Detailed period (month by month)'}</h4>
-                        <div style="display:flex; border-bottom:1px solid var(--border-color); margin-bottom:12px; gap:8px;">
-                            <button type="button" class="tab-btn" id="tabYear" onclick="window.AnalyticsView.switchExportTab('year')" style="padding:8px 16px; border:none; background:none; cursor:pointer; font-size:13px; outline:none; transition:all 0.2s;">${window.i18n.t('export_full_year') || 'Full year'}</button>
-                            <button type="button" class="tab-btn" id="tabCustom" onclick="window.AnalyticsView.switchExportTab('custom')" style="padding:8px 16px; border:none; background:none; cursor:pointer; font-size:13px; outline:none; transition:all 0.2s;">${window.i18n.t('export_custom_range') || 'Custom period'}</button>
+            <div class="modal" style="width:750px; max-width:92vw; max-height:92vh; display:flex; flex-direction:column;">
+                <h3 style="margin-bottom: 14px;">${window.i18n.t('export_modal_title')}</h3>
+                <div style="flex:1; overflow-y:auto; padding-right:8px;">
+                    <!-- Période du document -->
+                    <div style="margin-bottom: 16px; padding:12px; background:rgba(0,0,0,0.02); border-radius:8px; border:1px solid var(--border-color);">
+                        <h4 style="margin-bottom:8px;color:var(--text-muted);font-size:11px;text-transform:uppercase;">${window.i18n.t('export_detailed_period') || 'Période du document'}</h4>
+                        <div style="display:flex; border-bottom:1px solid var(--border-color); margin-bottom:10px; gap:8px;">
+                            <button type="button" class="tab-btn" id="tabYear" onclick="window.AnalyticsView.switchExportTab('year')" style="padding:6px 14px; border:none; background:none; cursor:pointer; font-size:13px; outline:none; transition:all 0.2s;">${window.i18n.t('export_full_year') || 'Année complète'}</button>
+                            <button type="button" class="tab-btn" id="tabCustom" onclick="window.AnalyticsView.switchExportTab('custom')" style="padding:6px 14px; border:none; background:none; cursor:pointer; font-size:13px; outline:none; transition:all 0.2s;">${window.i18n.t('export_custom_range') || 'Période personnalisée'}</button>
                         </div>
-                        
-                        <div id="exportTabContentYear" style="margin-bottom: 12px; display:none;">
-                            <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
-                                <span>${window.i18n.t('export_year_label') || 'Year:'}</span>
-                                <select id="exportSelectYear" class="inline-input" style="width:120px;" onchange="localStorage.setItem('print_settings_selected_year', this.value)">
-                                    ${availableYears.map(y => `<option value="${y}" ${y === savedSelectedYear ? 'selected' : ''}>${y}</option>`).join('')}
-                                </select>
+
+                        <!-- Vue par année -->
+                        <div id="exportTabContentYear" style="display:flex; align-items:center; gap:12px;">
+                            <label style="font-size:13px;">${window.i18n.t('export_select_year') || 'Année :'}</label>
+                            <select id="exportSelectYear" class="inline-input" style="width:120px;" onchange="window.AnalyticsView.onExportYearChange(this.value)">
+                                ${availableYears.map(y => `<option value="${y}" ${y === savedSelectedYear ? 'selected' : ''}>${y}</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <!-- Vue par période personnalisée -->
+                        <div id="exportTabContentCustom" style="display:none; align-items:center; gap:12px; flex-wrap:wrap;">
+                            <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                                <span>${window.i18n.t('export_date_start') || 'Du :'}</span>
+                                <input type="date" id="exportDateStart" class="inline-input" value="${savedCustomStart}" style="width:140px;" onchange="localStorage.setItem('print_settings_custom_start', this.value)">
+                            </label>
+                            <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                                <span>${window.i18n.t('export_date_end') || 'Au :'}</span>
+                                <input type="date" id="exportDateEnd" class="inline-input" value="${savedCustomEnd}" style="width:140px;" onchange="localStorage.setItem('print_settings_custom_end', this.value)">
                             </label>
                         </div>
-                        
-                        <div id="exportTabContentCustom" style="display:none; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom: 12px;">
-                            <input type="date" id="exportDateStart" class="inline-input" value="${savedCustomStart}" style="width:160px;" onchange="localStorage.setItem('print_settings_custom_start', this.value)">
-                            <span style="color:var(--text-muted);font-size:12px;">→</span>
-                            <input type="date" id="exportDateEnd" class="inline-input" value="${savedCustomEnd}" style="width:160px;" onchange="localStorage.setItem('print_settings_custom_end', this.value)">
-                        </div>
-
-                        <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
-                            <h4 style="margin-bottom:8px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_annual_totals_section') || 'Annual Totals Columns (on the right)'}</h4>
-                            <div style="display:flex; gap:16px; flex-wrap:wrap;">
-                                ${availableYears.map(y => `
-                                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
-                                        <input type="checkbox" class="export-year-total-cb" value="${y}" ${savedYearsTotals.includes(y) ? 'checked' : ''}> ${y}
-                                    </label>
-                                `).join('')}
-                            </div>
-                        </div>
                     </div>
-                    <div style="margin-bottom: 20px;">
-                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_modal_accounts')}</h4>
+
+                    <!-- Filtre de comptes -->
+                    <div style="margin-bottom: 16px;">
+                        <h4 style="margin-bottom:8px;color:var(--text-muted);font-size:11px;text-transform:uppercase;">${window.i18n.t('export_modal_accounts')}</h4>
                         <div id="exportAccountBadges" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
                     </div>
-                    <div style="margin-bottom: 20px;">
-                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_modal_tables')}</h4>
-                        ${typesHtml}
+
+                    <!-- Liste des sections réordonnables -->
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                        <h4 style="margin:0;color:var(--text-muted);font-size:11px;text-transform:uppercase;">${window.i18n.t('export_sections_order_title') || 'Dispositions des sections (Glisser-Déposer pour réordonner)'}</h4>
+                        <button type="button" class="btn btn-secondary" style="font-size:11px; padding:4px 10px; display:inline-flex; align-items:center; gap:6px; background:rgba(99,102,241,0.08); color:var(--accent); border:1px dashed var(--accent); cursor:pointer;" onclick="window.AnalyticsView._addPageBreakCard()">
+                            ➕ ✂️ ${window.i18n.t('export_add_page_break') || 'Ajouter un saut de page'}
+                        </button>
                     </div>
-                    <div style="margin-bottom: 20px;">
-                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_account_balances') || 'Account Balances'}</h4>
-                        <div id="exportBalanceCheckboxes" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:6px;background:rgba(0,0,0,0.02);padding:10px;border-radius:8px;"></div>
-                    </div>
-                    <div style="margin-bottom: 20px;">
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:13px;padding:10px;background:rgba(0,0,0,0.02);border-radius:8px;">
-                            <input type="checkbox" id="exportIncludeDetails" ${savedIncludeDetails ? 'checked' : ''} onchange="
-                                document.getElementById('exportColsSection').style.display = this.checked ? 'block' : 'none';
-                            " style="accent-color: var(--accent); width: 16px; height: 16px;">
-                            ${window.i18n.t('export_include_details')}
-                        </label>
-                    </div>
-                    <div id="exportColsSection" style="display:${savedIncludeDetails ? 'block' : 'none'};">
-                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_cols_title')}</h4>
-                        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:10px;background:rgba(0,0,0,0.02);padding:10px;border-radius:8px;">
-                            ${colsHtml}
-                        </div>
+                    <div id="exportSectionsList">
+                        ${sectionsCardsHtml}
                     </div>
 
-                    <div style="margin-top:12px;">
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text-muted);">
-                            <input type="checkbox" id="exportForcePageBreak" ${savedForcePageBreak ? 'checked' : ''} style="accent-color:var(--accent);">
-                            ${window.i18n.t('export_force_page_break') || 'Force page break between each table'}
-                        </label>
-                    </div>
-
+                    <!-- Options d'impression générales -->
                     <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color);">
-                        <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('export_font_sizes_section') || 'Font Sizes'}</h4>
+
+                        <h4 style="margin-bottom:8px;color:var(--text-muted);font-size:11px;text-transform:uppercase;">${window.i18n.t('export_font_sizes_section') || 'Tailles de polices'}</h4>
                         <div style="display:flex;gap:20px;flex-wrap:wrap;">
                             ${isOrgMode ? `
                             <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
-                                <span>${window.i18n.t('export_title_font_size') || 'Title font size'} :</span>
-                                <select id="exportTitleFontSize" class="inline-input" style="width:150px;">
-                                    <option value="small" ${savedTitleFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Small'}</option>
-                                    <option value="medium" ${savedTitleFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Medium (Default)'}</option>
-                                    <option value="large" ${savedTitleFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Large'}</option>
+                                <span>${window.i18n.t('export_title_font_size') || 'Titre :'}</span>
+                                <select id="exportTitleFontSize" class="inline-input" style="width:140px;" onchange="localStorage.setItem('print_settings_title_font_size', this.value)">
+                                    <option value="small" ${savedTitleFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Petit'}</option>
+                                    <option value="medium" ${savedTitleFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Moyen (Défaut)'}</option>
+                                    <option value="large" ${savedTitleFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Grand'}</option>
                                 </select>
                             </label>
                             ` : ''}
                             <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
-                                <span>${window.i18n.t('export_table_font_size') || 'Table / amount font size'} :</span>
-                                <select id="exportTableFontSize" class="inline-input" style="width:150px;">
-                                    <option value="small" ${savedTableFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Small'}</option>
-                                    <option value="medium" ${savedTableFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Medium (Default)'}</option>
-                                    <option value="large" ${savedTableFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Large'}</option>
+                                <span>${window.i18n.t('export_table_font_size') || 'Tableaux :'}</span>
+                                <select id="exportTableFontSize" class="inline-input" style="width:140px;" onchange="localStorage.setItem('print_settings_table_font_size', this.value)">
+                                    <option value="small" ${savedTableFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Petit'}</option>
+                                    <option value="medium" ${savedTableFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Moyen (Défaut)'}</option>
+                                    <option value="large" ${savedTableFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Grand'}</option>
                                 </select>
                             </label>
                         </div>
                     </div>
                 </div>
-                <div class="modal-actions" style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border-color);">
+                <div class="modal-actions" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-color);">
                     <button class="btn btn-secondary" onclick="document.getElementById('exportPdfModal').remove()">${window.i18n.t('export_modal_cancel')}</button>
                     <button class="btn btn-primary" onclick="window.AnalyticsView.executePrint()">${window.i18n.t('export_modal_print')}</button>
                 </div>
@@ -924,6 +1029,7 @@ window.AnalyticsView = {
         this._exportAccountIds = this.selectedAccountIds ? [...this.selectedAccountIds] : null;
         this._renderExportAccountBadges();
         this._renderExportBalanceCheckboxes();
+        this._initSectionDragAndDrop();
     },
 
     switchExportTab(mode) {
@@ -1022,9 +1128,117 @@ window.AnalyticsView = {
         this._renderExportAccountBadges();
     },
 
+    _initSectionDragAndDrop() {
+        const list = document.getElementById('exportSectionsList');
+        if (!list) return;
+
+        let draggedItem = null;
+
+        list.querySelectorAll('.export-section-card').forEach(card => {
+            card.addEventListener('dragstart', (e) => {
+                draggedItem = card;
+                e.dataTransfer.effectAllowed = 'move';
+                card.style.opacity = '0.4';
+            });
+
+            card.addEventListener('dragend', () => {
+                draggedItem = null;
+                card.style.opacity = '1';
+                this._saveSectionsOrder();
+            });
+
+            card.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const targetCard = e.target.closest('.export-section-card');
+                if (targetCard && targetCard !== draggedItem && targetCard.parentElement === list) {
+                    const rect = targetCard.getBoundingClientRect();
+                    const next = (e.clientY - rect.top) > (rect.height / 2);
+                    list.insertBefore(draggedItem, next ? targetCard.nextSibling : targetCard);
+                }
+            });
+        });
+    },
+
+    _moveSectionCard(secId, direction) {
+        const card = document.querySelector(`.export-section-card[data-section-id="${secId}"]`);
+        if (!card || !card.parentElement) return;
+        const parent = card.parentElement;
+        if (direction === -1 && card.previousElementSibling) {
+            parent.insertBefore(card, card.previousElementSibling);
+        } else if (direction === 1 && card.nextElementSibling) {
+            parent.insertBefore(card.nextElementSibling, card);
+        }
+        this._saveSectionsOrder();
+    },
+
+    _saveSectionsOrder() {
+        const cards = document.querySelectorAll('.export-section-card');
+        const order = Array.from(cards).map(c => c.getAttribute('data-section-id'));
+        localStorage.setItem('print_sections_order', JSON.stringify(order));
+    },
+
+    _toggleSectionCard(secId) {
+        const content = document.getElementById(`sec_body_${secId}`);
+        const chevron = document.getElementById(`sec_chev_${secId}`);
+        if (!content) return;
+        const isHidden = content.style.display === 'none';
+        content.style.display = isHidden ? 'block' : 'none';
+        if (chevron) chevron.textContent = isHidden ? '▼' : '▶';
+        localStorage.setItem(`print_sec_collapsed_${secId}`, isHidden ? 'false' : 'true');
+    },
+
+    _saveExportCategorySelection() {
+        const modal = document.getElementById('exportPdfModal');
+        if (!modal) return;
+        const selectedCats = Array.from(modal.querySelectorAll('.export-cat-cb:checked')).map(cb => cb.value);
+        const selectedTypes = Array.from(modal.querySelectorAll('.export-type-cb:checked')).map(cb => cb.value);
+        localStorage.setItem('print_settings_cats', JSON.stringify(selectedCats));
+        localStorage.setItem('print_settings_types', JSON.stringify(selectedTypes));
+    },
+
+    _onSectionEnableChange(secId, isChecked) {
+        localStorage.setItem(`print_sec_enabled_${secId}`, isChecked);
+        if (secId === 'signature') localStorage.setItem('print_settings_include_signature', isChecked);
+        if (secId === 'pie_chart') localStorage.setItem('print_settings_include_pie_chart', isChecked);
+        if (secId === 'bar_chart') localStorage.setItem('print_settings_include_bar_chart', isChecked);
+        if (secId === 'transactions_list') localStorage.setItem('print_settings_include_details', isChecked);
+    },
+
+    _addPageBreakCard() {
+        const list = document.getElementById('exportSectionsList');
+        if (!list) return;
+        const newId = `page_break_${Date.now()}`;
+        const cardHtml = `
+        <div class="export-section-card page-break-card" data-section-id="${newId}" draggable="true" style="margin-bottom:10px; border:1px dashed var(--accent); border-radius:8px; background:rgba(99,102,241,0.04); overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:grab;">
+                <span class="drag-handle" style="cursor:grab; font-size:16px; color:var(--accent); padding:0 4px;" title="${window.i18n.t('export_drag_handle') || 'Glisser pour réordonner'}">☰</span>
+                <strong style="font-size:13px; flex:1; color:var(--accent); user-select:none;">✂️ ${window.i18n.t('export_sec_page_break_card') || 'Saut de page de document'}</strong>
+                <div style="display:flex; gap:4px; align-items:center;">
+                    <button type="button" class="btn btn-secondary" style="font-size:10px; padding:2px 6px;" onclick="window.AnalyticsView._moveSectionCard('${newId}', -1)" title="${window.i18n.t('export_move_up') || 'Monter'}">▲</button>
+                    <button type="button" class="btn btn-secondary" style="font-size:10px; padding:2px 6px;" onclick="window.AnalyticsView._moveSectionCard('${newId}', 1)" title="${window.i18n.t('export_move_down') || 'Descendre'}">▼</button>
+                    <button type="button" class="btn btn-secondary" style="font-size:11px; padding:2px 8px; margin-left:4px; color:#ef4444; border-color:rgba(239,68,68,0.3);" onclick="window.AnalyticsView._removePageBreakCard('${newId}')" title="${window.i18n.t('btn_delete') || 'Supprimer'}">🗑️</button>
+                </div>
+            </div>
+        </div>`;
+        list.insertAdjacentHTML('beforeend', cardHtml);
+        this._initSectionDragAndDrop();
+        this._saveSectionsOrder();
+    },
+
+    _removePageBreakCard(secId) {
+        const card = document.querySelector(`.export-section-card[data-section-id="${secId}"]`);
+        if (card) {
+            card.remove();
+            this._saveSectionsOrder();
+        }
+    },
+
     async executePrint() {
         const modal = document.getElementById('exportPdfModal');
         if (!modal) return;
+
+        const isOrgMode = window.app && window.app.config && (window.app.config.enable_org_mode === 'true' || window.app.config.enable_org_mode === true);
 
         // Gather selections
         const tabMode = this._exportTabMode || 'year';
@@ -1054,8 +1268,10 @@ window.AnalyticsView = {
         const selectedTypes = Array.from(modal.querySelectorAll('.export-type-cb:checked')).map(cb => cb.value);
         const selectedCats = Array.from(modal.querySelectorAll('.export-cat-cb:checked')).map(cb => cb.value);
         const selectedCols = Array.from(modal.querySelectorAll('.export-col-cb:checked')).map(cb => cb.value);
-        const includeDetails = modal.querySelector('#exportIncludeDetails')?.checked ?? true;
-        const forcePageBreak = modal.querySelector('#exportForcePageBreak')?.checked ?? false;
+        const includeDetails = (modal.querySelector('#sec_enable_transactions_list')?.checked ?? modal.querySelector('#exportIncludeDetails')?.checked) ?? true;
+        const includePieChart = (modal.querySelector('#sec_enable_pie_chart')?.checked ?? modal.querySelector('#exportIncludePieChart')?.checked) ?? true;
+        const includeBarChart = (modal.querySelector('#sec_enable_bar_chart')?.checked ?? modal.querySelector('#exportIncludeBarChart')?.checked) ?? true;
+        const includeSignature = (modal.querySelector('#sec_enable_signature')?.checked ?? modal.querySelector('#exportIncludeSignature')?.checked) ?? false;
         const titleFontSize = modal.querySelector('#exportTitleFontSize')?.value || 'medium';
         const tableFontSize = modal.querySelector('#exportTableFontSize')?.value || 'medium';
 
@@ -1069,7 +1285,9 @@ window.AnalyticsView = {
         localStorage.setItem('print_settings_cats', JSON.stringify(selectedCats));
         localStorage.setItem('print_settings_cols', JSON.stringify(selectedCols));
         localStorage.setItem('print_settings_include_details', includeDetails);
-        localStorage.setItem('print_settings_force_page_break', forcePageBreak);
+        localStorage.setItem('print_settings_include_pie_chart', includePieChart);
+        localStorage.setItem('print_settings_include_bar_chart', includeBarChart);
+        localStorage.setItem('print_settings_include_signature', includeSignature);
         localStorage.setItem('print_settings_title_font_size', titleFontSize);
         localStorage.setItem('print_settings_table_font_size', tableFontSize);
 
@@ -1078,6 +1296,10 @@ window.AnalyticsView = {
         const headerLogoB64 = localStorage.getItem('print_header_logo') || null;
         const logoLeft = modal.querySelector('#exportLogoLeft')?.checked ?? true;
         const logoRight = modal.querySelector('#exportLogoRight')?.checked ?? true;
+
+        // Desactiver le bouton pour éviter les double-clics
+        const printBtn = modal.querySelector('.modal-actions .btn-primary');
+        if (printBtn) { printBtn.disabled = true; printBtn.textContent = '⏳...'; }
 
         // Gather account filter from modal
         const exportAccIds = this._exportAccountIds;
@@ -1088,21 +1310,30 @@ window.AnalyticsView = {
         let budgetsMap = {};
         let categoryToBudgetMap = {};
 
-        // Bug #4 : Re-fetch les données avec les paramètres exacts
         try {
-            if (useCustomRange) {
-                let printUrl = `/api/stats/categories_by_month?reconciled=${this.reconciled}&date_start=${customStart}&date_end=${customEnd}`;
-                if (exportAccIds) printUrl += `&account_ids=${exportAccIds.join(',')}`;
-                printData = await API.get(printUrl);
-            } else {
-                let printUrl = `/api/stats/categories_by_month?reconciled=${this.reconciled}&year=${selectedYear}`;
-                if (exportAccIds) printUrl += `&account_ids=${exportAccIds.join(',')}`;
-                printData = await API.get(printUrl);
+            let printUrl = useCustomRange
+                ? `/api/stats/categories_by_month?reconciled=${this.reconciled}&date_start=${customStart}&date_end=${customEnd}`
+                : `/api/stats/categories_by_month?reconciled=${this.reconciled}&year=${selectedYear}`;
+            if (exportAccIds) printUrl += `&account_ids=${exportAccIds.join(',')}`;
+
+            const promises = [
+                API.get(printUrl),
+                API.get('/api/accounts/'),
+                API.get('/api/budgets/')
+            ];
+            if (includeDetails) {
+                promises.push(API.get('/api/transactions/?limit=10000'));
             }
-            allTx = await API.get('/api/transactions/?limit=10000');
-            const accs = await API.get('/api/accounts/');
+
+            const results = await Promise.all(promises);
+            printData = results[0];
+            const accs = results[1] || [];
+            const budgets = results[2] || [];
+            if (includeDetails) {
+                allTx = results[3] || [];
+            }
+
             accs.forEach(a => { accountsMap[a.id] = a.name; });
-            const budgets = await API.get('/api/budgets/');
             budgets.forEach(b => {
                 budgetsMap[b.id] = b.name;
                 if (!b.is_project && b.categories) {
@@ -1111,6 +1342,8 @@ window.AnalyticsView = {
             });
         } catch (e) {
             console.error("Error fetching print data", e);
+        } finally {
+            if (printBtn) { printBtn.disabled = false; printBtn.textContent = window.i18n.t('export_modal_print'); }
         }
 
         // Create an offline container
@@ -1135,9 +1368,11 @@ window.AnalyticsView = {
             // Filtrer avant de générer pour éviter de générer un saut de page sur un tableau masqué (résout le bug de page vide à la fin)
             const typeEntries = Object.entries(by_type).filter(([txType]) => selectedTypes.includes(txType));
             typeEntries.forEach(([txType, typeData], idx) => {
+                const isFirst = idx === 0;
                 const isLast = idx === typeEntries.length - 1;
-                const breakClass = (!isLast && forcePageBreak) ? 'print-page-break-forced' : 'print-page-break-auto';
-                const extraSpacing = (!isLast && !forcePageBreak) ? '<br><br>' : '';
+                const hasTypeBreakBefore = modal.querySelector(`.export-type-pagebreak-cb[data-type="${txType}"]`)?.checked ?? false;
+                const breakClass = (hasTypeBreakBefore && !isFirst) ? 'print-page-break-before-forced' : 'print-page-break-auto';
+                const extraSpacing = (!hasTypeBreakBefore && !isLast) ? '<br><br>' : '';
                 sections.push(`<div class="${breakClass}">` + this.renderTypeTable(txType, typeData, months, revYears) + '</div>' + extraSpacing);
             });
         }
@@ -1316,14 +1551,127 @@ window.AnalyticsView = {
                 #printContainer [data-type] > div > span { 
                     font-size: calc(var(--print-table-size) + 3px) !important; 
                 }
+                /* Saut de page forcé */
+                .print-page-break-forced {
+                    page-break-after: always !important;
+                    break-after: page !important;
+                    display: block !important;
+                }
+                .print-page-break-auto {
+                    page-break-after: auto !important;
+                    break-after: auto !important;
+                }
             </style>
         `;
 
-        const titleHtml = `<h2 style="margin-bottom: 20px;">${window.i18n.t('analytics_title')}</h2>`;
-        printContainer.innerHTML = styleBlock + orgHeaderBlockHtml + balancesHtml + sections.join('') + txHtml;
-        // Titre uniquement si pas d'en-tête org
-        if (!orgHeaderBlockHtml) {
-            printContainer.insertAdjacentHTML('afterbegin', titleHtml);
+        // Calcul des KPIs
+        let printTotalIncome = 0;
+        let printTotalExpense = 0;
+        if (by_type) {
+            if (by_type.income) {
+                printTotalIncome = by_type.income.grand_total || 0;
+            }
+            ['expense_fixed', 'expense_var'].forEach(tKey => {
+                if (by_type[tKey]) {
+                    printTotalExpense += by_type[tKey].grand_total || 0;
+                }
+            });
+        }
+        const printNetResult = printTotalIncome - printTotalExpense;
+        const kpiCardsHtml = `
+        <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; page-break-inside:avoid;">
+            <div style="flex:1; min-width:140px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:10px 14px;">
+                <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#10b981;">${window.i18n.t('type_income') || 'Recettes'}</div>
+                <div style="font-size:16px; font-weight:800; color:#10b981; margin-top:2px;">${formatCurrency(printTotalIncome)}</div>
+            </div>
+            <div style="flex:1; min-width:140px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:10px 14px;">
+                <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#ef4444;">${window.i18n.t('type_expense_fixed') || 'Dépenses'}</div>
+                <div style="font-size:16px; font-weight:800; color:#ef4444; margin-top:2px;">${formatCurrency(printTotalExpense)}</div>
+            </div>
+            <div style="flex:1; min-width:140px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:8px; padding:10px 14px;">
+                <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:var(--accent);">${window.i18n.t('stat_net_worth') || 'Résultat Net'}</div>
+                <div style="font-size:16px; font-weight:800; color:${printNetResult >= 0 ? '#10b981' : '#ef4444'}; margin-top:2px;">${formatCurrency(printNetResult)}</div>
+            </div>
+        </div>`;
+
+        // Graphiques SVG visuels
+        let chartsHtml = '';
+        let pieSvg = '';
+        let barSvg = '';
+
+        if (includePieChart) {
+            const pieCatList = [];
+            ['expense_fixed', 'expense_var'].forEach(tKey => {
+                if (by_type && by_type[tKey] && by_type[tKey].totals_per_cat) {
+                    Object.entries(by_type[tKey].totals_per_cat).forEach(([cName, cTotal]) => {
+                        if (cTotal && cTotal > 0 && selectedCats.includes(cName)) {
+                            pieCatList.push({ name: cName, amount: cTotal });
+                        }
+                    });
+                }
+            });
+            pieCatList.sort((a, b) => b.amount - a.amount);
+            pieSvg = this._generatePieChartSVG(pieCatList);
+        }
+
+        if (includeBarChart) {
+            const incomeByMonth = {};
+            const expenseByMonth = {};
+            (months || []).forEach(m => {
+                incomeByMonth[m] = (by_type?.income?.totals_per_month?.[m]) || 0;
+                expenseByMonth[m] = ((by_type?.expense_fixed?.totals_per_month?.[m]) || 0) + ((by_type?.expense_var?.totals_per_month?.[m]) || 0);
+            });
+            barSvg = this._generateBarChartSVG(months || [], incomeByMonth, expenseByMonth);
+        }
+
+        if (pieSvg || barSvg) {
+            chartsHtml = `<div style="margin-bottom:20px; page-break-inside:avoid;">${pieSvg}${barSvg}</div>`;
+        }
+
+        // Bloc de signature
+        let signatureHtml = '';
+        if (includeSignature) {
+            signatureHtml = this._generateSignatureBlockHTML();
+        }
+
+        // Assemblage dynamique selon l'ordre des cartes défini par l'utilisateur
+        const sectionCards = Array.from(modal.querySelectorAll('.export-section-card'));
+        const orderedSectionIds = sectionCards.map(card => card.getAttribute('data-section-id'));
+
+        const isSecChecked = (secId) => {
+            return modal.querySelector(`#sec_enable_${secId}`)?.checked ?? false;
+        };
+
+        const orderedBlocks = [];
+        let pendingPageBreak = false;
+
+        orderedSectionIds.forEach(secId => {
+            if (secId.startsWith('page_break_')) {
+                pendingPageBreak = true;
+                return;
+            }
+            if (!isSecChecked(secId)) return;
+            let blockContent = '';
+
+            if (secId === 'header' && isOrgMode && orgHeaderBlockHtml) blockContent = orgHeaderBlockHtml;
+            else if (secId === 'kpi' && kpiCardsHtml) blockContent = kpiCardsHtml;
+            else if (secId === 'pie_chart' && pieSvg) blockContent = `<div style="margin-bottom:20px;">${pieSvg}</div>`;
+            else if (secId === 'bar_chart' && barSvg) blockContent = `<div style="margin-bottom:20px;">${barSvg}</div>`;
+            else if (secId === 'balances' && balancesHtml) blockContent = balancesHtml;
+            else if (secId === 'type_tables' && sections.length > 0) blockContent = sections.join('');
+            else if (secId === 'transactions_list' && txHtml) blockContent = txHtml;
+            else if (secId === 'signature' && signatureHtml) blockContent = signatureHtml;
+
+            if (blockContent) {
+                const breakClass = pendingPageBreak ? 'print-page-break-before-forced' : 'print-page-break-auto';
+                orderedBlocks.push(`<div class="${breakClass}">${blockContent}</div>`);
+                pendingPageBreak = false;
+            }
+        });
+
+        printContainer.innerHTML = styleBlock + orderedBlocks.join('');
+        if (!isSecChecked('header') || !orgHeaderBlockHtml) {
+            printContainer.insertAdjacentHTML('afterbegin', `<h2 style="margin-bottom: 20px;">${window.i18n.t('analytics_title')}</h2>`);
         }
 
         // Handle Types
@@ -1487,5 +1835,158 @@ window.AnalyticsView = {
 
         localStorage.setItem('analytics_years_totals', JSON.stringify(this.selectedYears));
         this.renderAll();
+    },
+
+    _generatePieChartSVG(catsData) {
+        if (!catsData || catsData.length === 0) return '';
+        const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#3b82f6', '#84cc16', '#64748b'];
+        const total = catsData.reduce((sum, c) => sum + (c.amount || 0), 0);
+        if (total <= 0) return '';
+
+        let cumulativeAngle = 0;
+        const slices = [];
+        const legendItems = [];
+
+        catsData.forEach((c, idx) => {
+            const color = colors[idx % colors.length];
+            const pct = (c.amount / total) * 100;
+            const angle = (c.amount / total) * 2 * Math.PI;
+            
+            const startAngle = cumulativeAngle;
+            const endAngle = cumulativeAngle + angle;
+            cumulativeAngle += angle;
+
+            const cx = 100, cy = 100, rOuter = 80, rInner = 45;
+            const x1 = cx + rOuter * Math.cos(startAngle);
+            const y1 = cy + rOuter * Math.sin(startAngle);
+            const x2 = cx + rOuter * Math.cos(endAngle);
+            const y2 = cy + rOuter * Math.sin(endAngle);
+
+            const x3 = cx + rInner * Math.cos(endAngle);
+            const y3 = cy + rInner * Math.sin(endAngle);
+            const x4 = cx + rInner * Math.cos(startAngle);
+            const y4 = cy + rInner * Math.sin(startAngle);
+
+            const largeArcFlag = angle > Math.PI ? 1 : 0;
+
+            const pathData = [
+                `M ${x1} ${y1}`,
+                `A ${rOuter} ${rOuter} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+                `L ${x3} ${y3}`,
+                `A ${rInner} ${rInner} 0 ${largeArcFlag} 0 ${x4} ${y4}`,
+                `Z`
+            ].join(' ');
+
+            slices.push(`<path d="${pathData}" fill="${color}" stroke="#fff" stroke-width="1.5" />`);
+            legendItems.push(`
+                <div style="display:flex; align-items:center; justify-content:space-between; font-size:11px; margin-bottom:4px; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                        <span style="display:inline-block; width:10px; height:10px; border-radius:3px; background:${color}; flex-shrink:0;"></span>
+                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;">${c.name}</span>
+                    </div>
+                    <span style="font-weight:600; white-space:nowrap;">${formatCurrency(c.amount)} (${pct.toFixed(1)}%)</span>
+                </div>
+            `);
+        });
+
+        return `
+        <div style="display:flex; align-items:center; gap:20px; background:var(--bg-surface); padding:16px; border-radius:10px; border:1px solid var(--border-color); margin-bottom:16px; page-break-inside:avoid;">
+            <svg width="200" height="200" viewBox="0 0 200 200" style="flex-shrink:0;">
+                ${slices.join('')}
+            </svg>
+            <div style="flex:1; min-width:0; max-height:190px; overflow-y:auto;">
+                <div style="font-size:12px; font-weight:700; text-transform:uppercase; margin-bottom:8px; color:var(--text-muted); border-bottom:1px solid var(--border-color); padding-bottom:4px;">
+                    ${window.i18n.t('print_chart_expenses_breakdown') || 'Répartition des Dépenses'}
+                </div>
+                ${legendItems.join('')}
+            </div>
+        </div>`;
+    },
+
+    _generateBarChartSVG(months, incomeByMonth, expenseByMonth) {
+        if (!months || months.length === 0) return '';
+        const maxVal = Math.max(...months.map(m => Math.max(incomeByMonth[m] || 0, expenseByMonth[m] || 0)), 100);
+        const chartHeight = 120;
+        const chartWidth = 550;
+        const marginX = 40;
+        const marginY = 20;
+        
+        const groupWidth = (chartWidth - marginX * 2) / months.length;
+        const barWidth = Math.max(Math.min(groupWidth * 0.35, 14), 6);
+
+        const bars = [];
+        const monthLabels = [];
+
+        months.forEach((m, idx) => {
+            const inc = incomeByMonth[m] || 0;
+            const exp = expenseByMonth[m] || 0;
+
+            const incH = (inc / maxVal) * chartHeight;
+            const expH = (exp / maxVal) * chartHeight;
+
+            const xCenter = marginX + idx * groupWidth + groupWidth / 2;
+            const incX = xCenter - barWidth - 1;
+            const expX = xCenter + 1;
+
+            const incY = marginY + (chartHeight - incH);
+            const expY = marginY + (chartHeight - expH);
+
+            if (inc > 0) bars.push(`<rect x="${incX}" y="${incY}" width="${barWidth}" height="${incH}" fill="#10b981" rx="2" />`);
+            if (exp > 0) bars.push(`<rect x="${expX}" y="${expY}" width="${barWidth}" height="${expH}" fill="#ef4444" rx="2" />`);
+
+            const mParts = m.split('-');
+            const monthNum = parseInt(mParts[1]);
+            const mNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+            const mLabel = mNames[monthNum - 1] || mParts[1];
+
+            monthLabels.push(`<text x="${xCenter}" y="${marginY + chartHeight + 15}" font-size="10" fill="#64748b" text-anchor="middle">${mLabel}</text>`);
+        });
+
+        return `
+        <div style="background:var(--bg-surface); padding:16px; border-radius:10px; border:1px solid var(--border-color); margin-bottom:16px; page-break-inside:avoid;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid var(--border-color); padding-bottom:4px;">
+                <span style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted);">
+                    ${window.i18n.t('print_chart_monthly_compare') || 'Comparatif Mensuel Recettes vs Dépenses'}
+                </span>
+                <div style="display:flex; gap:12px; font-size:11px; font-weight:600;">
+                    <span style="color:#10b981;">■ ${window.i18n.t('type_income') || 'Recettes'}</span>
+                    <span style="color:#ef4444;">■ ${window.i18n.t('type_expense_fixed') || 'Dépenses'}</span>
+                </div>
+            </div>
+            <svg width="100%" height="160" viewBox="0 0 580 160" style="overflow:visible;">
+                ${bars.join('')}
+                ${monthLabels.join('')}
+            </svg>
+        </div>`;
+    },
+
+    _generateSignatureBlockHTML() {
+        const isOrgMode = window.app && window.app.config && (window.app.config.enable_org_mode === 'true' || window.app.config.enable_org_mode === true);
+        if (!isOrgMode) return '';
+
+        const userName = window.app?.currentUser || 'Trésorier';
+        const now = new Date();
+        const pad = n => n < 10 ? '0'+n : n;
+        const dateStr = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()} à ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+        return `
+        <div style="margin-top:24px; padding:16px; border:1px dashed var(--border-color); border-radius:10px; background:var(--bg-surface); page-break-inside:avoid;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:20px;">
+                <div style="flex:1;">
+                    <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">
+                        ${window.i18n.t('print_signature_audit_title') || 'Validation & Certificats de Trésorerie'}
+                    </div>
+                    <div style="font-size:11px; color:var(--text-muted); line-height:1.4;">
+                        ${window.i18n.t('print_signature_audit_desc') || 'Document certifié exact et conforme aux écritures comptables enregistrées dans OmniBank Local.'}
+                    </div>
+                    <div style="font-size:11px; font-weight:600; margin-top:8px; color:var(--text-main);">
+                        Émis par : <span>${userName}</span> — le <span>${dateStr}</span>
+                    </div>
+                </div>
+                <div style="width:200px; height:80px; border:1px solid var(--border-color); border-radius:8px; padding:8px; background:#fff; display:flex; flex-direction:column; justify-content:space-between;">
+                    <span style="font-size:10px; color:#64748b; font-weight:600; text-transform:uppercase;">Signature / Cachet</span>
+                </div>
+            </div>
+        </div>`;
     }
 };
