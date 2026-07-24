@@ -604,6 +604,24 @@ Response format (JSON object with key "envelopes"):
             "top_descs": cat_data[c].get("top_descs", []),
         })
 
+    is_fallback = False
+    if not proposals and cat_data:
+        is_fallback = True
+        logger.warning("[AI Budget] Le LLM n'a renvoyé aucune enveloppe valide. Création automatique des propositions de secours...")
+        # Regrouper par type de dépense (Dépenses fixes, variables, exceptionnelles)
+        fixed_cats = [c for c in cat_data if cat_data[c]["is_fixed"] or cat_data[c]["type"] == "expense_fixed"]
+        var_cats = [c for c in cat_data if c not in fixed_cats]
+
+        if fixed_cats:
+            used_in_proposals.update(fixed_cats)
+            proposals.append(_build_proposal("Charges Fixes", fixed_cats, "Charges fixes contractuelles regroupées automatiquement."))
+        if var_cats:
+            used_in_proposals.update(var_cats)
+            proposals.append(_build_proposal("Vie Courante & Varia", var_cats, "Dépenses courantes regroupées automatiquement."))
+
+        orphan_cats = [c for c in cat_data.keys() if c not in used_in_proposals]
+        unclassified_categories = []
+
     if not proposals:
         err_detail = "L'IA n'a pas pu générer de propositions d'enveloppes valides. Vérifiez le modèle Ollama configuré."
         AI_TASK_STATUS["state"] = "ERROR"
@@ -642,6 +660,7 @@ Response format (JSON object with key "envelopes"):
         "already_engaged_monthly": round(already_engaged_monthly, 2),
         "available_monthly_budget": round(available_monthly_budget, 2),
         "is_capped": is_capped,
+        "is_fallback": is_fallback,
         "window_months": effective_window,
         "requested_window_months": window_months,
         "effective_window_months": effective_window,
@@ -710,10 +729,20 @@ Response format (JSON object with key "envelopes"):
   ]
 }}"""
 
+    raw = ""
     try:
         raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 1500, "format": "json"})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur d'affinage IA : {str(e)}")
+        logger.warning(f"[AI Refine] Essai 1 Ollama json échoué: {e}")
+
+    if not raw or not raw.strip():
+        try:
+            raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 1500})
+        except Exception as e:
+            logger.warning(f"[AI Refine] Essai 2 Ollama échoué: {e}")
+
+    if not raw or not raw.strip():
+        return {"proposals": existing_proposals, "unclassified_categories": unclassified_categories}
 
     cleaned_raw = re.sub(r'```(?:json)?', '', raw).strip()
     parsed_objs = extract_json_envelopes(cleaned_raw)
