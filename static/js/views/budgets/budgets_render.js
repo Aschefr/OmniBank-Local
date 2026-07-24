@@ -78,7 +78,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
             <!-- Modal Assistant / Wizard de configuration des enveloppes IA -->
             <div id="aiBudgetWizardModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(8px);z-index:99999;align-items:center;justify-content:center;padding:20px;">
-                <div style="background:var(--bg-surface);border:1px solid var(--accent);border-radius:18px;max-width:680px;width:100%;padding:28px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:20px;position:relative;max-height:90vh;overflow-y:auto;">
+                <div style="background:var(--bg-surface);border:1px solid var(--accent);border-radius:18px;max-width:880px;width:100%;padding:28px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:20px;position:relative;max-height:90vh;overflow-y:auto;">
                     
                     <!-- Header Wizard -->
                     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);padding-bottom:14px;">
@@ -274,9 +274,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </div>
                     <div id="budgetAiProposals" style="display:flex;flex-direction:column;gap:6px;"></div>
 
-                    <div id="aiStickyBar" style="display:none;position:sticky;bottom:0;z-index:10;background:var(--bg-surface);border-top:1px solid var(--border-color);border-radius:0 0 10px 10px;padding:10px 14px;margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 -4px 12px rgba(0,0,0,0.15);">
-                        <span id="aiStickyCount" style="font-size:12px;color:var(--text-muted);font-weight:600;"></span>
-                        <button class="btn btn-primary" style="padding:7px 20px;font-size:13px;font-weight:700;" onclick="window.BudgetsView.acceptSelectedProposals()" data-i18n="ai_budget_accept_selected">
+                    <div id="aiStickyBar" style="display:none;position:sticky;bottom:12px;z-index:10;background:var(--bg-surface);border:1px solid var(--accent);border-radius:12px;padding:12px 18px;margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.35), 0 0 12px rgba(59,130,246,0.2);backdrop-filter:blur(10px);">
+                        <span id="aiStickyCount" style="font-size:13px;color:var(--text-main);font-weight:700;"></span>
+                        <button id="budgetAiAcceptSelectedBtn" class="btn btn-primary" style="padding:8px 22px;font-size:13px;font-weight:700;box-shadow:0 4px 12px rgba(59,130,246,0.3);" onclick="window.BudgetsView.acceptSelectedProposals()" data-i18n="ai_budget_accept_selected">
                             ✨ ${window.i18n.t('ai_budget_accept_selected') || 'Créer les enveloppes sélectionnées'}
                         </button>
                     </div>
