@@ -114,14 +114,17 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             if (e.name === 'AbortError') {
                 return;
             }
-            const msg = e.message || '';
+            let msg = e.message || '';
             if (panel && (!this.aiProposals || !this.aiProposals.length)) {
                 panel.style.display = 'none';
             }
+            if (msg.includes('Internal Server Error') || !msg.trim() || msg.startsWith('<')) {
+                msg = (window.i18n && window.i18n.t) ? window.i18n.t('budget_ai_error') : "Impossible de contacter Ollama. Vérifiez l'adresse et le port dans les paramètres.";
+            }
             if (msg.includes('non activ') || msg.includes('400')) {
-                showInlineMessage(window.i18n.t('title_info'), msg || window.i18n.t('budget_ai_not_enabled'));
+                showInlineMessage(window.i18n.t('title_info'), msg);
             } else {
-                showInlineMessage(window.i18n.t('title_error'), msg || window.i18n.t('budget_ai_error'));
+                showInlineMessage(window.i18n.t('title_error'), msg);
             }
         } finally {
             this.resetAiBtnAndOverlay();
@@ -888,6 +891,26 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             if (badge1) badge1.style.display = 'none';
             if (badge2) badge2.style.display = 'none';
         }
+
+        const renderScaleTicks = (containerId) => {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const step = maxScale <= 2500 ? 500 : 1000;
+            let html = '';
+            for (let val = 0; val <= maxScale; val += step) {
+                const pos = (val / maxScale) * 100;
+                const label = val === 0 ? '0 €' : `${val} €`;
+                const alignStyle = pos === 0 ? 'left:0;' : (pos >= 98 ? 'right:0;' : `left:${pos}%;transform:translateX(-50%);`);
+                html += `<div style="position:absolute;${alignStyle}display:flex;flex-direction:column;align-items:center;">
+                    <div style="width:1px;height:4px;background:var(--text-muted);opacity:0.4;"></div>
+                    <span style="font-size:9px;color:var(--text-muted);opacity:0.75;margin-top:1px;font-weight:600;font-family:sans-serif;">${label}</span>
+                </div>`;
+            }
+            container.innerHTML = html;
+        };
+
+        renderScaleTicks('aiSimScaleTicks1');
+        renderScaleTicks('aiSimScaleTicks2');
 
         const alertBanner = document.getElementById('aiSimHistoricalComparisonAlert');
         if (alertBanner) {
