@@ -1588,5 +1588,8 @@
     "export_add_page_break": "Ajouter un saut de page",
     "export_sec_page_break_card": "Saut de page de document",
     "export_type_pagebreak": "Saut de page avant",
-    "export_type_pagebreak_tooltip": "Insérer un saut de page avant ce tableau"
+    "export_type_pagebreak_tooltip": "Insérer un saut de page avant ce tableau",
+    "export_select_year": "Année :",
+    "export_date_start": "Du :",
+    "export_date_end": "Au :"
 }
