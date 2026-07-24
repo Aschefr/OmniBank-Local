@@ -57,9 +57,45 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         </label>
                     </div>
 
+                    <!-- Switch Toggle Wizard -->
+                    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-base);padding:12px 16px;border-radius:10px;border:1px solid var(--border-color);margin-top:4px;">
+                        <div style="display:flex;flex-direction:column;gap:2px;padding-right:12px;">
+                            <strong style="font-size:13px;color:var(--text-main);" data-i18n="ai_wizard_toggle_label">${window.i18n.t('ai_wizard_toggle_label') || '🪄 Lancer le wizard de configuration'}</strong>
+                            <span style="font-size:11px;color:var(--text-muted);" data-i18n="ai_wizard_toggle_desc">${window.i18n.t('ai_wizard_toggle_desc') || 'Guide pas à pas pour affiner et passer en revue vos enveloppes'}</span>
+                        </div>
+                        <label class="switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
+                            <input type="checkbox" id="aiWizardToggleCheck" ${localStorage.getItem('budget_ai_wizard_enabled') !== 'false' ? 'checked' : ''} onchange="localStorage.setItem('budget_ai_wizard_enabled', this.checked)">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
                     <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:10px;border-top:1px solid var(--border-color);">
                         <button class="btn btn-secondary" onclick="window.BudgetsView.closeAiWindowModal()">${window.i18n.t('budget_bulk_delete_cancel') || 'Annuler'}</button>
                         <button class="btn btn-primary" onclick="window.BudgetsView.confirmAiWindowSelection()" style="background:var(--accent);font-weight:700;padding:8px 18px;" data-i18n="ai_modal_btn_start">${window.i18n.t('ai_modal_btn_start') || '🚀 Lancer l\'analyse IA'}</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Assistant / Wizard de configuration des enveloppes IA -->
+            <div id="aiBudgetWizardModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(8px);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+                <div style="background:var(--bg-surface);border:1px solid var(--accent);border-radius:18px;max-width:680px;width:100%;padding:28px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:20px;position:relative;max-height:90vh;overflow-y:auto;">
+                    
+                    <!-- Header Wizard -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);padding-bottom:14px;">
+                        <h3 id="aiWizardTitle" style="margin:0;font-size:18px;color:var(--text-main);display:flex;align-items:center;gap:10px;">
+                            <span data-i18n="ai_wizard_step1_title">${window.i18n.t('ai_wizard_step1_title')}</span>
+                        </h3>
+                        <button class="btn btn-secondary" onclick="window.BudgetsView.skipWizard()" style="padding:4px 10px;font-size:12px;" data-i18n="ai_wizard_skip">${window.i18n.t('ai_wizard_skip') || 'Ignorer l\'assistant'}</button>
+                    </div>
+
+                    <!-- Content Container Dynamic per step -->
+                    <div id="aiWizardContent" style="display:flex;flex-direction:column;gap:16px;">
+                        <!-- Dynamically filled by JS -->
+                    </div>
+
+                    <!-- Footer Controls -->
+                    <div id="aiWizardFooter" style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid var(--border-color);">
+                        <!-- Dynamically filled by JS -->
                     </div>
                 </div>
             </div>
@@ -116,6 +152,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </div>
 
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:var(--accent);border-color:var(--accent);background:rgba(32,101,209,0.08);" onclick="window.BudgetsView.startAiWizard()" data-i18n="ai_budget_btn_open_wizard">${window.i18n.t('ai_budget_btn_open_wizard') || '🪄 Assistant Wizard'}</button>
+                        <div style="height:16px;width:1px;background:var(--border-color);margin:0 2px;"></div>
                         <span style="font-size:11px;color:var(--text-muted);font-weight:600;" data-i18n="ai_budget_select_label">${window.i18n.t('ai_budget_select_label') || 'Sélection :'}</span>
                         <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.toggleAllAiProposals(true)" data-i18n="ai_budget_select_all">${window.i18n.t('ai_budget_select_all') || 'Tout cocher'}</button>
                         <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.toggleAllAiProposals(false)" data-i18n="ai_budget_deselect_all">${window.i18n.t('ai_budget_deselect_all') || 'Tout décocher'}</button>
@@ -124,11 +162,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </div>
                 </div>
 
-                <!-- Impact Simulator Box (2 Distinct Separate Progress Bars) -->
-                <div id="aiImpactSimulator" style="background:var(--bg-base);border:1px solid var(--border-color);border-radius:10px;padding:14px 16px;margin-bottom:14px;display:flex;flex-direction:column;gap:14px;">
-                    
-                    <!-- Header: Title + Salary input + Selected count -->
-                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <!-- Simulator Container with 3 Cards & Unified Gauge Specs -->
+                <div id="aiBudgetSimulator" style="display:none;background:var(--bg-base);border:1px solid var(--border-color);border-radius:10px;padding:16px;margin-bottom:16px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
                         <strong style="color:var(--accent);font-size:14px;display:flex;align-items:center;gap:6px;">
                             <span>⚡</span> <span data-i18n="ai_budget_sim_monthly_title">${window.i18n.t('ai_budget_sim_monthly_title') || 'Impact mensuel prévisionnel'}</span>
                         </strong>
@@ -142,68 +178,65 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         </div>
                     </div>
 
-                    <!-- BARRE 1 : Utilisation de la Paie -->
-                    <div style="display:flex;flex-direction:column;gap:6px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;flex-wrap:wrap;gap:6px;">
-                            <div style="display:flex;align-items:center;gap:6px;">
-                                <span style="font-weight:600;color:var(--text-main);" data-i18n="ai_sim_lbl_pay_usage_title">${window.i18n.t('ai_sim_lbl_pay_usage_title') || 'Utilisation des revenus repère :'}</span>
-                                <span title="${window.i18n.t('ai_sim_tt_pay_usage_help') || 'Compare vos enveloppes mensuelles existantes et proposées à vos revenus de référence.'}" style="cursor:help;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
-                            </div>
-                            <span id="aiSimPercentBadge" style="font-size:12px;font-weight:700;color:var(--accent);">0 € (0% du salaire)</span>
+                    <!-- Légende visuelle -->
+                    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;padding:6px 12px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:8px;font-size:11px;color:var(--text-muted);flex-wrap:wrap;">
+                        <span style="font-weight:700;color:var(--text-main);" data-i18n="ai_sim_legend_title">${window.i18n.t('ai_sim_legend_title') || 'Légende :'}</span>
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            <span style="display:inline-block;width:12px;height:8px;background:linear-gradient(90deg, #3b82f6, #6366f1);border-radius:2px;"></span>
+                            <span data-i18n="ai_sim_legend_envelopes">${window.i18n.t('ai_sim_legend_envelopes') || 'Montant des enveloppes'}</span>
                         </div>
-
-                        <div style="position:relative;width:100%;height:10px;background:var(--border-color);border-radius:5px;overflow:visible;margin:22px 0 4px 0;">
-                            <div id="aiSimSalaryMarkerBadge1" style="display:none;position:absolute;top:-20px;z-index:4;transform:translateX(-50%);background:#c084fc;color:#ffffff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.25);" title="Salaire Repère">
-                                💼 <span id="aiSimSalaryMarkerVal1">0 €</span>
-                            </div>
-                            <div style="width:100%;height:100%;border-radius:5px;overflow:hidden;position:relative;">
-                                <div id="aiSimProgressBarCurrent" style="height:100%;background:var(--accent);width:0%;position:absolute;top:0;left:0;transition:width 0.3s ease;" title="Budget déjà engagé"></div>
-                                <div id="aiSimProgressBarImpact" style="height:100%;background:#3b82f6;width:0%;position:absolute;top:0;left:0;opacity:0.85;transition:all 0.3s ease;" title="Impact des propositions cochées"></div>
-                            </div>
-                            <div id="aiSimSalaryMarker1" style="display:none;position:absolute;top:0;bottom:0;width:2px;background:#c084fc;z-index:2;box-shadow:0 0 4px #c084fc;" title="Limite Salaire Repère"></div>
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            <span style="display:inline-block;width:3px;height:10px;background:#c084fc;border-radius:1px;"></span>
+                            <span style="color:#c084fc;font-weight:600;" data-i18n="ai_sim_legend_salary">${window.i18n.t('ai_sim_legend_salary') || 'Revenus / Salaire repère'}</span>
                         </div>
-                        <div id="aiSimScaleTicks1" style="position:relative;width:100%;height:16px;margin-bottom:4px;"></div>
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            <span style="display:inline-block;width:3px;height:10px;background:#eab308;border-radius:1px;"></span>
+                            <span style="color:#eab308;font-weight:600;" data-i18n="ai_sim_legend_estimated">${window.i18n.t('ai_sim_legend_estimated') || 'Dépenses estimées (historique)'}</span>
+                        </div>
                     </div>
 
-                    <!-- BARRE 2 : Couverture des Dépenses Réelles -->
-                    <div style="display:flex;flex-direction:column;gap:6px;border-top:1px dashed var(--border-color);padding-top:10px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;flex-wrap:wrap;gap:6px;">
-                            <div style="display:flex;align-items:center;gap:6px;">
-                                <span id="aiSimRealPaceLabel" style="font-weight:600;color:var(--text-main);" data-i18n="ai_sim_lbl_real_pace_title">${window.i18n.t('ai_sim_lbl_real_pace_title') || 'Couverture des dépenses réelles :'}</span>
-                                <span title="${window.i18n.t('ai_sim_tt_real_pace_help') || 'Vérifie si les enveloppes proposées couvrent le rythme moyen de vos dépenses passées.'}" style="cursor:help;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
-                            </div>
-                            <span id="aiSimGapVal" style="font-size:12px;font-weight:700;">0 €</span>
+                    <!-- CARD 1 : Montant total des enveloppes mensuelles + annuelles lissées -->
+                    <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:14px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                            <span style="font-weight:700;font-size:13px;color:var(--text-main);" data-i18n="ai_sim_card1_title">${window.i18n.t('ai_sim_card1_title') || 'Montant total des enveloppes mensuelles + annuelles lissées'}</span>
+                            <span id="aiSimCard1Badge" style="font-size:12px;font-weight:700;color:var(--accent);">0 €/m</span>
                         </div>
-
-                        <div style="position:relative;width:100%;height:10px;background:var(--border-color);border-radius:5px;overflow:visible;margin:22px 0 4px 0;">
-                            <div id="aiSimSalaryMarkerBadge2" style="display:none;position:absolute;top:-20px;z-index:4;transform:translateX(-50%);background:#c084fc;color:#ffffff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.25);" title="Salaire Repère">
-                                💼 <span id="aiSimSalaryMarkerVal2">0 €</span>
-                            </div>
-                            <div style="width:100%;height:100%;border-radius:5px;overflow:hidden;position:relative;">
-                                <div id="aiSimProgressBarRealCovered" style="height:100%;background:#36b37e;width:0%;position:absolute;top:0;left:0;transition:width 0.3s ease;" title="Dépenses réelles couvertes par le budget"></div>
-                                <div id="aiSimProgressBarRealUncovered" style="height:100%;background:#ef4444;width:0%;position:absolute;top:0;left:0;opacity:0.9;transition:all 0.3s ease;" title="Dépenses non couvertes (dépassement)"></div>
-                            </div>
-                            <div id="aiSimSalaryMarker2" style="display:none;position:absolute;top:0;bottom:0;width:2px;background:#c084fc;z-index:2;box-shadow:0 0 4px #c084fc;" title="Limite Salaire Repère"></div>
-                        </div>
-                        <div id="aiSimScaleTicks2" style="position:relative;width:100%;height:16px;"></div>
+                        <div id="aiSimGaugeCard1"></div>
                     </div>
 
-                    <!-- CARDE 3 : Ajustement des montants proposée -->
+                    <!-- CARD 2 : Montant total des enveloppes mensuel -->
+                    <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:14px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                            <span style="font-weight:700;font-size:13px;color:#60a5fa;" data-i18n="ai_sim_card2_title">${window.i18n.t('ai_sim_card2_title') || 'Montant total des enveloppes mensuel'}</span>
+                            <span id="aiSimCard2Badge" style="font-size:12px;font-weight:700;color:#60a5fa;">0 €/m</span>
+                        </div>
+                        <div id="aiSimGaugeCard2"></div>
+                    </div>
+
+                    <!-- CARD 3 : Montant total des enveloppes annuel -->
+                    <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:14px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                            <span style="font-weight:700;font-size:13px;color:#c084fc;" data-i18n="ai_sim_card3_title">${window.i18n.t('ai_sim_card3_title') || 'Montant total des enveloppes annuel'}</span>
+                            <span id="aiSimCard3Badge" style="font-size:12px;font-weight:700;color:#c084fc;">0 €/an</span>
+                        </div>
+                        <div id="aiSimGaugeCard3"></div>
+                    </div>
+
+                    <!-- BOUTONS D'AJUSTEMENT RAPIDE DES MONTANTS -->
                     <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                         <div style="display:flex;align-items:center;gap:6px;">
                             <span style="font-size:12px;font-weight:700;color:var(--text-main);" data-i18n="ai_sim_lbl_adjust_proposals_title">${window.i18n.t('ai_sim_lbl_adjust_proposals_title') || '⚡ Modifier le montant des enveloppes pour les :'}</span>
-                            <span title="${window.i18n.t('ai_sim_tt_adjust_help') || 'Permet d\'ajuster en un clic l\'ensemble des propositions d\'enveloppes pour adapter la simulation à vos besoins : rétablir les montants Recommandés par l\'IA, appliquer un ajustement global (-10% / +10%), équilibrer sur votre salaire repère, ou calquer directement les montants sur vos dépenses constatées (du mois en cours ou moyennes historiques).'}" style="cursor:help;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
+                            <span title="${window.i18n.t('ai_sim_tt_adjust_help') || 'Permet d\'ajuster en un clic l\'ensemble des propositions d\'enveloppes'}" style="cursor:help;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
                         </div>
                         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:#c084fc;border-color:rgba(192,132,252,0.4);" onclick="window.BudgetsView.resetAiProposalsToOriginal()" title="${window.i18n.t('ai_sim_tt_recommended') || 'Rétablit les montants initiaux intelligemment suggérés par l\'IA lors de l\'analyse'}" data-i18n="ai_budget_strategy_recommended_clean">🤖 Recommandé par l'IA</button>
-                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.adjustAiProposals(0.90)" title="${window.i18n.t('ai_sim_tt_frugal') || 'Applique une réduction de 10% sur l\'ensemble des propositions d\'enveloppes pour optimiser votre capacité d\'épargne mensuelle.'}" data-i18n="ai_budget_strategy_frugal_clean">✂️ Réduire de 10%</button>
-                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.adjustAiProposals(1.10)" title="${window.i18n.t('ai_sim_tt_prudent') || 'Ajoute 10% de marge de sécurité pour absorber les imprévus (Prudent)'}" data-i18n="ai_budget_strategy_prudent_clean">🛡️ Augmenter de 10%</button>
-                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.alignAiProposalsToIncome()" title="${window.i18n.t('ai_sim_tt_income_aligned') || 'Ajuste les enveloppes pour que le budget total corresponde exactement à votre salaire repère'}" data-i18n="ai_budget_strategy_income_clean">⚖️ Aligner sur les revenus</button>
-                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:#60a5fa;border-color:rgba(96,165,250,0.4);" onclick="window.BudgetsView.alignAiProposalsToCurrentMonth()" title="${window.i18n.t('ai_sim_tt_cur_month') || 'Ajuste chaque enveloppe exactement sur les dépenses constatées ce mois-ci'}" data-i18n="ai_budget_strategy_month_clean">📅 Aligner sur le mois</button>
-                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:#36b37e;border-color:rgba(54,179,126,0.4);" onclick="window.BudgetsView.alignAiProposalsToRealSpending()" title="${window.i18n.t('ai_sim_tt_avg_pace') || 'Ajuste chaque enveloppe sur la moyenne des dépenses constatées sur l\'historique'}" data-i18n="ai_budget_strategy_avg_clean">📊 Aligner sur la moyenne</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.adjustAiProposals(0.90)" data-i18n="ai_budget_strategy_frugal_clean">✂️ Réduire de 10%</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.adjustAiProposals(1.10)" data-i18n="ai_budget_strategy_prudent_clean">🛡️ Augmenter de 10%</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.alignAiProposalsToIncome()" data-i18n="ai_budget_strategy_income_clean">⚖️ Aligner sur les revenus</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:#60a5fa;border-color:rgba(96,165,250,0.4);" onclick="window.BudgetsView.alignAiProposalsToCurrentMonth()" data-i18n="ai_budget_strategy_month_clean">📅 Aligner sur le mois</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:#36b37e;border-color:rgba(54,179,126,0.4);" onclick="window.BudgetsView.alignAiProposalsToRealSpending()" data-i18n="ai_budget_strategy_avg_clean">📊 Aligner sur la moyenne</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:#c084fc;border-color:rgba(192,132,252,0.4);" onclick="window.BudgetsView.resetAiProposalsToOriginal()" data-i18n="ai_budget_strategy_recommended_clean">🤖 Aligner avec suggestions IA</button>
                         </div>
                     </div>
-
                 </div>
 
                 <!-- Historical Comparison Warning Alert -->
