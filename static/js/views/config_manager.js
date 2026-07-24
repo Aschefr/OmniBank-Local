@@ -595,6 +595,8 @@ window.ConfigView = {
                     btn.textContent = originalText;
                     btn.style.backgroundColor = originalBg;
                 }, 2000);
+            } else {
+                showToast(window.i18n.t('btn_saved') || 'Enregistré avec succès !', 'success', 2000);
             }
         } catch (e) {
             console.error(e);

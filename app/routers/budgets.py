@@ -230,7 +230,7 @@ def ai_suggest_budgets(data: Optional[AiSuggestRequest] = None, db: Session = De
         raise
     except Exception as e:
         logger.error(f"[Budgets Router] Erreur ai_suggest: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erreur lors de l'analyse IA : {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Erreur d'analyse IA : {str(e)}")
 
 
 @router.post("/ai_suggest/refine")
@@ -247,4 +247,4 @@ def ai_refine_budgets(data: AiRefineRequest, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"[Budgets Router] Erreur ai_refine: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erreur lors de l'affinage IA : {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Erreur d'affinage IA : {str(e)}")
