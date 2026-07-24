@@ -308,7 +308,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 const data = {
                     proposals: this.aiProposals,
                     unclassified: this.unclassifiedCategories || [],
-                    meta: this.aiSuggestMeta || null
+                    meta: this.aiSuggestMeta || null,
+                    customSalaryOverride: this.customSalaryOverride || null,
+                    customYearlySalaryOverride: this.customYearlySalaryOverride || null,
+                    wizardState: this.wizardState || null
                 };
                 sessionStorage.setItem('omni_ai_proposals_state', JSON.stringify(data));
             }
@@ -324,6 +327,15 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     this.aiSuggestMeta = data.meta;
                     this.unclassifiedCategories = data.unclassified || [];
                     this.aiProposals = data.proposals;
+                    if (data.customSalaryOverride !== undefined && data.customSalaryOverride !== null) {
+                        this.customSalaryOverride = data.customSalaryOverride;
+                    }
+                    if (data.customYearlySalaryOverride !== undefined && data.customYearlySalaryOverride !== null) {
+                        this.customYearlySalaryOverride = data.customYearlySalaryOverride;
+                    }
+                    if (data.wizardState) {
+                        this.wizardState = data.wizardState;
+                    }
                     return true;
                 }
             }
@@ -824,7 +836,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         ${estimatedPct !== null ? `
                             <div style="position:absolute;top:-4px;bottom:-4px;left:${estimatedPct}%;width:3px;background:#eab308;box-shadow:0 0 6px #eab308;z-index:3;" title="Dépenses estimées: ${formatCurrency(estimatedAmount)} ${unit}">
                                 <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:2px;background:#eab308;color:#000000;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
-                                    🟨 Est. ${formatCurrency(estimatedAmount)}
+                                    🟨 Est. lissée ${formatCurrency(estimatedAmount)}
                                 </div>
                             </div>
                         ` : ''}
@@ -1040,6 +1052,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 this.aiSuggestMeta.regular_salary = num;
             }
             this.updateAiImpactSimulation();
+            this.saveAiStateToSession();
         }
     },
 
@@ -1048,6 +1061,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (!isNaN(num) && num >= 0) {
             this.customYearlySalaryOverride = num;
             this.updateAiImpactSimulation();
+            this.saveAiStateToSession();
         }
     },
 
@@ -1111,35 +1125,63 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         this.renderAiProposalsList();
     },
 
+    getCategoryHistMonthlyAmount(c, p) {
+        let val = 0;
+        const isYearly = p && (p.period === 'yearly' || p.suggested_period === 'yearly');
+        if (p && p.cat_details && p.cat_details[c] && p.cat_details[c].amount !== undefined) {
+            val = parseFloat(p.cat_details[c].amount) || 0;
+            if (isYearly) val = val / 12.0; // ramener en mensuel si stocké en annuel
+        } else if (p && p.cat_amounts && p.cat_amounts[c] !== undefined) {
+            val = parseFloat(p.cat_amounts[c]) || 0;
+        } else if (this.aiSuggestMeta && this.aiSuggestMeta.cat_averages && this.aiSuggestMeta.cat_averages[c] !== undefined) {
+            val = Math.abs(this.aiSuggestMeta.cat_averages[c]) || 0;
+        } else if (this.catAverages && this.catAverages[c] !== undefined) {
+            val = Math.abs(this.catAverages[c]) || 0;
+        }
+        return val;
+    },
+
     addCategoryToAiProposal(proposalIndex, categoryName) {
         if (!this.aiProposals || !this.aiProposals[proposalIndex] || !categoryName) return;
         const p = this.aiProposals[proposalIndex];
         if (!p.categories) p.categories = [];
         if (p.categories.includes(categoryName)) return;
 
+        const isYearly = (p.period || p.suggested_period) === 'yearly';
+
+        // Somme des moyennes historiques des catégories qui ÉTAIENT présentes dans l'enveloppe
+        const prevHistSum = p.categories.reduce((sum, c) => sum + this.getCategoryHistMonthlyAmount(c, p), 0);
+        
+        // Ratio d'ajustement actuel de l'IA (S_tot / H_tot)
+        const ratio = prevHistSum > 0 ? (p.suggested_amount / (isYearly ? prevHistSum * 12.0 : prevHistSum)) : 1.0;
+
         p.categories.push(categoryName);
 
-        let addedVal = 0;
-        if (p.cat_amounts && p.cat_amounts[categoryName] !== undefined) {
-            addedVal = p.cat_amounts[categoryName];
-        } else if (p.cat_details && p.cat_details[categoryName] && p.cat_details[categoryName].amount !== undefined) {
-            addedVal = p.cat_details[categoryName].amount;
-        } else if (this.catAverages && this.catAverages[categoryName] !== undefined) {
-            const avg = Math.abs(this.catAverages[categoryName]);
-            addedVal = p.period === 'yearly' ? avg * 12.0 : avg;
-        } else if (p.suggested_amount > 0 && (p.categories.length - 1) > 0) {
-            addedVal = Math.round((p.suggested_amount / (p.categories.length - 1)) * 100) / 100;
+        // Valeur de la catégorie à ajouter
+        const catHistVal = this.getCategoryHistMonthlyAmount(categoryName, p);
+        const catValInPeriod = isYearly ? (catHistVal * 12.0) : catHistVal;
+
+        // Déduction / Ajout au prorata de l'ajustement IA (Option 1)
+        const addedVal = Math.round(catValInPeriod * ratio * 100) / 100;
+
+        if (addedVal > 0 || p.suggested_amount === 0) {
+            p.suggested_amount = Math.round((p.suggested_amount + (addedVal > 0 ? addedVal : catValInPeriod)) * 100) / 100;
+            p.original_amount = Math.round(((p.original_amount || 0) + (addedVal > 0 ? addedVal : catValInPeriod)) * 100) / 100;
+            if (!p.cat_amounts) p.cat_amounts = {};
+            p.cat_amounts[categoryName] = catValInPeriod;
         }
 
-        if (addedVal > 0) {
-            p.suggested_amount = Math.round((p.suggested_amount + addedVal) * 100) / 100;
-            p.original_amount = Math.round((p.original_amount + addedVal) * 100) / 100;
-            if (!p.cat_amounts) p.cat_amounts = {};
-            p.cat_amounts[categoryName] = addedVal;
-        }
+        // Recalculer l'estimation historique lissée totale de l'enveloppe
+        // getCategoryHistMonthlyAmount renvoie TOUJOURS une valeur mensuelle (en €/mois)
+        const newHistMonthlySum = p.categories.reduce((sum, c) => sum + this.getCategoryHistMonthlyAmount(c, p), 0);
+        p.historical_actual_amount = isYearly ? (newHistMonthlySum * 12.0) : newHistMonthlySum;
 
         if (this.unclassifiedCategories) {
-            this.unclassifiedCategories = this.unclassifiedCategories.filter(c => c !== categoryName);
+            this.unclassifiedCategories = this.unclassifiedCategories.filter(c => (typeof c === 'string' ? c : c.name) !== categoryName);
+        }
+
+        if (this.wizardState && Array.isArray(this.wizardState.pendingCategories)) {
+            this.wizardState.pendingCategories = this.wizardState.pendingCategories.filter(c => c !== categoryName);
         }
 
         this.renderAiProposalsList();
@@ -1148,22 +1190,33 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     removeCategoryFromAiProposal(proposalIndex, categoryName) {
         if (!this.aiProposals || !this.aiProposals[proposalIndex]) return;
         const p = this.aiProposals[proposalIndex];
+        const isYearly = (p.period || p.suggested_period) === 'yearly';
         
+        // Somme des moyennes historiques de toutes les catégories de l'enveloppe avant suppression
+        const totalHistSum = (p.categories || []).reduce((sum, c) => sum + this.getCategoryHistMonthlyAmount(c, p), 0);
+
         p.categories = (p.categories || []).filter(c => c !== categoryName);
         
         if (!this.unclassifiedCategories) this.unclassifiedCategories = [];
-        if (!this.unclassifiedCategories.includes(categoryName)) {
+        const exists = this.unclassifiedCategories.some(u => (typeof u === 'string' ? u : u.name) === categoryName);
+        if (!exists) {
             this.unclassifiedCategories.push(categoryName);
         }
-        
+
+        if (this.wizardState && Array.isArray(this.wizardState.pendingCategories)) {
+            if (!this.wizardState.pendingCategories.includes(categoryName)) {
+                this.wizardState.pendingCategories.push(categoryName);
+            }
+        }
+
+        const catHistVal = this.getCategoryHistMonthlyAmount(categoryName, p);
+        const catValInPeriod = isYearly ? (catHistVal * 12.0) : catHistVal;
+
         let removedVal = 0;
-        if (p.cat_amounts && p.cat_amounts[categoryName] !== undefined) {
-            removedVal = p.cat_amounts[categoryName];
-        } else if (p.cat_details && p.cat_details[categoryName] && p.cat_details[categoryName].amount !== undefined) {
-            removedVal = p.cat_details[categoryName].amount;
-        } else if (this.catAverages && this.catAverages[categoryName] !== undefined) {
-            const avg = Math.abs(this.catAverages[categoryName]);
-            removedVal = p.period === 'yearly' ? avg * 12.0 : avg;
+        if (totalHistSum > 0 && p.suggested_amount > 0) {
+            // Ratio au prorata (Option 1)
+            const ratio = p.suggested_amount / (isYearly ? totalHistSum * 12.0 : totalHistSum);
+            removedVal = Math.round(catValInPeriod * ratio * 100) / 100;
         } else if (p.categories.length > 0) {
             const oldLen = p.categories.length + 1;
             removedVal = p.suggested_amount / oldLen;
@@ -1173,12 +1226,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         if (removedVal > 0) {
             p.suggested_amount = Math.max(0, Math.round((p.suggested_amount - removedVal) * 100) / 100);
-            p.original_amount = Math.max(0, Math.round((p.original_amount - removedVal) * 100) / 100);
+            p.original_amount = Math.max(0, Math.round(((p.original_amount || 0) - removedVal) * 100) / 100);
         }
 
         if (p.categories.length === 0) {
             p.suggested_amount = 0;
+            p.historical_actual_amount = 0;
             p.selected = false;
+        } else {
+            const newHistSum = p.categories.reduce((sum, c) => sum + this.getCategoryHistMonthlyAmount(c, p), 0);
+            p.historical_actual_amount = isYearly ? (newHistSum * 12.0) : newHistSum;
         }
 
         this.renderAiProposalsList();
@@ -1225,31 +1282,73 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const monthlyProposals = proposals.map((p, origIndex) => ({ ...p, origIndex })).filter(p => p.period === 'monthly');
         const yearlyProposals = proposals.map((p, origIndex) => ({ ...p, origIndex })).filter(p => p.period === 'yearly');
 
-        const renderProposalCard = (p) => {
-            const i = p.origIndex;
-            const isYearly = p.period === 'yearly';
+        const renderProposalCard = (p, i) => {
+            const proposalRealIndex = p.origIndex !== undefined ? p.origIndex : i;
+            const isYearly = (p.period || p.suggested_period) === 'yearly';
+            
+            // Vérifier si toutes les catégories actuelles sont réellement fixes
+            if (p.categories && p.categories.length > 0) {
+                const allCatsFixed = p.categories.every(c => {
+                    const dt = p.cat_details ? p.cat_details[c] : null;
+                    if (dt && dt.is_fixed !== undefined) return dt.is_fixed;
+                    if (this.allCatDetails && this.allCatDetails[c] && this.allCatDetails[c].is_fixed !== undefined) return this.allCatDetails[c].is_fixed;
+                    return false;
+                });
+                p.is_fixed = allCatsFixed;
+            }
+
             const bgTint = isYearly ? 'background:rgba(139, 92, 246, 0.04);border:1px solid rgba(139, 92, 246, 0.25);' : 'background:var(--bg-body);border:1px solid var(--border-color);';
             const periodBadge = isYearly 
                 ? `<span style="font-size:10px;background:rgba(139, 92, 246, 0.15);color:#c084fc;padding:1px 6px;border-radius:4px;border:1px solid rgba(139, 92, 246, 0.4);font-weight:600;">📅 Annuelle</span>`
                 : `<span style="font-size:10px;background:rgba(59, 130, 246, 0.15);color:#60a5fa;padding:1px 6px;border-radius:4px;border:1px solid rgba(59, 130, 246, 0.4);font-weight:600;">⚡ Mensuelle</span>`;
 
-            const categoryBadgesHtml = (p.categories || []).map(c => {
+            const palette = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#6366f1', '#a855f7', '#84cc16', '#f97316'];
+            const catList = (p.categories || []).map(c => {
+                let amt = 0;
+                if (p.cat_details && p.cat_details[c] && p.cat_details[c].amount !== undefined) {
+                    amt = parseFloat(p.cat_details[c].amount) || 0;
+                } else if (p.cat_amounts && p.cat_amounts[c] !== undefined) {
+                    amt = parseFloat(p.cat_amounts[c]) || 0;
+                } else if (this.catAverages && this.catAverages[c] !== undefined) {
+                    amt = Math.abs(this.catAverages[c]) || 0;
+                }
+                return { name: c, amount: amt };
+            });
+            catList.sort((a, b) => b.amount - a.amount);
+            const colorMap = {};
+            catList.forEach((item, idx) => {
+                colorMap[item.name] = palette[idx % palette.length];
+            });
+
+            // Badges triés par montant décroissant (même ordre que la barre segmentée)
+            const categoryBadgesHtml = catList.map((item, catIndex) => {
+                const c = item.name;
                 const details = (p.cat_details && p.cat_details[c]) ? p.cat_details[c] : null;
                 let tooltipText = c;
+                let catAmtStr = item.amount > 0 ? ` (${formatCurrency(item.amount)})` : '';
                 if (details) {
                     const unitStr = p.period === 'yearly' ? '€/an' : '€/mois';
                     const merchantsLabel = window.i18n.t('ai_budget_tooltip_merchants') || "Exemples d'opérations :";
                     const merchantsStr = details.top_descs && details.top_descs.length ? `\n${merchantsLabel} ${details.top_descs.join(', ')}` : '';
-                    tooltipText = `📊 ${c} : ${details.amount} ${unitStr}${merchantsStr}`;
-                } else if (p.cat_amounts && p.cat_amounts[c] !== undefined) {
-                    const unitStr = p.period === 'yearly' ? '€/an' : '€/mois';
-                    tooltipText = `📊 ${c} : ${p.cat_amounts[c]} ${unitStr}`;
+                    tooltipText = `📊 ${c} : ${formatCurrency(item.amount)} ${unitStr}${merchantsStr}`;
+                } else if (item.amount > 0) {
+                    tooltipText = `📊 ${c} : ${formatCurrency(item.amount)}`;
                 }
+                const activeColor = colorMap[c] || '#3b82f6';
 
                 return `
-                    <span class="ai-cat-badge" title="${tooltipText.replace(/"/g, '&quot;')}" style="background:var(--bg-surface);border:1px solid var(--border-color);padding:2px 7px;border-radius:4px;font-size:10px;color:var(--text-muted);display:inline-flex;align-items:center;gap:4px;cursor:help;">
-                        ${c}
-                        <button onclick="event.stopPropagation(); window.BudgetsView.removeCategoryFromAiProposal(${i}, '${c.replace(/'/g, "\\'")}')" aria-label="Retirer la catégorie ${c.replace(/"/g, '')}" style="cursor:pointer;color:#ef4444;font-weight:bold;margin-left:2px;font-size:10px;background:none;border:none;padding:0;line-height:1;">✕</button>
+                    <span id="aiBadge_${proposalRealIndex}_${catIndex}"
+                          class="ai-cat-badge" 
+                          data-proposal-idx="${proposalRealIndex}" 
+                          data-cat-idx="${catIndex}"
+                          title="${tooltipText.replace(/"/g, '&quot;')}" 
+                          style="background:var(--bg-surface);border:1px solid var(--border-color);padding:3px 9px;border-radius:12px;font-size:11px;color:var(--text-main);display:inline-flex;align-items:center;gap:6px;cursor:help;transition:all 0.25s ease;"
+                          onmouseenter="window.BudgetsView.highlightAiCategory(${proposalRealIndex}, ${catIndex}, '${activeColor}')"
+                          onmouseleave="window.BudgetsView.unhighlightAiCategory(${proposalRealIndex}, ${catIndex})">
+                        <span class="ai-cat-dot" style="width:7px;height:7px;border-radius:50%;background:rgba(145,158,171,0.5);display:inline-block;flex-shrink:0;transition:all 0.25s ease;"></span>
+                        <span>${c}</span>
+                        <strong style="color:var(--text-muted);font-size:10.5px;font-weight:600;">${catAmtStr}</strong>
+                        <button onclick="event.stopPropagation(); window.BudgetsView.removeCategoryFromAiProposal(${proposalRealIndex}, '${c.replace(/'/g, "\\'")}')" aria-label="Retirer la catégorie ${c.replace(/"/g, '')}" style="cursor:pointer;color:#ef4444;font-weight:bold;margin-left:2px;font-size:11px;background:none;border:none;padding:0;line-height:1;">✕</button>
                     </span>
                 `;
             }).join('');
@@ -1267,7 +1366,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             if (availableCats.length > 0) {
                 const addCatLabel = window.i18n.t('ai_budget_add_category') || '➕ Catégorie';
                 addCatSelectHtml = `
-                    <select onchange="if(this.value){ window.BudgetsView.addCategoryToAiProposal(${i}, this.value); }" 
+                    <select onchange="if(this.value){ window.BudgetsView.addCategoryToAiProposal(${proposalRealIndex}, this.value); }" 
                             style="background:var(--bg-surface);border:1px dashed var(--accent);color:var(--accent);padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;outline:none;max-width:160px;text-overflow:ellipsis;"
                             title="${window.i18n.t('ai_budget_add_category') || 'Ajouter une catégorie inutilisée'}">
                         <option value="" disabled selected>${addCatLabel}</option>
@@ -1288,7 +1387,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             
                             <div style="display:flex;flex-direction:column;gap:2px;">
                                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                    <strong style="font-size:13px;color:var(--text-main);">${p.name}</strong>
+                                    <input type="text" 
+                                           value="${p.name.replace(/"/g, '&quot;')}" 
+                                           style="font-size:13px;font-weight:700;color:var(--text-main);background:transparent;border:1px solid transparent;border-radius:4px;padding:1px 4px;outline:none;transition:all 0.2s ease;max-width:280px;" 
+                                           onfocus="this.style.background='var(--bg-surface)'; this.style.borderColor='var(--accent)';"
+                                           onblur="this.style.background='transparent'; this.style.borderColor='transparent';"
+                                           onchange="window.BudgetsView.updateAiProposalName(${i}, this.value)"
+                                           title="Cliquer pour modifier le nom de l'enveloppe">
                                     ${periodBadge}
                                     ${p.is_fixed ? `<span style="font-size:10px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Charge fixe contractuelle non modifiable">${window.i18n.t('ai_budget_fixed_badge') || 'Fixe'}</span>` : ''}
                                     ${p.has_fixed_mix ? `<span style="font-size:10px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Inclut ${p.fixed_sum}€/mois de charges fixes contractuelles">Inclut ${p.fixed_sum}€ fixe</span>` : ''}
@@ -1384,6 +1489,68 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 <span style="flex-shrink:0;margin-top:1px;">ℹ️</span> <span>${p.justification || p.reason}</span>
                             </div>
                         ` : ''}
+
+                        <!-- Barre Multi-couleurs Segmentée par Catégorie (triée décroissante) -->
+                        ${(() => {
+                            const palette = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#6366f1', '#a855f7', '#84cc16', '#f97316'];
+                            const catList = (p.categories || []).map(c => {
+                                let amt = 0;
+                                if (p.cat_details && p.cat_details[c] && p.cat_details[c].amount !== undefined) {
+                                    amt = parseFloat(p.cat_details[c].amount) || 0;
+                                } else if (p.cat_amounts && p.cat_amounts[c] !== undefined) {
+                                    amt = parseFloat(p.cat_amounts[c]) || 0;
+                                } else if (this.catAverages && this.catAverages[c] !== undefined) {
+                                    amt = Math.abs(this.catAverages[c]) || 0;
+                                }
+                                return { name: c, amount: amt };
+                            });
+
+                            catList.sort((a, b) => b.amount - a.amount);
+                            const totalSpent = catList.reduce((sum, item) => sum + item.amount, 0);
+                            const maxRef = Math.max(p.suggested_amount, totalSpent, 0.01);
+
+                            if (!catList.length) return '';
+
+                            return `
+                                <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;margin-bottom:6px;">
+                                    <div style="position:relative;height:10px;width:100%;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;display:flex;gap:1.5px;border:1px solid var(--border-color);" title="Répartition des catégories (de la plus grande à la plus petite)">
+                                        ${catList.map((item, idx) => {
+                                            const pct = (item.amount / maxRef) * 100;
+                                            if (pct <= 0) return '';
+                                            const color = palette[idx % palette.length];
+                                            const details = (p.cat_details && p.cat_details[item.name]) ? p.cat_details[item.name] : null;
+                                            let tooltipText = `${item.name} : ${item.amount.toFixed(2)}€ (${pct.toFixed(1)}%)`;
+                                            if (details && details.outlier_excess > 0) {
+                                                const outlierMsg = (window.i18n && window.i18n.t)
+                                                    ? window.i18n.t('ai_budget_tooltip_outlier_excess', "📌 Écrêtage appliqué: +{amount}€ de dépenses ponctuelles d'exception isolées").replace('{amount}', details.outlier_excess.toFixed(2))
+                                                    : `\n📌 Écrêtage appliqué: +${details.outlier_excess.toFixed(2)}€ de dépenses ponctuelles d'exception isolées`;
+                                                tooltipText += `\n${outlierMsg}`;
+                                            }
+                                            if (details && details.top_descs && details.top_descs.length) {
+                                                tooltipText += `\nExemples: ${details.top_descs.join(', ')}`;
+                                            }
+
+                                            const amtFormatted = `${item.amount.toFixed(0)}€`;
+                                            const fitsInside = pct >= 5;
+                                            const labelHtml = fitsInside ? `<span style="font-size:9.5px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;text-shadow:0 1px 2px rgba(0,0,0,0.7);">${item.name} (${amtFormatted})</span>` : '';
+
+                                            return `
+                                                <div id="aiSeg_${proposalRealIndex}_${idx}"
+                                                     class="ai-seg-item ai-seg-muted"
+                                                     data-color="${color}"
+                                                     style="position:relative;width:${pct}%;height:100%;background:rgba(145,158,171,0.25);border-radius:3px;display:flex;align-items:center;justify-content:center;transition:all 0.25s ease;cursor:help;opacity:0.75;" 
+                                                     title="${tooltipText.replace(/"/g, '&quot;')}"
+                                                     onmouseenter="window.BudgetsView.highlightAiCategory(${proposalRealIndex}, ${idx}, '${color}')"
+                                                     onmouseleave="window.BudgetsView.unhighlightAiCategory(${proposalRealIndex}, ${idx})">
+                                                     ${labelHtml}
+                                                 </div>
+                                             `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        })()}
+
                         <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px;">
                             ${categoryBadgesHtml}
                             ${addCatSelectHtml}
@@ -1541,15 +1708,21 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             });
 
             if (res && res.proposals) {
-                this.aiProposals = res.proposals.map(p => ({
-                    ...p,
-                    cat_amounts: p.cat_amounts || {},
-                    original_amount: p.original_amount !== undefined ? p.original_amount : p.suggested_amount,
-                    historical_actual_amount: p.historical_actual_amount !== undefined ? p.historical_actual_amount : p.suggested_amount,
-                    justification: p.justification || p.reason || '',
-                    period: p.suggested_period || p.period || 'monthly',
-                    selected: true
-                }));
+                this.aiProposals = res.proposals.map(p => {
+                    const pPeriod = p.suggested_period || p.period || 'monthly';
+                    const isYearly = pPeriod === 'yearly';
+                    const monthlySum = (p.categories || []).reduce((sum, c) => sum + this.getCategoryHistMonthlyAmount(c, p), 0);
+                    const calcHistAmt = isYearly ? (monthlySum * 12.0) : monthlySum;
+                    return {
+                        ...p,
+                        cat_amounts: p.cat_amounts || {},
+                        original_amount: p.original_amount !== undefined ? p.original_amount : p.suggested_amount,
+                        historical_actual_amount: calcHistAmt > 0 ? (Math.round(calcHistAmt * 100) / 100) : (p.historical_actual_amount !== undefined ? p.historical_actual_amount : p.suggested_amount),
+                        justification: p.justification || p.reason || '',
+                        period: pPeriod,
+                        selected: true
+                    };
+                });
                 this.unclassifiedCategories = res.unclassified_categories || [];
                 this.renderAiProposalsList();
             }
@@ -1558,6 +1731,54 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             showInlineMessage(window.i18n.t('title_error'), msg);
         } finally {
             if (btn) btn.disabled = false;
+        }
+    },
+
+    highlightAiCategory(proposalIdx, catIdx, activeColor, isWizard = false) {
+        const prefix = isWizard ? 'wiz' : 'ai';
+        const seg = document.getElementById(`${prefix}Seg_${proposalIdx}_${catIdx}`);
+        const badge = document.getElementById(`${prefix}Badge_${proposalIdx}_${catIdx}`);
+
+        if (seg) {
+            seg.classList.remove('ai-seg-muted');
+            seg.classList.add('ai-seg-active');
+            seg.style.background = activeColor;
+            seg.style.color = activeColor;
+            seg.style.opacity = '1';
+        }
+
+        if (badge) {
+            badge.style.borderColor = activeColor;
+            badge.style.boxShadow = `0 0 8px ${activeColor}40`;
+            const dot = badge.querySelector('.ai-cat-dot');
+            if (dot) {
+                dot.style.background = activeColor;
+                dot.style.boxShadow = `0 0 6px ${activeColor}`;
+            }
+        }
+    },
+
+    unhighlightAiCategory(proposalIdx, catIdx, isWizard = false) {
+        const prefix = isWizard ? 'wiz' : 'ai';
+        const seg = document.getElementById(`${prefix}Seg_${proposalIdx}_${catIdx}`);
+        const badge = document.getElementById(`${prefix}Badge_${proposalIdx}_${catIdx}`);
+
+        if (seg) {
+            seg.classList.add('ai-seg-muted');
+            seg.classList.remove('ai-seg-active');
+            seg.style.background = 'rgba(145,158,171,0.25)';
+            seg.style.color = '';
+            seg.style.opacity = '0.75';
+        }
+
+        if (badge) {
+            badge.style.borderColor = 'var(--border-color)';
+            badge.style.boxShadow = 'none';
+            const dot = badge.querySelector('.ai-cat-dot');
+            if (dot) {
+                dot.style.background = 'rgba(145,158,171,0.5)';
+                dot.style.boxShadow = 'none';
+            }
         }
     },
 
@@ -1802,6 +2023,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         try {
             await this.refineUnclassifiedWithAi();
+            if (this.wizardState) {
+                this.wizardState.pendingCategories = (this.unclassifiedCategories || []).map(u => (typeof u === 'object' && u !== null ? (u.name || String(u)) : String(u)));
+            }
             this.wizardNextStep(2);
         } catch(e) {
             this.renderWizardStep1();
@@ -1891,20 +2115,27 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             ticks.push(v);
         }
 
-        const isOverSalary = totalMonthlyAvg > refSalary;
-        const diffAmt = Math.abs(totalMonthlyAvg - refSalary).toFixed(2);
+        const diffVal = totalMonthlyAvg - refSalary;
+        const isOverSalary = diffVal > 0.01;
+        const diffAmt = Math.abs(diffVal).toFixed(2);
 
         let adviceHtml = '';
+        const isEffortExceeded = !isOverSalary && (totalEstimatedMonthly - refSalary) > 0.05;
+
         if (isOverSalary) {
             adviceHtml = t('ai_wizard_step2_advice_over', '🚨 <strong>Attention au dépassement :</strong> Vos enveloppes ({spending}€/m) dépassent votre salaire repère ({salary}€/m) de +{diff}€/m. Utilisez les boutons d\'ajustement ci-dessous pour équilibrer.')
                 .replace('{spending}', totalMonthlyAvg.toFixed(2))
                 .replace('{salary}', refSalary.toFixed(2))
-                .replace('{diff}', diffAmt);
+                .replace('{diff}', diffAmt)
+                .replace('{est}', totalEstimatedMonthly.toFixed(2));
+        } else if (isEffortExceeded) {
+            adviceHtml = `📊 <strong>Objectif d'épargne avec risque de dépassement :</strong> Vos enveloppes (${totalMonthlyAvg.toFixed(2)}€/m) s'inscrivent sous votre salaire repère (${refSalary.toFixed(2)}€/m), dégageant ${diffAmt}€/m d'épargne théorique. <em>Cependant, vos dépenses constatées (${totalEstimatedMonthly.toFixed(2)}€/m) dépassent cette cible ! Sans réduction effective de vos dépenses réelles, vos enveloppes risquent d'être dépassées.</em>`;
         } else {
             adviceHtml = t('ai_wizard_step2_advice_balanced', '✨ <strong>Budget idéalement équilibré :</strong> Vos enveloppes ({spending}€/m) s\'inscrivent parfaitement dans votre salaire repère ({salary}€/m), dégageant {diff}€/m de marge de sécurité.')
                 .replace('{spending}', totalMonthlyAvg.toFixed(2))
                 .replace('{salary}', refSalary.toFixed(2))
-                .replace('{diff}', diffAmt);
+                .replace('{diff}', diffAmt)
+                .replace('{est}', totalEstimatedMonthly.toFixed(2));
         }
 
         contentEl.innerHTML = `
@@ -1925,7 +2156,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         ${estimatedPct !== null ? `
                             <div style="position:absolute;top:-2px;bottom:-2px;left:${estimatedPct}%;width:3px;background:#eab308;box-shadow:0 0 8px #eab308;z-index:3;" title="Dépenses estimées: ${totalEstimatedMonthly.toFixed(2)} €/m">
                                 <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;background:#eab308;color:#000000;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
-                                    🟨 Est. ${totalEstimatedMonthly.toFixed(0)}€
+                                    🟨 Est. lissée ${totalEstimatedMonthly.toFixed(0)}€
                                 </div>
                             </div>
                         ` : ''}
@@ -1958,7 +2189,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 </div>
 
                 <!-- Bloc Information & Conseil Décisionnel -->
-                <div id="wizardAdviceBox" style="background:${isOverSalary ? 'rgba(239,68,68,0.1)' : 'rgba(54,179,126,0.1)'};border:1px solid ${isOverSalary ? '#ef4444' : '#36b37e'};border-radius:10px;padding:12px 14px;font-size:12.5px;line-height:1.4;color:var(--text-main);">
+                <div id="wizardAdviceBox" style="background:${isOverSalary ? 'rgba(239,68,68,0.1)' : (isEffortExceeded ? 'rgba(245,158,11,0.1)' : 'rgba(54,179,126,0.1)')};border:1px solid ${isOverSalary ? '#ef4444' : (isEffortExceeded ? '#f59e0b' : '#36b37e')};border-radius:10px;padding:12px 14px;font-size:12.5px;line-height:1.4;color:var(--text-main);">
                     ${adviceHtml}
                 </div>
 
@@ -2043,6 +2274,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const wizardInput = document.getElementById('wizardSalaryInput');
         const activeEl = document.activeElement;
 
+        this.saveAiStateToSession();
         if (wizardInput && activeEl === wizardInput) {
             // Mise à jour de la jauge principale du Wizard sans détruire le champ
             const totalMonthlyAvg = (this.aiProposals || []).reduce((acc, p) => {
@@ -2075,22 +2307,30 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             // Recalcul de l'alerte
             const wizardAdviceBox = document.getElementById('wizardAdviceBox');
             if (wizardAdviceBox) {
-                const isOverSalary = totalMonthlyAvg > num;
-                const diffAmt = Math.abs(totalMonthlyAvg - num).toFixed(2);
+                const diffVal = totalMonthlyAvg - num;
+                const isOverSalary = diffVal > 0.01;
+                const isEffortExceeded = !isOverSalary && (totalEstimatedMonthly - num) > 0.05;
+                const diffAmt = Math.abs(diffVal).toFixed(2);
                 const t = (k, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : fallback;
                 let adviceHtml = '';
                 if (isOverSalary) {
                     adviceHtml = t('ai_wizard_step2_advice_over', '🚨 <strong>Attention au dépassement :</strong> Vos enveloppes ({spending}€/m) dépassent votre salaire repère ({salary}€/m) de +{diff}€/m. Utilisez les boutons d\'ajustement ci-dessous pour équilibrer.')
                         .replace('{spending}', totalMonthlyAvg.toFixed(2))
                         .replace('{salary}', num.toFixed(2))
-                        .replace('{diff}', diffAmt);
+                        .replace('{diff}', diffAmt)
+                        .replace('{est}', totalEstimatedMonthly.toFixed(2));
                     wizardAdviceBox.style.background = 'rgba(239,68,68,0.1)';
                     wizardAdviceBox.style.borderColor = '#ef4444';
+                } else if (isEffortExceeded) {
+                    adviceHtml = `📊 <strong>Objectif d'épargne avec risque de dépassement :</strong> Vos enveloppes (${totalMonthlyAvg.toFixed(2)}€/m) s'inscrivent sous votre salaire repère (${num.toFixed(2)}€/m), dégageant ${diffAmt}€/m d'épargne théorique. <em>Cependant, vos dépenses constatées (${totalEstimatedMonthly.toFixed(2)}€/m) dépassent cette cible ! Sans réduction effective de vos dépenses réelles, vos enveloppes risquent d'être dépassées.</em>`;
+                    wizardAdviceBox.style.background = 'rgba(245,158,11,0.1)';
+                    wizardAdviceBox.style.borderColor = '#f59e0b';
                 } else {
                     adviceHtml = t('ai_wizard_step2_advice_balanced', '✨ <strong>Budget idéalement équilibré :</strong> Vos enveloppes ({spending}€/m) s\'inscrivent parfaitement dans votre salaire repère ({salary}€/m), dégageant {diff}€/m de marge de sécurité.')
                         .replace('{spending}', totalMonthlyAvg.toFixed(2))
                         .replace('{salary}', num.toFixed(2))
-                        .replace('{diff}', diffAmt);
+                        .replace('{diff}', diffAmt)
+                        .replace('{est}', totalEstimatedMonthly.toFixed(2));
                     wizardAdviceBox.style.background = 'rgba(54,179,126,0.1)';
                     wizardAdviceBox.style.borderColor = '#36b37e';
                 }
@@ -2119,6 +2359,17 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             return;
         }
 
+        // Recalculer le statut 100% Fixe en fonction des catégories présentes
+        if (p.categories && p.categories.length > 0) {
+            const allCatsFixed = p.categories.every(c => {
+                const dt = p.cat_details ? p.cat_details[c] : null;
+                if (dt && dt.is_fixed !== undefined) return dt.is_fixed;
+                if (this.allCatDetails && this.allCatDetails[c] && this.allCatDetails[c].is_fixed !== undefined) return this.allCatDetails[c].is_fixed;
+                return false;
+            });
+            p.is_fixed = allCatsFixed;
+        }
+
         const titleText = t('ai_wizard_step3_title', '🔍 Revue de l\'enveloppe ({current}/{total})')
             .replace('{current}', idx + 1)
             .replace('{total}', total);
@@ -2129,49 +2380,168 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         contentEl.innerHTML = `
             <div style="background:var(--bg-base);border:1px solid var(--border-color);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:16px;">
-                <!-- Header Enveloppe en cours -->
-                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
+                <!-- Header Enveloppe en cours avec édition du titre et suppression -->
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);padding-bottom:12px;gap:12px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px;">
                         <span style="font-size:22px;">${p.icon || '🏷️'}</span>
-                        <strong style="font-size:16px;color:var(--text-main);">${p.name}</strong>
-                    </div>
-                    <div style="display:flex;flex-direction:column;align-items:flex-end;">
-                        <span style="font-size:14px;font-weight:700;color:${isYearly ? '#c084fc' : 'var(--accent)'};background:var(--bg-surface);padding:4px 12px;border-radius:8px;border:1px solid var(--border-color);">
-                            ${p.suggested_amount.toFixed(2)} € ${isYearly ? '/an' : '/mois'}
-                        </span>
-                        ${isYearly ? `
-                            <span style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;">
-                                (${formatCurrency(p.suggested_amount / 12.0)} €/m)
+                        <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                <input type="text" 
+                                       value="${p.name.replace(/"/g, '&quot;')}" 
+                                       style="font-size:16px;font-weight:700;color:var(--text-main);background:transparent;border:1px solid transparent;border-radius:6px;padding:2px 6px;outline:none;transition:all 0.2s ease;width:100%;max-width:340px;" 
+                                       onfocus="this.style.background='var(--bg-surface)'; this.style.borderColor='var(--accent)';"
+                                       onblur="this.style.background='transparent'; this.style.borderColor='transparent';"
+                                       onchange="window.BudgetsView.updateAiProposalName(${idx}, this.value)"
+                                       title="Cliquer pour modifier le nom de cette enveloppe">
+                                 ${p.is_fixed ? `<span style="font-size:10.5px;background:#1e293b;color:#38bdf8;padding:2px 8px;border-radius:6px;border:1px solid #0284c7;font-weight:700;" title="${t('ai_budget_fixed_badge', 'Charge fixe contractuelle non modifiable')}">🔒 100% Fixe</span>` : ''}
+                                 ${p.has_fixed_mix && !p.is_fixed ? `<span style="font-size:10.5px;background:#1e293b;color:#38bdf8;padding:2px 8px;border-radius:6px;border:1px solid #0284c7;font-weight:700;">Inclut ${p.fixed_sum}€ fixe</span>` : ''}
+                                 ${p.is_exceptional ? `<span style="font-size:10.5px;background:#312e81;color:#a5b4fc;padding:2px 8px;border-radius:6px;border:1px solid #4338ca;font-weight:700;">🚀 ${t('ai_budget_project_badge', 'Projet')}</span>` : ''}
+                             </div>
+                             ${p.is_fixed ? `
+                                 <span style="font-size:11.5px;color:#38bdf8;font-weight:500;display:flex;align-items:center;gap:4px;margin-left:6px;">
+                                     ${t('ai_wizard_step3_fixed_note', '📌 Cette enveloppe ne contient que des dépenses récurrentes identiques chaque mois.')}
+                                 </span>
+                             ` : ''}
+                         </div>
+                     </div>
+                     <div style="display:flex;align-items:center;gap:10px;">
+                         <button class="btn btn-secondary" 
+                                 onclick="window.BudgetsView.wizardRemoveCurrentProposal(${idx})" 
+                                 style="padding:5px 12px;font-size:12px;color:#ef4444;border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);font-weight:600;" 
+                                 title="${t('ai_budget_delete_proposal', 'Supprimer cette enveloppe du plan')}">
+                             ${t('ai_wizard_step3_del_proposal', '🗑️ Supprimer l\'enveloppe')}
+                         </button>
+                        <div style="display:flex;flex-direction:column;align-items:flex-end;">
+                            <span style="font-size:14px;font-weight:700;color:${isYearly ? '#c084fc' : 'var(--accent)'};background:var(--bg-surface);padding:4px 12px;border-radius:8px;border:1px solid var(--border-color);">
+                                ${p.suggested_amount.toFixed(2)} € ${isYearly ? '/an' : '/mois'}
                             </span>
-                        ` : ''}
+                            ${isYearly ? `
+                                <span style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;">
+                                    (${formatCurrency(p.suggested_amount / 12.0)} €/m)
+                                </span>
+                            ` : ''}
+                        </div>
                     </div>
                 </div>
 
                 <!-- Catégories incluses dans cette enveloppe -->
                 <div style="display:flex;flex-direction:column;gap:8px;">
-                    <span style="font-size:12px;font-weight:600;color:var(--text-muted);">Catégories incluses :</span>
-                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                        ${(p.categories || []).map((catName, cIdx) => {
-                            const details = (p.cat_details && p.cat_details[catName]) ? p.cat_details[catName] : null;
-                            let tooltipText = catName;
-                            if (details) {
-                                const unitStr = isYearly ? '€/an' : '€/mois';
-                                const merchantsLabel = window.i18n.t('ai_budget_tooltip_merchants') || "Exemples d'opérations :";
-                                const merchantsStr = details.top_descs && details.top_descs.length ? `\n${merchantsLabel} ${details.top_descs.join(', ')}` : '';
-                                tooltipText = `📊 ${catName} : ${details.amount} ${unitStr}${merchantsStr}`;
-                            } else if (p.cat_amounts && p.cat_amounts[catName] !== undefined) {
-                                const unitStr = isYearly ? '€/an' : '€/mois';
-                                tooltipText = `📊 ${catName} : ${p.cat_amounts[catName]} ${unitStr}`;
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-size:12px;font-weight:600;color:var(--text-muted);">Catégories incluses :</span>
+                    </div>
+
+                    <!-- Barre Multi-couleurs Segmentée par Catégorie avec Labels (Wizard Step 3) -->
+                    <!-- Barre Multi-couleurs Segmentée par Catégorie (Clean Stacked Bar) -->
+                    ${(() => {
+                        const palette = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#6366f1', '#a855f7', '#84cc16', '#f97316'];
+                        const catList = (p.categories || []).map(c => {
+                            let amt = 0;
+                            if (p.cat_details && p.cat_details[c] && p.cat_details[c].amount !== undefined) {
+                                amt = parseFloat(p.cat_details[c].amount) || 0;
+                            } else if (p.cat_amounts && p.cat_amounts[c] !== undefined) {
+                                amt = parseFloat(p.cat_amounts[c]) || 0;
+                            } else if (this.catAverages && this.catAverages[c] !== undefined) {
+                                amt = Math.abs(this.catAverages[c]) || 0;
                             }
-                            return `
-                                <span title="${tooltipText.replace(/"/g, '&quot;')}" style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-surface);border:1px solid var(--border-color);padding:4px 10px;border-radius:16px;font-size:12px;color:var(--text-main);cursor:help;">
-                                    ${catName}
-                                    ${p.categories.length > 1 ? `
-                                        <button onclick="window.BudgetsView.wizardRemoveCategoryFromProposal(${idx}, ${cIdx})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-weight:bold;padding:0 2px;" title="${t('ai_wizard_step3_remove_cat', 'Retirer de l\'enveloppe')}">✕</button>
-                                    ` : ''}
-                                </span>
-                            `;
-                        }).join('')}
+                            return { name: c, amount: amt };
+                        });
+
+                        catList.sort((a, b) => b.amount - a.amount);
+                        const totalSpent = catList.reduce((sum, item) => sum + item.amount, 0);
+                        const maxRef = Math.max(p.suggested_amount, totalSpent, 0.01);
+                        const colorMap = {};
+                        catList.forEach((item, catIdx) => {
+                            colorMap[item.name] = palette[catIdx % palette.length];
+                        });
+
+                        if (!catList.length) return '';
+
+                        return `
+                            <div style="position:relative;height:28px;width:100%;background:rgba(255,255,255,0.06);border-radius:10px;overflow:hidden;display:flex;gap:2px;border:1px solid var(--border-color);margin-top:4px;margin-bottom:8px;" title="Répartition des catégories (de la plus grande à la plus petite)">
+                                ${catList.map((item, catIdx) => {
+                                    const pct = (item.amount / maxRef) * 100;
+                                    if (pct <= 0) return '';
+                                    const color = palette[catIdx % palette.length];
+                                    const details = (p.cat_details && p.cat_details[item.name]) ? p.cat_details[item.name] : null;
+                                    let tooltipText = `${item.name} : ${item.amount.toFixed(2)}€ (${pct.toFixed(1)}%)`;
+                                    if (details && details.top_descs && details.top_descs.length) {
+                                        tooltipText += `\nExemples: ${details.top_descs.join(', ')}`;
+                                    }
+
+                                    const amtFormatted = `${item.amount.toFixed(0)}€`;
+                                    const fitsInside = pct >= 4;
+                                    const labelHtml = fitsInside ? `<span style="font-size:11px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px;text-shadow:0 1px 3px rgba(0,0,0,0.8);">${item.name} (${amtFormatted})</span>` : '';
+
+                                    return `
+                                        <div id="wizSeg_${idx}_${catIdx}"
+                                             class="ai-seg-item ai-seg-muted"
+                                             data-color="${color}"
+                                             style="position:relative;width:${pct}%;height:100%;background:rgba(145,158,171,0.25);border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all 0.25s ease;cursor:help;opacity:0.75;" 
+                                             title="${tooltipText.replace(/"/g, '&quot;')}"
+                                             onmouseenter="window.BudgetsView.highlightAiCategory(${idx}, ${catIdx}, '${color}', true)"
+                                             onmouseleave="window.BudgetsView.unhighlightAiCategory(${idx}, ${catIdx}, true)">
+                                            ${labelHtml}
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                    })()}
+
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                        ${(() => {
+                            const palette = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#6366f1', '#a855f7', '#84cc16', '#f97316'];
+                            const catList = (p.categories || []).map(c => {
+                                let amt = 0;
+                                if (p.cat_details && p.cat_details[c] && p.cat_details[c].amount !== undefined) {
+                                    amt = parseFloat(p.cat_details[c].amount) || 0;
+                                } else if (p.cat_amounts && p.cat_amounts[c] !== undefined) {
+                                    amt = parseFloat(p.cat_amounts[c]) || 0;
+                                } else if (this.catAverages && this.catAverages[c] !== undefined) {
+                                    amt = Math.abs(this.catAverages[c]) || 0;
+                                }
+                                return { name: c, amount: amt };
+                            });
+                            catList.sort((a, b) => b.amount - a.amount);
+                            const colorMap = {};
+                            catList.forEach((item, catIdx) => {
+                                colorMap[item.name] = palette[catIdx % palette.length];
+                            });
+
+                            return catList.map((item, catIdx) => {
+                                const catName = item.name;
+                                const originalIdx = (p.categories || []).indexOf(catName);
+                                const details = (p.cat_details && p.cat_details[catName]) ? p.cat_details[catName] : null;
+                                let tooltipText = catName;
+                                let catAmtStr = item.amount > 0 ? ` (${formatCurrency(item.amount)})` : '';
+                                if (details) {
+                                    const unitStr = isYearly ? '€/an' : '€/mois';
+                                    const merchantsLabel = window.i18n.t('ai_budget_tooltip_merchants') || "Exemples d'opérations :";
+                                    const merchantsStr = details.top_descs && details.top_descs.length ? `\n${merchantsLabel} ${details.top_descs.join(', ')}` : '';
+                                    tooltipText = `📊 ${catName} : ${details.amount} ${unitStr}${merchantsStr}`;
+                                } else if (p.cat_amounts && p.cat_amounts[catName] !== undefined) {
+                                    const unitStr = isYearly ? '€/an' : '€/mois';
+                                    tooltipText = `📊 ${catName} : ${p.cat_amounts[catName]} ${unitStr}`;
+                                }
+                                const activeColor = colorMap[catName] || 'var(--accent)';
+
+                                return `
+                                    <span id="wizBadge_${idx}_${catIdx}"
+                                          class="ai-cat-badge" 
+                                          title="${tooltipText.replace(/"/g, '&quot;')}" 
+                                          style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-surface);border:1px solid var(--border-color);padding:4px 10px;border-radius:16px;font-size:12px;color:var(--text-main);cursor:help;transition:all 0.25s ease;"
+                                          onmouseenter="window.BudgetsView.highlightAiCategory(${idx}, ${catIdx}, '${activeColor}', true)"
+                                          onmouseleave="window.BudgetsView.unhighlightAiCategory(${idx}, ${catIdx}, true)">
+                                        <span class="ai-cat-dot" style="width:7px;height:7px;border-radius:50%;background:rgba(145,158,171,0.5);display:inline-block;flex-shrink:0;transition:all 0.25s ease;"></span>
+                                        <span>${catName}</span>
+                                        <strong style="color:var(--text-muted);font-size:10.5px;font-weight:600;">${catAmtStr}</strong>
+                                        ${p.categories.length > 1 ? `
+                                            <button onclick="window.BudgetsView.wizardRemoveCategoryFromProposal(${idx}, ${originalIdx})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-weight:bold;padding:0 2px;margin-left:2px;" title="${t('ai_wizard_step3_remove_cat', 'Retirer de l\'enveloppe')}">✕</button>
+                                        ` : ''}
+                                    </span>
+                                `;
+                            }).join('');
+                        })()}
                     </div>
                 </div>
 
@@ -2219,25 +2589,62 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         `;
     },
 
+    updateAiProposalName(proposalIdx, newName) {
+        const p = (this.aiProposals || [])[proposalIdx];
+        if (p && newName && newName.trim()) {
+            p.name = newName.trim();
+            this.renderAiProposalsList();
+            if (this.wizardState.currentStep === 3) {
+                this.renderWizardStep3();
+            }
+        }
+    },
+
+    wizardRemoveCurrentProposal(proposalIdx) {
+        if (!this.aiProposals || !this.aiProposals[proposalIdx]) return;
+        const p = this.aiProposals[proposalIdx];
+        
+        // Libérer les catégories vers les catégories en attente du Wizard
+        if (p.categories && p.categories.length) {
+            p.categories.forEach(c => {
+                const cName = (typeof c === 'object' && c !== null) ? (c.name || c.category || String(c)) : String(c);
+                if (!this.wizardState.pendingCategories.includes(cName)) {
+                    this.wizardState.pendingCategories.push(cName);
+                }
+            });
+        }
+
+        // Supprimer la proposition de la liste
+        this.aiProposals.splice(proposalIdx, 1);
+        this.renderAiProposalsList();
+
+        // Ré-ajuster l'index courant du Wizard si nécessaire
+        if (!this.aiProposals.length) {
+            this.skipWizard();
+        } else {
+            if (this.wizardState.currentProposalIndex >= this.aiProposals.length) {
+                this.wizardState.currentProposalIndex = Math.max(0, this.aiProposals.length - 1);
+            }
+            this.renderWizardStep3();
+        }
+    },
+
     wizardRemoveCategoryFromProposal(proposalIdx, catIdx) {
         const p = this.aiProposals[proposalIdx];
         if (p && p.categories && p.categories[catIdx]) {
-            const removed = p.categories.splice(catIdx, 1)[0];
-            this.wizardState.pendingCategories.push(removed);
-            this.renderAiProposalsList();
+            const catName = p.categories[catIdx];
+            this.removeCategoryFromAiProposal(proposalIdx, catName);
+            if (!this.wizardState.pendingCategories.includes(catName)) {
+                this.wizardState.pendingCategories.push(catName);
+            }
             this.renderWizardStep3();
         }
     },
 
     wizardReaddPendingCategory(pendingIdx) {
         const catName = this.wizardState.pendingCategories[pendingIdx];
-        const p = this.aiProposals[this.wizardState.currentProposalIndex];
-        if (catName && p) {
-            this.wizardState.pendingCategories.splice(pendingIdx, 1);
-            if (!p.categories.includes(catName)) {
-                p.categories.push(catName);
-            }
-            this.renderAiProposalsList();
+        if (catName && this.aiProposals) {
+            this.addCategoryToAiProposal(this.wizardState.currentProposalIndex, catName);
             this.renderWizardStep3();
         }
     },

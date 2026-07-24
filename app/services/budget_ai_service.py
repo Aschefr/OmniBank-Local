@@ -128,9 +128,15 @@ def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_
 
         regular_amounts = []
         outlier_amounts = []
+        outlier_excess = 0.0
+
         for amt in raw_amounts:
-            if cat_median > 0 and amt > max(2.5 * cat_median, 200.0) and len(raw_amounts) >= 3:
+            threshold = max(2.5 * cat_median, 200.0) if cat_median > 0 else 200.0
+            if cat_median > 0 and amt > threshold and len(raw_amounts) >= 3:
+                # Écrêtage (Winsorizing) : On conserve le plafond normal et on isole le surplus
+                regular_amounts.append(threshold)
                 outlier_amounts.append(amt)
+                outlier_excess += (amt - threshold)
             else:
                 regular_amounts.append(amt)
 
@@ -146,10 +152,18 @@ def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_
         is_fixed = (cat_type.get(cat) == "expense_fixed")
         fixed_amount = round(total / max(active_months_cnt, 1), 2)
 
+        # Mapper les récurrences actives pour cette catégorie
+        cat_rec_templates = [t for t in recurrence_templates if t.category == cat and getattr(t, 'is_active', True) != False]
+
         if is_fixed and monthly_values:
             sorted_months = sorted(monthly_sums.keys(), reverse=True)
             most_recent_month = sorted_months[0]
             fixed_amount = round(monthly_sums[most_recent_month], 2)
+        elif cat_rec_templates:
+            # Si un modèle de récurrence actif est configuré pour le futur, la catégorie est considérée fixe
+            is_fixed = True
+            rec_amt = sum(abs(t.amount or 0.0) for t in cat_rec_templates)
+            fixed_amount = round(rec_amt, 2)
         elif len(raw_amounts) >= 2:
             if len(set(raw_amounts)) == 1:
                 is_fixed = True
@@ -184,11 +198,16 @@ def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_
             sum_recent = sum(monthly_sums.get(k, 0.0) for k in recent_calendar_months)
             recent_3m_avg = round(sum_recent / max(len(recent_calendar_months), 1), 2)
 
+        final_avg = fixed_amount if is_fixed else avg
+        if final_avg == 0.0 and cat in yearly_recurrence_sums:
+            rec_sum = yearly_recurrence_sums[cat]
+            final_avg = round(rec_sum / 12.0, 2)
+
         result[cat] = {
-            "avg": fixed_amount if is_fixed else avg,
+            "avg": final_avg,
             "current_month_spent": current_month_spent,
-            "recent_3m_avg": recent_3m_avg,
-            "total_year": total_year_val,
+            "recent_3m_avg": recent_3m_avg if recent_3m_avg > 0 else final_avg,
+            "total_year": total_year_val if total_year_val > 0 else (final_avg * 12.0),
             "active_months_cnt": active_months_cnt,
             "suggested_period": suggested_period,
             "type": cat_type.get(cat, "expense_var"),
@@ -196,22 +215,41 @@ def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_
             "is_fixed": is_fixed,
             "fixed_amount": fixed_amount,
             "is_exceptional": is_exceptional,
+            "outlier_excess": round(outlier_excess, 2),
+            "outlier_amounts": outlier_amounts,
         }
+
+    all_recurrence_sums = defaultdict(float)
+    all_recurrence_periods = {}
+    for t in recurrence_templates:
+        if t.category:
+            amt = abs(t.amount or 0.0)
+            freq = (t.frequency or "monthly").lower()
+            if freq in ("yearly", "annuel", "bi-annuel", "semi-annually") or t.month_of_year is not None:
+                all_recurrence_sums[t.category] += (amt / 12.0 if freq in ("yearly", "annuel") else amt / 6.0)
+                all_recurrence_periods[t.category] = "yearly"
+            else:
+                all_recurrence_sums[t.category] += amt
+                all_recurrence_periods[t.category] = "monthly"
 
     for cat in all_all_cats:
         if cat not in result:
+            rec_monthly = round(all_recurrence_sums.get(cat, 0.0), 2)
+            suggested_p = all_recurrence_periods.get(cat, "monthly")
             result[cat] = {
-                "avg": 0.0,
+                "avg": rec_monthly,
                 "current_month_spent": 0.0,
-                "recent_3m_avg": 0.0,
-                "total_year": 0.0,
+                "recent_3m_avg": rec_monthly,
+                "total_year": rec_monthly * 12.0,
                 "active_months_cnt": 0,
-                "suggested_period": "monthly",
+                "suggested_period": suggested_p,
                 "type": "expense_var",
                 "top_descs": [],
                 "is_fixed": False,
                 "fixed_amount": 0.0,
                 "is_exceptional": False,
+                "outlier_excess": 0.0,
+                "outlier_amounts": [],
             }
 
     return result
@@ -531,9 +569,11 @@ Response format (JSON object with key "envelopes"):
         }
 
         if suggested_period == "yearly":
-            historical_actual_amount = round(sum(cat_data[c]["total_year"] for c in sub_cats), 2)
+            # Si l'enveloppe est annuelle, l'estimation historique lissée est égale à 12x la somme des montants lissés/écrêtés mensuels des catégories
+            historical_actual_amount = round(sum(cat_amounts[c] for c in sub_cats), 2)
         else:
-            historical_actual_amount = round(sum(cat_data[c]["avg"] for c in sub_cats), 2)
+            # Pour une enveloppe mensuelle, l'estimation historique lissée est la somme des montants lissés/écrêtés mensuels
+            historical_actual_amount = round(sum(cat_amounts[c] for c in sub_cats), 2)
 
         current_month_spent = round(sum(cat_data[c].get("current_month_spent", 0.0) for c in sub_cats), 2)
         recent_3m_avg = round(sum(cat_data[c].get("recent_3m_avg", 0.0) for c in sub_cats), 2)
@@ -781,12 +821,14 @@ Response format (JSON object with key "envelopes"):
                 if "cat_amounts" not in matched_prop or matched_prop["cat_amounts"] is None:
                     matched_prop["cat_amounts"] = {}
 
+                prop_period = matched_prop.get("suggested_period") or matched_prop.get("period") or "monthly"
                 for c in valid_cats:
                     c_period = cat_data[c].get("suggested_period", "monthly")
                     c_val = cat_data[c]["avg"] if c_period == "monthly" else round(cat_data[c]["total_year"] / 12.0, 2)
+                    c_detail_amt = cat_data[c]["avg"] if prop_period != "yearly" else round(cat_data[c].get("total_year", c_val * 12.0), 2)
                     matched_prop["cat_amounts"][c] = c_val
                     matched_prop["cat_details"][c] = {
-                        "amount": c_val,
+                        "amount": c_detail_amt,
                         "top_descs": cat_data[c].get("top_descs", []),
                         "is_fixed": cat_data[c].get("is_fixed", False),
                         "current_month_spent": cat_data[c].get("current_month_spent", 0.0),
@@ -794,8 +836,8 @@ Response format (JSON object with key "envelopes"):
                     }
                 matched_prop["suggested_amount"] = round(sum(matched_prop["cat_amounts"].values()), 2)
                 matched_prop["current_month_spent"] = round(sum(cat_data[c].get("current_month_spent", 0.0) for c in sub_cats if c in cat_data), 2)
-                matched_prop["recent_3m_avg"] = round(sum(cat_data[c].get("recent_3m_avg", 0.0) for c in sub_cats if c in cat_data), 2)
-                matched_prop["historical_actual_amount"] = round(sum(cat_data[c].get("avg", 0.0) if matched_prop.get("suggested_period") != "yearly" else cat_data[c].get("total_year", 0.0) for c in sub_cats if c in cat_data), 2)
+                matched_prop["recent_3m_avg"] = round(sum(cat_data[c].get("current_month_spent", 0.0) for c in sub_cats if c in cat_data), 2)
+                matched_prop["historical_actual_amount"] = round(sum(matched_prop["cat_amounts"].values()), 2) if prop_period != "yearly" else round(sum(matched_prop["cat_amounts"].values()) * 12.0, 2)
                 if not matched_prop.get("justification"):
                     reason_val = obj.get("reason") or obj.get("justification")
                     matched_prop["justification"] = reason_val if reason_val else f"Affinage IA (+{', '.join(valid_cats)})."
