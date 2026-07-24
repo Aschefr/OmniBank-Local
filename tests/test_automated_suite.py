@@ -1926,3 +1926,40 @@ def test_multi_currency_support():
     res_online = client.post("/api/config/exchange-rates/fetch-online")
     # Should return 200 if internet is available, or 502/500 if offline
     assert res_online.status_code in [200, 500, 502]
+
+
+# ==============================================================================
+# TEST 20: PDF Financial Report Data & Section Aggregation
+# ==============================================================================
+def test_pdf_report_data_and_section_aggregation():
+    # 1. Fetch categories_by_month with year filter
+    res_year = client.get("/api/stats/categories_by_month?reconciled=all&year=2026")
+    assert res_year.status_code == 200
+    data_year = res_year.json()
+    assert "months" in data_year
+    assert "years" in data_year
+    assert "by_type" in data_year
+    by_type = data_year["by_type"]
+    assert len(by_type.keys()) > 0
+    for t_key, t_val in by_type.items():
+        assert "grand_total" in t_val
+        assert "totals_per_cat" in t_val
+        assert "totals_per_month" in t_val
+
+    # 2. Fetch with custom date range
+    res_custom = client.get("/api/stats/categories_by_month?reconciled=all&date_start=2026-01-01&date_end=2026-06-30")
+    assert res_custom.status_code == 200
+    data_custom = res_custom.json()
+    assert "by_type" in data_custom
+
+    # 3. Fetch with specific account filter
+    res_acc = client.get("/api/stats/categories_by_month?reconciled=all&account_ids=1")
+    assert res_acc.status_code == 200
+
+    # 4. Org Users endpoint verification for PDF signature block
+    res_org = client.post("/api/org_users/ensure_default")
+    assert res_org.status_code == 200
+    res_users = client.get("/api/org_users/")
+    assert res_users.status_code == 200
+    assert len(res_users.json()) >= 1
+
