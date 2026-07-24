@@ -510,9 +510,11 @@ window.ConfigView = {
                 
                 select.innerHTML = this.models.map(m => `<option value="${m.name}">${m.name} (${(m.size / 1024 / 1024 / 1024).toFixed(1)} GB)</option>`).join('');
                 
-                // Select previously saved model if exists
-                if (this.configData.ollama_model) {
+                if (this.configData.ollama_model && [...select.options].some(o => o.value === this.configData.ollama_model)) {
                     select.value = this.configData.ollama_model;
+                } else if (select.options.length > 0) {
+                    this.configData.ollama_model = select.value;
+                    await API.post('/api/config/', { ollama_model: select.value });
                 }
                 if (!silent) showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_ollama_models_ok'));
             } else {
