@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDJOU1d1UkliNmQyVkV1TUx6aXk4aG8yMm1Zck1mUDkrWFh4ODAxbmttZVluRjczRnYvQVE2WDV4UUlkZEJob2pNNk9hZGY0NlhGWmM3VXRQczZXcVFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0ODAyODc5CWZpbGU6T21uaUJhbmtfMS4wLjcwX3g2NF9mci1GUi5tc2kKYXk1MjNkM0Z6KzBkWnpyb0xlSlMwOUI2Q2lWZkoxYXd1LzdrUUVNdEtzdGJ5bkxuTHJRUTdMNEtVTWJjakpWS2JWbERjcDFpdzFQcFJpQm13WTMwQ2c9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.70/OmniBank_1.0.70_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHp2RlFMckxQRm5Ld2J0bno2c3cvTE8wTVpPQkg0bG5OaHFxb2gzUnFwemg1ZkoyanpYWUpLbzRsRGtOR2FoR2UrZlhBYlZSTWVlR09uSlZ1SDZZNEFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0OTgyNzMxCWZpbGU6T21uaUJhbmtfMS4wLjcxX3g2NF9mci1GUi5tc2kKMHhGZFpFZkZyRjlFTGxxM0p0K2lhb2FxbzR1S29NMXRGNUdBaWpKQjdUbi9pckh4ZUlSRnpBNFkyQ2FoQWI2RGVURlU1KzRUWUpEelZDY0VWNTQ5RHc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.71/OmniBank_1.0.71_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-07-23T10:34:40Z",
-    "version":  "1.0.70",
-    "notes":  "Full Budgets Module Refactor, Advanced AI Budget Simulator, and Action History Details Modal."
+    "pub_date":  "2026-07-25T12:32:11Z",
+    "version":  "1.0.71",
+    "notes":  "Multi-currency support, Advanced PDF Export, AI Budget enhancements \u0026 Budget load speed optimizations"
 }

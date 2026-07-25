@@ -210,7 +210,7 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
             pass
 
     q = db.query(Budget).filter(Budget.is_closed == False)
-    if period_filter:
+    if period_filter and period_filter != "all":
         if period_filter == "custom":
             q = q.filter(Budget.period == "custom")
         elif period_filter == "indefinite":
@@ -221,7 +221,15 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
             q = q.filter(Budget.period.in_(["monthly", None]))
     budgets = q.all()
     if not budgets:
-        return {"year": y, "month": m, "budgets": []}
+        res = {"year": y, "month": m, "budgets": []}
+        if period_filter == "all":
+            res["statusByType"] = {
+                "monthly": {"year": y, "month": m, "budgets": []},
+                "yearly": {"year": y, "month": m, "budgets": []},
+                "indefinite": {"year": y, "month": m, "budgets": []},
+                "custom": {"year": y, "month": m, "budgets": []},
+            }
+        return res
 
     budget_ids = [b.id for b in budgets]
 
@@ -255,6 +263,7 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
     spending_budgets = [b for b in budgets
                        if (b.envelope_type or "spending") != "savings" and not b.is_project]
     all_category_txs = []
+    txs_by_cat = {}
     if spending_budgets:
         tx_query = db.query(
             Transaction.from_account_id,
@@ -294,6 +303,9 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
             Transaction.date_operation
         )
         all_category_txs = tx_query.all()
+        for tx in all_category_txs:
+            cat_key = tx.category or "Sans catégorie"
+            txs_by_cat.setdefault(cat_key, []).append(tx)
 
     result = []
 
@@ -373,89 +385,83 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
                     expenses += abs(tx.amount)
                     if tx.reconciliation_date:
                         reconciled_expenses += abs(tx.amount)
-        elif b.period == "indefinite":
-            cats_set = set(cats) if cats else None
-            for tx in all_category_txs:
-                if not _match_account(tx):
-                    continue
-                if cats_set and (tx.category or "Sans catégorie") not in cats_set:
-                    continue
-                if tx.type == "income":
-                    income += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_income += abs(tx.amount)
-                else:
-                    expenses += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_expenses += abs(tx.amount)
-        elif b.period == "custom" and b.start_date and b.end_date:
-            cats_set = set(cats) if cats else None
-            for tx in all_category_txs:
-                if tx.date_operation < b.start_date or tx.date_operation > b.end_date:
-                    continue
-                if not _match_account(tx):
-                    continue
-                if cats_set and (tx.category or "Sans catégorie") not in cats_set:
-                    continue
-                if tx.type == "income":
-                    income += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_income += abs(tx.amount)
-                else:
-                    expenses += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_expenses += abs(tx.amount)
-        elif b.period == "yearly":
-            cats_set = set(cats) if cats else None
-            for tx in all_category_txs:
-                if tx.date_operation.year != y:
-                    continue
-                if not _match_account(tx):
-                    continue
-                if cats_set and (tx.category or "Sans catégorie") not in cats_set:
-                    continue
-                if tx.type == "income":
-                    income += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_income += abs(tx.amount)
-                else:
-                    expenses += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_expenses += abs(tx.amount)
-        elif custom_start and custom_end:
-            cats_set = set(cats) if cats else None
-            for tx in all_category_txs:
-                if tx.date_operation < custom_start or tx.date_operation > custom_end:
-                    continue
-                if not _match_account(tx):
-                    continue
-                if cats_set and (tx.category or "Sans catégorie") not in cats_set:
-                    continue
-                if tx.type == "income":
-                    income += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_income += abs(tx.amount)
-                else:
-                    expenses += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_expenses += abs(tx.amount)
         else:
-            cats_set = set(cats) if cats else None
-            for tx in all_category_txs:
-                if tx.date_operation.year != y or tx.date_operation.month != m:
-                    continue
-                if not _match_account(tx):
-                    continue
-                if cats_set and (tx.category or "Sans catégorie") not in cats_set:
-                    continue
-                if tx.type == "income":
-                    income += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_income += abs(tx.amount)
-                else:
-                    expenses += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_expenses += abs(tx.amount)
+            # Fast category-indexed tx lookup
+            if cats:
+                target_txs = []
+                for c in cats:
+                    target_txs.extend(txs_by_cat.get(c, []))
+            else:
+                target_txs = all_category_txs
+
+            if b.period == "indefinite":
+                for tx in target_txs:
+                    if not _match_account(tx):
+                        continue
+                    if tx.type == "income":
+                        income += abs(tx.amount)
+                        if tx.reconciliation_date:
+                            reconciled_income += abs(tx.amount)
+                    else:
+                        expenses += abs(tx.amount)
+                        if tx.reconciliation_date:
+                            reconciled_expenses += abs(tx.amount)
+            elif b.period == "custom" and b.start_date and b.end_date:
+                for tx in target_txs:
+                    if tx.date_operation < b.start_date or tx.date_operation > b.end_date:
+                        continue
+                    if not _match_account(tx):
+                        continue
+                    if tx.type == "income":
+                        income += abs(tx.amount)
+                        if tx.reconciliation_date:
+                            reconciled_income += abs(tx.amount)
+                    else:
+                        expenses += abs(tx.amount)
+                        if tx.reconciliation_date:
+                            reconciled_expenses += abs(tx.amount)
+            elif b.period == "yearly":
+                for tx in target_txs:
+                    if tx.date_operation.year != y:
+                        continue
+                    if not _match_account(tx):
+                        continue
+                    if tx.type == "income":
+                        income += abs(tx.amount)
+                        if tx.reconciliation_date:
+                            reconciled_income += abs(tx.amount)
+                    else:
+                        expenses += abs(tx.amount)
+                        if tx.reconciliation_date:
+                            reconciled_expenses += abs(tx.amount)
+            elif custom_start and custom_end:
+                for tx in target_txs:
+                    if tx.date_operation < custom_start or tx.date_operation > custom_end:
+                        continue
+                    if not _match_account(tx):
+                        continue
+                    if tx.type == "income":
+                        income += abs(tx.amount)
+                        if tx.reconciliation_date:
+                            reconciled_income += abs(tx.amount)
+                    else:
+                        expenses += abs(tx.amount)
+                        if tx.reconciliation_date:
+                            reconciled_expenses += abs(tx.amount)
+            else:
+                for tx in target_txs:
+                    if tx.date_operation.year != y or tx.date_operation.month != m:
+                        continue
+                    if not _match_account(tx):
+                        continue
+                    if tx.type == "income":
+                        income += abs(tx.amount)
+                        if tx.reconciliation_date:
+                            reconciled_income += abs(tx.amount)
+                    else:
+                        expenses += abs(tx.amount)
+                        if tx.reconciliation_date:
+                            reconciled_expenses += abs(tx.amount)
 
         expenses = round(expenses, 2)
         income = round(income, 2)
@@ -502,7 +508,15 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
     for r in result:
         r["account_names"] = [acc_name_map.get(aid, f"#{aid}") for aid in (r.get("account_ids") or [])]
 
-    return {"year": y, "month": m, "budgets": result}
+    response_data = {"year": y, "month": m, "budgets": result}
+    if period_filter == "all":
+        response_data["statusByType"] = {
+            "monthly": {"year": y, "month": m, "budgets": [r for r in result if r.get("period") in ("monthly", None)]},
+            "yearly": {"year": y, "month": m, "budgets": [r for r in result if r.get("period") == "yearly"]},
+            "indefinite": {"year": y, "month": m, "budgets": [r for r in result if r.get("period") == "indefinite"]},
+            "custom": {"year": y, "month": m, "budgets": [r for r in result if r.get("period") == "custom"]},
+        }
+    return response_data
 
 def get_budget_transactions_data(budget_id: int, year: int = None, month: int = None, db: Session = None):
     today = date.today()
@@ -661,6 +675,50 @@ def delete_allocation_data(budget_id: int, alloc_id: int, db: Session):
     db.commit()
     return {"ok": True, "action_id": action_id}
 
+def compute_savings_overflow_data(db: Session):
+    try:
+        from app.services.finance_engine import calculate_rest_to_live, predict_next_paycheck
+        today = date.today()
+        pay_info = predict_next_paycheck(db)
+        next_pay_date = pay_info.get("date") if isinstance(pay_info, dict) else None
+        rest_to_live = calculate_rest_to_live(db, today, next_pay_date)
+        if rest_to_live < 0:
+            savings_budgets = db.query(Budget).filter(Budget.is_closed == False, Budget.envelope_type == "savings").all()
+            if not savings_budgets:
+                return None
+            savings_ids = [b.id for b in savings_budgets]
+            allocs = db.query(BudgetAllocation).filter(BudgetAllocation.budget_id.in_(savings_ids)).all()
+            txs = db.query(Transaction.budget_id, Transaction.type, Transaction.amount).filter(Transaction.budget_id.in_(savings_ids)).all()
+            
+            alloc_by_b = {}
+            for a in allocs:
+                alloc_by_b.setdefault(a.budget_id, []).append(a)
+            tx_by_b = {}
+            for t in txs:
+                tx_by_b.setdefault(t.budget_id, []).append(t)
+                
+            total_savings_balance = 0.0
+            for b in savings_budgets:
+                income = sum(abs(t.amount) for t in tx_by_b.get(b.id, []) if t.type == "income")
+                expenses = sum(abs(t.amount) for t in tx_by_b.get(b.id, []) if t.type != "income")
+                b_allocs = alloc_by_b.get(b.id, [])
+                alloc_deposits = sum(a.amount for a in b_allocs if a.amount > 0)
+                alloc_withdrawals = sum(abs(a.amount) for a in b_allocs if a.amount < 0)
+                funded = income + alloc_deposits
+                withdrawn = expenses + alloc_withdrawals
+                balance = funded - withdrawn
+                total_savings_balance += balance
+                
+            overflow_amount = abs(rest_to_live)
+            return {
+                "overflow_amount": round(overflow_amount, 2),
+                "total_savings": round(max(total_savings_balance, 0), 2),
+                "fully_consumed": overflow_amount >= max(total_savings_balance, 0)
+            }
+    except Exception as e:
+        logger.warning(f"[budget] Error computing savings overflow: {e}")
+    return None
+
 def get_budget_capacity_data(db: Session):
     from app.services.finance_engine import get_accounts_available_balances
     
@@ -720,13 +778,18 @@ def get_budget_capacity_data(db: Session):
         is_monthly_fallback = True
 
     is_yearly_fallback = False
-    if explicit_yearly_budgeted > 0 or explicit_monthly_budgeted > 0:
-        effective_yearly_budgeted = explicit_yearly_budgeted + (explicit_monthly_budgeted * 12.0)
+    if explicit_yearly_budgeted > 0:
+        effective_yearly_budgeted = (explicit_monthly_budgeted * 12) + explicit_yearly_budgeted
     else:
         effective_yearly_budgeted = avg_yearly_expenses
         is_yearly_fallback = True
 
-    if is_monthly_fallback:
+    monthly_details_fr = ""
+    monthly_details_en = ""
+    yearly_details_fr = ""
+    yearly_details_en = ""
+
+    if is_org_mode or avg_monthly_income == round(six_month_income / 6.0, 2):
         fallback_avg_income = round(six_month_income / 6.0, 2)
         if fallback_avg_income > 0:
             avg_monthly_income = fallback_avg_income
@@ -785,5 +848,6 @@ def get_budget_capacity_data(db: Session):
             "budgeted_details_fr": yearly_budgeted_details_fr,
             "budgeted_details_en": yearly_budgeted_details_en,
         },
-        "accounts": list(account_balances.values())
+        "accounts": list(account_balances.values()),
+        "savings_overflow": compute_savings_overflow_data(db)
     }

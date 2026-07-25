@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.71] - 2026-07-25
+
+### Added
+- **Multi-Currency Support 💱**:
+  - Real-time currency conversions, customizable exchange rates, multi-currency transaction/account support, and original currency badges.
+- **Advanced PDF Export Module 📄**:
+  - Modular section cards, dynamic page breaks, parameter persistence, and custom date range selection in exports.
+- **AI Budget Assistant 🧠**:
+  - Improved suggestions from the AI assistant
+- **Budget Load Speed & Performance Optimizations ⚡**:
+  - Added SQLite indexes on `Transaction.budget_id` and composite `(category, date_operation)`.
+  - Optimized Python $O(B \times T)$ nested loop with $O(1)$ category lookup dictionary (`txs_by_cat`).
+  - API endpoint consolidation via `period_filter=all` single-query status batching and embedded `savings_overflow` inside `/api/budgets/capacity`.
+  - Frontend parallelized category loading (`Promise.all`), eliminated `/api/stats/dashboard` dependency from Budgets view, and eliminated double DOM rendering.
+
+### Fixed & Improved
+- **AI Budget Wizard & Simulator UX 🧠**:
+  - Preserved yearly/monthly period settings during envelope creation.
+  - Smoothed historical estimations and enabled instant slider reactivity.
+  - Graceful Ollama AI connection error handling, scale displays, and salary badges.
+- **UI & i18n 🌐**:
+  - Fixed toggle switch alignment and knob centering styling.
+  - Improved wording and i18n keys for budget capacity panel.
+  - Added missing translation keys for date selectors in exports.
+
 ## [1.0.70] - 2026-07-23
 
 ### Added
