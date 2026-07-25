@@ -17,6 +17,7 @@ env/
 *.db
 *.db-wal
 *.db-shm
+*.db.test
 *.sqlite
 *.sqlite3
 *.csv
@@ -66,3 +67,4 @@ src-tauri/resources/
 corrections/
 api_error.txt
 pytest_output.txt
+.planning/
