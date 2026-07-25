@@ -1894,7 +1894,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 await API.post('/api/budgets/', {
                     name: p.name,
                     monthly_amount: p.suggested_amount,
-                    period: p.period || 'monthly',
+                    period: p.period || p.suggested_period || 'monthly',
                     is_project: false,
                     categories: p.categories || [],
                 });
@@ -1934,7 +1934,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             await API.post('/api/budgets/', {
                 name: proposal.name,
                 monthly_amount: proposal.suggested_amount,
-                period: proposal.period || 'monthly',
+                period: proposal.period || proposal.suggested_period || 'monthly',
                 is_project: false,
                 categories: proposal.categories || [],
             });
@@ -2241,7 +2241,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             ${this.getOutlierSensitivityLabel(this.currentOutlierSensitivity || 2)}
                         </strong>
                     </div>
-                    <input id="wizOutlierSensitivitySlider" type="range" min="1" max="5" value="${this.currentOutlierSensitivity || 2}" step="1" style="width:100%;cursor:pointer;accent-color:var(--accent);height:6px;" onchange="window.BudgetsView.updateOutlierSensitivity(this.value)">
+                    <input id="wizOutlierSensitivitySlider" type="range" min="1" max="5" value="${this.currentOutlierSensitivity || 2}" step="1" style="width:100%;cursor:pointer;accent-color:var(--accent);height:6px;" oninput="window.BudgetsView.updateOutlierSensitivity(this.value)">
                 </div>
 
                 <!-- Jauge visuelle Dépenses vs Salaire Repère avec Badge & Échelle graduée -->
