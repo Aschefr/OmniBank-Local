@@ -149,6 +149,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <button id="aiWinBtn3" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(3)" data-i18n="ai_budget_window_3m">3 mois</button>
                         <button id="aiWinBtn6" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(6)" data-i18n="ai_budget_window_6m">6 mois</button>
                         <button id="aiWinBtn12" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(12)" data-i18n="ai_budget_window_12m">12 mois</button>
+
+                        <div style="height:16px;width:1px;background:var(--border-color);margin:0 4px;"></div>
+
+                        <div style="display:flex;align-items:center;gap:6px;background:var(--bg-surface);padding:2px 8px;border-radius:6px;border:1px solid var(--border-color);" title="Sensibilité aux dépenses exceptionnelles et imprévus historiques">
+                            <span style="font-size:11px;color:var(--text-muted);font-weight:600;" data-i18n="ai_outlier_slider_label">Filtre d'écrêtage :</span>
+                            <input id="aiOutlierSensitivitySlider" type="range" min="1" max="5" value="2" step="1" style="width:70px;cursor:pointer;accent-color:var(--accent);" onchange="window.BudgetsView.updateOutlierSensitivity(this.value)">
+                            <span id="aiOutlierSensitivityLabel" style="font-size:11px;font-weight:700;color:var(--accent);min-width:110px;">Prudent (Équilibre)</span>
+                        </div>
                     </div>
 
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
