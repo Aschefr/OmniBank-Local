@@ -1641,5 +1641,11 @@
     "ai_budget_tooltip_outlier_excess": "📌 Écrêtage appliqué: +{amount}€ de dépenses ponctuelles d'exception isolées",
     "ai_wizard_step3_fixed_note": "📌 Cette enveloppe ne contient que des dépenses récurrentes identiques chaque mois.",
     "ai_wizard_step3_del_proposal": "🗑️ Supprimer l'enveloppe",
-    "ai_budget_tooltip_examples": "Exemples :"
+    "ai_budget_tooltip_examples": "Exemples :",
+    "ai_outlier_slider_label": "Sensibilité aux dépenses exceptionnelles :",
+    "ai_outlier_level_1": "Strict (Régulier pur)",
+    "ai_outlier_level_2": "Prudent (Équilibre)",
+    "ai_outlier_level_3": "Équilibré",
+    "ai_outlier_level_4": "Permissif",
+    "ai_outlier_level_5": "Intégral (Tout inclure)"
 }

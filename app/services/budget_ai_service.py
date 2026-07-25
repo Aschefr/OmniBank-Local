@@ -45,7 +45,7 @@ def cancel_ai_suggest() -> Dict[str, Any]:
     })
     return {"status": "cancelled"}
 
-def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_date: date, window_months: int = 3) -> dict:
+def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_date: date, window_months: int = 3, outlier_sensitivity: int = 2) -> dict:
     window_start = anchor_date - relativedelta(months=window_months)
     end_of_current_month = date(anchor_date.year, anchor_date.month, 1) + relativedelta(months=1, days=-1)
 
@@ -121,6 +121,21 @@ def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_
     all_cat_totals = [sum(m.values()) / max(len(m), 1) for m in cat_monthly.values()]
     median_cat_avg = statistics.median(all_cat_totals) if all_cat_totals else 100.0
 
+    # Facteur et plancher dynamique d'écrêtage (Sensitivity 1 à 5)
+    # 1: Strict (1.5x, min 100€)
+    # 2: Prudent / Défaut (2.5x, min 200€)
+    # 3: Équilibré (4.0x, min 350€)
+    # 4: Permissif (6.0x, min 500€)
+    # 5: Intégral (Pas d'écrêtage)
+    sensitivity_map = {
+        1: (1.5, 100.0),
+        2: (2.5, 200.0),
+        3: (4.0, 350.0),
+        4: (6.0, 500.0),
+        5: (999999.0, 999999999.0)
+    }
+    mult_factor, min_thresh = sensitivity_map.get(outlier_sensitivity, (2.5, 200.0))
+
     result = {}
     for cat, monthly_sums in cat_monthly.items():
         raw_amounts = cat_amounts_list.get(cat, [])
@@ -131,8 +146,8 @@ def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_
         outlier_excess = 0.0
 
         for amt in raw_amounts:
-            threshold = max(2.5 * cat_median, 200.0) if cat_median > 0 else 200.0
-            if cat_median > 0 and amt > threshold and len(raw_amounts) >= 3:
+            threshold = max(mult_factor * cat_median, min_thresh) if cat_median > 0 else min_thresh
+            if cat_median > 0 and amt > threshold and len(raw_amounts) >= 3 and outlier_sensitivity < 5:
                 # Écrêtage (Winsorizing) : On conserve le plafond normal et on isole le surplus
                 regular_amounts.append(threshold)
                 outlier_amounts.append(amt)
@@ -174,7 +189,7 @@ def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_
         if cat in yearly_recurrence_cats:
             suggested_period = "yearly"
             rec_total = yearly_recurrence_sums.get(cat, 0.0)
-            total_year_val = round(rec_total if rec_total > 0 else total, 2)
+            total_year_val = round(rec_total if rec_total > 0 else recurring_total, 2)
         else:
             if is_exceptional:
                 suggested_period = "yearly"
@@ -182,7 +197,7 @@ def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_
                 suggested_period = "yearly"
             else:
                 suggested_period = "monthly"
-            total_year_val = round(total, 2)
+            total_year_val = round(recurring_total, 2)
 
         current_month_key = anchor_date.strftime("%Y-%m")
         current_month_spent = round(monthly_sums.get(current_month_key, 0.0), 2)
@@ -316,7 +331,7 @@ def extract_json_envelopes(cleaned_raw: str) -> list[dict]:
 
     return parsed_objs
 
-def ai_suggest_budgets_service(window_months: int, lang: Optional[str], db: Session) -> dict:
+def ai_suggest_budgets_service(window_months: int, lang: Optional[str], db: Session, outlier_sensitivity: int = 2) -> dict:
     global AI_TASK_STATUS
     AI_TASK_STATUS.update({
         "state": "PREPARING",
@@ -359,14 +374,14 @@ def ai_suggest_budgets_service(window_months: int, lang: Optional[str], db: Sess
     ).order_by(Transaction.date_operation.desc()).first()
     anchor_date = latest_past_tx.date_operation if latest_past_tx else date.today()
 
-    cat_data = compute_monthly_averages_for_ai(db, already_used_cats, anchor_date, window_months=window_months)
+    cat_data = compute_monthly_averages_for_ai(db, already_used_cats, anchor_date, window_months=window_months, outlier_sensitivity=outlier_sensitivity)
 
     active_cats = [c for c, info in cat_data.items() if info.get("avg", 0) > 0 or info.get("total_year", 0) > 0]
     effective_window = window_months
     if len(active_cats) == 0 and window_months < 12:
         for try_w in (6, 12):
             if try_w > window_months:
-                try_data = compute_monthly_averages_for_ai(db, already_used_cats, anchor_date, window_months=try_w)
+                try_data = compute_monthly_averages_for_ai(db, already_used_cats, anchor_date, window_months=try_w, outlier_sensitivity=outlier_sensitivity)
                 try_active = [c for c, info in try_data.items() if info.get("avg", 0) > 0 or info.get("total_year", 0) > 0]
                 if len(try_active) > 0 or try_w == 12:
                     cat_data = try_data
@@ -704,13 +719,14 @@ Response format (JSON object with key "envelopes"):
         "window_months": effective_window,
         "requested_window_months": window_months,
         "effective_window_months": effective_window,
+        "outlier_sensitivity": outlier_sensitivity,
     }
     AI_TASK_STATUS["state"] = "SUCCESS"
     AI_TASK_STATUS["step_key"] = "ai_status_success"
     AI_TASK_STATUS["result"] = result_payload
     return result_payload
 
-def ai_refine_budgets_service(window_months: int, lang: Optional[str], existing_proposals: list[dict], unclassified_categories: list[dict], db: Session) -> dict:
+def ai_refine_budgets_service(window_months: int, lang: Optional[str], existing_proposals: list[dict], unclassified_categories: list[dict], db: Session, outlier_sensitivity: int = 2) -> dict:
     if not unclassified_categories:
         return {"proposals": existing_proposals, "unclassified_categories": []}
 
@@ -729,7 +745,7 @@ def ai_refine_budgets_service(window_months: int, lang: Optional[str], existing_
     ).order_by(Transaction.date_operation.desc()).first()
     anchor_date = latest_past_tx.date_operation if latest_past_tx else date.today()
 
-    cat_data = compute_monthly_averages_for_ai(db, set(), anchor_date, window_months=window_months)
+    cat_data = compute_monthly_averages_for_ai(db, set(), anchor_date, window_months=window_months, outlier_sensitivity=outlier_sensitivity)
 
     unclassified_names = [item.get("name") if isinstance(item, dict) else item for item in unclassified_categories]
     unclassified_cats = [c for c in unclassified_names if c in cat_data]
@@ -882,4 +898,80 @@ Response format (JSON object with key "envelopes"):
     return {
         "proposals": updated_proposals,
         "unclassified_categories": remaining_unclassified,
+    }
+
+
+def ai_recalculate_amounts_service(window_months: int, outlier_sensitivity: int, existing_proposals: list[dict], unclassified_categories: list[dict], db: Session) -> dict:
+    latest_past_tx = db.query(Transaction).filter(
+        Transaction.date_operation <= date.today()
+    ).order_by(Transaction.date_operation.desc()).first()
+    anchor_date = latest_past_tx.date_operation if latest_past_tx else date.today()
+
+    cat_data = compute_monthly_averages_for_ai(db, set(), anchor_date, window_months=window_months, outlier_sensitivity=outlier_sensitivity)
+
+    updated_proposals = []
+    for p in existing_proposals:
+        cats = p.get("categories", [])
+        is_yearly = (p.get("suggested_period") or p.get("period")) == "yearly"
+        is_fixed = p.get("is_fixed", False)
+
+        cat_amounts = {}
+        for c in cats:
+            if c in cat_data:
+                # Conserver la période initiale de l'enveloppe
+                c_is_fixed = cat_data[c]["is_fixed"]
+                c_fixed_val = cat_data[c]["fixed_amount"]
+                c_avg_val = cat_data[c]["avg"]
+                c_tot_yr = cat_data[c]["total_year"]
+
+                if is_yearly:
+                    val = c_tot_yr
+                else:
+                    val = c_fixed_val if c_is_fixed else c_avg_val
+                cat_amounts[c] = val
+            else:
+                cat_amounts[c] = p.get("cat_amounts", {}).get(c, 0.0)
+
+        base_amount = round(sum(cat_amounts.values()), 2)
+        cat_details = {
+            c: {
+                "amount": cat_amounts[c],
+                "top_descs": cat_data[c]["top_descs"] if c in cat_data else [],
+                "is_fixed": cat_data[c]["is_fixed"] if c in cat_data else False,
+                "current_month_spent": cat_data[c].get("current_month_spent", 0.0) if c in cat_data else 0.0,
+                "recent_3m_avg": cat_data[c].get("recent_3m_avg", 0.0) if c in cat_data else 0.0,
+            }
+            for c in cats
+        }
+
+        updated_p = dict(p)
+        updated_p["cat_amounts"] = cat_amounts
+        updated_p["cat_details"] = cat_details
+        updated_p["suggested_amount"] = base_amount
+        updated_p["historical_actual_amount"] = base_amount
+        updated_p["original_amount"] = base_amount
+        updated_p["current_month_spent"] = round(sum(cat_details[c].get("current_month_spent", 0.0) for c in cats), 2)
+        updated_p["recent_3m_avg"] = round(sum(cat_details[c].get("recent_3m_avg", 0.0) for c in cats), 2)
+        updated_proposals.append(updated_p)
+
+    updated_unclassified = []
+    for uItem in unclassified_categories:
+        c_name = uItem.get("name") if isinstance(uItem, dict) else uItem
+        if c_name in cat_data:
+            updated_unclassified.append({
+                "name": c_name,
+                "avg": cat_data[c_name]["avg"],
+                "current_month_spent": cat_data[c_name].get("current_month_spent", 0.0),
+                "recent_3m_avg": cat_data[c_name].get("recent_3m_avg", 0.0),
+                "total_year": cat_data[c_name].get("total_year", 0.0),
+                "suggested_period": cat_data[c_name].get("suggested_period", "monthly"),
+                "top_descs": cat_data[c_name].get("top_descs", []),
+            })
+        else:
+            updated_unclassified.append(uItem)
+
+    return {
+        "proposals": updated_proposals,
+        "unclassified_categories": updated_unclassified,
+        "outlier_sensitivity": outlier_sensitivity,
     }
