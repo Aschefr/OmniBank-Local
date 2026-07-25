@@ -1641,5 +1641,11 @@
     "ai_budget_tooltip_outlier_excess": "📌 Capping applied: +{amount}€ in isolated one-off exceptional expenses",
     "ai_wizard_step3_fixed_note": "📌 This envelope only contains recurring expenses with identical amounts each month.",
     "ai_wizard_step3_del_proposal": "🗑️ Delete envelope",
-    "ai_budget_tooltip_examples": "Examples:"
+    "ai_budget_tooltip_examples": "Examples:",
+    "ai_outlier_slider_label": "Sensitivity to exceptional expenses:",
+    "ai_outlier_level_1": "Strict (Pure regular)",
+    "ai_outlier_level_2": "Prudent (Balanced)",
+    "ai_outlier_level_3": "Moderate",
+    "ai_outlier_level_4": "Permissive",
+    "ai_outlier_level_5": "Full (No capping)"
 }

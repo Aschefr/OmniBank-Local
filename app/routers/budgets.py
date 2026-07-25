@@ -57,11 +57,20 @@ class BulkDeleteRequest(BaseModel):
 class AiSuggestRequest(BaseModel):
     window_months: int = 3
     lang: Optional[str] = "fr"
+    outlier_sensitivity: Optional[int] = 2
 
 
 class AiRefineRequest(BaseModel):
     window_months: int = 3
     lang: Optional[str] = "fr"
+    outlier_sensitivity: Optional[int] = 2
+    existing_proposals: list[dict] = []
+    unclassified_categories: list[dict] = []
+
+
+class AiRecalculateRequest(BaseModel):
+    window_months: int = 3
+    outlier_sensitivity: int = 2
     existing_proposals: list[dict] = []
     unclassified_categories: list[dict] = []
 
@@ -225,7 +234,8 @@ def ai_suggest_budgets(data: Optional[AiSuggestRequest] = None, db: Session = De
     try:
         window_months = data.window_months if data else 3
         lang = data.lang if data else "fr"
-        return budget_ai_service.ai_suggest_budgets_service(window_months=window_months, lang=lang, db=db)
+        outlier_sensitivity = data.outlier_sensitivity if (data and data.outlier_sensitivity is not None) else 2
+        return budget_ai_service.ai_suggest_budgets_service(window_months=window_months, lang=lang, outlier_sensitivity=outlier_sensitivity, db=db)
     except HTTPException:
         raise
     except Exception as e:
@@ -239,6 +249,7 @@ def ai_refine_budgets(data: AiRefineRequest, db: Session = Depends(get_db)):
         return budget_ai_service.ai_refine_budgets_service(
             window_months=data.window_months,
             lang=data.lang,
+            outlier_sensitivity=data.outlier_sensitivity if data.outlier_sensitivity is not None else 2,
             existing_proposals=data.existing_proposals,
             unclassified_categories=data.unclassified_categories,
             db=db
@@ -248,3 +259,18 @@ def ai_refine_budgets(data: AiRefineRequest, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"[Budgets Router] Erreur ai_refine: {e}", exc_info=True)
         raise HTTPException(status_code=502, detail=f"Erreur d'affinage IA : {str(e)}")
+
+
+@router.post("/ai_suggest/recalculate")
+def ai_recalculate_budgets(data: AiRecalculateRequest, db: Session = Depends(get_db)):
+    try:
+        return budget_ai_service.ai_recalculate_amounts_service(
+            window_months=data.window_months,
+            outlier_sensitivity=data.outlier_sensitivity,
+            existing_proposals=data.existing_proposals,
+            unclassified_categories=data.unclassified_categories,
+            db=db
+        )
+    except Exception as e:
+        logger.error(f"[Budgets Router] Erreur ai_recalculate: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erreur de recalcul : {str(e)}")
