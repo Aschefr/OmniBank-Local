@@ -4,6 +4,10 @@ class I18nManager {
         this.translations = {};
     }
 
+    get currentLang() {
+        return this.lang;
+    }
+
     async init() {
         try {
             const response = await fetch(`/static/i18n/${this.lang}.json?v=${Date.now()}`);

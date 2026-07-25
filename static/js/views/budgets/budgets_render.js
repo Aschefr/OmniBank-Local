@@ -444,7 +444,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <input type="checkbox" id="toggleCapacityPanel" ${showCapacity ? 'checked' : ''} onchange="window.BudgetsView.toggleCapacityPanel(this.checked)">
                         <span class="slider"></span>
                     </span>
-                    <strong style="font-size:13px; color:var(--text-main); font-weight:600;">${window.i18n.t('budget_capacity_panel_title') || 'Capacité budgétaire & Impact sur les comptes'}</strong>
+                    <strong style="font-size:13px; color:var(--text-main); font-weight:600;">${window.i18n.t('budget_capacity_panel_title') || 'Couverture du budget & Solde disponible'}</strong>
                 </label>
                 <span title="${panelHelpText}" style="cursor:help; display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:10px; font-weight:bold; font-family:sans-serif; vertical-align:middle; line-height:1; user-select:none;">i</span>
             </div>
@@ -504,7 +504,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const monthlyLabel = window.i18n.t(monthlyLabelKey) || (this.capacityData.monthly.is_fallback ? 'Dépenses moyennes' : 'Budgétisé');
             const yearlyLabel = window.i18n.t(yearlyLabelKey) || (this.capacityData.yearly.is_fallback ? 'Dépenses moyennes' : 'Budgétisé');
 
-            const lang = window.i18n.currentLang || 'fr';
+            const lang = window.i18n?.currentLang || window.i18n?.lang || 'fr';
             const monthlyDetails = (lang === 'en' ? this.capacityData.monthly.details_en : this.capacityData.monthly.details_fr) || '';
             const yearlyDetails = (lang === 'en' ? this.capacityData.yearly.details_en : this.capacityData.yearly.details_fr) || '';
 
@@ -523,7 +523,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <!-- Monthly capacity -->
                         <div>
                             <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:6px;">
-                                <span>${window.i18n.t('budget_capacity_monthly') || 'Capacité mensuelle'}</span>
+                                <span>${window.i18n.t('budget_capacity_monthly') || 'Engagement mensuel'}</span>
                                 <span style="color:${monthlyColor};">${monthlyRatio}%</span>
                             </div>
                             <div style="background:rgba(128,128,128,0.15); border-radius:999px; height:8px; overflow:hidden; margin-bottom:6px;">
@@ -538,7 +538,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <!-- Yearly capacity -->
                         <div>
                             <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:6px;">
-                                <span>${window.i18n.t('budget_capacity_yearly') || 'Capacité annuelle'}</span>
+                                <span>${window.i18n.t('budget_capacity_yearly') || "Projection d'engagement annuel"}</span>
                                 <span style="color:${yearlyColor};">${yearlyRatio}%</span>
                             </div>
                             <div style="background:rgba(128,128,128,0.15); border-radius:999px; height:8px; overflow:hidden; margin-bottom:6px;">

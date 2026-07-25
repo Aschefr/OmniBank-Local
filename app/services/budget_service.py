@@ -752,15 +752,15 @@ def get_budget_capacity_data(db: Session):
         monthly_budgeted_details_fr = "Aucune enveloppe configurée. Estimation basée sur la moyenne de vos dépenses réelles des 6 derniers mois."
         monthly_budgeted_details_en = "No configured envelope. Estimated based on your average real spending over the last 6 months."
     else:
-        monthly_budgeted_details_fr = "Somme de vos enveloppes mensuelles actives configurées."
-        monthly_budgeted_details_en = "Sum of your configured active monthly envelopes."
+        monthly_budgeted_details_fr = "Montant total réservé par vos enveloppes mensuelles actives."
+        monthly_budgeted_details_en = "Total amount reserved by your active monthly envelopes."
 
     if is_yearly_fallback:
         yearly_budgeted_details_fr = "Aucune enveloppe configurée. Estimation basée sur vos dépenses YTD + la moyenne projetée sur l'année."
         yearly_budgeted_details_en = "No configured envelope. Estimated based on YTD spending + projected yearly average."
     else:
-        yearly_budgeted_details_fr = "Somme des enveloppes annuelles + (enveloppes mensuelles × 12)."
-        yearly_budgeted_details_en = "Sum of yearly envelopes + (monthly envelopes × 12)."
+        yearly_budgeted_details_fr = "Montant total réservé par vos enveloppes pour l'année complète (Enveloppes annuelles + 12 × Enveloppes mensuelles)."
+        yearly_budgeted_details_en = "Total amount reserved by your envelopes for the full year (Yearly envelopes + 12 × Monthly envelopes)."
 
     account_balances = get_accounts_available_balances(db)
     
