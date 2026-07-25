@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, Date, ForeignKey, DateTime, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, Date, ForeignKey, DateTime, Text, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
@@ -17,6 +17,9 @@ class Account(Base):
 
 class Transaction(Base):
     __tablename__ = "transactions"
+    __table_args__ = (
+        Index('ix_transactions_category_date', 'category', 'date_operation'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     csv_id = Column(String, unique=True, index=True, nullable=True) # Used for deduplication on import
@@ -48,7 +51,7 @@ class Transaction(Base):
     recurrence_id = Column(Integer, ForeignKey("recurrence_templates.id"), nullable=True)
     
     # Budget project assignment (optional — for project-type envelopes)
-    budget_id = Column(Integer, ForeignKey("budgets.id"), nullable=True)
+    budget_id = Column(Integer, ForeignKey("budgets.id"), nullable=True, index=True)
 
     # Manual override for paycheck detection (True = is paycheck, False = not paycheck, None = default/heuristic)
     is_salary = Column(Boolean, nullable=True, default=None)

@@ -36,7 +36,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         // Per-type status data
         this.statusByType = { monthly: null, yearly: null, indefinite: null, custom: null };
-        this.savingsOverflow = null; // Loaded from dashboard for overflow visual
+        this.savingsOverflow = null;
 
         // Inject initial loading spinner while fetching all budgets/stats
         const container = document.getElementById('budgetStatusContainer');
@@ -49,8 +49,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             `;
         }
 
-        await Promise.all([this.loadBudgets(), this.loadAccounts(), this.loadCategories(), this.loadAllStatuses(), this.checkAI(), this.loadSavingsOverflow()]);
-        // Re-render after all data is loaded to ensure this.accounts is available for colored badges
+        await Promise.all([
+            this.loadBudgets(),
+            this.loadAccounts(),
+            this.loadCategories(),
+            this.loadAllStatuses(),
+            this.checkAI()
+        ]);
+        // Re-render once after all data is loaded
         this.renderStatus();
         this.checkAiTaskStatusOnMount();
     },
@@ -134,12 +140,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
     async loadCategories() {
         const accIds = this.getSelectedAccounts();
-        if (accIds.length > 0 && window.app?.config?.enable_org_mode === 'true') {
-            this.categories = await API.get(`/api/categories/by_accounts?account_ids=${accIds.join(',')}`);
-        } else {
-            this.categories = await API.get('/api/categories/');
-        }
-        this.catAverages = await API.get('/api/categories/averages').catch(() => ({}));
+        const catPromise = (accIds.length > 0 && window.app?.config?.enable_org_mode === 'true')
+            ? API.get(`/api/categories/by_accounts?account_ids=${accIds.join(',')}`)
+            : API.get('/api/categories/');
+        const avgPromise = API.get('/api/categories/averages').catch(() => ({}));
+
+        const [cats, averages] = await Promise.all([catPromise, avgPromise]);
+        this.categories = cats;
+        this.catAverages = averages;
         this.renderCatCheckboxes(this.selectedCategories);
     },
 
@@ -182,7 +190,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
     _buildStatusUrl(type) {
         let url = `/api/budgets/status?period_filter=${type}`;
-        if (type === 'monthly') {
+        if (type === 'monthly' || type === 'all') {
             if (this.customPeriod.enabled && this.customPeriod.start && this.customPeriod.end) {
                 url += `&date_start=${this.customPeriod.start}&date_end=${this.customPeriod.end}`;
             } else {
@@ -197,17 +205,20 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
     async loadAllStatuses() {
         try {
-            const [monthly, yearly, indefinite, custom, capacity] = await Promise.all([
-                API.get(this._buildStatusUrl('monthly')),
-                API.get(this._buildStatusUrl('yearly')),
-                API.get(this._buildStatusUrl('indefinite')),
-                API.get(this._buildStatusUrl('custom')),
+            const [statusRes, capacity] = await Promise.all([
+                API.get(this._buildStatusUrl('all')),
                 API.get('/api/budgets/capacity'),
             ]);
-            this.statusByType = { monthly, yearly, indefinite, custom };
+
+            if (statusRes?.statusByType) {
+                this.statusByType = statusRes.statusByType;
+            } else {
+                this.statusByType = { monthly: statusRes, yearly: statusRes, indefinite: statusRes, custom: statusRes };
+            }
             this.capacityData = capacity;
+            this.savingsOverflow = capacity?.savings_overflow || null;
             this._mergeStatusData();
-            this.renderStatus();
+            // Single render is handled at the end of init()
         } catch(e) {
             const container = document.getElementById('budgetStatusContainer');
             if (container) {
@@ -224,6 +235,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             ]);
             this.statusByType[type] = status;
             this.capacityData = capacity;
+            this.savingsOverflow = capacity?.savings_overflow || null;
             this._mergeStatusData();
             this.renderStatus();
         } catch(e) {
@@ -241,19 +253,20 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     },
 
     async loadStatus() {
-        await Promise.all([
-            this.loadAllStatuses(),
-            this.loadSavingsOverflow()
-        ]);
+        await this.loadAllStatuses();
+        this.renderStatus();
     },
 
     async loadSavingsOverflow() {
-        try {
-            const dash = await API.get('/api/stats/dashboard');
-            this.savingsOverflow = dash.savings_overflow || null;
-        } catch(e) {
-            console.warn('[budget] Could not load savings overflow data', e);
-            this.savingsOverflow = null;
+        if (this.capacityData?.savings_overflow !== undefined) {
+            this.savingsOverflow = this.capacityData.savings_overflow;
+        } else {
+            try {
+                const cap = await API.get('/api/budgets/capacity');
+                this.savingsOverflow = cap.savings_overflow || null;
+            } catch(e) {
+                this.savingsOverflow = null;
+            }
         }
     },
 

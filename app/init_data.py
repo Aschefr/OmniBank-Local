@@ -1,13 +1,19 @@
 import os
 from sqlalchemy.orm import Session
 from app.database import engine, Base, SessionLocal
-from app.models import Account, Transaction, GlobalConfig, ChatSession, ChatMessage
+import app.models  # Register all models for create_all
 
 def init_db():
     Base.metadata.create_all(bind=engine)
 
     from sqlalchemy import text
     with engine.connect() as conn:
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_budget_id ON transactions (budget_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_category_date ON transactions (category, date_operation)"))
+            conn.commit()
+        except Exception:
+            pass
         # Check current schema version to avoid repeating slow migrations on every startup
         schema_version = 0
         try:
