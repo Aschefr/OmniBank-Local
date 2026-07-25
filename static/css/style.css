@@ -658,7 +658,7 @@ h3 {
     outline: none;
 }
 
-/* Toggle Switch */
+/* Toggle Switch (Compact 36x20) */
 .toggle-switch {
     position: relative;
     display: inline-flex;
@@ -673,39 +673,37 @@ h3 {
     opacity: 0;
     width: 0;
     height: 0;
+    position: absolute;
 }
 
-.slider {
+.toggle-switch .slider {
     position: absolute;
     cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background-color: var(--border-color);
-    transition: .3s;
+    transition: background-color .3s, border-color .3s;
     border-radius: 20px;
     box-sizing: border-box;
 }
 
-.slider:before {
+.toggle-switch .slider:before {
     position: absolute;
     content: "";
     height: 14px;
     width: 14px;
     left: 3px;
-    bottom: 3px;
+    top: 3px;
     background-color: white;
-    transition: .3s;
+    transition: transform .3s ease;
     border-radius: 50%;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
-input:checked+.slider {
-    background-color: var(--success);
+.toggle-switch input:checked + .slider {
+    background-color: var(--accent);
 }
 
-input:checked+.slider:before {
+.toggle-switch input:checked + .slider:before {
     transform: translateX(16px);
 }
 
@@ -2165,7 +2163,7 @@ body.compact-mode .rec-instance-row .btn {
     height: 18px;
     width: 18px;
     left: 3px;
-    bottom: 3px;
+    top: 3px;
     background-color: white;
     transition: 0.3s;
     border-radius: 50%;
@@ -3161,45 +3159,51 @@ input[type="range"]::-moz-range-thumb:hover {
     border: 2px solid var(--accent) !important;
 }
 
-/* Switch Toggle Styling */
+/* Switch Toggle Styling (Standard 44x24) */
 .switch {
     position: relative;
     display: inline-block;
     width: 44px;
     height: 24px;
+    flex-shrink: 0;
 }
 .switch input {
     opacity: 0;
     width: 0;
     height: 0;
+    position: absolute;
 }
-.slider {
+.switch .slider {
     position: absolute;
     cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
+    inset: 0;
     background-color: var(--border-color);
-    transition: .3s;
+    transition: background-color .3s;
+    border-radius: 24px;
+    box-sizing: border-box;
 }
-.slider:before {
+.switch .slider:before {
     position: absolute;
     content: "";
     height: 18px;
     width: 18px;
     left: 3px;
-    bottom: 3px;
+    top: 3px;
     background-color: white;
-    transition: .3s;
+    transition: transform .3s ease;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
-input:checked + .slider {
+.switch input:checked + .slider {
     background-color: var(--accent);
 }
-input:checked + .slider:before {
+.switch input:checked + .slider:before {
     transform: translateX(20px);
 }
-.slider.round {
+.switch .slider.round {
     border-radius: 24px;
 }
-.slider.round:before {
+.switch .slider.round:before {
     border-radius: 50%;
 }
 
