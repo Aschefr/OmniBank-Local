@@ -49,7 +49,9 @@ Target: Privacy-conscious individuals; French associations/CSE needing lightweig
 
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+**IMPORTANT (user rule):** NEVER automatically commit changes. Always wait for explicit user instruction before committing to git.
+
+Will populate as patterns emerge during development.
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->

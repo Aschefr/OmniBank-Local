@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHp2RlFMckxQRm5Ld2J0bno2c3cvTE8wTVpPQkg0bG5OaHFxb2gzUnFwemg1ZkoyanpYWUpLbzRsRGtOR2FoR2UrZlhBYlZSTWVlR09uSlZ1SDZZNEFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0OTgyNzMxCWZpbGU6T21uaUJhbmtfMS4wLjcxX3g2NF9mci1GUi5tc2kKMHhGZFpFZkZyRjlFTGxxM0p0K2lhb2FxbzR1S29NMXRGNUdBaWpKQjdUbi9pckh4ZUlSRnpBNFkyQ2FoQWI2RGVURlU1KzRUWUpEelZDY0VWNTQ5RHc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.71/OmniBank_1.0.71_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDVuUXRCU2J6dXJmWklSOGszTi9DaG9zWndtS1lkem5rTGFlK0IrTUZidnhWeENOeVZKamlZeU80cyt3NmtPTWdVa284V2l0Tm9VT2lEbjc4akNxb1FzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MDkxNzQwCWZpbGU6T21uaUJhbmtfMS4wLjcyX3g2NF9mci1GUi5tc2kKZjkvbWlnaFFSb1FIVmIwNEZHOXhEMVJta21QSDJGdGtNRVVCczBUK2FLMGJ1S1oxSStGclBjbzRzZjNOU3RGRlNpallUUnc1bzM5Uk5yWlI0QU1XRHc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.72/OmniBank_1.0.72_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-07-25T12:32:11Z",
-    "version":  "1.0.71",
-    "notes":  "Multi-currency support, Advanced PDF Export, AI Budget enhancements \u0026 Budget load speed optimizations"
+    "pub_date":  "2026-07-26T18:49:00Z",
+    "version":  "1.0.72",
+    "notes":  "Synthese: fix annual column totals include all categories; add inactive categories toggle (show/hide per-type); PDF export: include inactive cats and types, fix height clipping, fix no-print filter scope"
 }
