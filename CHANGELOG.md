@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.72] - 2026-07-26
+
+### Added
+- **Analytics & PDF Export - Inactive Categories & Types 📊**:
+  - Added "Show/Hide inactive categories" toggle per transaction type in the Synthèse view.
+  - Added option to include inactive categories and completely inactive transaction types in PDF exports with full annual historical totals.
+  - Exposed `inactive_types` data endpoint in backend stats API.
+
+### Fixed & Improved
+- **Analytics Summary Table Accuracy 🧮**:
+  - Fixed annual column total sums so historical totals include all active/inactive categories across all years instead of truncating based on the filtered period.
+- **PDF Export Rendering 📄**:
+  - Removed container `max-height` and `overflow` CSS bounds in print mode to prevent table clipping.
+  - Corrected `no-print` DOM filtering scope to preserve inactive rows and inactive type tables when requested.
+  - Improved layout spacing between type tables in printed reports.
+
 ## [1.0.71] - 2026-07-25
 
 ### Added
