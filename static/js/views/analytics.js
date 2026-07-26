@@ -328,11 +328,11 @@ window.AnalyticsView = {
         container.innerHTML = sections.join('');
     },
 
-    renderTypeTable(txType, typeData, months, years) {
+    renderTypeTable(txType, typeData, months, years, showInactive = false, forPrint = false) {
         const cfg = { ...(this.TYPE_CONFIG[txType] || { emoji: '•', color: 'var(--text-muted)', sign: '' }) };
         const savedColor = localStorage.getItem('analytics_color_' + txType);
         if (savedColor) cfg.color = savedColor;
-        const { categories, totals_per_cat, totals_per_month, grand_total, annual_by_cat, annual_totals_per_year } = typeData;
+        const { categories, totals_per_cat, totals_per_month, grand_total, annual_by_cat, annual_totals_per_year, inactive_by_cat } = typeData;
 
         const isExpense = ['expense_fixed', 'expense_var'].includes(txType);
         const isIncome = txType === 'income';
@@ -364,6 +364,11 @@ window.AnalyticsView = {
 
         const displayYears = years.filter(yr => !this.selectedYears || this.selectedYears.includes(yr.toString()));
 
+        // Catégories inactives : existantes dans l'historique global mais sans données sur la période filtrée.
+        // Triées par total historique décroissant (même ordre que le backend).
+        const inactiveCatEntries = Object.entries(inactive_by_cat || {});
+        const hasInactive = inactiveCatEntries.length > 0;
+
         const monthHeaders = months.map(mk =>
             `<th data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;min-width:80px;white-space:nowrap;border-bottom:1px solid ${hbd};position:sticky;top:0;background:var(--bg-surface);z-index:20;">${this.formatShortMonth(mk)}</th>`
         ).join('');
@@ -376,7 +381,7 @@ window.AnalyticsView = {
         const catStyle = `text-align:left;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:sticky;left:0;top:0;background:var(--bg-surface);z-index:20;box-shadow:3px 0 6px rgba(0,0,0,0.2);box-sizing:border-box;position:sticky;`;
 
         let html = `
-        <div data-type="${txType}" style="border:1px solid ${hbd};border-radius:12px;display:flex;flex-direction:column;max-height:75vh;">
+        <div data-type="${txType}" style="border:1px solid ${hbd};border-radius:12px;display:flex;flex-direction:column;${forPrint ? '' : 'max-height:75vh;'}">
             <div style="background:${hb};padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${hbd};flex-shrink:0;flex-wrap:wrap;gap:8px;">
                 <span style="font-weight:700;font-size:15px;color:var(--text-main);">${cfg.emoji} ${translatedType}</span>
                 <div class="print-hide" style="display:flex;align-items:center;gap:18px;font-size:12px;color:var(--text-muted);user-select:none;">
@@ -399,8 +404,9 @@ window.AnalyticsView = {
                     </div>
                 </div>
                 <span class="privacy-blur" style="font-size:13px;font-weight:600;color:var(--text-main);">${window.i18n.t('analytics_total_period')} : ${cfg.sign}${formatCurrency(grand_total)}</span>
+                ${hasInactive ? `<button data-inactive-btn="${txType}" class="btn btn-secondary print-hide" style="font-size:11px;padding:3px 10px;opacity:0.7;border-style:dashed;" onclick="window.AnalyticsView.toggleInactiveRows('${txType}')" title="${window.i18n.t('analytics_inactive_cats_tooltip') || 'Catégories sans activité sur cette période — présentes dans l\'historique'}">👁 ${inactiveCatEntries.length} ${window.i18n.t('analytics_inactive_cats') || 'inactives'}</button>` : ''}
             </div>
-            <div style="overflow:auto;flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
+            <div style="${forPrint ? '' : 'overflow:auto;'}flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
             <table class="data-table" style="min-width:${220 + months.length * 80 + displayYears.length * 90}px;border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
             <thead><tr style="background:var(--bg-surface);">
                 <th data-col-type="cat" style="${catStyle}position:relative;" data-i18n="analytics_th_category">${window.i18n.t('analytics_th_category')}<span class="col-resize-handle" onmousedown="window.AnalyticsView._startResize(event)"></span></th>
@@ -447,6 +453,30 @@ window.AnalyticsView = {
             </tr>`;
         }
 
+        // Lignes des catégories inactives (masquées par défaut, révélées par le bouton toggle)
+        for (const [cat, annData] of inactiveCatEntries) {
+            const monthCells = months.map(mk =>
+                `<td data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;">
+                    <span style="color:var(--text-muted);font-size:11px;">—</span>
+                </td>`
+            ).join('');
+            const yearCells = displayYears.map(yr => {
+                const v = annData[yr] || 0;
+                return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};background:${hb};font-weight:500;cursor:pointer;"
+                    onclick="window.AnalyticsView.drillDownYear('${cat.replace(/'/g, "\\'")}','${yr}')"
+                    title="🔍 ${cat} — ${yr}">
+                    <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</span>
+                </td>`;
+            }).join('');
+            html += `<tr data-inactive="${txType}" data-category="${cat.replace(/"/g, '&quot;')}" style="display:${showInactive ? '' : 'none'};opacity:0.6;font-style:italic;">
+                <td title="${cat.replace(/"/g, '&quot;')}" style="font-weight:400;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;z-index:5;
+                    background:var(--bg-surface);color:var(--text-muted);
+                    box-shadow:3px 0 8px rgba(0,0,0,0.25);">${cat}</td>
+                ${monthCells}
+                ${yearCells}
+            </tr>`;
+        }
+
         // Total row
         const totalMonthCells = months.map(mk => {
             const v = totals_per_month[mk] || 0;
@@ -468,6 +498,27 @@ window.AnalyticsView = {
 
         html += `</tbody></table></div></div>`;
         return html;
+    },
+
+    toggleInactiveRows(txType) {
+        const rows = document.querySelectorAll(`tr[data-inactive="${txType}"]`);
+        const btn = document.querySelector(`[data-inactive-btn="${txType}"]`);
+        if (!rows.length) return;
+        const isHidden = rows[0].style.display === 'none';
+        rows.forEach(r => { r.style.display = isHidden ? '' : 'none'; });
+        if (btn) {
+            const count = rows.length;
+            const label = window.i18n.t('analytics_inactive_cats') || 'inactives';
+            if (isHidden) {
+                btn.innerHTML = `🙈 ${count} ${label}`;
+                btn.style.opacity = '1';
+                btn.style.borderStyle = 'solid';
+            } else {
+                btn.innerHTML = `👁 ${count} ${label}`;
+                btn.style.opacity = '0.7';
+                btn.style.borderStyle = 'dashed';
+            }
+        }
     },
 
     drillDown(category, monthKey) {
@@ -870,6 +921,12 @@ window.AnalyticsView = {
                                 </label>
                             `).join('')}
                         </div>
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
+                            <input type="checkbox" id="exportIncludeInactive" ${localStorage.getItem('print_settings_include_inactive') !== 'false' ? 'checked' : ''}>
+                            <span>👁 ${window.i18n.t('export_include_inactive_cats') || 'Inclure les catégories inactives sur la période (présentes dans les totaux annuels)'}</span>
+                        </label>
                     </div>
                     ${typesHtml}`
             },
@@ -1364,6 +1421,10 @@ window.AnalyticsView = {
         const originalSelectedYears = this.selectedYears;
         this.selectedYears = selectedYearsTotals;
 
+        // Lire l'option catégories inactives avant le bloc by_type (utilisé aussi dans la boucle de filtrage)
+        const includeInactive = modal.querySelector('#exportIncludeInactive')?.checked ?? true;
+        localStorage.setItem('print_settings_include_inactive', includeInactive);
+
         if (by_type) {
             // Filtrer avant de générer pour éviter de générer un saut de page sur un tableau masqué (résout le bug de page vide à la fin)
             const typeEntries = Object.entries(by_type).filter(([txType]) => selectedTypes.includes(txType));
@@ -1373,7 +1434,14 @@ window.AnalyticsView = {
                 const hasTypeBreakBefore = modal.querySelector(`.export-type-pagebreak-cb[data-type="${txType}"]`)?.checked ?? false;
                 const breakClass = (hasTypeBreakBefore && !isFirst) ? 'print-page-break-before-forced' : 'print-page-break-auto';
                 const extraSpacing = (!hasTypeBreakBefore && !isLast) ? '<br><br>' : '';
-                sections.push(`<div class="${breakClass}">` + this.renderTypeTable(txType, typeData, months, revYears) + '</div>' + extraSpacing);
+                sections.push(`<div class="${breakClass}">` + this.renderTypeTable(txType, typeData, months, revYears, includeInactive, true) + '</div>' + extraSpacing);
+            });
+        }
+
+        // Types entièrement inactifs sur la période : générer leurs tableaux si includeInactive est coché
+        if (includeInactive && printData.inactive_types) {
+            Object.entries(printData.inactive_types).forEach(([txType, typeData]) => {
+                sections.push('<br><br><div class="print-page-break-auto">' + this.renderTypeTable(txType, typeData, months, revYears, true, true) + '</div>');
             });
         }
 
@@ -1674,13 +1742,21 @@ window.AnalyticsView = {
             printContainer.insertAdjacentHTML('afterbegin', `<h2 style="margin-bottom: 20px;">${window.i18n.t('analytics_title')}</h2>`);
         }
 
+        // Les types inactifs n'ont pas de checkbox dans la modal → absents de selectedTypes.
+        // On les ajoute à une liste étendue pour éviter qu'ils soient masqués par le filtre ci-dessous.
+        const effectiveSelectedTypes = includeInactive && printData.inactive_types
+            ? [...selectedTypes, ...Object.keys(printData.inactive_types)]
+            : selectedTypes;
+
         // Handle Types
         printContainer.querySelectorAll('[data-type]').forEach(el => {
-            if (!selectedTypes.includes(el.getAttribute('data-type'))) {
+            if (!effectiveSelectedTypes.includes(el.getAttribute('data-type'))) {
                 el.classList.add('no-print');
             } else {
                 // Handle Categories within this type
                 el.querySelectorAll('tr[data-category]').forEach(tr => {
+                    // Les lignes inactives sont déjà filtrées via showInactive — ne pas les masquer ici
+                    if (tr.hasAttribute('data-inactive') && includeInactive) return;
                     if (!selectedCats.includes(tr.getAttribute('data-category'))) {
                         tr.classList.add('no-print');
                     }
