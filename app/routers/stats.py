@@ -552,12 +552,51 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
             cat: {str(y): ann_type.get(cat, {}).get(str(y), 0.0) for y in years}
             for cat in type_data["categories"]
         }
+        # Calcule le total annuel sur TOUTES les catégories du type (pas seulement celles
+        # visibles dans la période filtrée), pour éviter que les colonnes des années passées
+        # soient amputées des catégories non utilisées durant la période courante.
         type_data["annual_totals_per_year"] = {
-            str(y): round(sum(ann_type.get(cat, {}).get(str(y), 0.0) for cat in type_data["categories"]), 2)
+            str(y): round(sum(cat_amounts.get(str(y), 0.0) for cat_amounts in ann_type.values()), 2)
             for y in years
         }
+        # Catégories inactives : présentes dans l'historique global mais absentes de la période filtrée.
+        # Triées par total historique décroissant pour un affichage cohérent.
+        inactive_cats = {
+            cat: {str(y): amounts.get(str(y), 0.0) for y in years}
+            for cat, amounts in ann_type.items()
+            if cat not in type_data["categories"]
+        }
+        type_data["inactive_by_cat"] = dict(
+            sorted(inactive_cats.items(), key=lambda kv: -sum(kv[1].values()))
+        )
 
-    return {"months": month_keys, "years": [str(y) for y in years], "by_type": result}
+    # Types inactifs : présents dans l'historique global mais sans transaction dans la période filtrée.
+    # Exposés séparément pour ne pas perturber l'UI (by_type reste inchangé).
+    inactive_types: dict = {}
+    for tx_type in TYPE_ORDER:
+        if tx_type not in result and tx_type in annual:
+            ann_type = annual[tx_type]
+            inactive_type_cats = dict(
+                sorted(
+                    {cat: {str(y): amounts.get(str(y), 0.0) for y in years}
+                     for cat, amounts in ann_type.items()}.items(),
+                    key=lambda kv: -sum(kv[1].values())
+                )
+            )
+            inactive_types[tx_type] = {
+                "categories": {},
+                "totals_per_cat": {},
+                "totals_per_month": {mk: 0.0 for mk in month_keys},
+                "grand_total": 0.0,
+                "annual_by_cat": {},
+                "annual_totals_per_year": {
+                    str(y): round(sum(cat_amounts.get(str(y), 0.0) for cat_amounts in ann_type.values()), 2)
+                    for y in years
+                },
+                "inactive_by_cat": inactive_type_cats,
+            }
+
+    return {"months": month_keys, "years": [str(y) for y in years], "by_type": result, "inactive_types": inactive_types}
 
 
 @router.get("/trends/{account_id}")
