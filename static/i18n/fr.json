@@ -1650,5 +1650,7 @@
   "ai_outlier_level_5": "Intégral (Tout inclure)",
   "analytics_inactive_cats": "inactives",
   "analytics_inactive_cats_tooltip": "Catégories sans activité sur cette période — présentes dans l'historique",
-  "export_include_inactive_cats": "Inclure les catégories inactives sur la période (présentes dans les totaux annuels)"
+  "export_include_inactive_cats": "Inclure les catégories inactives sur la période (présentes dans les totaux annuels)",
+  "form_clear_after_save": "Vider champs",
+  "form_tx_deleted": "Opération supprimée"
 }
