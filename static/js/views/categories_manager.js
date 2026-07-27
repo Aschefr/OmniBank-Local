@@ -127,14 +127,14 @@ window.CategoriesView = {
         
         let html = '';
         const searchInput = document.getElementById('categoryViewSearch');
-        const search = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const search = searchInput ? window.cleanStringForSearch(searchInput.value.trim()) : '';
         
         const types = ['expense_fixed', 'expense_var', 'income', 'transfer', 'neutral'];
         
         types.forEach(t => {
             let cats = this.categories.filter(c => c.type === t);
             if (search) {
-                cats = cats.filter(c => c.name.toLowerCase().includes(search));
+                cats = cats.filter(c => window.cleanStringForSearch(c.name).includes(search));
             }
             
             html += `

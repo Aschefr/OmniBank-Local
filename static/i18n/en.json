@@ -1650,5 +1650,7 @@
   "ai_outlier_level_5": "Full (No capping)",
   "analytics_inactive_cats": "inactive",
   "analytics_inactive_cats_tooltip": "Categories with no activity in this period — present in history",
-  "export_include_inactive_cats": "Include inactive categories for this period (present in annual totals)"
+  "export_include_inactive_cats": "Include inactive categories for this period (present in annual totals)",
+  "form_clear_after_save": "Clear fields",
+  "form_tx_deleted": "Transaction deleted"
 }

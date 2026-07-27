@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.73] - 2026-07-27
+
+### Added
+- **Formulaire d'opération – Mode "Garder ouvert" amélioré 📋**:
+  - Nouveau badge-bouton **"Vider champs"** (visible uniquement en mode "Garder ouvert") : vide automatiquement les champs description, montant, catégorie, bordereau, pièces jointes et budget après chaque enregistrement. État persisté en `localStorage` indépendamment du toggle "Garder ouvert".
+  - Le mode "Garder ouvert" fonctionne désormais aussi en **mode édition** : le modal reste ouvert après la mise à jour d'une opération existante.
+  - Le bouton **"Supprimer le dernier ajout"** s'affiche sous les toggles (2ᵉ ligne) uniquement après un premier enregistrement en mode création.
+  - En **mode édition**, ce même bouton se transforme en **"🗑️ Supprimer l'opération"** avec confirmation inline en 2 clics (premier clic → état d'alerte rouge + auto-reset après 3 s, second clic → suppression effective + fermeture du modal).
+- **Centrage texte des boutons globaux 🎨** : ajout de `display:inline-flex; align-items:center; justify-content:center` sur la classe `.btn` pour un centrage parfait dans tous les contextes (hauteur fixe, padding asymétrique, etc.).
+
+### Fixed & Improved
+- **Recherche insensible aux accents 🔍**:
+  - Les champs de recherche ignorent désormais les accents dans toute l'application (ex : taper `peage` trouve `Péage`).
+  - Fichiers concernés : formulaire ajout/modification d'opération (`form.js`), vue gestion des catégories (`categories_manager.js`), et composant multi-sélection (`multi-select.js`).
+  - Utilisation uniforme de `cleanStringForSearch()` (normalisation NFD + suppression des diacritiques), déjà en place dans le gestionnaire de récurrences.
+- **Footer du formulaire d'opération** : refonte du layout en une rangée unique (toggles compacts à gauche, boutons d'action à droite avec `white-space:nowrap`) — le bouton "Enregistrer l'opération" n'est plus tronqué.
+- **État "Vider champs" préservé** : basculer "Garder ouvert" de Off → On restaure l'état précédent du badge "Vider champs" au lieu de le réinitialiser.
+
 ## [1.0.72] - 2026-07-26
 
 ### Added
