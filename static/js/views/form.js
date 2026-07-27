@@ -6,7 +6,11 @@ window.FormView = {
     currentTxId: null,
     currentTxBase: null,
     keepOpen: false,
+    clearAfterSave: false,
     lastSavedId: null,
+    _deleteMode: false,
+    _pendingDelete: false,
+    _pendingDeleteTimer: null,
 
     _setupCategoriesListener() {
         if (this._categoriesListenerBound) return;
@@ -33,6 +37,11 @@ window.FormView = {
         if (cb) {
             cb.checked = this.keepOpen;
         }
+        // Load clearAfterSave from localStorage
+        const storedClear = localStorage.getItem('form_clear_after_save');
+        this.clearAfterSave = storedClear === 'true';
+        this._updateClearBtnVisibility();
+        this._updateClearBtnStyle();
         this.updateCancelButtonText();
     },
 
@@ -140,16 +149,53 @@ window.FormView = {
         this.updateInferredType();
         
         document.getElementById('operationModal').style.display = 'flex';
+        // Mode création : cacher le bouton undo/delete
+        this._deleteMode = false;
+        this._pendingDelete = false;
+        const undoBtn = document.getElementById('op_undo_last_btn');
+        if (undoBtn) undoBtn.style.display = 'none';
     },
 
     onKeepOpenToggle() {
         this.keepOpen = document.getElementById('op_keep_open').checked;
         localStorage.setItem('form_keep_open', this.keepOpen ? 'true' : 'false');
         this.updateCancelButtonText();
+        this._updateClearBtnVisibility();
         if (!this.keepOpen) {
+            // Cacher le bouton undo (mais conserver l'état de "Vider champs")
             this.lastSavedId = null;
             const undoBtn = document.getElementById('op_undo_last_btn');
             if (undoBtn) undoBtn.style.display = 'none';
+        }
+    },
+
+    onClearAfterSaveToggle() {
+        this.clearAfterSave = !this.clearAfterSave;
+        localStorage.setItem('form_clear_after_save', this.clearAfterSave ? 'true' : 'false');
+        this._updateClearBtnStyle();
+    },
+
+    _updateClearBtnStyle() {
+        const btn = document.getElementById('op_clear_after_save_container');
+        if (!btn) return;
+        if (this.clearAfterSave) {
+            btn.style.background = 'rgba(99,102,241,0.15)';
+            btn.style.borderColor = 'var(--accent)';
+            btn.style.color = 'var(--accent)';
+            btn.textContent = '✓ Vider champs';
+        } else {
+            btn.style.background = 'transparent';
+            btn.style.borderColor = 'var(--border-color)';
+            btn.style.color = 'var(--text-muted)';
+            btn.textContent = '✕ Vider champs';
+        }
+    },
+
+    _updateClearBtnVisibility() {
+        const clearBtn = document.getElementById('op_clear_after_save_container');
+        if (clearBtn) {
+            clearBtn.style.display = this.keepOpen ? 'inline-flex' : 'none';
+            if (this.keepOpen) this._updateClearBtnStyle();
         }
     },
 
@@ -166,6 +212,66 @@ window.FormView = {
             if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) refreshPromises.push(window.AllOperationsView.loadData());
             await Promise.all(refreshPromises);
             showToast(window.i18n.t('form_undo_done') || 'Last entry deleted', 'success');
+        } catch(e) {
+            showInlineMessage(window.i18n.t('title_error'), e.message);
+        }
+    },
+
+    // Gestionnaire unifié du bouton undo/delete selon le mode
+    handleUndoDeleteBtn() {
+        if (this._deleteMode) {
+            this._handleDeleteWithConfirm();
+        } else {
+            this.undoLastEntry();
+        }
+    },
+
+    _handleDeleteWithConfirm() {
+        if (!this._pendingDelete) {
+            // Premier clic : passer en état de confirmation
+            this._pendingDelete = true;
+            const btn = document.getElementById('op_undo_last_btn');
+            if (btn) {
+                btn.textContent = '⚠️ Confirmer la suppression ?';
+                btn.style.background = 'rgba(239,68,68,0.12)';
+                btn.style.borderColor = 'rgba(239,68,68,0.5)';
+                btn.style.color = '#ef4444';
+            }
+            // Auto-annulation après 3 secondes
+            this._pendingDeleteTimer = setTimeout(() => {
+                this._pendingDelete = false;
+                this._pendingDeleteTimer = null;
+                this._resetDeleteBtnStyle();
+            }, 3000);
+        } else {
+            // Deuxième clic : suppression effective
+            clearTimeout(this._pendingDeleteTimer);
+            this._pendingDeleteTimer = null;
+            this.deleteCurrentTx();
+        }
+    },
+
+    _resetDeleteBtnStyle() {
+        const btn = document.getElementById('op_undo_last_btn');
+        if (!btn) return;
+        btn.style.display = 'inline-flex';
+        btn.textContent = '🗑️ Supprimer l’opération';
+        btn.style.background = 'transparent';
+        btn.style.borderColor = 'rgba(239,68,68,0.3)';
+        btn.style.color = '#ef4444';
+    },
+
+    async deleteCurrentTx() {
+        if (!this.currentTxId) return;
+        const idToDelete = this.currentTxId;
+        try {
+            await API.del(`/api/transactions/${idToDelete}`);
+            this.close();
+            const refreshPromises = [window.app.refreshSidebar()];
+            if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) refreshPromises.push(window.TimelineView.loadData());
+            if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) refreshPromises.push(window.AllOperationsView.loadData());
+            await Promise.all(refreshPromises);
+            showToast(window.i18n.t('form_tx_deleted') || 'Opération supprimée', 'success');
         } catch(e) {
             showInlineMessage(window.i18n.t('title_error'), e.message);
         }
@@ -270,6 +376,10 @@ window.FormView = {
         if (budgetSel) budgetSel.value = tx.budget_id || '';
 
         document.getElementById('operationModal').style.display = 'flex';
+        // Mode édition : afficher le bouton "Supprimer l'opération"
+        this._deleteMode = true;
+        this._pendingDelete = false;
+        this._resetDeleteBtnStyle();
     },
     
     async openDuplicate(tx) {
@@ -328,6 +438,9 @@ window.FormView = {
         document.getElementById('operationModal').style.display = 'none';
         this.currentTxId = null;
         this.currentTxBase = null;
+        // Reset delete pending state
+        this._pendingDelete = false;
+        if (this._pendingDeleteTimer) { clearTimeout(this._pendingDeleteTimer); this._pendingDeleteTimer = null; }
     },
 
     toggleRecurrenceFields() {
@@ -618,7 +731,7 @@ window.FormView = {
         
         // Check for search input
         const searchInput = document.getElementById('op_category_search');
-        const search = searchInput ? searchInput.value.toLowerCase() : '';
+        const search = searchInput ? window.cleanStringForSearch(searchInput.value) : '';
         
         const currentVal = select.value;
         
@@ -628,7 +741,7 @@ window.FormView = {
             // Show only categories matching the current type
             const typeMatch = !currentType || c.type === currentType;
             if (typeMatch) {
-                if (!search || c.name.toLowerCase().includes(search)) {
+                if (!search || window.cleanStringForSearch(c.name).includes(search)) {
                     html += `<option value="${c.name}">${c.name}</option>`;
                 }
             }
@@ -916,17 +1029,31 @@ window.FormView = {
                 if (window.AllOperationsView) window.AllOperationsView._pendingHighlightTxId = highlightId;
             }
 
-            if (this.keepOpen && isCreate) {
+            if (this.keepOpen) {
                 // Animate save button
                 const saveBtn = document.getElementById('op_save_btn');
                 if (saveBtn) {
                     saveBtn.classList.add('btn-save-confirm');
                     setTimeout(() => saveBtn.classList.remove('btn-save-confirm'), 700);
                 }
-                // Store last saved id for undo
-                this.lastSavedId = savedRes;
-                const undoBtn = document.getElementById('op_undo_last_btn');
-                if (undoBtn) undoBtn.style.display = 'inline-flex';
+                if (isCreate) {
+                    // Store last saved id for undo (création uniquement)
+                    this.lastSavedId = savedRes;
+                    const undoBtn = document.getElementById('op_undo_last_btn');
+                    if (undoBtn) undoBtn.style.display = 'inline-flex';
+                    // Vider les champs si l'option est activée
+                    if (this.clearAfterSave) {
+                        document.getElementById('op_desc').value = '';
+                        document.getElementById('op_amount').value = '';
+                        document.getElementById('op_category').value = '';
+                        document.getElementById('op_check_slip').value = '';
+                        document.getElementById('op_attachments').value = '';
+                        document.getElementById('op_attachments_list').innerHTML = '';
+                        const budgetSel = document.getElementById('op_budget_id');
+                        if (budgetSel) budgetSel.value = '';
+                        this.renderCategories();
+                    }
+                }
             } else {
                 this.close();
             }

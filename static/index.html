@@ -579,26 +579,34 @@
             </div>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding: 14px 24px; border-top: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0; flex-wrap:nowrap;">
-                <!-- Keep-open controls (left side) -->
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <label id="keepOpenLabel" style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12px; color:var(--text-muted); user-select:none;" title="Garder la modale ouverte après l'enregistrement pour saisie rapide">
-                        <div style="position:relative; width:32px; height:18px;">
-                            <input type="checkbox" id="op_keep_open" onchange="window.FormView.onKeepOpenToggle()" style="opacity:0; width:0; height:0; position:absolute;">
-                            <span class="keep-open-slider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:var(--border-color); transition:.3s; border-radius:34px;"></span>
-                            <span class="keep-open-knob" style="position:absolute; height:12px; width:12px; left:3px; bottom:3px; background-color:white; transition:.3s; border-radius:50%;"></span>
-                        </div>
-                        <span data-i18n="form_keep_open_toggle">Garder ouvert</span>
-                    </label>
-                    <button id="op_undo_last_btn" class="btn btn-secondary" style="display:none; padding:5px 10px; font-size:11px; border-radius:8px; color:#f59e0b; border-color:rgba(245,158,11,0.4);" onclick="window.FormView.undoLastEntry()" data-i18n="form_undo_last">↩ Supprimer le dernier</button>
+            <div style="display:flex; align-items:center; gap:12px; padding:10px 20px; border-top:1px solid var(--border-color); background:var(--bg-surface); flex-shrink:0;">
+                <!-- Gauche : colonne 2 lignes -->
+                <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
+                    <!-- Ligne 1 : toggle + badge "Vider champs" -->
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label id="keepOpenLabel" style="display:flex; align-items:center; gap:7px; cursor:pointer; user-select:none; white-space:nowrap;" title="Garder la modale ouverte après l'enregistrement pour saisie rapide">
+                            <div style="position:relative; width:32px; height:18px; flex-shrink:0;">
+                                <input type="checkbox" id="op_keep_open" onchange="window.FormView.onKeepOpenToggle()" style="opacity:0; width:0; height:0; position:absolute;">
+                                <span class="keep-open-slider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:var(--border-color); transition:.3s; border-radius:34px;"></span>
+                                <span class="keep-open-knob" style="position:absolute; height:12px; width:12px; left:3px; bottom:3px; background-color:white; transition:.3s; border-radius:50%;"></span>
+                            </div>
+                            <span style="font-size:12px; color:var(--text-muted);" data-i18n="form_keep_open_toggle">Garder ouvert</span>
+                        </label>
+                        <!-- Badge-bouton "Vider champs" (visible seulement en mode keepOpen) -->
+                        <button id="op_clear_after_save_container" type="button" onclick="window.FormView.onClearAfterSaveToggle()" style="display:none; height:22px; padding:0 9px; border-radius:20px; border:1px solid var(--border-color); background:transparent; font-size:11px; color:var(--text-muted); cursor:pointer; white-space:nowrap; transition:all 0.2s; font-weight:500;" title="Vider automatiquement les champs après chaque enregistrement" data-i18n="form_clear_after_save">✕ Vider champs</button>
+                    </div>
+                    <!-- Ligne 2 : bouton undo (n'apparaît qu'après un 1er ajout) -->
+                    <button id="op_undo_last_btn" class="btn" style="display:none; height:26px; padding:0 10px; font-size:11px; border-radius:6px; white-space:nowrap; color:#f59e0b; border:1px solid rgba(245,158,11,0.35); background:rgba(245,158,11,0.06); align-self:flex-start;" onclick="window.FormView.handleUndoDeleteBtn()" data-i18n="form_undo_last">↩ Supprimer le dernier ajout</button>
                 </div>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <!-- Sleek Skip Toggle Button (hidden by default, only visible for recurrent operations) -->
-                    <button id="op_skip_btn" class="btn btn-secondary" style="display: none; border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; transition: all 0.2s;" onclick="window.FormView.toggleSkipState(); event.preventDefault();" type="button">
-                        <span style="font-size:14px; margin-right: 4px;">⏭️</span><span data-i18n="form_skip_btn_label">Ignorer</span>
+                <!-- Spacer -->
+                <div style="flex:1;"></div>
+                <!-- Droite : boutons d'action (largeur stable) -->
+                <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+                    <button id="op_skip_btn" class="btn btn-secondary" style="display:none; height:34px; padding:0 14px; font-size:13px; border-radius:8px; white-space:nowrap;" onclick="window.FormView.toggleSkipState(); event.preventDefault();" type="button">
+                        <span style="margin-right:4px;">⏭️</span><span data-i18n="form_skip_btn_label">Ignorer</span>
                     </button>
-                    <button id="op_cancel_btn" class="btn btn-secondary" style="border-radius: 8px; padding: 8px 18px; font-weight: 600; font-size: 13px;" onclick="window.FormView.close()" data-i18n="btn_cancel">Annuler</button>
-                    <button id="op_save_btn" class="btn btn-primary" style="border-radius: 8px; padding: 8px 20px; font-weight: 600; font-size: 13px; box-shadow: 0 4px 14px rgba(0, 112, 243, 0.4);" onclick="window.FormView.save()" data-i18n="btn_save_operation">Enregistrer l'opération</button>
+                    <button id="op_cancel_btn" class="btn btn-secondary" style="height:34px; padding:0 18px; border-radius:8px; font-weight:600; font-size:13px; white-space:nowrap;" onclick="window.FormView.close()" data-i18n="btn_cancel">Fermer</button>
+                    <button id="op_save_btn" class="btn btn-primary" style="height:34px; padding:0 22px; border-radius:8px; font-weight:600; font-size:13px; white-space:nowrap; box-shadow:0 4px 14px rgba(0,112,243,0.4);" onclick="window.FormView.save()" data-i18n="btn_save_operation">Enregistrer l'opération</button>
                 </div>
             </div>
         </div>
