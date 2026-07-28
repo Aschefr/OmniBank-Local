@@ -5,20 +5,20 @@ All notable changes to this project will be documented in this file.
 ## [1.0.73] - 2026-07-27
 
 ### Added
-- **Formulaire d'opération – Mode "Garder ouvert" amélioré 📋**:
-  - Nouveau badge-bouton **"Vider champs"** (visible uniquement en mode "Garder ouvert") : vide automatiquement les champs description, montant, catégorie, bordereau, pièces jointes et budget après chaque enregistrement. État persisté en `localStorage` indépendamment du toggle "Garder ouvert".
-  - Le mode "Garder ouvert" fonctionne désormais aussi en **mode édition** : le modal reste ouvert après la mise à jour d'une opération existante.
-  - Le bouton **"Supprimer le dernier ajout"** s'affiche sous les toggles (2ᵉ ligne) uniquement après un premier enregistrement en mode création.
-  - En **mode édition**, ce même bouton se transforme en **"🗑️ Supprimer l'opération"** avec confirmation inline en 2 clics (premier clic → état d'alerte rouge + auto-reset après 3 s, second clic → suppression effective + fermeture du modal).
-- **Centrage texte des boutons globaux 🎨** : ajout de `display:inline-flex; align-items:center; justify-content:center` sur la classe `.btn` pour un centrage parfait dans tous les contextes (hauteur fixe, padding asymétrique, etc.).
+- **Transaction Form – Improved "Keep Open" mode 📋**:
+  - New **"Clear fields"** badge-button (visible only when "Keep Open" is active): automatically clears the description, amount, category, check slip, attachments and budget fields after each save. State is persisted in `localStorage` independently from the "Keep Open" toggle.
+  - "Keep Open" mode now also works in **edit mode**: the modal stays open after updating an existing transaction.
+  - The **"Remove last entry"** button now appears below the toggles (second row) and is only shown after the first save in create mode.
+  - In **edit mode**, that same button becomes **"🗑️ Delete transaction"** with an inline 2-click confirmation (first click → red alert state + auto-reset after 3 s, second click → delete + close modal).
+- **Global button text centering 🎨**: added `display:inline-flex; align-items:center; justify-content:center` to the `.btn` class for perfect centering in all contexts (fixed height, asymmetric padding, etc.).
 
 ### Fixed & Improved
-- **Recherche insensible aux accents 🔍**:
-  - Les champs de recherche ignorent désormais les accents dans toute l'application (ex : taper `peage` trouve `Péage`).
-  - Fichiers concernés : formulaire ajout/modification d'opération (`form.js`), vue gestion des catégories (`categories_manager.js`), et composant multi-sélection (`multi-select.js`).
-  - Utilisation uniforme de `cleanStringForSearch()` (normalisation NFD + suppression des diacritiques), déjà en place dans le gestionnaire de récurrences.
-- **Footer du formulaire d'opération** : refonte du layout en une rangée unique (toggles compacts à gauche, boutons d'action à droite avec `white-space:nowrap`) — le bouton "Enregistrer l'opération" n'est plus tronqué.
-- **État "Vider champs" préservé** : basculer "Garder ouvert" de Off → On restaure l'état précédent du badge "Vider champs" au lieu de le réinitialiser.
+- **Accent-insensitive search 🔍**:
+  - Search fields now ignore accents across the entire application (e.g. typing `peage` finds `Péage`).
+  - Affected files: transaction add/edit form (`form.js`), category manager view (`categories_manager.js`), and multi-select component (`multi-select.js`).
+  - Consistent use of `cleanStringForSearch()` (NFD normalisation + diacritic removal), already in place in the recurrence manager.
+- **Transaction form footer**: refactored layout into a single row (compact toggles on the left, action buttons on the right with `white-space:nowrap`) — the "Save transaction" button is no longer clipped.
+- **"Clear fields" state preserved**: toggling "Keep Open" from Off → On now restores the previous state of the "Clear fields" badge instead of resetting it.
 
 ## [1.0.72] - 2026-07-26
 
