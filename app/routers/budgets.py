@@ -230,12 +230,12 @@ def cancel_ai_suggest():
 
 
 @router.post("/ai_suggest")
-def ai_suggest_budgets(data: Optional[AiSuggestRequest] = None, db: Session = Depends(get_db)):
+async def ai_suggest_budgets(data: Optional[AiSuggestRequest] = None, db: Session = Depends(get_db)):
     try:
         window_months = data.window_months if data else 3
         lang = data.lang if data else "fr"
         outlier_sensitivity = data.outlier_sensitivity if (data and data.outlier_sensitivity is not None) else 2
-        return budget_ai_service.ai_suggest_budgets_service(window_months=window_months, lang=lang, outlier_sensitivity=outlier_sensitivity, db=db)
+        return await budget_ai_service.ai_suggest_budgets_service(window_months=window_months, lang=lang, outlier_sensitivity=outlier_sensitivity, db=db)
     except HTTPException:
         raise
     except Exception as e:
@@ -244,9 +244,9 @@ def ai_suggest_budgets(data: Optional[AiSuggestRequest] = None, db: Session = De
 
 
 @router.post("/ai_suggest/refine")
-def ai_refine_budgets(data: AiRefineRequest, db: Session = Depends(get_db)):
+async def ai_refine_budgets(data: AiRefineRequest, db: Session = Depends(get_db)):
     try:
-        return budget_ai_service.ai_refine_budgets_service(
+        return await budget_ai_service.ai_refine_budgets_service(
             window_months=data.window_months,
             lang=data.lang,
             outlier_sensitivity=data.outlier_sensitivity if data.outlier_sensitivity is not None else 2,

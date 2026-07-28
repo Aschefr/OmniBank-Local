@@ -10,6 +10,31 @@ from app.services.history_service import record_action, snapshot_entity
 
 logger = logging.getLogger(__name__)
 
+def _accumulate_tx(txs, match_fn=None):
+    """Accumule income/expenses totaux et rapprochés pour un itérable de TX.
+
+    Args:
+        txs: itérable de transactions (peut être un générateur filtré par date).
+        match_fn: fonction optionnelle (tx) -> bool pour filtrer par compte.
+            Si None, toutes les TX sont acceptées.
+    Returns:
+        tuple (expenses, income, reconciled_expenses, reconciled_income)
+    """
+    expenses = income = reconciled_expenses = reconciled_income = 0.0
+    for tx in txs:
+        if match_fn is not None and not match_fn(tx):
+            continue
+        if tx.type == "income":
+            income += abs(tx.amount)
+            if tx.reconciliation_date:
+                reconciled_income += abs(tx.amount)
+        else:
+            expenses += abs(tx.amount)
+            if tx.reconciliation_date:
+                reconciled_expenses += abs(tx.amount)
+    return expenses, income, reconciled_expenses, reconciled_income
+
+
 def safe_parse_budget_date(s: str, field_name: str) -> Optional[date]:
     """Parse une date YYYY-MM-DD pour les budgets — HTTPException 400 si invalide."""
     if not s:
@@ -325,17 +350,9 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
         reconciled_income = 0.0
 
         if (b.envelope_type or "spending") == "savings":
-            for tx in txs_by_budget_id.get(b.id, []):
-                if not _match_account(tx):
-                    continue
-                if tx.type == "income":
-                    income += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_income += abs(tx.amount)
-                else:
-                    expenses += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_expenses += abs(tx.amount)
+            expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
+                txs_by_budget_id.get(b.id, []), _match_account
+            )
 
             allocs = allocs_by_budget.get(b.id, [])
             alloc_deposits = sum(a.amount for a in allocs if a.amount > 0)
@@ -374,17 +391,9 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
             continue
 
         if b.is_project:
-            for tx in txs_by_budget_id.get(b.id, []):
-                if not _match_account(tx):
-                    continue
-                if tx.type == "income":
-                    income += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_income += abs(tx.amount)
-                else:
-                    expenses += abs(tx.amount)
-                    if tx.reconciliation_date:
-                        reconciled_expenses += abs(tx.amount)
+            expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
+                txs_by_budget_id.get(b.id, []), _match_account
+            )
         else:
             # Fast category-indexed tx lookup
             if cats:
@@ -395,73 +404,29 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
                 target_txs = all_category_txs
 
             if b.period == "indefinite":
-                for tx in target_txs:
-                    if not _match_account(tx):
-                        continue
-                    if tx.type == "income":
-                        income += abs(tx.amount)
-                        if tx.reconciliation_date:
-                            reconciled_income += abs(tx.amount)
-                    else:
-                        expenses += abs(tx.amount)
-                        if tx.reconciliation_date:
-                            reconciled_expenses += abs(tx.amount)
+                expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
+                    target_txs, _match_account
+                )
             elif b.period == "custom" and b.start_date and b.end_date:
-                for tx in target_txs:
-                    if tx.date_operation < b.start_date or tx.date_operation > b.end_date:
-                        continue
-                    if not _match_account(tx):
-                        continue
-                    if tx.type == "income":
-                        income += abs(tx.amount)
-                        if tx.reconciliation_date:
-                            reconciled_income += abs(tx.amount)
-                    else:
-                        expenses += abs(tx.amount)
-                        if tx.reconciliation_date:
-                            reconciled_expenses += abs(tx.amount)
+                expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
+                    (tx for tx in target_txs if b.start_date <= tx.date_operation <= b.end_date),
+                    _match_account
+                )
             elif b.period == "yearly":
-                for tx in target_txs:
-                    if tx.date_operation.year != y:
-                        continue
-                    if not _match_account(tx):
-                        continue
-                    if tx.type == "income":
-                        income += abs(tx.amount)
-                        if tx.reconciliation_date:
-                            reconciled_income += abs(tx.amount)
-                    else:
-                        expenses += abs(tx.amount)
-                        if tx.reconciliation_date:
-                            reconciled_expenses += abs(tx.amount)
+                expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
+                    (tx for tx in target_txs if tx.date_operation.year == y),
+                    _match_account
+                )
             elif custom_start and custom_end:
-                for tx in target_txs:
-                    if tx.date_operation < custom_start or tx.date_operation > custom_end:
-                        continue
-                    if not _match_account(tx):
-                        continue
-                    if tx.type == "income":
-                        income += abs(tx.amount)
-                        if tx.reconciliation_date:
-                            reconciled_income += abs(tx.amount)
-                    else:
-                        expenses += abs(tx.amount)
-                        if tx.reconciliation_date:
-                            reconciled_expenses += abs(tx.amount)
+                expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
+                    (tx for tx in target_txs if custom_start <= tx.date_operation <= custom_end),
+                    _match_account
+                )
             else:
-                for tx in target_txs:
-                    if tx.date_operation.year != y or tx.date_operation.month != m:
-                        continue
-                    if not _match_account(tx):
-                        continue
-                    if tx.type == "income":
-                        income += abs(tx.amount)
-                        if tx.reconciliation_date:
-                            reconciled_income += abs(tx.amount)
-                    else:
-                        expenses += abs(tx.amount)
-                        if tx.reconciliation_date:
-                            reconciled_expenses += abs(tx.amount)
+                expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
+                    (tx for tx in target_txs if tx.date_operation.year == y and tx.date_operation.month == m),
+                    _match_account
+                )
 
         expenses = round(expenses, 2)
         income = round(income, 2)
