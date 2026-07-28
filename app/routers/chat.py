@@ -89,6 +89,50 @@ def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Impossible de contacter le serveur Ollama ({url}) : {exc}")
 
+
+async def call_ollama_async(prompt: str, cfg: dict, extra_options: dict = None) -> str:
+    """Non-blocking async call to Ollama — use from async endpoints to avoid blocking the server.
+    Même interface que call_ollama_sync, mais utilise httpx.AsyncClient."""
+    import httpx as _httpx
+    from fastapi import HTTPException
+
+    url = (cfg.get("url") or "").rstrip("/")
+    model = cfg.get("model") or ""
+    if not url or not model:
+        raise HTTPException(status_code=400, detail="Ollama URL ou modèle non configuré dans les paramètres.")
+    options = {"temperature": cfg.get("temperature", 0.3), "num_ctx": cfg.get("num_ctx", 4096)}
+    format_opt = None
+    if extra_options:
+        opts_copy = dict(extra_options)
+        format_opt = opts_copy.pop("format", None)
+        options.update(opts_copy)
+
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "options": options,
+    }
+    if format_opt:
+        payload["format"] = format_opt
+
+    try:
+        async with _httpx.AsyncClient(timeout=_httpx.Timeout(300.0, connect=10.0)) as client:
+            resp = await client.post(f"{url}/api/chat", json=payload)
+        if resp.status_code != 200:
+            err_text = resp.text[:300] if resp.text else f"Code HTTP {resp.status_code}"
+            raise HTTPException(status_code=502, detail=f"Erreur Ollama ({resp.status_code}) : {err_text}")
+
+        res_json = resp.json()
+        content = res_json.get("message", {}).get("content", "")
+        if not content or not content.strip():
+            raise HTTPException(status_code=502, detail="Le modèle Ollama a renvoyé une réponse vide.")
+        return content
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Impossible de contacter le serveur Ollama ({url}) : {exc}")
+
 def get_net_worth_tool(db: Session) -> dict:
     return {
         "reconciled_net_worth_euros": get_net_worth(db, only_reconciled=True),

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, Date, ForeignKey, DateTime, Text, Index
+from sqlalchemy import Column, Integer, String, Float, Boolean, Date, ForeignKey, DateTime, Text, Index, CheckConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
@@ -110,11 +110,26 @@ class RecurrenceTemplate(Base):
     to_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
 
 class Budget(Base):
+    """Enveloppe budgétaire (spending), projet ou tirelire (savings)."""
     __tablename__ = "budgets"
+    __table_args__ = (
+        CheckConstraint(
+            "envelope_type IN ('spending', 'savings')",
+            name="ck_budget_envelope_type"
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)                    # Free label (ex: "Vacances St Malo")
-    monthly_amount = Column(Float, nullable=False)
+    monthly_amount = Column(
+        Float,
+        nullable=False,
+        comment=(
+            "Montant cible de l'enveloppe. Sémantique selon le type : "
+            "monthly → budget mensuel ; yearly → budget annuel total ; "
+            "savings (tirelire) → objectif d'épargne global."
+        )
+    )
     period = Column(String, default="monthly")               # monthly / yearly / indefinite / custom
     is_project = Column(Boolean, default=False)              # True = tracked via budget_id on transactions
     is_closed = Column(Boolean, default=False)               # Manual closure by user
@@ -126,6 +141,9 @@ class Budget(Base):
 class BudgetCategory(Base):
     """Many-to-many: each row links a budget to one category name."""
     __tablename__ = "budget_categories"
+    __table_args__ = (
+        Index("ix_budget_category_unique", "budget_id", "category_name", unique=True),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     budget_id = Column(Integer, ForeignKey("budgets.id"), nullable=False)
