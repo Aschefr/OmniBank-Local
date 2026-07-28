@@ -3,6 +3,7 @@ from datetime import date
 import json
 import logging
 import re
+import threading
 import time
 import unicodedata
 from difflib import SequenceMatcher
@@ -14,10 +15,13 @@ from sqlalchemy import or_
 from fastapi import HTTPException
 
 from app.models import Budget, BudgetCategory, Transaction, Category, RecurrenceTemplate
-from app.routers.chat import get_ollama_config, call_ollama_sync
+from app.routers.chat import get_ollama_config, call_ollama_sync, call_ollama_async
 from app.services.finance_engine import predict_next_paycheck
 
 logger = logging.getLogger(__name__)
+
+# ── Thread-safety pour AI_TASK_STATUS ────────────────────────────────────────
+_ai_status_lock = threading.Lock()
 
 AI_TASK_STATUS: Dict[str, Any] = {
     "state": "IDLE",
@@ -29,20 +33,29 @@ AI_TASK_STATUS: Dict[str, Any] = {
     "start_time": None,
 }
 
+def _update_ai_status(**kwargs) -> None:
+    """Mise à jour thread-safe du statut de la tâche IA."""
+    with _ai_status_lock:
+        AI_TASK_STATUS.update(kwargs)
+
+def _get_ai_status_snapshot() -> Dict[str, Any]:
+    """Retourne un snapshot thread-safe du statut courant."""
+    with _ai_status_lock:
+        if AI_TASK_STATUS["state"] in ["PREPARING", "SENDING", "THINKING", "PARSING"] and AI_TASK_STATUS.get("start_time"):
+            AI_TASK_STATUS["elapsed_seconds"] = int(time.time() - AI_TASK_STATUS["start_time"])
+        return dict(AI_TASK_STATUS)
+
 def get_ai_suggest_status() -> Dict[str, Any]:
-    if AI_TASK_STATUS["state"] in ["PREPARING", "SENDING", "THINKING", "PARSING"] and AI_TASK_STATUS.get("start_time"):
-        AI_TASK_STATUS["elapsed_seconds"] = int(time.time() - AI_TASK_STATUS["start_time"])
-    return AI_TASK_STATUS
+    return _get_ai_status_snapshot()
 
 def cancel_ai_suggest() -> Dict[str, Any]:
-    global AI_TASK_STATUS
-    AI_TASK_STATUS.update({
-        "state": "IDLE",
-        "step_key": "ai_status_idle",
-        "elapsed_seconds": 0,
-        "start_time": None,
-        "error": None,
-    })
+    _update_ai_status(
+        state="IDLE",
+        step_key="ai_status_idle",
+        elapsed_seconds=0,
+        start_time=None,
+        error=None,
+    )
     return {"status": "cancelled"}
 
 def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_date: date, window_months: int = 3, outlier_sensitivity: int = 2) -> dict:
@@ -331,24 +344,22 @@ def extract_json_envelopes(cleaned_raw: str) -> list[dict]:
 
     return parsed_objs
 
-def ai_suggest_budgets_service(window_months: int, lang: Optional[str], db: Session, outlier_sensitivity: int = 2) -> dict:
-    global AI_TASK_STATUS
-    AI_TASK_STATUS.update({
-        "state": "PREPARING",
-        "step_key": "ai_status_preparing",
-        "elapsed_seconds": 0,
-        "max_seconds": 300,
-        "result": None,
-        "error": None,
-        "start_time": time.time(),
-    })
+async def ai_suggest_budgets_service(window_months: int, lang: Optional[str], db: Session, outlier_sensitivity: int = 2) -> dict:
+    _update_ai_status(
+        state="PREPARING",
+        step_key="ai_status_preparing",
+        elapsed_seconds=0,
+        max_seconds=300,
+        result=None,
+        error=None,
+        start_time=time.time(),
+    )
 
     window_months = window_months if window_months in (3, 6, 12) else 3
 
     cfg = get_ollama_config(db)
     if not cfg.get("enabled"):
-        AI_TASK_STATUS["state"] = "ERROR"
-        AI_TASK_STATUS["error"] = "IA non activée dans les paramètres."
+        _update_ai_status(state="ERROR", error="IA non activée dans les paramètres.")
         raise HTTPException(status_code=400, detail="IA non activée dans les paramètres.")
 
     paycheck_info = predict_next_paycheck(db)
@@ -429,13 +440,12 @@ Response format (JSON object with key "envelopes"):
   ]
 }}"""
 
-    AI_TASK_STATUS["state"] = "SENDING"
-    AI_TASK_STATUS["step_key"] = "ai_status_sending"
+    _update_ai_status(state="SENDING", step_key="ai_status_sending")
 
     raw = ""
     last_error_msg = ""
     try:
-        raw = call_ollama_sync(prompt, cfg, extra_options={"format": "json"})
+        raw = await call_ollama_async(prompt, cfg, extra_options={"format": "json"})
     except HTTPException as e:
         last_error_msg = e.detail
         logger.warning(f"[AI Budget] Premier essai Ollama json échoué: {e.detail}")
@@ -446,7 +456,7 @@ Response format (JSON object with key "envelopes"):
     if not raw or not raw.strip():
         try:
             logger.info("[AI Budget] Tentative 2 avec appel Ollama standard...")
-            raw = call_ollama_sync(prompt, cfg)
+            raw = await call_ollama_async(prompt, cfg)
         except HTTPException as e2:
             last_error_msg = e2.detail
             logger.warning(f"[AI Budget] Tentative 2 Ollama échouée: {e2.detail}")
@@ -456,12 +466,10 @@ Response format (JSON object with key "envelopes"):
 
     if not raw or not raw.strip():
         err_detail = f"Impossible de communiquer avec le modèle IA Ollama : {last_error_msg}".strip()
-        AI_TASK_STATUS["state"] = "ERROR"
-        AI_TASK_STATUS["error"] = err_detail
+        _update_ai_status(state="ERROR", error=err_detail)
         raise HTTPException(status_code=502, detail=err_detail)
 
-    AI_TASK_STATUS["state"] = "PARSING"
-    AI_TASK_STATUS["step_key"] = "ai_status_parsing"
+    _update_ai_status(state="PARSING", step_key="ai_status_parsing")
 
     cleaned_raw = re.sub(r'```(?:json)?', '', raw or "").strip()
     parsed_objs = extract_json_envelopes(cleaned_raw) if cleaned_raw else []
@@ -679,8 +687,7 @@ Response format (JSON object with key "envelopes"):
 
     if not proposals:
         err_detail = "L'IA n'a pas pu générer de propositions d'enveloppes valides. Vérifiez le modèle Ollama configuré."
-        AI_TASK_STATUS["state"] = "ERROR"
-        AI_TASK_STATUS["error"] = err_detail
+        _update_ai_status(state="ERROR", error=err_detail)
         raise HTTPException(status_code=500, detail=err_detail)
 
     total_new_fixed_monthly = sum(
@@ -721,12 +728,10 @@ Response format (JSON object with key "envelopes"):
         "effective_window_months": effective_window,
         "outlier_sensitivity": outlier_sensitivity,
     }
-    AI_TASK_STATUS["state"] = "SUCCESS"
-    AI_TASK_STATUS["step_key"] = "ai_status_success"
-    AI_TASK_STATUS["result"] = result_payload
+    _update_ai_status(state="SUCCESS", step_key="ai_status_success", result=result_payload)
     return result_payload
 
-def ai_refine_budgets_service(window_months: int, lang: Optional[str], existing_proposals: list[dict], unclassified_categories: list[dict], db: Session, outlier_sensitivity: int = 2) -> dict:
+async def ai_refine_budgets_service(window_months: int, lang: Optional[str], existing_proposals: list[dict], unclassified_categories: list[dict], db: Session, outlier_sensitivity: int = 2) -> dict:
     if not unclassified_categories:
         return {"proposals": existing_proposals, "unclassified_categories": []}
 
@@ -787,13 +792,13 @@ Response format (JSON object with key "envelopes"):
 
     raw = ""
     try:
-        raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 1500, "format": "json"})
+        raw = await call_ollama_async(prompt, cfg, extra_options={"num_predict": 1500, "format": "json"})
     except Exception as e:
         logger.warning(f"[AI Refine] Essai 1 Ollama json échoué: {e}")
 
     if not raw or not raw.strip():
         try:
-            raw = call_ollama_sync(prompt, cfg, extra_options={"num_predict": 1500})
+            raw = await call_ollama_async(prompt, cfg, extra_options={"num_predict": 1500})
         except Exception as e:
             logger.warning(f"[AI Refine] Essai 2 Ollama échoué: {e}")
 
