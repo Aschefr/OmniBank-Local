@@ -3232,6 +3232,385 @@ input[type="range"]::-moz-range-thumb:hover {
     border-color: var(--border-color) !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUDGETS VIEW — Externalized styles (ex budgets_render.js inline)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Layout & Header ──────────────────────────────────────────────────────── */
+.bv-header {
+    position: sticky; top: -32px; z-index: 10;
+    background: var(--bg-base); padding: 32px 0 15px; margin-top: -32px;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 10px;
+}
+.bv-header h2 { margin: 0; }
+.bv-header-actions {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.bv-header-actions .btn { white-space: nowrap; }
+.bv-btn-delete {
+    color: #ef4444; border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* ── Modal Overlays ───────────────────────────────────────────────────────── */
+.bv-modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px);
+    z-index: 9999; align-items: center; justify-content: center; padding: 20px;
+}
+.bv-modal-panel {
+    background: var(--bg-surface); border: 1px solid var(--accent);
+    border-radius: 16px; max-width: 540px; width: 100%; padding: 24px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    display: flex; flex-direction: column; gap: 18px;
+}
+.bv-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border-color); padding-bottom: 12px;
+}
+.bv-modal-header h3 {
+    margin: 0; font-size: 16px; color: var(--text-main);
+    display: flex; align-items: center; gap: 8px;
+}
+.bv-modal-subtitle {
+    font-size: 13px; color: var(--text-muted); margin: 0;
+}
+.bv-modal-footer {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding-top: 10px; border-top: 1px solid var(--border-color);
+}
+.bv-modal-footer .btn-primary {
+    background: var(--accent); font-weight: 700; padding: 8px 18px;
+}
+
+/* ── Modal Options (radio cards) ──────────────────────────────────────────── */
+.bv-modal-options {
+    display: flex; flex-direction: column; gap: 10px;
+}
+.bv-modal-option {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: var(--bg-base); border: 1px solid var(--border-color);
+    padding: 12px 16px; border-radius: 10px; cursor: pointer;
+    transition: all 0.2s ease;
+}
+.bv-modal-option--selected {
+    border: 2px solid var(--accent);
+}
+.bv-modal-option input[type="radio"] {
+    margin-top: 3px; accent-color: var(--accent);
+}
+.bv-modal-option-info {
+    display: flex; flex-direction: column; gap: 2px;
+}
+.bv-modal-option-info strong {
+    font-size: 13px; color: var(--text-main);
+}
+.bv-modal-option-info span {
+    font-size: 11px; color: var(--text-muted);
+}
+
+/* ── Toggle Row (wizard switch) ───────────────────────────────────────────── */
+.bv-toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg-base); padding: 12px 16px; border-radius: 10px;
+    border: 1px solid var(--border-color); margin-top: 4px;
+}
+.bv-toggle-row-info {
+    display: flex; flex-direction: column; gap: 2px; padding-right: 12px;
+}
+.bv-toggle-row-info strong {
+    font-size: 13px; color: var(--text-main);
+}
+.bv-toggle-row-info span {
+    font-size: 11px; color: var(--text-muted);
+}
+
+/* ── Wizard Modal ─────────────────────────────────────────────────────────── */
+.bv-wizard-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px);
+    z-index: 99999; align-items: center; justify-content: center; padding: 20px;
+}
+.bv-wizard-panel {
+    background: var(--bg-surface); border: 1px solid var(--accent);
+    border-radius: 18px; max-width: 880px; width: 100%; padding: 28px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    display: flex; flex-direction: column; gap: 20px;
+    position: relative; max-height: 90vh; overflow-y: auto;
+}
+.bv-wizard-header {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border-color); padding-bottom: 14px;
+}
+.bv-wizard-header h3 {
+    margin: 0; font-size: 18px; color: var(--text-main);
+    display: flex; align-items: center; gap: 10px;
+}
+.bv-wizard-content {
+    display: flex; flex-direction: column; gap: 16px;
+}
+.bv-wizard-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 14px; border-top: 1px solid var(--border-color);
+}
+
+/* ── Capacity Panel ───────────────────────────────────────────────────────── */
+.bv-capacity-toggle {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border-color);
+}
+.bv-capacity-toggle label {
+    display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+    user-select: none;
+}
+.bv-capacity-toggle label strong {
+    font-size: 13px; color: var(--text-main); font-weight: 600;
+}
+.bv-capacity-panel {
+    background: var(--bg-surface); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 18px; margin-bottom: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+.bv-capacity-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+}
+.bv-capacity-meter-header {
+    display: flex; justify-content: space-between; font-size: 12px;
+    font-weight: 600; margin-bottom: 6px;
+}
+.bv-capacity-meter-footer {
+    display: flex; justify-content: space-between; font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* ── Account Impact Cards ─────────────────────────────────────────────────── */
+.bv-accounts-section {
+    margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;
+}
+.bv-accounts-section-label {
+    font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+}
+.bv-accounts-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+}
+.bv-account-card {
+    background: var(--bg-base); border: 1px solid var(--border-color);
+    border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 4px;
+}
+.bv-account-card-name {
+    display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px;
+}
+.bv-account-card-row {
+    display: flex; justify-content: space-between; font-size: 11px; margin-top: 2px;
+}
+.bv-account-card-total {
+    display: flex; justify-content: space-between; font-size: 12px; font-weight: 600;
+    border-top: 1px dashed var(--border-color); padding-top: 4px; margin-top: 2px;
+}
+
+/* ── Info Icon (reusable tooltip circle) ──────────────────────────────────── */
+.bv-info-icon {
+    cursor: help; display: inline-flex; align-items: center; justify-content: center;
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 1px solid var(--text-muted); color: var(--text-muted);
+    font-size: 9px; font-weight: bold; font-family: sans-serif;
+    vertical-align: middle; line-height: 1; user-select: none; margin-left: 4px;
+}
+.bv-info-icon--lg {
+    width: 14px; height: 14px; font-size: 10px;
+}
+
+/* ── Filter Bar ───────────────────────────────────────────────────────────── */
+.bv-filter-bar {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;
+    background: var(--bg-surface); padding: 10px 14px; border-radius: 10px;
+    border: 1px solid var(--border-color);
+}
+.bv-filter-bar-label {
+    font-size: 12px; color: var(--text-muted); font-weight: 600; margin-right: 4px;
+}
+.bv-filter-btn {
+    padding: 4px 12px; font-size: 12px;
+}
+.bv-filter-btn--active {
+    background: var(--accent); color: white; border-color: var(--accent);
+}
+.bv-filter-btn--overspent {
+    color: #ef4444; border-color: rgba(239, 68, 68, 0.4);
+}
+.bv-filter-btn--overspent.bv-filter-btn--active {
+    background: #ef4444; color: white; border-color: #ef4444;
+}
+
+/* ── Date Controls ────────────────────────────────────────────────────────── */
+.bv-date-controls {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.bv-date-stepper {
+    display: flex; align-items: center; gap: 0;
+}
+.bv-date-stepper .btn:first-child {
+    border-radius: 6px 0 0 6px; border-right: none;
+}
+.bv-date-stepper .btn:last-child {
+    border-radius: 0 6px 6px 0; border-left: none;
+}
+.bv-date-stepper .inline-input {
+    border-radius: 0; font-size: 12px; padding: 4px 6px;
+}
+
+/* ── Progress Track (shared between summary bars and cards) ───────────────── */
+.bv-progress-track {
+    position: relative; background: rgba(128, 128, 128, 0.15);
+    border-radius: 999px; overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.bv-progress-track--sm { height: 8px; margin-bottom: 8px; }
+.bv-progress-track--lg { height: 12px; margin-bottom: 12px; }
+.bv-progress-bar {
+    position: absolute; top: 0; left: 0; height: 100%;
+    border-radius: 999px; transition: width 0.3s;
+}
+.bv-progress-bar--bg {
+    background: rgba(128, 128, 128, 0.4);
+}
+
+/* ── Summary Bar ──────────────────────────────────────────────────────────── */
+.bv-summary-bar {
+    background: var(--bg-surface); border: 1px solid var(--border-color);
+    border-radius: 10px; padding: 20px; margin-bottom: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+.bv-summary-header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+}
+.bv-summary-header h4 {
+    margin: 0 0 4px; font-size: 14px; color: var(--text-color);
+}
+.bv-summary-header .subtitle {
+    font-size: 12px; color: var(--text-muted);
+}
+.bv-summary-amount {
+    font-size: 18px; font-weight: 700; color: var(--text-color);
+}
+.bv-summary-amount-label {
+    font-size: 12px; color: var(--text-muted);
+}
+.bv-summary-footer {
+    display: flex; justify-content: space-between; font-size: 14px;
+    flex-wrap: wrap; gap: 4px;
+}
+.bv-summary-footer-left {
+    display: flex; flex-wrap: wrap; gap: 8px;
+}
+
+/* ── Budget Envelope Card ─────────────────────────────────────────────────── */
+.bv-card-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 12px; gap: 8px;
+}
+.bv-card-name-area { flex: 1; }
+.bv-card-name-row {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+}
+.bv-card-name-row strong { font-size: 13px; }
+.bv-card-tags {
+    margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;
+}
+.bv-card-actions {
+    display: flex; gap: 4px; flex-shrink: 0;
+}
+.bv-card-actions .btn {
+    padding: 4px 8px; font-size: 11px;
+}
+.bv-card-amount-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px; font-size: 11px; color: var(--text-muted);
+}
+.bv-card-footer {
+    display: flex; justify-content: space-between; font-size: 12px;
+    flex-wrap: wrap; gap: 4px;
+}
+.bv-card-footer-left {
+    display: flex; flex-wrap: wrap; gap: 8px;
+}
+
+/* ── Tag Badges ───────────────────────────────────────────────────────────── */
+.bv-tag { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.bv-tag--project { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+.bv-tag--savings { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.bv-tag--closed  { background: rgba(239, 68, 68, 0.15); color: #ff5630; margin-left: 6px; }
+.bv-tag--cat { background: var(--bg-base); color: var(--text-muted); font-weight: normal; }
+.bv-tag--account {
+    padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600;
+}
+
+/* ── Sync Button ──────────────────────────────────────────────────────────── */
+.bv-sync-btn {
+    padding: 2px 7px; font-size: 10px; font-weight: 700;
+    color: var(--accent); border-color: rgba(59, 130, 246, 0.35);
+    background: rgba(59, 130, 246, 0.1); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 3px;
+}
+
+/* ── Period Section ───────────────────────────────────────────────────────── */
+.bv-period-section { margin-bottom: 40px; }
+.bv-period-header {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px; margin-bottom: 16px; padding-bottom: 8px;
+}
+.bv-period-header h3 {
+    margin: 0; font-size: 16px; color: var(--text-color);
+}
+.bv-card-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+/* ── Savings Section ──────────────────────────────────────────────────────── */
+.bv-savings-header {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px; margin-bottom: 16px; padding-bottom: 8px;
+    border-bottom: 2px solid rgba(245, 158, 11, 0.3);
+}
+.bv-savings-header h3 {
+    margin: 0; font-size: 16px; color: #f59e0b;
+}
+.bv-savings-summary-counts {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+}
+.bv-temp-withdrawn-badge {
+    font-size: 11px; font-weight: 600;
+    background: rgba(239, 68, 68, 0.1); padding: 2px 6px; border-radius: 4px;
+}
+.bv-overflow-badge {
+    font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+}
+
+/* ── Custom Period Toggle ─────────────────────────────────────────────────── */
+.bv-custom-toggle {
+    position: relative; width: 32px; height: 18px;
+}
+.bv-custom-toggle input {
+    opacity: 0; width: 0; height: 0; position: absolute;
+}
+.bv-custom-toggle .slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: var(--border-color); transition: .4s; border-radius: 34px;
+}
+.bv-custom-toggle .slider-knob {
+    position: absolute; height: 12px; width: 12px; left: 3px; bottom: 3px;
+    background-color: white; transition: .4s; border-radius: 50%;
+}
+.bv-custom-toggle input:checked + .slider { background-color: var(--accent); }
+.bv-custom-toggle input:checked + .slider + .slider-knob { left: 17px; }
+
+/* ── Empty State ──────────────────────────────────────────────────────────── */
+.bv-empty { color: var(--text-muted); padding: 10px 0; }
 
 
 
