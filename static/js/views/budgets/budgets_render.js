@@ -8,60 +8,60 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         return `
         <div>
-            <div class="view-header" style="position:sticky;top:-32px;z-index:10;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                <h2 style="margin:0;" data-i18n="budget_title">${window.i18n.t('budget_title')}</h2>
-                <div class="history-filters" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <button id="budgetAiBtn" class="btn btn-secondary" style="white-space:nowrap; ${aiDisp}" onclick="window.BudgetsView.openAiWindowModal()" data-i18n="budget_btn_suggestions">${window.i18n.t('budget_btn_suggestions')}</button>
-                    <button class="btn btn-secondary" style="white-space:nowrap;color:#ef4444;border-color:rgba(239,68,68,0.4);" onclick="window.BudgetsView.showBulkDeleteModal()" data-i18n="budget_btn_bulk_delete">${window.i18n.t('budget_btn_bulk_delete') || '🗑️ Nettoyer'}</button>
-                    <button class="btn btn-primary" style="white-space:nowrap;" onclick="window.BudgetsView.showAddForm()" data-i18n="budget_btn_new">${window.i18n.t('budget_btn_new')}</button>
+            <div class="bv-header view-header">
+                <h2 data-i18n="budget_title">${window.i18n.t('budget_title')}</h2>
+                <div class="bv-header-actions">
+                    <button id="budgetAiBtn" class="btn btn-secondary" style="${aiDisp}" onclick="window.BudgetsView.openAiWindowModal()" data-i18n="budget_btn_suggestions">${window.i18n.t('budget_btn_suggestions')}</button>
+                    <button class="btn btn-secondary bv-btn-delete" onclick="window.BudgetsView.showBulkDeleteModal()" data-i18n="budget_btn_bulk_delete">${window.i18n.t('budget_btn_bulk_delete') || '🗑️ Nettoyer'}</button>
+                    <button class="btn btn-primary" onclick="window.BudgetsView.showAddForm()" data-i18n="budget_btn_new">${window.i18n.t('budget_btn_new')}</button>
                 </div>
             </div>
 
             <!-- Modal Sélection préalable de la période d'analyse IA -->
-            <div id="aiWindowSelectionModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:20px;">
-                <div style="background:var(--bg-surface);border:1px solid var(--accent);border-radius:16px;max-width:540px;width:100%;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:18px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
-                        <h3 style="margin:0;font-size:16px;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+            <div id="aiWindowSelectionModal" class="bv-modal-overlay">
+                <div class="bv-modal-panel">
+                    <div class="bv-modal-header">
+                        <h3>
                             <span>🔮</span> <span data-i18n="ai_modal_window_title">${window.i18n.t('ai_modal_window_title') || '🔮 Suggestions Budgétaires par l\'IA'}</span>
                         </h3>
                         <button class="btn btn-secondary" onclick="window.BudgetsView.closeAiWindowModal()" style="padding:4px 10px;font-size:12px;">✕</button>
                     </div>
 
-                    <p style="font-size:13px;color:var(--text-muted);margin:0;" data-i18n="ai_modal_window_subtitle">
+                    <p class="bv-modal-subtitle" data-i18n="ai_modal_window_subtitle">
                         ${window.i18n.t('ai_modal_window_subtitle') || 'Choisissez la période d\'historique bancaire à analyser pour calculer vos enveloppes :'}
                     </p>
 
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        <label style="display:flex;align-items:flex-start;gap:12px;background:var(--bg-base);border:2px solid var(--accent);padding:12px 16px;border-radius:10px;cursor:pointer;transition:all 0.2s ease;" onclick="window.BudgetsView.selectModalAiWindow(3, this)">
-                            <input type="radio" name="modalAiWindowOption" value="3" checked style="margin-top:3px;accent-color:var(--accent);">
-                            <div style="display:flex;flex-direction:column;gap:2px;">
-                                <strong style="font-size:13px;color:var(--text-main);" data-i18n="ai_modal_win_3m_title">${window.i18n.t('ai_modal_win_3m_title') || '3 Mois (Recommandé)'}</strong>
-                                <span style="font-size:11px;color:var(--text-muted);" data-i18n="ai_modal_win_3m_desc">${window.i18n.t('ai_modal_win_3m_desc') || 'Idéal pour s\'adapter à vos habitudes de dépense récentes.'}</span>
+                    <div class="bv-modal-options">
+                        <label class="bv-modal-option bv-modal-option--selected" onclick="window.BudgetsView.selectModalAiWindow(3, this)">
+                            <input type="radio" name="modalAiWindowOption" value="3" checked>
+                            <div class="bv-modal-option-info">
+                                <strong data-i18n="ai_modal_win_3m_title">${window.i18n.t('ai_modal_win_3m_title') || '3 Mois (Recommandé)'}</strong>
+                                <span data-i18n="ai_modal_win_3m_desc">${window.i18n.t('ai_modal_win_3m_desc') || 'Idéal pour s\'adapter à vos habitudes de dépense récentes.'}</span>
                             </div>
                         </label>
 
-                        <label style="display:flex;align-items:flex-start;gap:12px;background:var(--bg-base);border:1px solid var(--border-color);padding:12px 16px;border-radius:10px;cursor:pointer;transition:all 0.2s ease;" onclick="window.BudgetsView.selectModalAiWindow(6, this)">
-                            <input type="radio" name="modalAiWindowOption" value="6" style="margin-top:3px;accent-color:var(--accent);">
-                            <div style="display:flex;flex-direction:column;gap:2px;">
-                                <strong style="font-size:13px;color:var(--text-main);" data-i18n="ai_modal_win_6m_title">${window.i18n.t('ai_modal_win_6m_title') || '6 Mois (Lissage moyen)'}</strong>
-                                <span style="font-size:11px;color:var(--text-muted);" data-i18n="ai_modal_win_6m_desc">${window.i18n.t('ai_modal_win_6m_desc') || 'Parfait pour lisser les dépenses saisonnières et semi-annuelles.'}</span>
+                        <label class="bv-modal-option" onclick="window.BudgetsView.selectModalAiWindow(6, this)">
+                            <input type="radio" name="modalAiWindowOption" value="6">
+                            <div class="bv-modal-option-info">
+                                <strong data-i18n="ai_modal_win_6m_title">${window.i18n.t('ai_modal_win_6m_title') || '6 Mois (Lissage moyen)'}</strong>
+                                <span data-i18n="ai_modal_win_6m_desc">${window.i18n.t('ai_modal_win_6m_desc') || 'Parfait pour lisser les dépenses saisonnières et semi-annuelles.'}</span>
                             </div>
                         </label>
 
-                        <label style="display:flex;align-items:flex-start;gap:12px;background:var(--bg-base);border:1px solid var(--border-color);padding:12px 16px;border-radius:10px;cursor:pointer;transition:all 0.2s ease;" onclick="window.BudgetsView.selectModalAiWindow(12, this)">
-                            <input type="radio" name="modalAiWindowOption" value="12" style="margin-top:3px;accent-color:var(--accent);">
-                            <div style="display:flex;flex-direction:column;gap:2px;">
-                                <strong style="font-size:13px;color:var(--text-main);" data-i18n="ai_modal_win_12m_title">${window.i18n.t('ai_modal_win_12m_title') || '12 Mois (Vue annuelle complète)'}</strong>
-                                <span style="font-size:11px;color:var(--text-muted);" data-i18n="ai_modal_win_12m_desc">${window.i18n.t('ai_modal_win_12m_desc') || 'Capturer l\'ensemble des charges annuelles, abonnements et impôts.'}</span>
+                        <label class="bv-modal-option" onclick="window.BudgetsView.selectModalAiWindow(12, this)">
+                            <input type="radio" name="modalAiWindowOption" value="12">
+                            <div class="bv-modal-option-info">
+                                <strong data-i18n="ai_modal_win_12m_title">${window.i18n.t('ai_modal_win_12m_title') || '12 Mois (Vue annuelle complète)'}</strong>
+                                <span data-i18n="ai_modal_win_12m_desc">${window.i18n.t('ai_modal_win_12m_desc') || 'Capturer l\'ensemble des charges annuelles, abonnements et impôts.'}</span>
                             </div>
                         </label>
                     </div>
 
                     <!-- Switch Toggle Wizard -->
-                    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-base);padding:12px 16px;border-radius:10px;border:1px solid var(--border-color);margin-top:4px;">
-                        <div style="display:flex;flex-direction:column;gap:2px;padding-right:12px;">
-                            <strong style="font-size:13px;color:var(--text-main);" data-i18n="ai_wizard_toggle_label">${window.i18n.t('ai_wizard_toggle_label') || '🪄 Lancer le wizard de configuration'}</strong>
-                            <span style="font-size:11px;color:var(--text-muted);" data-i18n="ai_wizard_toggle_desc">${window.i18n.t('ai_wizard_toggle_desc') || 'Guide pas à pas pour affiner et passer en revue vos enveloppes'}</span>
+                    <div class="bv-toggle-row">
+                        <div class="bv-toggle-row-info">
+                            <strong data-i18n="ai_wizard_toggle_label">${window.i18n.t('ai_wizard_toggle_label') || '🪄 Lancer le wizard de configuration'}</strong>
+                            <span data-i18n="ai_wizard_toggle_desc">${window.i18n.t('ai_wizard_toggle_desc') || 'Guide pas à pas pour affiner et passer en revue vos enveloppes'}</span>
                         </div>
                         <label class="switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
                             <input type="checkbox" id="aiWizardToggleCheck" ${localStorage.getItem('budget_ai_wizard_enabled') !== 'false' ? 'checked' : ''} onchange="localStorage.setItem('budget_ai_wizard_enabled', this.checked)">
@@ -69,32 +69,32 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         </label>
                     </div>
 
-                    <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:10px;border-top:1px solid var(--border-color);">
+                    <div class="bv-modal-footer">
                         <button class="btn btn-secondary" onclick="window.BudgetsView.closeAiWindowModal()">${window.i18n.t('budget_bulk_delete_cancel') || 'Annuler'}</button>
-                        <button class="btn btn-primary" onclick="window.BudgetsView.confirmAiWindowSelection()" style="background:var(--accent);font-weight:700;padding:8px 18px;" data-i18n="ai_modal_btn_start">${window.i18n.t('ai_modal_btn_start') || '🚀 Lancer l\'analyse IA'}</button>
+                        <button class="btn btn-primary" onclick="window.BudgetsView.confirmAiWindowSelection()" data-i18n="ai_modal_btn_start">${window.i18n.t('ai_modal_btn_start') || '🚀 Lancer l\'analyse IA'}</button>
                     </div>
                 </div>
             </div>
 
             <!-- Modal Assistant / Wizard de configuration des enveloppes IA -->
-            <div id="aiBudgetWizardModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(8px);z-index:99999;align-items:center;justify-content:center;padding:20px;">
-                <div style="background:var(--bg-surface);border:1px solid var(--accent);border-radius:18px;max-width:880px;width:100%;padding:28px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:20px;position:relative;max-height:90vh;overflow-y:auto;">
+            <div id="aiBudgetWizardModal" class="bv-wizard-overlay">
+                <div class="bv-wizard-panel">
                     
                     <!-- Header Wizard -->
-                    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);padding-bottom:14px;">
-                        <h3 id="aiWizardTitle" style="margin:0;font-size:18px;color:var(--text-main);display:flex;align-items:center;gap:10px;">
+                    <div class="bv-wizard-header">
+                        <h3 id="aiWizardTitle">
                             <span data-i18n="ai_wizard_step1_title">${window.i18n.t('ai_wizard_step1_title')}</span>
                         </h3>
                         <button class="btn btn-secondary" onclick="window.BudgetsView.skipWizard()" style="padding:4px 10px;font-size:12px;" data-i18n="ai_wizard_skip">${window.i18n.t('ai_wizard_skip') || 'Ignorer l\'assistant'}</button>
                     </div>
 
                     <!-- Content Container Dynamic per step -->
-                    <div id="aiWizardContent" style="display:flex;flex-direction:column;gap:16px;">
+                    <div id="aiWizardContent" class="bv-wizard-content">
                         <!-- Dynamically filled by JS -->
                     </div>
 
                     <!-- Footer Controls -->
-                    <div id="aiWizardFooter" style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid var(--border-color);">
+                    <div id="aiWizardFooter" class="bv-wizard-footer">
                         <!-- Dynamically filled by JS -->
                     </div>
                 </div>
@@ -438,15 +438,15 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const panelHelpText = window.i18n.t('budget_capacity_tooltip') || "À quoi sert ce panneau ?\nLa capacité budgétaire compare l'ensemble de vos enveloppes à vos recettes/revenus. C'est un outil prédictif basé sur le passé à titre indicatif.";
 
         const toggleHeaderHtml = `
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border-color);">
-                <label style="display:inline-flex; align-items:center; gap:10px; cursor:pointer; user-select:none;">
+            <div class="bv-capacity-toggle">
+                <label>
                     <span class="toggle-switch" style="flex-shrink:0;">
                         <input type="checkbox" id="toggleCapacityPanel" ${showCapacity ? 'checked' : ''} onchange="window.BudgetsView.toggleCapacityPanel(this.checked)">
                         <span class="slider"></span>
                     </span>
-                    <strong style="font-size:13px; color:var(--text-main); font-weight:600;">${window.i18n.t('budget_capacity_panel_title') || 'Couverture du budget & Solde disponible'}</strong>
+                    <strong>${window.i18n.t('budget_capacity_panel_title') || 'Couverture du budget & Solde disponible'}</strong>
                 </label>
-                <span title="${panelHelpText}" style="cursor:help; display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:10px; font-weight:bold; font-family:sans-serif; vertical-align:middle; line-height:1; user-select:none;">i</span>
+                <span title="${panelHelpText}" class="bv-info-icon bv-info-icon--lg">i</span>
             </div>
         `;
 
@@ -464,29 +464,29 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             let accountsHtml = '';
             if (this.capacityData.accounts && this.capacityData.accounts.length > 0) {
                 accountsHtml = `
-                    <div style="margin-top:16px; border-top:1px solid var(--border-color); padding-top:12px;">
-                        <strong style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">${window.i18n.t('budget_accounts_impact') || 'Impact sur les comptes & livrets'}</strong>
-                        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:10px;">
+                    <div class="bv-accounts-section">
+                        <strong class="bv-accounts-section-label">${window.i18n.t('budget_accounts_impact') || 'Impact sur les comptes & livrets'}</strong>
+                        <div class="bv-accounts-grid">
                             ${this.capacityData.accounts.map(acc => {
                                 const accColor = acc.color || 'var(--accent)';
                                 const hasSavings = acc.savings_allocated > 0;
                                 return `
-                                    <div style="background:var(--bg-base); border:1px solid var(--border-color); border-radius:8px; padding:10px; display:flex; flex-direction:column; gap:4px;">
-                                        <div style="display:flex; align-items:center; gap:6px; font-weight:600; font-size:12px;">
+                                    <div class="bv-account-card">
+                                        <div class="bv-account-card-name">
                                             <span style="width:8px;height:8px;border-radius:50%;background:${accColor};"></span>
                                             <span>${acc.name}</span>
                                         </div>
-                                        <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:2px;">
+                                        <div class="bv-account-card-row">
                                             <span style="color:var(--text-muted);">${window.i18n.t('budget_real_balance') || 'Solde réel'}</span>
                                             <span class="privacy-blur" style="font-weight:600;">${formatCurrency(acc.real_balance)}</span>
                                         </div>
                                         ${hasSavings ? `
-                                        <div style="display:flex; justify-content:space-between; font-size:11px; color:#f59e0b;">
+                                        <div class="bv-account-card-row" style="color:#f59e0b;">
                                             <span>${window.i18n.t('budget_savings_reserved') || 'Épargne réservée'}</span>
                                             <span class="privacy-blur">- ${formatCurrency(acc.savings_allocated)}</span>
                                         </div>
                                         ` : ''}
-                                        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; border-top:1px dashed var(--border-color); padding-top:4px; margin-top:2px;">
+                                        <div class="bv-account-card-total">
                                             <span>${window.i18n.t('budget_available_balance') || 'Disponible virtuel'}</span>
                                             <span class="privacy-blur" style="color:${hasSavings ? 'var(--accent)' : 'inherit'};">${formatCurrency(acc.available_balance)}</span>
                                         </div>
@@ -511,25 +511,25 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const monthlyBudgetedDetails = (lang === 'en' ? this.capacityData.monthly.budgeted_details_en : this.capacityData.monthly.budgeted_details_fr) || '';
             const yearlyBudgetedDetails = (lang === 'en' ? this.capacityData.yearly.budgeted_details_en : this.capacityData.yearly.budgeted_details_fr) || '';
 
-            const monthlyInfoIcon = monthlyDetails ? `<span title="${monthlyDetails}" style="cursor:help; margin-left:4px; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:9px; font-weight:bold; font-family:sans-serif; vertical-align:middle; line-height:1; user-select:none;">i</span>` : '';
-            const yearlyInfoIcon = yearlyDetails ? `<span title="${yearlyDetails}" style="cursor:help; margin-left:4px; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:9px; font-weight:bold; font-family:sans-serif; vertical-align:middle; line-height:1; user-select:none;">i</span>` : '';
+            const monthlyInfoIcon = monthlyDetails ? `<span title="${monthlyDetails}" class="bv-info-icon">i</span>` : '';
+            const yearlyInfoIcon = yearlyDetails ? `<span title="${yearlyDetails}" class="bv-info-icon">i</span>` : '';
 
-            const monthlyBudgetedInfoIcon = monthlyBudgetedDetails ? `<span title="${monthlyBudgetedDetails}" style="cursor:help; margin-left:4px; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:9px; font-weight:bold; font-family:sans-serif; vertical-align:middle; line-height:1; user-select:none;">i</span>` : '';
-            const yearlyBudgetedInfoIcon = yearlyBudgetedDetails ? `<span title="${yearlyBudgetedDetails}" style="cursor:help; margin-left:4px; display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:9px; font-weight:bold; font-family:sans-serif; vertical-align:middle; line-height:1; user-select:none;">i</span>` : '';
+            const monthlyBudgetedInfoIcon = monthlyBudgetedDetails ? `<span title="${monthlyBudgetedDetails}" class="bv-info-icon">i</span>` : '';
+            const yearlyBudgetedInfoIcon = yearlyBudgetedDetails ? `<span title="${yearlyBudgetedDetails}" class="bv-info-icon">i</span>` : '';
 
             capacityHtml = `
-                <div class="capacity-panel" style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; padding:18px; margin-bottom:24px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
-                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px;">
+                <div class="bv-capacity-panel">
+                    <div class="bv-capacity-grid">
                         <!-- Monthly capacity -->
                         <div>
-                            <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:6px;">
+                            <div class="bv-capacity-meter-header">
                                 <span>${window.i18n.t('budget_capacity_monthly') || 'Engagement mensuel'}</span>
                                 <span style="color:${monthlyColor};">${monthlyRatio}%</span>
                             </div>
-                            <div style="background:rgba(128,128,128,0.15); border-radius:999px; height:8px; overflow:hidden; margin-bottom:6px;">
-                                <div style="width:${Math.min(monthlyRatio, 100)}%; height:100%; background:${monthlyColor}; border-radius:999px;"></div>
+                            <div class="bv-progress-track bv-progress-track--sm" style="margin-bottom:6px;">
+                                <div class="bv-progress-bar" style="width:${Math.min(monthlyRatio, 100)}%;background:${monthlyColor};"></div>
                             </div>
-                            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted);">
+                            <div class="bv-capacity-meter-footer">
                                 <span>${monthlyLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.monthly.budgeted)}</span>${monthlyBudgetedInfoIcon}</span>
                                 <span>${incomeLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.monthly.average_income)}</span>${monthlyInfoIcon}</span>
                             </div>
@@ -537,14 +537,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         
                         <!-- Yearly capacity -->
                         <div>
-                            <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:6px;">
+                            <div class="bv-capacity-meter-header">
                                 <span>${window.i18n.t('budget_capacity_yearly') || "Projection d'engagement annuel"}</span>
                                 <span style="color:${yearlyColor};">${yearlyRatio}%</span>
                             </div>
-                            <div style="background:rgba(128,128,128,0.15); border-radius:999px; height:8px; overflow:hidden; margin-bottom:6px;">
-                                <div style="width:${Math.min(yearlyRatio, 100)}%; height:100%; background:${yearlyColor}; border-radius:999px;"></div>
+                            <div class="bv-progress-track bv-progress-track--sm" style="margin-bottom:6px;">
+                                <div class="bv-progress-bar" style="width:${Math.min(yearlyRatio, 100)}%;background:${yearlyColor};"></div>
                             </div>
-                            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted);">
+                            <div class="bv-capacity-meter-footer">
                                 <span>${yearlyLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.yearly.budgeted)}</span>${yearlyBudgetedInfoIcon}</span>
                                 <span>${incomeLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.yearly.average_income)}</span>${yearlyInfoIcon}</span>
                             </div>
@@ -578,14 +578,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         const activeFilter = this.currentGridFilter || 'all';
         const filterBarHtml = `
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:20px;flex-wrap:wrap;background:var(--bg-surface);padding:10px 14px;border-radius:10px;border:1px solid var(--border-color);">
-                <span style="font-size:12px;color:var(--text-muted);font-weight:600;margin-right:4px;">Filtrer :</span>
-                <button class="btn btn-secondary ${activeFilter === 'all' ? 'active' : ''}" style="padding:4px 12px;font-size:12px;${activeFilter === 'all' ? 'background:var(--accent);color:white;border-color:var(--accent);' : ''}" onclick="window.BudgetsView.setGridFilter('all')" data-i18n="budget_filter_all">${window.i18n.t('budget_filter_all') || 'Toutes'}</button>
-                <button class="btn btn-secondary ${activeFilter === 'spending' ? 'active' : ''}" style="padding:4px 12px;font-size:12px;${activeFilter === 'spending' ? 'background:var(--accent);color:white;border-color:var(--accent);' : ''}" onclick="window.BudgetsView.setGridFilter('spending')" data-i18n="budget_filter_spending">${window.i18n.t('budget_filter_spending') || 'Mensuelles'}</button>
-                <button class="btn btn-secondary ${activeFilter === 'yearly' ? 'active' : ''}" style="padding:4px 12px;font-size:12px;${activeFilter === 'yearly' ? 'background:var(--accent);color:white;border-color:var(--accent);' : ''}" onclick="window.BudgetsView.setGridFilter('yearly')" data-i18n="budget_filter_yearly">${window.i18n.t('budget_filter_yearly') || 'Annuelles'}</button>
-                <button class="btn btn-secondary ${activeFilter === 'project' ? 'active' : ''}" style="padding:4px 12px;font-size:12px;${activeFilter === 'project' ? 'background:var(--accent);color:white;border-color:var(--accent);' : ''}" onclick="window.BudgetsView.setGridFilter('project')" data-i18n="budget_filter_project">${window.i18n.t('budget_filter_project') || 'Projets'}</button>
-                <button class="btn btn-secondary ${activeFilter === 'savings' ? 'active' : ''}" style="padding:4px 12px;font-size:12px;${activeFilter === 'savings' ? 'background:var(--accent);color:white;border-color:var(--accent);' : ''}" onclick="window.BudgetsView.setGridFilter('savings')" data-i18n="budget_filter_savings">${window.i18n.t('budget_filter_savings') || 'Épargne'}</button>
-                <button class="btn btn-secondary ${activeFilter === 'overspent' ? 'active' : ''}" style="padding:4px 12px;font-size:12px;${activeFilter === 'overspent' ? 'background:#ef4444;color:white;border-color:#ef4444;' : 'color:#ef4444;border-color:rgba(239,68,68,0.4);'}" onclick="window.BudgetsView.setGridFilter('overspent')" data-i18n="budget_filter_overspent">${window.i18n.t('budget_filter_overspent') || '⚠️ En dépassement'}</button>
+            <div class="bv-filter-bar">
+                <span class="bv-filter-bar-label">Filtrer :</span>
+                <button class="btn btn-secondary bv-filter-btn ${activeFilter === 'all' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('all')" data-i18n="budget_filter_all">${window.i18n.t('budget_filter_all') || 'Toutes'}</button>
+                <button class="btn btn-secondary bv-filter-btn ${activeFilter === 'spending' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('spending')" data-i18n="budget_filter_spending">${window.i18n.t('budget_filter_spending') || 'Mensuelles'}</button>
+                <button class="btn btn-secondary bv-filter-btn ${activeFilter === 'yearly' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('yearly')" data-i18n="budget_filter_yearly">${window.i18n.t('budget_filter_yearly') || 'Annuelles'}</button>
+                <button class="btn btn-secondary bv-filter-btn ${activeFilter === 'project' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('project')" data-i18n="budget_filter_project">${window.i18n.t('budget_filter_project') || 'Projets'}</button>
+                <button class="btn btn-secondary bv-filter-btn ${activeFilter === 'savings' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('savings')" data-i18n="budget_filter_savings">${window.i18n.t('budget_filter_savings') || 'Épargne'}</button>
+                <button class="btn btn-secondary bv-filter-btn bv-filter-btn--overspent ${activeFilter === 'overspent' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('overspent')" data-i18n="budget_filter_overspent">${window.i18n.t('budget_filter_overspent') || '⚠️ En dépassement'}</button>
             </div>
         `;
         fullHtml += filterBarHtml;
@@ -657,22 +657,22 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const borderStyle = accentColor ? `border-left:3px solid ${accentColor};` : '';
             const incomeHtml = totalIncome > 0 ? `<span class="privacy-blur" style="color:#10b981;font-size:12px;align-self:flex-end;">↑ ${formatCurrency(totalIncome)} ${window.i18n.t('budget_received')}</span>` : '';
 
-            return `<div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);${borderStyle}">
-                <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            return `<div class="bv-summary-bar" style="${borderStyle}">
+                <div class="bv-summary-header">
                     <div>
-                        <h4 style="margin:0 0 4px;font-size:14px;color:var(--text-color);">${titleText}</h4>
-                        <span style="font-size:12px;color:var(--text-muted);">${subtitleText}</span>
+                        <h4>${titleText}</h4>
+                        <span class="subtitle">${subtitleText}</span>
                     </div>
                     <div style="text-align:right;">
-                        <strong class="privacy-blur" style="font-size:18px;color:var(--text-color);">${formatCurrency(totalTarget)}</strong><span style="font-size:12px;color:var(--text-muted);"> ${window.i18n.t('budget_budgeted')}</span>
+                        <strong class="privacy-blur bv-summary-amount">${formatCurrency(totalTarget)}</strong><span class="bv-summary-amount-label"> ${window.i18n.t('budget_budgeted')}</span>
                     </div>
                 </div>
-                <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:12px;overflow:hidden;margin-bottom:12px;border:1px solid rgba(255,255,255,0.05);">
-                    <div style="position:absolute;top:0;left:0;width:${totalPct}%;height:100%;background:rgba(128,128,128,0.4);border-radius:999px;transition:width 0.3s;"></div>
-                    <div style="position:absolute;top:0;left:0;width:${recPct}%;height:100%;background:${totalBarColor};border-radius:999px;transition:width 0.3s;"></div>
+                <div class="bv-progress-track bv-progress-track--lg">
+                    <div class="bv-progress-bar bv-progress-bar--bg" style="width:${totalPct}%;"></div>
+                    <div class="bv-progress-bar" style="width:${recPct}%;background:${totalBarColor};"></div>
                 </div>
-                <div style="display:flex;justify-content:space-between;font-size:14px;flex-wrap:wrap;gap:4px;">
-                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                <div class="bv-summary-footer">
+                    <div class="bv-summary-footer-left">
                         <span class="privacy-blur" style="color:${totalBarColor};font-weight:600;">${formatCurrency(totalRecExpenses)} ${window.i18n.t('budget_reconciled')}</span>
                         <span class="privacy-blur" style="color:var(--text-muted);font-size:12px;align-self:flex-end;">(${formatCurrency(totalExpenses)} ${window.i18n.t('budget_committed')})</span>
                         ${incomeHtml}
@@ -689,10 +689,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const barColor = (effectiveBudget > 0 && ((b.reconciled_expenses || 0) / effectiveBudget) * 100 > 100) ? '#ff5630' : recExpPct >= 80 ? '#f59e0b' : '#10b981';
             const overBudget = b.remaining < 0;
             const typeTag = b.is_project
-                ? `<span style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">${window.i18n.t('budget_project_tag')}</span>`
+                ? `<span class="bv-tag bv-tag--project">${window.i18n.t('budget_project_tag')}</span>`
                 : '';
             const catTags = (b.categories || []).map(c =>
-                `<span style="background:var(--bg-base);padding:2px 6px;border-radius:4px;font-size:10px;color:var(--text-muted);">${c}</span>`
+                `<span class="bv-tag bv-tag--cat">${c}</span>`
             ).join(' ');
 
             const incomeHtml = b.income > 0
@@ -703,7 +703,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const periodLabel = b.period === 'monthly' ? window.i18n.t('period_monthly') : b.period === 'yearly' ? window.i18n.t('period_yearly') : b.period === 'custom' ? `${window.i18n.t('budget_period_custom') || 'Time-bound'} (${b.start_date || '?'} → ${b.end_date || '?'})` : window.i18n.t('period_undefined');
             const closedStyle = b.is_closed ? 'opacity:0.6;' : '';
             const closedTag = b.is_closed
-                ? `<span style="background:rgba(239,68,68,0.15);color:#ff5630;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">${window.i18n.t('budget_closed_tag')}</span>`
+                ? `<span class="bv-tag bv-tag--closed">${window.i18n.t('budget_closed_tag')}</span>`
                 : '';
 
             let accountBadges = '';
@@ -712,7 +712,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     const acc = this.accounts?.find(a => a.id === aid);
                     if (!acc) return '';
                     const color = acc.color || 'var(--accent)';
-                    return `<span style="background:${color}1a; color:${color}; border:1px solid ${color}33; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:600;">● ${acc.name}</span>`;
+                    return `<span class="bv-tag bv-tag--account" style="background:${color}1a; color:${color}; border:1px solid ${color}33;">● ${acc.name}</span>`;
                 }).join(' ');
             }
 
@@ -720,7 +720,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const syncTitle = showSyncBtn ? (window.i18n.t('budget_sync_to_committed_tt') || 'Ajuster le montant du budget sur le montant engagé ({amount})').replace('{amount}', formatCurrency(b.expenses)) : '';
 
             const syncBtnHtml = showSyncBtn ? `
-                <button type="button" class="btn btn-secondary" style="padding:2px 7px;font-size:10px;font-weight:700;color:var(--accent);border-color:rgba(59,130,246,0.35);background:rgba(59,130,246,0.1);cursor:pointer;display:inline-flex;align-items:center;gap:3px;" 
+                <button type="button" class="btn btn-secondary bv-sync-btn" 
                         onclick="window.BudgetsView.updateAmount(${b.id}, ${b.expenses})" 
                         title="${syncTitle}">
                     ${window.i18n.t('budget_btn_sync_committed') || '⚡ Aligner'}
@@ -728,23 +728,23 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             ` : '';
 
             return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" class="budget-envelope-card ${overBudget ? 'over-budget' : ''}" style="${closedStyle}">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px;">
-                        <div style="flex:1;">
-                            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
-                                <strong style="font-size:13px;">${b.name}</strong>
+                    <div class="bv-card-header">
+                        <div class="bv-card-name-area">
+                            <div class="bv-card-name-row">
+                                <strong>${b.name}</strong>
                                 ${closedTag}
                                 ${accountBadges}
                             </div>
-                            <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">${typeTag}${catTags}</div>
+                            <div class="bv-card-tags">${typeTag}${catTags}</div>
                         </div>
-                        <div style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation()">
-                            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.editBudget(${b.id})" title="${window.i18n.t('tooltip_edit')}">✏️</button>
-                            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.toggleClose(${b.id})" title="${b.is_closed ? window.i18n.t('budget_reopen_action') : window.i18n.t('budget_close_action')}">${b.is_closed ? '🔓' : '🔒'}</button>
-                            <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.deleteBudget(${b.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
+                        <div class="bv-card-actions" onclick="event.stopPropagation()">
+                            <button class="btn btn-secondary" onclick="window.BudgetsView.editBudget(${b.id})" title="${window.i18n.t('tooltip_edit')}">✏️</button>
+                            <button class="btn btn-secondary" onclick="window.BudgetsView.toggleClose(${b.id})" title="${b.is_closed ? window.i18n.t('budget_reopen_action') : window.i18n.t('budget_close_action')}">${b.is_closed ? '🔓' : '🔒'}</button>
+                            <button class="btn btn-danger" onclick="window.BudgetsView.deleteBudget(${b.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
                         </div>
                     </div>
 
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:11px;color:var(--text-muted);">
+                    <div class="bv-card-amount-row">
                         <span>${periodLabel}</span>
                         <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
                             ${syncBtnHtml}
@@ -752,12 +752,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         </div>
                     </div>
 
-                    <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:8px;overflow:hidden;margin-bottom:8px;border:1px solid rgba(255,255,255,0.05);">
-                        <div style="position:absolute;top:0;left:0;width:${expensesPct}%;height:100%;background:rgba(128,128,128,0.4);border-radius:999px;"></div>
-                        <div style="position:absolute;top:0;left:0;width:${recExpPct}%;height:100%;background:${barColor};border-radius:999px;"></div>
+                    <div class="bv-progress-track bv-progress-track--sm">
+                        <div class="bv-progress-bar bv-progress-bar--bg" style="width:${expensesPct}%;"></div>
+                        <div class="bv-progress-bar" style="width:${recExpPct}%;background:${barColor};"></div>
                     </div>
-                    <div style="display:flex;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:4px;">
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;" onclick="event.stopPropagation()">
+                    <div class="bv-card-footer">
+                        <div class="bv-card-footer-left" onclick="event.stopPropagation()">
                             <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(b.reconciled_expenses || 0)} ${window.i18n.t('budget_reconciled')}</span>
                             <span class="privacy-blur" style="color:var(--text-muted);font-size:11px;align-self:flex-end;${showSyncBtn ? 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;' : ''}" ${showSyncBtn ? `onclick="window.BudgetsView.updateAmount(${b.id}, ${b.expenses})" title="${syncTitle}"` : ''}>(${formatCurrency(b.expenses || 0)} ${window.i18n.t('budget_committed')})</span>
                             ${incomeHtml}
@@ -789,9 +789,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const safeName = b.name.replace(/'/g, "\\'");
             const closedStyle = b.is_closed ? 'opacity:0.6;' : '';
             const closedTag = b.is_closed
-                ? `<span style="background:rgba(239,68,68,0.15);color:#ff5630;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">${window.i18n.t('budget_closed_tag')}</span>`
+                ? `<span class="bv-tag bv-tag--closed">${window.i18n.t('budget_closed_tag')}</span>`
                 : '';
-            const typeTag = `<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">${window.i18n.t('budget_savings_tag')}</span>`;
+            const typeTag = `<span class="bv-tag bv-tag--savings">${window.i18n.t('budget_savings_tag')}</span>`;
 
             let accountBadges = '';
             if (b.account_ids && b.account_ids.length > 0 && window.app?.config?.enable_org_mode === 'true') {
@@ -799,7 +799,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     const acc = this.accounts?.find(a => a.id === aid);
                     if (!acc) return '';
                     const color = acc.color || 'var(--accent)';
-                    return `<span style="background:${color}1a; color:${color}; border:1px solid ${color}33; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:600;">● ${acc.name}</span>`;
+                    return `<span class="bv-tag bv-tag--account" style="background:${color}1a; color:${color}; border:1px solid ${color}33;">● ${acc.name}</span>`;
                 }).join(' ');
             }
 
@@ -808,41 +808,41 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 : '';
 
             const tempWithdrawnBadge = tempWithdrawn > 0
-                ? `<span style="color:#ef4444; font-size:11px; font-weight:600; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px;" title="${window.i18n.t('savings_temp_withdrawn') || 'Temporarily withdrawn'}">⚠ -${formatCurrency(tempWithdrawn)}</span>`
+                ? `<span class="bv-temp-withdrawn-badge" style="color:#ef4444;" title="${window.i18n.t('savings_temp_withdrawn') || 'Temporarily withdrawn'}">⚠ -${formatCurrency(tempWithdrawn)}</span>`
                 : '';
 
             return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" class="budget-envelope-card savings ${goalReached ? 'goal-reached' : ''}" style="${closedStyle}">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px;">
-                        <div style="flex:1;">
-                            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
-                                <strong style="font-size:13px;">${b.name}</strong>
+                    <div class="bv-card-header">
+                        <div class="bv-card-name-area">
+                            <div class="bv-card-name-row">
+                                <strong>${b.name}</strong>
                                 ${closedTag}
                                 ${accountBadges}
                                 ${tempWithdrawnBadge}
                             </div>
-                            <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">${typeTag}</div>
+                            <div class="bv-card-tags">${typeTag}</div>
                         </div>
-                        <div style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation()">
-                            ${!b.is_closed ? `<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.showAllocationForm(${b.id})" title="${window.i18n.t('budget_savings_add_funds')}">➕</button>` : ''}
-                            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.editBudget(${b.id})" title="${window.i18n.t('tooltip_edit')}">✏️</button>
-                            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.${b.is_closed ? 'toggleClose' : 'breakPiggyBank'}(${b.id})" title="${b.is_closed ? window.i18n.t('budget_reopen_action') : window.i18n.t('budget_savings_break_action')}">${b.is_closed ? '🔓' : '🔨'}</button>
-                            <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;" onclick="window.BudgetsView.deleteBudget(${b.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
+                        <div class="bv-card-actions" onclick="event.stopPropagation()">
+                            ${!b.is_closed ? `<button class="btn btn-secondary" onclick="window.BudgetsView.showAllocationForm(${b.id})" title="${window.i18n.t('budget_savings_add_funds')}">➕</button>` : ''}
+                            <button class="btn btn-secondary" onclick="window.BudgetsView.editBudget(${b.id})" title="${window.i18n.t('tooltip_edit')}">✏️</button>
+                            <button class="btn btn-secondary" onclick="window.BudgetsView.${b.is_closed ? 'toggleClose' : 'breakPiggyBank'}(${b.id})" title="${b.is_closed ? window.i18n.t('budget_reopen_action') : window.i18n.t('budget_savings_break_action')}">${b.is_closed ? '🔓' : '🔨'}</button>
+                            <button class="btn btn-danger" onclick="window.BudgetsView.deleteBudget(${b.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
                         </div>
                     </div>
 
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:11px;color:var(--text-muted);">
+                    <div class="bv-card-amount-row">
                         <span>${window.i18n.t('budget_savings_goal')}</span>
                         <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
                             <input type="number" class="inline-input" style="width:80px;text-align:right;padding:2px 6px;font-size:12px;border-radius:4px;" value="${b.budget_amount}" min="0" step="0.01" onchange="window.BudgetsView.updateAmount(${b.id}, this.value)"> €
                         </div>
                     </div>
 
-                    <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:8px;overflow:hidden;margin-bottom:8px;border:1px solid rgba(255,255,255,0.05);">
-                        ${tempWithdrawn > 0 ? `<div style="position:absolute;top:0;left:0;width:${theoreticalPct}%;height:100%;background:${barColor};opacity:0.25;border-radius:999px;"></div>` : ''}
-                        <div style="position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${barColor};border-radius:999px;transition:width 0.5s ease;"></div>
+                    <div class="bv-progress-track bv-progress-track--sm">
+                        ${tempWithdrawn > 0 ? `<div class="bv-progress-bar" style="width:${theoreticalPct}%;background:${barColor};opacity:0.25;"></div>` : ''}
+                        <div class="bv-progress-bar" style="width:${pct}%;background:${barColor};transition:width 0.5s ease;"></div>
                     </div>
-                    <div style="display:flex;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:4px;">
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    <div class="bv-card-footer">
+                        <div class="bv-card-footer-left">
                             <span class="privacy-blur" style="color:${barColor};font-weight:600;">↑ ${formatCurrency(funded)} ${window.i18n.t('budget_savings_funded')}</span>
                             ${withdrawnHtml}
                         </div>
@@ -878,9 +878,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             };
             const pColor = periodColors[period] || '#3b82f6';
 
-            let html = `<div data-budget-period="${period}" style="margin-bottom:40px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;border-bottom:2px solid ${pColor}80;padding-bottom:8px;">
-                    <h3 style="margin:0;font-size:16px;color:var(--text-color);">${window.i18n.t('budget_envelopes_title')} — ${group.title}</h3>
+            let html = `<div data-budget-period="${period}" class="bv-period-section">
+                <div class="bv-period-header" style="border-bottom:2px solid ${pColor}80;">
+                    <h3>${window.i18n.t('budget_envelopes_title')} — ${group.title}</h3>
                     ${renderDateControls(period)}
                 </div>`;
 
@@ -921,14 +921,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
                     html += `<div data-budget-period-sub="${period}-${key}">`;
                     html += renderSummaryBar(subTitle, label, budgets, accentColor);
-                    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:24px;">`;
+                    html += `<div class="bv-card-grid">`;
                     for (const b of budgets) html += renderBudgetCard(b, y, m);
                     html += '</div></div>';
                 }
             } else {
                 html += `<div data-budget-period-sub="${period}-__global__">`;
                 html += renderSummaryBar(`${window.i18n.t('budget_summary_global')} — ${group.title}`, label, spendingBudgets, null);
-                html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">`;
+                html += `<div class="bv-card-grid">`;
                 for (const b of spendingBudgets) html += renderBudgetCard(b, y, m);
                 html += '</div></div>';
             }
@@ -938,9 +938,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
 
         if (savingsBudgets.length > 0) {
-            let savingsHtml = `<div data-budget-period="savings" style="margin-bottom:40px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;border-bottom:2px solid rgba(245,158,11,0.3);padding-bottom:8px;">
-                    <h3 style="margin:0;font-size:16px;color:#f59e0b;">🏦 ${window.i18n.t('budget_savings_section')}</h3>
+            let savingsHtml = `<div data-budget-period="savings" class="bv-period-section">
+                <div class="bv-savings-header">
+                    <h3>🏦 ${window.i18n.t('budget_savings_section')}</h3>
                 </div>`;
 
             const totalGoal = savingsBudgets.reduce((s, b) => s + (b.budget_amount || 0), 0);
@@ -953,33 +953,33 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const savingsBarColor = theoreticalSavingsPct >= 100 ? '#f59e0b' : '#10b981';
 
             const overflowBadgeHtml = overflow
-                ? `<span style="color:${overflow.fully_consumed ? '#ef4444' : '#f59e0b'}; font-size:12px; font-weight:600; background:${overflow.fully_consumed ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)'}; padding:3px 8px; border-radius:6px;">⚠ -${formatCurrency(totalTempWithdrawn)} ${window.i18n.t('savings_temp_withdrawn') || 'temporarily withdrawn'}</span>`
+                ? `<span class="bv-overflow-badge" style="color:${overflow.fully_consumed ? '#ef4444' : '#f59e0b'}; background:${overflow.fully_consumed ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)'};">⚠ -${formatCurrency(totalTempWithdrawn)} ${window.i18n.t('savings_temp_withdrawn') || 'temporarily withdrawn'}</span>`
                 : '';
 
-            savingsHtml += `<div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);border-left:3px solid ${overflow ? (overflow.fully_consumed ? '#ef4444' : '#f59e0b') : '#f59e0b'};">
-                <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            savingsHtml += `<div class="bv-summary-bar" style="border-left:3px solid ${overflow ? (overflow.fully_consumed ? '#ef4444' : '#f59e0b') : '#f59e0b'};">
+                <div class="bv-summary-header">
                     <div>
-                        <h4 style="margin:0 0 4px;font-size:14px;color:var(--text-color);">🏦 ${window.i18n.t('budget_savings_summary')}</h4>
-                        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                        <h4>🏦 ${window.i18n.t('budget_savings_summary')}</h4>
+                        <div class="bv-savings-summary-counts">
                             <span style="font-size:12px;color:var(--text-muted);">${savingsBudgets.length} ${window.i18n.t('budget_savings_tag').toLowerCase()}${savingsBudgets.length > 1 ? 's' : ''}</span>
                             ${overflowBadgeHtml}
                         </div>
                     </div>
                     <div style="text-align:right;">
-                        <strong class="privacy-blur" style="font-size:18px;color:var(--text-color);">${formatCurrency(effectiveTotalBalance)}</strong><span style="font-size:12px;color:var(--text-muted);"> / ${formatCurrency(totalGoal)}</span>
+                        <strong class="privacy-blur bv-summary-amount">${formatCurrency(effectiveTotalBalance)}</strong><span class="bv-summary-amount-label"> / ${formatCurrency(totalGoal)}</span>
                     </div>
                 </div>
-                <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:12px;overflow:hidden;margin-bottom:12px;border:1px solid rgba(255,255,255,0.05);">
-                    ${totalTempWithdrawn > 0 ? `<div style="position:absolute;top:0;left:0;width:${theoreticalSavingsPct}%;height:100%;background:${savingsBarColor};opacity:0.25;border-radius:999px;"></div>` : ''}
-                    <div style="position:absolute;top:0;left:0;width:${savingsPct}%;height:100%;background:${savingsBarColor};border-radius:999px;transition:width 0.3s;"></div>
+                <div class="bv-progress-track bv-progress-track--lg">
+                    ${totalTempWithdrawn > 0 ? `<div class="bv-progress-bar" style="width:${theoreticalSavingsPct}%;background:${savingsBarColor};opacity:0.25;"></div>` : ''}
+                    <div class="bv-progress-bar" style="width:${savingsPct}%;background:${savingsBarColor};"></div>
                 </div>
-                <div style="display:flex;justify-content:space-between;font-size:14px;">
+                <div class="bv-summary-footer">
                     <span class="privacy-blur" style="color:${savingsBarColor};font-weight:600;">${formatCurrency(effectiveTotalBalance)} ${window.i18n.t('budget_savings_funded')}</span>
                     <span style="color:var(--text-muted);font-weight:600;"><span class="privacy-blur">${formatCurrency(Math.abs(totalGoal - totalBalance))}</span> ${totalBalance >= totalGoal ? window.i18n.t('budget_savings_goal_reached') : window.i18n.t('budget_savings_remaining')}</span>
                 </div>
             </div>`;
 
-            savingsHtml += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">`;
+            savingsHtml += `<div class="bv-card-grid">`;
             for (const b of savingsBudgets) savingsHtml += renderSavingsCard(b, b._y, b._m);
             savingsHtml += '</div></div>';
             fullHtml += savingsHtml;
@@ -987,7 +987,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         let html = fullHtml;
         if (!hasBudgets) {
-            html += `<p style="color:var(--text-muted);padding:10px 0;">${window.i18n.t('budget_no_active') || 'Aucune enveloppe budgétaire active.'}</p>`;
+            html += `<p class="bv-empty">${window.i18n.t('budget_no_active') || 'Aucune enveloppe budgétaire active.'}</p>`;
         }
 
         container.innerHTML = html;

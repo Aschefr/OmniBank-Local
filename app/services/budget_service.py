@@ -339,10 +339,10 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
         acc_ids = parse_account_ids(b.account_ids)
         acc_ids_set = set(acc_ids) if acc_ids else None
 
-        def _match_account(tx):
-            if not acc_ids_set:
+        def _match_account(tx, _ids=acc_ids_set):
+            if not _ids:
                 return True
-            return (tx.from_account_id in acc_ids_set or tx.to_account_id in acc_ids_set)
+            return (tx.from_account_id in _ids or tx.to_account_id in _ids)
 
         expenses = 0.0
         income = 0.0
