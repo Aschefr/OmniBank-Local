@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.74] - 2026-07-28
+
+### Added & Improved
+- **Budgets & Envelopes Refactoring 💼**:
+  - Thread-safe AI status management in `budget_ai_service.py` via `threading.Lock` and non-blocking asynchronous calls to Ollama.
+  - Unique DB index constraint on `Budget(name, envelope_type)` and check constraint `chk_budget_envelope_type`.
+  - Automatic cleanup of orphan account IDs in `Budget.account_ids` when deleting an account (`accounts.py`).
+  - Fragile closure pattern fix in `budget_service.py` (`_match_account` using default argument scope capture).
+  - Externalization of inline styles from `budgets_render.js` to semantic CSS classes (`.bv-*`) in `style.css` (~120+ inline styles migrated).
+
 ## [1.0.73] - 2026-07-27
 
 ### Added
