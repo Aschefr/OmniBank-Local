@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.70-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.74-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -109,6 +109,26 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
+## 🆕 Dernières Mises à Jour (v1.0.74)
+
+*   **💼 Budgets & Enveloppes** : Thread-safety du service IA Ollama via `threading.Lock` et appels asynchrones non-bloquants, contraintes d'unicité et de vérification en base de données, nettoyage automatique des identifiants de comptes orphelins lors de la suppression d'un compte, et externalisation de 120+ styles inline vers des classes CSS sémantiques (`.bv-*`).
+
+## 🆕 Dernières Mises à Jour (v1.0.73)
+
+*   **📋 Formulaire d'Opération & UX** : Ajout du badge "Vider les champs" (persistant dans `localStorage`), maintien de la modale ouverte en mode édition, et remplacement du bouton de suppression par un bouton "🗑️ Supprimer l'opération" avec confirmation inline 2 clics.
+*   **🔍 Recherche sans Accent** : Normalisation NFD pour ignorer les accents dans l'ensemble de l'application (saisie d'opérations, gestionnaire de catégories, composant multi-select).
+*   **🎨 Alignement Global** : Centrage vertical/horizontal parfait des boutons `.btn` et ajustement du footer de saisie pour éviter tout tronquage du bouton d'enregistrement.
+
+## 🆕 Dernières Mises à Jour (v1.0.72)
+
+*   **📊 Synthèse & PDF** : Affichage et bascule des catégories/types inactifs dans la Synthèse et option d'inclusion complète des historiques annuels dans les exports PDF.
+
+## 🆕 Dernières Mises à Jour (v1.0.71)
+
+*   **💱 Support Multi-Devises** : Conversions en temps réel, taux de change personnalisables et badges de devises d'origine.
+*   **📄 Export PDF Avancé** : Modulaire avec cartes de sections dynamiques et persistance des paramètres.
+*   **⚡ Performance & Indexation** : Index SQLite sur `Transaction.budget_id` et `(category, date_operation)`, optimisation $O(1)$ des requêtes budgétaires et parallélisation front-end.
+
 ## 🆕 Dernières Mises à Jour (v1.0.68)
 
 *   **🕓 Système d'Activité Global & Annulation (Undo/Redo)** : Suivi complet de toutes les opérations d'écriture (Création, Modification, Suppression) avec des boutons interactifs Annuler/Rétablir dans le header, un historique détaillé dans le panneau "Actions" et des Toasts d'annulation instantanés.
@@ -203,7 +223,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.70-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.74-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -304,6 +324,26 @@ Access the interface at `http://localhost:8434`.
 *   **AI**: Ollama (Text & Vision Support).
 
 ---
+
+## 🆕 Recent Updates (v1.0.74)
+
+*   **💼 Budgets & Envelopes** : Thread-safe Ollama AI status management using `threading.Lock` with non-blocking async execution, DB unique & check constraints, automatic cleanup of orphan account IDs upon account deletion, and migration of 120+ inline styles to semantic CSS classes (`.bv-*`).
+
+## 🆕 Recent Updates (v1.0.73)
+
+*   **📋 Transaction Form & UX Improvements** : Added "Clear fields" badge button (persisted state), retained "Keep Open" mode during editing, and replaced last-entry undo button with inline 2-click "🗑️ Delete transaction" confirmation.
+*   **🔍 Accent-Insensitive Search** : NFD normalisation search across form autocomplete, category manager, and multi-select components (e.g. typing `peage` matches `Péage`).
+*   **🎨 Global Layout & Button Polish** : Perfect flex alignment for `.btn` components and single-row compact footer preventing button clipping.
+
+## 🆕 Recent Updates (v1.0.72)
+
+*   **📊 Analytics & PDF Export** : Inactive categories & transaction types toggles in Synthesis view, with options to include full historical annual totals in PDF exports.
+
+## 🆕 Recent Updates (v1.0.71)
+
+*   **💱 Multi-Currency Support** : Real-time conversions, custom exchange rates, and original currency badges.
+*   **📄 Advanced PDF Export Module** : Modular section cards with dynamic page breaks and saved export preferences.
+*   **⚡ Performance & Indexing** : Added SQLite indexes on `Transaction.budget_id` and composite `(category, date_operation)`, $O(1)$ Python status lookups, and frontend parallel query loading.
 
 ## 🆕 Recent Updates (v1.0.68)
 

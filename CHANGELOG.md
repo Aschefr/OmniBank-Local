@@ -2,9 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.74] - 2026-07-28
+## [1.0.74] - 2026-07-30
 
 ### Added & Improved
+- **Trends View Toolbar & Database Persistence 📈**:
+  - Relocated **Alignment** dropdown ("Rolling" / "Calendar year") inline next to the "Superimpose years" switch in the header bar, keeping it permanently active across single-curve and superimposed modes.
+  - Saved user view settings (`trends_superimpose`, `trends_alignment_type`, `trends_timeframe_months`, `trends_account_id`) directly in SQLite database via `/api/config` for instant cross-browser preference synchronization.
 - **Budgets & Envelopes Refactoring 💼**:
   - Thread-safe AI status management in `budget_ai_service.py` via `threading.Lock` and non-blocking asynchronous calls to Ollama.
   - Unique DB index constraint on `Budget(name, envelope_type)` and check constraint `chk_budget_envelope_type`.

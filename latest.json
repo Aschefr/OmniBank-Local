@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDFZTkgxM3NvT3I5YnFtZVhlZTJrVWdnd1NISHIzUlN4MEtKUENXWUY2WUk0UnVTaGRURXprbXlxZHBXb3l2SXZmdzRNTkM4WFNlUi93RWFzM2dUZlFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MTg0NzEwCWZpbGU6T21uaUJhbmtfMS4wLjczX3g2NF9mci1GUi5tc2kKT3Ava0tqK0xTSm00ODZvcWREUDBxSTdaVHZ6MmQ4TjdVU2g4ZEI5emFPZUtDT3J0WmNZQk1pQ3Z1QXN4NERPOWNqM0htdE0zTkZGWGh2NFYwcjBERHc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.73/OmniBank_1.0.73_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC94enVSL3lSTGpsZHJPNk50RDBmOTY0N2pqdzJyQ3FhNC85SFIzS3ZQWS9NMzNJSVUvSTJxc3M3VDk3aUxRUDFsVlBVdGZaQjhEYUV1WFh3ZTdub0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1NDQxNzI4CWZpbGU6T21uaUJhbmtfMS4wLjc0X3g2NF9mci1GUi5tc2kKNWM0cmRhL1RMYXphMUFIMTNESndDTkxpS3F3eUtVOWp2Y2tKQWFBMDBVaDM5OXdkTnRQY3d4dk56cS9qU2tSelBHay9wWVBScnlWcmN5S0duMElqRHc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.74/OmniBank_1.0.74_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-07-27T20:38:30Z",
-    "version":  "1.0.73",
-    "notes":  "Améliorations du formulaire d\u0027opération : badge Vider champs, mode Garder ouvert en édition, bouton Supprimer l\u0027opération avec confirmation inline, recherche insensible aux accents, centrage boutons, layout footer refactorisé."
+    "pub_date":  "2026-07-30T20:02:09Z",
+    "version":  "1.0.74",
+    "notes":  "Trends view toolbar reorganization, continuous alignment \u0026 DB persistence"
 }
