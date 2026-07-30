@@ -4,13 +4,13 @@ window.TrendsView = {
     selectedAccountId: null,
     chart: null,
     historyData: [],
-    
-    // State
+        // State
     timeframeMonths: 12,
     showOtherYears: false,
     alignmentType: 'rolling', // 'rolling' or 'calendar'
     selectedYears: [], // offsets (e.g. [1, 2]) selected for display. If empty, show all available.
     focusedOffset: null, // offset of the year/period currently highlighted
+    savedAccountId: null,
 
     render() {
         const superimposeActive = this.showOtherYears;
@@ -71,23 +71,21 @@ window.TrendsView = {
                             <div class="trends-switch-slider" style="position:absolute;top:1px;left:1px;width:14px;height:14px;background:${sliderBg};border-radius:50%;transform:${sliderTransform};transition:transform 0.2s, background 0.2s;"></div>
                         </div>
                     </label>
+
+                    <div style="display:flex;align-items:center;gap:6px;margin-left:10px;">
+                        <label style="font-size:13px;color:var(--text-muted);" data-i18n="trends_align_type">${window.i18n.t('trends_align_type')}</label>
+                        <select id="trendsAlignmentSelect" class="inline-input" style="width:120px;padding:4px 8px;font-size:12px;" onchange="window.TrendsView.onAlignmentChange(this.value)">
+                            <option value="rolling" ${this.alignmentType === 'rolling' ? 'selected' : ''} data-i18n="trends_align_rolling">${window.i18n.t('trends_align_rolling')}</option>
+                            <option value="calendar" ${this.alignmentType === 'calendar' ? 'selected' : ''} data-i18n="trends_align_calendar">${window.i18n.t('trends_align_calendar')}</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
-            <!-- Alignment and Years Filtering -->
-            <div id="trendsAlignmentDiv" style="display:flex;gap:20px;align-items:center;margin-bottom:20px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;padding:12px 18px;flex-wrap:wrap;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <label style="font-size:13px;font-weight:600;color:var(--text-main);" data-i18n="trends_align_type">${window.i18n.t('trends_align_type')}</label>
-                    <select id="trendsAlignmentSelect" class="inline-input" style="width:130px;padding:4px 8px;font-size:12px;" onchange="window.TrendsView.onAlignmentChange(this.value)">
-                        <option value="rolling" selected data-i18n="trends_align_rolling">${window.i18n.t('trends_align_rolling')}</option>
-                        <option value="calendar" data-i18n="trends_align_calendar">${window.i18n.t('trends_align_calendar')}</option>
-                    </select>
-                </div>
-                
-                <div id="trendsYearsSelectorContainer" style="display:none;align-items:center;gap:10px;">
-                    <span style="font-size:13px;font-weight:600;color:var(--text-main);" data-i18n="trends_select_years">${window.i18n.t('trends_select_years')}</span>
-                    <div id="trendsYearsCheckboxes" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"></div>
-                </div>
+            <!-- Contextual Years Filtering (visible only when superimposing) -->
+            <div id="trendsYearsSelectorContainer" style="display:none;align-items:center;gap:10px;margin-bottom:20px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;padding:10px 18px;flex-wrap:wrap;">
+                <span style="font-size:13px;font-weight:600;color:var(--text-main);" data-i18n="trends_select_years">${window.i18n.t('trends_select_years')}</span>
+                <div id="trendsYearsCheckboxes" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"></div>
             </div>
 
             <!-- Stats Grid -->
@@ -125,7 +123,37 @@ window.TrendsView = {
     },
 
     async init() {
+        await this.loadConfig();
         await this.loadAccounts();
+    },
+
+    async loadConfig() {
+        try {
+            const config = await API.get('/api/config');
+            if (config.trends_superimpose !== undefined) {
+                this.showOtherYears = config.trends_superimpose === 'true';
+            }
+            if (config.trends_alignment_type !== undefined) {
+                this.alignmentType = config.trends_alignment_type;
+            }
+            if (config.trends_timeframe_months !== undefined) {
+                const val = config.trends_timeframe_months;
+                this.timeframeMonths = val === 'all' ? 'all' : parseInt(val, 10);
+            }
+            if (config.trends_account_id !== undefined) {
+                this.savedAccountId = config.trends_account_id;
+            }
+        } catch(e) {
+            console.error('TrendsView loadConfig error:', e);
+        }
+    },
+
+    async saveConfig(updates) {
+        try {
+            await API.post('/api/config', updates);
+        } catch(e) {
+            console.error('TrendsView saveConfig error:', e);
+        }
     },
 
     async loadAccounts() {
@@ -138,18 +166,24 @@ window.TrendsView = {
             options += this.accounts.map(a =>
                 `<option value="${a.id}">${a.name}</option>`
             ).join('');
-            sel.innerHTML = options;
+            if (sel) sel.innerHTML = options;
 
-            // Default to main account, like in Simulator
-            if (mainAcc && mainAcc.id) {
+            if (this.savedAccountId !== null && (this.savedAccountId === 'total' || this.accounts.some(a => a.id.toString() === this.savedAccountId.toString()))) {
+                this.selectedAccountId = this.savedAccountId.toString();
+            } else if (mainAcc && mainAcc.id) {
                 this.selectedAccountId = mainAcc.id.toString();
-                sel.value = this.selectedAccountId;
             } else if (this.accounts.length > 0) {
                 this.selectedAccountId = this.accounts[0].id.toString();
-                sel.value = this.selectedAccountId;
             } else {
                 this.selectedAccountId = "total";
             }
+            if (sel) sel.value = this.selectedAccountId;
+
+            const tfSel = document.getElementById('trendsTimeframeSelect');
+            if (tfSel) tfSel.value = this.timeframeMonths.toString();
+
+            const alignSel = document.getElementById('trendsAlignmentSelect');
+            if (alignSel) alignSel.value = this.alignmentType;
 
             await this.loadData();
         } catch(e) {
@@ -160,17 +194,20 @@ window.TrendsView = {
     async onAccountChange(accountId) {
         this.selectedAccountId = accountId;
         this.focusedOffset = null;
+        this.saveConfig({ trends_account_id: accountId.toString() });
         await this.loadData();
     },
     
     onTimeframeChange(months) {
-        this.timeframeMonths = months === 'all' ? 'all' : parseInt(months);
+        this.timeframeMonths = months === 'all' ? 'all' : parseInt(months, 10);
         this.focusedOffset = null;
+        this.saveConfig({ trends_timeframe_months: months.toString() });
         
         const otherYearsCheck = document.getElementById('trendsOtherYearsCheck');
         
         if (months === 'all') {
             this.showOtherYears = false;
+            this.saveConfig({ trends_superimpose: 'false' });
             if (otherYearsCheck) {
                 otherYearsCheck.checked = false;
                 otherYearsCheck.disabled = true;
@@ -201,31 +238,29 @@ window.TrendsView = {
             }
         }
         
-        // Hide calendar alignment selector if period is not compatible with year compares
         this.updateAlignmentVisibility();
         this.renderChart();
     },
     
     updateAlignmentVisibility() {
-        const alignDiv = document.getElementById('trendsAlignmentDiv');
         const rootDiv = document.getElementById('trendsViewRoot');
-        if (alignDiv) {
+        const yearsSelector = document.getElementById('trendsYearsSelectorContainer');
+        if (yearsSelector) {
+            yearsSelector.style.display = this.showOtherYears ? 'flex' : 'none';
             if (this.showOtherYears) {
-                alignDiv.style.display = 'flex';
-                if (rootDiv) rootDiv.classList.add('trends-with-alignment');
-                
-                // Show years filter only if we are superimposing years
-                const yearsSelector = document.getElementById('trendsYearsSelectorContainer');
-                if (yearsSelector) {
-                    yearsSelector.style.display = this.showOtherYears ? 'flex' : 'none';
-                    if (this.showOtherYears) {
-                        this.renderYearsFilter();
-                    }
-                }
-            } else {
-                alignDiv.style.display = 'none';
-                if (rootDiv) rootDiv.classList.remove('trends-with-alignment');
+                this.renderYearsFilter();
             }
+        }
+        if (rootDiv) {
+            if (this.showOtherYears) {
+                rootDiv.classList.add('trends-with-alignment');
+            } else {
+                rootDiv.classList.remove('trends-with-alignment');
+            }
+        }
+        const alignSelect = document.getElementById('trendsAlignmentSelect');
+        if (alignSelect) {
+            alignSelect.value = this.alignmentType;
         }
     },
     
@@ -254,8 +289,6 @@ window.TrendsView = {
     onYearFilterChange(offsetVal, checked) {
         const offset = parseInt(offsetVal);
         
-        // If selectedYears is empty, it means all years are implicitly checked.
-        // We must make it explicit before removing an unchecked offset.
         if (this.selectedYears.length === 0) {
             const today = new Date();
             const firstDateInData = this.historyData.length > 0 ? new Date(this.historyData[0].date) : today;
@@ -273,7 +306,6 @@ window.TrendsView = {
             this.selectedYears = this.selectedYears.filter(o => o !== offset);
         }
         
-        // If focused year is unchecked, remove focus
         if (this.focusedOffset === offset && !checked) {
             this.focusedOffset = null;
         }
@@ -283,12 +315,14 @@ window.TrendsView = {
 
     onAlignmentChange(val) {
         this.alignmentType = val;
+        this.saveConfig({ trends_alignment_type: val });
         this.renderChart();
     },
     
     onOtherYearsChange(checked) {
         this.showOtherYears = checked;
         this.focusedOffset = null;
+        this.saveConfig({ trends_superimpose: checked ? 'true' : 'false' });
         
         const checkbox = document.getElementById('trendsOtherYearsCheck');
         if (checkbox) {
@@ -395,7 +429,15 @@ window.TrendsView = {
             let filteredData = this.historyData;
             if (this.timeframeMonths !== 'all') {
                 const startDate = new Date();
-                startDate.setMonth(startDate.getMonth() - this.timeframeMonths);
+                if (this.alignmentType === 'calendar') {
+                    // Année civile : début au 1er janvier de l'année calculée selon la période
+                    const yearsBack = Math.max(0, Math.floor((this.timeframeMonths - 1) / 12));
+                    startDate.setFullYear(today.getFullYear() - yearsBack, 0, 1);
+                    startDate.setHours(0, 0, 0, 0);
+                } else {
+                    // Glissant : X mois en arrière depuis aujourd'hui
+                    startDate.setMonth(startDate.getMonth() - this.timeframeMonths);
+                }
                 filteredData = this.historyData.filter(d => new Date(d.date) >= startDate);
             }
             
