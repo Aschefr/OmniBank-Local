@@ -279,6 +279,24 @@ brut du .sig, mais son encodage base64 complet) :
 
 ## Mise a jour (nouvelle version)
 
+### 📋 Checklist des fichiers à synchroniser avant publication
+
+Avant de lancer un build ou d'exécuter le script de release, vous devez impérativement vérifier et synchroniser la version ainsi que la documentation dans l'ensemble des fichiers suivants :
+
+| Fichier | Modification requise | Rôle & Remarques |
+|---------|----------------------|------------------|
+| **`package.json`** | `"version": "X.Y.Z"` | Version du package web/npm |
+| **`src-tauri/tauri.conf.json`** | `"version": "X.Y.Z"` | Version de l'application desktop Tauri |
+| **`CHANGELOG.md`** | `## [X.Y.Z] - YYYY-MM-DD` | Ajouter la section détaillée des changements |
+| **`README.md` (🇫🇷 Section)** | Badge + `## 🆕 Dernières Mises à Jour (vX.Y.Z)` | Mettre à jour le badge de version (`img.shields.io`) et insérer le résumé FR |
+| **`README.md` (🇺🇸 Section)** | Badge + `## 🆕 Recent Updates (vX.Y.Z)` | Mettre à jour le badge US (`img.shields.io`) et insérer le résumé EN obligatoire |
+| **`latest.json`** | `"version": "X.Y.Z"` + signature base64 | Manifeste de l'updater (géré automatiquement par `scripts/release.ps1`) |
+
+> [!IMPORTANT]
+> Ne publiez jamais une version sans avoir préalablement synchronisé la version dans `package.json`, `tauri.conf.json`, et le **README.md (badges et nouveautés en FR et EN)**.
+
+---
+
 ### Methode automatisee (RECOMMANDEE)
 
 Le script `scripts/release.ps1` automatise les 8 etapes du process :
