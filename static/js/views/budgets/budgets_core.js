@@ -16,13 +16,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     async init() {
         const now = new Date();
         // Per-type date state from localStorage (or defaults)
-        this.monthlyMonth = localStorage.getItem('budget_monthly_month') || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-        this.yearlyYear = parseInt(localStorage.getItem('budget_yearly_year') || now.getFullYear());
+        this.monthlyMonth = ProfileStorage.get('budget_monthly_month') || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        this.yearlyYear = parseInt(ProfileStorage.get('budget_yearly_year') || now.getFullYear());
 
         // Restore custom period state for monthly
-        const savedEnabled = localStorage.getItem('budget_custom_enabled') === 'true';
-        const savedStart = localStorage.getItem('budget_custom_start');
-        const savedEnd   = localStorage.getItem('budget_custom_end');
+        const savedEnabled = ProfileStorage.get('budget_custom_enabled') === 'true';
+        const savedStart = ProfileStorage.get('budget_custom_start');
+        const savedEnd   = ProfileStorage.get('budget_custom_end');
         this.customPeriod = { enabled: savedEnabled, start: savedStart, end: savedEnd };
 
         // Default custom period dates if enabled but no dates saved
@@ -66,35 +66,35 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const [y, m] = this.monthlyMonth.split('-').map(Number);
         const d = new Date(y, m - 1 + delta, 1);
         this.monthlyMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        localStorage.setItem('budget_monthly_month', this.monthlyMonth);
+        ProfileStorage.set('budget_monthly_month', this.monthlyMonth);
         this.loadStatusForType('monthly');
     },
 
     goTodayMonthly() {
         const now = new Date();
         this.monthlyMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-        localStorage.setItem('budget_monthly_month', this.monthlyMonth);
+        ProfileStorage.set('budget_monthly_month', this.monthlyMonth);
         // Reset custom period
         this.customPeriod.enabled = false;
-        localStorage.setItem('budget_custom_enabled', 'false');
+        ProfileStorage.set('budget_custom_enabled', 'false');
         this.loadStatusForType('monthly');
     },
 
     stepYearly(delta) {
         this.yearlyYear += delta;
-        localStorage.setItem('budget_yearly_year', this.yearlyYear);
+        ProfileStorage.set('budget_yearly_year', this.yearlyYear);
         this.loadStatusForType('yearly');
     },
 
     goTodayYearly() {
         this.yearlyYear = new Date().getFullYear();
-        localStorage.setItem('budget_yearly_year', this.yearlyYear);
+        ProfileStorage.set('budget_yearly_year', this.yearlyYear);
         this.loadStatusForType('yearly');
     },
 
     onCustomPeriodToggle(enabled) {
         this.customPeriod.enabled = enabled;
-        localStorage.setItem('budget_custom_enabled', enabled);
+        ProfileStorage.set('budget_custom_enabled', enabled);
 
         if (enabled && !this.customPeriod.start) {
             const now = new Date();
@@ -103,8 +103,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const endDay = `${lastDay.getFullYear()}-${String(lastDay.getMonth()+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
             this.customPeriod.start = firstDay;
             this.customPeriod.end = endDay;
-            localStorage.setItem('budget_custom_start', firstDay);
-            localStorage.setItem('budget_custom_end', endDay);
+            ProfileStorage.set('budget_custom_start', firstDay);
+            ProfileStorage.set('budget_custom_end', endDay);
         }
         this.loadStatusForType('monthly');
     },
@@ -114,8 +114,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const end   = document.getElementById('budgetCustomEnd')?.value   || null;
         this.customPeriod.start = start;
         this.customPeriod.end = end;
-        if (start) localStorage.setItem('budget_custom_start', start);
-        if (end)   localStorage.setItem('budget_custom_end',   end);
+        if (start) ProfileStorage.set('budget_custom_start', start);
+        if (end)   ProfileStorage.set('budget_custom_end',   end);
         this.loadStatusForType('monthly');
     },
 
@@ -271,7 +271,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     },
 
     toggleCapacityPanel(checked) {
-        localStorage.setItem('show_budget_capacity_panel', checked ? 'true' : 'false');
+        ProfileStorage.set('show_budget_capacity_panel', checked ? 'true' : 'false');
         this.renderStatus();
     }
 });

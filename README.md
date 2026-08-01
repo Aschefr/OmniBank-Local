@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.74-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.75-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -184,6 +184,14 @@ Accédez à l'interface sur `http://localhost:8434`.
     * **Doublons mensuels** (deux instances non rapprochées le même mois).
 *   **🐛 Correctif Dashboard** : Les opérations non rapprochées de la période courante + l'offset de jours (5/15/30) sélectionné sont désormais correctement affichées (seules les opérations non rapprochées étaient auparavant visibles).
 
+## 🆕 Dernières Mises à Jour (v1.0.75)
+
+*   **👥 Profils Maîtres Multiples** : Créez et basculez instantanément entre plusieurs espaces financiers totalement isolés (Perso, Pro, Asso) avec souveraineté des données 100% hors-ligne.
+*   **🎨 Thèmes d'Accentuation Personnalisés** : Personnalisez la couleur d'accentuation de chaque profil maître avec prévisualisation en direct.
+*   **🔒 Sécurité & Verrouillage Automatique** : Protection par code PIN optionnel, ré-authentification à la sélection et verrouillage automatique des sessions inactives.
+*   **📦 Sauvegardes Globales et par Profil** : Exportez/restaurez vos profils individuellement ou sauvegardez l'ensemble de vos espaces maîtres en une seule archive.
+*   **🌐 Internationalisation FR/EN Complète** : Traduction intégrale des interfaces et modales de gestion de profils.
+
 ## 🆕 Dernières Mises à Jour (v1.0.41)
 
 *   **⚙️ Colonnes de totaux configurables** : Ajout d'un bouton "⚙️ Années" sur la page Synthèse permettant de sélectionner les colonnes de totaux annuels à afficher, avec une synchronisation automatique et bidirectionnelle avec l'export PDF.
@@ -223,7 +231,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.74-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.75-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -389,6 +397,14 @@ Access the interface at `http://localhost:8434`.
 *   **💡 Complete Budgets Module Refactor**: Modular frontend (`budgets_core`, `budgets_render`, `budgets_ai`, `budgets_modals`) and backend (`budget_service.py`) architecture for enhanced maintainability and faster rendering.
 *   **🧠 Advanced AI Budget Simulator**: Explanatory AI status pipeline, fine-grained thematic envelopes, real spending comparison badges, and instant ⚡ sync for committed expenses.
 *   **📜 Action History & Auditability**: Deep dive details modal for undoable actions with dynamic entity name resolution (accounts, budgets, recurrences) and smart inline confirmation.
+
+## 🆕 Recent Updates (v1.0.75)
+
+*   **👥 Multi-Master Profiles**: Create and seamlessly switch between isolated financial workspaces (Personal, Business, Association) with 100% offline data sovereignty.
+*   **🎨 Custom Accent Themes**: Customize profile accent colors with live real-time preview.
+*   **🔒 Security & Auto-Lock**: Optional PIN code protection, profile re-authentication, and automatic session lock on inactivity.
+*   **📦 Profile-Scoped & Global Backups**: Export or restore individual master profiles or back up all workspaces in a single ZIP archive.
+*   **🌐 Full Bilingual Support (FR/EN)**: Complete English and French localization for all profile configuration dialogs.
 
 ## 🆕 Recent Updates (v1.0.45)
 

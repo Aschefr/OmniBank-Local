@@ -24,10 +24,65 @@ class App {
         if (badge) badge.style.display = 'none';
     }
 
+    applyProfileTheme(colorHex) {
+        if (!colorHex || !colorHex.startsWith('#')) colorHex = '#6366f1';
+
+        let hex = colorHex.replace('#', '');
+        if (hex.length === 3) {
+            hex = hex.split('').map(c => c + c).join('');
+        }
+        const r = parseInt(hex.substring(0, 2), 16) || 99;
+        const g = parseInt(hex.substring(2, 4), 16) || 102;
+        const b = parseInt(hex.substring(4, 6), 16) || 241;
+
+        const darkR = Math.max(0, Math.floor(r * 0.85));
+        const darkG = Math.max(0, Math.floor(g * 0.85));
+        const darkB = Math.max(0, Math.floor(b * 0.85));
+        const hoverHex = `#${darkR.toString(16).padStart(2, '0')}${darkG.toString(16).padStart(2, '0')}${darkB.toString(16).padStart(2, '0')}`;
+
+        let styleEl = document.getElementById('dynamicProfileThemeStyle');
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'dynamicProfileThemeStyle';
+            document.head.appendChild(styleEl);
+        }
+
+        styleEl.textContent = `
+            :root, body, .theme-dark {
+                --accent: ${colorHex} !important;
+                --accent-hover: ${hoverHex} !important;
+                --accent-rgb: ${r}, ${g}, ${b} !important;
+                --accent-subtle: rgba(${r}, ${g}, ${b}, 0.18) !important;
+                --accent-border: rgba(${r}, ${g}, ${b}, 0.45) !important;
+                --accent-glow: rgba(${r}, ${g}, ${b}, 0.35) !important;
+            }
+        `;
+
+        this._activeThemeColor = colorHex;
+    }
+
     async init() {
         // Init i18n
         await window.i18n.init();
-        
+
+        // Init Master Profiles
+        try {
+            const pData = await API.get('/api/profiles/');
+            this.activeProfileId = pData.active_profile_id;
+            this.profiles = pData.profiles || [];
+            if (window.ProfileStorage) {
+                window.ProfileStorage.init(this.activeProfileId);
+            }
+            const activeProf = this.profiles.find(p => p.id === this.activeProfileId);
+            if (activeProf && activeProf.color) {
+                this.applyProfileTheme(activeProf.color);
+            }
+            this._renderProfileSelector();
+            this.initAutoLock();
+        } catch (e) {
+            console.error("Failed to load profiles", e);
+        }
+
         // Load Global Config
         try {
             this.config = await API.get('/api/config/');
@@ -73,12 +128,12 @@ class App {
                 badge.textContent = `v${version}`;
                 this._appVersion = version;
                 // Auto-show changelog after update (one-time per version)
-                const lastSeen = localStorage.getItem('omni_last_seen_version');
+                const lastSeen = ProfileStorage.get('omni_last_seen_version');
                 if (lastSeen !== version) {
                     // Version changed (or first time feature is seen) → show changelog after UI loads
                     setTimeout(() => this.showChangelog(), 1500);
                 }
-                localStorage.setItem('omni_last_seen_version', version);
+                ProfileStorage.set('omni_last_seen_version', version);
             }
         } catch (e) { console.warn('[version] All version checks failed', e); }
         
@@ -101,7 +156,7 @@ class App {
         if (this._uiInitialized) return;
         this._uiInitialized = true;
         // Theme toggle
-        const savedTheme = localStorage.getItem('omni_theme');
+        const savedTheme = ProfileStorage.get('omni_theme');
         if (savedTheme === 'dark') {
             document.body.classList.add('theme-dark');
         } else if (savedTheme === 'light') {
@@ -111,13 +166,13 @@ class App {
         document.getElementById('themeToggle').addEventListener('click', () => {
             document.body.classList.toggle('theme-dark');
             const isDark = document.body.classList.contains('theme-dark');
-            localStorage.setItem('omni_theme', isDark ? 'dark' : 'light');
+            ProfileStorage.set('omni_theme', isDark ? 'dark' : 'light');
         });
         
         // Privacy toggle
         const privacyToggle = document.getElementById('privacyToggle');
         if (privacyToggle) {
-            if (localStorage.getItem('omni_privacy') === 'true') {
+            if (ProfileStorage.get('omni_privacy') === 'true') {
                 document.body.classList.add('privacy-mode');
                 privacyToggle.textContent = '🙈';
                 privacyToggle.classList.add('toggle-active');
@@ -128,7 +183,7 @@ class App {
                 const isPrivate = document.body.classList.contains('privacy-mode');
                 privacyToggle.textContent = isPrivate ? '🙈' : '👁️';
                 privacyToggle.classList.toggle('toggle-active', isPrivate);
-                localStorage.setItem('omni_privacy', isPrivate);
+                ProfileStorage.set('omni_privacy', isPrivate);
             });
         }
         
@@ -137,7 +192,7 @@ class App {
         const svgNormal = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect y="2" width="16" height="2.5" rx="1"/><rect y="7" width="16" height="2.5" rx="1"/><rect y="12" width="16" height="2.5" rx="1"/></svg>';
         const svgCompact = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect y="1" width="16" height="1.5" rx=".75"/><rect y="5" width="16" height="1.5" rx=".75"/><rect y="9" width="16" height="1.5" rx=".75"/><rect y="13" width="16" height="1.5" rx=".75"/></svg>';
         if (compactToggle) {
-            if (localStorage.getItem('omni_compact') === 'true') {
+            if (ProfileStorage.get('omni_compact') === 'true') {
                 document.body.classList.add('compact-mode');
                 compactToggle.innerHTML = svgCompact;
                 compactToggle.classList.add('toggle-active');
@@ -148,7 +203,7 @@ class App {
                 const isCompact = document.body.classList.contains('compact-mode');
                 compactToggle.innerHTML = isCompact ? svgCompact : svgNormal;
                 compactToggle.classList.toggle('toggle-active', isCompact);
-                localStorage.setItem('omni_compact', isCompact);
+                ProfileStorage.set('omni_compact', isCompact);
                 // Re-measure row height and refresh active VirtualTable
                 [window.TimelineView, window.AllOperationsView].forEach(v => {
                     if (v && v._vt) {
@@ -233,8 +288,8 @@ class App {
         // Initial Load
         await this.refreshSidebar();
         
-        // Restore view from localStorage
-        const savedView = localStorage.getItem('omni_current_view') || this.currentView;
+        // Restore view from ProfileStorage
+        const savedView = ProfileStorage.get('omni_current_view') || this.currentView;
         this.loadView(savedView);
 
         // Reveal UI after init is complete (prevents FOUC)
@@ -1414,7 +1469,7 @@ class App {
 
     loadView(viewName) {
         this.currentView = viewName;
-        localStorage.setItem('omni_current_view', viewName);
+        ProfileStorage.set('omni_current_view', viewName);
         this.updateHeaderHistoryState();
         
         // Update nav buttons active state
@@ -1632,7 +1687,351 @@ class App {
                     : window.i18n.t('history_nothing_to_redo');
             }
         } catch (e) {
-            console.warn("Failed to fetch history status", e);
+            console.warn('[history] Failed to update header state', e);
+        }
+    }
+
+    editCurrentProfile() {
+        const activeProf = this.profiles ? this.profiles.find(p => p.id === this.activeProfileId) : null;
+        if (!activeProf) return;
+
+        const dropdown = document.getElementById('profileDropdown');
+        if (dropdown) dropdown.style.display = 'none';
+
+        if (window.ConfigView && typeof window.ConfigView._showEditProfileModal === 'function') {
+            window.ConfigView._showEditProfileModal(activeProf.id, activeProf.name, activeProf.color, activeProf.icon, activeProf.currency, activeProf.pay_cycle_day, activeProf.date_format);
+        } else {
+            this.loadView('config');
+            setTimeout(() => {
+                if (window.ConfigView && window.ConfigView._showEditProfileModal) {
+                    window.ConfigView._showEditProfileModal(activeProf.id, activeProf.name, activeProf.color, activeProf.icon, activeProf.currency, activeProf.pay_cycle_day, activeProf.date_format);
+                }
+            }, 250);
+        }
+    }
+
+    _renderProfileSelector() {
+        const container = document.getElementById('profileSelector');
+        const btn = document.getElementById('profileBtn');
+        const dot = document.getElementById('profileDot');
+        const nameEl = document.getElementById('profileName');
+        const dropdown = document.getElementById('profileDropdown');
+
+        if (!container || !this.profiles) return;
+
+        container.style.display = 'inline-block';
+
+        const active = this.profiles.find(p => p.id === this.activeProfileId) || this.profiles[0] || { name: 'Mon Profil', color: '#6366f1', icon: '👤' };
+        if (dot) dot.style.backgroundColor = active.color || '#6366f1';
+        if (nameEl) nameEl.textContent = (active.icon ? active.icon + ' ' : '') + (active.name || 'Mon Profil');
+
+        let html = '';
+        this.profiles.forEach(p => {
+            const isActive = p.id === this.activeProfileId;
+            const lockIcon = p.has_pin ? '<span style="font-size:11px; opacity:0.7;">🔒</span>' : '';
+            const activeBadge = isActive ? '<span style="font-size:10px; opacity:0.6; margin-left:4px;">✓</span>' : '';
+            const safeName = window.escapeHtml ? window.escapeHtml(p.name) : p.name;
+            const pIcon = p.icon || '👤';
+            const editBtn = isActive ? `
+                <button class="profile-hdr-edit-btn" title="Éditer le profil" style="background:var(--accent-subtle); border:1px solid var(--accent-border); color:var(--text-main); font-size:12px; padding:3px 6px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s;" onclick="event.stopPropagation(); window.app.editCurrentProfile();">
+                    ✏️
+                </button>
+            ` : '';
+
+            html += `
+                <div class="profile-dropdown-item ${isActive ? 'active' : ''}" data-profile-id="${p.id}" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+                        <span class="profile-dot" style="background-color:${p.color || '#6366f1'};"></span>
+                        <span style="font-size:13px;">${pIcon}</span>
+                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${safeName}</span>
+                        ${activeBadge}
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-left:auto; flex-shrink:0;">
+                        ${lockIcon}
+                        ${editBtn}
+                    </div>
+                </div>
+            `;
+        });
+
+        const addText = window.i18n ? window.i18n.t('profiles_create') : 'Créer un profil';
+        html += `
+            <div class="profile-dropdown-add" id="profileAddBtn">
+                <span>➕</span>
+                <span data-i18n="profiles_create">${addText}</span>
+            </div>
+        `;
+
+        if (this.profiles && active && active.has_pin) {
+            html += `
+                <div class="profile-dropdown-add" id="profileLockBtn" style="border-top:1px solid var(--border-color); color:var(--text-muted); margin-top:2px;">
+                    <span>🔒</span>
+                    <span>Verrouiller la session</span>
+                </div>
+            `;
+        }
+
+        dropdown.innerHTML = html;
+
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const isOpen = dropdown.style.display === 'block';
+            dropdown.style.display = isOpen ? 'none' : 'block';
+        };
+
+        dropdown.querySelectorAll('.profile-dropdown-item').forEach(item => {
+            item.onclick = async (e) => {
+                e.stopPropagation();
+                dropdown.style.display = 'none';
+                const targetId = item.getAttribute('data-profile-id');
+                if (targetId === this.activeProfileId) return;
+
+                const targetProf = this.profiles.find(p => p.id === targetId);
+                if (targetProf && targetProf.has_pin) {
+                    this.openProfilePinModal(targetId);
+                } else {
+                    await this.switchProfile(targetId);
+                }
+            };
+        });
+
+        const addBtn = document.getElementById('profileAddBtn');
+        if (addBtn) {
+            addBtn.onclick = (e) => {
+                e.stopPropagation();
+                dropdown.style.display = 'none';
+                this.loadView('config');
+                setTimeout(() => {
+                    if (window.ConfigView && window.ConfigView._showCreateProfileModal) {
+                        window.ConfigView._showCreateProfileModal();
+                    }
+                }, 200);
+            };
+        }
+
+        const lockBtn = document.getElementById('profileLockBtn');
+        if (lockBtn) {
+            lockBtn.onclick = (e) => {
+                e.stopPropagation();
+                dropdown.style.display = 'none';
+                this.showLockScreen();
+            };
+        }
+
+        if (!this._profileClickOutsideBound) {
+            this._profileClickOutsideBound = true;
+            document.addEventListener('click', () => {
+                if (dropdown) dropdown.style.display = 'none';
+            });
+        }
+    }
+
+    // ── Auto-Lock & Lock Screen Manager ──
+    initAutoLock() {
+        if (!this.profiles || this.profiles.length === 0) return;
+
+        const activeProf = this.profiles.find(p => p.id === this.activeProfileId);
+        const activeHasPin = activeProf && activeProf.has_pin;
+
+        // Pas d'auto-verrouillage si le profil actif n'a pas de PIN défini
+        if (!activeHasPin) {
+            if (this._autoLockTimeout) {
+                clearTimeout(this._autoLockTimeout);
+                this._autoLockTimeout = null;
+            }
+            sessionStorage.removeItem('omni_is_locked');
+            const overlay = document.getElementById('appLockScreen');
+            if (overlay) overlay.style.display = 'none';
+            return;
+        }
+
+        const isLocked = sessionStorage.getItem('omni_is_locked') === 'true';
+        if (isLocked) {
+            this.showLockScreen();
+        }
+
+        const resetTimer = () => this._resetAutoLockTimer();
+        ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+            window.removeEventListener(evt, resetTimer);
+            window.addEventListener(evt, resetTimer, { passive: true });
+        });
+        this._resetAutoLockTimer();
+    }
+
+    _resetAutoLockTimer() {
+        if (this._autoLockTimeout) clearTimeout(this._autoLockTimeout);
+        if (!this.profiles || this.profiles.length === 0) return;
+
+        const activeProf = this.profiles.find(p => p.id === this.activeProfileId);
+        if (!activeProf || !activeProf.has_pin) return;
+
+        const minutesStr = window.ProfileStorage ? window.ProfileStorage.get('omni_autolock_minutes') : '5';
+        if (minutesStr === 'off') return;
+
+        const minutes = parseInt(minutesStr || '5', 10);
+        if (isNaN(minutes) || minutes <= 0) return;
+
+        this._autoLockTimeout = setTimeout(() => {
+            console.log(`[AutoLock] Inactivité détectée (${minutes} min). Verrouillage de l'application.`);
+            this.showLockScreen();
+        }, minutes * 60 * 1000);
+    }
+
+    showLockScreen() {
+        if (!this.profiles || this.profiles.length === 0) return;
+
+        const activeProf = this.profiles.find(p => p.id === this.activeProfileId);
+        if (!activeProf || !activeProf.has_pin) {
+            sessionStorage.removeItem('omni_is_locked');
+            const overlay = document.getElementById('appLockScreen');
+            if (overlay) overlay.style.display = 'none';
+            return;
+        }
+
+        sessionStorage.setItem('omni_is_locked', 'true');
+
+        const overlay = document.getElementById('appLockScreen');
+        const list = document.getElementById('lockScreenProfilesList');
+        const pinForm = document.getElementById('lockScreenPinForm');
+        const errDiv = document.getElementById('lockScreenError');
+
+        if (errDiv) errDiv.style.display = 'none';
+        if (pinForm) pinForm.style.display = 'none';
+
+        if (list) {
+            let html = '';
+            this.profiles.forEach(p => {
+                const isActive = p.id === this.activeProfileId;
+                const safeName = window.escapeHtml ? window.escapeHtml(p.name) : p.name;
+                const lockBadge = p.has_pin ? '<span style="margin-left:auto; font-size:12px; opacity:0.8;">🔒 Protégé</span>' : '<span style="margin-left:auto; font-size:11px; opacity:0.5;">Accès libre</span>';
+                const activeTag = isActive ? '<span style="font-size:11px; font-weight:700; background:rgba(99,102,241,0.2); color:var(--accent); padding:2px 8px; border-radius:12px; margin-left:6px;">Actif</span>' : '';
+
+                html += `
+                    <div class="lock-profile-card" data-profile-id="${p.id}" style="display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg-surface); border:1px solid ${isActive ? 'var(--accent)' : 'var(--border-color)'}; border-radius:12px; cursor:pointer; transition:all 0.2s;">
+                        <span class="profile-dot" style="background-color:${p.color || '#6366f1'}; width:12px; height:12px; border-radius:50%; flex-shrink:0;"></span>
+                        <div style="font-size:14px; font-weight:600; color:var(--text-main); display:flex; align-items:center;">
+                            ${safeName} ${activeTag}
+                        </div>
+                        ${lockBadge}
+                    </div>
+                `;
+            });
+            list.innerHTML = html;
+
+            list.querySelectorAll('.lock-profile-card').forEach(card => {
+                card.onclick = () => {
+                    const profId = card.getAttribute('data-profile-id');
+                    this.selectLockProfile(profId);
+                };
+            });
+        }
+
+        if (overlay) overlay.style.display = 'flex';
+    }
+
+    selectLockProfile(profId) {
+        const target = this.profiles.find(p => p.id === profId);
+        if (!target) return;
+        this._pendingLockProfileId = profId;
+
+        const pinForm = document.getElementById('lockScreenPinForm');
+        const pinInput = document.getElementById('lockScreenPinInput');
+        const label = document.getElementById('lockScreenSelectedProfileName');
+        const errDiv = document.getElementById('lockScreenError');
+
+        if (errDiv) errDiv.style.display = 'none';
+
+        if (target.has_pin) {
+            if (label) label.textContent = `Déverrouiller « ${target.name} »`;
+            if (pinInput) pinInput.value = '';
+            if (pinForm) pinForm.style.display = 'block';
+            setTimeout(() => { if (pinInput) pinInput.focus(); }, 100);
+        } else {
+            this.submitLockPin(null);
+        }
+    }
+
+    cancelLockPinInput() {
+        const pinForm = document.getElementById('lockScreenPinForm');
+        const errDiv = document.getElementById('lockScreenError');
+        if (pinForm) pinForm.style.display = 'none';
+        if (errDiv) errDiv.style.display = 'none';
+        this._pendingLockProfileId = null;
+    }
+
+    async submitLockPin(explicitPin = undefined) {
+        const pinInput = document.getElementById('lockScreenPinInput');
+        const errDiv = document.getElementById('lockScreenError');
+        const pin = (explicitPin !== undefined) ? explicitPin : (pinInput ? pinInput.value.trim() : null);
+
+        const targetId = this._pendingLockProfileId || this.activeProfileId;
+
+        try {
+            if (errDiv) errDiv.style.display = 'none';
+            sessionStorage.removeItem('omni_is_locked');
+            await this.switchProfile(targetId, pin);
+            const overlay = document.getElementById('appLockScreen');
+            if (overlay) overlay.style.display = 'none';
+        } catch (e) {
+            if (errDiv) {
+                errDiv.textContent = e.message || (window.i18n ? window.i18n.t('profiles_pin_wrong') : 'Code PIN incorrect');
+                errDiv.style.display = 'block';
+            }
+        }
+    }
+
+    async switchProfile(profileId, pin = null) {
+        try {
+            const body = pin ? { pin } : {};
+            const res = await API.post(`/api/profiles/${profileId}/activate`, body);
+            sessionStorage.removeItem('omni_is_locked');
+            if (res.ok) {
+                if (res.reload_required) {
+                    window.location.reload();
+                } else {
+                    const overlay = document.getElementById('appLockScreen');
+                    if (overlay) overlay.style.display = 'none';
+                }
+            }
+        } catch (e) {
+            console.error("Failed to switch profile", e);
+            throw e;
+        }
+    }
+
+    openProfilePinModal(targetProfileId) {
+        this._pendingSwitchProfileId = targetProfileId;
+        const modal = document.getElementById('profilePinModal');
+        const input = document.getElementById('profilePinInput');
+        const err = document.getElementById('profilePinError');
+        if (modal) {
+            if (err) err.style.display = 'none';
+            if (input) input.value = '';
+            modal.style.display = 'flex';
+            setTimeout(() => { if (input) input.focus(); }, 100);
+        }
+    }
+
+    closeProfilePinModal() {
+        this._pendingSwitchProfileId = null;
+        const modal = document.getElementById('profilePinModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    async submitProfilePin() {
+        const input = document.getElementById('profilePinInput');
+        const err = document.getElementById('profilePinError');
+        const pin = input ? input.value : '';
+        if (!pin) return;
+
+        try {
+            if (err) err.style.display = 'none';
+            await this.switchProfile(this._pendingSwitchProfileId, pin);
+        } catch (e) {
+            if (err) {
+                err.textContent = e.message || (window.i18n ? window.i18n.t('profiles_pin_wrong') : 'Code PIN incorrect');
+                err.style.display = 'block';
+            }
         }
     }
 }

@@ -262,12 +262,21 @@ def predict_next_paycheck(db: Session):
     
     today = date.today()
     
-    # 1. Get Base Pay Day and settings from config
-    conf_day = db.query(GlobalConfig).filter(GlobalConfig.key == "base_pay_day").first()
+    # 1. Get Base Pay Day from active profile or config
     try:
-        base_pay_day = int(conf_day.value) if conf_day and conf_day.value else 28
-    except ValueError:
-        base_pay_day = 28
+        from app.profile_manager import get_active_profile
+        active_prof = get_active_profile()
+    except Exception:
+        active_prof = None
+
+    if active_prof and active_prof.get("pay_cycle_day"):
+        base_pay_day = int(active_prof["pay_cycle_day"])
+    else:
+        conf_day = db.query(GlobalConfig).filter(GlobalConfig.key == "base_pay_day").first()
+        try:
+            base_pay_day = int(conf_day.value) if conf_day and conf_day.value else 28
+        except ValueError:
+            base_pay_day = 28
 
     conf_cat = db.query(GlobalConfig).filter(GlobalConfig.key == "pay_category").first()
     pay_category = conf_cat.value if conf_cat and conf_cat.value else None

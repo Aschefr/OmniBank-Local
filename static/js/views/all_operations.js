@@ -140,7 +140,7 @@ window.AllOperationsView = {
         const showSlips = cfg.enable_check_slips === 'true';
         const def = { dateSaisie: false, date: true, desc: true, type: false, cat: true, amount: true, recon: true, budget: false, depuis: false, vers: false, recurrence: false, slip: showSlips, attachments: showAttachments, createdBy: false, modifiedBy: false };
         try {
-            const saved = localStorage.getItem('history_cols');
+            const saved = ProfileStorage.get('history_cols');
             const parsed = saved ? { ...def, ...JSON.parse(saved) } : def;
             if (!showSlips) parsed.slip = false;
             if (!showAttachments) parsed.attachments = false;
@@ -153,7 +153,7 @@ window.AllOperationsView = {
         const chk = document.getElementById('chk_history_col_' + col);
         if (chk) {
             settings[col] = chk.checked;
-            localStorage.setItem('history_cols', JSON.stringify(settings));
+            ProfileStorage.set('history_cols', JSON.stringify(settings));
             this.applyColSettings();
         }
     },

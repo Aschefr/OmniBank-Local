@@ -190,7 +190,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const effWin = result.effective_window_months || result.window_months || windowMonths;
             this.updateAiWindowButtonsState(windowMonths, effWin);
             this.renderAiProposals(result.proposals || []);
-            if (localStorage.getItem('budget_ai_wizard_enabled') !== 'false') {
+            if (ProfileStorage.get('budget_ai_wizard_enabled') !== 'false') {
                 this.startAiWizard();
             } else {
                 this.triggerAiCreateBtnPulse();

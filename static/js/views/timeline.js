@@ -1,7 +1,7 @@
 window.TimelineView = {
     transactions: [],
     _vt: null,
-    currentPeriodIndex: parseInt(localStorage.getItem('timeline_period_index')) || 0,
+    currentPeriodIndex: parseInt(ProfileStorage.get('timeline_period_index')) || 0,
     
     render() {
         const cfg = window.app && window.app.config ? window.app.config : {};
@@ -147,8 +147,8 @@ window.TimelineView = {
             if (periodSelect) periodSelect.style.display = 'none';
             if (dateRange) dateRange.style.display = 'flex';
             
-            const savedStart = localStorage.getItem('timeline_start_date');
-            const savedEnd = localStorage.getItem('timeline_end_date');
+            const savedStart = ProfileStorage.get('timeline_start_date');
+            const savedEnd = ProfileStorage.get('timeline_end_date');
             const startInput = document.getElementById('timelineStartDate');
             const endInput = document.getElementById('timelineEndDate');
             
@@ -163,7 +163,7 @@ window.TimelineView = {
             if (periodSelect) periodSelect.style.display = '';
             if (dateRange) dateRange.style.display = 'none';
             
-            const savedPeriod = localStorage.getItem('timeline_period_filter');
+            const savedPeriod = ProfileStorage.get('timeline_period_filter');
             if (periodSelect) {
                 periodSelect.value = savedPeriod || 'current';
             }
@@ -188,7 +188,7 @@ window.TimelineView = {
         
         if (this.currentPeriodIndex > 0 && (!window.app.payHistory || this.currentPeriodIndex - 1 >= window.app.payHistory.length)) {
             this.currentPeriodIndex = 0;
-            localStorage.setItem('timeline_period_index', 0);
+            ProfileStorage.set('timeline_period_index', 0);
         }
 
         const isHistory = this.currentPeriodIndex > 0;
@@ -306,13 +306,13 @@ window.TimelineView = {
         if (isOrgMode) {
             const startInput = document.getElementById('timelineStartDate');
             const endInput = document.getElementById('timelineEndDate');
-            if (startInput) localStorage.setItem('timeline_start_date', startInput.value);
-            if (endInput) localStorage.setItem('timeline_end_date', endInput.value);
+            if (startInput) ProfileStorage.set('timeline_start_date', startInput.value);
+            if (endInput) ProfileStorage.set('timeline_end_date', endInput.value);
         } else {
             const select = document.getElementById('timelineReconciledPeriod');
-            if (select) localStorage.setItem('timeline_period_filter', select.value);
+            if (select) ProfileStorage.set('timeline_period_filter', select.value);
         }
-        localStorage.setItem('timeline_period_index', this.currentPeriodIndex);
+        ProfileStorage.set('timeline_period_index', this.currentPeriodIndex);
     },
 
     navigatePeriod(direction) {
@@ -342,7 +342,7 @@ window.TimelineView = {
         const showSlips = cfg.enable_check_slips === 'true';
         const def = { dateSaisie: false, date: true, desc: true, type: false, cat: true, amount: true, recon: true, budget: false, depuis: false, vers: false, recurrence: false, slip: showSlips, attachments: showAttachments, createdBy: false, modifiedBy: false };
         try {
-            const saved = localStorage.getItem('timeline_cols');
+            const saved = ProfileStorage.get('timeline_cols');
             const parsed = saved ? { ...def, ...JSON.parse(saved) } : def;
             if (!showSlips) parsed.slip = false;
             if (!showAttachments) parsed.attachments = false;
@@ -355,7 +355,7 @@ window.TimelineView = {
         const chk = document.getElementById('chk_col_' + col);
         if (chk) {
             settings[col] = chk.checked;
-            localStorage.setItem('timeline_cols', JSON.stringify(settings));
+            ProfileStorage.set('timeline_cols', JSON.stringify(settings));
             this.applyColSettings();
         }
     },

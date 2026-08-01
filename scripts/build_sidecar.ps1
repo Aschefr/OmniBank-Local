@@ -14,13 +14,96 @@ $TargetTriple = "x86_64-pc-windows-msvc"
 $ExeName = "omnibank-api-$TargetTriple.exe"
 
 if (-not $SkipBuild) {
-    Write-Host "`n[1/3] Building sidecar with PyInstaller..." -ForegroundColor Yellow
+    Write-Host "`n[1/3] Building sidecar (ONEDIR for resources) with PyInstaller..." -ForegroundColor Yellow
 
     $PyInstallerPath = "$env:APPDATA\Python\Python314\Scripts\pyinstaller.exe"
     if (-not (Test-Path $PyInstallerPath)) {
         $PyInstallerPath = "pyinstaller"
     }
 
+    Push-Location $ProjectRoot
+    & $PyInstallerPath `
+        --onedir `
+        --name "omnibank-api" `
+        --add-data "static;static" `
+        --add-data "app;app" `
+        --add-data "package.json;." `
+        --add-data "CHANGELOG.md;." `
+        --hidden-import "uvicorn" `
+        --hidden-import "uvicorn.config" `
+        --hidden-import "uvicorn.main" `
+        --hidden-import "uvicorn.server" `
+        --hidden-import "uvicorn.logging" `
+        --hidden-import "uvicorn.loops" `
+        --hidden-import "uvicorn.loops.auto" `
+        --hidden-import "uvicorn.loops.asyncio" `
+        --hidden-import "uvicorn.protocols" `
+        --hidden-import "uvicorn.protocols.http" `
+        --hidden-import "uvicorn.protocols.http.auto" `
+        --hidden-import "uvicorn.protocols.http.h11_impl" `
+        --hidden-import "uvicorn.protocols.http.httptools_impl" `
+        --hidden-import "uvicorn.protocols.websockets" `
+        --hidden-import "uvicorn.protocols.websockets.auto" `
+        --hidden-import "uvicorn.lifespan" `
+        --hidden-import "uvicorn.lifespan.on" `
+        --hidden-import "uvicorn.lifespan.off" `
+        --hidden-import "fastapi" `
+        --hidden-import "fastapi.routing" `
+        --hidden-import "fastapi.staticfiles" `
+        --hidden-import "fastapi.responses" `
+        --hidden-import "fastapi.middleware" `
+        --hidden-import "starlette" `
+        --hidden-import "starlette.routing" `
+        --hidden-import "starlette.staticfiles" `
+        --hidden-import "starlette.responses" `
+        --hidden-import "starlette.middleware" `
+        --hidden-import "starlette.formparsers" `
+        --hidden-import "multipart" `
+        --hidden-import "multipart.multipart" `
+        --hidden-import "python_multipart" `
+        --hidden-import "sqlalchemy" `
+        --hidden-import "sqlalchemy.sql.default_comparator" `
+        --hidden-import "sqlalchemy.ext.declarative" `
+        --hidden-import "pydantic" `
+        --hidden-import "pydantic_settings" `
+        --hidden-import "pandas" `
+        --hidden-import "chardet" `
+        --hidden-import "httpx" `
+        --hidden-import "openpyxl" `
+        --hidden-import "dateutil" `
+        --hidden-import "app.main" `
+        --hidden-import "app.database" `
+        --hidden-import "app.models" `
+        --hidden-import "app.init_data" `
+        --hidden-import "app.profile_manager" `
+        --hidden-import "app.routers.transactions" `
+        --hidden-import "app.routers.categories" `
+        --hidden-import "app.routers.recurrences" `
+        --hidden-import "app.routers.stats" `
+        --hidden-import "app.routers.accounts" `
+        --hidden-import "app.routers.config" `
+        --hidden-import "app.routers.chat" `
+        --hidden-import "app.routers.csv_manager" `
+        --hidden-import "app.routers.csv_parser" `
+        --hidden-import "app.routers.ai_helpers" `
+        --hidden-import "app.routers.budgets" `
+        --hidden-import "app.routers.backup" `
+        --hidden-import "app.routers.profiles" `
+        --hidden-import "app._license_secret" `
+        --collect-submodules "uvicorn" `
+        --collect-submodules "fastapi" `
+        --collect-submodules "starlette" `
+        --clean `
+        --noconfirm `
+        run_server.py
+    Pop-Location
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "PyInstaller ONEDIR build FAILED!" -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "`nBuilding ONEFILE sidecar..." -ForegroundColor Yellow
     Push-Location $ProjectRoot
     & $PyInstallerPath `
         --onefile `
@@ -75,6 +158,7 @@ if (-not $SkipBuild) {
         --hidden-import "app.database" `
         --hidden-import "app.models" `
         --hidden-import "app.init_data" `
+        --hidden-import "app.profile_manager" `
         --hidden-import "app.routers.transactions" `
         --hidden-import "app.routers.categories" `
         --hidden-import "app.routers.recurrences" `
@@ -87,6 +171,7 @@ if (-not $SkipBuild) {
         --hidden-import "app.routers.ai_helpers" `
         --hidden-import "app.routers.budgets" `
         --hidden-import "app.routers.backup" `
+        --hidden-import "app.routers.profiles" `
         --hidden-import "app._license_secret" `
         --collect-submodules "uvicorn" `
         --collect-submodules "fastapi" `
@@ -97,24 +182,32 @@ if (-not $SkipBuild) {
     Pop-Location
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "PyInstaller build FAILED!" -ForegroundColor Red
+        Write-Host "PyInstaller ONEFILE build FAILED!" -ForegroundColor Red
         exit 1
     }
 }
 
-Write-Host "`n[2/3] Copying sidecar to Tauri bin directory..." -ForegroundColor Yellow
+Write-Host "`n[2/3] Updating sidecars in Tauri resources and bin directories..." -ForegroundColor Yellow
 
+$ResourceDir = Join-Path $ProjectRoot "src-tauri\resources\omnibank-api"
 $BinDir = Join-Path $ProjectRoot "src-tauri\bin"
+New-Item -ItemType Directory -Force -Path $ResourceDir | Out-Null
 New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 
-$SourceExe = Join-Path $ProjectRoot "dist\$ExeName"
-if (-not (Test-Path $SourceExe)) {
-    Write-Host "ERROR: Built exe not found at $SourceExe" -ForegroundColor Red
-    exit 1
+# Copy ONEDIR folder to resources/omnibank-api
+$SourceOnedir = Join-Path $ProjectRoot "dist\omnibank-api"
+if (Test-Path $SourceOnedir) {
+    Remove-Item -Recurse -Force $ResourceDir -ErrorAction SilentlyContinue
+    Copy-Item -Recurse $SourceOnedir -Destination (Join-Path $ProjectRoot "src-tauri\resources") -Force
+    Write-Host "  Updated resources: $ResourceDir" -ForegroundColor Green
 }
 
-Copy-Item $SourceExe -Destination $BinDir -Force
+# Copy ONEFILE executable to bin/
+$SourceExe = Join-Path $ProjectRoot "dist\$ExeName"
+if (Test-Path $SourceExe) {
+    Copy-Item $SourceExe -Destination $BinDir -Force
+    $ExeSize = [math]::Round((Get-Item (Join-Path $BinDir $ExeName)).Length / 1MB, 1)
+    Write-Host "  Updated sidecar bin: $BinDir\$ExeName ($ExeSize MB)" -ForegroundColor Green
+}
 
-$ExeSize = [math]::Round((Get-Item (Join-Path $BinDir $ExeName)).Length / 1MB, 1)
 Write-Host "`n[3/3] Done!" -ForegroundColor Green
-Write-Host "  Sidecar: $BinDir\$ExeName ($ExeSize MB)"
