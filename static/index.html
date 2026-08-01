@@ -20,7 +20,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     
-    <link rel="stylesheet" href="/static/css/style.css?v=8">
+    <link rel="stylesheet" href="/static/css/style.css?v=10">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
@@ -55,6 +55,15 @@
                 <button data-view="config" class="nav-btn">⚙️ <span data-i18n="nav_configuration">Configuration</span></button>
             </nav>
             <div class="header-actions">
+                <!-- Master Profiles Selector -->
+                <div id="profileSelector" class="profile-selector" style="display:none;">
+                    <button id="profileBtn" class="profile-badge" title="Changer de profil">
+                        <span id="profileDot" class="profile-dot" style="background-color:#6366f1;"></span>
+                        <span id="profileName" class="profile-name">Mon Profil</span>
+                        <span class="profile-chevron">▾</span>
+                    </button>
+                    <div id="profileDropdown" class="profile-dropdown" style="display:none;"></div>
+                </div>
                 <!-- Phase 9: User dropdown (org mode, hidden by default) -->
                 <div id="userSwitcher" class="user-switcher" style="display:none;">
                     <button id="userSwitcherBtn" class="user-switcher-btn">
@@ -724,7 +733,7 @@
 
     <script src="/static/js/i18n.js"></script>
     <script src="/static/js/virtual_table.js"></script>
-    <script src="/static/js/common.js"></script>
+    <script src="/static/js/common.js?v=10"></script>
     <script src="/static/js/components/multi-select.js"></script>
     <script src="/static/js/views/timeline.js?v=2"></script>
     <script src="/static/js/views/all_operations.js?v=2"></script>
@@ -787,6 +796,224 @@
         </div>
     </div>
 
+    <!-- Master Profile PIN Modal (Activation / Switch) -->
+    <div id="profilePinModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); z-index:10000; align-items:center; justify-content:center;">
+        <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:16px; width:340px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); text-align:center; color:var(--text-main);">
+            <div style="font-size:32px; margin-bottom:12px;">🔒</div>
+            <h3 id="profilePinModalTitle" style="margin:0 0 8px 0; font-size:18px; font-weight:700; color:var(--text-main);" data-i18n="profiles_pin_enter">Entrez le code PIN</h3>
+            <p id="profilePinModalSub" style="font-size:13px; color:var(--text-muted); margin:0 0 16px 0;">Veuillez déverrouiller ce profil.</p>
+            <input type="password" id="profilePinInput" maxlength="10" placeholder="••••" style="width:100%; font-size:24px; letter-spacing:8px; text-align:center; padding:10px; border-radius:10px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main); margin-bottom:12px;" onkeydown="if(event.key === 'Enter') window.app.submitProfilePin()" />
+            <div id="profilePinError" style="display:none; color:#ef4444; font-size:12px; margin-bottom:12px;" data-i18n="profiles_pin_wrong">Code PIN incorrect</div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn btn-secondary" style="flex:1;" onclick="window.app.closeProfilePinModal()" data-i18n="btn_cancel">Annuler</button>
+                <button class="btn btn-primary" style="flex:1;" onclick="window.app.submitProfilePin()" data-i18n="btn_confirm">Valider</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Master Profile Create / Edit Custom Modal -->
+    <div id="masterProfileModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.15); backdrop-filter:none; z-index:10000; align-items:center; justify-content:center;">
+        <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:16px; width:480px; max-width:94vw; max-height:90vh; overflow-y:auto; padding:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3), 0 0 0 1px var(--accent-border); color:var(--text-main);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 id="masterProfileModalTitle" style="margin:0; font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; color:var(--text-main);">
+                    <span id="masterProfileModalIcon">👤</span>
+                    <span id="masterProfileModalTitleText" data-i18n="profiles_edit_modal_title">Paramètres du profil</span>
+                </h3>
+                <button onclick="window.ConfigView ? window.ConfigView.closeMasterProfileModal() : document.getElementById('masterProfileModal').style.display='none'" style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer; padding:4px;">✕</button>
+            </div>
+
+            <!-- Explanatory Text Box -->
+            <div id="masterProfileModalIntro" style="font-size:12px; color:var(--text-muted); line-height:1.5; background:var(--accent-subtle); border:1px solid var(--accent-border); padding:10px 12px; border-radius:8px; margin-bottom:16px;" data-i18n="profiles_modal_intro">
+                💡 Un profil maître est un espace de comptes indépendant. Il possède sa propre base de données locale, ses catégories et ses pièces jointes isolées sur cet appareil.
+            </div>
+            
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;" data-i18n="profiles_name_label">Nom du profil</label>
+                <input type="text" id="masterProfileNameInput" placeholder="ex: Personnel, Association, Pro..." style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main); font-size:14px; outline:none;" onkeydown="if(event.key === 'Enter') window.ConfigView.submitMasterProfileModal()" />
+            </div>
+
+            <!-- Icon / Emoji Picker -->
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;" data-i18n="profiles_icon_label">Icône / Emoji du profil</label>
+                <div id="masterProfileIconSwatches" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:4px;">
+                    <button type="button" class="profile-icon-swatch active" data-icon="👤" style="font-size:16px; width:32px; height:32px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); cursor:pointer;">👤</button>
+                    <button type="button" class="profile-icon-swatch" data-icon="🏢" style="font-size:16px; width:32px; height:32px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); cursor:pointer;">🏢</button>
+                    <button type="button" class="profile-icon-swatch" data-icon="🤝" style="font-size:16px; width:32px; height:32px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); cursor:pointer;">🤝</button>
+                    <button type="button" class="profile-icon-swatch" data-icon="🏠" style="font-size:16px; width:32px; height:32px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); cursor:pointer;">🏠</button>
+                    <button type="button" class="profile-icon-swatch" data-icon="✈️" style="font-size:16px; width:32px; height:32px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); cursor:pointer;">✈️</button>
+                    <button type="button" class="profile-icon-swatch" data-icon="💼" style="font-size:16px; width:32px; height:32px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); cursor:pointer;">💼</button>
+                    <button type="button" class="profile-icon-swatch" data-icon="💳" style="font-size:16px; width:32px; height:32px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); cursor:pointer;">💳</button>
+                    
+                    <div style="position:relative; display:flex; align-items:center; gap:4px;">
+                        <input type="text" id="masterProfileCustomIconInput" maxlength="4" placeholder="Emoji..." style="width:64px; text-align:center; padding:6px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main); font-size:14px;" />
+                        <button type="button" id="masterProfileEmojiPickerToggleBtn" title="Ouvrir le sélecteur d'emojis (ou utiliser Win + .)" style="font-size:15px; width:32px; height:32px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.15s;">😊</button>
+
+                        <!-- Emoji Popover Grid Aligned under custom input -->
+                        <div id="masterProfileEmojiPopover" style="display:none; position:absolute; top:calc(100% + 6px); right:0; z-index:10050; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; padding:10px; box-shadow:0 15px 35px rgba(0,0,0,0.35); width:280px; max-height:180px; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; grid-template-columns:repeat(7, 1fr); gap:6px;">
+                        </div>
+                    </div>
+                </div>
+                <span style="display:block; font-size:11px; color:var(--text-muted); margin-top:2px;" data-i18n="profiles_icon_hint">Sélectionnez une icône, tapez un emoji, ou utilisez le bouton 😊 (ou le raccourci Win + . / Cmd + Ctrl + Espace).</span>
+                <input type="hidden" id="masterProfileIconInput" value="👤" />
+            </div>
+
+            <!-- Color Swatches -->
+            <div style="margin-bottom:18px;">
+                <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px;" data-i18n="profiles_color_label">Couleur du profil</label>
+                <div id="masterProfileColorSwatches" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div class="profile-color-swatch active" data-color="#6366f1" style="background-color:#6366f1; width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform 0.15s; border:2px solid var(--text-main);"></div>
+                    <div class="profile-color-swatch" data-color="#3b82f6" style="background-color:#3b82f6; width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform 0.15s; border:2px solid transparent;"></div>
+                    <div class="profile-color-swatch" data-color="#10b981" style="background-color:#10b981; width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform 0.15s; border:2px solid transparent;"></div>
+                    <div class="profile-color-swatch" data-color="#f59e0b" style="background-color:#f59e0b; width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform 0.15s; border:2px solid transparent;"></div>
+                    <div class="profile-color-swatch" data-color="#f43f5e" style="background-color:#f43f5e; width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform 0.15s; border:2px solid transparent;"></div>
+                    <div class="profile-color-swatch" data-color="#ec4899" style="background-color:#ec4899; width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform 0.15s; border:2px solid transparent;"></div>
+                    <div class="profile-color-swatch" data-color="#8b5cf6" style="background-color:#8b5cf6; width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform 0.15s; border:2px solid transparent;"></div>
+                    <div class="profile-color-swatch" data-color="#06b6d4" style="background-color:#06b6d4; width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform 0.15s; border:2px solid transparent;"></div>
+                    <div class="profile-color-swatch" data-color="#14b8a6" style="background-color:#14b8a6; width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform 0.15s; border:2px solid transparent;"></div>
+                    <div style="position:relative; width:28px; height:28px; border-radius:50%; overflow:hidden; border:2px solid var(--border-color); cursor:pointer;" title="Couleur personnalisée">
+                        <input type="color" id="masterProfileCustomColorPicker" value="#6366f1" style="position:absolute; top:-5px; left:-5px; width:40px; height:40px; border:none; cursor:pointer; background:none;" />
+                    </div>
+                </div>
+                <input type="hidden" id="masterProfileColorInput" value="#6366f1" />
+            </div>
+
+            <!-- Currency & Date Format Row -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                <div>
+                    <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;" data-i18n="profiles_currency_label">Devise principale</label>
+                    <select id="masterProfileCurrencySelect" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main); font-size:13px;">
+                        <option value="EUR">€ (EUR)</option>
+                        <option value="USD">$ (USD)</option>
+                        <option value="GBP">£ (GBP)</option>
+                        <option value="CHF">CHF (Swiss Franc)</option>
+                        <option value="CAD">$ (CAD)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;" data-i18n="profiles_date_format_label">Format de date</label>
+                    <select id="masterProfileDateFormatSelect" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main); font-size:13px;">
+                        <option value="DD/MM/YYYY" data-i18n="date_fmt_ddmmyyyy">JJ/MM/AAAA (31/12/2026)</option>
+                        <option value="YYYY-MM-DD" data-i18n="date_fmt_yyyymmdd">AAAA-MM-JJ (2026-12-31)</option>
+                        <option value="MM/DD/YYYY" data-i18n="date_fmt_mmddyyyy">MM/JJ/AAAA (12/31/2026)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Pay Cycle Day Input -->
+            <div style="margin-bottom:18px;">
+                <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;" data-i18n="profiles_pay_cycle_day_label">Jour de paie / Début de cycle par défaut</label>
+                <input type="number" id="masterProfilePayCycleDayInput" min="1" max="31" value="28" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main); font-size:13px;" />
+            </div>
+
+            <!-- Edit Mode Extra Section (PIN & Quick Backup) -->
+            <div id="masterProfileEditExtraSection" style="display:none; border-top:1px solid var(--border-color); padding-top:14px; margin-bottom:18px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+                    <div>
+                        <div style="font-size:12px; font-weight:600; color:var(--text-main);" data-i18n="profiles_pin_section_label">Protection par code PIN</div>
+                        <div id="masterProfilePinStatusText" style="font-size:11px; color:var(--text-muted);">Gestion du code PIN de sécurité</div>
+                    </div>
+                    <div id="masterProfileInlinePinBtnGroup" style="display:flex; gap:8px;">
+                        <!-- Injected dynamically via JS (Configure / Modify / Remove PIN) -->
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end;">
+                    <button type="button" id="masterProfileQuickExportBackupBtn" class="btn btn-secondary" style="font-size:12px; padding:6px 12px;" onclick="window.ConfigView ? window.ConfigView.downloadCurrentProfileBackup() : null" data-i18n="profiles_backup_quick_export">
+                        📦 Exporter la sauvegarde du profil
+                    </button>
+                </div>
+            </div>
+
+            <!-- PIN Protection Section (Create Mode) -->
+            <div id="masterProfilePinCreateSection" style="margin-bottom:18px; border-top:1px solid var(--border-color); padding-top:14px;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer; color:var(--text-main);">
+                    <input type="checkbox" id="masterProfileEnablePinCheck" style="accent-color:var(--accent);" onchange="document.getElementById('masterProfilePinInputGroup').style.display = this.checked ? 'block' : 'none'" />
+                    <span data-i18n="profiles_enable_pin_label">🔒 Protéger ce profil par un code PIN</span>
+                </label>
+                <div id="masterProfilePinInputGroup" style="display:none; margin-top:10px; padding-left:24px;">
+                    <input type="password" id="masterProfilePinCreateInput" maxlength="10" placeholder="PIN (4 chiffres min)" style="width:100%; font-size:16px; letter-spacing:4px; text-align:center; padding:8px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main);" onkeydown="if(event.key === 'Enter') window.ConfigView.submitMasterProfileModal()" />
+                    <span style="display:block; font-size:11px; color:var(--text-muted); margin-top:4px;" data-i18n="profiles_pin_create_hint">Ce code PIN sera demandé lors de chaque ouverture ou basculement vers ce profil.</span>
+                </div>
+            </div>
+
+            <div id="masterProfileError" style="display:none; color:#ef4444; font-size:12px; margin-bottom:12px; background:rgba(239,68,68,0.1); padding:8px 12px; border-radius:6px;"></div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="window.ConfigView ? window.ConfigView.closeMasterProfileModal() : document.getElementById('masterProfileModal').style.display='none'" data-i18n="btn_cancel">Annuler</button>
+                <button class="btn btn-primary" id="masterProfileSubmitBtn" onclick="window.ConfigView.submitMasterProfileModal()" data-i18n="btn_confirm">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Master Profile Configure PIN Custom Modal -->
+    <div id="masterProfilePinConfigModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); z-index:10000; align-items:center; justify-content:center;">
+        <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:16px; width:380px; max-width:92vw; padding:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); color:var(--text-main);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 id="masterProfilePinConfigTitle" style="margin:0; font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; color:var(--text-main);">
+                    <span>🔒</span> <span id="masterProfilePinConfigTitleText">Code PIN de protection</span>
+                </h3>
+                <button onclick="window.ConfigView.closePinConfigModal()" style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;">✕</button>
+            </div>
+
+            <div id="masterProfileCurrentPinGroup" style="display:none; margin-bottom:14px;">
+                <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">Code PIN actuel</label>
+                <input type="password" id="masterProfileCurrentPinInput" maxlength="10" placeholder="••••" style="width:100%; font-size:18px; letter-spacing:4px; text-align:center; padding:8px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main);" onkeydown="if(event.key === 'Enter') window.ConfigView.submitSavePin()" />
+            </div>
+
+            <div id="masterProfileNewPinGroup" style="margin-bottom:14px;">
+                <label id="masterProfileNewPinLabel" style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">Nouveau code PIN (min 4 chiffres)</label>
+                <input type="password" id="masterProfileNewPinInput" maxlength="10" placeholder="••••" style="width:100%; font-size:18px; letter-spacing:4px; text-align:center; padding:8px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main);" onkeydown="if(event.key === 'Enter') window.ConfigView.submitSavePin()" />
+            </div>
+
+            <div id="masterProfilePinConfigError" style="display:none; color:#ef4444; font-size:12px; margin-bottom:12px; background:rgba(239,68,68,0.1); padding:8px 12px; border-radius:6px;"></div>
+
+            <div style="display:flex; gap:10px; justify-content:space-between; align-items:center; margin-top:20px;">
+                <button class="btn btn-danger" id="masterProfileRemovePinBtn" style="display:none; font-size:12px; padding:6px 12px;" onclick="window.ConfigView.submitRemovePin()">Supprimer PIN</button>
+                <div style="display:flex; gap:10px; margin-left:auto;">
+                    <button class="btn btn-secondary" onclick="window.ConfigView.closePinConfigModal()" data-i18n="btn_cancel">Annuler</button>
+                    <button class="btn btn-primary" onclick="window.ConfigView.submitSavePin()" data-i18n="btn_confirm">Valider</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Master Profile Delete Custom Modal -->
+    <div id="masterProfileDeleteModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); z-index:10000; align-items:center; justify-content:center;">
+        <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:16px; width:400px; max-width:92vw; padding:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); text-align:center; color:var(--text-main);">
+            <div style="font-size:36px; margin-bottom:12px;">⚠️</div>
+            <h3 style="margin:0 0 8px 0; font-size:18px; font-weight:700; color:var(--text-main);">Supprimer le profil ?</h3>
+            <p id="masterProfileDeleteSub" style="font-size:13px; color:var(--text-muted); margin:0 0 16px 0; line-height:1.5;">Voulez-vous vraiment supprimer définitivement ce profil et toutes ses données ? Cette action est irréversible.</p>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('masterProfileDeleteModal').style.display='none'" data-i18n="btn_cancel">Annuler</button>
+                <button class="btn btn-danger" style="flex:1;" onclick="window.ConfigView.submitDeleteProfile()" data-i18n="btn_confirm">Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Lock Screen Overlay (Multi-Profiles & Auto-Lock) -->
+    <div id="appLockScreen" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--bg-base); z-index:99999; flex-direction:column; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(10px);">
+        <div style="text-align:center; max-width:440px; width:100%; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:20px; padding:32px 24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); color:var(--text-main);">
+            <div style="font-size:42px; margin-bottom:12px;">🔒</div>
+            <h2 style="font-size:24px; font-weight:800; color:var(--text-main); margin:0 0 6px 0;">OmniBank</h2>
+            <p style="font-size:13px; color:var(--text-muted); margin:0 0 24px 0;">Choisissez un profil maître et déverrouillez l'application</p>
+            
+            <div id="lockScreenProfilesList" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px; max-height:300px; overflow-y:auto; text-align:left;">
+                <!-- Profile selector cards injected dynamically -->
+            </div>
+
+            <div id="lockScreenPinForm" style="display:none; margin-top:16px; border-top:1px solid var(--border-color); padding-top:16px;">
+                <p id="lockScreenSelectedProfileName" style="font-weight:700; font-size:14px; margin-bottom:10px; color:var(--text-main);">Profil</p>
+                <input type="password" id="lockScreenPinInput" maxlength="10" placeholder="Entrez le code PIN" style="width:100%; font-size:20px; letter-spacing:6px; text-align:center; padding:10px; border-radius:10px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main); margin-bottom:12px;" onkeydown="if(event.key === 'Enter') window.app.submitLockPin()" />
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-secondary" style="flex:1;" onclick="window.app.cancelLockPinInput()">Retour</button>
+                    <button class="btn btn-primary" style="flex:1;" onclick="window.app.submitLockPin()">Déverrouiller</button>
+                </div>
+            </div>
+
+            <div id="lockScreenError" style="display:none; color:#ef4444; font-size:12px; background:rgba(239,68,68,0.1); padding:8px 12px; border-radius:6px; margin-top:12px;"></div>
+        </div>
+    </div>
+
     <script src="/static/js/views/budgets/budgets_core.js?v=1"></script>
     <script src="/static/js/views/budgets/budgets_render.js?v=5"></script>
     <script src="/static/js/views/budgets/budgets_modals.js?v=2"></script>
@@ -796,6 +1023,6 @@
     <script src="/static/js/views/license_manager.js"></script>
     <script src="/static/js/views/setup_wizard.js?v=2"></script>
     <script src="/static/js/views/history_manager.js"></script>
-    <script src="/static/js/app.js?v=4"></script>
+    <script src="/static/js/app.js?v=10"></script>
 </body>
 </html>

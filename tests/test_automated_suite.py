@@ -36,6 +36,9 @@ app.dependency_overrides[get_db] = override_get_db
 
 @pytest.fixture(autouse=True)
 def setup_and_teardown_db():
+    from app.database import _engines, _session_factories
+    _engines['default'] = engine
+    _session_factories['default'] = TestingSessionLocal
     # Before each test, rebuild a fresh database by dropping and recreating tables on the engine
     build_test_db(engine)
     yield

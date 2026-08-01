@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.75] - 2026-08-01
+
+### Added & Improved
+- **Multi-Master Profiles 👥**: Create and seamlessly switch between multiple completely isolated financial workspaces (Personal, Business, Association) on a single installation with 100% offline data sovereignty.
+- **Custom Accent Colors & Live Preview 🎨**: Personalize each profile with custom theme accent colors, featuring real-time live preview without darkening the background interface.
+- **Rich Profile Customization & Emoji Picker ⚙️**: Choose custom icons/emojis with an integrated emoji selector, configure main currency, default pay cycle day, date format, and export individual profile backups.
+- **Instant Dynamic Updates ⚡**: Profile settings (pay day, currency, date formatting) apply immediately across the entire dashboard without requiring page reloads (F5).
+- **Automatic Backup Settings Sync 🔄**: Restoring a database backup automatically synchronizes profile settings with your restored financial data.
+- **Enhanced Security & Auto-Lock 🔒**: Protect individual profiles with an optional PIN code, auto-lock inactive sessions, and validate inputs using the `Enter` key.
+- **Full Bilingual Support (EN / FR) 🌐**: Complete English and French localization across all profile configuration panels and cards.
+- **Profile-Scoped & Global Backups 📦**: Export or restore individual master profiles or full application multi-profile backups in one click.
+
 ## [1.0.74] - 2026-07-30
 
 ### Added & Improved

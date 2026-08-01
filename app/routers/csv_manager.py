@@ -576,8 +576,8 @@ async def save_batch(data: dict, db: Session = Depends(get_db)):
             import os
             import uuid
             import shutil
-            from app.routers.backup import DATA_DIR
-            uploads_dir = os.path.join(DATA_DIR, "uploads")
+            from app.database import get_current_uploads_dir
+            uploads_dir = get_current_uploads_dir()
             os.makedirs(uploads_dir, exist_ok=True)
             
             clean_att = final_attachment.replace('\\', '/')
@@ -650,7 +650,7 @@ from typing import List
 from fastapi import Form
 import shutil
 import uuid
-from app.routers.backup import DATA_DIR
+from app.database import get_current_uploads_dir
 
 @router.post("/upload_attachments")
 async def upload_attachments(files: List[UploadFile] = File(...), relative_paths: str = Form(...)):
@@ -661,7 +661,7 @@ async def upload_attachments(files: List[UploadFile] = File(...), relative_paths
     except:
         paths = []
         
-    uploads_dir = os.path.join(DATA_DIR, "uploads")
+    uploads_dir = get_current_uploads_dir()
     os.makedirs(uploads_dir, exist_ok=True)
     
     saved_files = {}

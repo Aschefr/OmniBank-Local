@@ -3,11 +3,13 @@ from sqlalchemy.orm import Session
 from app.database import engine, Base, SessionLocal
 import app.models  # Register all models for create_all
 
-def init_db():
-    Base.metadata.create_all(bind=engine)
+def init_db(target_engine=None):
+    from app.database import get_engine
+    eng = target_engine or get_engine()
+    Base.metadata.create_all(bind=eng)
 
     from sqlalchemy import text
-    with engine.connect() as conn:
+    with eng.connect() as conn:
         try:
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_budget_id ON transactions (budget_id)"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_category_date ON transactions (category, date_operation)"))

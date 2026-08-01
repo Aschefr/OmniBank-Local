@@ -90,6 +90,20 @@ def enable_shared_mode(req: SharedModeRequest):
             shutil.rmtree(target_uploads)
         shutil.copytree(source_uploads, target_uploads)
 
+    # Copy profiles.json if it exists
+    source_profiles_json = os.path.join(source_dir, 'profiles.json')
+    target_profiles_json = os.path.join(target_dir, 'profiles.json')
+    if os.path.isfile(source_profiles_json) and os.path.normpath(source_dir) != os.path.normpath(target_dir):
+        shutil.copy2(source_profiles_json, target_profiles_json)
+
+    # Copy profiles folder if it exists
+    source_profiles_dir = os.path.join(source_dir, 'profiles')
+    target_profiles_dir = os.path.join(target_dir, 'profiles')
+    if os.path.isdir(source_profiles_dir) and os.path.normpath(source_dir) != os.path.normpath(target_dir):
+        if os.path.exists(target_profiles_dir):
+            shutil.rmtree(target_profiles_dir)
+        shutil.copytree(source_profiles_dir, target_profiles_dir)
+
     # Clean up old markers
     custom_path_file = os.path.join(pd, '.shared_path')
     shared_marker = os.path.join(pd, '.shared')

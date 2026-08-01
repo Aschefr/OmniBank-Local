@@ -31,14 +31,14 @@ window.FormView = {
         await this.loadProjectBudgets();
 
         // Load keepOpen from localStorage
-        const storedKeepOpen = localStorage.getItem('form_keep_open');
+        const storedKeepOpen = ProfileStorage.get('form_keep_open');
         this.keepOpen = storedKeepOpen === 'true';
         const cb = document.getElementById('op_keep_open');
         if (cb) {
             cb.checked = this.keepOpen;
         }
         // Load clearAfterSave from localStorage
-        const storedClear = localStorage.getItem('form_clear_after_save');
+        const storedClear = ProfileStorage.get('form_clear_after_save');
         this.clearAfterSave = storedClear === 'true';
         this._updateClearBtnVisibility();
         this._updateClearBtnStyle();
@@ -158,7 +158,7 @@ window.FormView = {
 
     onKeepOpenToggle() {
         this.keepOpen = document.getElementById('op_keep_open').checked;
-        localStorage.setItem('form_keep_open', this.keepOpen ? 'true' : 'false');
+        ProfileStorage.set('form_keep_open', this.keepOpen ? 'true' : 'false');
         this.updateCancelButtonText();
         this._updateClearBtnVisibility();
         if (!this.keepOpen) {
@@ -171,7 +171,7 @@ window.FormView = {
 
     onClearAfterSaveToggle() {
         this.clearAfterSave = !this.clearAfterSave;
-        localStorage.setItem('form_clear_after_save', this.clearAfterSave ? 'true' : 'false');
+        ProfileStorage.set('form_clear_after_save', this.clearAfterSave ? 'true' : 'false');
         this._updateClearBtnStyle();
     },
 
