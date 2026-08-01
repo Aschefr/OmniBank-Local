@@ -75,6 +75,7 @@ if (-not $SkipBuild) {
         --hidden-import "app.database" `
         --hidden-import "app.models" `
         --hidden-import "app.init_data" `
+        --hidden-import "app.profile_manager" `
         --hidden-import "app.routers.transactions" `
         --hidden-import "app.routers.categories" `
         --hidden-import "app.routers.recurrences" `
@@ -87,6 +88,7 @@ if (-not $SkipBuild) {
         --hidden-import "app.routers.ai_helpers" `
         --hidden-import "app.routers.budgets" `
         --hidden-import "app.routers.backup" `
+        --hidden-import "app.routers.profiles" `
         --hidden-import "app._license_secret" `
         --collect-submodules "uvicorn" `
         --collect-submodules "fastapi" `

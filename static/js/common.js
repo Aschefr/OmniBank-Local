@@ -1,5 +1,35 @@
 // common.js
 
+const ProfileStorage = {
+    _prefix: 'default',
+    init(profileId) {
+        if (profileId) this._prefix = profileId;
+    },
+    get(key) {
+        const val = localStorage.getItem(`${this._prefix}_${key}`);
+        if (val !== null) return val;
+        if (this._prefix === 'default') {
+            return localStorage.getItem(key);
+        }
+        return null;
+    },
+    set(key, val) {
+        localStorage.setItem(`${this._prefix}_${key}`, val);
+    },
+    remove(key) {
+        localStorage.removeItem(`${this._prefix}_${key}`);
+        if (this._prefix === 'default') {
+            localStorage.removeItem(key);
+        }
+    }
+};
+window.ProfileStorage = ProfileStorage;
+
+window.escapeHtml = function(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
 async function _handleApiError(res) {
     const text = await res.text();
     let errMsg = text;
@@ -48,8 +78,13 @@ const API = {
         }
         return json;
     },
-    async del(endpoint) {
-        const res = await fetch(endpoint, { method: 'DELETE' });
+    async del(endpoint, data = null) {
+        const options = { method: 'DELETE' };
+        if (data !== null && data !== undefined) {
+            options.headers = { 'Content-Type': 'application/json' };
+            options.body = JSON.stringify(data);
+        }
+        const res = await fetch(endpoint, options);
         if (!res.ok) await _handleApiError(res);
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
@@ -169,9 +204,15 @@ function showInlinePrompt(titleText, defaultValue = '') {
 }
 
 window.appBaseCurrency = 'EUR';
+window.appDateFormat = 'DD/MM/YYYY';
 
 function formatCurrency(amount, currencyCode) {
-    const code = (currencyCode || window.appBaseCurrency || 'EUR').toUpperCase();
+    let profileCurr = null;
+    if (window.app && window.app.profiles && window.app.activeProfileId) {
+        const activeProf = window.app.profiles.find(p => p.id === window.app.activeProfileId);
+        if (activeProf && activeProf.currency) profileCurr = activeProf.currency;
+    }
+    const code = (currencyCode || profileCurr || window.appBaseCurrency || 'EUR').toUpperCase();
     const num = (amount === null || amount === undefined || isNaN(amount)) ? 0 : Number(amount);
     try {
         const lang = (window.i18n && window.i18n.currentLang === 'en') ? 'en-US' : 'fr-FR';
@@ -181,10 +222,35 @@ function formatCurrency(amount, currencyCode) {
     }
 }
 
-function formatDate(dateString) {
+function formatDate(dateString, overrideFormat) {
     if (!dateString) return "";
-    const d = new Date(dateString);
-    return d.toLocaleDateString('fr-FR');
+    let profileFmt = null;
+    if (window.app && window.app.profiles && window.app.activeProfileId) {
+        const activeProf = window.app.profiles.find(p => p.id === window.app.activeProfileId);
+        if (activeProf && activeProf.date_format) profileFmt = activeProf.date_format;
+    }
+    const fmt = overrideFormat || profileFmt || window.appDateFormat || 'DD/MM/YYYY';
+
+    let y, m, d;
+    if (typeof dateString === 'string' && dateString.length >= 10) {
+        const parts = dateString.substring(0, 10).split('-');
+        if (parts.length === 3) {
+            y = parts[0];
+            m = parts[1];
+            d = parts[2];
+        }
+    }
+    if (!y || !m || !d) {
+        const dateObj = new Date(dateString);
+        if (isNaN(dateObj.getTime())) return String(dateString);
+        y = String(dateObj.getFullYear());
+        m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        d = String(dateObj.getDate()).padStart(2, '0');
+    }
+
+    if (fmt === 'YYYY-MM-DD') return `${y}-${m}-${d}`;
+    if (fmt === 'MM/DD/YYYY') return `${m}/${d}/${y}`;
+    return `${d}/${m}/${y}`;
 }
 
 /**

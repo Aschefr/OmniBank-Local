@@ -19,11 +19,23 @@ def set_config(data: Dict[str, str], db: Session = Depends(get_db)):
     for key, value in data.items():
         conf = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
         if conf:
-            conf.value = value
+            conf.value = str(value)
         else:
-            conf = GlobalConfig(key=key, value=value)
+            conf = GlobalConfig(key=key, value=str(value))
             db.add(conf)
     db.commit()
+
+    # Automatically sync base_pay_day with active profile metadata
+    if "base_pay_day" in data:
+        try:
+            val = int(data["base_pay_day"])
+            if val > 0:
+                from app.profile_manager import get_active_profile, update_profile
+                active_prof = get_active_profile()
+                if active_prof:
+                    update_profile(active_prof["id"], pay_cycle_day=val)
+        except Exception:
+            pass
     
     # Automatically generate recurrences using the new window settings if modified
     if "recurrence_generation_months" in data:

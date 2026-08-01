@@ -65,10 +65,10 @@ window.AnalyticsView = {
     },
 
     async init() {
-        const savedReconciled = localStorage.getItem('analytics_reconciled');
+        const savedReconciled = ProfileStorage.get('analytics_reconciled');
         if (savedReconciled) this.reconciled = savedReconciled;
 
-        const savedPeriod = localStorage.getItem('analytics_period');
+        const savedPeriod = ProfileStorage.get('analytics_period');
         if (savedPeriod) {
             if (savedPeriod.startsWith('y')) {
                 this.selectedYear = parseInt(savedPeriod.slice(1));
@@ -80,12 +80,12 @@ window.AnalyticsView = {
         }
 
         // Restore saved category column width
-        const savedColWidth = localStorage.getItem('analytics_cat_col_width');
+        const savedColWidth = ProfileStorage.get('analytics_cat_col_width');
         this._catColWidth = savedColWidth ? parseInt(savedColWidth) : 160;
 
         // Restore selected years
         let savedSelectedYears;
-        try { savedSelectedYears = JSON.parse(localStorage.getItem('analytics_years_totals')); } catch (e) { }
+        try { savedSelectedYears = JSON.parse(ProfileStorage.get('analytics_years_totals')); } catch (e) { }
         if (Array.isArray(savedSelectedYears)) {
             this.selectedYears = savedSelectedYears.map(String);
         } else {
@@ -93,9 +93,9 @@ window.AnalyticsView = {
         }
 
         // Restore custom range state
-        const crEnabled = localStorage.getItem('analytics_custom_range_enabled') === 'true';
-        const crStart = localStorage.getItem('analytics_custom_range_start');
-        const crEnd = localStorage.getItem('analytics_custom_range_end');
+        const crEnabled = ProfileStorage.get('analytics_custom_range_enabled') === 'true';
+        const crStart = ProfileStorage.get('analytics_custom_range_start');
+        const crEnd = ProfileStorage.get('analytics_custom_range_end');
         this.customRange = { enabled: crEnabled, start: crStart, end: crEnd };
 
         // Reset account filter (all selected)
@@ -219,10 +219,10 @@ window.AnalyticsView = {
     async changeFilter(key, val) {
         if (key === 'reconciled') {
             this.reconciled = val;
-            localStorage.setItem('analytics_reconciled', val);
+            ProfileStorage.set('analytics_reconciled', val);
         }
         if (key === 'period') {
-            localStorage.setItem('analytics_period', val);
+            ProfileStorage.set('analytics_period', val);
             if (val.startsWith('y')) {
                 this.selectedYear = parseInt(val.slice(1));
                 this.months = null;
@@ -236,7 +236,7 @@ window.AnalyticsView = {
 
     onCustomRangeToggle(enabled) {
         this.customRange.enabled = enabled;
-        localStorage.setItem('analytics_custom_range_enabled', enabled);
+        ProfileStorage.set('analytics_custom_range_enabled', enabled);
         const inputs = document.getElementById('analyticsCustomRangeInputs');
         const periodSel = document.getElementById('analyticsPeriod');
         if (inputs) inputs.style.display = enabled ? 'flex' : 'none';
@@ -250,8 +250,8 @@ window.AnalyticsView = {
                 const endDate = now.toISOString().split('T')[0];
                 this.customRange.start = startDate;
                 this.customRange.end = endDate;
-                localStorage.setItem('analytics_custom_range_start', startDate);
-                localStorage.setItem('analytics_custom_range_end', endDate);
+                ProfileStorage.set('analytics_custom_range_start', startDate);
+                ProfileStorage.set('analytics_custom_range_end', endDate);
             }
             // Mettre à jour la valeur des inputs
             const startInput = document.getElementById('analyticsCustomStart');
@@ -274,8 +274,8 @@ window.AnalyticsView = {
         }
         this.customRange.start = start;
         this.customRange.end = end;
-        if (start) localStorage.setItem('analytics_custom_range_start', start);
-        if (end) localStorage.setItem('analytics_custom_range_end', end);
+        if (start) ProfileStorage.set('analytics_custom_range_start', start);
+        if (end) ProfileStorage.set('analytics_custom_range_end', end);
         // Ne charger que si les deux dates sont présentes (sinon attendre la deuxième saisie)
         if (start && end) this.loadData();
     },
@@ -330,7 +330,7 @@ window.AnalyticsView = {
 
     renderTypeTable(txType, typeData, months, years, showInactive = false, forPrint = false) {
         const cfg = { ...(this.TYPE_CONFIG[txType] || { emoji: '•', color: 'var(--text-muted)', sign: '' }) };
-        const savedColor = localStorage.getItem('analytics_color_' + txType);
+        const savedColor = ProfileStorage.get('analytics_color_' + txType);
         if (savedColor) cfg.color = savedColor;
         const { categories, totals_per_cat, totals_per_month, grand_total, annual_by_cat, annual_totals_per_year, inactive_by_cat } = typeData;
 
@@ -339,7 +339,7 @@ window.AnalyticsView = {
         const translatedType = window.app.getTypeLabel(txType);
 
         // Load gradient setting (default is 1.0)
-        const sliderVal = parseFloat(localStorage.getItem('analytics_gradient_' + txType) || '1.0');
+        const sliderVal = parseFloat(ProfileStorage.get('analytics_gradient_' + txType) || '1.0');
         const mappedVal = 2.0 - sliderVal;
         const p = this.mapSliderToExponent(mappedVal);
         const isProp = sliderVal >= 0.98 && sliderVal <= 1.02;
@@ -400,7 +400,7 @@ window.AnalyticsView = {
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span data-i18n="analytics_color_label">${window.i18n.t('analytics_color_label') || 'Color:'}</span>
                         <input type="color" value="${cfg.color}" style="width:20px;height:20px;border:none;border-radius:50%;cursor:pointer;padding:0;background:none;outline:none;vertical-align:middle;box-shadow:var(--shadow-sm);" title="Changer la couleur du tableau" oninput="window.AnalyticsView.onColorChange('${txType}', this.value)">
-                        <span class="reset-color-btn" style="cursor:pointer;opacity:0.6;font-size:11px;transition:opacity 0.2s, display 0.2s;display:${savedColor ? 'inline' : 'none'};" title="Restaurer la couleur par défaut" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6" onclick="localStorage.removeItem('analytics_color_${txType}'); window.AnalyticsView.renderAll();">⟲</span>
+                        <span class="reset-color-btn" style="cursor:pointer;opacity:0.6;font-size:11px;transition:opacity 0.2s, display 0.2s;display:${savedColor ? 'inline' : 'none'};" title="Restaurer la couleur par défaut" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6" onclick="ProfileStorage.remove('analytics_color_${txType}'); window.AnalyticsView.renderAll();">⟲</span>
                     </div>
                 </div>
                 <span class="privacy-blur" style="font-size:13px;font-weight:600;color:var(--text-main);">${window.i18n.t('analytics_total_period')} : ${cfg.sign}${formatCurrency(grand_total)}</span>
@@ -542,7 +542,7 @@ window.AnalyticsView = {
     },
 
     onGradientChange(txType, value) {
-        localStorage.setItem('analytics_gradient_' + txType, value);
+        ProfileStorage.set('analytics_gradient_' + txType, value);
         
         const container = document.querySelector(`[data-type="${txType}"]`);
         if (!container) return;
@@ -579,7 +579,7 @@ window.AnalyticsView = {
             for (const v of Object.values(categories[cat])) if (v > maxVal) maxVal = v;
         }
 
-        const savedColor = localStorage.getItem('analytics_color_' + txType);
+        const savedColor = ProfileStorage.get('analytics_color_' + txType);
         const cfg = { ...(this.TYPE_CONFIG[txType] || { color: '#6b7280' }) };
         if (savedColor) cfg.color = savedColor;
         const cells = container.querySelectorAll('td[data-col-type="month"]');
@@ -598,7 +598,7 @@ window.AnalyticsView = {
     },
 
     onColorChange(txType, value) {
-        localStorage.setItem('analytics_color_' + txType, value);
+        ProfileStorage.set('analytics_color_' + txType, value);
         
         const container = document.querySelector(`[data-type="${txType}"]`);
         if (!container) return;
@@ -656,7 +656,7 @@ window.AnalyticsView = {
         }
 
         // 5. Month cells gradient background colors
-        const sliderVal = parseFloat(localStorage.getItem('analytics_gradient_' + txType) || '1.0');
+        const sliderVal = parseFloat(ProfileStorage.get('analytics_gradient_' + txType) || '1.0');
         const mappedVal = 2.0 - sliderVal;
         const p = this.mapSliderToExponent(mappedVal);
 
@@ -709,7 +709,7 @@ window.AnalyticsView = {
         const onUp = () => {
             this._resizing = false;
             handle.classList.remove('resizing');
-            localStorage.setItem('analytics_cat_col_width', this._catColWidth);
+            ProfileStorage.set('analytics_cat_col_width', this._catColWidth);
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
         };
@@ -754,45 +754,45 @@ window.AnalyticsView = {
         }
 
         // Charger les préférences mémorisées
-        const savedTabMode = localStorage.getItem('print_settings_tab_mode') || (hasCustomRange ? 'custom' : 'year');
+        const savedTabMode = ProfileStorage.get('print_settings_tab_mode') || (hasCustomRange ? 'custom' : 'year');
         this._exportTabMode = savedTabMode;
 
-        const savedSelectedYear = localStorage.getItem('print_settings_selected_year') || currentYear;
-        const savedCustomStart = localStorage.getItem('print_settings_custom_start') || defaultStart;
-        const savedCustomEnd = localStorage.getItem('print_settings_custom_end') || defaultEnd;
+        const savedSelectedYear = ProfileStorage.get('print_settings_selected_year') || currentYear;
+        const savedCustomStart = ProfileStorage.get('print_settings_custom_start') || defaultStart;
+        const savedCustomEnd = ProfileStorage.get('print_settings_custom_end') || defaultEnd;
 
         let savedYearsTotals;
-        try { savedYearsTotals = JSON.parse(localStorage.getItem('analytics_years_totals')); } catch (e) { }
+        try { savedYearsTotals = JSON.parse(ProfileStorage.get('analytics_years_totals')); } catch (e) { }
         if (!Array.isArray(savedYearsTotals)) {
             savedYearsTotals = [currentYear];
         }
 
         let savedTypes;
-        try { savedTypes = JSON.parse(localStorage.getItem('print_settings_types')); } catch (e) { }
+        try { savedTypes = JSON.parse(ProfileStorage.get('print_settings_types')); } catch (e) { }
         if (!Array.isArray(savedTypes)) savedTypes = types;
 
         let savedCats;
-        try { savedCats = JSON.parse(localStorage.getItem('print_settings_cats')); } catch (e) { }
+        try { savedCats = JSON.parse(ProfileStorage.get('print_settings_cats')); } catch (e) { }
 
         const colSettings = window.AllOperationsView ? window.AllOperationsView.getColSettings() :
             { date: true, desc: true, type: false, cat: true, amount: true, recon: true };
 
         let savedCols;
-        try { savedCols = JSON.parse(localStorage.getItem('print_settings_cols')); } catch (e) { }
+        try { savedCols = JSON.parse(ProfileStorage.get('print_settings_cols')); } catch (e) { }
         if (!Array.isArray(savedCols)) savedCols = Object.keys(colSettings).filter(k => colSettings[k]);
 
-        const savedIncludeDetails = (localStorage.getItem('print_sec_enabled_transactions_list') ?? localStorage.getItem('print_settings_include_details')) !== 'false';
-        const savedIncludePieChart = (localStorage.getItem('print_sec_enabled_pie_chart') ?? localStorage.getItem('print_settings_include_pie_chart')) !== 'false';
-        const savedIncludeBarChart = (localStorage.getItem('print_sec_enabled_bar_chart') ?? localStorage.getItem('print_settings_include_bar_chart')) !== 'false';
-        const savedIncludeSignature = (localStorage.getItem('print_sec_enabled_signature') ?? localStorage.getItem('print_settings_include_signature')) === 'true';
-        const savedTitleFontSize = localStorage.getItem('print_settings_title_font_size') || 'medium';
-        const savedTableFontSize = localStorage.getItem('print_settings_table_font_size') || 'medium';
+        const savedIncludeDetails = (ProfileStorage.get('print_sec_enabled_transactions_list') ?? ProfileStorage.get('print_settings_include_details')) !== 'false';
+        const savedIncludePieChart = (ProfileStorage.get('print_sec_enabled_pie_chart') ?? ProfileStorage.get('print_settings_include_pie_chart')) !== 'false';
+        const savedIncludeBarChart = (ProfileStorage.get('print_sec_enabled_bar_chart') ?? ProfileStorage.get('print_settings_include_bar_chart')) !== 'false';
+        const savedIncludeSignature = (ProfileStorage.get('print_sec_enabled_signature') ?? ProfileStorage.get('print_settings_include_signature')) === 'true';
+        const savedTitleFontSize = ProfileStorage.get('print_settings_title_font_size') || 'medium';
+        const savedTableFontSize = ProfileStorage.get('print_settings_table_font_size') || 'medium';
 
         let typesHtml = types.map(type => {
             const translatedType = window.app.getTypeLabel(type);
             const cats = Object.keys(this.data.by_type[type].categories || {}).sort();
             const typeChecked = savedTypes.includes(type);
-            const typePageBreak = localStorage.getItem(`print_type_pagebreak_${type}`) === 'true';
+            const typePageBreak = ProfileStorage.get(`print_type_pagebreak_${type}`) === 'true';
 
             const catsHtml = cats.map(cat => {
                 const catChecked = !savedCats || savedCats.includes(cat);
@@ -813,7 +813,7 @@ window.AnalyticsView = {
                         "> ${translatedType}
                     </label>
                     <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px; cursor:pointer; background:rgba(0,0,0,0.04); padding:2px 8px; border-radius:4px;" title="${window.i18n.t('export_type_pagebreak_tooltip') || 'Insérer un saut de page avant ce tableau'}">
-                        <input type="checkbox" class="export-type-pagebreak-cb" data-type="${type}" ${typePageBreak ? 'checked' : ''} onchange="localStorage.setItem('print_type_pagebreak_${type}', this.checked)">
+                        <input type="checkbox" class="export-type-pagebreak-cb" data-type="${type}" ${typePageBreak ? 'checked' : ''} onchange="ProfileStorage.set('print_type_pagebreak_${type}', this.checked)">
                         <span>✂️ ${window.i18n.t('export_type_pagebreak') || 'Saut de page avant'}</span>
                     </label>
                 </div>
@@ -846,15 +846,15 @@ window.AnalyticsView = {
         `).join('');
 
         const isOrgMode = window.app && window.app.config && (window.app.config.enable_org_mode === 'true' || window.app.config.enable_org_mode === true);
-        const savedHeaderTitle = localStorage.getItem('print_header_title') || '';
-        const savedLogoB64 = localStorage.getItem('print_header_logo') || null;
-        const savedLogoLeft = localStorage.getItem('print_logo_left') !== 'false';
-        const savedLogoRight = localStorage.getItem('print_logo_right') !== 'false';
+        const savedHeaderTitle = ProfileStorage.get('print_header_title') || '';
+        const savedLogoB64 = ProfileStorage.get('print_header_logo') || null;
+        const savedLogoLeft = ProfileStorage.get('print_logo_left') !== 'false';
+        const savedLogoRight = ProfileStorage.get('print_logo_right') !== 'false';
 
         const orgHeaderHtml = isOrgMode ? `
         <div style="padding: 12px; background: rgba(99,102,241,0.06); border-radius: 8px; border: 1px solid rgba(99,102,241,0.2);">
             <div style="display:flex;flex-direction:column;gap:10px;">
-                <input type="text" id="exportHeaderTitle" class="inline-input" list="exportTitlePresets" placeholder="${window.i18n.t('export_header_title_placeholder') || 'Titre du document'}" value="${savedHeaderTitle.replace(/"/g, '&quot;')}" style="width:100%;" oninput="localStorage.setItem('print_header_title', this.value)">
+                <input type="text" id="exportHeaderTitle" class="inline-input" list="exportTitlePresets" placeholder="${window.i18n.t('export_header_title_placeholder') || 'Titre du document'}" value="${savedHeaderTitle.replace(/"/g, '&quot;')}" style="width:100%;" oninput="ProfileStorage.set('print_header_title', this.value)">
                 <datalist id="exportTitlePresets">
                     <option value="${window.i18n.t('export_preset_annual') || 'Bilan Financier Annuel'}">
                     <option value="${window.i18n.t('export_preset_result') || 'Compte de Résultat'}">
@@ -864,16 +864,16 @@ window.AnalyticsView = {
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                     <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px;" onclick="document.getElementById('exportLogoFileInput').click()">${window.i18n.t('export_header_logo_import') || 'Importer logo'}</button>
                     <input type="file" id="exportLogoFileInput" accept="image/*" style="display:none;" onchange="window.AnalyticsView._handleLogoUpload(this)">
-                    ${savedLogoB64 ? `<button class="btn btn-danger" style="font-size:12px;padding:6px 14px;" onclick="localStorage.removeItem('print_header_logo');this.previousElementSibling.previousElementSibling.previousElementSibling.style.display='none';this.remove()">${window.i18n.t('export_header_logo_remove') || 'Supprimer logo'}</button>` : ''}
+                    ${savedLogoB64 ? `<button class="btn btn-danger" style="font-size:12px;padding:6px 14px;" onclick="ProfileStorage.remove('print_header_logo');this.previousElementSibling.previousElementSibling.previousElementSibling.style.display='none';this.remove()">${window.i18n.t('export_header_logo_remove') || 'Supprimer logo'}</button>` : ''}
                 </div>
                 ${savedLogoB64 ? `<img id="exportLogoPreview" src="${savedLogoB64}" style="max-height:60px;max-width:200px;border-radius:6px;border:1px solid var(--border-color);object-fit:contain;">` : '<div id="exportLogoPreview"></div>'}
                 <div style="display:flex;gap:16px;flex-wrap:wrap;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
-                        <input type="checkbox" id="exportLogoLeft" ${savedLogoLeft ? 'checked' : ''} style="accent-color:var(--accent);" onchange="localStorage.setItem('print_logo_left', this.checked)">
+                        <input type="checkbox" id="exportLogoLeft" ${savedLogoLeft ? 'checked' : ''} style="accent-color:var(--accent);" onchange="ProfileStorage.set('print_logo_left', this.checked)">
                         ${window.i18n.t('export_logo_position_left') || 'Logo à gauche'}
                     </label>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
-                        <input type="checkbox" id="exportLogoRight" ${savedLogoRight ? 'checked' : ''} style="accent-color:var(--accent);" onchange="localStorage.setItem('print_logo_right', this.checked)">
+                        <input type="checkbox" id="exportLogoRight" ${savedLogoRight ? 'checked' : ''} style="accent-color:var(--accent);" onchange="ProfileStorage.set('print_logo_right', this.checked)">
                         ${window.i18n.t('export_logo_position_right') || 'Logo à droite'}
                     </label>
                 </div>
@@ -884,13 +884,13 @@ window.AnalyticsView = {
         const sectionDefs = {
             header: {
                 title: `🏛️ ${window.i18n.t('export_sec_header') || 'En-tête & Titre du document'}`,
-                isEnabled: localStorage.getItem('print_sec_enabled_header') !== 'false',
+                isEnabled: ProfileStorage.get('print_sec_enabled_header') !== 'false',
                 content: orgHeaderHtml,
                 isOrgOnly: true
             },
             kpi: {
                 title: `📌 ${window.i18n.t('export_sec_kpi') || 'Synthèse des indicateurs clés (Recettes, Dépenses, Résultat Net)'}`,
-                isEnabled: localStorage.getItem('print_sec_enabled_kpi') !== 'false',
+                isEnabled: ProfileStorage.get('print_sec_enabled_kpi') !== 'false',
                 content: ''
             },
             pie_chart: {
@@ -905,12 +905,12 @@ window.AnalyticsView = {
             },
             balances: {
                 title: `💳 ${window.i18n.t('export_sec_balances') || 'Situation des comptes & livrets'}`,
-                isEnabled: localStorage.getItem('print_sec_enabled_balances') !== 'false',
+                isEnabled: ProfileStorage.get('print_sec_enabled_balances') !== 'false',
                 content: `<div id="exportBalanceCheckboxes" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:6px;background:rgba(0,0,0,0.02);padding:10px;border-radius:8px;"></div>`
             },
             type_tables: {
                 title: `📋 ${window.i18n.t('export_sec_type_tables') || 'Tableaux croisés par Type & Catégories'}`,
-                isEnabled: localStorage.getItem('print_sec_enabled_type_tables') !== 'false',
+                isEnabled: ProfileStorage.get('print_sec_enabled_type_tables') !== 'false',
                 content: `
                     <div style="margin-bottom:12px;">
                         <h5 style="margin-bottom:6px;color:var(--text-muted);font-size:11px;text-transform:uppercase;">${window.i18n.t('export_annual_totals_section') || 'Colonnes de Totaux Annuels'}</h5>
@@ -924,7 +924,7 @@ window.AnalyticsView = {
                     </div>
                     <div style="margin-bottom:12px;">
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
-                            <input type="checkbox" id="exportIncludeInactive" ${localStorage.getItem('print_settings_include_inactive') !== 'false' ? 'checked' : ''}>
+                            <input type="checkbox" id="exportIncludeInactive" ${ProfileStorage.get('print_settings_include_inactive') !== 'false' ? 'checked' : ''}>
                             <span>👁 ${window.i18n.t('export_include_inactive_cats') || 'Inclure les catégories inactives sur la période (présentes dans les totaux annuels)'}</span>
                         </label>
                     </div>
@@ -948,7 +948,7 @@ window.AnalyticsView = {
 
         const defaultOrder = ['header', 'kpi', 'pie_chart', 'bar_chart', 'balances', 'type_tables', 'transactions_list', 'signature'];
         let savedOrder;
-        try { savedOrder = JSON.parse(localStorage.getItem('print_sections_order')); } catch (e) { }
+        try { savedOrder = JSON.parse(ProfileStorage.get('print_sections_order')); } catch (e) { }
         if (!Array.isArray(savedOrder)) savedOrder = defaultOrder;
         defaultOrder.forEach(id => { if (!savedOrder.includes(id)) savedOrder.push(id); });
 
@@ -972,7 +972,7 @@ window.AnalyticsView = {
             if (!def) return '';
             if (def.isOrgOnly && !isOrgMode) return '';
 
-            const isCollapsed = localStorage.getItem(`print_sec_collapsed_${secId}`) !== 'false';
+            const isCollapsed = ProfileStorage.get(`print_sec_collapsed_${secId}`) !== 'false';
             const hasContent = !!def.content;
 
             return `
@@ -1019,11 +1019,11 @@ window.AnalyticsView = {
                         <div id="exportTabContentCustom" style="display:none; align-items:center; gap:12px; flex-wrap:wrap;">
                             <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
                                 <span>${window.i18n.t('export_date_start') || 'Du :'}</span>
-                                <input type="date" id="exportDateStart" class="inline-input" value="${savedCustomStart}" style="width:140px;" onchange="localStorage.setItem('print_settings_custom_start', this.value)">
+                                <input type="date" id="exportDateStart" class="inline-input" value="${savedCustomStart}" style="width:140px;" onchange="ProfileStorage.set('print_settings_custom_start', this.value)">
                             </label>
                             <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
                                 <span>${window.i18n.t('export_date_end') || 'Au :'}</span>
-                                <input type="date" id="exportDateEnd" class="inline-input" value="${savedCustomEnd}" style="width:140px;" onchange="localStorage.setItem('print_settings_custom_end', this.value)">
+                                <input type="date" id="exportDateEnd" class="inline-input" value="${savedCustomEnd}" style="width:140px;" onchange="ProfileStorage.set('print_settings_custom_end', this.value)">
                             </label>
                         </div>
                     </div>
@@ -1053,7 +1053,7 @@ window.AnalyticsView = {
                             ${isOrgMode ? `
                             <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
                                 <span>${window.i18n.t('export_title_font_size') || 'Titre :'}</span>
-                                <select id="exportTitleFontSize" class="inline-input" style="width:140px;" onchange="localStorage.setItem('print_settings_title_font_size', this.value)">
+                                <select id="exportTitleFontSize" class="inline-input" style="width:140px;" onchange="ProfileStorage.set('print_settings_title_font_size', this.value)">
                                     <option value="small" ${savedTitleFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Petit'}</option>
                                     <option value="medium" ${savedTitleFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Moyen (Défaut)'}</option>
                                     <option value="large" ${savedTitleFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Grand'}</option>
@@ -1062,7 +1062,7 @@ window.AnalyticsView = {
                             ` : ''}
                             <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
                                 <span>${window.i18n.t('export_table_font_size') || 'Tableaux :'}</span>
-                                <select id="exportTableFontSize" class="inline-input" style="width:140px;" onchange="localStorage.setItem('print_settings_table_font_size', this.value)">
+                                <select id="exportTableFontSize" class="inline-input" style="width:140px;" onchange="ProfileStorage.set('print_settings_table_font_size', this.value)">
                                     <option value="small" ${savedTableFontSize === 'small' ? 'selected' : ''}>${window.i18n.t('export_font_size_small') || 'Petit'}</option>
                                     <option value="medium" ${savedTableFontSize === 'medium' ? 'selected' : ''}>${window.i18n.t('export_font_size_medium') || 'Moyen (Défaut)'}</option>
                                     <option value="large" ${savedTableFontSize === 'large' ? 'selected' : ''}>${window.i18n.t('export_font_size_large') || 'Grand'}</option>
@@ -1091,7 +1091,7 @@ window.AnalyticsView = {
 
     switchExportTab(mode) {
         this._exportTabMode = mode;
-        localStorage.setItem('print_settings_tab_mode', mode);
+        ProfileStorage.set('print_settings_tab_mode', mode);
         const tabYear = document.getElementById('tabYear');
         const tabCustom = document.getElementById('tabCustom');
         const contentYear = document.getElementById('exportTabContentYear');
@@ -1232,7 +1232,7 @@ window.AnalyticsView = {
     _saveSectionsOrder() {
         const cards = document.querySelectorAll('.export-section-card');
         const order = Array.from(cards).map(c => c.getAttribute('data-section-id'));
-        localStorage.setItem('print_sections_order', JSON.stringify(order));
+        ProfileStorage.set('print_sections_order', JSON.stringify(order));
     },
 
     _toggleSectionCard(secId) {
@@ -1242,7 +1242,7 @@ window.AnalyticsView = {
         const isHidden = content.style.display === 'none';
         content.style.display = isHidden ? 'block' : 'none';
         if (chevron) chevron.textContent = isHidden ? '▼' : '▶';
-        localStorage.setItem(`print_sec_collapsed_${secId}`, isHidden ? 'false' : 'true');
+        ProfileStorage.set(`print_sec_collapsed_${secId}`, isHidden ? 'false' : 'true');
     },
 
     _saveExportCategorySelection() {
@@ -1250,16 +1250,16 @@ window.AnalyticsView = {
         if (!modal) return;
         const selectedCats = Array.from(modal.querySelectorAll('.export-cat-cb:checked')).map(cb => cb.value);
         const selectedTypes = Array.from(modal.querySelectorAll('.export-type-cb:checked')).map(cb => cb.value);
-        localStorage.setItem('print_settings_cats', JSON.stringify(selectedCats));
-        localStorage.setItem('print_settings_types', JSON.stringify(selectedTypes));
+        ProfileStorage.set('print_settings_cats', JSON.stringify(selectedCats));
+        ProfileStorage.set('print_settings_types', JSON.stringify(selectedTypes));
     },
 
     _onSectionEnableChange(secId, isChecked) {
-        localStorage.setItem(`print_sec_enabled_${secId}`, isChecked);
-        if (secId === 'signature') localStorage.setItem('print_settings_include_signature', isChecked);
-        if (secId === 'pie_chart') localStorage.setItem('print_settings_include_pie_chart', isChecked);
-        if (secId === 'bar_chart') localStorage.setItem('print_settings_include_bar_chart', isChecked);
-        if (secId === 'transactions_list') localStorage.setItem('print_settings_include_details', isChecked);
+        ProfileStorage.set(`print_sec_enabled_${secId}`, isChecked);
+        if (secId === 'signature') ProfileStorage.set('print_settings_include_signature', isChecked);
+        if (secId === 'pie_chart') ProfileStorage.set('print_settings_include_pie_chart', isChecked);
+        if (secId === 'bar_chart') ProfileStorage.set('print_settings_include_bar_chart', isChecked);
+        if (secId === 'transactions_list') ProfileStorage.set('print_settings_include_details', isChecked);
     },
 
     _addPageBreakCard() {
@@ -1333,24 +1333,24 @@ window.AnalyticsView = {
         const tableFontSize = modal.querySelector('#exportTableFontSize')?.value || 'medium';
 
         // Mémoriser les choix utilisateur
-        localStorage.setItem('print_settings_tab_mode', tabMode);
-        if (selectedYear) localStorage.setItem('print_settings_selected_year', selectedYear);
-        if (customStart) localStorage.setItem('print_settings_custom_start', customStart);
-        if (customEnd) localStorage.setItem('print_settings_custom_end', customEnd);
-        localStorage.setItem('analytics_years_totals', JSON.stringify(selectedYearsTotals));
-        localStorage.setItem('print_settings_types', JSON.stringify(selectedTypes));
-        localStorage.setItem('print_settings_cats', JSON.stringify(selectedCats));
-        localStorage.setItem('print_settings_cols', JSON.stringify(selectedCols));
-        localStorage.setItem('print_settings_include_details', includeDetails);
-        localStorage.setItem('print_settings_include_pie_chart', includePieChart);
-        localStorage.setItem('print_settings_include_bar_chart', includeBarChart);
-        localStorage.setItem('print_settings_include_signature', includeSignature);
-        localStorage.setItem('print_settings_title_font_size', titleFontSize);
-        localStorage.setItem('print_settings_table_font_size', tableFontSize);
+        ProfileStorage.set('print_settings_tab_mode', tabMode);
+        if (selectedYear) ProfileStorage.set('print_settings_selected_year', selectedYear);
+        if (customStart) ProfileStorage.set('print_settings_custom_start', customStart);
+        if (customEnd) ProfileStorage.set('print_settings_custom_end', customEnd);
+        ProfileStorage.set('analytics_years_totals', JSON.stringify(selectedYearsTotals));
+        ProfileStorage.set('print_settings_types', JSON.stringify(selectedTypes));
+        ProfileStorage.set('print_settings_cats', JSON.stringify(selectedCats));
+        ProfileStorage.set('print_settings_cols', JSON.stringify(selectedCols));
+        ProfileStorage.set('print_settings_include_details', includeDetails);
+        ProfileStorage.set('print_settings_include_pie_chart', includePieChart);
+        ProfileStorage.set('print_settings_include_bar_chart', includeBarChart);
+        ProfileStorage.set('print_settings_include_signature', includeSignature);
+        ProfileStorage.set('print_settings_title_font_size', titleFontSize);
+        ProfileStorage.set('print_settings_table_font_size', tableFontSize);
 
         // Bug #8 : En-tête pro (mode org)
         const headerTitle = modal.querySelector('#exportHeaderTitle')?.value?.trim() || '';
-        const headerLogoB64 = localStorage.getItem('print_header_logo') || null;
+        const headerLogoB64 = ProfileStorage.get('print_header_logo') || null;
         const logoLeft = modal.querySelector('#exportLogoLeft')?.checked ?? true;
         const logoRight = modal.querySelector('#exportLogoRight')?.checked ?? true;
 
@@ -1423,7 +1423,7 @@ window.AnalyticsView = {
 
         // Lire l'option catégories inactives avant le bloc by_type (utilisé aussi dans la boucle de filtrage)
         const includeInactive = modal.querySelector('#exportIncludeInactive')?.checked ?? true;
-        localStorage.setItem('print_settings_include_inactive', includeInactive);
+        ProfileStorage.set('print_settings_include_inactive', includeInactive);
 
         if (by_type) {
             // Filtrer avant de générer pour éviter de générer un saut de page sur un tableau masqué (résout le bug de page vide à la fin)
@@ -1827,7 +1827,7 @@ window.AnalyticsView = {
                 canvas.height = height;
                 canvas.getContext('2d').drawImage(img, 0, 0, width, height);
                 const resizedB64 = canvas.toDataURL('image/png');
-                localStorage.setItem('print_header_logo', resizedB64);
+                ProfileStorage.set('print_header_logo', resizedB64);
                 // Mettre à jour le preview dans la modale
                 const preview = document.getElementById('exportLogoPreview');
                 if (preview) {
@@ -1909,7 +1909,7 @@ window.AnalyticsView = {
             this.selectedYears = this.selectedYears.filter(y => y !== yr);
         }
 
-        localStorage.setItem('analytics_years_totals', JSON.stringify(this.selectedYears));
+        ProfileStorage.set('analytics_years_totals', JSON.stringify(this.selectedYears));
         this.renderAll();
     },
 

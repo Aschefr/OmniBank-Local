@@ -12,6 +12,5 @@ services:
       - ./package.json:/app/package.json
       - ./CHANGELOG.md:/app/CHANGELOG.md
     environment:
-      - DATABASE_URL=sqlite:///./data/omnibank.db
       - TZ=Europe/Paris
     restart: unless-stopped

@@ -8,7 +8,7 @@ window.RecurrenceView = {
     render() {
         const durationFilter = this.activeDurationFilter || 'all';
         const periodFilter = this.activePeriodFilter || 'all';
-        const viewMode = this.currentViewMode || localStorage.getItem('recurrences_viewMode') || 'table';
+        const viewMode = this.currentViewMode || ProfileStorage.get('recurrences_viewMode') || 'table';
         
         const durationClass = (f) => durationFilter === f ? 'active' : '';
         const periodClass = (f) => periodFilter === f ? 'active' : '';
@@ -324,11 +324,11 @@ window.RecurrenceView = {
         this.selectedYear = new Date().getFullYear();
         this.modifiedRows.clear();
         this.expandedTemplateIds.clear();
-        this.sortBy = localStorage.getItem('recurrences_sortBy') || 'description';
-        this.sortOrder = localStorage.getItem('recurrences_sortOrder') || 'asc';
-        this.activeDurationFilter = localStorage.getItem('recurrences_durationFilter') || 'all';
-        this.activePeriodFilter = localStorage.getItem('recurrences_periodFilter') || 'all';
-        this.currentViewMode = localStorage.getItem('recurrences_viewMode') || 'table';
+        this.sortBy = ProfileStorage.get('recurrences_sortBy') || 'description';
+        this.sortOrder = ProfileStorage.get('recurrences_sortOrder') || 'asc';
+        this.activeDurationFilter = ProfileStorage.get('recurrences_durationFilter') || 'all';
+        this.activePeriodFilter = ProfileStorage.get('recurrences_periodFilter') || 'all';
+        this.currentViewMode = ProfileStorage.get('recurrences_viewMode') || 'table';
         await this.loadData();
     },
 
@@ -911,7 +911,7 @@ window.RecurrenceView = {
         } else {
             this.activePeriodFilter = freq;
         }
-        localStorage.setItem('recurrences_periodFilter', this.activePeriodFilter);
+        ProfileStorage.set('recurrences_periodFilter', this.activePeriodFilter);
         this._updateFilterBadges();
         this.renderMainContent();
     },
@@ -923,7 +923,7 @@ window.RecurrenceView = {
         } else {
             this.activeDurationFilter = duration;
         }
-        localStorage.setItem('recurrences_durationFilter', this.activeDurationFilter);
+        ProfileStorage.set('recurrences_durationFilter', this.activeDurationFilter);
         this._updateFilterBadges();
         this.renderMainContent();
     },
@@ -931,8 +931,8 @@ window.RecurrenceView = {
     resetAllFilters() {
         this.activeDurationFilter = 'all';
         this.activePeriodFilter = 'all';
-        localStorage.setItem('recurrences_durationFilter', 'all');
-        localStorage.setItem('recurrences_periodFilter', 'all');
+        ProfileStorage.set('recurrences_durationFilter', 'all');
+        ProfileStorage.set('recurrences_periodFilter', 'all');
         this._updateFilterBadges();
         this.renderMainContent();
     },
@@ -1004,7 +1004,7 @@ window.RecurrenceView = {
 
     setViewMode(viewMode) {
         this.currentViewMode = viewMode;
-        localStorage.setItem('recurrences_viewMode', viewMode);
+        ProfileStorage.set('recurrences_viewMode', viewMode);
         
         const tableBtn = document.getElementById('viewModeTable');
         const timelineBtn = document.getElementById('viewModeTimeline');
@@ -1028,8 +1028,8 @@ window.RecurrenceView = {
             this.sortBy = columnName;
             this.sortOrder = 'asc';
         }
-        localStorage.setItem('recurrences_sortBy', this.sortBy);
-        localStorage.setItem('recurrences_sortOrder', this.sortOrder);
+        ProfileStorage.set('recurrences_sortBy', this.sortBy);
+        ProfileStorage.set('recurrences_sortOrder', this.sortOrder);
         this.loadData();
     },
 

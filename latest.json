@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC94enVSL3lSTGpsZHJPNk50RDBmOTY0N2pqdzJyQ3FhNC85SFIzS3ZQWS9NMzNJSVUvSTJxc3M3VDk3aUxRUDFsVlBVdGZaQjhEYUV1WFh3ZTdub0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1NDQxNzI4CWZpbGU6T21uaUJhbmtfMS4wLjc0X3g2NF9mci1GUi5tc2kKNWM0cmRhL1RMYXphMUFIMTNESndDTkxpS3F3eUtVOWp2Y2tKQWFBMDBVaDM5OXdkTnRQY3d4dk56cS9qU2tSelBHay9wWVBScnlWcmN5S0duMElqRHc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.74/OmniBank_1.0.74_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDdrbkwzYWVRRTBOaVJFT2lhNmR2RXY2aG1jNUsxdnBodDdHYklSeERQbi9UWm8zc0twZEFTVS9xbG1oQU4xdHdpRHRaZTFjdldoODkxazRnVC9mQWdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1NjA2NDQ2CWZpbGU6T21uaUJhbmtfMS4wLjc1X3g2NF9mci1GUi5tc2kKMVhqQWRnWlFoaVlqd0w4bTFLSXUvT0dPUjkyYzM3YjJNaXBnc2RjVXRyVjE2K25aMStTNHR6ZW5yVG1GbTNwT3ptck1ETVA4R0FPSE5hT2x4SFlIQmc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.75/OmniBank_1.0.75_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-07-30T20:02:09Z",
-    "version":  "1.0.74",
-    "notes":  "Trends view toolbar reorganization, continuous alignment \u0026 DB persistence"
+    "pub_date":  "2026-08-01T17:47:26Z",
+    "version":  "1.0.75",
+    "notes":  "Multi-Master Profiles (👥), Custom Accent Colors (🎨), Dynamic Instant Updates (⚡), Enhanced Security \u0026 Auto-Lock (🔒), Bilingual i18n (🌐)"
 }

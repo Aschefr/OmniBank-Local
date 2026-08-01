@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
-from app.database import DATA_DIR, DB_PATH, SessionLocal, engine
+from app.database import DATA_DIR, SessionLocal, get_engine, get_current_db_path, get_current_uploads_dir
 from app.models import GlobalConfig
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,6 @@ router = APIRouter(prefix="/api/backup/auto", tags=["auto_backup"])
 # ── Paths ────────────────────────────────────────────────────────────
 BACKUPS_DIR = os.path.join(DATA_DIR, "backups")
 STATUS_FILE = os.path.join(BACKUPS_DIR, "backup_status.json")
-UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
 
 os.makedirs(BACKUPS_DIR, exist_ok=True)
 
@@ -124,26 +123,29 @@ def run_backup_now() -> dict:
     filepath = os.path.join(BACKUPS_DIR, filename)
 
     try:
+        db_path = get_current_db_path()
+        uploads_dir = get_current_uploads_dir()
+
         # Checkpoint SQLite WAL pour vider les transactions en cours dans le fichier .db principal
         try:
-            with engine.connect() as conn:
+            with get_engine().connect() as conn:
                 conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
         except Exception as checkpoint_err:
             logger.warning(f"[AutoBackup] Checkpoint WAL échoué : {checkpoint_err}")
 
         with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
             # Base de données
-            if os.path.exists(DB_PATH):
-                zipf.write(DB_PATH, arcname="omnibank.db")
+            if os.path.exists(db_path):
+                zipf.write(db_path, arcname="omnibank.db")
 
             # Pièces jointes
-            if os.path.isdir(UPLOADS_DIR):
-                for root, _dirs, files in os.walk(UPLOADS_DIR):
+            if os.path.isdir(uploads_dir):
+                for root, _dirs, files in os.walk(uploads_dir):
                     for file in files:
                         file_path = os.path.join(root, file)
                         arcname = os.path.join(
                             "uploads",
-                            os.path.relpath(file_path, start=UPLOADS_DIR),
+                            os.path.relpath(file_path, start=uploads_dir),
                         )
                         zipf.write(file_path, arcname=arcname)
 

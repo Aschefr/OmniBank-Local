@@ -28,17 +28,37 @@ from starlette.middleware.gzip import GZipMiddleware
 app = FastAPI(title="OmniBank Local")
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
+class NoCacheStaticFiles(StaticFiles):
+    def file_response(self, *args, **kwargs) -> FileResponse:
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        return response
+
 # Mount static files from bundled resources
 static_dir = resource_path("static")
 os.makedirs(static_dir, exist_ok=True)
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+app.mount("/static", NoCacheStaticFiles(directory=static_dir), name="static")
 
-# Mount user uploads from DATA_DIR (persisted in %APPDATA%)
-uploads_dir = os.path.join(DATA_DIR, "uploads")
-os.makedirs(uploads_dir, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
-# Backward compat: old attachments stored as "data/uploads/..." in DB
-app.mount("/data/uploads", StaticFiles(directory=uploads_dir), name="uploads_compat")
+# Dynamic user uploads serving per active profile
+from app.database import get_current_uploads_dir
+from fastapi import HTTPException
+from fastapi.responses import FileResponse
+
+@app.get("/uploads/{file_path:path}")
+async def serve_upload(file_path: str):
+    full_path = os.path.join(get_current_uploads_dir(), file_path)
+    if not os.path.isfile(full_path):
+        # Fallback pour rétrocompatibilité : dossier global uploads/
+        fallback_path = os.path.join(DATA_DIR, "uploads", file_path)
+        if os.path.isfile(fallback_path):
+            return FileResponse(fallback_path)
+        raise HTTPException(status_code=404, detail="Fichier introuvable.")
+    return FileResponse(full_path)
+
+@app.get("/data/uploads/{file_path:path}")
+async def serve_upload_compat(file_path: str):
+    return await serve_upload(file_path)
 
 from app.routers import (
     transactions,
@@ -59,7 +79,8 @@ from app.routers import (
     license,
     shared_mode,
     notifications,
-    history
+    history,
+    profiles
 )
 
 app.include_router(transactions.router)
@@ -81,12 +102,14 @@ app.include_router(license.router)
 app.include_router(shared_mode.router)
 app.include_router(notifications.router)
 app.include_router(history.router)
-
+app.include_router(profiles.router)
 
 
 @app.on_event("startup")
 async def startup_init():
     """Initialise la base de données et lance le scheduler de backup automatique."""
+    from app.profile_manager import ensure_profiles_initialized
+    ensure_profiles_initialized()
     init_db()
     from app.routers.auto_backup import start_scheduler
     start_scheduler()
@@ -214,7 +237,12 @@ def _get_spa_html():
 @app.get("/")
 def serve_spa():
     from fastapi.responses import HTMLResponse
-    return HTMLResponse(content=_get_spa_html(), media_type="text/html")
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    return HTMLResponse(content=_get_spa_html(), media_type="text/html", headers=headers)
 
 
 @app.get("/api/health")
@@ -321,7 +349,9 @@ def get_changelog(version: str = None):
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
-    file_location = os.path.join(uploads_dir, file.filename)
+    target_dir = get_current_uploads_dir()
+    os.makedirs(target_dir, exist_ok=True)
+    file_location = os.path.join(target_dir, file.filename)
     with open(file_location, "wb+") as file_object:
         file_object.write(file.file.read())
     return {"path": f"/uploads/{file.filename}"}

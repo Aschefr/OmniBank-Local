@@ -2,14 +2,19 @@
     /* Light Theme */
     --bg-base: #f4f6f8;
     --bg-surface: #ffffff;
+    --bg-card: #ffffff;
     --bg-input: #f0f2f5;
     --bg-sidebar: #ffffff;
     --text-main: #212b36;
     --text-muted: #637381;
     --border-color: #dfe3e8;
 
-    --accent: #2065d1;
-    --accent-hover: #103996;
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --accent-rgb: 99, 102, 241;
+    --accent-subtle: rgba(99, 102, 241, 0.14);
+    --accent-border: rgba(99, 102, 241, 0.35);
+    --accent-glow: rgba(99, 102, 241, 0.25);
 
     --success: #36b37e;
     --danger: #ff5630;
@@ -31,14 +36,19 @@
     /* Dark Theme */
     --bg-base: #161c24;
     --bg-surface: #212b36;
+    --bg-card: #212b36;
     --bg-input: #1c2430;
     --bg-sidebar: #1c252e;
     --text-main: #f9fafb;
     --text-muted: #919eab;
     --border-color: #333d48;
 
-    --accent: #3366ff;
-    --accent-hover: #1939b7;
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --accent-rgb: 99, 102, 241;
+    --accent-subtle: rgba(99, 102, 241, 0.18);
+    --accent-border: rgba(99, 102, 241, 0.40);
+    --accent-glow: rgba(99, 102, 241, 0.30);
 
     --success: #36b37e;
     --danger: #ff5630;
@@ -116,6 +126,8 @@ body {
     padding: 10px 20px;
     background: var(--bg-surface);
     border-bottom: 1px solid var(--border-color);
+    border-top: 3px solid var(--accent);
+    transition: border-top-color 0.3s ease;
 }
 
 .header-actions {
@@ -124,7 +136,7 @@ body {
     gap: 8px;
 }
 
-.header-actions button:not(.user-switcher-btn):not(.notif-action-btn):not(#langToggleBtn) {
+.header-actions button:not(.user-switcher-btn):not(.notif-action-btn):not(#langToggleBtn):not(.profile-badge):not(#profileBtn) {
     background: rgba(145, 158, 171, 0.12);
     border: none;
     font-size: 18px;
@@ -139,12 +151,12 @@ body {
     height: 32px;
 }
 
-.header-actions button:not(.user-switcher-btn):not(.notif-action-btn):not(#langToggleBtn):hover {
+.header-actions button:not(.user-switcher-btn):not(.notif-action-btn):not(#langToggleBtn):not(.profile-badge):not(#profileBtn):hover {
     background: rgba(145, 158, 171, 0.24);
 }
 
 .header-actions button.toggle-active {
-    background: rgba(99, 102, 241, 0.15);
+    background: var(--accent-subtle);
     color: var(--accent);
 }
 
@@ -204,6 +216,7 @@ body {
     padding: 6px 12px;
     border-radius: 6px;
     transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
 }
 
 .main-nav .nav-btn {
@@ -216,10 +229,16 @@ body {
     line-height: 1.2;
 }
 
-.nav-btn.active,
 .nav-btn:hover {
     color: var(--accent);
-    background-color: rgba(51, 102, 255, 0.08);
+    background-color: var(--accent-subtle);
+}
+
+.nav-btn.active {
+    color: var(--accent);
+    background-color: var(--accent-subtle);
+    border-bottom: 2px solid var(--accent);
+    box-shadow: 0 2px 8px var(--accent-glow);
 }
 
 .app-body {
@@ -3611,6 +3630,115 @@ input[type="range"]::-moz-range-thumb:hover {
 
 /* ── Empty State ──────────────────────────────────────────────────────────── */
 .bv-empty { color: var(--text-muted); padding: 10px 0; }
+
+/* ── Master Profiles Selector CSS ────────────────────────────────────────── */
+.profile-selector {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.profile-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 5px 14px !important;
+    height: 34px !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 250px !important;
+    background: var(--accent-subtle) !important;
+    border: 1px solid var(--accent-border) !important;
+    border-radius: 20px !important;
+    color: var(--text-main) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.profile-badge:hover {
+    border-color: var(--accent) !important;
+    background: var(--accent-subtle) !important;
+    box-shadow: 0 0 12px var(--accent-glow) !important;
+}
+
+.profile-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px var(--accent-glow);
+}
+
+.profile-name {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+.profile-chevron {
+    font-size: 10px;
+    opacity: 0.6;
+    flex-shrink: 0;
+    margin-left: 2px;
+}
+
+.profile-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 200px;
+    background: var(--bg-surface);
+    border: 1px solid var(--accent-border);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    padding: 6px;
+    z-index: 9999;
+}
+
+.profile-dropdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.profile-dropdown-item:hover {
+    background: var(--accent-subtle);
+}
+
+.profile-dropdown-item.active {
+    font-weight: 700;
+    background: var(--accent-subtle);
+    border-left: 3px solid var(--accent);
+    color: var(--accent);
+}
+
+.profile-dropdown-add {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--accent);
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+.profile-dropdown-add:hover {
+    background: var(--accent-subtle);
+}
 
 
 

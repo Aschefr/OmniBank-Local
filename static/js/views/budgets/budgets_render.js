@@ -64,7 +64,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <span data-i18n="ai_wizard_toggle_desc">${window.i18n.t('ai_wizard_toggle_desc') || 'Guide pas à pas pour affiner et passer en revue vos enveloppes'}</span>
                         </div>
                         <label class="switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
-                            <input type="checkbox" id="aiWizardToggleCheck" ${localStorage.getItem('budget_ai_wizard_enabled') !== 'false' ? 'checked' : ''} onchange="localStorage.setItem('budget_ai_wizard_enabled', this.checked)">
+                            <input type="checkbox" id="aiWizardToggleCheck" ${ProfileStorage.get('budget_ai_wizard_enabled') !== 'false' ? 'checked' : ''} onchange="ProfileStorage.set('budget_ai_wizard_enabled', this.checked)">
                             <span class="slider round"></span>
                         </label>
                     </div>
@@ -434,7 +434,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const container = document.getElementById('budgetStatusContainer');
         const hasBudgets = this.statusData && this.statusData.budgets && this.statusData.budgets.length > 0;
 
-        const showCapacity = localStorage.getItem('show_budget_capacity_panel') !== 'false';
+        const showCapacity = ProfileStorage.get('show_budget_capacity_panel') !== 'false';
         const panelHelpText = window.i18n.t('budget_capacity_tooltip') || "À quoi sert ce panneau ?\nLa capacité budgétaire compare l'ensemble de vos enveloppes à vos recettes/revenus. C'est un outil prédictif basé sur le passé à titre indicatif.";
 
         const toggleHeaderHtml = `
@@ -608,7 +608,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <div style="display:flex;align-items:center;gap:0;${monthOpacity}">
                         <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:6px 0 0 6px;border-right:none;" onclick="window.BudgetsView.stepMonthly(-1)">◀</button>
-                        <input type="month" id="budgetMonthInput" class="inline-input" style="min-width:130px;border-radius:0;font-size:12px;padding:4px 6px;" value="${this.monthlyMonth}" onchange="window.BudgetsView.monthlyMonth=this.value;localStorage.setItem('budget_monthly_month',this.value);window.BudgetsView.loadStatusForType('monthly')">
+                        <input type="month" id="budgetMonthInput" class="inline-input" style="min-width:130px;border-radius:0;font-size:12px;padding:4px 6px;" value="${this.monthlyMonth}" onchange="window.BudgetsView.monthlyMonth=this.value;ProfileStorage.set('budget_monthly_month',this.value);window.BudgetsView.loadStatusForType('monthly')">
                         <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:0 6px 6px 0;border-left:none;" onclick="window.BudgetsView.stepMonthly(1)">▶</button>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;">
