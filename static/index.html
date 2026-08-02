@@ -140,9 +140,10 @@
                     <button data-view="history" class="nav-btn" style="text-align: left;">🕓 <span data-i18n="nav_history_actions">Actions</span></button>
                     <button data-view="config" class="nav-btn" style="text-align: left;">⚙️ <span data-i18n="nav_configuration">Configuration</span></button>
                     
-                    <div style="border-top: 1px solid var(--border-color); margin: 8px 0; padding-top: 8px; display: flex; gap: 8px; align-items: center; justify-content: space-around;">
-                        <button onclick="document.getElementById('themeToggle').click()" class="btn btn-secondary btn-sm" title="Changer le thème" style="padding: 6px 12px; font-size: 14px;">🌓 Thème</button>
-                        <button onclick="document.getElementById('privacyToggle').click()" class="btn btn-secondary btn-sm" title="Masquer les montants" style="padding: 6px 12px; font-size: 14px;">👁️ Masquer</button>
+                    <div style="border-top: 1px solid var(--border-color); margin: 8px 0; padding-top: 8px; display: flex; gap: 8px; align-items: center; justify-content: space-around; flex-wrap: wrap;">
+                        <button onclick="document.getElementById('themeToggle').click()" class="btn btn-secondary btn-sm" title="Changer le thème" style="padding: 6px 10px; font-size: 13px;">🌓 Thème</button>
+                        <button onclick="document.getElementById('privacyToggle').click()" class="btn btn-secondary btn-sm" title="Masquer les montants" style="padding: 6px 10px; font-size: 13px;">👁️ Masquer</button>
+                        <button onclick="window.ServerConfig.openModal()" class="btn btn-secondary btn-sm" title="Connexion au serveur" style="padding: 6px 10px; font-size: 13px;">📡 Serveur</button>
                     </div>
                 </nav>
 
@@ -996,6 +997,48 @@
         </div>
     </div>
 
+    <!-- Server Connection Modal (Remote Docker / Tailscale / Local IP Switcher) -->
+    <div id="serverConfigModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(6px); z-index:99998; align-items:center; justify-content:center;">
+        <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:18px; width:440px; max-width:92vw; padding:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.4); color:var(--text-main);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 style="margin:0; font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; color:var(--text-main);">
+                    <span>📡</span> <span>Connexion au Serveur OmniBank</span>
+                </h3>
+                <button onclick="window.ServerConfig.closeModal()" style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;">✕</button>
+            </div>
+
+            <p style="font-size:13px; color:var(--text-muted); margin:0 0 16px 0; line-height:1.5;">
+                Saisissez l'adresse de votre instance OmniBank auto-hébergée (Docker, PC local ou VPN Tailscale).
+            </p>
+
+            <div style="margin-bottom:14px;">
+                <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">Adresse du serveur (IP ou Domaine)</label>
+                <input type="text" id="serverHostInput" placeholder="ex: 192.168.1.50 ou omnibank.home" style="width:100%; font-size:14px; padding:10px 12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main);" />
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">Port HTTP (défaut : 8434)</label>
+                <input type="number" id="serverPortInput" placeholder="8434" value="8434" style="width:100%; font-size:14px; padding:10px 12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main);" />
+            </div>
+
+            <div id="serverConfigStatus" style="display:none; font-size:13px; padding:10px 12px; border-radius:8px; margin-bottom:16px;"></div>
+
+            <!-- Found Local Instances Section -->
+            <div id="discoveredServersContainer" style="margin-bottom:16px; display:none;">
+                <label style="display:block; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Serveurs détectés sur le réseau Wi-Fi</label>
+                <div id="discoveredServersList" style="display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto;"></div>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-top:20px;">
+                <button class="btn btn-secondary" style="font-size:12px; padding:8px 12px;" onclick="window.ServerConfig.discoverServers()">🔍 Auto-détection Wi-Fi</button>
+                <div style="display:flex; gap:8px; margin-left:auto;">
+                    <button class="btn btn-secondary" style="font-size:13px;" onclick="window.ServerConfig.testConnection()">Tester</button>
+                    <button class="btn btn-primary" style="font-size:13px;" onclick="window.ServerConfig.saveConnection()">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- App Lock Screen Overlay (Multi-Profiles & Auto-Lock) -->
     <div id="appLockScreen" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--bg-base); z-index:99999; flex-direction:column; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(10px);">
         <div style="text-align:center; max-width:440px; width:100%; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:20px; padding:32px 24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); color:var(--text-main);">
@@ -1029,6 +1072,7 @@
     <script src="/static/js/views/license_manager.js"></script>
     <script src="/static/js/views/setup_wizard.js?v=2"></script>
     <script src="/static/js/views/history_manager.js"></script>
+    <script src="/static/js/components/server_config.js"></script>
     <script src="/static/js/app.js?v=10"></script>
 </body>
 </html>

@@ -43,17 +43,39 @@ async function _handleApiError(res) {
 }
 
 const API = {
+    getBaseUrl() {
+        return localStorage.getItem('omnibank_server_url') || '';
+    },
+    setBaseUrl(url) {
+        if (url) {
+            let clean = url.trim().replace(/\/+$/, '');
+            if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+                clean = 'http://' + clean;
+            }
+            localStorage.setItem('omnibank_server_url', clean);
+        } else {
+            localStorage.removeItem('omnibank_server_url');
+        }
+    },
+    fullUrl(endpoint) {
+        const base = this.getBaseUrl();
+        if (!base) return endpoint;
+        const cleanBase = base.replace(/\/+$/, '');
+        const cleanEp = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+        return cleanBase + cleanEp;
+    },
     async get(endpoint) {
-        // Prevent browser caching by appending a timestamp
-        const separator = endpoint.includes('?') ? '&' : '?';
-        const url = `${endpoint}${separator}_t=${Date.now()}`;
+        const targetUrl = this.fullUrl(endpoint);
+        const separator = targetUrl.includes('?') ? '&' : '?';
+        const url = `${targetUrl}${separator}_t=${Date.now()}`;
         
         const res = await fetch(url);
         if (!res.ok) await _handleApiError(res);
         return res.json();
     },
     async post(endpoint, data) {
-        const res = await fetch(endpoint, {
+        const targetUrl = this.fullUrl(endpoint);
+        const res = await fetch(targetUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -66,7 +88,8 @@ const API = {
         return json;
     },
     async put(endpoint, data) {
-        const res = await fetch(endpoint, {
+        const targetUrl = this.fullUrl(endpoint);
+        const res = await fetch(targetUrl, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -79,12 +102,13 @@ const API = {
         return json;
     },
     async del(endpoint, data = null) {
+        const targetUrl = this.fullUrl(endpoint);
         const options = { method: 'DELETE' };
         if (data !== null && data !== undefined) {
             options.headers = { 'Content-Type': 'application/json' };
             options.body = JSON.stringify(data);
         }
-        const res = await fetch(endpoint, options);
+        const res = await fetch(targetUrl, options);
         if (!res.ok) await _handleApiError(res);
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
@@ -93,6 +117,26 @@ const API = {
         return json;
     }
 };
+
+// Global fetch interceptor for remote server URL support
+if (typeof window._originalFetch === 'undefined') {
+    window._originalFetch = window.fetch;
+    window.fetch = function(resource, config) {
+        if (typeof resource === 'string' && resource.startsWith('/')) {
+            const baseUrl = API.getBaseUrl();
+            if (baseUrl) {
+                resource = baseUrl.replace(/\/+$/, '') + resource;
+            }
+        } else if (resource instanceof Request && typeof resource.url === 'string' && resource.url.startsWith('/')) {
+            const baseUrl = API.getBaseUrl();
+            if (baseUrl) {
+                const target = baseUrl.replace(/\/+$/, '') + resource.url;
+                resource = new Request(target, resource);
+            }
+        }
+        return window._originalFetch.call(this, resource, config);
+    };
+}
 
 function showInlineConfirm(titleKey, messageKey) {
     return new Promise((resolve) => {
