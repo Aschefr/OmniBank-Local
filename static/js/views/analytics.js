@@ -996,7 +996,7 @@ window.AnalyticsView = {
 
         const modalHtml = `
         <div id="exportPdfModal" class="modal-overlay" style="display:flex;z-index:9999;">
-            <div class="modal" style="width:750px; max-width:92vw; max-height:92vh; display:flex; flex-direction:column;">
+            <div class="modal" style="width: min(750px, calc(100vw - 24px)); max-width:92vw; max-height:92vh; display:flex; flex-direction:column;">
                 <h3 style="margin-bottom: 14px;">${window.i18n.t('export_modal_title')}</h3>
                 <div style="flex:1; overflow-y:auto; padding-right:8px;">
                     <!-- Période du document -->

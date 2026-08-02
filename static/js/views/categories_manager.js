@@ -53,7 +53,7 @@ window.CategoriesView = {
 
             <!-- Edit Modal -->
             <div id="catEditModal" class="modal-overlay" style="display:none; z-index:1000;">
-                <div class="modal" style="width: 400px; padding: 25px;">
+                <div class="modal" style="width: min(400px, calc(100vw - 24px)); padding: 25px;">
                     <h3 style="margin-top:0; margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:10px;" data-i18n="cat_edit">Edit Category</h3>
                     <input type="hidden" id="edit_cat_id">
                     <div style="margin-bottom: 15px;">
@@ -81,7 +81,7 @@ window.CategoriesView = {
 
             <!-- Delete / Reallocate Modal -->
             <div id="catDeleteModal" class="modal-overlay" style="display:none; z-index:1000;">
-                <div class="modal" style="width: 400px; padding: 25px;">
+                <div class="modal" style="width: min(400px, calc(100vw - 24px)); padding: 25px;">
                     <h3 style="margin-top:0; color: #ff5630; margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:10px;" data-i18n="cat_delete">Delete Category</h3>
                     <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
                         <span data-i18n="cat_reallocate_msg">What to do with existing transactions associated with</span> <strong id="del_cat_name_display"></strong> ?

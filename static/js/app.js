@@ -251,20 +251,26 @@ class App {
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebarOverlay');
         if (mobileBtn && sidebar && overlay) {
-            mobileBtn.addEventListener('click', () => {
-                sidebar.classList.add('mobile-open');
-                overlay.classList.add('active');
-            });
-            overlay.addEventListener('click', () => {
+            const closeSidebar = () => {
                 sidebar.classList.remove('mobile-open');
                 overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            };
+
+            mobileBtn.addEventListener('click', () => {
+                const isOpen = sidebar.classList.contains('mobile-open');
+                if (isOpen) {
+                    closeSidebar();
+                } else {
+                    sidebar.classList.add('mobile-open');
+                    overlay.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
             });
+            overlay.addEventListener('click', closeSidebar);
             // Close sidebar when clicking a nav button on mobile
             document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    sidebar.classList.remove('mobile-open');
-                    overlay.classList.remove('active');
-                });
+                btn.addEventListener('click', closeSidebar);
             });
         }
         

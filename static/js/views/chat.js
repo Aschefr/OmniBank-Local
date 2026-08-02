@@ -777,7 +777,7 @@ window.ChatView = {
 
                     <!-- AI Memory Modal -->
                     <div id="chatMemoryPanel" class="chat-info-panel" onclick="if(event.target === this) window.ChatView.toggleMemoryModal()">
-                        <div class="chat-info-modal" style="max-width: 800px;">
+                        <div class="chat-info-modal" style="max-width: 800px; width: calc(100vw - 24px);">
                             <div class="chat-info-modal-header">
                                 <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;" data-i18n="config_ai_memory_title">
                                     <span>🧠 ${window.i18n.t('config_ai_memory_title')}</span>

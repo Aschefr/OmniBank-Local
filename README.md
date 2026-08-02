@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.75-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.76-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -184,6 +184,15 @@ Accédez à l'interface sur `http://localhost:8434`.
     * **Doublons mensuels** (deux instances non rapprochées le même mois).
 *   **🐛 Correctif Dashboard** : Les opérations non rapprochées de la période courante + l'offset de jours (5/15/30) sélectionné sont désormais correctement affichées (seules les opérations non rapprochées étaient auparavant visibles).
 
+## 🆕 Dernières Mises à Jour (v1.0.76)
+
+*   **📱 Compatibilité Ergonomique Mobile 100%** :
+    * **En-tête 1 ligne compact** ($52\text{px}$) avec menu hamburger **☰**, logo centré **🏦 OmniBank** et badge profil/cloche **🔔**.
+    * **Filtres sticky opaques** avec ombre portée empêchant les cartes de glisser de manière transparente sous les barres de filtres.
+    * **Totaux de l'historique ancrés en bas de page** (`position: fixed`) en grille $2\times2$ réactive.
+    * **Format cartes mobile pour les récurrences** (`.mobile-card-table`) avec conteneur anti-débordement (`.table-responsive`).
+    * **Sous-panneau de détails récurrences pleine largeur** à hauteur contrôlée ($320\text{px}$) avec repliage/dépliage réactif.
+
 ## 🆕 Dernières Mises à Jour (v1.0.75)
 
 *   **👥 Profils Maîtres Multiples** : Créez et basculez instantanément entre plusieurs espaces financiers totalement isolés (Perso, Pro, Asso) avec souveraineté des données 100% hors-ligne.
@@ -231,7 +240,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.75-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.76-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
