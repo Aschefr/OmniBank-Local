@@ -24,8 +24,16 @@ def resource_path(relative_path):
 logger.info(f"[Startup] DATA_DIR = {DATA_DIR}")
 
 from starlette.middleware.gzip import GZipMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="OmniBank Local")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
 class NoCacheStaticFiles(StaticFiles):
@@ -113,6 +121,13 @@ async def startup_init():
     init_db()
     from app.routers.auto_backup import start_scheduler
     start_scheduler()
+    
+    # Start UDP local discovery beacon
+    try:
+        from app.services.discovery_service import start_discovery_listener
+        start_discovery_listener()
+    except Exception as e:
+        logger.warning(f"[Discovery] Could not start UDP discovery service: {e}")
     
     # Automatically generate recurrences on startup
     from app.database import SessionLocal

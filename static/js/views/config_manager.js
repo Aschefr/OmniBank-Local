@@ -292,6 +292,19 @@ window.ConfigView = {
                 </div>
             </div>
 
+            <!-- Server Connection Settings Card -->
+            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <h3 style="display:flex; align-items:center; gap:8px; margin:0 0 4px 0;">📡 Connexion Serveur (Docker / Client Distant)</h3>
+                        <p style="color: var(--text-muted); font-size: 12px; margin: 0;">Configurez l'adresse IP et le port du serveur backend auto-hébergé pour les accès distants ou mobiles.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="window.ServerConfig.openModal()" style="display:flex; align-items:center; gap:6px;">
+                        <span>⚙️</span> <span>Configurer le serveur</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Improvement 05: Auto Backup -->
             <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
