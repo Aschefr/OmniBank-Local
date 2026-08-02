@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.76] - 2026-08-02
+
+### Added & Improved
+- **100% Mobile Viewport Compatibility 📱**:
+  - **Single-Line Compact Header**: Streamlined top header bar into a single-row 52px layout on mobile ($\le 768\text{px}$) with hamburger menu ☰, centered logo 🏦, and profile badge + notification bell 🔔.
+  - **Opaque Sticky Filter Bars**: Enhanced filter headers across History and Timeline views with solid background surfaces and drop shadows (`box-shadow`), eliminating card bleed during page scrolling.
+  - **Fixed History Totals Footer**: Repositioned operations summary metrics (`OPÉRATIONS`, `DÉPENSES`, `RECETTES`, `TOTAL AFFICHIÉ`) into a fixed bottom bar anchored to the viewport in a compact 2×2 grid layout.
+  - **Recurrences Mobile Card View**: Transformed the 11-column data table into responsive single-row card components (`.mobile-card-table`) with custom `data-label` cell formatting and an overflow-free scroll container (`.table-responsive`).
+  - **Full-Width & Compact Recurrence Details**: Expanded unfolded template occurrence cards (`.rec-details-cell`) across 100% of mobile card width with a 320px scrollable container (`.rec-instances-list`).
+  - **Reactive Detail Toggle (`toggleRow`)**: Fixed CSS specificity issue allowing expanded recurrence detail cards to toggle reactively on subsequent clicks.
+
 ## [1.0.75] - 2026-08-01
 
 ### Added & Improved

@@ -334,7 +334,7 @@ window.AccountsView = {
 
         const modalHtml = `
         <div id="accEditModal" class="modal-overlay" style="display:flex;z-index:9999;">
-            <div class="modal" style="width:480px; max-width:90vw;">
+            <div class="modal" style="width: min(480px, calc(100vw - 24px)); max-width:90vw;">
                 <h3 style="margin-bottom:20px;">${window.i18n.t('acc_edit_title') || 'Edit Account'}</h3>
                 <div style="display:flex;flex-direction:column;gap:16px;">
                     <div>

@@ -272,7 +272,7 @@ window.RecurrenceView = {
                 <h2>🔄 <span data-i18n="nav_recurrences">Récurrences</span></h2>
             </div>
             
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; background: var(--bg-surface); padding: 12px 20px; border-radius: 12px; border: 1px solid var(--border-color);">
+            <div class="rec-filter-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; background: var(--bg-surface); padding: 12px 20px; border-radius: 12px; border: 1px solid var(--border-color);">
                 <!-- Left: Combinable Filters (Duration + Period) -->
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <button class="btn-filter btn-filter-reset ${(durationFilter === 'all' && periodFilter === 'all') ? 'active' : ''}" onclick="window.RecurrenceView.resetAllFilters()" data-i18n="rec_filter_all">${window.i18n.t('rec_filter_all')}</button>
@@ -287,8 +287,8 @@ window.RecurrenceView = {
                     ${freqBadgesHtml}
                 </div>
                 <!-- Right: Text Search + View switcher -->
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;">
-                    <input type="text" id="recurrenceSearch" class="inline-input" data-i18n-placeholder="ph_search_recurrence" placeholder="${window.i18n.t('ph_search_recurrence')}" style="min-width: 180px; max-width: 250px; margin: 0;" oninput="window.RecurrenceView.applyFilter()">
+                <div class="rec-search-wrapper" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <input type="text" id="recurrenceSearch" class="inline-input" data-i18n-placeholder="ph_search_recurrence" placeholder="${window.i18n.t('ph_search_recurrence')}" style="min-width: 140px; flex: 1; margin: 0;" oninput="window.RecurrenceView.applyFilter()">
                     
                     <!-- View Toggle Buttons -->
                     <div style="display: flex; background: var(--bg-base); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color);">
@@ -511,23 +511,24 @@ window.RecurrenceView = {
 
     renderTableView(tableContainer, displayTemplates) {
         let tableHtml = `
-             <table class="data-table" style="width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px;">
-                <thead>
-                    <tr style="text-align: left; background: rgba(0, 0, 0, 0.02); border-bottom: 2px solid var(--border-color); user-select: none;">
-                        <th style="width: 3px; padding: 0; overflow: visible;"></th>
-                        <th style="padding: 12px; width: 45px; text-align: center;"></th>
-                        <th style="padding: 12px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('description')">${window.i18n.t('col_description')} ${this.getSortArrow('description')}</th>
-                        <th style="padding: 12px; width: 170px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('category')">${window.i18n.t('col_category')} ${this.getSortArrow('category')}</th>
-                        <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('frequency')">${window.i18n.t('wizard_th_frequency') || 'Frequency'} ${this.getSortArrow('frequency')}</th>
-                        <th style="padding: 12px; width: 100px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('status')">${window.i18n.t('col_status')} ${this.getSortArrow('status')}</th>
-                        <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('day')">${window.i18n.t('wizard_th_day') || 'Day of month'} ${this.getSortArrow('day')}</th>
-                        <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('progress')">${window.i18n.t('col_progress') || 'Progression'} ${this.getSortArrow('progress')}</th>
-                        <th style="padding: 12px; width: 120px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('amount')">${window.i18n.t('col_amount')} ${this.getSortArrow('amount')}</th>
-                        <th style="padding: 12px; width: 140px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('annual_total')">${window.i18n.t('col_total_annual') || 'Annual Total'} ${this.getSortArrow('annual_total')}</th>
-                        <th style="padding: 12px; width: 85px; text-align: center; white-space: nowrap;">${window.i18n.t('th_actions') || 'Actions'}</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <div class="table-responsive" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                 <table class="data-table mobile-card-table" style="width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px;">
+                    <thead>
+                        <tr style="text-align: left; background: rgba(0, 0, 0, 0.02); border-bottom: 2px solid var(--border-color); user-select: none;">
+                            <th style="width: 3px; padding: 0; overflow: visible;"></th>
+                            <th style="padding: 12px; width: 45px; text-align: center;"></th>
+                            <th style="padding: 12px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('description')">${window.i18n.t('col_description')} ${this.getSortArrow('description')}</th>
+                            <th style="padding: 12px; width: 170px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('category')">${window.i18n.t('col_category')} ${this.getSortArrow('category')}</th>
+                            <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('frequency')">${window.i18n.t('wizard_th_frequency') || 'Frequency'} ${this.getSortArrow('frequency')}</th>
+                            <th style="padding: 12px; width: 100px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('status')">${window.i18n.t('col_status')} ${this.getSortArrow('status')}</th>
+                            <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('day')">${window.i18n.t('wizard_th_day') || 'Day of month'} ${this.getSortArrow('day')}</th>
+                            <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('progress')">${window.i18n.t('col_progress') || 'Progression'} ${this.getSortArrow('progress')}</th>
+                            <th style="padding: 12px; width: 120px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('amount')">${window.i18n.t('col_amount')} ${this.getSortArrow('amount')}</th>
+                            <th style="padding: 12px; width: 140px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('annual_total')">${window.i18n.t('col_total_annual') || 'Annual Total'} ${this.getSortArrow('annual_total')}</th>
+                            <th style="padding: 12px; width: 85px; text-align: center; white-space: nowrap;">${window.i18n.t('th_actions') || 'Actions'}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
         `;
         
         displayTemplates.forEach(t => {
@@ -574,18 +575,18 @@ window.RecurrenceView = {
                     <td style="padding: 12px; text-align: center;">
                         <span id="chevron_${t.id}" style="${chevronStyle}">❯</span>
                     </td>
-                    <td style="padding: 12px; font-weight: 600; color: var(--text-main); font-size: 14px;">${t.description}</td>
-                    <td style="padding: 6px 12px;" onclick="event.stopPropagation()">
+                    <td data-label="Description" style="padding: 12px; font-weight: 600; color: var(--text-main); font-size: 14px;">${t.description}</td>
+                    <td data-label="${window.i18n.t('col_category') || 'Catégorie'}" style="padding: 6px 12px;" onclick="event.stopPropagation()">
                         <select class="inline-input" style="padding: 4px 8px; border-radius: 6px; font-size: 13px; width: 100%; border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;" onchange="window.RecurrenceView.changeTemplateCategory(this, ${t.id})">
                             <option value="">-- Sans catégorie --</option>
                             ${catOptionsHtml}
                             <option value="__new__" style="color: var(--primary-color); font-weight: bold;">+ Nouvelle catégorie...</option>
                         </select>
                     </td>
-                    <td style="padding: 12px; text-align: center;">${badgeHtml}</td>
-                    <td style="padding: 12px; text-align: center;">${statusBadgeHtml}</td>
-                    <td style="padding: 12px; text-align: center; font-size: 13px; color: var(--text-muted); font-weight: 500;">${t.day_of_month || 1}</td>
-                    <td style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
+                    <td data-label="${window.i18n.t('wizard_th_frequency') || 'Fréquence'}" style="padding: 12px; text-align: center;">${badgeHtml}</td>
+                    <td data-label="${window.i18n.t('col_status') || 'Statut'}" style="padding: 12px; text-align: center;">${statusBadgeHtml}</td>
+                    <td data-label="${window.i18n.t('wizard_th_day') || 'Jour'}" style="padding: 12px; text-align: center; font-size: 13px; color: var(--text-muted); font-weight: 500;">${t.day_of_month || 1}</td>
+                    <td data-label="${window.i18n.t('col_progress') || 'Progression'}" style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
                         <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; min-width: 90px;">
                             <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 3px; overflow: hidden; border: 1px solid var(--border-color);">
                                 <div style="width: ${t.progressPct}%; height: 100%; background: ${t.progressPct === 100 ? 'linear-gradient(90deg, #2ecc71, #27ae60)' : 'linear-gradient(90deg, var(--accent, #6c5ce7), #a29bfe)'}; border-radius: 3px; transition: width 0.3s ease;"></div>
@@ -593,17 +594,17 @@ window.RecurrenceView = {
                             <span style="font-size: 11px; font-weight: 600; color: var(--text-muted);">${t.progressPct}% <span style="font-size: 10px; font-weight: 500; opacity: 0.7;">(${t.reconciledCount}/${t.totalCount})</span></span>
                         </div>
                     </td>
-                    <td style="padding: 12px; text-align: right; font-weight: 600; color: ${typeColors.text}; font-size: 13px;">${formatCurrency(t.displayAmount)}</td>
-                    <td style="padding: 12px; text-align: right; font-weight: 700; color: ${typeColors.text}; font-size: 14px;"><span class="privacy-blur">${formatCurrency(t.totalAnnualAmount)}</span></td>
-                    <td style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
+                    <td data-label="${window.i18n.t('col_amount') || 'Montant'}" style="padding: 12px; text-align: right; font-weight: 600; color: ${typeColors.text}; font-size: 13px;">${formatCurrency(t.displayAmount)}</td>
+                    <td data-label="${window.i18n.t('col_total_annual') || 'Total Annuel'}" style="padding: 12px; text-align: right; font-weight: 700; color: ${typeColors.text}; font-size: 14px;"><span class="privacy-blur">${formatCurrency(t.totalAnnualAmount)}</span></td>
+                    <td class="mobile-card-actions" style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
                         <div style="display: flex; justify-content: center; gap: 6px;">
                             <button class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='var(--primary-color, #6366f1)'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.openEditModal(${t.id})" title="${window.i18n.t('tooltip_edit') || 'Modifier'}">✏️</button>
                             <button class="btn btn-secondary btn-delete" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='var(--danger, #ff5630)'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.deleteTemplate(${t.id})" title="${window.i18n.t('tooltip_delete') || 'Delete'}">🗑️</button>
                         </div>
                     </td>
                 </tr>
-                <tr id="details_row_${t.id}" style="display: ${displayStyle}; background: var(--bg-sidebar);">
-                    <td colspan="11" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
+                <tr id="details_row_${t.id}" class="rec-details-row" style="display: ${displayStyle}; background: var(--bg-sidebar);">
+                    <td colspan="11" class="rec-details-cell" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
                         <div id="details_content_${t.id}">
                             <!-- Rendered dynamically -->
                         </div>
@@ -613,8 +614,9 @@ window.RecurrenceView = {
         });
         
         tableHtml += `
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         `;
         tableContainer.innerHTML = tableHtml;
         
@@ -1047,12 +1049,12 @@ window.RecurrenceView = {
         
         if (this.expandedTemplateIds.has(templateId)) {
             this.expandedTemplateIds.delete(templateId);
-            detailsRow.style.display = 'none';
+            detailsRow.style.setProperty('display', 'none', 'important');
             if (chevron) chevron.style.transform = 'rotate(0deg)';
         } else {
             this.expandedTemplateIds.add(templateId);
-            // Use appropriate display value based on view mode
-            detailsRow.style.display = this.currentViewMode === 'timeline' ? 'block' : 'table-row';
+            const disp = (this.currentViewMode === 'timeline' || window.innerWidth <= 768) ? 'block' : 'table-row';
+            detailsRow.style.setProperty('display', disp, 'important');
             if (chevron) chevron.style.transform = 'rotate(90deg)';
             this.renderTemplateDetails(templateId);
         }
@@ -1087,13 +1089,13 @@ window.RecurrenceView = {
                 <h4 style="margin: 0; color: var(--text-muted); font-size: 14px; font-weight: bold;">${window.i18n.t('rec_year_details_title') || 'Détails des opérations de l\'année'}</h4>
                 <button id="save_btn_${templateId}" class="btn btn-primary" style="display: ${buttonDisplay}; padding: 6px 15px; font-size: 13px; font-weight: bold;" onclick="window.RecurrenceView.saveTemplateChanges(${templateId})">${window.i18n.t('btn_save_changes') || 'Sauvegarder les modifications'}</button>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 110px 140px; gap: 10px; margin-bottom: 10px; padding: 0 10px; font-weight: bold; color: var(--text-muted); text-align: center; font-size: 13px;">
+            <div class="rec-instance-header" style="display: grid; grid-template-columns: 1fr 1fr 110px 140px; gap: 10px; margin-bottom: 10px; padding: 0 10px; font-weight: bold; color: var(--text-muted); text-align: center; font-size: 13px;">
                 <div data-i18n="rec_col_date">${window.i18n.t('rec_col_date')}</div>
                 <div data-i18n="rec_col_amount">${window.i18n.t('rec_col_amount')}</div>
                 <div data-i18n="rec_col_status" data-i18n="rec_col_status">${window.i18n.t('rec_col_status') || 'Statut'}</div>
                 <div></div>
             </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div class="rec-instances-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; padding-right: 4px;">
         `;
         
         instancesHtml += templateTx.map(tx => {
@@ -1895,7 +1897,7 @@ window.RecurrenceView = {
                 
                 <form id="editRecurrenceForm" style="display: flex; flex-direction: column; gap: 15px;" onsubmit="event.preventDefault(); window.RecurrenceView.saveEditModal(${tpl.id})">
                     <!-- Line 1: Description & Montant -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div style="display: flex; flex-direction: column; gap: 5px;">
                             <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_description')}</label>
                             <input type="text" id="edit_desc" class="inline-input" value="${tpl.description || ''}" required style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit;">
@@ -1908,7 +1910,7 @@ window.RecurrenceView = {
                     </div>
 
                     <!-- Line 2: Type & Catégorie -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div style="display: flex; flex-direction: column; gap: 5px;">
                             <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_type') || "Type d'opération"}</label>
                             <select id="edit_type" class="inline-input" onchange="window.RecurrenceView.onEditTypeChange()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
@@ -1928,7 +1930,7 @@ window.RecurrenceView = {
                     </div>
 
                     <!-- Line 3: Fréquence & Jour du mois -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div style="display: flex; flex-direction: column; gap: 5px;">
                             <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('wizard_th_frequency') || 'Fréquence'}</label>
                             <select id="edit_freq" class="inline-input" onchange="window.RecurrenceView.onEditFreqChange()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
@@ -1944,7 +1946,7 @@ window.RecurrenceView = {
                     </div>
 
                     <!-- Line 4: Mois de l'année (only active if Yearly or Semi-Annually) & Max Occurrences -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div id="edit_month_container" style="display: flex; flex-direction: column; gap: 5px; opacity: ${['Yearly', 'Semi-Annually'].includes(tpl.frequency) ? '1' : '0.5'};">
                             <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_month_of_year') || "Mois de l'année"}</label>
                             <select id="edit_month" class="inline-input" ${['Yearly', 'Semi-Annually'].includes(tpl.frequency) ? '' : 'disabled'} style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
@@ -1959,7 +1961,7 @@ window.RecurrenceView = {
                     </div>
 
                     <!-- Line 5: Depuis & Vers -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div id="edit_from_acc_container" style="display: flex; flex-direction: column; gap: 5px;">
                             <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('label_from') || 'Depuis'}</label>
                             <select id="edit_from_acc" class="inline-input" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">

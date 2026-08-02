@@ -17,7 +17,7 @@ window.AllOperationsView = {
             <div id="historyColsModal" class="modal-overlay" style="display: none; z-index: 100;">
                 <div class="modal" style="max-width: 380px; min-width: auto; padding: 25px;">
                     <h3 style="margin-top:0; margin-bottom: 20px; display:flex; align-items:center; gap:8px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">${window.i18n.t('btn_columns')}</h3>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 25px;">
+                    <div class="op-form-grid-2" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 25px;">
                         <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_dateSaisie" onchange="window.AllOperationsView.toggleCol('dateSaisie')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_date_entry')}</label>
                         <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_date" onchange="window.AllOperationsView.toggleCol('date')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_date_op')}</label>
                         <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_desc" onchange="window.AllOperationsView.toggleCol('desc')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_description')}</label>
@@ -444,11 +444,11 @@ window.AllOperationsView = {
             const net = sumIncome - sumExpense;
             const netColor = net > 0 ? 'var(--color-income)' : (net < 0 ? 'var(--color-expense)' : 'inherit');
             footer.innerHTML = `
-                <div style="display:flex; gap: 20px; flex-wrap: wrap; width: 100%; align-items: center;">
-                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('allops_label_operations') || 'Opérations'}</span> <br/> <strong>${filtered.length}</strong></div>
-                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('allops_label_expenses') || 'Dépenses'}</span> <br/> <strong style="color:var(--color-expense);">${formatCurrency(sumExpense)}</strong></div>
-                    <div style="flex:1;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('type_income') || 'Recettes'}</span> <br/> <strong style="color:var(--color-income);">${formatCurrency(sumIncome)}</strong></div>
-                    <div style="flex:1; text-align:right;"><span style="color:var(--text-muted);font-size:12px;text-transform:uppercase;">${window.i18n.t('allops_label_total_shown') || 'Total Affiché'}</span> <br/> <strong style="font-size:16px; color:${netColor};">${formatCurrency(net)}</strong></div>
+                <div class="history-totals-grid" style="display:flex; gap: 16px; flex-wrap: wrap; width: 100%; align-items: center;">
+                    <div style="flex:1; min-width: 70px;"><span style="color:var(--text-muted);font-size:11px;text-transform:uppercase;white-space:nowrap;">${window.i18n.t('allops_label_operations') || 'Opérations'}</span> <br/> <strong style="font-size:14px;">${filtered.length}</strong></div>
+                    <div style="flex:1; min-width: 100px;"><span style="color:var(--text-muted);font-size:11px;text-transform:uppercase;white-space:nowrap;">${window.i18n.t('allops_label_expenses') || 'Dépenses'}</span> <br/> <strong style="font-size:14px; color:var(--color-expense);white-space:nowrap;">${formatCurrency(sumExpense)}</strong></div>
+                    <div style="flex:1; min-width: 100px;"><span style="color:var(--text-muted);font-size:11px;text-transform:uppercase;white-space:nowrap;">${window.i18n.t('type_income') || 'Recettes'}</span> <br/> <strong style="font-size:14px; color:var(--color-income);white-space:nowrap;">${formatCurrency(sumIncome)}</strong></div>
+                    <div style="flex:1; min-width: 100px; text-align:right;" class="total-affiche-box"><span style="color:var(--text-muted);font-size:11px;text-transform:uppercase;white-space:nowrap;">${window.i18n.t('allops_label_total_shown') || 'Total Affiché'}</span> <br/> <strong style="font-size:15px; color:${netColor};white-space:nowrap;">${formatCurrency(net)}</strong></div>
                 </div>
             `;
         }

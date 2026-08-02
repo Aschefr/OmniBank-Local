@@ -12,7 +12,7 @@
       "pin_salt": null,
       "icon": "👤",
       "currency": "EUR",
-      "pay_cycle_day": 29,
+      "pay_cycle_day": 25,
       "date_format": "DD/MM/YYYY"
     }
   ]
