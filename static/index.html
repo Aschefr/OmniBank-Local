@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title data-i18n="app_title">OmniBank Local</title>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
     
@@ -88,7 +88,7 @@
                         🔔
                         <span id="notifCountBadge" style="display: none; position: absolute; top: -4px; right: -4px; background: var(--accent); color: white; font-size: 8.5px; font-weight: 700; padding: 2px 4.5px; border-radius: 50%; line-height: 1;">0</span>
                     </button>
-                    <div id="notifMenu" style="display:none; position:absolute; top:100%; right:0; margin-top:8px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; box-shadow:var(--shadow-lg); z-index:10000; width:450px; overflow:hidden; font-size:13px; color:var(--text-main);">
+                    <div id="notifMenu" style="display:none; position:absolute; top:100%; right:0; margin-top:8px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; box-shadow:var(--shadow-lg); z-index:10000; width: min(450px, calc(100vw - 24px)); overflow:hidden; font-size:13px; color:var(--text-main);">
                         <div style="padding:12px 16px; border-bottom:1px solid var(--border-color); font-weight:600; display:flex; justify-content:space-between; align-items:center; background:var(--bg-base);">
                             <span data-i18n="notif_title_notifications">Notifications</span>
                             <div style="display:flex; align-items:center; gap:12px;">
@@ -137,7 +137,13 @@
                     <button data-view="recurrences" class="nav-btn" style="text-align: left;">🔄 <span data-i18n="nav_recurrences">Récurrences</span></button>
                     <button data-view="categories" class="nav-btn" style="text-align: left;">🏷️ <span data-i18n="nav_categories">Catégories</span></button>
                     <button data-view="accounts" class="nav-btn" style="text-align: left;">🏦 <span data-i18n="nav_accounts">Comptes</span></button>
+                    <button data-view="history" class="nav-btn" style="text-align: left;">🕓 <span data-i18n="nav_history_actions">Actions</span></button>
                     <button data-view="config" class="nav-btn" style="text-align: left;">⚙️ <span data-i18n="nav_configuration">Configuration</span></button>
+                    
+                    <div style="border-top: 1px solid var(--border-color); margin: 8px 0; padding-top: 8px; display: flex; gap: 8px; align-items: center; justify-content: space-around;">
+                        <button onclick="document.getElementById('themeToggle').click()" class="btn btn-secondary btn-sm" title="Changer le thème" style="padding: 6px 12px; font-size: 14px;">🌓 Thème</button>
+                        <button onclick="document.getElementById('privacyToggle').click()" class="btn btn-secondary btn-sm" title="Masquer les montants" style="padding: 6px 12px; font-size: 14px;">👁️ Masquer</button>
+                    </div>
                 </nav>
 
                 <div>
@@ -374,7 +380,7 @@
 
     <!-- Unified Operation Modal -->
     <div id="operationModal" class="modal-overlay" style="display: none;">
-        <div class="modal" style="width: 620px; max-width: 95vw; max-height: 90vh; border-radius: 14px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6); padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+        <div class="modal" style="width: min(620px, calc(100vw - 24px)); max-width: 95vw; max-height: 90vh; border-radius: 14px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6); padding: 0; overflow: hidden; display: flex; flex-direction: column;">
             <!-- Header -->
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0;">
                 <h3 style="margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.3px;" data-i18n="form_title">Saisie d'opération</h3>
@@ -386,7 +392,7 @@
             <div class="op-modal-grid" style="display: flex; flex-direction: column; gap: 16px;">
                 
                 <!-- 1. Description + Amount -->
-                <div style="display: grid; grid-template-columns: 1fr 140px; gap: 12px;">
+                <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 140px; gap: 12px;">
                     <div>
                         <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_description">Description*</label>
                         <input type="text" id="op_desc" class="inline-input" data-i18n-placeholder="ph_description" placeholder="Ex: Amazon, Salaire..." list="descList" autocomplete="off" style="width: 100%; font-size: 13px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-input);" oninput="window.FormView.onDescriptionInput()">
@@ -429,7 +435,7 @@
                 </div>
 
                 <!-- 3. Depuis / Vers -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                             <label class="input-label" style="font-size:10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_from">Depuis</label>
@@ -479,7 +485,7 @@
                 
                 <!-- Bimonthly Day Inputs -->
                 <div id="op_bimonthly_days_container" style="display: none; background: var(--bg-sidebar); padding: 15px; border-radius: 12px; margin-top: -10px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div>
                             <label class="input-label" style="display:block; font-size:12px; font-weight: 600; margin-bottom:6px;" data-i18n="label_day_1">Jour 1</label>
                             <input type="number" id="op_rec_day_1" class="inline-input" min="1" max="31" style="width: 100%; border-radius: 8px; padding: 8px; border: 1px solid var(--border-color); background-color: var(--bg-surface);" oninput="window.FormView.calculateDay2()">
@@ -535,7 +541,7 @@
 
 
                 <!-- 5. Dates & Rapprochement -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
                         <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_planned_debit_date">Date prélèvement</label>
                         <input type="date" id="op_date" class="inline-input" style="width: 100%; border-radius: 6px; padding: 8px 10px; border: 1px solid var(--border-color); background-color: var(--bg-input);">
@@ -560,7 +566,7 @@
                 </div>
 
                 <!-- Check Slip & Attachments Container (Hidden by default) -->
-                <div id="op_optional_container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div id="op_optional_container" class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div id="op_check_slip_container" style="display: none;">
                         <label class="input-label" style="display:block; font-size:12px; font-weight: 600; margin-bottom:8px; color: var(--text-color);" data-i18n="label_check_slip">Bordereau de chèque</label>
                         <input type="text" id="op_check_slip" class="inline-input" data-i18n-placeholder="ph_check_slip" placeholder="N° de bordereau" style="width: 100%; border-radius: 8px; padding: 10px;">
@@ -588,7 +594,7 @@
             </div>
             </div>
 
-            <div style="display:flex; align-items:center; gap:12px; padding:10px 20px; border-top:1px solid var(--border-color); background:var(--bg-surface); flex-shrink:0;">
+            <div class="op-modal-footer" style="display:flex; align-items:center; gap:12px; padding:10px 20px; border-top:1px solid var(--border-color); background:var(--bg-surface); flex-shrink:0;">
                 <!-- Gauche : colonne 2 lignes -->
                 <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
                     <!-- Ligne 1 : toggle + badge "Vider champs" -->

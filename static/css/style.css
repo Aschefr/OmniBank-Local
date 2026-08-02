@@ -879,6 +879,38 @@ body.privacy-mode #valNextPayAmount:hover {
 }
 
 @media (max-width: 768px) {
+    .app-header {
+        height: 52px;
+        padding: 0 12px !important;
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    #appVersionBadge,
+    #compactToggle,
+    #privacyToggle,
+    #themeToggle,
+    #headerUndoBtn,
+    #headerRedoBtn,
+    .lang-dropdown {
+        display: none !important;
+    }
+
+    .header-actions {
+        gap: 6px !important;
+        flex-wrap: nowrap !important;
+    }
+
+    .profile-name {
+        max-width: 80px !important;
+    }
+
     .app-sidebar {
         position: fixed;
         left: -100%;
@@ -886,7 +918,7 @@ body.privacy-mode #valNextPayAmount:hover {
         bottom: 0;
         z-index: 1000;
         transition: left 0.3s ease;
-        width: 250px;
+        width: 270px;
         box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
     }
 
@@ -915,18 +947,13 @@ body.privacy-mode #valNextPayAmount:hover {
 
     .responsive-header {
         flex-direction: column !important;
-        justify-content: center !important;
+        align-items: stretch !important;
     }
 
     .responsive-header-controls {
         flex-direction: column !important;
         width: 100% !important;
-        justify-content: center !important;
-    }
-
-    .responsive-header-controls .history-filters,
-    .responsive-header-controls .header-buttons {
-        justify-content: center !important;
+        gap: 8px !important;
     }
 
     .app-container {
@@ -934,7 +961,7 @@ body.privacy-mode #valNextPayAmount:hover {
     }
 
     .app-main {
-        padding: 15px !important;
+        padding: 12px 12px 100px 12px !important; /* Bottom padding so cards scroll clear of fixed paycheck widget */
         scrollbar-width: thin;
         scrollbar-color: rgba(145, 158, 171, 0.12) transparent;
     }
@@ -950,7 +977,6 @@ body.privacy-mode #valNextPayAmount:hover {
 
     .main-nav {
         display: none;
-        /* Hide top nav if using sidebar exclusively, or adapt */
     }
 
     .mobile-nav {
@@ -968,8 +994,6 @@ body.privacy-mode #valNextPayAmount:hover {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
-
-
 
     /* Card layout for operation table */
     .mobile-card-table {
@@ -992,28 +1016,27 @@ body.privacy-mode #valNextPayAmount:hover {
 
     .mobile-card-table thead {
         display: none;
-        /* hide header row */
     }
 
     .mobile-card-table tbody tr {
         background: var(--bg-surface);
         border: 1px solid var(--border-color);
-        border-radius: 10px;
-        margin-bottom: 10px;
-        padding: 12px 14px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        padding: 12px;
         box-shadow: var(--shadow-sm);
         overflow: hidden;
     }
 
     .mobile-card-table tbody tr.reconciled-row {
-        opacity: 0.65;
+        opacity: 0.7;
     }
 
     .mobile-card-table td {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 4px 0;
+        padding: 5px 0;
         border: none;
         font-size: 13px;
         border-bottom: 1px solid transparent;
@@ -1033,8 +1056,84 @@ body.privacy-mode #valNextPayAmount:hover {
     .mobile-card-table td[data-label="Vers"],
     .mobile-card-table td[data-label="Répétition"],
     .mobile-card-table td[data-label="N° Bordereau"],
-    .mobile-card-table td[data-label="P. Jointes"] {
+    .mobile-card-table td[data-label="P. Jointes"],
+    .mobile-card-table td[data-label="Jour"],
+    .mobile-card-table td[data-label="Day of month"],
+    .mobile-card-table td[data-label="Progression"] {
         display: none !important;
+    }
+
+    #recurrenceStatsGrid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+    }
+
+    .rec-filter-bar {
+        padding: 10px 12px !important;
+        gap: 10px !important;
+    }
+
+    .rec-search-wrapper {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+
+    .rec-search-wrapper #recurrenceSearch {
+        width: 100% !important;
+        max-width: none !important;
+    }
+
+    .mobile-card-table tr.rec-details-row:not([style*="display: none"]),
+    .mobile-card-table td.rec-details-cell {
+        display: block !important;
+        width: 100% !important;
+        padding: 10px 0 !important;
+        border-bottom: none !important;
+        box-sizing: border-box !important;
+    }
+
+    .mobile-card-table tr.rec-details-row[style*="display: none"] {
+        display: none !important;
+    }
+
+    .mobile-card-table td.rec-details-cell::before {
+        display: none !important;
+    }
+
+    .rec-instance-header {
+        display: none !important;
+    }
+
+    .rec-instance-row {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px 10px !important;
+        padding: 8px !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+        align-items: center !important;
+    }
+
+    .rec-instance-row input[type="date"],
+    .rec-instance-row input[type="number"] {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        height: 32px !important;
+        font-size: 12px !important;
+    }
+
+    .rec-instance-row > div:nth-child(3),
+    .rec-instance-row > div:nth-child(4) {
+        grid-column: span 1;
+    }
+
+    .rec-instances-list {
+        max-height: 280px !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding-right: 4px;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .mobile-card-table td::before {
@@ -1060,28 +1159,131 @@ body.privacy-mode #valNextPayAmount:hover {
     }
 
     .mobile-card-table .mobile-card-actions {
-        justify-content: flex-end;
-        gap: 8px;
-        flex-direction: row;
-        padding-top: 8px;
+        justify-content: flex-end !important;
+        gap: 8px !important;
+        flex-direction: row !important;
+        padding-top: 10px !important;
         border-bottom: none !important;
+        width: 100% !important;
     }
 
     .mobile-card-table .mobile-card-actions::before {
         display: none;
     }
 
-    /* History filters wrap on mobile */
-    .view-header {
-        padding: 15px 0 !important;
-        margin-top: -15px !important;
-        gap: 12px !important;
+    .mobile-card-table .mobile-card-actions button {
+        height: 36px !important;
+        padding: 0 14px !important;
+        font-size: 12px !important;
+        border-radius: 8px !important;
     }
 
-    .view-footer {
-        margin: 0 -15px -15px -15px !important;
-        padding: 12px 15px 15px 15px !important;
-        bottom: -15px !important;
+    /* Sticky view headers on mobile: SOLID background with shadow */
+    .view-header,
+    #timelineHeader,
+    #historyHeader {
+        position: sticky !important;
+        top: -12px !important;
+        z-index: 900 !important;
+        background: var(--bg-surface) !important;
+        padding: 12px !important;
+        margin: -12px -12px 12px -12px !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+        gap: 10px !important;
+    }
+
+    .history-filters {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        gap: 6px !important;
+        justify-content: flex-start !important;
+    }
+
+    .history-filters input,
+    .history-filters select,
+    .history-filters > div {
+        flex: 1 1 calc(50% - 6px) !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 34px !important;
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+    }
+
+    .header-buttons {
+        display: flex !important;
+        width: 100% !important;
+        gap: 6px !important;
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+    }
+
+    .header-buttons button {
+        flex: 1 !important;
+        height: 36px !important;
+        padding: 0 8px !important;
+        font-size: 12px !important;
+        white-space: nowrap !important;
+        justify-content: center !important;
+    }
+
+    /* Paycheck Bottom Navigator Widget Mobile Dock */
+    #timelinePaycheckWidget {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        z-index: 900 !important;
+    }
+
+    #timelinePaycheckWidget > div {
+        border-radius: 16px 16px 0 0 !important;
+        border-bottom: none !important;
+        padding: 8px 14px !important;
+        background: var(--bg-surface) !important;
+        box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.5) !important;
+        border-top: 1px solid var(--border-color) !important;
+    }
+
+    #paycheckWidgetDesc {
+        display: none !important;
+    }
+
+    .view-footer,
+    #historyTotalsFooter {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 8px 14px 12px 14px !important;
+        background: var(--bg-surface) !important;
+        border-top: 1px solid var(--border-color) !important;
+        box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.5) !important;
+        z-index: 850 !important;
+    }
+
+    .history-totals-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px 12px !important;
+        width: 100% !important;
+        align-items: center !important;
+    }
+
+    .history-totals-grid > div {
+        flex: unset !important;
+        min-width: 0 !important;
+    }
+
+    .history-totals-grid .total-affiche-box {
+        text-align: right !important;
     }
 
     .history-filters {
@@ -1166,6 +1368,86 @@ body.privacy-mode #valNextPayAmount:hover {
     .form-row-inline>* {
         width: 100% !important;
         max-width: 100% !important;
+    }
+
+    /* ── Mobile Viewport 100% Enhancements ── */
+    .header-actions {
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
+    .header-actions button:not(.user-switcher-btn):not(.notif-action-btn):not(#langToggleBtn):not(.profile-badge):not(#profileBtn) {
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+    }
+
+    /* Anti-zoom iOS Safari */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+
+    /* Touch targets */
+    .btn-sm, .mobile-card-table .mobile-card-actions button {
+        min-height: 38px;
+        min-width: 38px;
+    }
+
+    /* Safe Area Insets */
+    .app-header {
+        padding-top: max(10px, env(safe-area-inset-top));
+    }
+    .view-footer {
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+
+    /* Notification menu popup mobile alignment fix */
+    #notifMenu {
+        position: fixed !important;
+        top: 55px !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        max-width: calc(100vw - 24px) !important;
+    }
+
+    /* Modal responsiveness */
+    .modal {
+        min-width: unset !important;
+        width: calc(100vw - 24px) !important;
+        max-width: 95vw !important;
+    }
+
+    .op-form-grid-2 {
+        grid-template-columns: 1fr !important;
+    }
+
+    .op-modal-footer {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    .op-modal-footer > div:last-child {
+        width: 100% !important;
+        justify-content: flex-end;
+    }
+
+    .op-modal-footer > div:last-child button {
+        flex: 1 !important;
+    }
+
+    .gantt-row, .gantt-header {
+        grid-template-columns: 130px 1fr !important;
+    }
+}
+
+/* Small smartphones breakpoint */
+@media (max-width: 480px) {
+    .bv-card-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .app-main {
+        padding: 10px !important;
     }
 }
 
