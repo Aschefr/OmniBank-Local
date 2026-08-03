@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.76] - 2026-08-02
+## [1.0.76] - 2026-08-03
 
 ### Added & Improved
 - **100% Mobile Viewport Compatibility 📱**:
@@ -12,6 +12,9 @@ All notable changes to this project will be documented in this file.
   - **Recurrences Mobile Card View**: Transformed the 11-column data table into responsive single-row card components (`.mobile-card-table`) with custom `data-label` cell formatting and an overflow-free scroll container (`.table-responsive`).
   - **Full-Width & Compact Recurrence Details**: Expanded unfolded template occurrence cards (`.rec-details-cell`) across 100% of mobile card width with a 320px scrollable container (`.rec-instances-list`).
   - **Reactive Detail Toggle (`toggleRow`)**: Fixed CSS specificity issue allowing expanded recurrence detail cards to toggle reactively on subsequent clicks.
+- **Transaction Edit Modal Polish & Ergonomics 🛠️**:
+  - **Fixed Footer Overflow**: Resolved primary save button truncation when *Keep Open*, *Clear Fields*, and *Delete Transaction* options are active.
+  - **Action Label & Layout Optimization**: Shortened primary action button text to **"Enregistrer"** (`Save` in EN), expanded modal container width to `660px` max, and added responsive `flex-wrap` layout to fit all screen sizes smoothly.
 
 ## [1.0.75] - 2026-08-01
 

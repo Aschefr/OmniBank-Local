@@ -109,6 +109,10 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ---
 
+## 🆕 Dernières Mises à Jour (v1.0.76)
+
+*   **📱 Compatibilité Mobile 100% & Ergonomie Modale** : En-tête compact 52px mono-ligne sur mobile (≤768px), barres de filtres opaques sur l'Historique/Timeline, footer de totaux ancré en grille 2×2, et cartes de récurrences 100% responsive. Correction du débordement du footer de la modale d'édition avec raccourcissement du bouton en **« Enregistrer »** et conteneur auto-adaptatif `flex-wrap`.
+
 ## 🆕 Dernières Mises à Jour (v1.0.74)
 
 *   **💼 Budgets & Enveloppes** : Thread-safety du service IA Ollama via `threading.Lock` et appels asynchrones non-bloquants, contraintes d'unicité et de vérification en base de données, nettoyage automatique des identifiants de comptes orphelins lors de la suppression d'un compte, et externalisation de 120+ styles inline vers des classes CSS sémantiques (`.bv-*`).
@@ -341,6 +345,10 @@ Access the interface at `http://localhost:8434`.
 *   **AI**: Ollama (Text & Vision Support).
 
 ---
+
+## 🆕 Recent Updates (v1.0.76)
+
+*   **📱 100% Mobile Viewport & Modal UX Polish** : Streamlined 52px single-row header on mobile (≤768px), opaque filter headers, fixed bottom summary totals bar, and fully responsive recurrence card views. Fixed transaction modal footer button overflow with shortened **"Save"** action button and responsive `flex-wrap` layout.
 
 ## 🆕 Recent Updates (v1.0.74)
 
