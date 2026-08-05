@@ -42,6 +42,7 @@
                 <div class="logo">🏦 <span data-i18n="app_title">OmniBank</span> <span id="appVersionBadge" onclick="window.app.showChangelog()" style="font-size: 10px; background: var(--bg-base); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 600; color: var(--text-muted); vertical-align: middle; letter-spacing: 0.3px; cursor: pointer; transition: background 0.2s, border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.borderColor='var(--border-color)';this.style.background='var(--bg-base)'">v…</span></div>
             </div>
             <nav class="main-nav">
+                <button data-view="overview" class="nav-btn" style="display:none;">👀 <span data-i18n="nav_overview">Vue d'ensemble</span></button>
                 <button data-view="dashboard" class="nav-btn active">🏠 <span data-i18n="nav_dashboard">Dashboard</span></button>
                 <button data-view="all_operations" class="nav-btn">📋 <span data-i18n="nav_history">Historique</span></button>
                 <button data-view="analytics" class="nav-btn">📊 <span data-i18n="nav_analytics">Synthèse</span></button>
@@ -128,6 +129,7 @@
             <aside class="app-sidebar" id="sidebar">
                 <nav class="mobile-nav" style="display: none; flex-direction: column; gap: 8px; margin-bottom: 20px;">
                     <h3 style="margin-bottom: 8px; color: var(--text-muted); font-size: 11px;">MENU</h3>
+                    <button data-view="overview" class="nav-btn" style="text-align: left; display:none;">👀 <span data-i18n="nav_overview">Vue d'ensemble</span></button>
                     <button data-view="dashboard" class="nav-btn active" style="text-align: left;">🏠 <span data-i18n="nav_dashboard">Dashboard</span></button>
                     <button data-view="all_operations" class="nav-btn" style="text-align: left;">📋 <span data-i18n="nav_history">Historique</span></button>
                     <button data-view="analytics" class="nav-btn" style="text-align: left;">📊 <span data-i18n="nav_analytics">Synthèse</span></button>
@@ -1106,6 +1108,7 @@
     <script src="/static/js/views/budgets/budgets_ai.js?v=13"></script>
     <script src="/static/js/views/budgets.js?v=3"></script>
     <script src="/static/js/views/trends.js?v=4"></script>
+    <script src="/static/js/views/overview.js?v=1"></script>
     <script src="/static/js/views/license_manager.js"></script>
     <script src="/static/js/views/setup_wizard.js?v=2"></script>
     <script src="/static/js/views/history_manager.js"></script>

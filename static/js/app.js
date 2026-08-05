@@ -283,6 +283,11 @@ class App {
             btn.style.display = this.config.enable_ai === 'true' ? '' : 'none';
         });
 
+        // Overview Features Visibility
+        document.querySelectorAll('.nav-btn[data-view="overview"]').forEach(btn => {
+            btn.style.display = this.config.enable_overview === 'true' ? '' : 'none';
+        });
+
         // Navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -299,7 +304,11 @@ class App {
         await this.refreshSidebar();
         
         // Restore view from ProfileStorage
-        const savedView = ProfileStorage.get('omni_current_view') || this.currentView;
+        let savedView = ProfileStorage.get('omni_current_view') || this.currentView;
+        // If overview is enabled and no saved view, default to overview
+        if (!ProfileStorage.get('omni_current_view') && this.config.enable_overview === 'true') {
+            savedView = 'overview';
+        }
         this.loadView(savedView);
 
         // Reveal UI after init is complete (prevents FOUC)
@@ -1562,8 +1571,22 @@ class App {
         if (viewName !== 'chat' && window.ChatView && window.ChatView.destroy) {
             window.ChatView.destroy();
         }
+        // Destroy overview chart when switching away
+        if (viewName !== 'overview' && window.OverviewView && window.OverviewView.destroy) {
+            window.OverviewView.destroy();
+        }
+
+        // Fullscreen toggle for overview
+        if (viewName === 'overview') {
+            document.body.classList.add('overview-fullscreen');
+        } else {
+            document.body.classList.remove('overview-fullscreen');
+        }
         
-        if (viewName === 'dashboard' && window.TimelineView) {
+        if (viewName === 'overview' && window.OverviewView) {
+            main.innerHTML = window.OverviewView.render();
+            window.OverviewView.init();
+        } else if (viewName === 'dashboard' && window.TimelineView) {
             main.innerHTML = window.TimelineView.render();
             window.TimelineView.init();
         } else if (viewName === 'recurrences' && window.RecurrenceView) {
