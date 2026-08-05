@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.78] - 2026-08-05
+
+### Added & Improved
+- **New Overview View ("Vue d'ensemble") 👀**:
+  - **All-in-One Financial Dashboard**: Introduced a modern, streamlined full-screen overview designed to give you an instant 360° summary of your personal finances.
+  - **Hero Financial KPIs**: Display total net worth, spendable *Reste à Vivre* (left-to-live), upcoming salary date, and proactive overdraft warnings at the top of your dashboard.
+  - **Central Pending Operations Table**: Easily review, filter, search, and reconcile all pending operations from a single central table without switching screens.
+  - **6-Month Financial Trend**: Interactive visual chart tracking your balance and spending trends over the past 6 months.
+  - **Budgets & Savings Snapshot**: At-a-glance status indicators for your active budget envelopes and savings progress, with direct quick-links to detailed views.
+
+- **Visual Alert Indicators for Past Unreconciled Transactions ⏳**:
+  - **Overdue Transaction Highlights**: Added a subtle amber alert indicator on transaction dates for past operations that haven't been reconciled yet.
+  - **Cross-View Consistency**: Clear visual highlight active across the **Overview**, **Timeline**, and **Operations History** views to help you catch forgotten or pending transactions.
+  - **Instant Feedback**: The alert badge automatically disappears as soon as you mark the transaction as reconciled (✓).
+
 ## [1.0.77] - 2026-08-03
 
 ### Added & Improved
