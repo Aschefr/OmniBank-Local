@@ -266,6 +266,23 @@ function formatCurrency(amount, currencyCode) {
     }
 }
 
+window.isPastUnreconciled = function(tx) {
+    if (!tx || tx.reconciliation_date || tx.is_skipped) return false;
+    if (!tx.date_operation) return false;
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const opDateStr = String(tx.date_operation).substring(0, 10);
+    return opDateStr < todayStr;
+};
+
+window.renderDateWithStatus = function(tx, overrideFormat) {
+    const formatted = formatDate(tx ? tx.date_operation : null, overrideFormat);
+    if (tx && window.isPastUnreconciled(tx)) {
+        return `<span class="date-past-unreconciled" title="Opération passée non rapprochée">${formatted}</span>`;
+    }
+    return formatted;
+};
+
 function formatDate(dateString, overrideFormat) {
     if (!dateString) return "";
     let profileFmt = null;

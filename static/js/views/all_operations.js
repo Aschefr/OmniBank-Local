@@ -521,7 +521,7 @@ window.AllOperationsView = {
             <tr data-id="${tx.id}" class="${rowClass}" ${idAttr}>
                 <td class="row-marker"></td>
                 <td class="col-dateSaisie" data-label="${window.i18n.t('dl_date_entry')}">${formatDate(tx.date_saisie)}</td>
-                <td class="col-date" data-label="${window.i18n.t('dl_date_op')}">${formatDate(tx.date_operation)}</td>
+                <td class="col-date" data-label="${window.i18n.t('dl_date_op')}">${renderDateWithStatus(tx)}</td>
                 <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${(tx.description || '').replace(/"/g, '&quot;')}"><span class="desc-text">${tx.description}</span>${statusSubtext}</td>
                 <td class="col-type" data-label="${window.i18n.t('dl_type')}" title="${window.app.getTypeLabel(tx.type)}">${window.app.getTypeLabel(tx.type)}</td>
                 <td class="col-cat" data-label="${window.i18n.t('dl_category')}" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
