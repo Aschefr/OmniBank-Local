@@ -223,8 +223,13 @@ window.AllOperationsView = {
             // Sort by operation date descending (newest first)
             this.transactions = allTx.sort((a, b) => new Date(b.date_operation) - new Date(a.date_operation));
             
-            // Populate category multi-select
+            // Populate category multi-select (including uncategorized option if present)
+            const hasUncategorized = this.transactions.some(t => !t.category);
             const categories = [...new Set(this.transactions.map(t => t.category).filter(Boolean))].sort();
+            const uncatLabel = (window.i18n && window.i18n.t('uncategorized')) || 'Sans catégorie';
+            if (hasUncategorized && !categories.includes(uncatLabel)) {
+                categories.unshift(uncatLabel);
+            }
             const catContainer = document.getElementById('historyCategoryFilter');
             if (catContainer && !catContainer.querySelector('.multi-select-trigger')) {
                 window.MultiSelect.create('historyCategoryFilter', {
@@ -409,7 +414,11 @@ window.AllOperationsView = {
             filtered = filtered.filter(tx => tx.type === tType);
         }
         if (selectedCats.length > 0) {
-            filtered = filtered.filter(tx => selectedCats.includes(tx.category));
+            const uncatLabel = (window.i18n && window.i18n.t('uncategorized')) || 'Sans catégorie';
+            filtered = filtered.filter(tx => {
+                const cat = tx.category || uncatLabel;
+                return selectedCats.includes(cat) || (!tx.category && (selectedCats.includes('Sans catégorie') || selectedCats.includes('Uncategorized')));
+            });
         }
         if (tAttach) {
             filtered = filtered.filter(tx => !!tx.attachments);
@@ -483,10 +492,24 @@ window.AllOperationsView = {
 
             const fromAcc = this.accounts[tx.from_account_id];
             const toAcc = this.accounts[tx.to_account_id];
-            const depuisTitle = fromAcc ? fromAcc.name : '';
-            const versTitle = toAcc ? toAcc.name : '';
-            const depuisBadge = fromAcc ? `<span class="account-badge" style="background:${fromAcc.color || '#3366ff'}20;color:${fromAcc.color || '#3366ff'};border-color:${fromAcc.color || '#3366ff'}40;">${fromAcc.name}</span>` : '-';
-            const versBadge = toAcc ? `<span class="account-badge" style="background:${toAcc.color || '#3366ff'}20;color:${toAcc.color || '#3366ff'};border-color:${toAcc.color || '#3366ff'}40;">${toAcc.name}</span>` : '-';
+            const depuisTitle = fromAcc ? fromAcc.name : (tx.cross_profile_label || '');
+            const versTitle = toAcc ? toAcc.name : (tx.cross_profile_label || '');
+            
+            let depuisBadge = fromAcc ? `<span class="account-badge" style="background:${fromAcc.color || '#3366ff'}20;color:${fromAcc.color || '#3366ff'};border-color:${fromAcc.color || '#3366ff'}40;">${fromAcc.name}</span>` : '-';
+            let versBadge = toAcc ? `<span class="account-badge" style="background:${toAcc.color || '#3366ff'}20;color:${toAcc.color || '#3366ff'};border-color:${toAcc.color || '#3366ff'}40;">${toAcc.name}</span>` : '-';
+
+            if (tx.cross_profile_label) {
+                const cpBadge = `<span class="account-badge" style="background:rgba(99,102,241,0.15);color:#818cf8;border-color:rgba(99,102,241,0.3);" title="${tx.cross_profile_label}">${tx.cross_profile_label}</span>`;
+                if (!fromAcc) depuisBadge = cpBadge;
+                if (!toAcc) versBadge = cpBadge;
+            }
+
+            let statusSubtext = '';
+            if (tx.cross_profile_status === 'pending') {
+                statusSubtext = `<div style="font-size:10px; font-weight:700; color:#f59e0b; background:rgba(245,158,11,0.12); padding:2px 5px; border-radius:4px; margin-top:2px; display:inline-block;">⏳ En attente</div>`;
+            } else if (tx.cross_profile_status === 'rejected') {
+                statusSubtext = `<div style="font-size:10px; font-weight:700; color:#ef4444; background:rgba(239,68,68,0.12); padding:2px 5px; border-radius:4px; margin-top:2px; display:inline-block;">❌ Refusé</div>`;
+            }
 
             let recText = '-';
             if (tx.is_monthly) recText = window.i18n.t('rec_monthly');
@@ -499,7 +522,7 @@ window.AllOperationsView = {
                 <td class="row-marker"></td>
                 <td class="col-dateSaisie" data-label="${window.i18n.t('dl_date_entry')}">${formatDate(tx.date_saisie)}</td>
                 <td class="col-date" data-label="${window.i18n.t('dl_date_op')}">${formatDate(tx.date_operation)}</td>
-                <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${(tx.description || '').replace(/"/g, '&quot;')}"><span class="desc-text">${tx.description}</span></td>
+                <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${(tx.description || '').replace(/"/g, '&quot;')}"><span class="desc-text">${tx.description}</span>${statusSubtext}</td>
                 <td class="col-type" data-label="${window.i18n.t('dl_type')}" title="${window.app.getTypeLabel(tx.type)}">${window.app.getTypeLabel(tx.type)}</td>
                 <td class="col-cat" data-label="${window.i18n.t('dl_category')}" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
                 <td class="col-amount" data-label="${window.i18n.t('dl_amount')}">
@@ -511,6 +534,7 @@ window.AllOperationsView = {
                 <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuisTitle}">${depuisBadge}</td>
                 <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${versBadge}</td>
                 <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}" title="${recText}">${recText}</td>
+
                 <td class="col-slip" data-label="${window.i18n.t('dl_slip')}">${tx.slip_number ? '<span style="background: rgba(255,152,0,0.15); color: #ff9800; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">' + tx.slip_number + '</span>' : '-'}</td>
                 <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}" onclick="window.AllOperationsView._openAttachment('${tx.attachments.replace(/'/g, "\\'")}')">📎</span>` : '-'}</td>
                 <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by ? `${tx.created_by}${tx.created_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.created_at}</span>` : ''}` : '-'}</td>

@@ -88,7 +88,8 @@ from app.routers import (
     shared_mode,
     notifications,
     history,
-    profiles
+    profiles,
+    cross_profile
 )
 
 app.include_router(transactions.router)
@@ -111,6 +112,8 @@ app.include_router(shared_mode.router)
 app.include_router(notifications.router)
 app.include_router(history.router)
 app.include_router(profiles.router)
+app.include_router(cross_profile.router)
+
 
 
 @app.on_event("startup")

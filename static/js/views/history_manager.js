@@ -7,12 +7,12 @@ window.HistoryView = {
     render() {
         return `
             <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                <h2>🕓 <span data-i18n="history_title">Historique de l'Activité & Annulations</span></h2>
-                <button class="btn btn-secondary" onclick="window.HistoryView.purge()" data-i18n="history_purge_btn">Purger l'historique</button>
+                <h2 style="font-size: 1.25rem;">🕓 <span data-i18n="history_title">Historique de l'Activité & Annulations</span></h2>
+                <button class="btn btn-secondary" onclick="window.HistoryView.purge()" data-i18n="history_purge_btn" style="font-size: 12px; padding: 6px 12px;">Purger l'historique</button>
             </div>
 
-            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
-                <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+            <div class="table-responsive" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; margin-bottom: 20px;">
+                <table class="data-table mobile-card-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
                     <thead>
                         <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.15);">
                             <th style="padding: 12px 15px;" data-i18n="history_col_date">Date / Heure</th>
@@ -143,20 +143,26 @@ window.HistoryView = {
                 ? `<span style="color: var(--text-muted); font-size:11px;">${undoneText}</span>`
                 : `<button class="btn btn-secondary" onclick="window.HistoryView.triggerUndo(${act.id})" style="padding: 3px 8px; font-size: 11px;">${undoText}</button>`;
 
-            const detailBtn = `<button class="btn btn-secondary" onclick="window.HistoryView.showDetails(${act.id})" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">${detailsText}</button>`;
+            const detailBtn = `<button class="btn btn-secondary" onclick="window.HistoryView.showDetails(${act.id})" style="padding: 4px 10px; font-size: 11px; margin-right: 5px;">${detailsText}</button>`;
+
+            const lblDate = (window.i18n && window.i18n.t('history_col_date')) || 'Date / Heure';
+            const lblAction = (window.i18n && window.i18n.t('history_col_action')) || 'Action';
+            const lblEntity = (window.i18n && window.i18n.t('history_col_entity')) || 'Entité';
+            const lblDetail = (window.i18n && window.i18n.t('history_col_detail')) || 'Détail';
+            const lblUser = (window.i18n && window.i18n.t('history_col_user')) || 'Utilisateur';
 
             return `
                 <tr style="border-bottom: 1px solid var(--border-color); vertical-align: middle;">
-                    <td style="padding: 10px 15px; color: var(--text-muted); white-space: nowrap;">${formattedDate}</td>
-                    <td style="padding: 10px 15px; white-space: nowrap;">
+                    <td data-label="${lblDate}" class="col-history-date" style="padding: 10px 15px; color: var(--text-muted);">${formattedDate}</td>
+                    <td data-label="${lblAction}" class="col-history-action" style="padding: 10px 15px;">
                         <span class="badge" style="padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; color: ${actConf.color}; background: ${actConf.bg}; border: 1px solid ${actConf.color}">
                             ${actionText}
                         </span>
                     </td>
-                    <td style="padding: 10px 15px; font-weight: 500; white-space: nowrap;">${entityText}</td>
-                    <td style="padding: 10px 15px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${detail}</td>
-                    <td style="padding: 10px 15px; color: var(--text-muted); white-space: nowrap;">${act.user_name || '-'}</td>
-                    <td style="padding: 10px 15px; text-align: right; white-space: nowrap;">${detailBtn}${undoBtn}</td>
+                    <td data-label="${lblEntity}" class="col-history-entity" style="padding: 10px 15px; font-weight: 500;">${entityText}</td>
+                    <td data-label="${lblDetail}" class="col-history-detail" style="padding: 10px 15px;">${detail}</td>
+                    <td data-label="${lblUser}" class="col-history-user" style="padding: 10px 15px; color: var(--text-muted);">${act.user_name || '-'}</td>
+                    <td class="mobile-card-actions col-history-actions" style="padding: 10px 15px; text-align: right;">${detailBtn}${undoBtn}</td>
                 </tr>
             `;
         }).join('');

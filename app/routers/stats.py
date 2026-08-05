@@ -87,7 +87,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             Transaction.reconciliation_date.is_(None),
             Transaction.from_account_id == main_acc.id,
             Transaction.to_account_id.is_(None),  # Exclude transfers
-            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
         ).all()
         unreconciled_expenses = sum(tx.amount for tx in unrec_txs)
         
@@ -97,7 +98,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             Transaction.reconciliation_date.is_(None),
             Transaction.from_account_id == main_acc.id,
             Transaction.to_account_id.is_(None),  # Exclude transfers
-            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
         ).all()
         total_unreconciled_expenses = sum(tx.amount for tx in all_unrec_txs)
         
@@ -512,7 +514,8 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
 
     # ----- Annual totals: scan ALL years in DB (with same reconciliation filter) -----
     all_query = db.query(Transaction).filter(
-        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
     )
     if reconciled == "reconciled":
         all_query = all_query.filter(Transaction.reconciliation_date != None)
@@ -625,7 +628,8 @@ def get_trends(account_id: str, db: Session = Depends(get_db)):
         ).order_by(Transaction.date_operation.asc())
         
     transactions = tx_query.filter(
-        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
     ).all()
     
     if not transactions:

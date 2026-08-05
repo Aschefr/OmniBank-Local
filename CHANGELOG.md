@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.77] - 2026-08-03
+
+### Added & Improved
+- **Smarter AI Health Reports & Financial Forecasts 🤖📈**:
+  - **Exceptional Expense Detection**: Major one-time purchases (like buying a car or major appliance) are now automatically detected and excluded from daily spend projections, preventing false overdraft warnings after large planned expenses.
+  - **Real-World Pending Expense Tracking**: Pending transactions and scheduled bills are now factored into your 30-day forecast to ensure short-term balance projections match your actual budget.
+  - **Reste à Vivre & Savings Cushion**: Proactive AI reports now prioritize your *Reste à Vivre* (left to live) indicator while recognizing piggy bank savings as an emergency safety net before any real bank overdraft occurs.
+  - **Clean Report Formatting & AI Chat Awareness**: Cleaned up AI report rendering in notifications and improved AI chat responses to contextualize large purchases intelligently without panicky budget advice.
+
+- **Inter-Profile Transfers & Approval Workflow ↔**:
+  - **Direct Transfers Between Profiles**: Effortlessly transfer money between accounts belonging to different profiles (e.g., partners, family members, or shared activities).
+  - **Approval Queue**: Incoming transfers wait for your explicit confirmation (*Accept* or *Decline*) before impacting your balance or transaction history, keeping full control in your hands.
+  - **Notification Center Integration**: Manage pending transfers directly from the notification bell (🔔) with instant one-click actions or open a dedicated details view.
+  - **Seamless Dashboard Updates**: Accepting a transfer instantly adds the operation to your dashboard, auto-scrolls to the new row, and highlights it with a clear green animation without needing a page refresh.
+
+- **Smart Multi-Currency Conversions 💱**:
+  - **Automatic Currency Conversion**: Sending money between profiles with different currencies (e.g., USD ➡️ EUR) automatically converts the amount to the recipient's currency using standard exchange rates.
+  - **Original Currency Badges**: View both the converted amount and original sent amount (e.g., `🌐 $50.00 USD`) across notifications, pending details, and transaction tables for total transparency.
+
+- **Mobile Viewport Actions Card View 📱**:
+  - **Responsive Action Cards**: Transformed the truncated 6-column data table into responsive single-card components (`.mobile-card-table`) on mobile viewports ($\le 768\text{px}$).
+  - **Unclipped Details & Touch Controls**: Expanded full action details and formatted dates with clean multi-line layouts and touch-friendly 36px action buttons (`🔍 Details` & `↩ Undo`).
+
 ## [1.0.76] - 2026-08-03
 
 ### Added & Improved

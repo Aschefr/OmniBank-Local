@@ -38,6 +38,10 @@ class TransactionBase(BaseModel):
     is_skipped: Optional[bool] = False
     original_amount: Optional[float] = None
     original_currency: Optional[str] = None
+    cross_profile_link_id: Optional[str] = None
+    cross_profile_id: Optional[str] = None
+    cross_profile_label: Optional[str] = None
+    cross_profile_status: Optional[str] = None
 
     _val_date_saisie = validator('date_saisie', allow_reuse=True)(_validate_date_range)
     _val_date_op = validator('date_operation', allow_reuse=True)(_validate_date_range)
@@ -60,6 +64,10 @@ class TransactionUpdate(BaseModel):
     is_skipped: Optional[bool] = None
     original_amount: Optional[float] = None
     original_currency: Optional[str] = None
+    cross_profile_link_id: Optional[str] = None
+    cross_profile_id: Optional[str] = None
+    cross_profile_label: Optional[str] = None
+    cross_profile_status: Optional[str] = None
 
     _val_date_op = validator('date_operation', allow_reuse=True)(_validate_date_range)
     _val_recon = validator('reconciliation_date', allow_reuse=True)(_validate_date_range)
@@ -71,6 +79,20 @@ class TransactionUpdate(BaseModel):
     budget_id: Optional[int] = None  # Assign/unassign to project budget
     modified_by: Optional[str] = None
     modified_at: Optional[str] = None
+
+class CrossProfileTransferRequest(BaseModel):
+    target_profile_id: str
+    target_account_id: int
+    source_account_id: int
+    amount: float
+    date_operation: date
+    description: str = "Virement inter-profil"
+    category: Optional[str] = None
+    created_by: Optional[str] = None
+
+class CrossProfileValidationRequest(BaseModel):
+    action: str  # "accept" or "reject"
+
 
 class TransactionOut(TransactionBase):
     id: int

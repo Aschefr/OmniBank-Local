@@ -64,11 +64,22 @@ def _configure_sqlite_pragmas(target_engine: Engine):
     """Applique la configuration PRAGMA SQLite optimale sur l'engine."""
     @event.listens_for(target_engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
+        old_isolation = getattr(dbapi_connection, "isolation_level", None)
+        try:
+            dbapi_connection.isolation_level = None  # Autocommit mode to prevent PRAGMAs from opening an uncommitted transaction
+        except Exception:
+            pass
+
         cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA busy_timeout=30000")
+        except Exception:
+            pass
+
         if IS_DOCKER:
-            # Sur les volumes Docker montés sur hôte Windows, le mode WAL et mmap provoquent des 'disk I/O error'
+            # Sur les volumes Docker montés sur hôte Windows, journal_mode MEMORY évite les 'disk I/O error' lors de la création des tables et index
             try:
-                cursor.execute("PRAGMA journal_mode=DELETE")
+                cursor.execute("PRAGMA journal_mode=MEMORY")
             except Exception:
                 pass
         else:
@@ -77,7 +88,7 @@ def _configure_sqlite_pragmas(target_engine: Engine):
             except Exception as e:
                 logger.warning(f"[DB] PRAGMA journal_mode=WAL failed, falling back: {e}")
                 try:
-                    cursor.execute("PRAGMA journal_mode=DELETE")
+                    cursor.execute("PRAGMA journal_mode=MEMORY")
                 except Exception:
                     pass
 
@@ -103,6 +114,10 @@ def _configure_sqlite_pragmas(target_engine: Engine):
             pass
 
         cursor.close()
+        try:
+            dbapi_connection.isolation_level = old_isolation
+        except Exception:
+            pass
 
 
 def get_engine(profile_id: str = None) -> Engine:

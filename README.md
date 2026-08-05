@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.76-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.77-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -107,7 +107,10 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
----
+## 🆕 Dernières Mises à Jour (v1.0.77)
+
+*   **🤖 Bilans & Prévisions IA Intelligents** : Détection automatique des achats exceptionnels (véhicule, électroménager) pour éviter les fausses alertes de découvert. Prise en compte réelle des dépenses planifiées et des réserves d'épargne (tirelires) dans les projections à 30 jours et le Reste à Vivre.
+*   **↔️ Transferts Inter-Profils & Validation** : Transferts d'argent directs entre comptes de profils différents (partenaires, activités partagées) avec file d'attente d'approbation (Accepter/Refuser) et conversion de devises automatique.
 
 ## 🆕 Dernières Mises à Jour (v1.0.76)
 
@@ -244,7 +247,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.76-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.77-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -344,7 +347,10 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
----
+## 🆕 Recent Updates (v1.0.77)
+
+*   **🤖 Smarter AI Health Reports & Financial Forecasts** : Automatic detection and exclusion of major one-time purchases (like vehicle or appliance buys) from daily spend projections to eliminate false overdraft warnings. Real-world integration of pending transactions and piggy bank savings into 30-day balance projections.
+*   **↔️ Inter-Profile Transfers & Approval Workflow** : Effortless direct money transfers between accounts belonging to different profiles with explicit confirmation queues (Accept/Decline) and automatic multi-currency conversions.
 
 ## 🆕 Recent Updates (v1.0.76)
 

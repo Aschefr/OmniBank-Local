@@ -79,7 +79,11 @@ class App {
             }
             this._renderProfileSelector();
             this.initAutoLock();
+            if (window.FormView && window.FormView.checkPendingCrossTransfers) {
+                window.FormView.checkPendingCrossTransfers();
+            }
         } catch (e) {
+
             console.error("Failed to load profiles", e);
         }
 
@@ -424,6 +428,10 @@ class App {
     async loadNotifications() {
         try {
             const notifs = await API.get('/api/notifications');
+            let pendingTransfers = [];
+            try {
+                pendingTransfers = await API.get('/api/cross-profile/pending');
+            } catch (err) { /* silent catch if endpoint fails or cross profile not active */ }
             
             // Check for new unread notifications to display toast
             if (this._knownNotifIds) {
@@ -444,7 +452,8 @@ class App {
                 this._knownNotifIds = new Set(notifs.map(n => n.id));
             }
 
-            const unreadCount = notifs.filter(n => !n.is_read).length;
+            const pendingCount = (pendingTransfers && Array.isArray(pendingTransfers)) ? pendingTransfers.length : 0;
+            const unreadCount = notifs.filter(n => !n.is_read).length + pendingCount;
             const badge = document.getElementById('notifCountBadge');
             const totalLabel = document.getElementById('notifTotalLabel');
             const container = document.getElementById('notifListContainer');
@@ -456,9 +465,10 @@ class App {
                 badge.style.display = 'none';
             }
 
-            totalLabel.textContent = `${notifs.length} notification(s)`;
+            const totalCount = notifs.length + pendingCount;
+            totalLabel.textContent = `${totalCount} notification(s)`;
 
-            if (notifs.length === 0) {
+            if (totalCount === 0) {
                 container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-style: italic;" data-i18n="notif_no_notifications">${window.i18n.t('notif_no_notifications')}</div>`;
                 return;
             }
@@ -467,7 +477,49 @@ class App {
             this._notifDataMap = {};
             notifs.forEach(n => { this._notifDataMap[n.id] = n; });
 
-            container.innerHTML = notifs.map(n => {
+            let html = '';
+
+            // 1. Render pending cross-profile transfers at top
+            if (pendingCount > 0) {
+                const acceptTxt = (window.i18n && window.i18n.t('cross_profile_accept')) || 'Accepter';
+                const rejectTxt = (window.i18n && window.i18n.t('cross_profile_reject')) || 'Refuser';
+                const detailsTxt = (window.i18n && window.i18n.t('btn_details')) || 'Détails';
+
+                html += pendingTransfers.map(tx => {
+                    const fmtAmt = typeof formatCurrency === 'function' ? formatCurrency(tx.amount) : `${tx.amount} €`;
+                    const origSub = (tx.original_amount && tx.original_currency) ? `<div style="font-size: 11px; font-weight: 500; color: var(--accent); margin-top: 2px;">🌐 ${typeof formatCurrency === 'function' ? formatCurrency(tx.original_amount, tx.original_currency) : `${tx.original_amount} ${tx.original_currency}`}</div>` : '';
+                    return `
+                    <div style="padding: 14px 18px; border-bottom: 1px solid var(--border-color); border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.05); transition: background 0.2s; cursor: pointer;" onclick="window.FormView && window.FormView.openPendingModal()">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                            <span style="font-weight: 700; font-size: 13px; color: #f59e0b; display: flex; align-items: center; gap: 6px;">
+                                ↔ ${tx.cross_profile_label || (window.i18n && window.i18n.t('cross_profile_transfer')) || 'Virement inter-profil'}
+                            </span>
+                            <span style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">${tx.date_operation}</span>
+                        </div>
+                        <div style="font-size: 12.5px; margin-top: 6px; line-height: 1.4; color: var(--text-main);">
+                            ${tx.description || ''}
+                            <div style="font-size: 14px; font-weight: 800; color: #10b981; margin-top: 4px;">
+                                +${fmtAmt}
+                            </div>
+                            ${origSub}
+                        </div>
+                        <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 10px;">
+                            <button class="notif-action-btn" style="font-size: 11px; padding: 4px 10px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-muted); cursor: pointer; font-weight: 500; height: 28px; width: auto; display: inline-flex; align-items: center; justify-content: center;" onclick="event.stopPropagation(); window.FormView.openPendingModal()">
+                                🔍 ${detailsTxt}
+                            </button>
+                            <button class="notif-action-btn" style="font-size: 11px; padding: 4px 12px; border-radius: 6px; background: #10b981; border: none; color: white; cursor: pointer; font-weight: 600; height: 28px; width: auto; display: inline-flex; align-items: center; justify-content: center;" onclick="event.stopPropagation(); window.FormView.validatePendingTransfer('${tx.cross_profile_link_id}', 'accept')">
+                                ${acceptTxt}
+                            </button>
+                            <button class="notif-action-btn" style="font-size: 11px; padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(239,68,68,0.3); color: #ef4444; background: rgba(239,68,68,0.08); cursor: pointer; font-weight: 600; height: 28px; width: auto; display: inline-flex; align-items: center; justify-content: center;" onclick="event.stopPropagation(); window.FormView.validatePendingTransfer('${tx.cross_profile_link_id}', 'reject')">
+                                ${rejectTxt}
+                            </button>
+                        </div>
+                    </div>
+                `;}).join('');
+            }
+
+            // 2. Render standard notifications
+            html += notifs.map(n => {
                 const dateStr = new Date(n.created_at).toLocaleString(window.i18n.lang || 'fr', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
                 const styleUnread = n.is_read ? 'opacity: 0.85; cursor: default; user-select: text;' : 'border-left: 4px solid var(--accent); background: rgba(99,102,241,0.02); font-weight: 500; cursor: pointer;';
                 const isReport = n.type === 'ai_report';
@@ -485,6 +537,8 @@ class App {
                     </div>
                 </div>`;
             }).join('');
+
+            container.innerHTML = html;
         } catch (e) {
             console.error("Failed to load notifications", e);
         }
@@ -1472,6 +1526,12 @@ class App {
         }
     }
 
+
+    refreshCurrentView() {
+        if (this.currentView) {
+            this.loadView(this.currentView);
+        }
+    }
 
     loadView(viewName) {
         this.currentView = viewName;
