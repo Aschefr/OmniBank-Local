@@ -404,6 +404,28 @@ def init_db(target_engine=None):
                 pass
             conn.commit()
 
+        if schema_version < 17:
+            # Schema v17: Cross-profile transfer links with validation status
+            for col in [
+                "cross_profile_link_id TEXT",
+                "cross_profile_id TEXT",
+                "cross_profile_label TEXT",
+                "cross_profile_status TEXT"
+            ]:
+                try:
+                    conn.execute(text(f"ALTER TABLE transactions ADD COLUMN {col}"))
+                except Exception:
+                    pass
+            try:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_cross_link ON transactions (cross_profile_link_id)"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '17')"))
+            except Exception:
+                pass
+            conn.commit()
+
 
 
 def wipe_db(db: Session):

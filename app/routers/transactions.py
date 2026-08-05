@@ -12,8 +12,10 @@ router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 @router.get("/", response_model=List[TransactionOut])
 def get_transactions(skip: int = 0, limit: int = 1000, db: Session = Depends(get_db)):
-    # Order by date_operation desc
-    return db.query(Transaction).order_by(Transaction.date_operation.desc()).offset(skip).limit(limit).all()
+    # Exclude pending cross-profile transactions until accepted
+    return db.query(Transaction).filter(
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+    ).order_by(Transaction.date_operation.desc()).offset(skip).limit(limit).all()
 
 @router.get("/descriptions")
 def get_unique_descriptions(db: Session = Depends(get_db)):

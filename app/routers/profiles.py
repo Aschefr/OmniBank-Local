@@ -112,6 +112,31 @@ def api_create_profile(req: ProfileCreateRequest):
             pay_cycle_day=req.pay_cycle_day or 28,
             date_format=req.date_format or "DD/MM/YYYY"
         )
+
+        # Seed GlobalConfig in new profile's DB
+        try:
+            from app.database import get_engine
+            from sqlalchemy.orm import sessionmaker
+            from app.models import GlobalConfig
+            new_engine = get_engine(new_prof["id"])
+            SessionNew = sessionmaker(bind=new_engine)
+            new_db = SessionNew()
+            try:
+                curr_val = (req.currency or "EUR").strip().upper()
+                pay_day_val = str(req.pay_cycle_day or 28)
+                fmt_val = req.date_format or "DD/MM/YYYY"
+                for k, v in [("base_currency", curr_val), ("base_pay_day", pay_day_val), ("date_format", fmt_val)]:
+                    conf = new_db.query(GlobalConfig).filter(GlobalConfig.key == k).first()
+                    if conf:
+                        conf.value = v
+                    else:
+                        new_db.add(GlobalConfig(key=k, value=v))
+                new_db.commit()
+            finally:
+                new_db.close()
+        except Exception as e:
+            logger.warning(f"[Profiles] Could not seed GlobalConfig for new profile {new_prof['id']}: {e}")
+
         if req.pin and req.pin.strip():
             set_pin(new_prof["id"], req.pin.strip())
             new_prof["pin_hash"] = "configured"
@@ -146,15 +171,32 @@ def api_update_profile(profile_id: str, req: ProfileUpdateRequest, db: Session =
             date_format=req.date_format
         )
 
-        # Synchronize base_pay_day in active DB session if pay_cycle_day is updated
+        # Synchronize metadata in active DB session (base_pay_day, base_currency, date_format)
+        from app.models import GlobalConfig
         if req.pay_cycle_day is not None and req.pay_cycle_day > 0:
-            from app.models import GlobalConfig
             conf_day = db.query(GlobalConfig).filter(GlobalConfig.key == "base_pay_day").first()
             if conf_day:
                 conf_day.value = str(req.pay_cycle_day)
             else:
                 db.add(GlobalConfig(key="base_pay_day", value=str(req.pay_cycle_day)))
-            db.commit()
+
+        if req.currency is not None and req.currency.strip():
+            curr_val = req.currency.strip().upper()
+            conf_curr = db.query(GlobalConfig).filter(GlobalConfig.key == "base_currency").first()
+            if conf_curr:
+                conf_curr.value = curr_val
+            else:
+                db.add(GlobalConfig(key="base_currency", value=curr_val))
+
+        if req.date_format is not None and req.date_format.strip():
+            fmt_val = req.date_format.strip()
+            conf_fmt = db.query(GlobalConfig).filter(GlobalConfig.key == "date_format").first()
+            if conf_fmt:
+                conf_fmt.value = fmt_val
+            else:
+                db.add(GlobalConfig(key="date_format", value=fmt_val))
+
+        db.commit()
 
         return _sanitize_profile(updated)
     except ValueError as e:

@@ -145,13 +145,22 @@ def generate_ai_report_task(db_session_factory, force: bool = False):
         
         context_data = {
             "current_reste_a_vivre": rtl,
+            "current_reste_a_vivre_note": "This is the REAL available budget until the next paycheck: reconciled balance minus unreconciled pending expenses minus savings reservations. This is the most conservative and reliable short-term metric.",
             "next_predicted_paycheck_date": paycheck_date,
             "next_predicted_paycheck_amount": paycheck_amount,
             "projected_balance_30_days": forecast_end_balance,
             "daily_average_variable_spend": daily_avg_spend,
+            "pending_unreconciled_expenses": forecast.get("pending_unreconciled_expenses_euros", 0.0),
+            "savings_reserved": forecast.get("savings_reserved_euros", 0.0),
+            "savings_safety_buffer_euros": forecast.get("savings_safety_buffer_euros", 0.0),
+            "savings_safety_note": forecast.get("savings_safety_note", ""),
+            "real_overdraft_threshold_euros": forecast.get("real_overdraft_threshold_euros", 0.0),
+            "effective_starting_balance": forecast.get("effective_starting_balance_euros", 0.0),
             "forecast_includes_recurring_income": True,
             "forecast_projected_income_events": forecast.get("projected_income_events", []),
             "forecast_income_note": forecast.get("income_note", ""),
+            "excluded_outliers": forecast.get("excluded_outliers", []),
+            "outlier_note": forecast.get("outlier_note", ""),
             "detected_anomalies_or_subscriptions_count": anomaly_count,
             "detected_subscriptions_details": anomalies.get("detected_subscriptions", []),
             "potential_duplicate_charges": anomalies.get("potential_duplicate_charges", []),
@@ -202,10 +211,34 @@ RULE 4 — TONE AND RECOMMENDATIONS:
 - Only recommend drastic action ("reduce all spending", "find additional income") if the projected balance is genuinely negative.
 - Focus recommendations on actionable, specific insights rather than generic financial advice.
 
+RULE 5 — EXCEPTIONAL EXPENSES (OUTLIERS):
+- If the data contains 'excluded_outliers' with one or more entries, these are exceptional one-time purchases (e.g. vehicle, major appliance, furniture) that were statistically detected and EXCLUDED from the daily average variable spending projection.
+- Mention them factually in the detailed analysis (e.g. "Un achat exceptionnel de véhicule de X € a été détecté et correctement exclu de la projection de dépenses courantes").
+- Do NOT project these outlier amounts as recurring daily expenses. They are already deducted once from the current balance but are NOT repeated in the forward projection.
+- If outliers are present, the projected balance is MORE RELIABLE because it reflects normal spending patterns, not distorted by one-off large purchases.
+- If the 'outlier_note' field is non-empty, reference it in your analysis.
+- Do NOT recommend the user to "reduce spending" or flag financial danger when the deficit in the current balance is explained by a known outlier purchase that the user clearly could afford (balance was positive before the purchase).
+
+RULE 6 — RESTE À VIVRE, SAVINGS BUFFER, AND OVERDRAFT RISK (CRITICAL):
+- 'current_reste_a_vivre' is the REAL available budget until the next paycheck. It already accounts for unreconciled pending expenses and savings reservations. It is the MOST RELIABLE short-term metric.
+- 'projected_balance_30_days' is a simulation. While useful for trends, it may differ from the RTL.
+- You MUST ALWAYS mention the 'current_reste_a_vivre' prominently in your analysis. It tells the user how much they can actually spend until their next paycheck.
+- If 'current_reste_a_vivre' is low (< 200€) but 'projected_balance_30_days' is high, do NOT present the situation as comfortable. The RTL is more accurate for short-term assessment.
+- Calculate the daily budget available: current_reste_a_vivre / days_until_next_paycheck. Present this as "budget quotidien disponible" so the user knows their spending ceiling.
+- The 'pending_unreconciled_expenses' field shows expenses already entered but not yet debited from the bank. These are REAL upcoming outflows.
+
+SAVINGS AS SAFETY BUFFER (TIRELIRES):
+- The 'savings_reserved' field shows funds earmarked for savings goals (tirelire). These are excluded from the RTL to encourage spending discipline.
+- HOWEVER, tirelires are VIRTUAL envelopes on the SAME bank account — the money is physically present and accessible.
+- If 'savings_safety_buffer_euros' > 0, mention that the user has this amount as a safety net that can be tapped in case of emergency to avoid a real bank overdraft.
+- A real bank overdraft only occurs when the TOTAL account balance (including savings) goes negative, i.e., when spending exceeds RTL + savings buffer.
+- If RTL is low but savings buffer is substantial, the tone should be cautious (🟡) but NOT alarmist (🔴), because the user has a financial cushion available.
+- Example phrasing: "Votre reste à vivre est de X€ (Y€/jour), mais vos Z€ en tirelires constituent un filet de sécurité en cas de besoin."
+
 Strict guidelines for the status emoji in 'summary':
 - 🟢 (Green) if projected balance is positive, rest to live is comfortable (> 200€), and no real anomalies.
-- 🟡 (Warning) if rest to live is low (< 200€) or there are minor genuine anomalies.
-- 🔴 (Critical) ONLY if rest to live is negative, projected balance is negative, or severe genuine duplicate charges are confirmed.
+- 🟡 (Warning) if rest to live is low (< 200€) but savings buffer provides adequate safety net, or there are minor genuine anomalies.
+- 🔴 (Critical) ONLY if BOTH rest to live AND savings buffer combined would not prevent a real overdraft, projected balance is deeply negative, or severe genuine duplicate charges are confirmed.
 
 Return ONLY the raw JSON object, no introduction, no markdown blocks like ```json, just the JSON string."""
 
@@ -236,21 +269,42 @@ Return ONLY the raw JSON object, no introduction, no markdown blocks like ```jso
             if report_text:
                 summary_text = ""
                 detailed_text = ""
-                # Try to clean markdown codeblocks if Ollama added them anyway
-                cleaned_json = report_text
-                if cleaned_json.startswith("```"):
-                    cleaned_json = cleaned_json.split("\n", 1)[1]
-                if cleaned_json.endswith("```"):
-                    cleaned_json = cleaned_json.rsplit("\n", 1)[0]
-                cleaned_json = cleaned_json.strip()
+                # Robust cleaning: Ollama may wrap JSON in various codeblock
+                # styles (```json, ``` json, ```, with or without language tag,
+                # possibly prefixed or suffixed by chat preamble).
+                import re
+                cleaned_json = report_text.strip()
+
+                # Remove leading/trailing markdown codeblock markers robustly
+                # Handles: ```json\n...\n```, ```\n...\n```, etc.
+                codeblock_match = re.search(
+                    r'```(?:json)?\s*\n(.*?)\n\s*```',
+                    cleaned_json,
+                    re.DOTALL
+                )
+                if codeblock_match:
+                    cleaned_json = codeblock_match.group(1).strip()
+                else:
+                    # Fallback: strip leading ``` line and trailing ``` line
+                    if cleaned_json.startswith("```"):
+                        cleaned_json = cleaned_json.split("\n", 1)[-1]
+                    if cleaned_json.endswith("```"):
+                        cleaned_json = cleaned_json.rsplit("\n", 1)[0]
+                    cleaned_json = cleaned_json.strip()
+
+                # Last resort: extract first { ... } block from the text
+                if not cleaned_json.startswith("{"):
+                    brace_match = re.search(r'\{.*\}', cleaned_json, re.DOTALL)
+                    if brace_match:
+                        cleaned_json = brace_match.group(0).strip()
 
                 try:
                     data = json.loads(cleaned_json)
                     summary_text = data.get("summary", "").strip()
                     detailed_text = data.get("detailed_analysis", "").strip()
-                except Exception:
+                except Exception as json_err:
                     # Fallback if Ollama returned non-JSON text
-                    logger.warning("Ollama did not return valid JSON for report task, using raw text fallback")
+                    logger.warning(f"Ollama did not return valid JSON for report task: {json_err}. Raw start: {report_text[:200]}")
                     summary_text = report_text
                     detailed_text = report_text
 

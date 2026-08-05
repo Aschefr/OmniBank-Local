@@ -69,6 +69,13 @@ class Transaction(Base):
     created_at = Column(String, nullable=True)      # ISO timestamp of creation
     modified_at = Column(String, nullable=True)      # ISO timestamp of last modification
 
+    # Cross-profile transfer link (passerelle inter-profils)
+    cross_profile_link_id = Column(String, nullable=True, index=True)
+    cross_profile_id = Column(String, nullable=True)
+    cross_profile_label = Column(String, nullable=True)
+    cross_profile_status = Column(String, nullable=True)   # "pending" | "accepted" | "rejected"
+
+
 class GlobalConfig(Base):
     __tablename__ = "global_config"
     

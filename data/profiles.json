@@ -5,15 +5,29 @@
       "id": "default",
       "name": "Quentin",
       "color": "#3b82f6",
-      "created_at": "2026-07-31T07:44:42.347659",
+      "icon": "📈",
+      "currency": "EUR",
+      "pay_cycle_day": 29,
+      "date_format": "DD/MM/YYYY",
+      "created_at": "2026-08-01T19:49:47.960026",
       "db_path": "omnibank.db",
       "uploads_dir": "uploads",
       "pin_hash": null,
-      "pin_salt": null,
+      "pin_salt": null
+    },
+    {
+      "id": "p_3cea127f",
+      "name": "Marine",
+      "color": "#ec4899",
       "icon": "👤",
       "currency": "EUR",
-      "pay_cycle_day": 29,
-      "date_format": "DD/MM/YYYY"
+      "pay_cycle_day": 28,
+      "date_format": "DD/MM/YYYY",
+      "created_at": "2026-08-03T18:21:40.421196",
+      "db_path": "profiles/p_3cea127f/omnibank.db",
+      "uploads_dir": "profiles/p_3cea127f/uploads",
+      "pin_hash": null,
+      "pin_salt": null
     }
   ]
 }
