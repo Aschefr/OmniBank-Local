@@ -7,11 +7,26 @@ def get_base_currency(db: Session) -> str:
     conf = db.query(GlobalConfig).filter(GlobalConfig.key == "base_currency").first()
     return conf.value.upper() if conf and conf.value else "EUR"
 
+DEFAULT_EXCHANGE_RATES = {
+    ("USD", "EUR"): 0.92,
+    ("EUR", "USD"): 1.087,
+    ("GBP", "EUR"): 1.17,
+    ("EUR", "GBP"): 0.855,
+    ("CHF", "EUR"): 1.05,
+    ("EUR", "CHF"): 0.952,
+    ("CAD", "EUR"): 0.68,
+    ("EUR", "CAD"): 1.47,
+    ("AUD", "EUR"): 0.60,
+    ("EUR", "AUD"): 1.66,
+    ("JPY", "EUR"): 0.006,
+    ("EUR", "JPY"): 166.67,
+}
+
 def convert_currency(db: Session, amount: float, from_curr: str, to_curr: str) -> float:
     if not amount or not from_curr or not to_curr or from_curr.upper() == to_curr.upper():
         return amount
-    from_curr = from_curr.upper()
-    to_curr = to_curr.upper()
+    from_curr = from_curr.upper().strip()
+    to_curr = to_curr.upper().strip()
     
     # Direct rate
     rate_obj = db.query(ExchangeRate).filter(ExchangeRate.from_currency == from_curr, ExchangeRate.to_currency == to_curr).first()
@@ -22,6 +37,12 @@ def convert_currency(db: Session, amount: float, from_curr: str, to_curr: str) -
     rev_obj = db.query(ExchangeRate).filter(ExchangeRate.from_currency == to_curr, ExchangeRate.to_currency == from_curr).first()
     if rev_obj and rev_obj.rate:
         return amount / rev_obj.rate
+
+    # Default fallback rate
+    if (from_curr, to_curr) in DEFAULT_EXCHANGE_RATES:
+        return amount * DEFAULT_EXCHANGE_RATES[(from_curr, to_curr)]
+    if (to_curr, from_curr) in DEFAULT_EXCHANGE_RATES:
+        return amount / DEFAULT_EXCHANGE_RATES[(to_curr, from_curr)]
         
     return amount
 
@@ -37,6 +58,7 @@ def calculate_balances(db: Session, end_date: date = None, only_reconciled: bool
     
     query = db.query(Transaction.amount, Transaction.from_account_id, Transaction.to_account_id)
     query = query.filter((Transaction.is_skipped == False) | (Transaction.is_skipped == None))
+    query = query.filter((Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending"))
     if end_date:
         query = query.filter(Transaction.date_operation <= end_date)
     if only_reconciled:
@@ -109,13 +131,14 @@ def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date)
     balances_now = calculate_balances(db, only_reconciled=True)
     current_balance = balances_now.get(account.id, 0.0)
     
-    # All unreconciled expenses before next pay date (exclude skipped)
+    # All unreconciled expenses before next pay date (exclude skipped and pending cross-profile)
     future_tx = db.query(Transaction).filter(
         Transaction.reconciliation_date == None,
         Transaction.date_operation < next_pay_date,
         Transaction.from_account_id == account.id,
         Transaction.to_account_id == None, # Expense
-        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
     ).all()
     
     future_transfers = db.query(Transaction).filter(
@@ -123,7 +146,8 @@ def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date)
         Transaction.date_operation < next_pay_date,
         Transaction.from_account_id == account.id,
         Transaction.to_account_id != None, # Transfer out
-        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
     ).all()
     
     expenses_sum = sum(t.amount for t in future_tx) + sum(t.amount for t in future_transfers)
@@ -145,7 +169,8 @@ def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date)
         # Transactions assigned via budget_id on this main account
         txs = db.query(Transaction).filter(
             Transaction.budget_id == sb.id,
-            (Transaction.from_account_id == account.id) | (Transaction.to_account_id == account.id)
+            (Transaction.from_account_id == account.id) | (Transaction.to_account_id == account.id),
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
         ).all()
         tx_income = sum(abs(t.amount) for t in txs if t.type == "income")
         tx_expenses = sum(abs(t.amount) for t in txs if t.type != "income")
@@ -184,7 +209,10 @@ def get_accounts_available_balances(db: Session):
                 savings_by_account[acc_id] = savings_by_account.get(acc_id, 0.0) + a.amount
                 
         # Bulk load transactions linked to savings budgets
-        txs = db.query(Transaction).filter(Transaction.budget_id.in_(savings_ids)).all()
+        txs = db.query(Transaction).filter(
+            Transaction.budget_id.in_(savings_ids),
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+        ).all()
         for tx in txs:
             # Income (deposits) on account
             if tx.type == "income" and tx.to_account_id:
@@ -228,12 +256,14 @@ def get_overdraft_warning(db: Session, account_id: int = None, current_date: dat
     balances_now = calculate_balances(db, only_reconciled=True)
     simulated_balance = balances_now.get(account.id, 0.0)
     
-    # Get all unreconciled expenses sorted by date (exclude skipped)
+    # Get all unreconciled expenses sorted by date (exclude skipped and pending cross-profile)
     future_expenses = db.query(Transaction).filter(
         Transaction.reconciliation_date == None,
         Transaction.from_account_id == account.id,
-        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
     ).order_by(Transaction.date_operation.asc()).all()
+
     
     for t in future_expenses:
         simulated_balance -= t.amount

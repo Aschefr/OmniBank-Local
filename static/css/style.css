@@ -1147,14 +1147,21 @@ body.privacy-mode #valNextPayAmount:hover {
         margin-right: 10px;
     }
 
-    /* Description takes full row - no label side by side */
-    .mobile-card-table td[data-label="Description"] {
+    /* Description & History Detail take full row - no label side by side */
+    .mobile-card-table td[data-label="Description"],
+    .mobile-card-table td.col-history-detail,
+    .mobile-card-table td[data-label="Détail"],
+    .mobile-card-table td[data-label="Detail"] {
         flex-direction: column;
         align-items: flex-start;
         gap: 2px;
+        word-break: break-word;
     }
 
-    .mobile-card-table td[data-label="Description"]::before {
+    .mobile-card-table td[data-label="Description"]::before,
+    .mobile-card-table td.col-history-detail::before,
+    .mobile-card-table td[data-label="Détail"]::before,
+    .mobile-card-table td[data-label="Detail"]::before {
         font-size: 9px;
     }
 

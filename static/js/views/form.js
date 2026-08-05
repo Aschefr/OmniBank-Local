@@ -135,6 +135,11 @@ window.FormView = {
         const budgetSel = document.getElementById('op_budget_id');
         if (budgetSel) budgetSel.value = '';
         
+        const cpToggle = document.getElementById('op_cross_profile_toggle');
+        if (cpToggle) cpToggle.checked = false;
+        await this.checkCrossProfileVisibility();
+        this.toggleCrossProfile();
+
         this.applyConfigVisibility();
         
         this.toggleRecurrenceFields();
@@ -147,13 +152,32 @@ window.FormView = {
         this.renderAccountsDropdowns(null, null);
         
         this.updateInferredType();
+        this.updateCurrencySymbolUI();
         
         document.getElementById('operationModal').style.display = 'flex';
+
         // Mode création : cacher le bouton undo/delete
         this._deleteMode = false;
         this._pendingDelete = false;
         const undoBtn = document.getElementById('op_undo_last_btn');
         if (undoBtn) undoBtn.style.display = 'none';
+    },
+
+    updateCurrencySymbolUI() {
+        let symbol = '€';
+        if (window.app && window.app.profiles && window.app.activeProfileId) {
+            const activeProf = window.app.profiles.find(p => p.id === window.app.activeProfileId);
+            if (activeProf && activeProf.currency) {
+                const curr = activeProf.currency.toUpperCase();
+                if (curr === 'USD') symbol = '$';
+                else if (curr === 'GBP') symbol = '£';
+                else if (curr === 'JPY') symbol = '¥';
+                else if (curr === 'CHF') symbol = 'CHF';
+                else symbol = curr;
+            }
+        }
+        const currSpan = document.getElementById('op_amount_curr_symbol');
+        if (currSpan) currSpan.textContent = symbol;
     },
 
     onKeepOpenToggle() {
@@ -292,6 +316,7 @@ window.FormView = {
         
         document.getElementById('op_desc').value = tx.description;
         document.getElementById('op_amount').value = tx.amount;
+        this.updateCurrencySymbolUI();
         document.getElementById('op_date').value = tx.date_operation;
         document.getElementById('op_date_saisie').value = tx.date_saisie || new Date().toISOString().split('T')[0];
         document.getElementById('op_recon_date').value = tx.reconciliation_date || '';
@@ -659,9 +684,11 @@ window.FormView = {
         const isRecurrent = document.getElementById('op_is_recurrent').checked;
         const limitStr = document.getElementById('op_rec_limit').value;
         const isLimited = limitStr && parseInt(limitStr) > 0;
+        const isCrossProfile = document.getElementById('op_cross_profile_toggle')?.checked;
+        const targetAcc = document.getElementById('op_target_account')?.value;
         
         let type = 'neutral';
-        if (fromAcc && toAcc) {
+        if ((isCrossProfile && fromAcc && targetAcc) || (fromAcc && toAcc)) {
             type = 'transfer';
         } else if (!fromAcc && toAcc) {
             type = 'income';
@@ -723,6 +750,181 @@ window.FormView = {
         }
         
         this.renderCategories();
+    },
+
+    // ── Cross-profile transfer helpers ──────────────────────────────
+
+    async checkCrossProfileVisibility() {
+        try {
+            const res = await API.get('/api/profiles/');
+            const wrapper = document.getElementById('op_cross_profile_toggle_wrapper');
+            if (res && res.profiles && res.profiles.length > 1) {
+                if (wrapper) wrapper.style.display = 'inline-flex';
+                this.profilesList = res.profiles.filter(p => p.id !== res.active_profile_id);
+            } else {
+                if (wrapper) wrapper.style.display = 'none';
+                this.profilesList = [];
+            }
+        } catch(e) {
+            console.error('Échec chargement profils pour cross-profile', e);
+        }
+    },
+
+    toggleCrossProfile() {
+        const toggle = document.getElementById('op_cross_profile_toggle');
+        const wrapper = document.getElementById('op_cross_profile_toggle_wrapper');
+        const stdTo = document.getElementById('op_standard_to_container');
+        const crossBox = document.getElementById('op_cross_profile_container');
+        const warning = document.getElementById('op_cross_profile_warning');
+        if (!stdTo || !crossBox) return;
+
+        if (toggle && toggle.checked) {
+            stdTo.style.display = 'none';
+            crossBox.style.display = 'flex';
+            if (warning) warning.style.display = 'block';
+
+            if (wrapper) {
+                wrapper.style.background = 'rgba(99, 102, 241, 0.2)';
+                wrapper.style.color = '#818cf8';
+                wrapper.style.borderColor = 'rgba(99, 102, 241, 0.4)';
+            }
+
+            const selectProf = document.getElementById('op_target_profile');
+            if (selectProf) {
+                selectProf.innerHTML = (this.profilesList || []).map(p =>
+                    `<option value="${p.id}">${p.icon || '👤'} ${p.name}</option>`
+                ).join('');
+            }
+            this.onTargetProfileChange();
+        } else {
+            stdTo.style.display = '';
+            crossBox.style.display = 'none';
+            if (warning) warning.style.display = 'none';
+
+            if (wrapper) {
+                wrapper.style.background = 'var(--bg-surface)';
+                wrapper.style.color = 'var(--text-muted)';
+                wrapper.style.borderColor = 'var(--border-color)';
+            }
+        }
+        this.updateInferredType();
+    },
+
+    async onTargetProfileChange() {
+        const selectProf = document.getElementById('op_target_profile');
+        const targetProfileId = selectProf?.value;
+        const selectAcc = document.getElementById('op_target_account');
+        const warning = document.getElementById('op_cross_profile_warning');
+
+        if (warning && selectProf && selectProf.selectedIndex >= 0) {
+            const rawText = selectProf.options[selectProf.selectedIndex]?.text || '';
+            const profName = rawText.replace(/^[^\w\s\u00C0-\u024F]+/u, '').trim() || rawText;
+            if (profName && window.i18n && window.i18n.tp) {
+                warning.textContent = window.i18n.tp('cross_profile_pending_warning', { name: profName });
+            }
+        }
+
+        if (!targetProfileId || !selectAcc) return;
+
+        try {
+            const accounts = await API.get(`/api/cross-profile/${targetProfileId}/accounts`);
+            selectAcc.innerHTML = (accounts || []).map(a =>
+                `<option value="${a.id}">${a.name} (${a.type})</option>`
+            ).join('');
+        } catch(e) {
+            selectAcc.innerHTML = '<option value="">-- Erreur --</option>';
+            console.error('Échec chargement comptes profil distant', e);
+        }
+        this.updateInferredType();
+    },
+
+    async checkPendingCrossTransfers() {
+        if (window.app && window.app.loadNotifications) {
+            await window.app.loadNotifications();
+        }
+    },
+
+    async openPendingModal() {
+        try {
+            const list = await API.get('/api/cross-profile/pending');
+            const container = document.getElementById('pendingCrossList');
+            const modal = document.getElementById('pendingCrossModal');
+            if (!container || !modal) return;
+
+            const emptyMsg = (window.i18n && window.i18n.t('cross_profile_pending_empty')) || 'Aucun virement en attente';
+            const acceptTxt = (window.i18n && window.i18n.t('cross_profile_accept')) || 'Accepter';
+            const rejectTxt = (window.i18n && window.i18n.t('cross_profile_reject')) || 'Refuser';
+
+            if (!list || list.length === 0) {
+                container.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:20px 0;">${emptyMsg}</div>`;
+            } else {
+                container.innerHTML = list.map(tx => {
+                    const fmtAmt = typeof formatCurrency === 'function' ? formatCurrency(tx.amount) : `${tx.amount} €`;
+                    const origSub = (tx.original_amount && tx.original_currency) ? `<div style="font-size: 11px; font-weight: 500; color: var(--accent); margin-top: 2px;">🌐 ${typeof formatCurrency === 'function' ? formatCurrency(tx.original_amount, tx.original_currency) : `${tx.original_amount} ${tx.original_currency}`}</div>` : '';
+                    return `
+                    <div style="background:var(--bg-base); border:1px solid var(--border-color); border-radius:10px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-weight:700; font-size:13px; color:var(--text-main); margin-bottom:2px;">
+                                ↔ ${tx.cross_profile_label || 'Virement inter-profil'}
+                            </div>
+                            <div style="font-size:12px; color:var(--text-muted);">
+                                ${tx.description} • ${tx.date_operation}
+                            </div>
+                            <div style="font-size:14px; font-weight:800; color:#10b981; margin-top:4px;">
+                                +${fmtAmt}
+                            </div>
+                            ${origSub}
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn btn-primary" style="padding:6px 10px; font-size:12px;" onclick="window.FormView.validatePendingTransfer('${tx.cross_profile_link_id}', 'accept')">
+                                ${acceptTxt}
+                            </button>
+                            <button class="btn btn-secondary" style="padding:6px 10px; font-size:12px; color:#ef4444;" onclick="window.FormView.validatePendingTransfer('${tx.cross_profile_link_id}', 'reject')">
+                                ${rejectTxt}
+                            </button>
+                        </div>
+                    </div>
+                `;}).join('');
+            }
+
+            modal.style.display = 'flex';
+        } catch(e) {
+            console.error('Échec ouverture modale virements en attente', e);
+        }
+    },
+
+    async validatePendingTransfer(linkId, action) {
+        try {
+            const res = await API.post(`/api/cross-profile/validate/${linkId}`, { action });
+            
+            if (res && (res.status === 'accepted' || res.action === 'accept') && res.transaction_id) {
+                const targetId = res.transaction_id;
+                if (window.TimelineView) window.TimelineView._pendingHighlightTxId = targetId;
+                if (window.AllOperationsView) window.AllOperationsView._pendingHighlightTxId = targetId;
+            }
+
+            if (document.getElementById('pendingCrossModal')?.style.display === 'flex') {
+                await this.openPendingModal();
+            }
+            if (window.app) {
+                if (window.app.loadNotifications) {
+                    await window.app.loadNotifications();
+                }
+                if (typeof window.app.refreshCurrentView === 'function') {
+                    window.app.refreshCurrentView();
+                }
+            }
+            if (typeof showToast === 'function') {
+                const toastMsg = action === 'accept'
+                    ? (window.i18n.t('cross_profile_accepted_toast') || 'Virement accepté et ajouté')
+                    : (window.i18n.t('cross_profile_rejected_toast') || 'Virement refusé');
+                showToast(toastMsg, action === 'accept' ? 'success' : 'info');
+            }
+        } catch(e) {
+            if (typeof showInlineMessage === 'function') {
+                showInlineMessage('Erreur', e.message || 'Impossible de valider le virement');
+            }
+        }
     },
 
     renderCategories() {
@@ -983,8 +1185,34 @@ window.FormView = {
                         }
                     }
                 }
+            } else if (document.getElementById('op_cross_profile_toggle')?.checked) {
+                // CROSS-PROFILE TRANSFER CREATE
+                const targetProfId = document.getElementById('op_target_profile')?.value;
+                const targetAccId = parseInt(document.getElementById('op_target_account')?.value);
+                const sourceAccId = this.pendingSaveData.from_account_id;
+
+                if (!sourceAccId) {
+                    return await showInlineMessage(window.i18n.t('title_info'), "Veuillez sélectionner un compte source (Depuis).");
+                }
+                if (!targetProfId || !targetAccId || isNaN(targetAccId)) {
+                    return await showInlineMessage(window.i18n.t('title_info'), "Veuillez sélectionner le profil et compte destinataires.");
+                }
+
+                const payload = {
+                    target_profile_id: targetProfId,
+                    target_account_id: targetAccId,
+                    source_account_id: sourceAccId,
+                    amount: this.pendingSaveData.amount,
+                    date_operation: this.pendingSaveData.date_operation,
+                    description: this.pendingSaveData.description,
+                    category: this.pendingSaveData.category || null,
+                    created_by: this.pendingSaveData.created_by || null
+                };
+
+                const newTx = await API.post('/api/cross-profile/transfer', payload);
+                actionId = newTx.action_id;
+                this._recentlyCreatedId = (newTx && newTx.id) ? newTx.id : null;
             } else {
-                // CREATE
                 if (document.getElementById('op_is_recurrent').checked) {
                     const tplData = {
                         description: this.pendingSaveData.description,
@@ -1018,6 +1246,7 @@ window.FormView = {
                     this._recentlyCreatedId = (newTx && newTx.id) ? newTx.id : null;
                 }
             }
+
 
             // Determine if we should keep modal open
             const isCreate = !this.currentTxId;

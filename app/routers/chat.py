@@ -463,6 +463,7 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     from datetime import date, timedelta
     from app.services.finance_engine import calculate_balances, get_main_account, predict_next_paycheck
     from app.models import RecurrenceTemplate, Transaction
+    import statistics as _stats
     
     try:
         days = int(days)
@@ -482,7 +483,74 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     
     # Load all active recurrence templates
     templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
-    
+    template_ids = {t.id for t in templates}
+
+    # --- Unreconciled pending expenses (already entered, not yet debited) ---
+    # These are KNOWN future outflows that the user has already planned/entered.
+    # Ignoring them would make the projection overly optimistic vs the real RTL.
+    from app.services.finance_engine import predict_next_paycheck as _predict_paycheck
+    try:
+        _pay_info = _predict_paycheck(db)
+        _next_pay_date = _pay_info.get("date", end_date)
+    except Exception:
+        _next_pay_date = end_date
+
+    pending_expenses = db.query(Transaction).filter(
+        Transaction.reconciliation_date == None,
+        Transaction.date_operation <= end_date,
+        Transaction.from_account_id == account.id,
+        Transaction.to_account_id.is_(None),  # Expense only (not transfers)
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+    ).all()
+
+    pending_transfers = db.query(Transaction).filter(
+        Transaction.reconciliation_date == None,
+        Transaction.date_operation <= end_date,
+        Transaction.from_account_id == account.id,
+        Transaction.to_account_id != None,  # Transfer out
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+    ).all()
+
+    # Build a date-indexed map of pending outflows for the simulation.
+    # Exclude those linked to recurrence templates (they'll be projected via templates).
+    from collections import defaultdict
+    pending_by_date = defaultdict(float)
+    pending_total = 0.0
+    for t in pending_expenses + pending_transfers:
+        if t.recurrence_id and t.recurrence_id in template_ids:
+            continue  # Will be covered by the template projection — skip to avoid double count
+        tx_date = t.date_operation if t.date_operation and t.date_operation > today else today
+        # Cap to forecast window
+        if tx_date > end_date:
+            continue
+        pending_by_date[tx_date.isoformat()] += t.amount
+        pending_total += t.amount
+
+    # Savings reservations (tirelire) — reserved funds that aren't available for spending
+    from app.models import Budget, BudgetAllocation
+    savings_reserved = 0.0
+    savings_budgets = db.query(Budget).filter(
+        Budget.envelope_type == "savings",
+        Budget.is_closed == False
+    ).all()
+    for sb in savings_budgets:
+        allocs = db.query(BudgetAllocation).filter(
+            BudgetAllocation.budget_id == sb.id,
+            (BudgetAllocation.account_id == account.id) | (BudgetAllocation.account_id == None)
+        ).all()
+        alloc_balance = sum(a.amount for a in allocs)
+        txs = db.query(Transaction).filter(
+            Transaction.budget_id == sb.id,
+            (Transaction.from_account_id == account.id) | (Transaction.to_account_id == account.id),
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+        ).all()
+        tx_income = sum(abs(t.amount) for t in txs if t.type == "income")
+        tx_expenses = sum(abs(t.amount) for t in txs if t.type != "income")
+        savings_reserved += (tx_income - tx_expenses) + alloc_balance
+    savings_reserved = max(savings_reserved, 0)
+
     # Calculate daily average VARIABLE spending only (exclude recurring charges)
     # Recurring charges will be applied separately via templates to avoid double counting
     thirty_days_ago = today - timedelta(days=30)
@@ -493,7 +561,50 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
         Transaction.date_operation <= today,
         Transaction.recurrence_id.is_(None)  # Exclude recurring transactions
     ).all()
-    total_var_spent_30d = sum(t.amount for t in past_var_txs)
+
+    # --- Outlier detection (IQR + absolute + relative thresholds) ---
+    # Exceptional one-time purchases (e.g. vehicle, major appliance) should NOT
+    # be projected as daily recurring spending.  They are already reflected in
+    # the current_balance (deducted once) but must not inflate daily_avg.
+    excluded_outliers = []
+    normal_var_txs = list(past_var_txs)
+
+    if len(past_var_txs) >= 5:
+        amounts = sorted([t.amount for t in past_var_txs])
+        q1 = amounts[len(amounts) // 4]
+        q3 = amounts[3 * len(amounts) // 4]
+        iqr = q3 - q1
+        upper_fence = q3 + 3.0 * iqr          # 3×IQR — very conservative
+        median_amt = _stats.median(amounts)
+
+        normal_var_txs = []
+        for t in past_var_txs:
+            # All three conditions must be met to classify as outlier:
+            #  1. Exceeds statistical upper fence (3×IQR)
+            #  2. Absolute amount > 500 € (small amounts are never outliers)
+            #  3. Amount > 5× the median (truly exceptional relative to habits)
+            is_outlier = (
+                t.amount > upper_fence
+                and t.amount > 500
+                and t.amount > 5 * median_amt
+            )
+            if is_outlier:
+                excluded_outliers.append({
+                    "transaction_id": t.id,
+                    "description": t.description,
+                    "amount_euros": t.amount,
+                    "date": t.date_operation.isoformat() if t.date_operation else None,
+                    "category": t.category
+                })
+                logger.info(
+                    f"[forecast] Outlier exclu de la projection : "
+                    f"{t.description} — {t.amount} € "
+                    f"(fence={upper_fence:.2f}, médiane={median_amt:.2f})"
+                )
+            else:
+                normal_var_txs.append(t)
+
+    total_var_spent_30d = sum(t.amount for t in normal_var_txs)
     daily_avg_var_spend = round(total_var_spent_30d / 30.0, 2)
 
     # Collect predicted paycheck(s) that fall within the forecast window.
@@ -515,9 +626,15 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     except Exception:
         pass
     
+    # Effective starting balance = reconciled - savings reservations
+    # This is the conservative "spending budget" view.  Tirelires are virtual
+    # envelopes on the SAME bank account — the money is physically there and
+    # can be tapped in an emergency, preventing a real overdraft.
+    effective_balance = round(current_balance - savings_reserved, 2)
+
     # Project chronologically day-by-day
-    points = [{"date": today.isoformat(), "projected_balance_euros": current_balance}]
-    running_balance = current_balance
+    points = [{"date": today.isoformat(), "projected_balance_euros": effective_balance}]
+    running_balance = effective_balance
     
     sim_date = today
     while sim_date < end_date:
@@ -525,6 +642,11 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
         
         # Deduct daily average VARIABLE spend only
         running_balance -= daily_avg_var_spend
+
+        # Deduct pending unreconciled expenses on their scheduled date
+        date_key = sim_date.isoformat()
+        if date_key in pending_by_date:
+            running_balance -= pending_by_date[date_key]
         
         # Apply recurrence templates (charges & income) on their scheduled day
         for t in templates:
@@ -557,6 +679,19 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
         if projected_income_events
         else "Aucun salaire prévu trouvé dans la fenêtre de projection. Si votre salaire n'est pas configuré comme récurrence, mettez à jour via set_predicted_paycheck."
     )
+
+    outlier_note = ""
+    if excluded_outliers:
+        descs = ", ".join(
+            f"{o['description']} ({o['amount_euros']} €)" for o in excluded_outliers
+        )
+        outlier_note = (
+            f"{len(excluded_outliers)} dépense(s) exceptionnelle(s) détectée(s) et "
+            f"exclue(s) de la moyenne quotidienne variable : {descs}. "
+            f"Ces montants sont déjà déduits du solde actuel mais ne sont pas "
+            f"projetés comme dépenses récurrentes futures."
+        )
+
     return {
         "checking_account": account.name,
         "daily_average_variable_spend_euros": daily_avg_var_spend,
@@ -564,6 +699,20 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
         "forecast_days": days,
         "projected_income_events": projected_income_events,
         "income_note": income_note,
+        "excluded_outliers": excluded_outliers,
+        "outlier_note": outlier_note,
+        "pending_unreconciled_expenses_euros": round(pending_total, 2),
+        "savings_reserved_euros": round(savings_reserved, 2),
+        "savings_safety_buffer_euros": round(savings_reserved, 2),
+        "savings_safety_note": (
+            "Les tirelires sont des enveloppes virtuelles sur le même compte courant. "
+            "Les fonds sont physiquement disponibles et peuvent être utilisés en cas "
+            "de dépassement du reste à vivre pour éviter un découvert réel. "
+            "Le découvert bancaire réel ne survient que si le solde total du compte "
+            "(incluant les fonds tirelires) devient négatif."
+        ) if savings_reserved > 0 else "",
+        "effective_starting_balance_euros": effective_balance,
+        "real_overdraft_threshold_euros": round(-savings_reserved, 2) if savings_reserved > 0 else 0.0,
         "history": points
     }
 
@@ -1745,6 +1894,11 @@ Always use the tools provided to query the database first before answering. Do n
 - Call `get_budgets_status` to see budget progress (envelope limits, spent amounts, remaining balances).
 - Call `get_recurrence_templates` to inspect regular bills.
 - Call `get_net_worth_history` to analyze wealth growth.
+- OUTLIER AWARENESS: When calling `forecast_balances_history`, the response may contain 'excluded_outliers' (exceptional one-time purchases like a vehicle or major appliance that were statistically detected and excluded from the daily average variable spending). If outliers are present:
+  * Mention them factually to the user (e.g. "Votre achat de véhicule de X € a été correctement identifié comme dépense exceptionnelle et exclu de la projection de dépenses courantes").
+  * Do NOT project outlier amounts as recurring daily expenses.
+  * Do NOT recommend drastic budget cuts or flag overdraft risk when the low balance is explained by a known one-time purchase the user could clearly afford.
+  * The 'outlier_note' field provides a ready-made French explanation you can reference.
 Always be concise, professional, and helpful."""
 
     today_str = date.today().isoformat()
