@@ -486,13 +486,41 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
         mk = tx.date_operation.strftime("%Y-%m")
         if mk not in month_keys:
             continue
+
         tx_type = tx.type or "neutral"
+        cat = tx.category or "Sans cat\u00e9gorie"
+        amount = abs(tx.amount)
+
+        # Pour les opérations bi-directionnelles (avec from + to),
+        # gérer le type et le montant selon le compte filtré :
+        is_bidirectional = tx.from_account_id is not None and tx.to_account_id is not None
+        if is_bidirectional:
+            if not acc_ids_list:
+                # Mode "Tous les comptes" : transfert interne → impact net nul (0€)
+                amount = 0
+            else:
+                from_in = tx.from_account_id in acc_ids_list
+                to_in = tx.to_account_id in acc_ids_list
+                if from_in and to_in:
+                    # Transfert entre comptes tous deux sélectionnés → impact net nul (0€)
+                    amount = 0
+                elif to_in:
+                    # L'argent ENTRE dans le compte sélectionné → Recette (income)
+                    tx_type = "income"
+                elif from_in:
+                    # L'argent SORT du compte sélectionné → Sortie / Dépense
+                    if tx_type == "income":
+                        tx_type = "transfer"
+
+        if amount == 0:
+            continue
+
         if tx_type not in grouped:
             grouped[tx_type] = {}
-        cat = tx.category or "Sans cat\u00e9gorie"
         if cat not in grouped[tx_type]:
             grouped[tx_type][cat] = {}
-        grouped[tx_type][cat][mk] = round(grouped[tx_type][cat].get(mk, 0.0) + tx.amount, 2)
+
+        grouped[tx_type][cat][mk] = round(grouped[tx_type][cat].get(mk, 0.0) + amount, 2)
 
     # Sort categories within each type by total desc, remove empty types
     result = {}
