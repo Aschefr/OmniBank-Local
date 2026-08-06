@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="/static/css/style.css?v=10">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
 </head>
 <body class="theme-dark">
@@ -146,6 +147,11 @@
                         <button onclick="document.getElementById('themeToggle').click()" class="btn btn-secondary btn-sm" title="Changer le thème" style="padding: 6px 10px; font-size: 13px;">🌓 Thème</button>
                         <button onclick="document.getElementById('privacyToggle').click()" class="btn btn-secondary btn-sm" title="Masquer les montants" style="padding: 6px 10px; font-size: 13px;">👁️ Masquer</button>
                         <button onclick="window.ServerConfig.openModal()" class="btn btn-secondary btn-sm" title="Connexion au serveur" style="padding: 6px 10px; font-size: 13px;">📡 Serveur</button>
+                    </div>
+
+                    <div style="border-top: 1px solid var(--border-color); margin: 10px 0 4px; padding-top: 10px;">
+                        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;" data-i18n="mobile_select_language">LANGUE</div>
+                        <div id="mobileLangList" style="display: flex; flex-direction: column; gap: 4px;"></div>
                     </div>
                 </nav>
 

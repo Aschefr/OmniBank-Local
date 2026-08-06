@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.77-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.78-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -220,6 +220,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 *   **📦 Correctif de publication** : Correction d'un problème dans le script de build qui empaquetait d'anciens fichiers (mode onedir) au lieu des fichiers à jour.
 
+## 🆕 Dernières Mises à Jour (v1.0.78)
+
+*   **👀 Nouvelle vue Vue d'ensemble** : Tableau de bord tout-en-un réunissant les cartes KPI majeures (Patrimoine Net, Reste à Vivre, Solde Prévisionnel), la table des opérations non rapprochées, les tendances 6M et un aperçu des budgets & épargnes.
+*   **🏢 Mode Organisation Adaptatif (Associations / CSE)** : Adaptation automatique des libellés (Trésorerie Globale, Trésorerie Disponible), carte Membre Actif avec sélecteur d'utilisateur rapide et colonne "Saisi par" dans le tableau d'audit.
+*   **📊 Tendances Multi-Graphiques** : 4 modes d'affichage interactifs (Dépenses, vs Recettes, Bilan mensuel, Solde historique) avec pan & zoom fluide.
+
 ## 🆕 Dernières Mises à Jour (v1.0.35)
 
 *   **⚙️ Paramètres de sauvegarde intelligents** : L'encart de configuration des sauvegardes automatiques se replie dynamiquement lorsque la fonctionnalité est désactivée, allégeant ainsi l'interface des paramètres.
@@ -247,7 +253,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.77-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.78-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -450,6 +456,12 @@ Access the interface at `http://localhost:8434`.
 ## 🆕 Recent Updates (v1.0.36)
 
 *   **📦 Release Hotfix**: Fixed a bug in the automated release script where older backend files (onedir bundle) were packaged instead of the latest code.
+
+## 🆕 Recent Updates (v1.0.78)
+
+*   **👀 New Overview Dashboard**: All-in-one financial dashboard featuring hero KPI cards (Net Worth, Left-to-live, Forecast Balance), central pending operations table, 6-month trend chart, and budgets/savings snapshots.
+*   **🏢 Adaptive Organisation Mode (Nonprofits / CSE)**: Automatic terminology adaptation (Total Treasury, Available Treasury), Active Member hero card with fast switcher, and "Created by" audit column in the operations table.
+*   **📊 Multi-Mode Trend Visualizations**: 4 interactive chart modes (Expenses, vs Income, Monthly Cash Flow, Historical Balance) with smooth pan & pinch-zoom.
 
 ## 🆕 Recent Updates (v1.0.35)
 

@@ -221,28 +221,15 @@ class App {
         // Language dropdown
         const langToggleBtn = document.getElementById('langToggleBtn');
         const langMenu = document.getElementById('langMenu');
-        const currentLangFlag = document.getElementById('currentLangFlag');
         
+        this.updateMobileLangUI();
+        this.updateDesktopLangUI();
+        this.populateLangDropdown();
+
         if (langToggleBtn && langMenu) {
-            // Update initial flag
-            currentLangFlag.className = `fi fi-${window.i18n.lang === 'en' ? 'gb' : 'fr'}`;
-            
             langToggleBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 langMenu.style.display = langMenu.style.display === 'none' ? 'block' : 'none';
-            });
-            
-            document.querySelectorAll('.lang-option').forEach(opt => {
-                opt.addEventListener('click', async (e) => {
-                    const l = e.currentTarget.getAttribute('data-lang');
-                    currentLangFlag.className = `fi fi-${l === 'en' ? 'gb' : 'fr'}`;
-                    langMenu.style.display = 'none';
-                    await window.i18n.setLang(l);
-                    // Rerender active view and refresh sidebar in real-time
-                    await window.app.refreshSidebar();
-                    window.app.loadView(window.app.currentView);
-                    window.app.updateHeaderHistoryState();
-                });
             });
             
             document.addEventListener('click', () => {
@@ -2122,6 +2109,78 @@ class App {
                 err.style.display = 'block';
             }
         }
+    }
+
+    populateLangDropdown() {
+        const langMenu = document.getElementById('langMenu');
+        if (!langMenu || !window.i18n) return;
+        
+        const langs = window.i18n.availableLangs || [];
+        let html = '';
+        for (const l of langs) {
+            html += `
+                <button class="lang-option" data-lang="${l.code}" style="display:flex; align-items:center; gap:8px; width:100%; padding:6px 10px; background:none; border:none; color:var(--text-main); cursor:pointer; font-size:12px;">
+                    <span class="fi fi-${l.flag}"></span> ${escapeHtml(l.label)}
+                </button>
+            `;
+        }
+        langMenu.innerHTML = html;
+
+        langMenu.querySelectorAll('.lang-option').forEach(opt => {
+            opt.addEventListener('click', async (e) => {
+                const l = e.currentTarget.getAttribute('data-lang');
+                langMenu.style.display = 'none';
+                await window.i18n.setLang(l);
+                this.updateMobileLangUI();
+                this.updateDesktopLangUI();
+                await this.refreshSidebar();
+                this.loadView(this.currentView);
+                this.updateHeaderHistoryState();
+            });
+        });
+    }
+
+    renderMobileLangList() {
+        const container = document.getElementById('mobileLangList');
+        if (!container || !window.i18n) return;
+
+        const langs = window.i18n.availableLangs || [];
+        const current = window.i18n.lang;
+        let html = '';
+
+        for (const l of langs) {
+            const isActive = l.code === current;
+            html += `
+                <button class="mobile-lang-item ${isActive ? 'active' : ''}" onclick="window.app.setLanguage('${l.code}')">
+                    <span class="fi fi-${l.flag}"></span>
+                    <span>${escapeHtml(l.label)}</span>
+                    ${isActive ? '<span class="mobile-lang-check">✓</span>' : ''}
+                </button>
+            `;
+        }
+
+        container.innerHTML = html;
+    }
+
+    async setLanguage(langCode) {
+        if (!window.i18n) return;
+        await window.i18n.setLang(langCode);
+        this.updateMobileLangUI();
+        this.updateDesktopLangUI();
+        await this.refreshSidebar();
+        this.loadView(this.currentView);
+        this.updateHeaderHistoryState();
+    }
+
+    updateMobileLangUI() {
+        this.renderMobileLangList();
+    }
+
+    updateDesktopLangUI() {
+        const currentLangFlag = document.getElementById('currentLangFlag');
+        if (!window.i18n) return;
+        const info = window.i18n.getLangInfo();
+        if (currentLangFlag) currentLangFlag.className = `fi fi-${info.flag}`;
     }
 }
 
