@@ -87,6 +87,14 @@ async def upload_backup(file: UploadFile = File(...)):
             if "omnibank.db" not in zip_ref.namelist():
                 raise HTTPException(status_code=400, detail="Le backup ne contient pas omnibank.db.")
 
+            # Rejeter les archives globales (tous profils) pour éviter une restauration croisée
+            if "profiles.json" in zip_ref.namelist():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cette archive est une sauvegarde globale (tous profils). "
+                           "Utilisez le bouton 'Restaurer tous les profils' à la place."
+                )
+
             # Supprimer les fichiers WAL et SHM existants avant extraction
             for ext in ("-wal", "-shm"):
                 f_path = f"{db_path}{ext}"
@@ -202,6 +210,23 @@ async def upload_all_profiles_backup(file: UploadFile = File(...)):
             dispose_engine(p["id"])
 
         with zipfile.ZipFile(tmp_path, 'r') as zip_ref:
+            # Rejeter les archives profil unique (pas de profiles.json)
+            if "profiles.json" not in zip_ref.namelist():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cette archive est une sauvegarde de profil unique. "
+                           "Utilisez le bouton 'Restaurer Sauvegarde' à la place."
+                )
+
+            # Validation anti-path-traversal (Zip Slip protection)
+            abs_data_dir = os.path.realpath(DATA_DIR)
+            for member in zip_ref.namelist():
+                member_path = os.path.realpath(os.path.join(DATA_DIR, member))
+                if not member_path.startswith(abs_data_dir + os.sep) and member_path != abs_data_dir:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Archive ZIP suspecte : chemin interdit détecté ({member})"
+                    )
             zip_ref.extractall(DATA_DIR)
 
         ensure_profiles_initialized()

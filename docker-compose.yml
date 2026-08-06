@@ -13,4 +13,5 @@ services:
       - ./CHANGELOG.md:/app/CHANGELOG.md
     environment:
       - TZ=Europe/Paris
+      - HOST_DATA_DIR=${PWD}/data
     restart: unless-stopped

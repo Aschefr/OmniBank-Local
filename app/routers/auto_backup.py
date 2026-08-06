@@ -21,6 +21,7 @@ from starlette.background import BackgroundTask
 
 from app.database import DATA_DIR, SessionLocal, get_engine, get_current_db_path, get_current_uploads_dir
 from app.models import GlobalConfig
+from app.profile_manager import load_profiles_data
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +58,8 @@ def _frequency_to_seconds(freq: str) -> int:
 
 def _list_backup_files() -> list[dict]:
     """Liste les fichiers auto_backup_*.zip triés du plus récent au plus ancien."""
-    pattern = os.path.join(BACKUPS_DIR, "auto_backup_*.zip")
-    files = glob.glob(pattern)
+    # Inclut les anciens (auto_backup_YYYYMMDD_*) et nouveaux (auto_backup_all_profiles_*) fichiers
+    files = glob.glob(os.path.join(BACKUPS_DIR, "auto_backup_*.zip"))
     result = []
     for f in sorted(files, reverse=True):
         try:
@@ -102,8 +103,7 @@ def _read_status() -> dict | None:
 
 def _rotate_backups(max_count: int):
     """Supprime les backups les plus anciens au-delà de max_count."""
-    pattern = os.path.join(BACKUPS_DIR, "auto_backup_*.zip")
-    files = sorted(glob.glob(pattern))  # plus ancien en premier
+    files = sorted(glob.glob(os.path.join(BACKUPS_DIR, "auto_backup_*.zip")))  # plus ancien en premier
     while len(files) > max_count:
         oldest = files.pop(0)
         try:
@@ -116,36 +116,57 @@ def _rotate_backups(max_count: int):
 def run_backup_now() -> dict:
     """
     Exécute un backup immédiat (synchrone).
+    Sauvegarde TOUS les profils (profiles.json + profil par défaut + profiles/).
     Retourne un dict avec le résultat.
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"auto_backup_{timestamp}.zip"
+    filename = f"auto_backup_all_profiles_{timestamp}.zip"
     filepath = os.path.join(BACKUPS_DIR, filename)
 
     try:
-        db_path = get_current_db_path()
-        uploads_dir = get_current_uploads_dir()
-
-        # Checkpoint SQLite WAL pour vider les transactions en cours dans le fichier .db principal
-        try:
-            with get_engine().connect() as conn:
-                conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
-        except Exception as checkpoint_err:
-            logger.warning(f"[AutoBackup] Checkpoint WAL échoué : {checkpoint_err}")
+        # Checkpoint WAL sur tous les profils actifs
+        data = load_profiles_data()
+        for p in data.get("profiles", []):
+            try:
+                eng = get_engine(p["id"])
+                with eng.connect() as conn:
+                    conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+            except Exception:
+                pass
 
         with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
-            # Base de données
-            if os.path.exists(db_path):
-                zipf.write(db_path, arcname="omnibank.db")
+            # 1. Fichier profiles.json
+            profiles_json_path = os.path.join(DATA_DIR, "profiles.json")
+            if os.path.exists(profiles_json_path):
+                zipf.write(profiles_json_path, arcname="profiles.json")
 
-            # Pièces jointes
-            if os.path.isdir(uploads_dir):
-                for root, _dirs, files in os.walk(uploads_dir):
+            # 2. Profil par défaut (omnibank.db & uploads/)
+            def_db = os.path.join(DATA_DIR, "omnibank.db")
+            if os.path.exists(def_db):
+                zipf.write(def_db, arcname="omnibank.db")
+
+            def_uploads = os.path.join(DATA_DIR, "uploads")
+            if os.path.isdir(def_uploads):
+                for root, _dirs, files in os.walk(def_uploads):
                     for file in files:
                         file_path = os.path.join(root, file)
                         arcname = os.path.join(
                             "uploads",
-                            os.path.relpath(file_path, start=uploads_dir),
+                            os.path.relpath(file_path, start=def_uploads),
+                        )
+                        zipf.write(file_path, arcname=arcname)
+
+            # 3. Répertoire profiles/ avec tous les profils supplémentaires
+            prof_dir = os.path.join(DATA_DIR, "profiles")
+            if os.path.isdir(prof_dir):
+                for root, _dirs, files in os.walk(prof_dir):
+                    for file in files:
+                        if file.endswith(("-wal", "-shm")):
+                            continue
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.join(
+                            "profiles",
+                            os.path.relpath(file_path, start=prof_dir),
                         )
                         zipf.write(file_path, arcname=arcname)
 
@@ -232,9 +253,23 @@ def get_auto_backup_status():
     """Retourne le statut du dernier backup + liste des fichiers disponibles."""
     status = _read_status()
     files = _list_backup_files()
+
+    # Si HOST_DATA_DIR est défini (Docker), on retourne le chemin réel côté hôte
+    host_data_dir = os.environ.get("HOST_DATA_DIR")
+    if host_data_dir:
+        raw_path = host_data_dir.rstrip("/\\") + "/backups"
+        # os.path.normpath ne fonctionne pas pour les chemins Windows dans un conteneur Linux
+        # On détecte un chemin Windows (ex: D:\...) et on normalise les slashs
+        if len(host_data_dir) >= 2 and host_data_dir[1] == ':':
+            display_dir = raw_path.replace('/', '\\')
+        else:
+            display_dir = raw_path
+    else:
+        display_dir = os.path.abspath(BACKUPS_DIR)
+
     return {
         "status": status,
-        "backups_dir": os.path.abspath(BACKUPS_DIR),
+        "backups_dir": display_dir,
         "files": files,
     }
 
@@ -243,7 +278,7 @@ def get_auto_backup_status():
 def download_auto_backup(filename: str):
     """Télécharge un backup auto spécifique."""
     # Validation stricte du nom de fichier (sécurité)
-    if not re.match(r"^auto_backup_\d{8}_\d{6}\.zip$", filename):
+    if not re.match(r"^auto_backup_(all_profiles_)?\d{8}_\d{6}\.zip$", filename):
         raise HTTPException(status_code=400, detail="Nom de fichier invalide.")
 
     filepath = os.path.join(BACKUPS_DIR, filename)

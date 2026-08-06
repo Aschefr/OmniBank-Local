@@ -1458,5 +1458,13 @@
   "overview_org_badge": "Organisation Mode",
   "overview_org_health_healthy": "Healthy Treasury",
   "overview_org_forecast_sub": "Forecast organisation balance as of",
-  "th_created_by": "Created by"
+  "th_created_by": "Created by",
+  "alert_restore_all_profiles": "Do you really want to restore ALL master profiles from this global backup? All current data will be replaced.",
+  "msg_restore_all_progress": "Global restore in progress...",
+  "msg_restore_all_success": "Global restore completed successfully!",
+  "msg_restore_all_failed": "Error during global restore: {error}",
+  "filter_top6_all": "All",
+  "filter_top6_fixed": "Fixed",
+  "filter_top6_var": "Variable",
+  "overview_top3_click_tooltip": "View operations in history"
 }
