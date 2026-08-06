@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.79] - 2026-08-06
+
+### Added & Improved
+- **Comprehensive Multi-Profile Backup Protection 🛡️**:
+  - **Full All-Profiles Auto-Backups**: Automatic background backups now protect all your master profiles in a single archive (instead of backing up only the currently active profile), ensuring no profile data is ever missed.
+  - **Clear Archive Naming**: Automatic backup files are now explicitly named `auto_backup_all_profiles_YYYYMMDD_HHMMSS.zip` so you can immediately recognize complete multi-profile archives.
+
+- **Smart Restore Safeguards & Security 🔒**:
+  - **Accidental Mis-Restore Prevention**: OmniBank now intelligently detects archive types during restoration. Attempting to restore a single-profile backup globally (or a global backup into a single profile) is blocked with clear, user-friendly instructions, protecting your financial records from accidental corruption.
+  - **Archive Security Validation**: Integrated path-traversal safeguards during zip extraction to guarantee safe restoration from external archives.
+
+- **Windows & Docker Path Resolution 📂**:
+  - **Exact Local Explorer Path**: The "Copy path" button for backup storage locations now copies the real Windows host folder path (e.g. `D:\...\data\backups`) instead of container-internal paths (`/app/data/backups`), allowing you to paste it directly into Windows File Explorer.
+
+- **UI & Multi-Language Polish ✨**:
+  - **Custom Confirmation Modals**: Replaced system alert popups with native OmniBank dark-mode confirmation dialogs for global restores.
+  - **Full i18n Translation**: Added complete English and French translations for all backup, restore, and error notifications.
+
 ## [1.0.78] - 2026-08-05
 
 ### Added & Improved

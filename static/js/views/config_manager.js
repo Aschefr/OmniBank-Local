@@ -2484,16 +2484,46 @@ window.ConfigView = {
         }
     },
 
-    downloadAllProfilesBackup() {
-        showToast(window.i18n.t('msg_backup_browser') || 'Le téléchargement s\'ouvre dans votre navigateur...', 'info', 4000);
-        window.open('/api/backup/download-all', '_blank');
+    async downloadAllProfilesBackup() {
+        try {
+            const downloadUrl = `${window.location.origin}/api/backup/download-all`;
+
+            // In Tauri WebView, blob downloads don't work — open in system browser
+            if (window.__TAURI_INTERNALS__) {
+                showToast(window.i18n.t('msg_backup_browser') || 'Le téléchargement s\'ouvre dans votre navigateur...', 'info', 4000);
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: downloadUrl });
+                return;
+            }
+
+            // Fallback for regular browser (dev mode)
+            showToast(window.i18n.t('label_loading') || 'Préparation...', 'info', 5000);
+            const resp = await fetch('/api/backup/download-all');
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.detail || `HTTP ${resp.status}`);
+            }
+            const blob = await resp.blob();
+            const filename = resp.headers.get('content-disposition')?.match(/filename="?([^"]+)"?/)?.[1]
+                || `omnibank_GLOBAL_backup_${new Date().toISOString().slice(0,10)}.zip`;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+            showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_error_generic', {error: e.message || e}));
+        }
     },
 
     async restoreAllProfilesBackup(e) {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (!confirm("Voulez-vous vraiment restaurer TOUS les profils maîtres depuis cette sauvegarde globale ? Toutes les données actuelles seront remplacées.")) {
+        if (!await showInlineConfirm(window.i18n.t('title_restore_critical'), window.i18n.t('alert_restore_all_profiles'))) {
             e.target.value = '';
             return;
         }
@@ -2502,7 +2532,7 @@ window.ConfigView = {
         formData.append('file', file);
 
         try {
-            showToast("Restauration globale en cours...", "info");
+            showToast(window.i18n.t('msg_restore_all_progress'), "info");
             const res = await fetch('/api/backup/upload-all', {
                 method: 'POST',
                 body: formData
@@ -2510,14 +2540,14 @@ window.ConfigView = {
 
             if (!res.ok) {
                 const errJson = await res.json().catch(() => ({}));
-                throw new Error(errJson.detail || "Échec de la restauration globale");
+                throw new Error(errJson.detail || window.i18n.t('msg_restore_all_failed').replace('{error}', ''));
             }
 
-            showToast("Restauration globale terminée avec succès !", "success");
+            showToast(window.i18n.t('msg_restore_all_success'), "success");
             setTimeout(() => window.location.reload(), 1500);
         } catch (err) {
             console.error(err);
-            showToast(err.message || "Erreur lors de la restauration globale", "error");
+            showToast(window.i18n.t('msg_restore_all_failed').replace('{error}', err.message || ''), "error");
         } finally {
             e.target.value = '';
         }

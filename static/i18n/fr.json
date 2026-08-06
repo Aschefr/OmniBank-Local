@@ -1458,5 +1458,13 @@
   "overview_org_badge": "Mode Organisation",
   "overview_org_health_healthy": "Trésorerie Saine",
   "overview_org_forecast_sub": "Solde prévisionnel de l'organisation au",
-  "th_created_by": "Saisi par"
+  "th_created_by": "Saisi par",
+  "alert_restore_all_profiles": "Voulez-vous vraiment restaurer TOUS les profils maîtres depuis cette sauvegarde globale ? Toutes les données actuelles seront remplacées.",
+  "msg_restore_all_progress": "Restauration globale en cours...",
+  "msg_restore_all_success": "Restauration globale terminée avec succès !",
+  "msg_restore_all_failed": "Erreur lors de la restauration globale : {error}",
+  "filter_top6_all": "Tous",
+  "filter_top6_fixed": "Fixes",
+  "filter_top6_var": "Variables",
+  "overview_top3_click_tooltip": "Voir les opérations dans l'historique"
 }

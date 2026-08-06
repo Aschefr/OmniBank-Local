@@ -4068,7 +4068,8 @@ input[type="range"]::-moz-range-thumb:hover {
 .overview-title-group {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .overview-main-title {
@@ -4078,6 +4079,9 @@ input[type="range"]::-moz-range-thumb:hover {
     letter-spacing: -0.3px;
     color: var(--text-main);
     white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .overview-controls-bar {
@@ -4086,16 +4090,29 @@ input[type="range"]::-moz-range-thumb:hover {
     gap: 12px;
 }
 
+/* Badges harmonization */
+.overview-org-tag,
 .overview-health-badge {
     display: inline-flex;
     align-items: center;
-    padding: 6px 14px;
-    border-radius: 30px;
-    font-size: 13px;
+    justify-content: center;
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 20px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.2px;
     backdrop-filter: blur(8px);
-    transition: all 0.3s ease;
+    box-sizing: border-box;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+.overview-org-tag {
+    background: rgba(139, 92, 246, 0.12);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
 .overview-health-badge.badge-success {
@@ -4116,21 +4133,69 @@ input[type="range"]::-moz-range-thumb:hover {
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+/* Account Select & Add Button Harmonization */
+.overview-acc-select-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    max-width: 100%;
+}
+
+.overview-acc-select-wrapper:hover {
+    border-color: var(--accent-light, #818cf8);
+}
+
+.overview-acc-select-icon {
+    font-size: 14px;
+    opacity: 0.85;
+    flex-shrink: 0;
+}
+
+.overview-account-select {
+    border: none;
+    background: transparent;
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: auto;
+    max-width: 400px;
+}
+
+.overview-account-select option {
+    background: var(--bg-surface);
+    color: var(--text-main);
+}
+
 .overview-add-btn {
-    padding: 10px 20px;
-    border-radius: 12px;
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 10px;
     font-size: 13px;
     font-weight: 600;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
+    box-sizing: border-box;
     box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .overview-add-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(99, 102, 241, 0.4);
 }
 
 /* ── Section 1: Hero KPI cards row ────────────────────────────────────────── */
@@ -5193,6 +5258,19 @@ body.overview-fullscreen .app-body {
     display: flex;
     flex-direction: column;
     gap: 6px;
+}
+
+.overview-top3-item-clickable {
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 6px 8px;
+    margin: -6px -8px;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.overview-top3-item-clickable:hover {
+    background-color: var(--bg-surface-hover, rgba(255, 255, 255, 0.05));
+    transform: translateX(3px);
 }
 
 .overview-top3-header {
