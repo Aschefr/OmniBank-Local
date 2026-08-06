@@ -12,10 +12,19 @@ All notable changes to this project will be documented in this file.
   - **6-Month Financial Trend**: Interactive visual chart tracking your balance and spending trends over the past 6 months.
   - **Budgets & Savings Snapshot**: At-a-glance status indicators for your active budget envelopes and savings progress, with direct quick-links to detailed views.
 
-- **Visual Alert Indicators for Past Unreconciled Transactions ⏳**:
-  - **Overdue Transaction Highlights**: Added a subtle amber alert indicator on transaction dates for past operations that haven't been reconciled yet.
-  - **Cross-View Consistency**: Clear visual highlight active across the **Overview**, **Timeline**, and **Operations History** views to help you catch forgotten or pending transactions.
-  - **Instant Feedback**: The alert badge automatically disappears as soon as you mark the transaction as reconciled (✓).
+- **Financial Trends Accuracy & Multi-Mode Visualizations 📊**:
+  - **Directional Internal Transfer Accounting**: Overhauled `/api/stats/categories_by_month` calculation logic to handle internal transfers and recurring savings deposits accurately (+ / - signed directionally for individual accounts; net zero for "All accounts").
+  - **Savings Account Accuracy**: Savings deposits (e.g. transfers to Livret A) now properly reflect as incoming deposits rather than false fixed expenses.
+  - **4 Interactive Chart Modes**: Switch seamlessly between **Sorties / Expenses**, **Recettes vs Sorties / Income vs Expenses**, **Bilan mensuel / Monthly Cash Flow**, and **Solde historique / Balance History**.
+  - **Seamless View Propagation**: Clicking "Voir tout →" from the Overview smoothly transitions to the full Trends view while carrying over your active account filter and chart mode.
+  - **Smooth Pan & Pinch-Zoom**: Added smooth animated pan/drag controls (`Chart.js` + `Hammer.js`) for natural chart navigation on desktop and mobile touchscreens.
+
+- **UX, Mobile i18n & Interface Polish 📱✨**:
+  - **Dynamic Mobile Language Selector**: Added a dynamic language dropdown selector in the mobile burger menu that detects available `.json` translation files automatically.
+  - **Closed Accounts Filter**: Automatically hides closed accounts (`is_closed == true`) from account selection dropdowns across the Overview and Trends views.
+  - **Clear Financial Wording**: Renamed ambiguous "Solde net" to **"Bilan mensuel"** (*Monthly cash flow*) across buttons, tooltips, legends, and stat cards to prevent confusion with bank account balances.
+  - **Visual Alert Indicators for Past Unreconciled Transactions ⏳**: Added subtle amber alert indicators for past unreconciled operations across Overview, Timeline, and Operations History.
+  - **UI Icon Cleanup**: Removed duplicate button icons on primary action buttons for a clean, professional aesthetic.
 
 ## [1.0.77] - 2026-08-03
 

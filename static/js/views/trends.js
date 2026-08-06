@@ -4,6 +4,7 @@ window.TrendsView = {
     selectedAccountId: null,
     chart: null,
     historyData: [],
+    _catData: null, // categories_by_month data for expense/compare/balance modes
         // State
     timeframeMonths: 12,
     showOtherYears: false,
@@ -11,6 +12,7 @@ window.TrendsView = {
     selectedYears: [], // offsets (e.g. [1, 2]) selected for display. If empty, show all available.
     focusedOffset: null, // offset of the year/period currently highlighted
     savedAccountId: null,
+    chartMode: 'history', // 'history', 'expenses', 'compare', 'balance'
 
     render() {
         const superimposeActive = this.showOtherYears;
@@ -88,6 +90,14 @@ window.TrendsView = {
                 <div id="trendsYearsCheckboxes" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"></div>
             </div>
 
+            <!-- Chart Mode Toggle -->
+            <div class="overview-trend-mode-toggle" style="margin-bottom:16px;">
+                <button class="ov-mode-btn ${this.chartMode === 'history' ? 'active' : ''}" onclick="window.TrendsView.setChartMode('history')" data-i18n="trends_mode_history">${window.i18n.t('trends_mode_history')}</button>
+                <button class="ov-mode-btn ${this.chartMode === 'expenses' ? 'active' : ''}" onclick="window.TrendsView.setChartMode('expenses')" data-i18n="trends_mode_expenses">${window.i18n.t('trends_mode_expenses')}</button>
+                <button class="ov-mode-btn ${this.chartMode === 'compare' ? 'active' : ''}" onclick="window.TrendsView.setChartMode('compare')" data-i18n="trends_mode_compare">${window.i18n.t('trends_mode_compare')}</button>
+                <button class="ov-mode-btn ${this.chartMode === 'balance' ? 'active' : ''}" onclick="window.TrendsView.setChartMode('balance')" data-i18n="trends_mode_balance">${window.i18n.t('trends_mode_balance')}</button>
+            </div>
+
             <!-- Stats Grid -->
             <div id="trendsStatsGrid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px;">
             </div>
@@ -143,6 +153,9 @@ window.TrendsView = {
             if (config.trends_account_id !== undefined) {
                 this.savedAccountId = config.trends_account_id;
             }
+            if (config.trends_chart_mode !== undefined) {
+                this.chartMode = config.trends_chart_mode;
+            }
         } catch(e) {
             console.error('TrendsView loadConfig error:', e);
         }
@@ -162,18 +175,19 @@ window.TrendsView = {
             const mainAcc = await API.get('/api/stats/main_account');
 
             const sel = document.getElementById('trendsAccountSelect');
+            const activeAccounts = this.accounts.filter(a => !a.is_closed);
             let options = `<option value="total" style="font-weight:bold;" data-i18n="trends_opt_total">${window.i18n.t('trends_opt_total')}</option>`;
-            options += this.accounts.map(a =>
+            options += activeAccounts.map(a =>
                 `<option value="${a.id}">${a.name}</option>`
             ).join('');
             if (sel) sel.innerHTML = options;
 
-            if (this.savedAccountId !== null && (this.savedAccountId === 'total' || this.accounts.some(a => a.id.toString() === this.savedAccountId.toString()))) {
+            if (this.savedAccountId !== null && (this.savedAccountId === 'total' || activeAccounts.some(a => a.id.toString() === this.savedAccountId.toString()))) {
                 this.selectedAccountId = this.savedAccountId.toString();
-            } else if (mainAcc && mainAcc.id) {
+            } else if (mainAcc && mainAcc.id && activeAccounts.some(a => a.id === mainAcc.id)) {
                 this.selectedAccountId = mainAcc.id.toString();
-            } else if (this.accounts.length > 0) {
-                this.selectedAccountId = this.accounts[0].id.toString();
+            } else if (activeAccounts.length > 0) {
+                this.selectedAccountId = activeAccounts[0].id.toString();
             } else {
                 this.selectedAccountId = "total";
             }
@@ -198,7 +212,7 @@ window.TrendsView = {
         await this.loadData();
     },
     
-    onTimeframeChange(months) {
+    async onTimeframeChange(months) {
         this.timeframeMonths = months === 'all' ? 'all' : parseInt(months, 10);
         this.focusedOffset = null;
         this.saveConfig({ trends_timeframe_months: months.toString() });
@@ -238,6 +252,11 @@ window.TrendsView = {
             }
         }
         
+        // Recharger les données de catégorie si mode non-history
+        if (this.chartMode !== 'history') {
+            await this._loadCategoryData();
+        }
+
         this.updateAlignmentVisibility();
         this.renderChart();
     },
@@ -354,14 +373,43 @@ window.TrendsView = {
     async loadData() {
         if (!this.selectedAccountId) return;
         try {
+            // Charger les données de solde historique
             const data = await API.get(`/api/stats/trends/${this.selectedAccountId}`);
             this.historyData = data.history || [];
             this.selectedYears = []; // Reset on new account load
+
+            // Charger les données par catégorie pour les modes expenses/compare/balance
+            await this._loadCategoryData();
+
             this.updateAlignmentVisibility();
             this.renderChart();
         } catch(e) {
             console.error('TrendsView data:', e);
         }
+    },
+
+    async _loadCategoryData() {
+        try {
+            const months = this.timeframeMonths === 'all' ? 120 : this.timeframeMonths;
+            let url = `/api/stats/categories_by_month?months=${months}`;
+            if (this.selectedAccountId && this.selectedAccountId !== 'total') {
+                url += `&account_ids=${this.selectedAccountId}`;
+            }
+            this._catData = await API.get(url);
+        } catch (e) {
+            console.error('[trends] Erreur chargement catégories', e);
+            this._catData = null;
+        }
+    },
+
+    setChartMode(mode) {
+        this.chartMode = mode;
+        this.saveConfig({ trends_chart_mode: mode });
+        // Mettre à jour les boutons de mode
+        document.querySelectorAll('.ov-mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${mode}'`));
+        });
+        this.renderChart();
     },
     
     focusYear(offset) {
@@ -390,6 +438,21 @@ window.TrendsView = {
         const statsGrid = document.getElementById('trendsStatsGrid');
         const compContainer = document.getElementById('trendsComparisonContainer');
         const compBody = document.getElementById('trendsComparisonBody');
+
+        // Masquer les contrôles de superposition pour les modes non-history
+        const superimposeControls = document.querySelector('label:has(#trendsOtherYearsCheck)');
+        const alignControls = document.getElementById('trendsAlignmentSelect');
+        if (superimposeControls) superimposeControls.style.display = this.chartMode === 'history' ? '' : 'none';
+        if (alignControls) alignControls.closest('div').style.display = this.chartMode === 'history' ? '' : 'none';
+        const yearsSelector = document.getElementById('trendsYearsSelectorContainer');
+        if (yearsSelector && this.chartMode !== 'history') yearsSelector.style.display = 'none';
+
+        // Mode catégories (expenses, compare, balance) — rendu séparé
+        if (this.chartMode !== 'history') {
+            if (compContainer) compContainer.style.display = 'none';
+            this._renderCategoryChart(ctx, statsGrid);
+            return;
+        }
         
         if (this.historyData.length === 0) {
             this.chart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [] } });
@@ -736,11 +799,20 @@ window.TrendsView = {
                                 enabled: true,
                                 center: false
                             },
+                            drag: {
+                                enabled: false
+                            },
                             mode: 'x',
                         },
                         pan: {
                             enabled: true,
                             mode: 'x',
+                            threshold: 2,
+                        },
+                        transition: {
+                            animation: {
+                                duration: 200
+                            }
                         }
                     }
                 },
@@ -762,5 +834,230 @@ window.TrendsView = {
                 }
             }
         });
+    },
+
+    _renderCategoryChart(canvasEl, statsGrid) {
+        const catData = this._catData;
+        if (!catData) {
+            this.chart = new Chart(canvasEl, { type: 'line', data: { labels: [], datasets: [] } });
+            if (statsGrid) statsGrid.innerHTML = '';
+            return;
+        }
+
+        const today = new Date();
+        const months = this.timeframeMonths === 'all' ? 120 : this.timeframeMonths;
+        const monthKeys = [];
+        const monthLabels = [];
+        const isEn = window.i18n.lang === 'en';
+        const monthNames = isEn
+            ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            : ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+
+        for (let i = months - 1; i >= 0; i--) {
+            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            monthKeys.push(mk);
+            monthLabels.push(`${monthNames[d.getMonth()]} ${d.getFullYear() % 100}`);
+        }
+
+        const expenseTotals = monthKeys.map(mk => {
+            let total = 0;
+            for (const txType of ['expense_var', 'expense_fixed', 'transfer']) {
+                const typeGroup = (catData.by_type && catData.by_type[txType]) ? catData.by_type[txType] : catData[txType];
+                if (typeGroup && typeGroup.totals_per_month && typeGroup.totals_per_month[mk]) {
+                    total += Math.abs(typeGroup.totals_per_month[mk]);
+                }
+            }
+            return Math.round(total * 100) / 100;
+        });
+
+        const incomeTotals = monthKeys.map(mk => {
+            let total = 0;
+            const typeGroup = (catData.by_type && catData.by_type['income']) ? catData.by_type['income'] : catData['income'];
+            if (typeGroup && typeGroup.totals_per_month && typeGroup.totals_per_month[mk]) {
+                total += Math.abs(typeGroup.totals_per_month[mk]);
+            }
+            return Math.round(total * 100) / 100;
+        });
+
+        const netTotals = monthKeys.map((mk, i) => Math.round((incomeTotals[i] - expenseTotals[i]) * 100) / 100);
+
+        const ctxCanvas = canvasEl.getContext('2d');
+        let datasets = [];
+
+        const expLabel = window.i18n.t('overview_chart_mode_expenses') || 'Sorties';
+        const incLabel = window.i18n.t('overview_chart_mode_income') || 'Recettes';
+        const balLabel = window.i18n.t('overview_chart_mode_balance') || 'Bilan mensuel';
+
+        if (this.chartMode === 'expenses') {
+            const gradient = ctxCanvas.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.35)');
+            gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+            datasets = [{
+                label: expLabel,
+                data: expenseTotals,
+                fill: true,
+                backgroundColor: gradient,
+                borderColor: '#6366f1',
+                borderWidth: 3,
+                pointBackgroundColor: '#6366f1',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                tension: 0.35
+            }];
+        } else if (this.chartMode === 'compare') {
+            datasets = [
+                {
+                    label: incLabel,
+                    data: incomeTotals,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#10b981',
+                    pointRadius: 3,
+                    tension: 0.35
+                },
+                {
+                    label: expLabel,
+                    data: expenseTotals,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    fill: true,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#ef4444',
+                    pointRadius: 3,
+                    tension: 0.35
+                }
+            ];
+        } else if (this.chartMode === 'balance') {
+            const bgColors = netTotals.map(val => val >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)');
+            datasets = [{
+                type: 'bar',
+                label: balLabel,
+                data: netTotals,
+                backgroundColor: bgColors,
+                borderRadius: 6
+            }];
+        }
+
+        const textColor = getComputedStyle(document.body).getPropertyValue('--text-muted').trim() || '#9ca3af';
+
+        this.chart = new Chart(canvasEl, {
+            type: this.chartMode === 'balance' ? 'bar' : 'line',
+            data: {
+                labels: monthLabels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: { display: this.chartMode === 'compare' },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        padding: 12,
+                        displayColors: true,
+                        callbacks: {
+                            label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`
+                        }
+                    },
+                    zoom: {
+                        zoom: {
+                            wheel: { enabled: true },
+                            pinch: { enabled: true },
+                            drag: { enabled: false },
+                            mode: 'x',
+                        },
+                        pan: {
+                            enabled: true,
+                            mode: 'x',
+                            threshold: 2,
+                        },
+                        transition: {
+                            animation: {
+                                duration: 200
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: this.chartMode !== 'balance',
+                        grid: { color: 'rgba(255,255,255,0.06)' },
+                        ticks: {
+                            color: textColor,
+                            callback: (v) => formatCurrency(v)
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: textColor,
+                            maxTicksLimit: 15
+                        }
+                    }
+                }
+            }
+        });
+
+        // Stats grid pour les modes catégories
+        if (statsGrid) {
+            const totalExp = expenseTotals.reduce((a, b) => a + b, 0);
+            const totalInc = incomeTotals.reduce((a, b) => a + b, 0);
+            const totalNet = totalInc - totalExp;
+            const avgExp = expenseTotals.length > 0 ? totalExp / expenseTotals.length : 0;
+            const avgInc = incomeTotals.length > 0 ? totalInc / incomeTotals.length : 0;
+
+            const varColor = totalNet >= 0 ? '#10b981' : '#ef4444';
+            const varPrefix = totalNet >= 0 ? '+' : '';
+
+            const statVariation = window.i18n.t('trends_stat_variation') || 'Variation';
+            const statAverage = window.i18n.t('trends_stat_average') || 'Moyenne';
+
+            if (this.chartMode === 'expenses') {
+                statsGrid.innerHTML = `
+                    <div class="stat-box" style="margin-bottom:0;">
+                        <span class="stat-label">${window.i18n.t('overview_chart_mode_expenses') || 'Sorties'} (total)</span>
+                        <strong class="privacy-blur" style="color: #ef4444; font-size: 20px; margin-top: 4px; font-weight: 700;">${formatCurrency(totalExp)}</strong>
+                    </div>
+                    <div class="stat-box" style="margin-bottom:0;">
+                        <span class="stat-label">${statAverage} /mois</span>
+                        <strong class="privacy-blur" style="font-size: 20px; margin-top: 4px; font-weight: 700; color: var(--text-main);">${formatCurrency(avgExp)}</strong>
+                    </div>
+                `;
+            } else if (this.chartMode === 'compare') {
+                statsGrid.innerHTML = `
+                    <div class="stat-box" style="margin-bottom:0;">
+                        <span class="stat-label">${window.i18n.t('overview_chart_mode_income') || 'Recettes'} (total)</span>
+                        <strong class="privacy-blur" style="color: #10b981; font-size: 20px; margin-top: 4px; font-weight: 700;">${formatCurrency(totalInc)}</strong>
+                    </div>
+                    <div class="stat-box" style="margin-bottom:0;">
+                        <span class="stat-label">${window.i18n.t('overview_chart_mode_expenses') || 'Sorties'} (total)</span>
+                        <strong class="privacy-blur" style="color: #ef4444; font-size: 20px; margin-top: 4px; font-weight: 700;">${formatCurrency(totalExp)}</strong>
+                    </div>
+                    <div class="stat-box" style="margin-bottom:0;">
+                        <span class="stat-label">${statVariation}</span>
+                        <strong class="privacy-blur" style="color: ${varColor}; font-size: 20px; margin-top: 4px; font-weight: 700;">${varPrefix}${formatCurrency(totalNet)}</strong>
+                    </div>
+                `;
+            } else if (this.chartMode === 'balance') {
+                statsGrid.innerHTML = `
+                    <div class="stat-box" style="margin-bottom:0;">
+                        <span class="stat-label">${window.i18n.t('overview_chart_mode_balance') || 'Bilan mensuel'} (total)</span>
+                        <strong class="privacy-blur" style="color: ${varColor}; font-size: 20px; margin-top: 4px; font-weight: 700;">${varPrefix}${formatCurrency(totalNet)}</strong>
+                    </div>
+                    <div class="stat-box" style="margin-bottom:0;">
+                        <span class="stat-label">${statAverage} /mois</span>
+                        <strong class="privacy-blur" style="font-size: 20px; margin-top: 4px; font-weight: 700; color: var(--text-main);">${formatCurrency(totalNet / (monthKeys.length || 1))}</strong>
+                    </div>
+                `;
+            }
+        }
     }
 };

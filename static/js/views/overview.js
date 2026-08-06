@@ -3,19 +3,36 @@ window.OverviewView = {
     _chart: null,
     _unreconciledTxs: [],
     _searchQuery: '',
+    _selectedAccountId: '',
+    _activeTab: 'all', // 'all', 'overdue', 'expenses', 'income'
+    _trendMode: 'expenses', // 'expenses', 'compare', 'balance'
+    _stats: null,
+    _accounts: [],
+    _transactions: [],
+    _accountsMap: {},
+    _pastOverdueTxs: [],
 
     render() {
         return `
             <div id="overviewRoot" class="overview-root">
-                <!-- Header / Health Badge & Quick Actions -->
+                <!-- Header / Health Badge, Account Selector & Quick Actions -->
                 <div class="overview-top-bar">
-                    <div class="overview-title-group">
-                        <h2 class="overview-main-title">👀 <span data-i18n="nav_overview">${window.i18n.t('nav_overview')}</span></h2>
-                        <div id="ovHealthBadge" class="overview-health-badge">—</div>
+                    <div class="overview-header-main">
+                        <div class="overview-title-group">
+                            <h2 class="overview-main-title">👀 <span data-i18n="nav_overview">${window.i18n.t('nav_overview')}</span></h2>
+                            <div id="ovOrgTag" class="overview-org-tag" style="display:none;">🏢 <span data-i18n="overview_org_badge">${window.i18n.t('overview_org_badge') || 'Mode Organisation'}</span></div>
+                            <div id="ovHealthBadge" class="overview-health-badge">—</div>
+                        </div>
                     </div>
-                    <div class="overview-top-actions">
+                    <div class="overview-controls-bar">
+                        <div class="overview-acc-select-wrapper">
+                            <span class="overview-acc-select-icon">🏦</span>
+                            <select id="ovAccountSelect" class="overview-account-select" onchange="window.OverviewView.onAccountChange(this.value)">
+                                <option value="">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</option>
+                            </select>
+                        </div>
                         <button class="btn btn-primary overview-add-btn" onclick="window.OverviewView.showAddModal()">
-                            ✨ <span>${window.i18n.t('btn_add_operation') || 'Nouvelle opération'}</span>
+                            <span>${window.i18n.t('btn_add_operation') || 'Nouvelle opération'}</span>
                         </button>
                     </div>
                 </div>
@@ -25,15 +42,23 @@ window.OverviewView = {
                     <div class="overview-hero-card overview-hero-networth">
                         <div class="overview-hero-icon">🏦</div>
                         <div class="overview-hero-content">
-                            <div class="overview-hero-label" data-i18n="overview_net_worth">${window.i18n.t('overview_net_worth')}</div>
+                            <div class="overview-hero-label" id="ovNetWorthLabel" data-i18n="overview_net_worth">${window.i18n.t('overview_net_worth')}</div>
                             <div class="overview-hero-value privacy-blur" id="ovNetWorth">—</div>
                         </div>
                     </div>
                     <div class="overview-hero-card overview-hero-rav">
                         <div class="overview-hero-icon">💡</div>
                         <div class="overview-hero-content">
-                            <div class="overview-hero-label" data-i18n="overview_rest_to_live">${window.i18n.t('overview_rest_to_live')}</div>
+                            <div class="overview-hero-label" id="ovRestToLiveLabel" data-i18n="overview_rest_to_live">${window.i18n.t('overview_rest_to_live')}</div>
                             <div class="overview-hero-value privacy-blur" id="ovRestToLive">—</div>
+                        </div>
+                    </div>
+                    <div class="overview-hero-card overview-hero-projection">
+                        <div class="overview-hero-icon">🔮</div>
+                        <div class="overview-hero-content">
+                            <div class="overview-hero-label" data-i18n="overview_projection_title">${window.i18n.t('overview_projection_title') || 'Projection Fin de Mois'}</div>
+                            <div class="overview-hero-value privacy-blur" id="ovProjectionAmount">—</div>
+                            <div class="overview-hero-sub" id="ovProjectionSub">${window.i18n.t('overview_projection_sub') || 'Solde estimé en fin de mois'}</div>
                         </div>
                     </div>
                     <div class="overview-hero-card overview-hero-pay" id="ovPayCard" style="display:none;">
@@ -42,6 +67,16 @@ window.OverviewView = {
                             <div class="overview-hero-label" data-i18n="overview_next_pay">${window.i18n.t('overview_next_pay')}</div>
                             <div class="overview-hero-value privacy-blur" id="ovNextPayAmount">—</div>
                             <div class="overview-hero-sub" id="ovNextPayDate"></div>
+                        </div>
+                    </div>
+                    <div class="overview-hero-card overview-hero-orguser" id="ovOrgUserCard" style="display:none;">
+                        <div class="overview-hero-icon">👤</div>
+                        <div class="overview-hero-content">
+                            <div class="overview-hero-label" data-i18n="overview_org_active_user">${window.i18n.t('overview_org_active_user') || 'Membre Actif'}</div>
+                            <div class="overview-hero-value" id="ovOrgUserName">—</div>
+                            <button class="overview-hero-switch-btn" onclick="window.OverviewView.openUserPicker()">
+                                🔄 <span data-i18n="overview_org_switch_user">${window.i18n.t('overview_org_switch_user') || 'Changer'}</span>
+                            </button>
                         </div>
                     </div>
                     <div class="overview-hero-card overview-hero-overdraft" id="ovOverdraftCard" style="display:none;">
@@ -64,22 +99,58 @@ window.OverviewView = {
                         <div class="overview-header-right">
                             <input type="text" id="ovOpsSearch" class="overview-search-input" 
                                 placeholder="${window.i18n.t('ph_search') || 'Rechercher...'}" 
+                                value="${escapeHtml(this._searchQuery)}"
                                 oninput="window.OverviewView.onSearch(this.value)">
+                            
+                            <!-- Bulk Reconcile Button with Tooltip -->
+                            <div class="overview-bulk-wrapper" id="ovBulkWrapper" style="display:none;">
+                                <button id="ovBulkBtn" class="overview-bulk-btn" onclick="window.OverviewView.toggleBulkReconciliation()">
+                                    <span id="ovBulkBtnLabel">✓ Tout rapprocher</span>
+                                </button>
+                                <div id="ovBulkTooltip" class="overview-bulk-tooltip"></div>
+                            </div>
+
                             <button class="overview-link-btn" onclick="window.app.showUnreconciledBeforePay()" data-i18n="overview_see_all">${window.i18n.t('overview_see_all')} →</button>
                         </div>
                     </div>
+
+                    <!-- Filter Tabs -->
+                    <div class="overview-tabs-bar">
+                        <button class="overview-tab ${this._activeTab === 'all' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('all')">
+                            <span data-i18n="overview_filter_all">${window.i18n.t('overview_filter_all') || 'Toutes'}</span>
+                            <span id="ovTabCount_all" class="overview-tab-count">(0)</span>
+                        </button>
+                        <button class="overview-tab ${this._activeTab === 'overdue' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('overdue')">
+                            <span data-i18n="overview_filter_overdue">${window.i18n.t('overview_filter_overdue') || 'Passées ⏳'}</span>
+                            <span id="ovTabCount_overdue" class="overview-tab-count">(0)</span>
+                        </button>
+                        <button class="overview-tab ${this._activeTab === 'expenses' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('expenses')">
+                            <span data-i18n="overview_filter_expenses">${window.i18n.t('overview_filter_expenses') || 'Dépenses 💸'}</span>
+                            <span id="ovTabCount_expenses" class="overview-tab-count">(0)</span>
+                        </button>
+                        <button class="overview-tab ${this._activeTab === 'income' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('income')">
+                            <span data-i18n="overview_filter_income">${window.i18n.t('overview_filter_income') || 'Recettes 🟢'}</span>
+                            <span id="ovTabCount_income" class="overview-tab-count">(0)</span>
+                        </button>
+                    </div>
+
                     <div id="ovUnreconciledList" class="overview-ops-table-container">
                         <div class="overview-loading">⏳</div>
                     </div>
                 </div>
 
-                <!-- Section 3: Bottom Grid (Tendance 6 mois + Budgets & Épargne) -->
+                <!-- Section 3: Bottom Grid (Tendance 6M + Top 3 + Budgets & Épargne) -->
                 <div class="overview-bottom-grid">
                     <!-- Column 1: Trend Chart (6 Months Area Chart) -->
                     <div class="overview-card overview-card-trend">
                         <div class="overview-card-header">
                             <h3>📈 <span data-i18n="overview_monthly_trend">${window.i18n.t('overview_monthly_trend')}</span> (6M)</h3>
-                            <button class="overview-link-btn" onclick="window.app.loadView('trends')" data-i18n="overview_see_all">${window.i18n.t('overview_see_all')} →</button>
+                            <div class="overview-trend-mode-toggle">
+                                <button class="ov-mode-btn ${this._trendMode === 'expenses' ? 'active' : ''}" onclick="window.OverviewView.setTrendMode('expenses')" data-i18n="overview_chart_mode_expenses">${window.i18n.t('overview_chart_mode_expenses') || 'Dépenses'}</button>
+                                <button class="ov-mode-btn ${this._trendMode === 'compare' ? 'active' : ''}" onclick="window.OverviewView.setTrendMode('compare')">${window.i18n.t('overview_chart_mode_compare') || 'vs Recettes'}</button>
+                                <button class="ov-mode-btn ${this._trendMode === 'balance' ? 'active' : ''}" onclick="window.OverviewView.setTrendMode('balance')" data-i18n="overview_chart_mode_balance">${window.i18n.t('overview_chart_mode_balance') || 'Bilan mensuel'}</button>
+                            </div>
+                            <button class="overview-link-btn" onclick="window.OverviewView.navigateToTrends()" data-i18n="overview_see_all">${window.i18n.t('overview_see_all')} →</button>
                         </div>
                         <div class="overview-trend-container">
                             <canvas id="ovTrendChart"></canvas>
@@ -87,20 +158,30 @@ window.OverviewView = {
                         <div id="ovTrendLegend" class="overview-trend-legend"></div>
                     </div>
 
-                    <!-- Column 2: Budgets & Savings -->
+                    <!-- Column 2: Top 6 Dépenses -->
+                    <div class="overview-card overview-card-top3">
+                        <div class="overview-card-header">
+                            <h3>🏆 <span id="ovTop3Title" data-i18n="overview_top3_expenses">${window.i18n.t('overview_top3_expenses') || 'Top 6 Dépenses du mois'}</span></h3>
+                        </div>
+                        <div id="ovTop3List" class="overview-top3-list">
+                            <div class="overview-loading">⏳</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 3: Budgets & Savings -->
                     <div class="overview-card overview-card-budgets-savings">
                         <div class="overview-card-header">
                             <h3>🎯 <span data-i18n="overview_budgets">${window.i18n.t('overview_budgets')}</span> & <span data-i18n="overview_savings">${window.i18n.t('overview_savings')}</span></h3>
                             <button class="overview-link-btn" onclick="window.app.loadView('budgets')" data-i18n="overview_see_all">${window.i18n.t('overview_see_all')} →</button>
                         </div>
                         <div class="overview-budgets-wrapper">
-                            <div class="overview-section-subtitle">🎯 Budgets</div>
+                            <div class="overview-section-subtitle">🎯 <span id="ovBudgetsSubtitle" data-i18n="overview_budgets">${window.i18n.t('overview_budgets') || 'Budgets'}</span></div>
                             <div id="ovBudgetsList" class="overview-budgets-list">
                                 <div class="overview-loading">⏳</div>
                             </div>
 
                             <div id="ovSavingsSection" style="display:none; margin-top: 20px;">
-                                <div class="overview-section-subtitle">💰 Épargne & Objectifs</div>
+                                <div class="overview-section-subtitle">💰 <span data-i18n="overview_savings_and_goals">${window.i18n.t('overview_savings_and_goals') || 'Épargne & Objectifs'}</span></div>
                                 <div id="ovSavingsList" class="overview-savings-list"></div>
                             </div>
                         </div>
@@ -111,48 +192,150 @@ window.OverviewView = {
     },
 
     async init() {
-        // Fetch data in parallel
-        const [stats, accounts, transactions] = await Promise.all([
+        const [config, stats, accounts, transactions] = await Promise.all([
+            API.get('/api/config/'),
             API.get('/api/stats/dashboard'),
             API.get('/api/stats/accounts'),
             API.get('/api/transactions/?limit=1000')
         ]);
 
-        this._accountsMap = {};
-        (accounts || []).forEach(a => { this._accountsMap[a.id] = a; });
+        if (config) {
+            if (config.overview_account_id !== undefined) {
+                this._selectedAccountId = config.overview_account_id;
+            }
+            if (config.overview_active_tab !== undefined) {
+                this._activeTab = config.overview_active_tab;
+            }
+            if (config.overview_trend_mode !== undefined) {
+                this._trendMode = config.overview_trend_mode;
+            }
+        }
 
+        this._stats = stats;
+        this._accounts = accounts || [];
+        this._transactions = transactions || [];
+        this._accountsMap = {};
+        this._accounts.forEach(a => { this._accountsMap[a.id] = a; });
+
+        this._populateAccountSelect();
+        this._updateActiveTabUI();
+        this._updateTrendModeUI();
         this._renderHealthBadge(stats);
         this._renderHero(stats);
         this._renderUnreconciled(transactions);
+        this._renderTop3(transactions);
         this._renderBudgets(stats);
         this._renderSavings(stats);
         await this._renderTrend();
+    },
+
+    async saveConfig(updates) {
+        try {
+            if (window.app && window.app.config) {
+                Object.assign(window.app.config, updates);
+            }
+            await API.post('/api/config/', updates);
+        } catch (e) {
+            console.error('[overview] Erreur sauvegarde config', e);
+        }
+    },
+
+    async navigateToTrends() {
+        // Propager le compte sélectionné et le mode de graphique vers la page Tendances
+        const updates = {
+            trends_account_id: this._selectedAccountId || 'total',
+            trends_chart_mode: this._trendMode
+        };
+        await this.saveConfig(updates);
+        window.app.loadView('trends');
+    },
+
+    _populateAccountSelect() {
+        const select = document.getElementById('ovAccountSelect');
+        if (!select) return;
+
+        let html = `<option value="">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</option>`;
+        for (const a of this._accounts) {
+            if (a.is_closed) continue;
+            const selected = String(a.id) === String(this._selectedAccountId) ? 'selected' : '';
+            html += `<option value="${a.id}" ${selected}>${escapeHtml(a.name)} (${formatCurrency(a.balance)})</option>`;
+        }
+        select.innerHTML = html;
+    },
+
+    onAccountChange(accId) {
+        this._selectedAccountId = accId || '';
+        this.saveConfig({ overview_account_id: this._selectedAccountId });
+        this._renderHero(this._stats);
+        this._renderUnreconciled(this._transactions);
+        this._renderTop3(this._transactions);
+        this._renderBudgets(this._stats);
+        this._renderSavings(this._stats);
+        this._renderTrend();
+    },
+
+    async openUserPicker() {
+        if (window.app && typeof window.app._showUserPicker === 'function') {
+            await window.app._showUserPicker();
+            await this.init();
+        }
     },
 
     _renderHealthBadge(stats) {
         const badge = document.getElementById('ovHealthBadge');
         if (!badge) return;
 
+        const isOrgMode = window.app?.config?.enable_org_mode === 'true';
+
         if (stats.overdraft_warning) {
             badge.className = 'overview-health-badge badge-danger';
-            badge.innerHTML = `⚠️ Risk Découvert (${formatCurrency(stats.overdraft_warning.projected_balance)})`;
+            badge.innerHTML = `⚠️ ${window.i18n.t('overview_health_overdraft') || 'Risque Découvert'} (${formatCurrency(stats.overdraft_warning.projected_balance)})`;
         } else if (stats.savings_overflow && stats.savings_overflow.fully_consumed) {
             badge.className = 'overview-health-badge badge-warning';
-            badge.innerHTML = `🟧 Épargne entamée`;
+            badge.innerHTML = `🟧 ${window.i18n.t('overview_health_savings_consumed') || 'Épargne entamée'}`;
         } else if (stats.rest_to_live < 0) {
             badge.className = 'overview-health-badge badge-warning';
-            badge.innerHTML = `🟧 Reste à vivre négatif`;
+            badge.innerHTML = `🟧 ${window.i18n.t('overview_health_rav_negative') || 'Reste à vivre négatif'}`;
         } else {
             badge.className = 'overview-health-badge badge-success';
-            badge.innerHTML = `🟢 Situation Saine`;
+            const text = isOrgMode
+                ? (window.i18n.t('overview_org_health_healthy') || 'Trésorerie Saine')
+                : (window.i18n.t('overview_health_healthy') || 'Situation Saine');
+            badge.innerHTML = `🟢 ${text}`;
         }
     },
 
     _renderHero(stats) {
+        const isOrgMode = window.app?.config?.enable_org_mode === 'true';
+
+        // Tag Mode Org dans le header
+        const orgTag = document.getElementById('ovOrgTag');
+        if (orgTag) orgTag.style.display = isOrgMode ? 'inline-flex' : 'none';
+
         const nw = document.getElementById('ovNetWorth');
-        if (nw) nw.textContent = formatCurrency(stats.net_worth);
+        const nwLabel = document.getElementById('ovNetWorthLabel');
+        if (nw) {
+            if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
+                const acc = this._accountsMap[this._selectedAccountId];
+                nw.textContent = formatCurrency(acc.balance);
+                if (nwLabel) nwLabel.textContent = `${window.i18n.t('overview_balance') || 'Solde'} (${acc.name})`;
+            } else {
+                nw.textContent = formatCurrency(stats.net_worth);
+                if (nwLabel) {
+                    nwLabel.textContent = isOrgMode
+                        ? (window.i18n.t('overview_org_treasury') || 'Trésorerie Globale')
+                        : (window.i18n.t('overview_net_worth') || 'Patrimoine net');
+                }
+            }
+        }
 
         const rav = document.getElementById('ovRestToLive');
+        const ravLabel = document.getElementById('ovRestToLiveLabel');
+        if (ravLabel) {
+            ravLabel.textContent = isOrgMode
+                ? (window.i18n.t('overview_org_available') || 'Trésorerie Disponible')
+                : (window.i18n.t('overview_rest_to_live') || 'Reste à vivre');
+        }
         if (rav) {
             rav.textContent = formatCurrency(stats.rest_to_live);
             if (stats.savings_overflow) {
@@ -164,13 +347,71 @@ window.OverviewView = {
             }
         }
 
-        const isOrgMode = window.app.config && (window.app.config.enable_org_mode === 'true');
+        // Projection Fin de Mois
+        const projAmt = document.getElementById('ovProjectionAmount');
+        const projSub = document.getElementById('ovProjectionSub');
+        if (projAmt) {
+            const today = new Date();
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            const todayISO = today.toISOString().split('T')[0];
+            const lastDayISO = lastDay.toISOString().split('T')[0];
+
+            let baseBalance = stats.net_worth;
+            if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
+                baseBalance = this._accountsMap[this._selectedAccountId].balance;
+            }
+
+            const upcomingTxs = (this._transactions || []).filter(tx => {
+                if (tx.reconciliation_date || tx.is_skipped) return false;
+                if (tx.date_operation < todayISO || tx.date_operation > lastDayISO) return false;
+                if (this._selectedAccountId) {
+                    return String(tx.from_account_id) === String(this._selectedAccountId) || String(tx.to_account_id) === String(this._selectedAccountId);
+                }
+                return true;
+            });
+
+            let projDiff = 0;
+            upcomingTxs.forEach(tx => {
+                if (tx.type === 'income') projDiff += tx.amount;
+                else projDiff -= tx.amount;
+            });
+
+            const projectedEnd = baseBalance + projDiff;
+            projAmt.textContent = formatCurrency(projectedEnd);
+            projAmt.style.color = projectedEnd < 0 ? '#ef4444' : '#10b981';
+            if (projSub) {
+                const isEn = window.i18n.lang === 'en';
+                const monthName = today.toLocaleDateString(isEn ? 'en-US' : 'fr-FR', { month: 'long' });
+                const dayNum = lastDay.getDate();
+                if (isOrgMode) {
+                    const prefix = window.i18n.t('overview_org_forecast_sub') || (isEn ? 'Forecast organisation balance as of' : 'Solde prévisionnel de l\'organisation au');
+                    projSub.textContent = `${prefix} ${dayNum} ${monthName}`;
+                } else if (isEn) {
+                    projSub.textContent = `Forecast balance as of ${monthName} ${dayNum}`;
+                } else {
+                    projSub.textContent = `Solde prévisionnel au ${dayNum} ${monthName}`;
+                }
+            }
+        }
+
         const payCard = document.getElementById('ovPayCard');
-        if (stats.next_pay_date && !isOrgMode && payCard) {
-            payCard.style.display = 'flex';
-            document.getElementById('ovNextPayAmount').textContent = formatCurrency(stats.next_pay_amount);
-            const dateStr = formatDate(stats.next_pay_date) + (stats.is_pay_override ? ' ✏️' : '');
-            document.getElementById('ovNextPayDate').textContent = dateStr;
+        const orgUserCard = document.getElementById('ovOrgUserCard');
+
+        if (isOrgMode) {
+            if (payCard) payCard.style.display = 'none';
+            if (orgUserCard) {
+                orgUserCard.style.display = 'flex';
+                const userNameEl = document.getElementById('ovOrgUserName');
+                if (userNameEl) userNameEl.textContent = window.app?.currentUser || '—';
+            }
+        } else {
+            if (orgUserCard) orgUserCard.style.display = 'none';
+            if (stats.next_pay_date && payCard) {
+                payCard.style.display = 'flex';
+                document.getElementById('ovNextPayAmount').textContent = formatCurrency(stats.next_pay_amount);
+                const dateStr = formatDate(stats.next_pay_date) + (stats.is_pay_override ? ' ✏️' : '');
+                document.getElementById('ovNextPayDate').textContent = dateStr;
+            }
         }
 
         const odCard = document.getElementById('ovOverdraftCard');
@@ -186,47 +427,129 @@ window.OverviewView = {
         const badge = document.getElementById('ovUnreconciledBadge');
         if (!container) return;
 
-        // Filter unreconciled ops
-        let unreconciled = transactions.filter(tx =>
+        const todayISO = new Date().toISOString().split('T')[0];
+
+        // Filter base unreconciled ops
+        let allUnreconciled = transactions.filter(tx =>
             !tx.reconciliation_date &&
             !tx.is_skipped &&
             tx.cross_profile_status !== 'pending'
-        ).sort((a, b) => new Date(a.date_operation) - new Date(b.date_operation));
+        );
 
-        this._unreconciledTxs = unreconciled;
-        if (badge) badge.textContent = unreconciled.length;
+        if (this._selectedAccountId) {
+            const accIdStr = String(this._selectedAccountId);
+            allUnreconciled = allUnreconciled.filter(tx =>
+                String(tx.from_account_id) === accIdStr || String(tx.to_account_id) === accIdStr
+            );
+        }
 
-        // Apply filter if query exists
+        allUnreconciled.sort((a, b) => new Date(a.date_operation) - new Date(b.date_operation));
+
+        this._unreconciledTxs = allUnreconciled;
+        if (badge) badge.textContent = allUnreconciled.length;
+
+        // Compute tab counts
+        const overdueTxs = allUnreconciled.filter(tx => tx.date_operation < todayISO);
+        const expenseTxs = allUnreconciled.filter(tx => tx.type !== 'income');
+        const incomeTxs = allUnreconciled.filter(tx => tx.type === 'income');
+
+        document.getElementById('ovTabCount_all').textContent = `(${allUnreconciled.length})`;
+        document.getElementById('ovTabCount_overdue').textContent = `(${overdueTxs.length})`;
+        document.getElementById('ovTabCount_expenses').textContent = `(${expenseTxs.length})`;
+        document.getElementById('ovTabCount_income').textContent = `(${incomeTxs.length})`;
+
+        // Render Bulk Reconcile Button & Tooltip
+        const bulkWrapper = document.getElementById('ovBulkWrapper');
+        const bulkBtnLabel = document.getElementById('ovBulkBtnLabel');
+        const bulkTooltip = document.getElementById('ovBulkTooltip');
+
+        this._pastOverdueTxs = overdueTxs;
+
+        if (overdueTxs.length > 0 && bulkWrapper && bulkBtnLabel) {
+            bulkWrapper.style.display = 'inline-block';
+            let pastIncomeSum = 0;
+            let pastExpenseSum = 0;
+            overdueTxs.forEach(tx => {
+                if (tx.type === 'income') pastIncomeSum += tx.amount;
+                else pastExpenseSum += tx.amount;
+            });
+
+            const bulkText = window.i18n.t('overview_bulk_reconcile') || 'Tout rapprocher';
+            bulkBtnLabel.textContent = `✓ ${bulkText} (+${formatCurrency(pastIncomeSum)} / -${formatCurrency(pastExpenseSum)})`;
+
+            // Tooltip contents
+            let ttHtml = `<div class="overview-tt-title">${window.i18n.t('overview_bulk_reconcile_tooltip_title') || 'Opérations passées qui seront rapprochées'} (${overdueTxs.length}) :</div>`;
+            ttHtml += `<div class="overview-tt-list">`;
+            for (const tx of overdueTxs.slice(0, 15)) {
+                let accName = '—';
+                if (tx.from_account_id && this._accountsMap[tx.from_account_id]) accName = this._accountsMap[tx.from_account_id].name;
+                const amtColor = tx.type === 'income' ? '#10b981' : '#ef4444';
+                ttHtml += `
+                    <div class="overview-tt-item">
+                        <span class="overview-tt-date">${formatDate(tx.date_operation)}</span>
+                        <span class="overview-tt-acc">${escapeHtml(accName)}</span>
+                        <span class="overview-tt-desc" title="${escapeHtml(tx.description || '')}">${escapeHtml(tx.description || '—')}</span>
+                        <span class="overview-tt-amt" style="color: ${amtColor}">${formatCurrency(tx.amount)}</span>
+                    </div>
+                `;
+            }
+            if (overdueTxs.length > 15) {
+                ttHtml += `<div class="overview-tt-more">+ ${overdueTxs.length - 15} ${window.i18n.t('overview_more_unreconciled_ops') || 'autres opérations'}...</div>`;
+            }
+            ttHtml += `</div>`;
+            if (bulkTooltip) bulkTooltip.innerHTML = ttHtml;
+        } else if (bulkWrapper) {
+            bulkWrapper.style.display = 'none';
+        }
+
+        // Apply Tab Filter
+        let filtered = allUnreconciled;
+        if (this._activeTab === 'overdue') filtered = overdueTxs;
+        else if (this._activeTab === 'expenses') filtered = expenseTxs;
+        else if (this._activeTab === 'income') filtered = incomeTxs;
+
+        // Apply Search Query
         if (this._searchQuery) {
             const q = this._searchQuery.toLowerCase();
-            unreconciled = unreconciled.filter(tx =>
+            filtered = filtered.filter(tx =>
                 (tx.description || '').toLowerCase().includes(q) ||
                 (tx.category || '').toLowerCase().includes(q)
             );
         }
 
-        if (unreconciled.length === 0) {
+        if (filtered.length === 0) {
             container.innerHTML = `
                 <div class="overview-empty">
-                    <span>🎉 Aucune opération à rapprocher</span>
+                    <span>🎉 ${window.i18n.t('overview_no_unreconciled') || 'Aucune opération à rapprocher'}</span>
                 </div>
             `;
             return;
         }
 
-        const display = unreconciled.slice(0, 20);
-        const remaining = unreconciled.length - display.length;
+        const display = filtered.slice(0, 20);
+        const remaining = filtered.length - display.length;
+
+        const isOrgMode = window.app?.config?.enable_org_mode === 'true';
+        const dateTh = window.i18n.t('th_date') || 'Date';
+        const accTh = window.i18n.t('th_account') || 'Compte';
+        const descTh = window.i18n.t('th_description') || 'Description';
+        const catTh = window.i18n.t('th_category') || 'Catégorie';
+        const authorTh = window.i18n.t('th_created_by') || 'Saisi par';
+        const amtTh = window.i18n.t('th_amount') || 'Montant';
+        const actTh = window.i18n.t('th_actions') || 'Action';
+        const reconBtnText = window.i18n.t('btn_reconcile') || '✓ Rapprocher';
 
         let html = `
             <table class="overview-ops-table">
                 <thead>
                     <tr>
-                        <th style="width: 110px;">Date</th>
-                        <th style="width: 130px;">Compte</th>
-                        <th>Description</th>
-                        <th style="width: 140px;">Catégorie</th>
-                        <th style="width: 120px; text-align: right;">Montant</th>
-                        <th style="width: 110px; text-align: center;">Action</th>
+                        <th style="width: 110px;">${dateTh}</th>
+                        <th style="width: 130px;">${accTh}</th>
+                        <th>${descTh}</th>
+                        <th style="width: 140px;">${catTh}</th>
+                        ${isOrgMode ? `<th style="width: 110px;">${authorTh}</th>` : ''}
+                        <th style="width: 120px; text-align: right;">${amtTh}</th>
+                        <th style="width: 110px; text-align: center;">${actTh}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -235,9 +558,8 @@ window.OverviewView = {
         for (const tx of display) {
             const amountColor = tx.type === 'income' ? 'var(--color-income)' : 
                                (tx.type === 'transfer' ? 'var(--color-transfer)' : 'inherit');
-            const catLabel = tx.category || 'Sans catégorie';
+            const catLabel = tx.category || window.i18n.t('no_category') || 'Sans catégorie';
             
-            // Get account name
             let accName = '—';
             if (tx.from_account_id && this._accountsMap[tx.from_account_id]) {
                 accName = this._accountsMap[tx.from_account_id].name;
@@ -245,16 +567,21 @@ window.OverviewView = {
                 accName = this._accountsMap[tx.to_account_id].name;
             }
 
+            const authorHtml = isOrgMode 
+                ? `<td class="ov-td-author">${tx.created_by ? `<span class="overview-author-badge">👤 ${escapeHtml(tx.created_by)}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>`
+                : '';
+
             html += `
                 <tr id="ovRow_${tx.id}" class="overview-op-tr">
                     <td class="ov-td-date">${renderDateWithStatus(tx)}</td>
                     <td class="ov-td-acc"><span class="overview-acc-badge">${escapeHtml(accName)}</span></td>
                     <td class="ov-td-desc" title="${escapeHtml(tx.description || '')}">${escapeHtml(tx.description || '—')}</td>
                     <td class="ov-td-cat"><span class="overview-cat-badge">${escapeHtml(catLabel)}</span></td>
+                    ${authorHtml}
                     <td class="ov-td-amt privacy-blur" style="color: ${amountColor}; font-weight: 700;">${formatCurrency(tx.amount)}</td>
                     <td class="ov-td-action">
                         <button class="btn btn-sm overview-recon-action-btn" onclick="window.OverviewView.toggleReconciliation(${tx.id})">
-                            ✓ Rapprocher
+                            ${reconBtnText}
                         </button>
                     </td>
                 </tr>
@@ -264,10 +591,11 @@ window.OverviewView = {
         html += `</tbody></table>`;
 
         if (remaining > 0) {
+            const moreLabel = window.i18n.t('overview_more_unreconciled_ops') || 'autres opérations non rapprochées';
             html += `
                 <div class="overview-op-more">
                     <button class="overview-link-btn" onclick="window.app.showUnreconciledBeforePay()">
-                        +${remaining} autres opérations non rapprochées →
+                        +${remaining} ${moreLabel} →
                     </button>
                 </div>
             `;
@@ -276,14 +604,139 @@ window.OverviewView = {
         container.innerHTML = html;
     },
 
+    setFilterTab(tabName) {
+        this._activeTab = tabName;
+        this.saveConfig({ overview_active_tab: this._activeTab });
+        this._updateActiveTabUI();
+        this._renderUnreconciled(this._transactions);
+    },
+
+    _updateActiveTabUI() {
+        document.querySelectorAll('.overview-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${this._activeTab}'`));
+        });
+    },
+
+    async toggleBulkReconciliation() {
+        const pastTxs = this._pastOverdueTxs || [];
+        if (pastTxs.length === 0) return;
+
+        const bulkBtn = document.getElementById('ovBulkBtn');
+        if (bulkBtn) {
+            bulkBtn.disabled = true;
+            const recText = window.i18n.t('overview_reconciling') || 'Rapprochement';
+            bulkBtn.innerHTML = `⏳ ${recText} (${pastTxs.length})...`;
+        }
+
+        try {
+            await Promise.all(pastTxs.map(tx => API.post(`/api/transactions/${tx.id}/toggle_reconciliation`)));
+            const toastText = window.i18n.t('overview_toast_bulk_reconciled') || 'opérations rapprochées';
+            showUndoToast(`${pastTxs.length} ${toastText}`, null, () => this.init());
+            await Promise.all([window.app.refreshSidebar(), this.init()]);
+        } catch (e) {
+            console.error('[overview] Erreur rapprochement en masse', e);
+            if (bulkBtn) bulkBtn.disabled = false;
+        }
+    },
+
     onSearch(query) {
         this._searchQuery = query || '';
         this._renderUnreconciled(this._unreconciledTxs);
     },
 
+    _renderTop3(transactions) {
+        const container = document.getElementById('ovTop3List');
+        if (!container) return;
+
+        const isOrgMode = window.app?.config?.enable_org_mode === 'true';
+        const top3TitleEl = document.getElementById('ovTop3Title');
+        if (top3TitleEl) {
+            top3TitleEl.textContent = isOrgMode
+                ? (window.i18n.t('overview_org_expenses_title') || 'Postes de Dépenses du mois')
+                : (window.i18n.t('overview_top3_expenses') || 'Top 6 Dépenses du mois');
+        }
+
+        const today = new Date();
+        const curYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+        let monthExpenses = transactions.filter(tx =>
+            !tx.is_skipped &&
+            tx.type !== 'income' &&
+            (tx.date_operation || '').startsWith(curYearMonth)
+        );
+
+        if (this._selectedAccountId) {
+            const accIdStr = String(this._selectedAccountId);
+            monthExpenses = monthExpenses.filter(tx =>
+                String(tx.from_account_id) === accIdStr || String(tx.to_account_id) === accIdStr
+            );
+        }
+
+        const catMap = {};
+        monthExpenses.forEach(tx => {
+            const cat = tx.category || window.i18n.t('no_category') || 'Sans catégorie';
+            catMap[cat] = (catMap[cat] || 0) + Math.abs(tx.amount);
+        });
+
+        const sortedCats = Object.keys(catMap)
+            .map(cat => ({ category: cat, amount: catMap[cat] }))
+            .sort((a, b) => b.amount - a.amount);
+
+        const top6 = sortedCats.slice(0, 6);
+
+        if (top6.length === 0) {
+            const noExpMsg = window.i18n.t('overview_no_expenses_this_month') || 'Aucune dépense ce mois-ci';
+            container.innerHTML = `<div class="overview-empty">— ${noExpMsg} —</div>`;
+            return;
+        }
+
+        const maxAmt = top6[0].amount || 1;
+        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣'];
+        let html = '';
+
+        top6.forEach((item, index) => {
+            const pct = Math.round((item.amount / maxAmt) * 100);
+            const medal = medals[index] || `${index + 1}.`;
+            html += `
+                <div class="overview-top3-item">
+                    <div class="overview-top3-header">
+                        <span class="overview-top3-name">${medal} ${escapeHtml(item.category)}</span>
+                        <span class="overview-top3-amt privacy-blur">${formatCurrency(item.amount)}</span>
+                    </div>
+                    <div class="overview-top3-bar-bg">
+                        <div class="overview-top3-bar-fill" style="width: ${pct}%;"></div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    },
+
+    setTrendMode(mode) {
+        this._trendMode = mode;
+        this.saveConfig({ overview_trend_mode: this._trendMode });
+        this._updateTrendModeUI();
+        this._renderTrend();
+    },
+
+    _updateTrendModeUI() {
+        document.querySelectorAll('.ov-mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${this._trendMode}'`));
+        });
+    },
+
     _renderBudgets(stats) {
         const container = document.getElementById('ovBudgetsList');
         if (!container) return;
+
+        const isOrgMode = window.app?.config?.enable_org_mode === 'true';
+        const budgetsSubEl = document.getElementById('ovBudgetsSubtitle');
+        if (budgetsSubEl) {
+            budgetsSubEl.textContent = isOrgMode
+                ? (window.i18n.t('overview_org_budgets_title') || 'Budgets d\'Exercice & Fonds Dédiés')
+                : (window.i18n.t('overview_budgets') || 'Budgets');
+        }
 
         const summary = stats.budget_summary || {};
         const periodLabels = {
@@ -326,7 +779,8 @@ window.OverviewView = {
             `;
         }
 
-        container.innerHTML = hasContent ? html : '<div class="overview-empty">— Aucune enveloppe budget —</div>';
+        const noBudgetsMsg = window.i18n.t('overview_no_budgets') || 'Aucune enveloppe budget';
+        container.innerHTML = hasContent ? html : `<div class="overview-empty">— ${noBudgetsMsg} —</div>`;
     },
 
     _renderSavings(stats) {
@@ -370,26 +824,28 @@ window.OverviewView = {
         if (!canvas) return;
 
         try {
-            // Fetch 6 months category data
-            const catData = await API.get('/api/stats/categories_by_month?months=6');
+            let url = '/api/stats/categories_by_month?months=6';
+            if (this._selectedAccountId) url += `&account_ids=${this._selectedAccountId}`;
+            const catData = await API.get(url);
 
-            // Generate last 6 months keys YYYY-MM
             const today = new Date();
             const monthKeys = [];
             const monthLabels = [];
-            const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+            const isEn = window.i18n.lang === 'en';
+            const monthNames = isEn 
+                ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                : ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
 
             for (let i = 5; i >= 0; i--) {
                 const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
                 const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                monthKeys.append ? monthKeys.push(mk) : monthKeys.push(mk);
+                monthKeys.push(mk);
                 monthLabels.push(`${monthNames[d.getMonth()]} ${d.getFullYear() % 100}`);
             }
 
-            // Sum variable and fixed expenses per month
-            const monthlyTotals = monthKeys.map(mk => {
+            const expenseTotals = monthKeys.map(mk => {
                 let total = 0;
-                for (const txType of ['expense_var', 'expense_fixed']) {
+                for (const txType of ['expense_var', 'expense_fixed', 'transfer']) {
                     const typeGroup = (catData.by_type && catData.by_type[txType]) ? catData.by_type[txType] : catData[txType];
                     if (typeGroup && typeGroup.totals_per_month && typeGroup.totals_per_month[mk]) {
                         total += Math.abs(typeGroup.totals_per_month[mk]);
@@ -398,57 +854,104 @@ window.OverviewView = {
                 return Math.round(total * 100) / 100;
             });
 
-            // Destroy previous chart
+            const incomeTotals = monthKeys.map(mk => {
+                let total = 0;
+                const typeGroup = (catData.by_type && catData.by_type['income']) ? catData.by_type['income'] : catData['income'];
+                if (typeGroup && typeGroup.totals_per_month && typeGroup.totals_per_month[mk]) {
+                    total += Math.abs(typeGroup.totals_per_month[mk]);
+                }
+                return Math.round(total * 100) / 100;
+            });
+
+            const netTotals = monthKeys.map((mk, i) => Math.round((incomeTotals[i] - expenseTotals[i]) * 100) / 100);
+
             if (this._chart) {
                 this._chart.destroy();
                 this._chart = null;
             }
 
             const ctx = canvas.getContext('2d');
-            
-            // Gradient fill
-            const gradient = ctx.createLinearGradient(0, 0, 0, 220);
-            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.35)');
-            gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+            let datasets = [];
+
+            const expLabel = window.i18n.t('overview_chart_mode_expenses') || 'Expenses';
+            const incLabel = window.i18n.t('overview_chart_mode_income') || 'Income';
+            const balLabel = window.i18n.t('overview_chart_mode_balance') || 'Net balance';
+
+            if (this._trendMode === 'expenses') {
+                const gradient = ctx.createLinearGradient(0, 0, 0, 220);
+                gradient.addColorStop(0, 'rgba(99, 102, 241, 0.35)');
+                gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+
+                datasets = [{
+                    label: expLabel,
+                    data: expenseTotals,
+                    fill: true,
+                    backgroundColor: gradient,
+                    borderColor: '#6366f1',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#6366f1',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    tension: 0.35
+                }];
+            } else if (this._trendMode === 'compare') {
+                datasets = [
+                    {
+                        label: incLabel,
+                        data: incomeTotals,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#10b981',
+                        tension: 0.35
+                    },
+                    {
+                        label: expLabel,
+                        data: expenseTotals,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#ef4444',
+                        tension: 0.35
+                    }
+                ];
+            } else if (this._trendMode === 'balance') {
+                const bgColors = netTotals.map(val => val >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)');
+                datasets = [{
+                    type: 'bar',
+                    label: balLabel,
+                    data: netTotals,
+                    backgroundColor: bgColors,
+                    borderRadius: 6
+                }];
+            }
 
             this._chart = new Chart(canvas, {
-                type: 'line',
+                type: this._trendMode === 'balance' ? 'bar' : 'line',
                 data: {
                     labels: monthLabels,
-                    datasets: [{
-                        label: 'Dépenses mensuelles',
-                        data: monthlyTotals,
-                        fill: true,
-                        backgroundColor: gradient,
-                        borderColor: '#6366f1',
-                        borderWidth: 3,
-                        pointBackgroundColor: '#6366f1',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                        tension: 0.35
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false },
+                        legend: { display: this._trendMode === 'compare' },
                         tooltip: {
                             backgroundColor: 'rgba(15, 23, 42, 0.9)',
                             padding: 12,
-                            titleFont: { size: 13, weight: 'bold' },
-                            bodyFont: { size: 13 },
-                            displayColors: false,
+                            displayColors: true,
                             callbacks: {
-                                label: (ctx) => `Dépenses: ${formatCurrency(ctx.raw)}`
+                                label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`
                             }
                         }
                     },
                     scales: {
                         y: {
-                            beginAtZero: true,
+                            beginAtZero: this._trendMode !== 'balance',
                             grid: { color: 'rgba(128,128,128,0.1)' },
                             ticks: {
                                 callback: (v) => formatCurrency(v),
@@ -467,28 +970,54 @@ window.OverviewView = {
                 }
             });
 
+            // Légende dynamique selon le mode
             if (legendContainer) {
-                const currentMonthTotal = monthlyTotals[monthlyTotals.length - 1] || 0;
-                const prevMonthTotal = monthlyTotals[monthlyTotals.length - 2] || 0;
-                const diff = currentMonthTotal - prevMonthTotal;
-                const pct = prevMonthTotal > 0 ? ((diff / prevMonthTotal) * 100).toFixed(0) : 0;
-                
-                const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
-                const color = diff > 0 ? '#ef4444' : diff < 0 ? '#10b981' : 'var(--text-muted)';
-                const sign = diff > 0 ? '+' : '';
-
-                legendContainer.innerHTML = `
-                    <div style="display:flex; justify-content:center; align-items:center; gap:12px; font-size:13px;">
-                        <span>Ce mois: <strong>${formatCurrency(currentMonthTotal)}</strong></span>
-                        <span style="color: ${color}; font-weight: 700;">
-                            ${arrow} ${sign}${pct}% vs mois dernier
-                        </span>
-                    </div>
-                `;
+                if (this._trendMode === 'expenses') {
+                    const curExp = expenseTotals[expenseTotals.length - 1] || 0;
+                    const prevExp = expenseTotals[expenseTotals.length - 2] || 0;
+                    const diff = curExp - prevExp;
+                    const pct = prevExp > 0 ? ((diff / prevExp) * 100).toFixed(0) : 0;
+                    const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+                    const color = diff > 0 ? '#ef4444' : diff < 0 ? '#10b981' : 'var(--text-muted)';
+                    const sign = diff > 0 ? '+' : '';
+                    const expMonthLabel = window.i18n.t('overview_expenses_this_month') || 'Dépenses ce mois';
+                    const vsLastLabel = window.i18n.t('overview_vs_last_month') || 'vs mois dernier';
+                    legendContainer.innerHTML = `
+                        <div style="display:flex; justify-content:center; align-items:center; gap:12px; font-size:13px;">
+                            <span>${expMonthLabel}: <strong class="privacy-blur">${formatCurrency(curExp)}</strong></span>
+                            <span style="color: ${color}; font-weight: 700;">
+                                ${arrow} ${sign}${pct}% ${vsLastLabel}
+                            </span>
+                        </div>
+                    `;
+                } else if (this._trendMode === 'compare') {
+                    const curInc = incomeTotals[incomeTotals.length - 1] || 0;
+                    const curExp = expenseTotals[expenseTotals.length - 1] || 0;
+                    const incLabel2 = window.i18n.t('overview_chart_mode_income') || 'Recettes';
+                    const expLabel2 = window.i18n.t('overview_chart_mode_expenses') || 'Dépenses';
+                    legendContainer.innerHTML = `
+                        <div style="display:flex; justify-content:center; align-items:center; gap:16px; font-size:13px;">
+                            <span style="color:#10b981;">● ${incLabel2}: <strong class="privacy-blur">${formatCurrency(curInc)}</strong></span>
+                            <span style="color:#ef4444;">● ${expLabel2}: <strong class="privacy-blur">${formatCurrency(curExp)}</strong></span>
+                        </div>
+                    `;
+                } else if (this._trendMode === 'balance') {
+                    const curNet = netTotals[netTotals.length - 1] || 0;
+                    const netColor = curNet >= 0 ? '#10b981' : '#ef4444';
+                    const netSign = curNet >= 0 ? '+' : '';
+                    const balMonthLabel = window.i18n.t('overview_chart_mode_balance') || 'Bilan mensuel';
+                    const thisMonthLabel = window.i18n.t('overview_this_month') || 'ce mois';
+                    legendContainer.innerHTML = `
+                        <div style="display:flex; justify-content:center; align-items:center; gap:12px; font-size:13px;">
+                            <span>${balMonthLabel} ${thisMonthLabel}: <strong class="privacy-blur" style="color:${netColor};">${netSign}${formatCurrency(curNet)}</strong></span>
+                        </div>
+                    `;
+                }
             }
         } catch (e) {
             console.error('[overview] Erreur rendu tendance', e);
-            canvas.parentElement.innerHTML = '<div class="overview-empty">— Données insuffisantes pour la courbe —</div>';
+            const noDataMsg = window.i18n.t('overview_insufficient_data') || 'Données insuffisantes pour la courbe';
+            canvas.parentElement.innerHTML = `<div class="overview-empty">— ${noDataMsg} —</div>`;
         }
     },
 
@@ -501,7 +1030,6 @@ window.OverviewView = {
             }
             const res = await API.post(`/api/transactions/${id}/toggle_reconciliation`);
             showUndoToast(window.i18n.t('toast_tx_updated') || "Opération modifiée", res.action_id, () => this.init());
-            // Refresh sidebar + re-init overview
             await Promise.all([window.app.refreshSidebar(), this.init()]);
         } catch (e) {
             console.error('[overview] Erreur rapprochement', e);
