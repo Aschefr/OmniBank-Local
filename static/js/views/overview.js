@@ -6,6 +6,7 @@ window.OverviewView = {
     _selectedAccountId: '',
     _activeTab: 'all', // 'all', 'overdue', 'expenses', 'income'
     _trendMode: 'expenses', // 'expenses', 'compare', 'balance'
+    _top6Filter: 'all', // 'all', 'fixed', 'var'
     _stats: null,
     _accounts: [],
     _transactions: [],
@@ -160,8 +161,13 @@ window.OverviewView = {
 
                     <!-- Column 2: Top 6 Dépenses -->
                     <div class="overview-card overview-card-top3">
-                        <div class="overview-card-header">
-                            <h3>🏆 <span id="ovTop3Title" data-i18n="overview_top3_expenses">${window.i18n.t('overview_top3_expenses') || 'Top 6 Dépenses du mois'}</span></h3>
+                        <div class="overview-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <h3 style="margin: 0;">🏆 <span id="ovTop3Title" data-i18n="overview_top3_expenses">${window.i18n.t('overview_top3_expenses') || 'Top 6 Dépenses du mois'}</span></h3>
+                            <div class="ov-mode-selector" style="display: inline-flex; gap: 2px;">
+                                <button class="ov-mode-btn ${this._top6Filter === 'all' ? 'active' : ''}" onclick="window.OverviewView.setTop6Filter('all')" data-i18n="filter_top6_all">${window.i18n.t('filter_top6_all') || 'Tous'}</button>
+                                <button class="ov-mode-btn ${this._top6Filter === 'fixed' ? 'active' : ''}" onclick="window.OverviewView.setTop6Filter('fixed')" data-i18n="filter_top6_fixed">${window.i18n.t('filter_top6_fixed') || 'Fixes'}</button>
+                                <button class="ov-mode-btn ${this._top6Filter === 'var' ? 'active' : ''}" onclick="window.OverviewView.setTop6Filter('var')" data-i18n="filter_top6_var">${window.i18n.t('filter_top6_var') || 'Variables'}</button>
+                            </div>
                         </div>
                         <div id="ovTop3List" class="overview-top3-list">
                             <div class="overview-loading">⏳</div>
@@ -209,6 +215,13 @@ window.OverviewView = {
             if (config.overview_trend_mode !== undefined) {
                 this._trendMode = config.overview_trend_mode;
             }
+            if (config.overview_top6_filter !== undefined) {
+                this._top6Filter = config.overview_top6_filter;
+            }
+        }
+        if (window.ProfileStorage) {
+            const savedTop6 = window.ProfileStorage.get('overview_top6_filter');
+            if (savedTop6) this._top6Filter = savedTop6;
         }
 
         this._stats = stats;
@@ -662,8 +675,15 @@ window.OverviewView = {
         let monthExpenses = transactions.filter(tx =>
             !tx.is_skipped &&
             tx.type !== 'income' &&
+            tx.type !== 'transfer' &&
             (tx.date_operation || '').startsWith(curYearMonth)
         );
+
+        if (this._top6Filter === 'fixed') {
+            monthExpenses = monthExpenses.filter(tx => tx.type === 'expense_fixed');
+        } else if (this._top6Filter === 'var') {
+            monthExpenses = monthExpenses.filter(tx => tx.type === 'expense_var');
+        }
 
         if (this._selectedAccountId) {
             const accIdStr = String(this._selectedAccountId);
@@ -692,15 +712,20 @@ window.OverviewView = {
 
         const maxAmt = top6[0].amount || 1;
         const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣'];
+        const tooltip = window.i18n.t('overview_top3_click_tooltip') || 'Voir les opérations dans l\'historique';
         let html = '';
 
         top6.forEach((item, index) => {
             const pct = Math.round((item.amount / maxAmt) * 100);
             const medal = medals[index] || `${index + 1}.`;
+            const catEscaped = escapeHtml(item.category);
+            const catForJs = catEscaped.replace(/'/g, "\\'");
             html += `
-                <div class="overview-top3-item">
+                <div class="overview-top3-item overview-top3-item-clickable" 
+                     onclick="window.OverviewView.drillDownToHistory('${catForJs}', '${curYearMonth}')" 
+                     title="${escapeHtml(tooltip)}">
                     <div class="overview-top3-header">
-                        <span class="overview-top3-name">${medal} ${escapeHtml(item.category)}</span>
+                        <span class="overview-top3-name">${medal} ${catEscaped}</span>
                         <span class="overview-top3-amt privacy-blur">${formatCurrency(item.amount)}</span>
                     </div>
                     <div class="overview-top3-bar-bg">
@@ -711,6 +736,45 @@ window.OverviewView = {
         });
 
         container.innerHTML = html;
+    },
+
+    setTop6Filter(mode) {
+        this._top6Filter = mode;
+        if (window.ProfileStorage) {
+            window.ProfileStorage.set('overview_top6_filter', mode);
+        }
+        this.saveConfig({ overview_top6_filter: mode });
+        this._updateTop6FilterUI();
+        this._renderTop3(this._transactions);
+    },
+
+    _updateTop6FilterUI() {
+        const card = document.querySelector('.overview-card-top3');
+        if (!card) return;
+        card.querySelectorAll('.ov-mode-selector .ov-mode-btn').forEach(btn => {
+            const onclickStr = btn.getAttribute('onclick') || '';
+            if (onclickStr.includes(`'${this._top6Filter}'`)) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    },
+
+    drillDownToHistory(category, monthKey) {
+        let typeFilter = '';
+        if (this._top6Filter === 'fixed') {
+            typeFilter = 'expense_fixed';
+        } else if (this._top6Filter === 'var') {
+            typeFilter = 'expense_var';
+        }
+        window.AllOperationsView.pendingFilter = {
+            category: category,
+            monthKey: monthKey,
+            type: typeFilter,
+            backToView: 'overview'
+        };
+        window.app.loadView('all_operations');
     },
 
     setTrendMode(mode) {

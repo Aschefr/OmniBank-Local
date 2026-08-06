@@ -42,7 +42,7 @@ window.AllOperationsView = {
             <div id="historyHeader" class="view-header responsive-header" style="position: sticky; top: -32px; z-index: 10; background-color: var(--bg-base); padding: 32px 0 15px 0; margin-top: -32px;">
                 <h2 style="margin:0; display:flex; align-items:center; gap:10px;">
                     📋 <span data-i18n="nav_history">Historique</span>
-                    <button id="btnHistoryBackToAnalytics" class="btn btn-secondary" style="display:none; padding: 4px 10px; font-size: 13px; font-weight: 500; align-items: center; gap: 4px;" onclick="window.app.loadView('analytics')" title="Retour">⬅️ Retour</button>
+                    <button id="btnHistoryBackToAnalytics" class="btn btn-secondary" style="display:none; padding: 4px 10px; font-size: 13px; font-weight: 500; align-items: center; gap: 4px;" onclick="window.app.loadView(window.AllOperationsView.backToView || 'analytics')" title="Retour">⬅️ Retour</button>
                 </h2>
                 <div class="responsive-header-controls">
                     <div class="history-filters" style="display:flex; gap:8px; width:100%; max-width:900px; justify-content:flex-end; flex-wrap:wrap; align-items: center;">
@@ -283,15 +283,17 @@ window.AllOperationsView = {
                 }
             }
 
-            // Apply pending filter from AnalyticsView drilldown
+            // Apply pending filter from AnalyticsView / OverviewView drilldown
             if (this.pendingFilter) {
                 const pf = this.pendingFilter;
                 this.pendingFilter = null;
                 
-                if (pf.backToView === 'analytics') {
+                if (pf.backToView) {
                     this.isDrillDown = true;
+                    this.backToView = pf.backToView;
                 } else {
                     this.isDrillDown = false;
+                    this.backToView = null;
                 }
 
                 // Set category filter
@@ -303,6 +305,11 @@ window.AllOperationsView = {
                     const monthInput = document.getElementById('historyMonthFilter');
                     if (monthInput) monthInput.value = pf.monthKey;
                 }
+                // Set type filter
+                if (pf.type) {
+                    const typeInput = document.getElementById('historyTypeFilter');
+                    if (typeInput) typeInput.value = pf.type;
+                }
                 // Set year in search
                 if (pf.year) {
                     const searchInput = document.getElementById('historySearch');
@@ -310,6 +317,7 @@ window.AllOperationsView = {
                 }
             } else {
                 this.isDrillDown = false;
+                this.backToView = null;
             }
 
             const backBtn = document.getElementById('btnHistoryBackToAnalytics');
