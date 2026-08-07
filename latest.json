@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDV5VHQ5ZU5GdlpQanRpaEFGaklXSkQyK0ZqMVIxQmJpM3p2cy9RVE8vNjA1YVd4dDcrOTl3b21DNWlWOXJOakhZY1BCbkEvMGh3THVBME4xTnJDOEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MDk2MjI5CWZpbGU6T21uaUJhbmtfMS4wLjgwX3g2NF9mci1GUi5tc2kKbEpWblFuSmd1TWx4TXRONENqRU1xc0VnWURGMmdDMmdYenZnd0RadkhHMktJeVpnSmhLYjlvMjl6YlBNWGwzVmRXZmp1QXBjMDVSQlJMWjE4WjN3RHc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.80/OmniBank_1.0.80_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlEWGZ5K0R0UEJCUzducy9uT3MxZkdsRFdUZlJ0Z2Z0UnN0cmc1Tk9Bd3QvZkw0eElwbi83aFl3cXdFSFFSbXBsZXhkZjJzSFUzY3BSUGdlaEwwclFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MTA5MDYwCWZpbGU6T21uaUJhbmtfMS4wLjgxX3g2NF9mci1GUi5tc2kKY09HdzI5UU91SXZkQzl0dWJ3WTk5SmhuVkhBNFc1OFBEbjM4T1RzSktVQm5XZDZaWUoyV3Zpem1xdVhRaXZTS0dDa0s1WWdvUkNHUTV2TW9zc2NPREE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.81/OmniBank_1.0.81_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-07T09:50:29Z",
-    "version":  "1.0.80",
-    "notes":  "OmniBank v1.0.80 - Performance ultra-reactive, cache backend, et ergonomie visuelle."
+    "pub_date":  "2026-08-07T13:24:20Z",
+    "version":  "1.0.81",
+    "notes":  "Clean mid-year subscription closure modal, streamlined recurrence actions layout, in-line reopen confirmation, and privacy safeguards"
 }

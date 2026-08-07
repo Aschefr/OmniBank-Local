@@ -1,0 +1,19 @@
+{
+  "active_profile_id": "default",
+  "profiles": [
+    {
+      "id": "default",
+      "name": "Default Profile",
+      "color": "#3b82f6",
+      "icon": "📈",
+      "currency": "EUR",
+      "pay_cycle_day": 25,
+      "date_format": "DD/MM/YYYY",
+      "created_at": "2026-01-01T00:00:00.000000",
+      "db_path": "omnibank.db",
+      "uploads_dir": "uploads",
+      "pin_hash": null,
+      "pin_salt": null
+    }
+  ]
+}

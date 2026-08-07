@@ -24,8 +24,11 @@ env/
 *.xlsx
 *.xls
 *.pdf
+data/profiles.json
+data/profiles/
 data/uploads/
 data/backups/
+data/*.txt
 export_omnibank*
 *.zip
 CA*.csv

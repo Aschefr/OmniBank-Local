@@ -8,7 +8,7 @@ import calendar
 
 from app.database import get_db
 from app.models import RecurrenceTemplate, Transaction, Category
-from app.schemas.api_schemas import RecurrenceTemplateCreate, RecurrenceTemplateOut, PropagateRequest, WizardGenerateRequest
+from app.schemas.api_schemas import RecurrenceTemplateCreate, RecurrenceTemplateOut, PropagateRequest, WizardGenerateRequest, RecurrenceCloseRequest
 from app.services.history_service import record_action, snapshot_entity
 from app.services import stats_cache
 
@@ -49,6 +49,7 @@ def update_template(tpl_id: int, tpl_update: RecurrenceTemplateCreate, db: Sessi
         raise HTTPException(status_code=404, detail="Template not found")
         
     old_snapshot = snapshot_entity(db_tpl)
+    was_closed = db_tpl.is_closed
     # Check if structural parameters are changing (frequency, day, amount, etc.)
     # is_closed changes alone should NOT trigger transaction deletion
     structural_changed = (
@@ -74,10 +75,66 @@ def update_template(tpl_id: int, tpl_update: RecurrenceTemplateCreate, db: Sessi
             Transaction.recurrence_id == tpl_id,
             Transaction.reconciliation_date == None
         ).delete()
+    elif not was_closed and db_tpl.is_closed:
+        # Template is being closed without structural changes: purge future unreconciled transactions after today
+        db.query(Transaction).filter(
+            Transaction.recurrence_id == tpl_id,
+            Transaction.reconciliation_date == None,
+            Transaction.date_operation > date.today()
+        ).delete()
         
     db.flush()
     action_id = record_action(db, "recurrence_template", db_tpl.id, "UPDATE", old_snapshot, snapshot_entity(db_tpl))
     db.commit()
+    stats_cache.invalidate()
+    db.refresh(db_tpl)
+    db_tpl.action_id = action_id
+    return db_tpl
+
+@router.post("/{tpl_id}/close", response_model=RecurrenceTemplateOut)
+def close_template(tpl_id: int, req: Optional[RecurrenceCloseRequest] = None, db: Session = Depends(get_db)):
+    """Close a recurrence template and purge unreconciled transactions strictly after the closure_date."""
+    db_tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+    if not db_tpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+        
+    old_snapshot = snapshot_entity(db_tpl)
+    db_tpl.is_closed = True
+    
+    cutoff_date = (req.closure_date if req and req.closure_date else date.today())
+    
+    # Purge future unreconciled transactions after cutoff date
+    db.query(Transaction).filter(
+        Transaction.recurrence_id == tpl_id,
+        Transaction.reconciliation_date == None,
+        Transaction.date_operation > cutoff_date
+    ).delete()
+    
+    db.flush()
+    action_id = record_action(db, "recurrence_template", db_tpl.id, "CLOSE", old_snapshot, snapshot_entity(db_tpl))
+    db.commit()
+    stats_cache.invalidate()
+    db.refresh(db_tpl)
+    db_tpl.action_id = action_id
+    return db_tpl
+
+@router.post("/{tpl_id}/reopen", response_model=RecurrenceTemplateOut)
+def reopen_template(tpl_id: int, db: Session = Depends(get_db)):
+    """Re-open a closed recurrence template and generate future instances."""
+    db_tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+    if not db_tpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+        
+    old_snapshot = snapshot_entity(db_tpl)
+    db_tpl.is_closed = False
+    
+    db.flush()
+    action_id = record_action(db, "recurrence_template", db_tpl.id, "REOPEN", old_snapshot, snapshot_entity(db_tpl))
+    db.commit()
+    
+    # Regenerate recurrences for this template
+    generate_recurrences(template_id=tpl_id, db=db)
+    
     stats_cache.invalidate()
     db.refresh(db_tpl)
     db_tpl.action_id = action_id

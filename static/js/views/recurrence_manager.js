@@ -525,7 +525,6 @@ window.RecurrenceView = {
                             <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('progress')">${window.i18n.t('col_progress') || 'Progression'} ${this.getSortArrow('progress')}</th>
                             <th style="padding: 12px; width: 120px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('amount')">${window.i18n.t('col_amount')} ${this.getSortArrow('amount')}</th>
                             <th style="padding: 12px; width: 140px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('annual_total')">${window.i18n.t('col_total_annual') || 'Annual Total'} ${this.getSortArrow('annual_total')}</th>
-                            <th style="padding: 12px; width: 85px; text-align: center; white-space: nowrap;">${window.i18n.t('th_actions') || 'Actions'}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -596,15 +595,9 @@ window.RecurrenceView = {
                     </td>
                     <td data-label="${window.i18n.t('col_amount') || 'Montant'}" style="padding: 12px; text-align: right; font-weight: 600; color: ${typeColors.text}; font-size: 13px;">${formatCurrency(t.displayAmount)}</td>
                     <td data-label="${window.i18n.t('col_total_annual') || 'Total Annuel'}" style="padding: 12px; text-align: right; font-weight: 700; color: ${typeColors.text}; font-size: 14px;"><span class="privacy-blur">${formatCurrency(t.totalAnnualAmount)}</span></td>
-                    <td class="mobile-card-actions" style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
-                        <div style="display: flex; justify-content: center; gap: 6px;">
-                            <button class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='var(--primary-color, #6366f1)'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.openEditModal(${t.id})" title="${window.i18n.t('tooltip_edit') || 'Modifier'}">✏️</button>
-                            <button class="btn btn-secondary btn-delete" style="padding: 6px 10px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='var(--danger, #ff5630)'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.deleteTemplate(${t.id})" title="${window.i18n.t('tooltip_delete') || 'Delete'}">🗑️</button>
-                        </div>
-                    </td>
                 </tr>
                 <tr id="details_row_${t.id}" class="rec-details-row" style="display: ${displayStyle}; background: var(--bg-sidebar);">
-                    <td colspan="11" class="rec-details-cell" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
+                    <td colspan="10" class="rec-details-cell" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
                         <div id="details_content_${t.id}">
                             <!-- Rendered dynamically -->
                         </div>
@@ -838,6 +831,16 @@ window.RecurrenceView = {
         // Pass complete transaction object to FormView.openEdit by resolving it from memory
         const editActionHtml = `<button class="gantt-popover-item" onclick="window.RecurrenceView.closeSegmentPopover(); window.RecurrenceView.openEditForTx(${txId})">✏️ ${window.i18n.t('rec_popover_action_edit') || 'Modifier l\'opération'}</button>`;
         
+        const tpl = (this.templates || []).find(t => t.id === templateId);
+        let closeSubActionHtml = '';
+        if (tpl) {
+            if (tpl.is_closed) {
+                closeSubActionHtml = `<button class="gantt-popover-item" onclick="window.RecurrenceView.closeSegmentPopover(); window.RecurrenceView.reopenTemplate(${templateId})">🔓 ${window.i18n.t('rec_popover_action_reopen_sub') || 'Rouvrir l\'abonnement'}</button>`;
+            } else {
+                closeSubActionHtml = `<button class="gantt-popover-item" onclick="window.RecurrenceView.closeSegmentPopover(); window.RecurrenceView.showCloseModal(${templateId})">🛑 ${window.i18n.t('rec_popover_action_close_sub') || 'Clôturer l\'abonnement'}</button>`;
+            }
+        }
+        
         popover.innerHTML = `
             <div style="padding: 6px 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px;">
                 <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">${window.i18n.t('rec_popover_title') || 'Options de l\'échéance'}</div>
@@ -848,6 +851,7 @@ window.RecurrenceView = {
                 ${skipActionHtml}
                 ${reconcileActionHtml}
                 ${editActionHtml}
+                ${closeSubActionHtml}
             </div>
         `;
         
@@ -1084,10 +1088,22 @@ window.RecurrenceView = {
         const hasChanges = templateTx.some(tx => this.modifiedRows.has(tx.id));
         const buttonDisplay = hasChanges ? 'inline-block' : 'none';
 
+        const tpl = (this.templates || []).find(t => t.id === templateId);
+
         let instancesHtml = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h4 style="margin: 0; color: var(--text-muted); font-size: 14px; font-weight: bold;">${window.i18n.t('rec_year_details_title') || 'Détails des opérations de l\'année'}</h4>
-                <button id="save_btn_${templateId}" class="btn btn-primary" style="display: ${buttonDisplay}; padding: 6px 15px; font-size: 13px; font-weight: bold;" onclick="window.RecurrenceView.saveTemplateChanges(${templateId})">${window.i18n.t('btn_save_changes') || 'Sauvegarder les modifications'}</button>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button id="save_btn_${templateId}" class="btn btn-primary" style="display: ${buttonDisplay}; padding: 6px 15px; font-size: 13px; font-weight: bold;" onclick="window.RecurrenceView.saveTemplateChanges(${templateId})">${window.i18n.t('btn_save_changes') || 'Sauvegarder les modifications'}</button>
+                    <div style="display: flex; gap: 6px; border-left: 1px solid var(--border-color); padding-left: 10px;">
+                        <button class="btn btn-secondary" style="padding: 5px 9px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='var(--primary-color, #6366f1)'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.openEditModal(${templateId})" title="${window.i18n.t('tooltip_edit') || 'Modifier'}">✏️</button>
+                        ${tpl && tpl.is_closed
+                            ? `<button class="btn btn-secondary" style="padding: 5px 9px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='#10b981'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.reopenTemplate(${templateId})" title="${window.i18n.t('tooltip_reopen') || 'Rouvrir'}">🔓</button>`
+                            : `<button class="btn btn-secondary" style="padding: 5px 9px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='#f59e0b'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.showCloseModal(${templateId})" title="${window.i18n.t('tooltip_close') || 'Clôturer'}">🛑</button>`
+                        }
+                        <button class="btn btn-secondary btn-delete" style="padding: 5px 9px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: all 0.2s;" onmouseover="this.style.background='var(--danger, #ff5630)'; this.style.color='#ffffff';" onmouseout="this.style.background='var(--bg-surface)'; this.style.color='inherit';" onclick="window.RecurrenceView.deleteTemplate(${templateId})" title="${window.i18n.t('tooltip_delete') || 'Delete'}">🗑️</button>
+                    </div>
+                </div>
             </div>
             <div class="rec-instance-header" style="display: grid; grid-template-columns: 1fr 1fr 110px 140px; gap: 10px; margin-bottom: 10px; padding: 0 10px; font-weight: bold; color: var(--text-muted); text-align: center; font-size: 13px;">
                 <div data-i18n="rec_col_date">${window.i18n.t('rec_col_date')}</div>
@@ -1387,6 +1403,144 @@ window.RecurrenceView = {
         } catch (e) {
             console.error(e);
             showToast(window.i18n.t('rec_delete_error') || "Impossible de supprimer la récurrence", "error");
+        }
+    },
+
+    async showCloseModal(templateId) {
+        const tpl = (this.templates || []).find(t => t.id === templateId);
+        if (!tpl) {
+            showToast("Récurrence introuvable", "error");
+            return;
+        }
+
+        const todayStr = new Date().toISOString().substring(0, 10);
+        
+        const now = new Date();
+        const lastDayObj = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const endOfMonthStr = lastDayObj.toISOString().substring(0, 10);
+
+        const modal = document.createElement('div');
+        modal.id = 'closeSubscriptionModal';
+        modal.className = 'modal-overlay';
+        modal.style.zIndex = '1000';
+
+        const title = window.i18n.t('rec_close_title') || "Clôturer l'abonnement";
+        const explanation = window.i18n.t('rec_close_explanation') || "L'abonnement sera marqué comme clôturé et conservé dans vos archives. Les échéances futures non rapprochées strictement après la date choisie seront automatiquement supprimées.";
+        const dateLabel = window.i18n.t('rec_close_date_label') || "Date d'effet de la clôture";
+        const optToday = (window.i18n.t('rec_close_option_today') || "Aujourd'hui ({date})").replace('{date}', todayStr);
+        const optEndMonth = (window.i18n.t('rec_close_option_end_month') || "Fin du mois en cours ({date})").replace('{date}', endOfMonthStr);
+        const optCustom = window.i18n.t('rec_close_option_custom') || "Date personnalisée";
+        const confirmBtnText = window.i18n.t('rec_close_confirm_btn') || "Clôturer l'abonnement";
+
+        modal.innerHTML = `
+            <div class="modal" style="width: 90%; max-width: 520px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); padding: 25px; display: flex; flex-direction: column; gap: 20px; animation: modalFadeIn 0.3s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">🛑 ${title}</h3>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${tpl.description} (${formatCurrency(tpl.displayAmount || tpl.amount)})</div>
+                    </div>
+                    <button style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted);" onclick="document.getElementById('closeSubscriptionModal').remove()">×</button>
+                </div>
+                
+                <div style="font-size: 13px; color: var(--text-main); line-height: 1.5; background: rgba(245, 158, 11, 0.08); border-left: 4px solid #f59e0b; padding: 12px; border-radius: 6px;">
+                    ${explanation}
+                </div>
+
+                <form id="closeSubscriptionForm" style="display: flex; flex-direction: column; gap: 15px;" onsubmit="event.preventDefault(); window.RecurrenceView.submitCloseModal(${tpl.id})">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${dateLabel}</label>
+                        
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                            <input type="radio" name="close_date_type" value="today" checked onchange="window.RecurrenceView.toggleCloseCustomDate(false)">
+                            <span>${optToday}</span>
+                        </label>
+                        
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                            <input type="radio" name="close_date_type" value="end_month" onchange="window.RecurrenceView.toggleCloseCustomDate(false)">
+                            <span>${optEndMonth}</span>
+                        </label>
+                        
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                            <input type="radio" name="close_date_type" value="custom" onchange="window.RecurrenceView.toggleCloseCustomDate(true)">
+                            <span>${optCustom}</span>
+                        </label>
+
+                        <div id="close_custom_date_container" style="display: none; margin-top: 5px; padding-left: 28px;">
+                            <input type="date" id="close_custom_date_input" value="${todayStr}" class="inline-input" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; width: 100%;">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 10px;">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('closeSubscriptionModal').remove()" style="padding: 8px 16px;">${window.i18n.t('btn_cancel') || 'Annuler'}</button>
+                        <button type="submit" class="btn btn-danger" style="padding: 8px 16px; background: var(--danger, #ff5630); color: #ffffff;">${confirmBtnText}</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+    },
+
+    toggleCloseCustomDate(showCustom) {
+        const container = document.getElementById('close_custom_date_container');
+        if (container) {
+            container.style.display = showCustom ? 'block' : 'none';
+        }
+    },
+
+    async submitCloseModal(templateId) {
+        const selectedType = document.querySelector('input[name="close_date_type"]:checked')?.value || 'today';
+        let closureDate = new Date().toISOString().substring(0, 10);
+        
+        if (selectedType === 'end_month') {
+            const now = new Date();
+            const lastDayObj = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            closureDate = lastDayObj.toISOString().substring(0, 10);
+        } else if (selectedType === 'custom') {
+            closureDate = document.getElementById('close_custom_date_input')?.value || closureDate;
+        }
+
+        const formBtn = document.querySelector('#closeSubscriptionForm button[type="submit"]');
+        const originalText = formBtn ? formBtn.textContent : '';
+
+        try {
+            if (formBtn) {
+                formBtn.disabled = true;
+                formBtn.textContent = '⏳ ...';
+            }
+
+            const res = await API.post(`/api/recurrences/${templateId}/close`, { closure_date: closureDate });
+            
+            document.getElementById('closeSubscriptionModal')?.remove();
+
+            await window.app.refreshSidebar();
+            await this.loadData();
+            showUndoToast(window.i18n.t('rec_closed_success') || 'Abonnement clôturé avec succès !', res.action_id, () => this.loadData());
+        } catch (e) {
+            console.error(e);
+            showToast("Erreur lors de la clôture de l'abonnement", "error");
+            if (formBtn) {
+                formBtn.disabled = false;
+                formBtn.textContent = originalText;
+            }
+        }
+    },
+
+    async reopenTemplate(templateId) {
+        const confirmed = await showInlineConfirm(
+            window.i18n.t('rec_reopen_confirm_title') || "Rouvrir l'abonnement",
+            window.i18n.t('rec_reopen_confirm_msg') || "Voulez-vous rouvrir cet abonnement ? Les échéances futures récurrentes seront régénérées."
+        );
+        if (!confirmed) return;
+
+        try {
+            const res = await API.post(`/api/recurrences/${templateId}/reopen`);
+            await window.app.refreshSidebar();
+            await this.loadData();
+            showUndoToast(window.i18n.t('rec_reopened_success') || 'Abonnement rouvert avec succès !', res.action_id, () => this.loadData());
+        } catch (e) {
+            console.error(e);
+            showToast("Erreur lors de la réouverture de l'abonnement", "error");
         }
     },
     
@@ -1843,7 +1997,7 @@ window.RecurrenceView = {
         }
     },
 
-    async openEditModal(templateId) {
+    async openEditModal(templateId, forceIsClosedState = undefined) {
         if (!this.templates || this.templates.length === 0 || !this.allTransactions || this.allTransactions.length === 0) {
             try {
                 this.templates = await API.get('/api/recurrences/?include_closed=true');
@@ -1858,6 +2012,8 @@ window.RecurrenceView = {
             showToast("Récurrence introuvable", "error");
             return;
         }
+
+        const initialIsClosed = (forceIsClosedState !== undefined) ? forceIsClosedState : (tpl.is_closed || false);
 
         // Auto-infer month_of_year from existing transactions if not set
         if (tpl.month_of_year == null && ['Yearly', 'Semi-Annually'].includes(tpl.frequency)) {
@@ -2000,7 +2156,7 @@ window.RecurrenceView = {
                             <span style="font-size: 14px; font-weight: 600; color: var(--text-main);">${window.i18n.t('edit_close_recurrence_label') || "Clôturer l'abonnement / récurrence"}</span>
                             <span style="font-size: 11px; color: var(--text-muted); line-height: 1.3;">${window.i18n.t('edit_close_recurrence_hint') || 'Activer cette option désactive définitivement la génération future de cette récurrence. Les transactions existantes seront conservées.'}</span>
                         </div>
-                        <input type="checkbox" id="edit_is_closed" ${tpl.is_closed ? 'checked' : ''} style="width: 22px; height: 22px; cursor: pointer;">
+                        <input type="checkbox" id="edit_is_closed" ${initialIsClosed ? 'checked' : ''} style="width: 22px; height: 22px; cursor: pointer;">
                     </label>
 
                     <!-- Real-time Preview Container -->

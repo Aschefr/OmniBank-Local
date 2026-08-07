@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.81] - 2026-08-07
+
+### Added & Improved
+- **Clean Mid-Year Subscription Closure & Reopening 🛑**:
+  - **Dedicated Closure Modal**: Easily close active subscriptions mid-year with flexible cutoff dates (*Today*, *End of current month*, or *Custom date*). Future unreconciled instances after the cutoff date are cleanly purged, while past accounting records and reconciled transactions remain intact.
+  - **In-Line Confirmation**: Reopening closed subscriptions now requires explicit in-line modal confirmation (`showInlineConfirm`), preventing accidental resume of recurring instances.
+
+- **Unified Recurrence Action Menu Layout 🎨**:
+  - **Streamlined Action Placement**: Action buttons (`✏️`, `🛑`/`🔓`, `🗑️`) are now cleanly unified in the top-right header of the expanded details drawer (*"Détails des opérations de l'année"*), eliminating duplicate buttons from main table rows.
+  - **Pristine Timeline View**: Kept the Chronogramme (Gantt) 12-month visual grid clean, uncluttered, and perfectly aligned with zero layout distortion.
+
+- **Data Sovereignty & Privacy Safeguards 🛡️**:
+  - **Untracked Sensitive Profile Data**: Removed `data/profiles.json` and runtime profile directories from Git tracking (`git rm --cached`).
+  - **Repository Protection**: Added strict `.gitignore` patterns and provided an anonymized template file (`data/profiles.json.example`).
+
+
 ## [1.0.80] - 2026-08-07
 
 ### Added & Improved

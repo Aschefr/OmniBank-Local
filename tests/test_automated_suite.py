@@ -1966,3 +1966,51 @@ def test_pdf_report_data_and_section_aggregation():
     assert res_users.status_code == 200
     assert len(res_users.json()) >= 1
 
+
+# ==============================================================================
+# TEST 21: Subscription Closure & Reopen Flow (Mid-Year Closure)
+# ==============================================================================
+def test_subscription_closure_and_reopen_flow():
+    # 1. Create a monthly recurrence template
+    res_tpl = client.post("/api/recurrences/", json={
+        "description": "Abonnement Gym Test",
+        "amount": 29.99,
+        "type": "expense_fixed",
+        "category": "Sport",
+        "frequency": "Monthly",
+        "day_of_month": 15,
+        "is_closed": False
+    })
+    assert res_tpl.status_code == 200
+    tpl_id = res_tpl.json()["id"]
+
+    # 2. Generate instances for current year
+    res_gen = client.post(f"/api/recurrences/generate_to_end_of_year?template_id={tpl_id}")
+    assert res_gen.status_code == 200
+
+    res_txs = client.get("/api/transactions/")
+    txs_before = [t for t in res_txs.json() if t["recurrence_id"] == tpl_id]
+    assert len(txs_before) > 0
+
+    # 3. Close the subscription with cutoff date 2026-06-30
+    res_close = client.post(f"/api/recurrences/{tpl_id}/close", json={"closure_date": "2026-06-30"})
+    assert res_close.status_code == 200
+    assert res_close.json()["is_closed"] is True
+
+    # 4. Verify future unreconciled transactions after 2026-06-30 are deleted
+    res_txs_after = client.get("/api/transactions/")
+    txs_after = [t for t in res_txs_after.json() if t["recurrence_id"] == tpl_id]
+    future_txs = [t for t in txs_after if t["date_operation"] > "2026-06-30" and t["reconciliation_date"] is None]
+    assert len(future_txs) == 0
+
+    # 5. Reopen the subscription
+    res_reopen = client.post(f"/api/recurrences/{tpl_id}/reopen")
+    assert res_reopen.status_code == 200
+    assert res_reopen.json()["is_closed"] is False
+
+    # 6. Verify future transactions are regenerated
+    res_txs_final = client.get("/api/transactions/")
+    txs_final = [t for t in res_txs_final.json() if t["recurrence_id"] == tpl_id]
+    assert len(txs_final) > len(txs_after)
+
+
