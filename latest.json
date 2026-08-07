@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlEWGZ5K0R0UEJCUzducy9uT3MxZkdsRFdUZlJ0Z2Z0UnN0cmc1Tk9Bd3QvZkw0eElwbi83aFl3cXdFSFFSbXBsZXhkZjJzSFUzY3BSUGdlaEwwclFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MTA5MDYwCWZpbGU6T21uaUJhbmtfMS4wLjgxX3g2NF9mci1GUi5tc2kKY09HdzI5UU91SXZkQzl0dWJ3WTk5SmhuVkhBNFc1OFBEbjM4T1RzSktVQm5XZDZaWUoyV3Zpem1xdVhRaXZTS0dDa0s1WWdvUkNHUTV2TW9zc2NPREE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.81/OmniBank_1.0.81_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDVBRFBmYWNhWjh1MXFFOG5FaW9IT2dQTDBzWjNtQitDMlRScDhucTR6aTRKVWx6SFJWSEFubFQ5QUdCL04zN3ltVnNQQXhiZ2piMzhoaFRlWFpPb0FvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MTEwNjA0CWZpbGU6T21uaUJhbmtfMS4wLjgyX3g2NF9mci1GUi5tc2kKbFJzdmhTb1ppUloyZnE1dFIwT3RqY1JPWHJOWEpUOTVRS3hqc1YvcHlxcFZMR0tWenNpSXI3WU1zcElNSWxRUTk0VzlENDI3SDN4eDI2SmFsMnJ2Q2c9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.82/OmniBank_1.0.82_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-07T13:24:20Z",
-    "version":  "1.0.81",
-    "notes":  "Clean mid-year subscription closure modal, streamlined recurrence actions layout, in-line reopen confirmation, and privacy safeguards"
+    "pub_date":  "2026-08-07T13:50:04Z",
+    "version":  "1.0.82",
+    "notes":  "Global Undo/Redo history engine support for subscription closure \u0026 reopening actions"
 }

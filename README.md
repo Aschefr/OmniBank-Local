@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.81-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.82-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -106,6 +106,10 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Frontend** : HTML5/CSS3 (Vanilla), JavaScript, Chart.js.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
+
+## 🆕 Dernières Mises à Jour (v1.0.82)
+
+*   **↩️ Annulation/Rétablissement (Undo/Redo) de Clôture d'Abonnement** : Intégration complète des actions `CLOSE` et `REOPEN` dans le moteur d'historique (`history_service.py`). L'annulation d'une clôture rouvre le contrat (`is_closed = False`) et regénère automatiquement les occurrences futures, tandis que le rétablissement nettoie proprement les instances futures non rapprochées.
 
 ## 🆕 Dernières Mises à Jour (v1.0.81)
 
@@ -265,7 +269,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.81-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.82-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -364,6 +368,10 @@ Access the interface at `http://localhost:8434`.
 *   **Frontend**: HTML5/CSS3 (Vanilla), JavaScript, Chart.js.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
+
+## 🆕 Recent Updates (v1.0.82)
+
+*   **↩️ Global Undo/Redo Support for Subscription Closure** : Full integration of `CLOSE` and `REOPEN` actions into the history engine. Undoing a closure restores `is_closed = False` and automatically regenerates future recurring instances, while redoing a closure cleans up future unreconciled instances.
 
 ## 🆕 Recent Updates (v1.0.81)
 

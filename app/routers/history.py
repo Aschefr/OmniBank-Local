@@ -60,6 +60,22 @@ def undo_action_endpoint(action_id: int, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/{action_id}/redo")
+def redo_action_endpoint(action_id: int, db: Session = Depends(get_db)):
+    action = db.query(ActionHistory).filter(ActionHistory.id == action_id).first()
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found")
+    try:
+        success, warning = history_service.redo_action(db, action)
+        if not success:
+            raise HTTPException(status_code=400, detail=warning or "Failed to redo action")
+        db.commit()
+        stats_cache.invalidate()
+        return {"ok": True, "warning": warning}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.delete("/purge")
 def purge_history(older_than_days: int = Query(90), db: Session = Depends(get_db)):
     from datetime import datetime, timedelta
