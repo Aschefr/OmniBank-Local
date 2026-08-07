@@ -833,41 +833,66 @@ window.TimelineView = {
     },
 
     async toggleSkip(id) {
+        // PERF: UI Optimiste — feedback visuel immédiat avant la réponse API
+        const row = document.querySelector(`tr[data-tx-id="${id}"]`);
+        if (row) row.style.opacity = '0.5';
         try {
             const res = await API.post(`/api/transactions/${id}/toggle_skip`);
+            if (row) row.style.opacity = '';
             this._pendingHighlightTxId = id;
-            await Promise.all([window.app.refreshSidebar(), this.loadData()]);
             showUndoToast(window.i18n.t('toast_tx_updated') || "Opération modifiée", res.action_id, () => this.loadData());
+            // PERF: Refresh en arrière-plan, non-bloquant
+            Promise.all([window.app.refreshSidebar(), this.loadData()]).catch(e => console.error('[Timeline] Erreur refresh arrière-plan:', e));
         } catch (e) {
+            if (row) row.style.opacity = '';
             console.error(e);
             showToast("Erreur lors de la modification", "error");
         }
     },
 
     async toggleReconciliation(id) {
+        // PERF: UI Optimiste — feedback visuel immédiat avant la réponse API
+        const row = document.querySelector(`tr[data-tx-id="${id}"]`);
+        const btn = row ? row.querySelector('.btn-reconcile, .btn-unreconcile') : null;
+        if (row) row.style.opacity = '0.5';
+        if (btn) btn.disabled = true;
         try {
             const res = await API.post(`/api/transactions/${id}/toggle_reconciliation`);
+            if (row) row.style.opacity = '';
+            if (btn) btn.disabled = false;
             this._pendingHighlightTxId = id;
-            // PERF: Refresh sidebar and reload data in parallel
-            await Promise.all([window.app.refreshSidebar(), this.loadData()]);
             showUndoToast(window.i18n.t('toast_tx_updated') || "Opération modifiée", res.action_id, () => this.loadData());
+            // PERF: Refresh en arrière-plan, non-bloquant
+            Promise.all([window.app.refreshSidebar(), this.loadData()]).catch(e => console.error('[Timeline] Erreur refresh arrière-plan:', e));
         } catch (e) {
+            if (row) row.style.opacity = '';
+            if (btn) btn.disabled = false;
             console.error(e);
         }
     },
 
     async delete(id) {
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.t('confirm_delete_operation'))) {
+            // PERF: UI Optimiste — masquer la ligne immédiatement
+            const row = document.querySelector(`tr[data-tx-id="${id}"]`);
+            if (row) {
+                row.style.transition = 'opacity 0.2s, transform 0.2s';
+                row.style.opacity = '0';
+                row.style.transform = 'translateX(-20px)';
+            }
             try {
                 const res = await API.del(`/api/transactions/${id}`);
-                // PERF: Refresh sidebar and reload data in parallel
-                await Promise.all([window.app.refreshSidebar(), this.loadData()]);
                 showUndoToast(window.i18n.t('toast_tx_deleted') || "Opération supprimée", res.action_id, () => this.loadData());
+                // PERF: Refresh en arrière-plan, non-bloquant
+                Promise.all([window.app.refreshSidebar(), this.loadData()]).catch(e => console.error('[Timeline] Erreur refresh arrière-plan:', e));
             } catch (e) {
+                // Rollback: restaurer la ligne
+                if (row) { row.style.opacity = ''; row.style.transform = ''; }
                 console.error(e);
             }
         }
     },
+
     
     showAddRow() {
         if (window.FormView) window.FormView.open();

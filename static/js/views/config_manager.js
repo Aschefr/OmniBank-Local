@@ -2207,16 +2207,16 @@ window.ConfigView = {
 
             if (hasPin) {
                 inlinePinGroup.innerHTML = `
-                    <button type="button" class="btn btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._showConfigurePinModal('${profileId}')">
+                    <button type="button" class="btn btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._showManagePinModal('${profileId}', true)">
                         ${btnChangePin}
                     </button>
-                    <button type="button" class="btn btn-danger" style="font-size:11px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._clearPin('${profileId}')">
+                    <button type="button" class="btn btn-danger" style="font-size:11px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._showManagePinModal('${profileId}', true)">
                         ${btnRemovePin}
                     </button>
                 `;
             } else {
                 inlinePinGroup.innerHTML = `
-                    <button type="button" class="btn btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._showConfigurePinModal('${profileId}')">
+                    <button type="button" class="btn btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._showManagePinModal('${profileId}', false)">
                         ${btnSetPin}
                     </button>
                 `;
@@ -2332,6 +2332,16 @@ window.ConfigView = {
                 errDiv.style.display = "block";
             }
         }
+    },
+
+    _showConfigurePinModal(profileId) {
+        const activeProf = window.app && window.app.profiles ? window.app.profiles.find(p => p.id === profileId) : null;
+        const hasPin = activeProf ? Boolean(activeProf.has_pin) : false;
+        this._showManagePinModal(profileId, hasPin);
+    },
+
+    _clearPin(profileId) {
+        this._showManagePinModal(profileId, true);
     },
 
     _showManagePinModal(profileId, hasPin) {

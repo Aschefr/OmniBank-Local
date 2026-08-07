@@ -1327,7 +1327,8 @@ window.FormView = {
             // Reload descriptions on save
             this.loadDescriptions();
 
-            // PERF: Refresh sidebar and reload view data in parallel
+            // PERF: Refresh en arrière-plan, non-bloquant — le toast et la fermeture du modal
+            // sont déjà affichés, l'utilisateur perçoit 0ms de délai
             const refreshPromises = [window.app.refreshSidebar()];
             if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) {
                 refreshPromises.push(window.TimelineView.loadData());
@@ -1341,7 +1342,7 @@ window.FormView = {
             if (window.app.currentView === 'overview' && window.OverviewView) {
                 refreshPromises.push(window.OverviewView.loadData ? window.OverviewView.loadData() : window.OverviewView.init());
             }
-            await Promise.all(refreshPromises);
+            Promise.all(refreshPromises).catch(e => console.error('[Form] Erreur refresh arrière-plan:', e));
 
 
         } catch (e) {

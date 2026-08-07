@@ -7,7 +7,7 @@
       "color": "#3b82f6",
       "icon": "📈",
       "currency": "EUR",
-      "pay_cycle_day": 29,
+      "pay_cycle_day": 25,
       "date_format": "DD/MM/YYYY",
       "created_at": "2026-08-01T19:49:47.960026",
       "db_path": "omnibank.db",
@@ -34,14 +34,14 @@
       "name": "Demonstration",
       "color": "#5762ff",
       "icon": "🏠",
-      "currency": "EUR",
+      "currency": "USD",
       "pay_cycle_day": 25,
       "date_format": "DD/MM/YYYY",
       "created_at": "2026-08-06T18:38:34.819722",
       "db_path": "profiles/p_4b94fee6/omnibank.db",
       "uploads_dir": "profiles/p_4b94fee6/uploads",
-      "pin_hash": null,
-      "pin_salt": null
+      "pin_hash": "de0a1f976565517f719d89b6e4d3dc9734ec95360cf46f5f7af92972645de3ec",
+      "pin_salt": "81f07087b8b2e856bac084fa2c584041"
     }
   ]
 }

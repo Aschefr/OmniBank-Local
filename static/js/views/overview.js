@@ -440,8 +440,14 @@ window.OverviewView = {
         const odCard = document.getElementById('ovOverdraftCard');
         if (stats.overdraft_warning && odCard) {
             odCard.style.display = 'flex';
-            document.getElementById('ovOverdraftAmount').textContent = formatCurrency(stats.overdraft_warning.projected_balance);
+            const odAmtEl = document.getElementById('ovOverdraftAmount');
+            if (odAmtEl) {
+                odAmtEl.textContent = formatCurrency(stats.overdraft_warning.projected_balance);
+                odAmtEl.style.color = '#ef4444';
+            }
             document.getElementById('ovOverdraftDate').textContent = formatDate(stats.overdraft_warning.date);
+        } else if (odCard) {
+            odCard.style.display = 'none';
         }
     },
 
@@ -1099,21 +1105,26 @@ window.OverviewView = {
         try {
             const row = document.getElementById(`ovRow_${id}`);
             if (row) {
-                row.style.opacity = '0.4';
+                row.style.transition = 'opacity 0.2s, transform 0.2s';
+                row.style.opacity = '0.15';
+                row.style.transform = 'translateX(-10px)';
                 row.style.pointerEvents = 'none';
             }
             const res = await API.post(`/api/transactions/${id}/toggle_reconciliation`);
             showUndoToast(window.i18n.t('toast_tx_updated') || "Opération modifiée", res.action_id, () => this.init());
-            await Promise.all([window.app.refreshSidebar(), this.init()]);
+            // PERF: Refresh en arrière-plan, non-bloquant
+            Promise.all([window.app.refreshSidebar(), this.init()]).catch(e => console.error('[overview] Erreur refresh arrière-plan:', e));
         } catch (e) {
             console.error('[overview] Erreur rapprochement', e);
             const row = document.getElementById(`ovRow_${id}`);
             if (row) {
                 row.style.opacity = '1';
+                row.style.transform = '';
                 row.style.pointerEvents = '';
             }
         }
     },
+
 
     showAddModal() {
         if (window.FormView) {
