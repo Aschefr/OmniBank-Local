@@ -2,16 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.0.80] - 2026-08-07
 
 ### Added & Improved
+- **Ultra-Responsive Interface & Speed Boost ⚡**:
+  - **Instant Visual Feedback**: Enjoy immediate responsiveness when creating, editing, deleting, or reconciling transactions. Modals close and lists update instantly without frustrating page lag.
+  - **Seamless Background Refresh**: Financial calculations and updates now process in the background without freezing or interrupting your workflow.
+
+- **Refined Overview & Display Ergonomics 🎨**:
+  - **Sleek Summary Cards**: Realigned key indicator cards ("Solde", "Reste à vivre", "Projection", "Risque découvert") to display large monetary amounts cleanly without text wrapping, line overlaps, or squishing.
+  - **Harmonized Table Headers**: Restored complete, translated table headers (`Compte`, `Montant`, `Actions`) across all overview lists.
+
+- **Seamless Profile & PIN Security 🔒**:
+  - **Reliable Security Setup**: Fixed an issue where clicking "Configurer un PIN" or "Modifier PIN" inside profile settings failed to open. Setting up or updating security PINs now opens smoothly every time.
+
 - **Analytics View Internal Transfer Visibility 🔁**:
   - **Unfiltered Internal Transfer Tables**: Internal transfers (`type == 'transfer'`) now remain visible in their dedicated summary tables on the Analytics ("Synthèse") page even when viewing "All Accounts", allowing users to track annual transfer volumes while keeping global Net Income calculations (`Income - Expenses`) completely neutral.
 
 - **Dynamic Budget Envelopes UI Refresh ⚡**:
   - **Instant UI Updates**: Fixed an issue where validating AI budget proposals or executing bulk budget cleanup required a manual page refresh (F5) to update the UI. Budgets now re-render dynamically across all cards immediately upon confirmation.
 
-## [1.0.79] - 2026-08-06
 
 ### Added & Improved
 - **Comprehensive Multi-Profile Backup Protection 🛡️**:

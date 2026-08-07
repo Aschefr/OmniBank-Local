@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models import ActionHistory
 from app.services import history_service
 from app.services.history_service import check_undo_safety
+from app.services import stats_cache
 
 router = APIRouter(prefix="/api/history", tags=["history"])
 
@@ -53,6 +54,7 @@ def undo_action_endpoint(action_id: int, db: Session = Depends(get_db)):
         if not success:
             raise HTTPException(status_code=400, detail=warning or "Failed to undo action")
         db.commit()
+        stats_cache.invalidate()
         return {"ok": True, "warning": warning}
     except Exception as e:
         db.rollback()
@@ -159,6 +161,7 @@ def undo_last_action(db: Session = Depends(get_db)):
         if not success:
             raise HTTPException(status_code=400, detail=warning or "Failed to undo action")
         db.commit()
+        stats_cache.invalidate()
         return {"ok": True, "warning": warning, "entity_type": action.entity_type, "action_type": action.action_type}
     except Exception as e:
         db.rollback()
@@ -174,6 +177,7 @@ def redo_last_action(db: Session = Depends(get_db)):
         if not success:
             raise HTTPException(status_code=400, detail=warning or "Failed to redo action")
         db.commit()
+        stats_cache.invalidate()
         return {"ok": True, "warning": warning, "entity_type": action.entity_type, "action_type": action.action_type}
     except Exception as e:
         db.rollback()

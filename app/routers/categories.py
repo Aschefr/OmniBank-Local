@@ -8,6 +8,7 @@ from sqlalchemy import func
 from datetime import date
 from app.schemas.api_schemas import CategoryBase, CategoryOut
 from app.services.history_service import record_action, snapshot_entity
+from app.services import stats_cache
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
@@ -86,6 +87,7 @@ def create_category(cat: CategoryBase, force_move: bool = False, db: Session = D
             db.flush()
             action_id = record_action(db, "category", db_cat.id, "UPDATE", old_snapshot, snapshot_entity(db_cat))
             db.commit()
+            stats_cache.invalidate()
             db.refresh(db_cat)
             db_cat.action_id = action_id
             return db_cat
@@ -100,6 +102,7 @@ def create_category(cat: CategoryBase, force_move: bool = False, db: Session = D
     db.flush()
     action_id = record_action(db, "category", new_cat.id, "CREATE", None, snapshot_entity(new_cat))
     db.commit()
+    stats_cache.invalidate()
     db.refresh(new_cat)
     new_cat.action_id = action_id
     return new_cat
@@ -132,6 +135,7 @@ def update_category(cat_id: int, cat: CategoryBase, db: Session = Depends(get_db
     db.flush()
     action_id = record_action(db, "category", db_cat.id, "UPDATE", old_snapshot, snapshot_entity(db_cat))
     db.commit()
+    stats_cache.invalidate()
     db.refresh(db_cat)
     db_cat.action_id = action_id
     return db_cat
@@ -154,6 +158,7 @@ def delete_category(cat_id: int, reallocate_to: str = None, db: Session = Depend
     db.delete(db_cat)
     action_id = record_action(db, "category", cat_id, "DELETE", old_snapshot, None)
     db.commit()
+    stats_cache.invalidate()
     return {"ok": True, "action_id": action_id}
 
 

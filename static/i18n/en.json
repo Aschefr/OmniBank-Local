@@ -1458,7 +1458,7 @@
   "overview_org_badge": "Organisation Mode",
   "overview_org_health_healthy": "Healthy Treasury",
   "overview_org_forecast_sub": "Forecast organisation balance as of",
-  "th_created_by": "Created by",
+  "th_created_by": "Entered by",
   "alert_restore_all_profiles": "Do you really want to restore ALL master profiles from this global backup? All current data will be replaced.",
   "msg_restore_all_progress": "Global restore in progress...",
   "msg_restore_all_success": "Global restore completed successfully!",
@@ -1470,5 +1470,6 @@
   "cat_suffix_variable": " (Variable)",
   "cat_suffix_fixed": " (Fixed)",
   "cat_suffix_income": " (Income)",
-  "cat_conflict_suffix_prompt": "The category '{name}' already exists under another transaction type.\n\nWould you like to create the category '{suggestedName}' instead?"
+  "cat_conflict_suffix_prompt": "The category '{name}' already exists under another transaction type.\n\nWould you like to create the category '{suggestedName}' instead?",
+  "th_account": "Account"
 }

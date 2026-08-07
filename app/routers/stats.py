@@ -7,6 +7,8 @@ from app.database import get_db
 from app.models import Account, Transaction
 from app.schemas.api_schemas import AccountOut
 from app.services.finance_engine import calculate_balances, get_net_worth, calculate_rest_to_live, get_overdraft_warning, predict_next_paycheck, get_main_account
+from app.services import stats_cache
+from app.profile_manager import get_active_profile
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -39,6 +41,12 @@ def _require_date(s: str, param_name: str) -> date:
 
 @router.get("/accounts")
 def get_accounts(db: Session = Depends(get_db)):
+    # PERF: Vérifier le cache avant de calculer
+    profile_id = get_active_profile()["id"]
+    cached = stats_cache.get(profile_id, "accounts")
+    if cached is not None:
+        return cached
+
     accounts = db.query(Account).all()
     # User wants only reconciled transactions for current balance
     balances = calculate_balances(db, only_reconciled=True)
@@ -54,10 +62,18 @@ def get_accounts(db: Session = Depends(get_db)):
             "currency": getattr(acc, "currency", "EUR") or "EUR",
             "balance": balances.get(acc.id, 0.0)
         })
+    
+    stats_cache.set(profile_id, "accounts", result)
     return result
 
 @router.get("/dashboard")
 def get_dashboard_stats(db: Session = Depends(get_db)):
+    # PERF: Vérifier le cache avant de calculer
+    profile_id = get_active_profile()["id"]
+    cached = stats_cache.get(profile_id, "dashboard")
+    if cached is not None:
+        return cached
+
     today = date.today()
     
     # User wants net worth to be based only on reconciled transactions
@@ -175,7 +191,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             "fully_consumed": overflow_amount >= total_savings_balance
         }
 
-    return {
+    result = {
         "net_worth": net_worth,
         "rest_to_live": rest_to_live,
         "next_pay_date": next_pay_date,
@@ -193,6 +209,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "savings_details": savings_list,
         "savings_overflow": savings_overflow,
     }
+    stats_cache.set(profile_id, "dashboard", result)
+    return result
 
 from pydantic import BaseModel
 
@@ -231,6 +249,7 @@ def override_paycheck(data: PaycheckOverride, db: Session = Depends(get_db)):
             db.add(GlobalConfig(key="override_paycheck_period", value=logical_period))
             
     db.commit()
+    stats_cache.invalidate()
     return {"ok": True}
 
 
@@ -251,6 +270,7 @@ def validate_pay_period(action: str = None, period: str = None, db: Session = De
             db.delete(conf_date)
         if conf or conf_date:
             db.commit()
+            stats_cache.invalidate()
         return {"ok": True, "period": None, "action": "reset"}
         
     if period:
@@ -304,6 +324,7 @@ def validate_pay_period(action: str = None, period: str = None, db: Session = De
         db.add(GlobalConfig(key="last_validated_pay_date", value=today_str))
     
     db.commit()
+    stats_cache.invalidate()
     return {"ok": True, "period": period_str, "action": action}
 
 @router.delete("/override_paycheck")
@@ -318,6 +339,7 @@ def delete_override_paycheck(clear_validation: bool = False, db: Session = Depen
         if override:
             db.delete(override)
     db.commit()
+    stats_cache.invalidate()
     return {"ok": True}
 
 

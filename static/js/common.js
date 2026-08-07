@@ -43,6 +43,7 @@ async function _handleApiError(res) {
 }
 
 const API = {
+    _inflight: {},
     getBaseUrl() {
         return localStorage.getItem('omnibank_server_url') || '';
     },
@@ -64,16 +65,39 @@ const API = {
         const cleanEp = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
         return cleanBase + cleanEp;
     },
+    /**
+     * Invalidate the inflight GET cache.
+     * Called automatically after any POST/PUT/DELETE mutation.
+     */
+    _invalidateInflight() {
+        this._inflight = {};
+    },
     async get(endpoint) {
+        // PERF: Déduplication — si un GET identique est déjà en cours, réutiliser la même Promise
+        const cacheKey = endpoint.split('?')[0];
+        if (this._inflight[cacheKey]) {
+            return this._inflight[cacheKey];
+        }
+
         const targetUrl = this.fullUrl(endpoint);
         const separator = targetUrl.includes('?') ? '&' : '?';
         const url = `${targetUrl}${separator}_t=${Date.now()}`;
         
-        const res = await fetch(url);
-        if (!res.ok) await _handleApiError(res);
-        return res.json();
+        const promise = fetch(url).then(async res => {
+            if (!res.ok) await _handleApiError(res);
+            return res.json();
+        });
+
+        this._inflight[cacheKey] = promise;
+        // Auto-expire après 500ms pour éviter les données stale
+        promise.finally(() => {
+            setTimeout(() => { delete this._inflight[cacheKey]; }, 500);
+        });
+
+        return promise;
     },
     async post(endpoint, data) {
+        this._invalidateInflight();
         const targetUrl = this.fullUrl(endpoint);
         const res = await fetch(targetUrl, {
             method: 'POST',
@@ -88,6 +112,7 @@ const API = {
         return json;
     },
     async put(endpoint, data) {
+        this._invalidateInflight();
         const targetUrl = this.fullUrl(endpoint);
         const res = await fetch(targetUrl, {
             method: 'PUT',
@@ -102,6 +127,7 @@ const API = {
         return json;
     },
     async del(endpoint, data = null) {
+        this._invalidateInflight();
         const targetUrl = this.fullUrl(endpoint);
         const options = { method: 'DELETE' };
         if (data !== null && data !== undefined) {
@@ -117,6 +143,7 @@ const API = {
         return json;
     }
 };
+
 
 // Global fetch interceptor for remote server URL support
 if (typeof window._originalFetch === 'undefined') {
@@ -260,7 +287,11 @@ function formatCurrency(amount, currencyCode) {
     const num = (amount === null || amount === undefined || isNaN(amount)) ? 0 : Number(amount);
     try {
         const lang = (window.i18n && window.i18n.currentLang === 'en') ? 'en-US' : 'fr-FR';
-        return new Intl.NumberFormat(lang, { style: 'currency', currency: code }).format(num);
+        let formatted = new Intl.NumberFormat(lang, { style: 'currency', currency: code }).format(num);
+        if (code === 'USD') {
+            formatted = formatted.replace(/\s*\$US|US\$\s*/g, ' $');
+        }
+        return formatted;
     } catch (e) {
         return `${num.toFixed(2)} ${code}`;
     }

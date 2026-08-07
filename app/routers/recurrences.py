@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models import RecurrenceTemplate, Transaction, Category
 from app.schemas.api_schemas import RecurrenceTemplateCreate, RecurrenceTemplateOut, PropagateRequest, WizardGenerateRequest
 from app.services.history_service import record_action, snapshot_entity
+from app.services import stats_cache
 
 router = APIRouter(prefix="/api/recurrences", tags=["recurrences"])
 
@@ -36,6 +37,7 @@ def create_template(tpl: RecurrenceTemplateCreate, db: Session = Depends(get_db)
     db.flush()
     action_id = record_action(db, "recurrence_template", db_tpl.id, "CREATE", None, snapshot_entity(db_tpl))
     db.commit()
+    stats_cache.invalidate()
     db.refresh(db_tpl)
     db_tpl.action_id = action_id
     return db_tpl
@@ -76,6 +78,7 @@ def update_template(tpl_id: int, tpl_update: RecurrenceTemplateCreate, db: Sessi
     db.flush()
     action_id = record_action(db, "recurrence_template", db_tpl.id, "UPDATE", old_snapshot, snapshot_entity(db_tpl))
     db.commit()
+    stats_cache.invalidate()
     db.refresh(db_tpl)
     db_tpl.action_id = action_id
     return db_tpl
@@ -96,6 +99,7 @@ def delete_template(tpl_id: int, db: Session = Depends(get_db)):
     db.delete(db_tpl)
     action_id = record_action(db, "recurrence_template", tpl_id, "DELETE", old_snapshot, None)
     db.commit()
+    stats_cache.invalidate()
     return {"ok": True, "action_id": action_id}
 
 @router.post("/{tpl_id}/propagate")
@@ -206,6 +210,7 @@ def propagate_recurrence(tpl_id: int, req: PropagateRequest, db: Session = Depen
             break
             
     db.commit()
+    stats_cache.invalidate()
     return {"updated": updated_count}
 
 def auto_close_abandoned_templates(db: Session):
@@ -423,6 +428,7 @@ def generate_recurrences(template_id: Optional[int] = None, db: Session = Depend
                 break # safeguard
                 
     db.commit()
+    stats_cache.invalidate()
     return {"generated_instances": generated_count}
 
 @router.post("/wizard_generate")
@@ -450,6 +456,7 @@ def wizard_generate(req: WizardGenerateRequest, db: Session = Depends(get_db)):
         db.add(db_tpl)
         
     db.commit()
+    stats_cache.invalidate()
 
     # 3. Generate instances for target year
     generated_count = 0
@@ -534,6 +541,7 @@ def wizard_generate(req: WizardGenerateRequest, db: Session = Depends(get_db)):
                     break
                     
     db.commit()
+    stats_cache.invalidate()
     return {"generated_instances": generated_count}
 
 
@@ -558,6 +566,7 @@ def update_recurrence_category(tpl_id: int, req: RecurrenceCategoryUpdate, db: S
     ).update({"category": req.category}, synchronize_session=False)
     
     db.commit()
+    stats_cache.invalidate()
     db.refresh(db_tpl)
     return db_tpl
 

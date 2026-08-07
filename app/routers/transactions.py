@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models import Transaction, Account, RecurrenceTemplate
 from app.schemas.api_schemas import TransactionCreate, TransactionUpdate, TransactionOut
 from app.services.history_service import record_action, snapshot_entity
+from app.services import stats_cache
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -61,6 +62,7 @@ def create_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
     db.flush()
     action_id = record_action(db, "transaction", db_tx.id, "CREATE", None, snapshot_entity(db_tx), user_name=db_tx.created_by)
     db.commit()
+    stats_cache.invalidate()
     db.refresh(db_tx)
     db_tx.action_id = action_id
     return db_tx
@@ -125,6 +127,7 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
     db.flush()
     action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, snapshot_entity(db_tx), user_name=db_tx.modified_by)
     db.commit()
+    stats_cache.invalidate()
     db.refresh(db_tx)
     db_tx.action_id = action_id
     return db_tx
@@ -139,6 +142,7 @@ def delete_transaction(tx_id: int, db: Session = Depends(get_db)):
     db.delete(db_tx)
     action_id = record_action(db, "transaction", tx_id, "DELETE", old_snapshot, None, user_name=user_name)
     db.commit()
+    stats_cache.invalidate()
     return {"ok": True, "action_id": action_id}
 
 @router.post("/{tx_id}/toggle_reconciliation")
@@ -160,6 +164,7 @@ def toggle_reconciliation(tx_id: int, db: Session = Depends(get_db)):
     db.flush()
     action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, snapshot_entity(db_tx), user_name=db_tx.modified_by or db_tx.created_by)
     db.commit()
+    stats_cache.invalidate()
     db.refresh(db_tx)
     return {"reconciliation_date": db_tx.reconciliation_date, "action_id": action_id}
 
@@ -182,6 +187,7 @@ def toggle_skip(tx_id: int, db: Session = Depends(get_db)):
     db.flush()
     action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, snapshot_entity(db_tx), user_name=db_tx.modified_by or db_tx.created_by)
     db.commit()
+    stats_cache.invalidate()
     db.refresh(db_tx)
     return {
         "is_skipped": db_tx.is_skipped,
@@ -201,4 +207,5 @@ def clear_all_transactions(db: Session = Depends(get_db)):
     db.query(Account).delete()
     db.query(Category).delete()
     db.commit()
+    stats_cache.invalidate()
     return {"ok": True, "message": "All user data has been deleted"}

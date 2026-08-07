@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.79-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.80-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -119,6 +119,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 ## 🆕 Dernières Mises à Jour (v1.0.74)
 
 *   **💼 Budgets & Enveloppes** : Thread-safety du service IA Ollama via `threading.Lock` et appels asynchrones non-bloquants, contraintes d'unicité et de vérification en base de données, nettoyage automatique des identifiants de comptes orphelins lors de la suppression d'un compte, et externalisation de 120+ styles inline vers des classes CSS sémantiques (`.bv-*`).
+
+## 🆕 Dernières Mises à Jour (v1.0.80)
+
+*   **⚡ Performance Ultra-Réactive & Cache Backend** : Réponse visuelle instantanée lors de la création, modification, suppression et rapprochement d'opérations. Rafraîchissements en arrière-plan non-bloquants et cache en mémoire Python (gain de 10x à 22x sur la vue d'ensemble).
+*   **🎨 Vue d'Ensemble Épurée** : Cartes synthétiques réalignées sans chevauchement ni saut de ligne sur les montants élevés en devises ($ et €) et rétablissement des en-têtes de tableau traduits (`COMPTE`, `MONTANT`, `ACTIONS`).
+*   **🔒 Sécurité & Code PIN** : Correction de l'ouverture du modal de configuration du code PIN dans les paramètres de profil.
 
 ## 🆕 Dernières Mises à Jour (v1.0.73)
 
@@ -253,7 +259,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.79-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.80-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -381,6 +387,12 @@ Access the interface at `http://localhost:8434`.
 *   **💱 Multi-Currency Support** : Real-time conversions, custom exchange rates, and original currency badges.
 *   **📄 Advanced PDF Export Module** : Modular section cards with dynamic page breaks and saved export preferences.
 *   **⚡ Performance & Indexing** : Added SQLite indexes on `Transaction.budget_id` and composite `(category, date_operation)`, $O(1)$ Python status lookups, and frontend parallel query loading.
+
+## 🆕 Recent Updates (v1.0.80)
+
+*   **⚡ Ultra-Fast Performance & Backend Cache**: Instant UI responsiveness when adding, editing, deleting, or reconciling transactions. Non-blocking background re-fetches and in-memory Python caching (10x-22x speedup on Overview page).
+*   **🎨 Refined Overview Display**: Realigned hero KPI cards preventing text wrapping or line breaks on large monetary values ($ and €) and fully restored translated table headers (`ACCOUNT`, `AMOUNT`, `ACTIONS`).
+*   **🔒 Profile PIN Security Fix**: Resolved profile settings modal issue so PIN setup and update popups open cleanly every time.
 
 ## 🆕 Recent Updates (v1.0.68)
 

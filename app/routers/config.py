@@ -6,6 +6,7 @@ import httpx
 from app.database import get_db
 from app.models import GlobalConfig
 from app.schemas.api_schemas import ConfigItem
+from app.services import stats_cache
 
 router = APIRouter(prefix="/api/config", tags=["config"])
 
@@ -24,6 +25,7 @@ def set_config(data: Dict[str, str], db: Session = Depends(get_db)):
             conf = GlobalConfig(key=key, value=str(value))
             db.add(conf)
     db.commit()
+    stats_cache.invalidate()
 
     # Automatically sync base_pay_day with active profile metadata
     if "base_pay_day" in data:
@@ -90,6 +92,7 @@ def save_exchange_rate(data: ExchangeRateCreate, db: Session = Depends(get_db)):
         rate_obj = ExchangeRate(from_currency=from_curr, to_currency=to_curr, rate=data.rate)
         db.add(rate_obj)
     db.commit()
+    stats_cache.invalidate()
     db.refresh(rate_obj)
     return {"id": rate_obj.id, "from_currency": rate_obj.from_currency, "to_currency": rate_obj.to_currency, "rate": rate_obj.rate}
 
@@ -100,6 +103,7 @@ def delete_exchange_rate(rate_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Exchange rate not found")
     db.delete(rate_obj)
     db.commit()
+    stats_cache.invalidate()
     return {"ok": True}
 
 @router.post("/exchange-rates/fetch-online")

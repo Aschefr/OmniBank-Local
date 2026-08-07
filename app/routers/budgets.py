@@ -6,6 +6,7 @@ from app.database import get_db
 
 from app.services import budget_service
 from app.services import budget_ai_service
+from app.services import stats_cache
 from app.services.budget_service import (
     parse_account_ids as _parse_account_ids,
     serialize_account_ids as _serialize_account_ids,
@@ -92,7 +93,9 @@ def get_budgets(db: Session = Depends(get_db)):
 @router.post("/")
 def create_budget(data: BudgetCreate, db: Session = Depends(get_db)):
     try:
-        return budget_service.create_new_budget(data, db)
+        result = budget_service.create_new_budget(data, db)
+        stats_cache.invalidate()
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -103,7 +106,9 @@ def create_budget(data: BudgetCreate, db: Session = Depends(get_db)):
 @router.put("/{budget_id}")
 def update_budget(budget_id: int, data: BudgetUpdate, db: Session = Depends(get_db)):
     try:
-        return budget_service.update_existing_budget(budget_id, data, db)
+        result = budget_service.update_existing_budget(budget_id, data, db)
+        stats_cache.invalidate()
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -114,7 +119,9 @@ def update_budget(budget_id: int, data: BudgetUpdate, db: Session = Depends(get_
 @router.delete("/{budget_id}")
 def delete_budget(budget_id: int, db: Session = Depends(get_db)):
     try:
-        return budget_service.delete_single_budget(budget_id, db)
+        result = budget_service.delete_single_budget(budget_id, db)
+        stats_cache.invalidate()
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -125,7 +132,9 @@ def delete_budget(budget_id: int, db: Session = Depends(get_db)):
 @router.post("/bulk_delete")
 def bulk_delete_budgets(data: BulkDeleteRequest, db: Session = Depends(get_db)):
     try:
-        return budget_service.bulk_delete_budgets_by_type(data.target_type, db)
+        result = budget_service.bulk_delete_budgets_by_type(data.target_type, db)
+        stats_cache.invalidate()
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -198,7 +207,9 @@ def get_allocations(budget_id: int, db: Session = Depends(get_db)):
 @router.post("/{budget_id}/allocations")
 def create_allocation(budget_id: int, data: AllocationCreate, db: Session = Depends(get_db)):
     try:
-        return budget_service.create_allocation_data(budget_id=budget_id, data=data, db=db)
+        result = budget_service.create_allocation_data(budget_id=budget_id, data=data, db=db)
+        stats_cache.invalidate()
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -209,7 +220,9 @@ def create_allocation(budget_id: int, data: AllocationCreate, db: Session = Depe
 @router.delete("/{budget_id}/allocations/{alloc_id}")
 def delete_allocation(budget_id: int, alloc_id: int, db: Session = Depends(get_db)):
     try:
-        return budget_service.delete_allocation_data(budget_id=budget_id, alloc_id=alloc_id, db=db)
+        result = budget_service.delete_allocation_data(budget_id=budget_id, alloc_id=alloc_id, db=db)
+        stats_cache.invalidate()
+        return result
     except HTTPException:
         raise
     except Exception as e:
