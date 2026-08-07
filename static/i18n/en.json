@@ -1466,5 +1466,9 @@
   "filter_top6_all": "All",
   "filter_top6_fixed": "Fixed",
   "filter_top6_var": "Variable",
-  "overview_top3_click_tooltip": "View operations in history"
+  "overview_top3_click_tooltip": "View operations in history",
+  "cat_suffix_variable": " (Variable)",
+  "cat_suffix_fixed": " (Fixed)",
+  "cat_suffix_income": " (Income)",
+  "cat_conflict_suffix_prompt": "The category '{name}' already exists under another transaction type.\n\nWould you like to create the category '{suggestedName}' instead?"
 }

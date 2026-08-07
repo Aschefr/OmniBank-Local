@@ -1910,7 +1910,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             }
 
             await this.loadBudgets();
-            await this.loadAllStatuses();
+            await this.loadStatus();
             window.app.refreshSidebar();
             showInlineMessage(window.i18n.t('title_info'), `${count} enveloppe(s) créée(s) avec succès !`);
         } catch(e) {

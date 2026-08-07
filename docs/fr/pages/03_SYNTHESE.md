@@ -24,7 +24,7 @@ La synthèse est structurée sous forme d'une grande grille matricielle interact
 - **🛍️ Dépenses Variables** : Alimentation, loisirs, vêtements, etc.
 - **📋 Dépenses Fixes** : Loyer, abonnements, assurances, impôts.
 - **💰 Revenus** : Salaires, allocations, ventes.
-- **🔁 Transferts & Virements Internes** : Mouvements entre vos différents comptes.
+- **🔁 Transferts & Virements Internes** : Mouvements entre vos différents comptes. Les tableaux dédiés aux virements internes affichent l'intégralité des flux annuels y compris en mode "Tous les comptes", permettant un suivi précis des volumes échangés tout en conservant un Résultat Net global (`Revenus - Dépenses`) parfaitement neutre.
 
 Chaque catégorie parent s'affiche avec ses sous-catégories associées. Pour chaque ligne, le tableau présente la somme exacte des opérations par mois, ainsi que le **Total Annuel** et la **Moyenne Mensuelle**.
 

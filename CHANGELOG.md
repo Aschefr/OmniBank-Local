@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added & Improved
+- **Analytics View Internal Transfer Visibility 🔁**:
+  - **Unfiltered Internal Transfer Tables**: Internal transfers (`type == 'transfer'`) now remain visible in their dedicated summary tables on the Analytics ("Synthèse") page even when viewing "All Accounts", allowing users to track annual transfer volumes while keeping global Net Income calculations (`Income - Expenses`) completely neutral.
+
+- **Dynamic Budget Envelopes UI Refresh ⚡**:
+  - **Instant UI Updates**: Fixed an issue where validating AI budget proposals or executing bulk budget cleanup required a manual page refresh (F5) to update the UI. Budgets now re-render dynamically across all cards immediately upon confirmation.
+
 ## [1.0.79] - 2026-08-06
 
 ### Added & Improved
