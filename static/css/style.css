@@ -4201,21 +4201,22 @@ input[type="range"]::-moz-range-thumb:hover {
 /* ── Section 1: Hero KPI cards row ────────────────────────────────────────── */
 .overview-hero {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 18px;
-    margin-bottom: 28px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
 }
 
 .overview-hero-card {
     display: flex;
     align-items: center;
-    gap: 18px;
-    padding: 22px 24px;
+    gap: 14px;
+    padding: 18px 20px;
     border-radius: 18px;
     border: 1px solid var(--border-color);
     background: var(--bg-surface);
     box-shadow: var(--shadow-sm);
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    min-width: 0;
 }
 
 .overview-hero-card:hover {
@@ -4229,9 +4230,9 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .overview-hero-icon {
-    font-size: 28px;
-    width: 52px;
-    height: 52px;
+    font-size: 26px;
+    width: 48px;
+    height: 48px;
     border-radius: 14px;
     background: var(--accent-subtle);
     display: flex;
@@ -4240,29 +4241,49 @@ input[type="range"]::-moz-range-thumb:hover {
     flex-shrink: 0;
 }
 
+.overview-hero-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
 .overview-hero-label {
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.5px;
     color: var(--text-muted);
-    margin-bottom: 4px;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .overview-hero-value {
-    font-size: 26px;
+    font-size: clamp(18px, 1.4vw, 24px);
     font-weight: 800;
     color: var(--text-main);
-    line-height: 1.2;
+    line-height: 1.25;
     letter-spacing: -0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
 }
 
 .overview-hero-sub {
-    font-size: 12px;
+    font-size: 11.5px;
     color: var(--text-muted);
-    margin-top: 4px;
+    margin-top: 3px;
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
+
 
 .overview-hero-networth .overview-hero-icon { background: rgba(99, 102, 241, 0.15); }
 .overview-hero-rav .overview-hero-icon { background: rgba(16, 185, 129, 0.15); }

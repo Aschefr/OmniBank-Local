@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from fastapi.responses import StreamingResponse
 
 from app.database import get_db
-from app.models import Transaction, Account, Category
+from app.models import Transaction, Account, Category, RecurrenceTemplate
+from app.services import stats_cache
 from app.routers.csv_parser import heuristic_parse, check_reconciliation, check_import_alerts, extract_account_block, detect_multi_account_sections
 
 router = APIRouter(prefix="/api/csv", tags=["csv"])
@@ -248,6 +249,7 @@ async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
             db.add(new_tx)
             imported_count += 1
         db.commit()
+        stats_cache.invalidate()
         
         # Auto-generate recurrence instances up to the end of the current year for the newly created templates
         from app.routers.recurrences import generate_recurrences

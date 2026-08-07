@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDMwb3dSZnZWcUZHa0lTWjY0alowZGx1MmYyMzdCR3hKNWk4cHBUUWRmZ2cybUNFbWw1bVJEQ1pJdEp5RmpEL3pVS0hTSXBrc2c0QWlmM3phVU9FNndVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MDI3MTMyCWZpbGU6T21uaUJhbmtfMS4wLjc5X3g2NF9mci1GUi5tc2kKSmFSM25rQVAwL1dVQ1M4cW1yOHQ4bFFtanA5aGZ4bnV5MTR2aGNDMm5mNzhWUkdCMnNHelZKZUpwWW43WllLdHdVbzRnMEYwMnlKaDg2TUlDdTY3RHc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.79/OmniBank_1.0.79_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDV5VHQ5ZU5GdlpQanRpaEFGaklXSkQyK0ZqMVIxQmJpM3p2cy9RVE8vNjA1YVd4dDcrOTl3b21DNWlWOXJOakhZY1BCbkEvMGh3THVBME4xTnJDOEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MDk2MjI5CWZpbGU6T21uaUJhbmtfMS4wLjgwX3g2NF9mci1GUi5tc2kKbEpWblFuSmd1TWx4TXRONENqRU1xc0VnWURGMmdDMmdYenZnd0RadkhHMktJeVpnSmhLYjlvMjl6YlBNWGwzVmRXZmp1QXBjMDVSQlJMWjE4WjN3RHc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.80/OmniBank_1.0.80_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-06T14:38:52Z",
-    "version":  "1.0.79",
-    "notes":  "Filtres Top 6 (Tous/Fixes/Variables), persistance, drilldown vers l\u0027historique et harmonisation du header."
+    "pub_date":  "2026-08-07T09:50:29Z",
+    "version":  "1.0.80",
+    "notes":  "OmniBank v1.0.80 - Performance ultra-reactive, cache backend, et ergonomie visuelle."
 }

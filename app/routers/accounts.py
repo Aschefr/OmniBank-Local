@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models import Account, Budget
 from app.schemas.api_schemas import AccountBase, AccountOut
 from app.services.history_service import record_action, snapshot_entity
+from app.services import stats_cache
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -20,6 +21,7 @@ def create_account(acc: AccountBase, db: Session = Depends(get_db)):
     db.flush()
     action_id = record_action(db, "account", new_acc.id, "CREATE", None, snapshot_entity(new_acc))
     db.commit()
+    stats_cache.invalidate()
     db.refresh(new_acc)
     new_acc.action_id = action_id
     return new_acc
@@ -37,6 +39,7 @@ def update_account(acc_id: int, acc: AccountBase, db: Session = Depends(get_db))
     db.flush()
     action_id = record_action(db, "account", db_acc.id, "UPDATE", old_snapshot, snapshot_entity(db_acc))
     db.commit()
+    stats_cache.invalidate()
     db.refresh(db_acc)
     db_acc.action_id = action_id
     return db_acc
@@ -63,4 +66,5 @@ def delete_account(acc_id: int, db: Session = Depends(get_db)):
     db.delete(db_acc)
     action_id = record_action(db, "account", acc_id, "DELETE", old_snapshot, None)
     db.commit()
+    stats_cache.invalidate()
     return {"ok": True, "action_id": action_id}

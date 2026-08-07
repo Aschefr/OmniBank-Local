@@ -1470,5 +1470,6 @@
   "cat_suffix_variable": " (Variables)",
   "cat_suffix_fixed": " (Fixes)",
   "cat_suffix_income": " (Recettes)",
-  "cat_conflict_suffix_prompt": "La catégorie '{name}' existe déjà sous un autre type de transaction.\n\nSouhaitez-vous créer la catégorie '{suggestedName}' à la place ?"
+  "cat_conflict_suffix_prompt": "La catégorie '{name}' existe déjà sous un autre type de transaction.\n\nSouhaitez-vous créer la catégorie '{suggestedName}' à la place ?",
+  "th_account": "Compte"
 }
