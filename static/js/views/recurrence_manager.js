@@ -1315,16 +1315,34 @@ window.RecurrenceView = {
                     showToast(window.i18n.t('msg_category_added') || 'Category added');
                 } catch (e) {
                     let isConflict = false;
-                    let msg = e.message;
+                    let msg = e.message || '';
                     try {
                         const parsed = JSON.parse(e.message);
                         msg = parsed.detail || e.message;
-                        if (msg.includes("already exists") && msg.includes("currently in use")) {
-                            isConflict = true;
-                        }
                     } catch(err) {}
 
+                    if (msg.includes("already exists") || msg.includes("déjà")) {
+                        isConflict = true;
+                    }
+
                     if (isConflict) {
+                        const suffix = window.i18n.t('cat_suffix_fixed') || ' (Fixes)';
+                        const suggestedName = `${name.trim()}${suffix}`;
+                        const suffixPromptMsg = window.i18n.tp('cat_conflict_suffix_prompt', { name: name.trim(), suggestedName: suggestedName });
+
+                        if (await showInlineConfirm(window.i18n.t('cat_conflict_title') || "Conflit de catégorie", suffixPromptMsg)) {
+                            try {
+                                const newCat = await API.post('/api/categories/', { name: suggestedName, type: 'expense_fixed' });
+                                await API.patch(`/api/recurrences/${templateId}/category`, { category: newCat.name });
+                                showToast(window.i18n.t('msg_category_added') || 'Category added');
+                                await this.loadData();
+                                return;
+                            } catch(errSuffix) {
+                                showToast(window.i18n.t('msg_category_create_error') || 'Category creation error', 'error');
+                                return;
+                            }
+                        }
+
                         const confirmMsg = window.i18n.tp('cat_conflict_confirm', { name: name });
                         if (await showInlineConfirm(window.i18n.t('cat_conflict_title') || "Conflit de catégorie", confirmMsg)) {
                             try {

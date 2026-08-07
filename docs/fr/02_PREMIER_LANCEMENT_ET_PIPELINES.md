@@ -70,8 +70,9 @@ Depuis la vue Historique ou Tableau de Bord (`static/js/views/all_operations.js`
 OmniBank Local garantit que l'utilisateur est le seul propriétaire de ses données.
 
 ### 1. Sauvegarde Automatique (`app/routers/auto_backup.py`)
-- À chaque modification majeure ou de manière planifiée, un instantané léger de la base `omnibank.db` est créé dans le sous-dossier `data/backups/`.
-- Le système conserve un roulement configurable des $N$ dernières sauvegardes automatiques pour prévenir toute corruption accidentelle.
+- À chaque modification majeure ou de manière planifiée, un instantané léger est créé dans le sous-dossier `backups/`.
+- Les sauvegardes automatiques d'arrière-plan englobent automatiquement **l'ensemble de vos profils maîtres** dans une archive unifiée (`omnibank_all_profiles_backup_*.db`), garantissant une protection globale et sans omission de toutes vos données financières multi-utilisateurs (Mode Organisation et multi-profils).
+- Le système conserve un roulement configurable des $N$ dernières sauvegardes automatiques (3, 5, 10 ou 20) pour prévenir toute corruption accidentelle.
 
 ### 2. Exportation Manuelle au format ZIP (`app/routers/backup.py`)
 Lorsque l'utilisateur clique sur **"Exporter la sauvegarde"** depuis les paramètres :

@@ -496,19 +496,21 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
         is_bidirectional = tx.from_account_id is not None and tx.to_account_id is not None
         if is_bidirectional:
             if not acc_ids_list:
-                # Mode "Tous les comptes" : transfert interne → impact net nul (0€)
-                amount = 0
+                # Mode "Tous les comptes" : pour les types de dépenses/recettes, l'impact net sur le patrimoine est nul (0€).
+                # Pour les virements explicites (tx_type == 'transfer'), on conserve le montant
+                # pour afficher les mouvements dans la section dédiée "Virements" sans altérer le Résultat Net.
+                if tx_type != "transfer":
+                    amount = 0
             else:
                 from_in = tx.from_account_id in acc_ids_list
                 to_in = tx.to_account_id in acc_ids_list
                 if from_in and to_in:
-                    # Transfert entre comptes tous deux sélectionnés → impact net nul (0€)
-                    amount = 0
+                    if tx_type != "transfer":
+                        amount = 0
                 elif to_in:
-                    # L'argent ENTRE dans le compte sélectionné → Recette (income)
-                    tx_type = "income"
+                    if tx_type != "transfer":
+                        tx_type = "income"
                 elif from_in:
-                    # L'argent SORT du compte sélectionné → Sortie / Dépense
                     if tx_type == "income":
                         tx_type = "transfer"
 

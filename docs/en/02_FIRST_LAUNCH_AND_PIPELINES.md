@@ -71,7 +71,8 @@ From the History or Dashboard views (`static/js/views/all_operations.js`):
 OmniBank Local guarantees complete data sovereignty.
 
 ### 1. Automatic Backup (`app/routers/auto_backup.py`)
-- Following major operations or on a scheduled basis, a lightweight snapshot of `omnibank.db` is stored in `data/backups/`.
+- Following major operations or on a scheduled basis, a lightweight snapshot is stored in the `backups/` directory.
+- Automated background backups automatically back up **all your master profile(s)** into a unified archive (`omnibank_all_profiles_backup_*.db`), ensuring complete multi-user data protection without missing any profile (Organisation Mode and multi-profile setups).
 - The system maintains a rolling count of $N$ recent automated backups (configurable 3, 5, 10, or 20) to protect against accidental corruption.
 
 ### 2. Manual ZIP Archive Export (`app/routers/backup.py`)

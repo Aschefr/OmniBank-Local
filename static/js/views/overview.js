@@ -197,6 +197,10 @@ window.OverviewView = {
         `;
     },
 
+    async loadData() {
+        return this.init();
+    },
+
     async init() {
         const [config, stats, accounts, transactions] = await Promise.all([
             API.get('/api/config/'),
@@ -240,6 +244,12 @@ window.OverviewView = {
         this._renderBudgets(stats);
         this._renderSavings(stats);
         await this._renderTrend();
+
+        if (this._pendingHighlightTxId) {
+            const txId = this._pendingHighlightTxId;
+            this._pendingHighlightTxId = null;
+            requestAnimationFrame(() => this.highlightRow(txId));
+        }
     },
 
     async saveConfig(updates) {
@@ -585,7 +595,7 @@ window.OverviewView = {
                 : '';
 
             html += `
-                <tr id="ovRow_${tx.id}" class="overview-op-tr">
+                <tr id="ovRow_${tx.id}" class="overview-op-tr" data-id="${tx.id}">
                     <td class="ov-td-date">${renderDateWithStatus(tx)}</td>
                     <td class="ov-td-acc"><span class="overview-acc-badge">${escapeHtml(accName)}</span></td>
                     <td class="ov-td-desc" title="${escapeHtml(tx.description || '')}">${escapeHtml(tx.description || '—')}</td>
@@ -1109,6 +1119,40 @@ window.OverviewView = {
         if (window.FormView) {
             window.FormView.open();
         }
+    },
+
+    highlightRow(txId) {
+        if (!txId) return;
+        requestAnimationFrame(() => {
+            const row = document.getElementById(`ovRow_${txId}`) || document.querySelector(`tr[data-id="${txId}"]`);
+            if (!row) return;
+
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            const highlightColor = 'rgba(99, 102, 241, 0.35)';
+            row.style.setProperty('background-color', highlightColor, 'important');
+            row.querySelectorAll('td').forEach(td => {
+                td.style.setProperty('background-color', highlightColor, 'important');
+            });
+
+            setTimeout(() => {
+                row.style.transition = 'background-color 1s ease-out';
+                row.style.setProperty('background-color', 'transparent', 'important');
+                row.querySelectorAll('td').forEach(td => {
+                    td.style.transition = 'background-color 1s ease-out';
+                    td.style.setProperty('background-color', 'transparent', 'important');
+                });
+
+                setTimeout(() => {
+                    row.style.removeProperty('background-color');
+                    row.style.removeProperty('transition');
+                    row.querySelectorAll('td').forEach(td => {
+                        td.style.removeProperty('background-color');
+                        td.style.removeProperty('transition');
+                    });
+                }, 1000);
+            }, 2000);
+        });
     },
 
     destroy() {

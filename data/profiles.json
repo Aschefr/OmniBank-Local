@@ -28,6 +28,20 @@
       "uploads_dir": "profiles/p_3cea127f/uploads",
       "pin_hash": null,
       "pin_salt": null
+    },
+    {
+      "id": "p_4b94fee6",
+      "name": "Demonstration",
+      "color": "#5762ff",
+      "icon": "🏠",
+      "currency": "EUR",
+      "pay_cycle_day": 25,
+      "date_format": "DD/MM/YYYY",
+      "created_at": "2026-08-06T18:38:34.819722",
+      "db_path": "profiles/p_4b94fee6/omnibank.db",
+      "uploads_dir": "profiles/p_4b94fee6/uploads",
+      "pin_hash": null,
+      "pin_salt": null
     }
   ]
 }
