@@ -150,6 +150,9 @@ class PropagateRequest(BaseModel):
     new_amount: float
     new_date: date
 
+class RecurrenceCloseRequest(BaseModel):
+    closure_date: Optional[date] = None
+
 class RecurrenceTemplateOut(RecurrenceTemplateBase):
     id: int
     action_id: Optional[int] = None

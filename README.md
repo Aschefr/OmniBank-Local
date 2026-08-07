@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.80-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.81-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -106,6 +106,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Frontend** : HTML5/CSS3 (Vanilla), JavaScript, Chart.js.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
+
+## 🆕 Dernières Mises à Jour (v1.0.81)
+
+*   **🛑 Clôture Propre & Réouverture des Abonnements** : Modale dédiée de clôture en cours d'année avec choix de la date d'effet (*Aujourd'hui*, *Fin du mois*, *Date personnalisée*), nettoyage automatique des échéances futures non rapprochées tout en conservant l'historique comptable, et confirmation in-line pour la réouverture.
+*   **🎨 Intégration Épurée des Actions de Récurrence** : Emplacement unifié des boutons d'action (`✏️`, `🛑`/`🔓`, `🗑️`) dans l'en-tête du menu déroulé (*« Détails des opérations de l'année »*), éliminant les doublons visuels en vue Tableau et préservant la grille 12 mois du Chronogramme.
+*   **🛡️ Sécurité & Confidentialité des Données** : Retrait des fichiers de données personnelles (`profiles.json`) du suivi Git et mise en place de règles `.gitignore` strictes avec fichier d'exemple anonymisé.
 
 ## 🆕 Dernières Mises à Jour (v1.0.77)
 
@@ -259,7 +265,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.80-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.81-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -358,6 +364,12 @@ Access the interface at `http://localhost:8434`.
 *   **Frontend**: HTML5/CSS3 (Vanilla), JavaScript, Chart.js.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
+
+## 🆕 Recent Updates (v1.0.81)
+
+*   **🛑 Clean Mid-Year Subscription Closure & Reopening** : Dedicated closure modal with customizable effective dates (*Today*, *End of current month*, *Custom date*), automatic cleanup of future unreconciled occurrences preserving past accounting records, and in-line confirmation for reopening.
+*   **🎨 Streamlined Recurrence Action Layout** : Unified action buttons (`✏️`, `🛑`/`🔓`, `🗑️`) in the top-right header of the expanded details drawer (*"Détails des opérations de l'année"*), removing duplicate buttons from main table rows and maintaining clean 12-month Chronogramme timeline grid.
+*   **🛡️ Data Sovereignty & Privacy Safeguards** : Untracked personal profile files (`profiles.json`) from Git, strict `.gitignore` rules, and anonymized template `data/profiles.json.example`.
 
 ## 🆕 Recent Updates (v1.0.77)
 
