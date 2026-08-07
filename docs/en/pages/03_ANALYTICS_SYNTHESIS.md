@@ -24,7 +24,7 @@ Synthesis data is structured as an interactive matrix grid organized into clear 
 - **🛍️ Variable Expenses**: Groceries, leisure, clothing, etc.
 - **📋 Fixed Expenses**: Rent, subscriptions, insurance, taxes.
 - **💰 Income**: Salary, benefits, sales.
-- **🔁 Transfers & Internal Movements**: Money moved between your own accounts.
+- **🔁 Transfers & Internal Movements**: Money moved between your own accounts. Dedicated internal transfer tables display full annual transfer volumes even when viewing "All Accounts", allowing precise movement tracking while keeping global Net Income (`Income - Expenses`) calculations completely neutral.
 
 Each parent category displays with expandable subcategories. Every row provides monthly breakdown sums, **Annual Totals**, and **Monthly Averages**.
 

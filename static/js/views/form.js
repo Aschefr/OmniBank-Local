@@ -234,6 +234,7 @@ window.FormView = {
             const refreshPromises = [window.app.refreshSidebar()];
             if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) refreshPromises.push(window.TimelineView.loadData());
             if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) refreshPromises.push(window.AllOperationsView.loadData());
+            if (window.app.currentView === 'overview' && window.OverviewView) refreshPromises.push(window.OverviewView.loadData ? window.OverviewView.loadData() : window.OverviewView.init());
             await Promise.all(refreshPromises);
             showToast(window.i18n.t('form_undo_done') || 'Last entry deleted', 'success');
         } catch(e) {
@@ -294,6 +295,7 @@ window.FormView = {
             const refreshPromises = [window.app.refreshSidebar()];
             if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) refreshPromises.push(window.TimelineView.loadData());
             if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) refreshPromises.push(window.AllOperationsView.loadData());
+            if (window.app.currentView === 'overview' && window.OverviewView) refreshPromises.push(window.OverviewView.loadData ? window.OverviewView.loadData() : window.OverviewView.init());
             await Promise.all(refreshPromises);
             showToast(window.i18n.t('form_tx_deleted') || 'Opération supprimée', 'success');
         } catch(e) {
@@ -901,6 +903,7 @@ window.FormView = {
                 const targetId = res.transaction_id;
                 if (window.TimelineView) window.TimelineView._pendingHighlightTxId = targetId;
                 if (window.AllOperationsView) window.AllOperationsView._pendingHighlightTxId = targetId;
+                if (window.OverviewView) window.OverviewView._pendingHighlightTxId = targetId;
             }
 
             if (document.getElementById('pendingCrossModal')?.style.display === 'flex') {
@@ -983,16 +986,43 @@ window.FormView = {
             this.hideNewCatInput();
         } catch (e) {
             let isConflict = false;
-            let msg = e.message;
+            let msg = e.message || '';
             try {
                 const parsed = JSON.parse(e.message);
                 msg = parsed.detail || e.message;
-                if (msg.includes("already exists") && msg.includes("currently in use")) {
-                    isConflict = true;
-                }
             } catch(err) {}
 
+            if (msg.includes("already exists") || msg.includes("déjà")) {
+                isConflict = true;
+            }
+
             if (isConflict) {
+                let suffix = ' (Variables)';
+                if (type === 'expense_fixed') {
+                    suffix = window.i18n.t('cat_suffix_fixed') || ' (Fixes)';
+                } else if (type === 'income') {
+                    suffix = window.i18n.t('cat_suffix_income') || ' (Recettes)';
+                } else if (type === 'expense_variable') {
+                    suffix = window.i18n.t('cat_suffix_variable') || ' (Variables)';
+                }
+                const suggestedName = `${name}${suffix}`;
+                const suffixPromptMsg = window.i18n.tp('cat_conflict_suffix_prompt', { name: name, suggestedName: suggestedName });
+
+                if (await showInlineConfirm(window.i18n.t('cat_conflict_title') || "Conflit de catégorie", suffixPromptMsg)) {
+                    try {
+                        const newCat = await API.post('/api/categories/', { name: suggestedName, type });
+                        await this.loadCategories();
+                        this.updateInferredType();
+                        document.getElementById('op_category').value = newCat.name;
+                        this.hideNewCatInput();
+                        return;
+                    } catch(errSuffix) {
+                        showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_category_create_error') || "Erreur lors de la création de la catégorie.");
+                        return;
+                    }
+                }
+
+                // High priority: Option to convert/move existing category if user declined suffix
                 const confirmMsg = window.i18n.tp('cat_conflict_confirm', { name: name });
                 if (await showInlineConfirm(window.i18n.t('cat_conflict_title') || "Conflit de catégorie", confirmMsg)) {
                     try {
@@ -1256,6 +1286,7 @@ window.FormView = {
             if (highlightId) {
                 if (window.TimelineView) window.TimelineView._pendingHighlightTxId = highlightId;
                 if (window.AllOperationsView) window.AllOperationsView._pendingHighlightTxId = highlightId;
+                if (window.OverviewView) window.OverviewView._pendingHighlightTxId = highlightId;
             }
 
             if (this.keepOpen) {
@@ -1306,6 +1337,9 @@ window.FormView = {
             }
             if (window.app.currentView === 'recurrences' && window.RecurrenceView.loadData) {
                 refreshPromises.push(window.RecurrenceView.loadData());
+            }
+            if (window.app.currentView === 'overview' && window.OverviewView) {
+                refreshPromises.push(window.OverviewView.loadData ? window.OverviewView.loadData() : window.OverviewView.init());
             }
             await Promise.all(refreshPromises);
 

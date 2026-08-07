@@ -685,7 +685,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const res = await API.post('/api/budgets/bulk_delete', { target_type: selected });
             this.closeBulkDeleteModal();
             await this.loadBudgets();
-            await this.loadAllStatuses();
+            await this.loadStatus();
             window.app.refreshSidebar();
             showInlineMessage(window.i18n.t('title_info'), `${res.deleted_count} enveloppe(s) supprimée(s).`);
         } catch(e) {
