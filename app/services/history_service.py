@@ -103,12 +103,12 @@ def check_undo_safety(db, action: ActionHistory) -> dict:
             if rec_tx > 0:
                 conflicts.append(f"recurrence_has_reconciled:{rec_tx}")
 
-    # --- Undo UPDATE : vérifier si un UPDATE plus récent existe ---
-    elif action.action_type == "UPDATE":
+    # --- Undo UPDATE / CLOSE / REOPEN : vérifier si une modification plus récente existe ---
+    elif action.action_type in ("UPDATE", "CLOSE", "REOPEN"):
         newer_update = db.query(ActionHistory).filter(
             ActionHistory.entity_type == action.entity_type,
             ActionHistory.entity_id == action.entity_id,
-            ActionHistory.action_type == "UPDATE",
+            ActionHistory.action_type.in_(["UPDATE", "CLOSE", "REOPEN"]),
             ActionHistory.is_undone == False,
             ActionHistory.id > action.id
         ).first()
@@ -279,7 +279,7 @@ def undo_action(db, action: ActionHistory):
         else:
             return False, "Entity to delete not found"
 
-    elif action.action_type == "UPDATE":
+    elif action.action_type in ("UPDATE", "CLOSE", "REOPEN"):
         # Restore old state
         entity = db.query(model_class).filter(model_class.id == action.entity_id).first()
         if not entity:
@@ -287,6 +287,24 @@ def undo_action(db, action: ActionHistory):
 
         prev_state = json.loads(action.previous_state) if action.previous_state else {}
         restore_state(entity, prev_state, db)
+
+        if action.entity_type == "recurrence_template":
+            db.flush()
+            prev_closed = prev_state.get("is_closed")
+            new_state_dict = json.loads(action.new_state) if action.new_state else {}
+            new_closed = new_state_dict.get("is_closed")
+
+            if action.action_type == "CLOSE" or (new_closed is True and prev_closed is False):
+                # Undoing CLOSE / closure update -> template reopened -> regenerate future instances
+                from app.routers.recurrences import generate_recurrences
+                generate_recurrences(template_id=action.entity_id, db=db)
+            elif action.action_type == "REOPEN" or (new_closed is False and prev_closed is True):
+                # Undoing REOPEN / reopen update -> template closed -> purge future unreconciled transactions
+                db.query(Transaction).filter(
+                    Transaction.recurrence_id == action.entity_id,
+                    Transaction.reconciliation_date == None,
+                    Transaction.date_operation > date.today()
+                ).delete()
 
         # Set warning for category rename
         if action.entity_type == "category" and "name" in prev_state:
@@ -378,7 +396,7 @@ def redo_action(db, action: ActionHistory):
             from app.routers.recurrences import generate_recurrences
             generate_recurrences(template_id=action.entity_id, db=db)
 
-    elif action.action_type == "UPDATE":
+    elif action.action_type in ("UPDATE", "CLOSE", "REOPEN"):
         # Restore new state
         entity = db.query(model_class).filter(model_class.id == action.entity_id).first()
         if not entity:
@@ -386,6 +404,24 @@ def redo_action(db, action: ActionHistory):
 
         new_state = json.loads(action.new_state) if action.new_state else {}
         restore_state(entity, new_state, db)
+
+        if action.entity_type == "recurrence_template":
+            db.flush()
+            prev_state_dict = json.loads(action.previous_state) if action.previous_state else {}
+            prev_closed = prev_state_dict.get("is_closed")
+            new_closed = new_state.get("is_closed")
+
+            if action.action_type == "CLOSE" or (new_closed is True and prev_closed is False):
+                # Redoing CLOSE / closure update -> template closed -> purge future unreconciled transactions
+                db.query(Transaction).filter(
+                    Transaction.recurrence_id == action.entity_id,
+                    Transaction.reconciliation_date == None,
+                    Transaction.date_operation > date.today()
+                ).delete()
+            elif action.action_type == "REOPEN" or (new_closed is False and prev_closed is True):
+                # Redoing REOPEN / reopen update -> template reopened -> regenerate future instances
+                from app.routers.recurrences import generate_recurrences
+                generate_recurrences(template_id=action.entity_id, db=db)
 
     elif action.action_type == "DELETE":
         # Re-delete the entity (since undo re-created it)

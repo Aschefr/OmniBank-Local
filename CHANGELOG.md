@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.82] - 2026-08-07
+
+### Fixed & Improved
+- **Global Undo/Redo Support for Subscription Closure ↩️**:
+  - **Full Reversal Integration**: Integrated `CLOSE` and `REOPEN` recurrence actions into the global Undo/Redo history engine (`history_service.py`).
+  - **Automatic Recurrence Regeneration & Cleanup**: Undoing a subscription closure restores `is_closed = False` and automatically regenerates future recurring instances, while redoing a closure cleans up future unreconciled instances.
+  - **Conflict Safety**: Added `CLOSE` and `REOPEN` action types to dependency conflict checking (`check_undo_safety`).
+
 ## [1.0.81] - 2026-08-07
 
 ### Added & Improved

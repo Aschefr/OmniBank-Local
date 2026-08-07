@@ -2014,3 +2014,53 @@ def test_subscription_closure_and_reopen_flow():
     assert len(txs_final) > len(txs_after)
 
 
+def test_subscription_closure_undo_redo_flow():
+    """TEST 22: Verify undoing and redoing a subscription closure action."""
+    res_tpl = client.post("/api/recurrences/", json={
+        "description": "Abonnement Undo Test",
+        "amount": 25.0,
+        "type": "expense_fixed",
+        "category": "Loisirs",
+        "frequency": "Monthly",
+        "day_of_month": 10,
+        "is_closed": False
+    })
+    assert res_tpl.status_code == 200
+    tpl_id = res_tpl.json()["id"]
+
+    # Generate instances
+    res_gen = client.post(f"/api/recurrences/generate_to_end_of_year?template_id={tpl_id}")
+    assert res_gen.status_code == 200
+
+    # Close subscription
+    res_close = client.post(f"/api/recurrences/{tpl_id}/close", json={"closure_date": "2026-06-10"})
+    assert res_close.status_code == 200
+    assert res_close.json()["is_closed"] is True
+    action_id = res_close.json()["action_id"]
+    assert action_id is not None
+
+    # Undo closure
+    res_undo = client.post(f"/api/history/{action_id}/undo")
+    assert res_undo.status_code == 200
+    assert res_undo.json()["ok"] is True
+
+    # Verify template is open and transactions are regenerated
+    res_tpl_check = client.get(f"/api/recurrences/?include_closed=true")
+    tpl_obj = next(t for t in res_tpl_check.json() if t["id"] == tpl_id)
+    assert tpl_obj["is_closed"] is False
+
+    res_txs = client.get("/api/transactions/")
+    txs = [t for t in res_txs.json() if t["recurrence_id"] == tpl_id]
+    assert len(txs) > 0
+
+    # Redo closure
+    res_redo = client.post(f"/api/history/{action_id}/redo")
+    assert res_redo.status_code == 200
+    assert res_redo.json()["ok"] is True
+
+    res_tpl_check2 = client.get(f"/api/recurrences/?include_closed=true")
+    tpl_obj2 = next(t for t in res_tpl_check2.json() if t["id"] == tpl_id)
+    assert tpl_obj2["is_closed"] is True
+
+
+
