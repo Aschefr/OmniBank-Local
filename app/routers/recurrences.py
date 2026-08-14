@@ -31,7 +31,7 @@ def get_templates(include_closed: bool = False, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=RecurrenceTemplateOut)
 def create_template(tpl: RecurrenceTemplateCreate, db: Session = Depends(get_db)):
-    db_tpl = RecurrenceTemplate(**tpl.dict())
+    db_tpl = RecurrenceTemplate(**tpl.model_dump())
     db.add(db_tpl)
     _upgrade_category_if_needed(db_tpl.category, db_tpl.type, db)
     db.flush()
@@ -63,7 +63,7 @@ def update_template(tpl_id: int, tpl_update: RecurrenceTemplateCreate, db: Sessi
         db_tpl.to_account_id != tpl_update.to_account_id
     )
     
-    update_data = tpl_update.dict(exclude_unset=True)
+    update_data = tpl_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         if hasattr(db_tpl, key):
             setattr(db_tpl, key, value)
@@ -509,7 +509,7 @@ def wizard_generate(req: WizardGenerateRequest, db: Session = Depends(get_db)):
 
     # 2. Add new templates
     for new_tpl in req.new_templates:
-        db_tpl = RecurrenceTemplate(**new_tpl.dict())
+        db_tpl = RecurrenceTemplate(**new_tpl.model_dump())
         db.add(db_tpl)
         
     db.commit()

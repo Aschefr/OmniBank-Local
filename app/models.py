@@ -1,7 +1,10 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, Date, ForeignKey, DateTime, Text, Index, CheckConstraint
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from app.database import Base
+
+def _utcnow():
+    return datetime.now(timezone.utc)
 
 
 class Account(Base):
@@ -89,7 +92,7 @@ class ExchangeRate(Base):
     from_currency = Column(String, nullable=False, index=True) # e.g. "USD"
     to_currency = Column(String, nullable=False, index=True)   # e.g. "EUR"
     rate = Column(Float, nullable=False)                        # 1 USD = rate EUR
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 class Category(Base):
     __tablename__ = "categories"
@@ -190,7 +193,7 @@ class ChatSession(Base):
     buffered_message = Column(Text, nullable=True)               # User message held while compression runs
     compression_started_at = Column(DateTime, nullable=True)     # Timestamp for crash-recovery detection
     compression_stack = Column(Text, nullable=True)              # JSON array of prior {context, after_id} entries
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
     messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
 
@@ -200,7 +203,7 @@ class ChatMessage(Base):
     session_id = Column(Integer, ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=False)
     role = Column(String)  # "user" or "assistant"
     content = Column(Text)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=_utcnow)
 
     session = relationship("ChatSession", back_populates="messages")
 
@@ -214,13 +217,13 @@ class Notification(Base):
     detailed_content = Column(Text, nullable=True)
     link_data = Column(Text, nullable=True)  # JSON field containing click action metadata (e.g. {"session_id": 123})
     is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
 
 class ActionHistory(Base):
     __tablename__ = "action_history"
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=_utcnow)
     entity_type = Column(String, nullable=False)   # "transaction", "account", "category", "budget", "budget_allocation", "recurrence_template", "org_user"
     entity_id = Column(Integer, nullable=False)
     action_type = Column(String, nullable=False)    # "CREATE", "UPDATE", "DELETE"
@@ -236,5 +239,5 @@ class AIFact(Base):
     session_id = Column(Integer, ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=True)
     fact_key = Column(String, nullable=False, index=True)
     fact_value = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)

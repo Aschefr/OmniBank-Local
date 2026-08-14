@@ -16,7 +16,7 @@ def get_accounts(db: Session = Depends(get_db)):
 
 @router.post("/", response_model=AccountOut)
 def create_account(acc: AccountBase, db: Session = Depends(get_db)):
-    new_acc = Account(**acc.dict())
+    new_acc = Account(**acc.model_dump())
     db.add(new_acc)
     db.flush()
     action_id = record_action(db, "account", new_acc.id, "CREATE", None, snapshot_entity(new_acc))
@@ -33,7 +33,7 @@ def update_account(acc_id: int, acc: AccountBase, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="Account not found")
     
     old_snapshot = snapshot_entity(db_acc)
-    for key, value in acc.dict().items():
+    for key, value in acc.model_dump().items():
         setattr(db_acc, key, value)
         
     db.flush()

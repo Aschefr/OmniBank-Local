@@ -149,7 +149,8 @@ def update_existing_budget(budget_id: int, data, db: Session) -> dict:
         raise HTTPException(status_code=404, detail="Budget non trouvé.")
 
     old_snapshot = snapshot_entity(b, db)
-    for k, v in data.dict(exclude_unset=True).items():
+    dump_data = data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data.dict(exclude_unset=True)
+    for k, v in dump_data.items():
         if k == "categories":
             continue
         if k in ("start_date", "end_date"):
