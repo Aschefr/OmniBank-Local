@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db, SessionLocal
 from app.models import Notification, GlobalConfig
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 import json
 import httpx
 import logging
@@ -255,6 +255,7 @@ Return ONLY the raw JSON object, no introduction, no markdown blocks like ```jso
                 {"role": "user", "content": user_content}
             ],
             "stream": False,
+            "format": "json",
             "options": {
                 "temperature": 0.4,
                 "num_ctx": int(get_config_val(db, "ollama_context", "4096"))
@@ -273,14 +274,11 @@ Return ONLY the raw JSON object, no introduction, no markdown blocks like ```jso
             if report_text:
                 summary_text = ""
                 detailed_text = ""
-                # Robust cleaning: Ollama may wrap JSON in various codeblock
-                # styles (```json, ``` json, ```, with or without language tag,
-                # possibly prefixed or suffixed by chat preamble).
+                # Robust cleaning: Ollama may wrap JSON in various codeblock styles
                 import re
                 cleaned_json = report_text.strip()
 
                 # Remove leading/trailing markdown codeblock markers robustly
-                # Handles: ```json\n...\n```, ```\n...\n```, etc.
                 codeblock_match = re.search(
                     r'```(?:json)?\s*\n(.*?)\n\s*```',
                     cleaned_json,
@@ -289,28 +287,34 @@ Return ONLY the raw JSON object, no introduction, no markdown blocks like ```jso
                 if codeblock_match:
                     cleaned_json = codeblock_match.group(1).strip()
                 else:
-                    # Fallback: strip leading ``` line and trailing ``` line
                     if cleaned_json.startswith("```"):
                         cleaned_json = cleaned_json.split("\n", 1)[-1]
                     if cleaned_json.endswith("```"):
                         cleaned_json = cleaned_json.rsplit("\n", 1)[0]
                     cleaned_json = cleaned_json.strip()
 
-                # Last resort: extract first { ... } block from the text
                 if not cleaned_json.startswith("{"):
                     brace_match = re.search(r'\{.*\}', cleaned_json, re.DOTALL)
                     if brace_match:
                         cleaned_json = brace_match.group(0).strip()
 
                 try:
-                    data = json.loads(cleaned_json)
+                    data = json.loads(cleaned_json, strict=False)
                     summary_text = data.get("summary", "").strip()
                     detailed_text = data.get("detailed_analysis", "").strip()
                 except Exception as json_err:
-                    # Fallback if Ollama returned non-JSON text
-                    logger.warning(f"Ollama did not return valid JSON for report task: {json_err}. Raw start: {report_text[:200]}")
-                    summary_text = report_text
-                    detailed_text = report_text
+                    logger.warning(f"Ollama JSON parse failed: {json_err}. Attempting regex extraction.")
+                    sum_match = re.search(r'"summary"\s*:\s*"(.*?)(?<!\\)"', cleaned_json, re.DOTALL)
+                    det_match = re.search(r'"detailed_analysis"\s*:\s*"(.*?)(?<!\\)"', cleaned_json, re.DOTALL)
+                    if sum_match:
+                        summary_text = sum_match.group(1).replace(r'\"', '"').replace(r'\n', '\n').strip()
+                    if det_match:
+                        detailed_text = det_match.group(1).replace(r'\"', '"').replace(r'\n', '\n').strip()
+
+                    if not summary_text:
+                        clean_raw = re.sub(r'```(?:json)?', '', report_text).strip()
+                        summary_text = clean_raw
+                        detailed_text = clean_raw
 
                 # Resolve title from status emoji
                 title = "Bilan Financier Hebdomadaire"
