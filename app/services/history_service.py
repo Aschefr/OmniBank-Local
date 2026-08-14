@@ -265,15 +265,16 @@ def undo_action(db, action: ActionHistory):
                                     db.delete(sibling_entity)
                                 db.query(Transaction).filter(
                                     Transaction.recurrence_id == recurrence_id,
-                                    Transaction.reconciliation_date == None
-                                ).delete()
+                                    Transaction.reconciliation_date == None,
+                                    Transaction.id != entity.id
+                                ).delete(synchronize_session=False)
                                 sibling_action.is_undone = True
             elif action.entity_type == "recurrence_template":
                 # Delete any generated unreconciled transactions for this template
                 db.query(Transaction).filter(
                     Transaction.recurrence_id == action.entity_id,
                     Transaction.reconciliation_date == None
-                ).delete()
+                ).delete(synchronize_session=False)
 
             db.delete(entity)
         else:

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.83] - 2026-08-14
+
+### Improved & Hardened
+- **Modernized Core & Reliability Boost 🚀**:
+  - **Zero-Deprecation Architecture**: Modernized backend API data validation schemas with the latest Pydantic v2 engine (`model_dump()`, `@field_validator`), delivering faster payload parsing and eliminating internal deprecation warnings.
+  - **Modernized Application Lifecycle**: Transitioned API startup and background processes to FastAPI's streamlined `lifespan` manager, ensuring rock-solid initializations of background auto-backups, network discovery, and graceful shutdowns.
+  - **Rock-Solid Test Suite (100% Green)**: Hardened test isolation across all functional domains (accounts, multi-profile transfers, AI financial reports, smart recurrences, and currency conversion) guaranteeing zero side-effects between test runs.
+  - **Standardized UTC Time Stamps**: Unified all internal transaction and audit timestamps to modern timezone-aware standards for flawless cross-session accuracy.
+
 ## [1.0.82] - 2026-08-07
 
 ### Fixed & Improved

@@ -50,7 +50,7 @@ def get_unique_descriptions(db: Session = Depends(get_db)):
 
 @router.post("/", response_model=TransactionOut)
 def create_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
-    db_tx = Transaction(**tx.dict())
+    db_tx = Transaction(**tx.model_dump())
     # Auto-set audit timestamp if created_by is present (org mode)
     if db_tx.created_by:
         db_tx.created_at = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -81,7 +81,7 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
         raise HTTPException(status_code=404, detail="Transaction not found")
         
     old_snapshot = snapshot_entity(db_tx)
-    update_data = tx_update.dict(exclude_unset=True)
+    update_data = tx_update.model_dump(exclude_unset=True)
     # Auto-set audit timestamp if modified_by is present (org mode)
     if "modified_by" in update_data and update_data["modified_by"]:
         update_data["modified_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
