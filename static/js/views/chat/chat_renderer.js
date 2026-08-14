@@ -1,0 +1,618 @@
+// static/js/views/chat/chat_renderer.js — Moteur de rendu des messages (Markdown, KaTeX, Bulles & Historique)
+window.ChatView = Object.assign(window.ChatView || {}, {
+    formatMessageContent(msg) {
+        const isUser = msg.role === 'user';
+        let displayContent = msg.content;
+        
+        if (!isUser && window.marked && window.DOMPurify) {
+            let rawContent = msg.content || '';
+            let actions = [];
+
+            // Automatically clean and unwrap legacy or raw AI report JSON blocks into pure Markdown
+            if (rawContent.includes('"detailed_analysis"') || (rawContent.includes('"summary"') && rawContent.includes('{'))) {
+                const detMatch = rawContent.match(/"detailed_analysis"\s*:\s*"([\s\S]*?)(?<!\\)"/);
+                const sumMatch = rawContent.match(/"summary"\s*:\s*"([\s\S]*?)(?<!\\)"/);
+                let extractedMd = '';
+                if (detMatch && detMatch[1]) {
+                    extractedMd = detMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim();
+                } else if (sumMatch && sumMatch[1]) {
+                    extractedMd = sumMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim();
+                }
+                if (extractedMd) {
+                    // Dedent lines so leading spaces don't trigger Markdown indented code blocks (<pre>)
+                    extractedMd = extractedMd.split('\n').map(line => line.trimStart()).join('\n');
+                    // Replace the full codeblock or the JSON object with the extracted clean Markdown
+                    rawContent = rawContent.replace(/```(?:json)?[\s\S]*?(?:```|$)/g, extractedMd);
+                    rawContent = rawContent.replace(/\{[\s\S]*"summary"[\s\S]*\}/g, extractedMd);
+                }
+            }
+
+            // Clean up any stray backtick wrappers
+            rawContent = rawContent.replace(/```(?:json)?\s*\n?/g, '').replace(/\n?\s*```/g, '');
+
+            // Strip literal \n if present in raw string
+            rawContent = rawContent.replace(/\\n/g, '\n');
+
+            // Strip TOOLS_USED comment (badges are rendered in renderHistory meta-row)
+            rawContent = rawContent.replace(/<!--\s*TOOLS_USED:\s*[^>]+?\s*-->\n?/, '');
+            
+            // Match signature {"id": 123, "updates": {...}}
+            const actionRegex = /\{\s*"id"\s*:\s*\d+\s*,\s*"updates"\s*:\s*\{[^}]+\}\s*\}/g;
+            rawContent = rawContent.replace(actionRegex, (match) => {
+                try {
+                    const actionObj = JSON.parse(match);
+                    actions.push(actionObj);
+                    return '';
+                } catch (e) {
+                    return match;
+                }
+            });
+            
+            // Match signature {"action": "...", "params": {...}}
+            const genericActionRegex = /\{\s*"action"\s*:\s*"[^"]+"\s*,\s*"params"\s*:\s*\{[^}]+\}\s*\}/g;
+            rawContent = rawContent.replace(genericActionRegex, (match) => {
+                try {
+                    const actionObj = JSON.parse(match);
+                    actions.push(actionObj);
+                    return '';
+                } catch (e) {
+                    return match;
+                }
+            });
+            
+            rawContent = rawContent.replace(/```(?:action|json)?\s*```/g, '');
+
+            // Check for thinking blocks - use placeholders to bypass DOMPurify stripping
+            let hasThink = false;
+            let isOpenThink = false;
+            if (rawContent.includes('<think>')) {
+                hasThink = true;
+                if (rawContent.includes('</think>')) {
+                    rawContent = rawContent.replace(/<think>/g, '___THINK_START___').replace(/<\/think>/g, '___THINK_END___');
+                } else {
+                    isOpenThink = true;
+                    rawContent = rawContent.replace(/<think>/g, '___THINK_START___') + '___THINK_END_ACTIVE___';
+                }
+            }
+
+            // Check if this content is a standard connection or stream error
+            if (rawContent.includes('**Erreur:**') || (rawContent.startsWith('*') && rawContent.endsWith('*') && rawContent.includes('Erreur')) || rawContent.startsWith('⚠️')) {
+                let cleanErr = rawContent.replace(/\*\*Erreur:\*\*/g, '').replace(/^\*/, '').replace(/\*$/, '').replace(/⚠️/g, '').trim();
+                displayContent = `
+                    <div class="ai-error-box" style="padding: 12px 16px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; color: #ef4444; display: flex; align-items: start; gap: 10px;">
+                        <span style="font-size: 18px; line-height: 1;">⚠️</span>
+                        <div style="flex: 1;">
+                           <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">Échec de la requête</div>
+                           <div style="font-size: 12px; opacity: 0.9;">${cleanErr}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                displayContent = DOMPurify.sanitize(marked.parse(rawContent));
+                
+                // Replace placeholders back to HTML details after sanitization
+                if (hasThink) {
+                    const thinkTitle = isOpenThink ? "🧠 Réflexion en cours..." : "🧠 Phase de réflexion";
+                    const openAttr = isOpenThink ? "open" : "";
+                    displayContent = displayContent
+                        .replace(/___THINK_START___/g, `<details class="ai-think-details" ${openAttr}><summary class="ai-think-summary"><span>${thinkTitle}</span></summary><div class="ai-think-content">`)
+                        .replace(/___THINK_END___/g, '</div></details>')
+                        .replace(/___THINK_END_ACTIVE___/g, '</div></details>');
+                }
+
+                for (const actionObj of actions) {
+                    if (actionObj.id !== undefined) {
+                        this.pendingActions[actionObj.id] = actionObj;
+                        displayContent += `
+                            <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
+                                <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
+                                <div style="font-size: 12px; margin-bottom: 12px;">${window.i18n.t('chat_ai_propose_modify')} #${actionObj.id}.</div>
+                                <button class="btn btn-primary" data-action-id="${actionObj.id}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review')}</button>
+                            </div>
+                        `;
+                    } else if (actionObj.action !== undefined) {
+                        const actionId = 'act_' + Math.random().toString(36).substr(2, 9);
+                        this.pendingActions[actionId] = actionObj;
+                        
+                        let desc = window.i18n.tp('chat_action_generic_propose', { action: actionObj.action });
+                        if (actionObj.action === 'create_budget_envelope') {
+                            desc = window.i18n.tp('chat_action_propose_create_budget', { name: actionObj.params.name, amount: actionObj.params.monthly_amount });
+                        } else if (actionObj.action === 'update_budget_envelope') {
+                            desc = window.i18n.tp('chat_action_propose_update_budget', { name: actionObj.params.name || actionObj.params.budget_id });
+                        } else if (actionObj.action === 'delete_budget_envelope') {
+                            desc = window.i18n.tp('chat_action_propose_delete_budget', { id: actionObj.params.budget_id });
+                        } else if (actionObj.action === 'allocate_savings_funds') {
+                            const actKey = actionObj.params.amount >= 0 ? 'chat_action_propose_allocate_savings_action_deposit' : 'chat_action_propose_allocate_savings_action_withdraw';
+                            const actName = window.i18n.t(actKey);
+                            desc = window.i18n.tp('chat_action_propose_allocate_savings', { action: actName, amount: Math.abs(actionObj.params.amount), id: actionObj.params.budget_id });
+                        } else if (actionObj.action === 'create_recurrence_template') {
+                            desc = window.i18n.tp('chat_action_propose_create_recurrence', { desc: actionObj.params.description, amount: actionObj.params.amount });
+                        } else if (actionObj.action === 'update_recurrence_template') {
+                            desc = window.i18n.tp('chat_action_propose_update_recurrence', { desc: actionObj.params.description || actionObj.params.template_id });
+                        } else if (actionObj.action === 'delete_recurrence_template') {
+                            desc = window.i18n.tp('chat_action_propose_delete_recurrence', { id: actionObj.params.template_id });
+                        } else if (actionObj.action === 'create_category') {
+                            desc = window.i18n.tp('chat_action_propose_create_category', { name: actionObj.params.name });
+                        } else if (actionObj.action === 'delete_category') {
+                            desc = window.i18n.tp('chat_action_propose_delete_category', { name: actionObj.params.name });
+                        } else if (actionObj.action === 'set_predicted_paycheck') {
+                            desc = window.i18n.tp('chat_action_propose_set_paycheck', { amount: actionObj.params.amount, day: actionObj.params.day_of_month });
+                        } else if (actionObj.action === 'delete_transaction') {
+                            desc = window.i18n.tp('chat_action_propose_delete_transaction', { id: actionObj.params.transaction_id });
+                        }
+
+                        displayContent += `
+                            <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
+                                <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
+                                <div style="font-size: 12px; margin-bottom: 12px;">${desc}.</div>
+                                <button class="btn btn-primary" data-action-id="${actionId}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review_generic')}</button>
+                            </div>
+                        `;
+                    }
+                }
+            }
+        } else if (isUser) {
+            displayContent = window.escapeHtml(displayContent);
+        }
+
+        // Append status indicator if present
+        if (!isUser && msg.status) {
+            displayContent = `
+                <div class="ai-status-indicator" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent); padding: 4px 8px; background: rgba(51, 102, 255, 0.1); border-radius: 12px; margin-bottom: 8px;">
+                    <span class="spinner-border-sm" style="width:10px; height:10px; border:2px solid; border-right-color:transparent; border-radius:50%; animation: spin 0.75s linear infinite; display: inline-block; box-sizing: border-box;"></span>
+                    <span>${msg.status}</span>
+                </div>
+                <div style="margin-top: 4px;">${displayContent}</div>
+            `;
+        }
+        
+        return displayContent;
+    },
+
+    renderHistory(isRestore = false) {
+        const container = document.getElementById('chatMessages');
+        if (!container) return;
+
+        let html = '';
+
+        // Build context bubble HTML for each historical stack entry + the current context
+        // Parse stack entries (prior compressions)
+        let stackEntries = [];
+        if (this.compressionStack) {
+            try { stackEntries = JSON.parse(this.compressionStack); } catch (e) {}
+        }
+
+        // Collect all bubbles with their anchor position
+        let bubbles = [];
+
+        // Stack entries are read-only (historical)
+        stackEntries.forEach((entry, idx) => {
+            const tokenEstimate = Math.ceil((entry.context || '').length / 4);
+            bubbles.push({
+                after_id: entry.after_id,
+                html: `
+                    <div class="context-bubble context-bubble-stack" id="context-bubble-stack-${idx}">
+                        <div class="context-bubble-header" onclick="event.stopPropagation();">
+                            <div class="context-bubble-title">
+                                <span>▶ 🗜️ ${window.i18n.t('chat_context_collapsed')} (${tokenEstimate} tokens)</span>
+                            </div>
+                        </div>
+                        <div class="context-bubble-body open">
+                            <div class="context-bubble-text">${window.escapeHtml(entry.context)}</div>
+                        </div>
+                    </div>
+                `
+            });
+        });
+
+        // Current context (latest, editable)
+        if (this.compressedContext !== null && this.compressedContext !== undefined) {
+            const tokenEstimate = Math.ceil(this.compressedContext.length / 4);
+            const bubbleOpen = this.contextBubbleOpen || this.editingContext;
+            const anchorId = this.bubbleAfterMsgId || this.lastCompressedMessageId;
+            bubbles.push({
+                after_id: anchorId,
+                isCurrent: true,
+                html: `
+                    <div class="context-bubble" id="context-bubble">
+                        <div class="context-bubble-header" onclick="event.stopPropagation(); window.ChatView.contextBubbleOpen = !window.ChatView.contextBubbleOpen; window.ChatView.renderHistory();">
+                            <div class="context-bubble-title">
+                                <span>${bubbleOpen ? '▼' : '▶'} 🗜️ ${window.i18n.t('chat_context_collapsed')} (${tokenEstimate} tokens)</span>
+                            </div>
+                            <div class="context-bubble-actions">
+                                ${!this.confirmDeleteContext ? `
+                                    <button class="context-action-btn" onclick="event.stopPropagation(); window.ChatView.editingContext = true; window.ChatView.renderHistory();" title="${window.i18n.t('chat_context_btn_edit')}">✏️</button>
+                                    <button class="context-action-btn danger" onclick="event.stopPropagation(); window.ChatView.confirmDeleteContext = true; window.ChatView.renderHistory();" title="${window.i18n.t('chat_context_btn_delete')}">🗑️</button>
+                                    <button class="context-action-btn" onclick="event.stopPropagation(); window.ChatView.showRegenerateModal()" title="${window.i18n.t('chat_context_btn_regenerate')}">🔄</button>
+                                ` : `
+                                    <span class="context-delete-confirm">${window.i18n.t('chat_context_delete_confirm')}</span>
+                                    <button class="context-action-btn danger" onclick="event.stopPropagation(); window.ChatView.deleteCompressedContext()">${window.i18n.t('btn_confirm')}</button>
+                                    <button class="context-action-btn" onclick="event.stopPropagation(); window.ChatView.confirmDeleteContext = false; window.ChatView.renderHistory();">${window.i18n.t('btn_cancel')}</button>
+                                `}
+                            </div>
+                        </div>
+                        <div class="context-bubble-body ${bubbleOpen ? 'open' : ''}">
+                            ${this.editingContext ? `
+                                <textarea id="editContextTextarea" class="edit-textarea" style="min-height:80px;">${window.escapeHtml(this.compressedContext)}</textarea>
+                                <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:8px;">
+                                    <button class="btn btn-primary btn-sm" onclick="window.ChatView.saveContextEdit()" style="font-size:12px; padding:2px 8px;">✓</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="window.ChatView.editingContext = false; window.ChatView.renderHistory();" style="font-size:12px; padding:2px 8px;">✕</button>
+                                </div>
+                            ` : `
+                                <div class="context-bubble-text">${window.escapeHtml(this.compressedContext)}</div>
+                            `}
+                        </div>
+                    </div>
+                `
+            });
+        }
+
+        // Compute insertion index for each bubble
+        let insertions = {};  // index -> [html strings]
+        bubbles.forEach(bubble => {
+            let insertIdx = -1;
+            if (bubble.after_id) {
+                for (let i = 0; i < this.messages.length; i++) {
+                    if (this.messages[i].id === bubble.after_id) {
+                        insertIdx = i + 1;
+                        break;
+                    }
+                }
+            }
+            if (insertIdx < 0) {
+                for (let i = this.messages.length - 1; i >= 0; i--) {
+                    if (this.messages[i].role === 'user') {
+                        insertIdx = i + 1;
+                        break;
+                    }
+                }
+            }
+            if (insertIdx < 0) insertIdx = 0;
+            if (!insertions[insertIdx]) insertions[insertIdx] = [];
+            insertions[insertIdx].push(bubble.html);
+        });
+
+        // Render conversation timeline with bubbles interleaved at correct positions
+        html = '';
+        for (let i = 0; i < this.messages.length; i++) {
+            // Insert any bubbles that belong before this message
+            if (insertions[i]) {
+                html += insertions[i].join('');
+            }
+            const msg = this.messages[i];
+            const isUser = msg.role === 'user';
+            const formattedTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString(window.i18n.lang || 'fr', { hour: '2-digit', minute: '2-digit' }) : '';
+            const isLastMsg = i === this.messages.length - 1;
+
+            // Extract tool badges for assistant messages
+            let toolsBadges = '';
+            if (!isUser && msg.content) {
+                const match = msg.content.match(/<!--\s*TOOLS_USED:\s*([^>]+?)\s*-->/);
+                if (match && match[1]) {
+                    const tools = match[1].split(',').map(t => t.trim()).filter(Boolean);
+                    toolsBadges = tools.map(t => {
+                        const emoji = this._toolEmojiMap[t] || '⚙️';
+                        const desc = window.i18n.t(`tool_${t}`) || t;
+                        return `<span class="tool-badge" title="${t}">${emoji} ${desc}</span>`;
+                    }).join(' ');
+                }
+            }
+
+            html += `
+                <div class="chat-message-row ${msg.role}" id="msg-row-${msg.id || i}">
+                    <div class="chat-message-meta" style="display:flex; justify-content:space-between; width:100%; align-items:center; gap:10px;">
+                        <div>
+                            <span>${isUser ? window.i18n.t('chat_label_you') : 'Ollama OmniBank'}</span>
+                            ${toolsBadges ? `<span style="margin-left: 8px; display:inline-flex; gap:4px; flex-wrap:wrap;">${toolsBadges}</span>` : ''}
+                        </div>
+                        <span style="font-size:9px; opacity:0.7;">${formattedTime}</span>
+                    </div>
+                    <div class="chat-bubble ${isUser ? 'user' : 'ai'}${msg._pending ? ' pending' : ''}" id="msg-${i}">
+                        ${msg._pending ? `<div style="display:flex; align-items:center; gap:6px;"><span style="flex:1; opacity:0.5;">${window.escapeHtml(msg.content)}</span><span class="pending-badge" data-i18n="chat_message_pending">${window.i18n.t('chat_message_pending')}</span></div>` : ''}
+                        ${!msg._pending && this.editingMsgId === msg.id ? `
+                            <div class="chat-bubble-edit-container">
+                                <textarea id="editMsgTextarea-${msg.id}" class="edit-textarea">${window.escapeHtml(msg.content)}</textarea>
+                                <div style="display:flex; gap:6px; justify-content:flex-end;">
+                                    <button class="btn btn-primary btn-sm" onclick="window.ChatView.saveEditedMessage(${msg.id})" style="font-size:12px; padding:2px 8px;">✓</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="window.ChatView.editingMsgId = null; window.ChatView.renderHistory();" style="font-size:12px; padding:2px 8px;">✕</button>
+                                </div>
+                            </div>
+                        ` : (!msg._pending ? this.formatMessageContent(msg) : '')}
+                    </div>
+                    
+                    <!-- Inline actions (hidden for pending messages) -->
+                    <div class="chat-message-actions${this.confirmDeleteMsgId === msg.id ? ' confirm-active' : ''}" ${msg._pending ? 'style="display:none;"' : ''}>
+                        ${this.confirmDeleteMsgId === msg.id ? `
+                            <span class="chat-delete-confirm-text">${window.i18n.t('chat_delete_msg_confirm')}</span>
+                            <button class="chat-message-action-btn chat-delete-confirm-btn" onclick="window.ChatView.executeDeleteMessage(${msg.id})">${window.i18n.t('btn_confirm')}</button>
+                            <button class="chat-message-action-btn" onclick="window.ChatView.cancelDeleteMessage()">${window.i18n.t('btn_cancel')}</button>
+                        ` : `
+                            ${isUser ? `
+                                <button class="chat-message-action-btn" onclick="window.ChatView.startEditMessage(${msg.id})" title="${window.i18n.t('chat_edit_msg')}">✏️</button>
+                            ` : ''}
+                            ${(!isUser && isLastMsg) ? `
+                                <button class="chat-message-action-btn" onclick="window.ChatView.regenerateAiResponse()" title="${window.i18n.t('chat_regenerate')}">🔄</button>
+                            ` : ''}
+                            <button class="chat-message-action-btn" onclick="window.ChatView.deleteMessage(${msg.id})" title="${window.i18n.t('chat_delete_msg')}">🗑️</button>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Insert any bubbles that belong after the last message
+        if (insertions[this.messages.length]) {
+            html += insertions[this.messages.length].join('');
+        }
+
+        // Snapshot scroll position before re-rendering
+        const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
+
+        container.innerHTML = html;
+        this._updateCompressionUI();
+        this.updateTokenUsageIndicator();
+        this.renderMath();
+
+        if (isRestore) {
+            const savedScroll = sessionStorage.getItem(`chatScrollPos_${this.activeSessionId}`);
+            if (savedScroll !== null) {
+                container.scrollTop = parseInt(savedScroll);
+            } else {
+                this.scrollToBottom();
+            }
+        } else {
+            // Only auto-scroll if user hasn't manually scrolled up
+            if (!this.userHasScrolledUp && wasAtBottom) {
+                this.scrollToBottom();
+            }
+        }
+
+        // Attach scroll & input listeners to save position & detect manual scroll-up instantly
+        if (!container.dataset.hasScrollListener) {
+            // 1. Classical scroll listener to save history position & detect scroll direction
+            let lastScrollTop = container.scrollTop;
+            container.addEventListener('scroll', () => {
+                if (this.activeSessionId) {
+                    sessionStorage.setItem(`chatScrollPos_${this.activeSessionId}`, container.scrollTop);
+                }
+                const currentScrollTop = container.scrollTop;
+                const scrollingUp = currentScrollTop < lastScrollTop;
+                lastScrollTop = currentScrollTop;
+
+                if (scrollingUp) {
+                    // Instantly lock autoscroll when user scrolls up
+                    this.userHasScrolledUp = true;
+                } else {
+                    // Re-engage autoscroll only if scrolling down and hitting the bottom within 30px
+                    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 30;
+                    if (atBottom) {
+                        this.userHasScrolledUp = false;
+                    }
+                }
+            });
+
+            // 2. Wheel listener to detect instant scroll-up intent
+            container.addEventListener('wheel', (e) => {
+                if (e.deltaY < 0) {
+                    this.userHasScrolledUp = true;
+                }
+            }, { passive: true });
+
+            // 3. Touch move listener to detect instant swipe-down (which scrolls up) intent on mobile
+            let touchStartY = 0;
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 0) {
+                    touchStartY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+            container.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 0) {
+                    const touchY = e.touches[0].clientY;
+                    if (touchY > touchStartY) { // Swipe down -> scrolls up
+                        this.userHasScrolledUp = true;
+                    }
+                }
+            }, { passive: true });
+
+            container.dataset.hasScrollListener = "true";
+        }
+    },
+
+    startEditMessage(msgId) {
+        // Find bubble element and record its width to lock it
+        const bubbleIndex = this.messages.findIndex(m => m.id === msgId);
+        const bubbleEl = document.getElementById(`msg-${bubbleIndex}`);
+        let recordedWidth = null;
+        if (bubbleEl) {
+            recordedWidth = bubbleEl.offsetWidth;
+        }
+
+        this.editingMsgId = msgId;
+        this.renderHistory();
+
+        if (recordedWidth && bubbleEl) {
+            // Re-fetch bubble element now that it's re-rendered in edit mode
+            const editBubbleEl = document.getElementById(`msg-${bubbleIndex}`);
+            if (editBubbleEl) {
+                editBubbleEl.style.width = recordedWidth + 'px';
+            }
+        }
+
+        const textarea = document.getElementById(`editMsgTextarea-${msgId}`);
+        textarea?.focus();
+    },
+
+    async saveEditedMessage(msgId) {
+        const textarea = document.getElementById(`editMsgTextarea-${msgId}`);
+        if (!textarea) return;
+
+        const newContent = textarea.value.trim();
+        if (!newContent) return;
+
+        this.editingMsgId = null;
+        
+        // Truncate messages starting from the edited message index to match backend logic
+        const msgIndex = this.messages.findIndex(m => m.id === msgId);
+        if (msgIndex !== -1) {
+            this.messages = this.messages.slice(0, msgIndex);
+        }
+        
+        this.messages.push({ role: 'user', content: newContent });
+        this.messages.push({ role: 'assistant', content: '<div class="typing-indicator"><span></span><span></span><span></span></div>' });
+        const aiMsgIndex = this.messages.length - 1;
+        this.renderHistory();
+
+        const sendBtn = document.getElementById('chatSendBtn');
+        const input = document.getElementById('chatInput');
+        if (sendBtn) {
+            sendBtn.classList.add('btn-stop');
+            sendBtn.textContent = window.i18n.t('chat_btn_stop');
+            sendBtn.onclick = () => this.stopGeneration();
+            sendBtn.disabled = false;
+        }
+        if (input) input.disabled = true;
+
+        if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+            window.app.setFastNotificationsPolling(true);
+        }
+        try {
+            this._activeAbortController = new AbortController();
+            const response = await fetch(`/api/chat/messages/${msgId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: newContent }),
+                signal: this._activeAbortController.signal
+            });
+            await this.handleStreamingResponse(response, aiMsgIndex);
+            this._activeAbortController = null;
+        } catch (e) {
+            this._activeAbortController = null;
+            if (this._stopRequested || e.name === 'AbortError' || (e.message && (e.message.includes('aborted') || e.message.includes('cancel')))) {
+                console.log('[Chat] Edit response aborted by user');
+                return;
+            }
+            console.error(e);
+            this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection') || "Erreur de connexion"}: ${e.message}*`;
+            this.messages[aiMsgIndex]._isError = true;
+            this.renderHistory();
+        } finally {
+            if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+                window.app.setFastNotificationsPolling(false);
+            }
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('btn-stop');
+                sendBtn.textContent = window.i18n.t('chat_btn_send');
+                sendBtn.onclick = () => this.sendMessage();
+            }
+            if (input) {
+                input.disabled = false;
+                input.focus();
+            }
+            if (this._stopRequested) {
+                if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
+                    const stopMsg = window.i18n.t('chat_generation_stopped') || 'Generation stopped';
+                    const cur = this.messages[aiMsgIndex].content || '';
+                    this.messages[aiMsgIndex].content = (cur.includes('typing-indicator') || !cur.trim() ? '' : cur + '\n\n') + '🛑 _' + stopMsg + '_';
+                    this.messages[aiMsgIndex].status = null;
+                    delete this.messages[aiMsgIndex]._isError;
+                    this._stopRequested = false;
+                    this.renderHistory();
+
+                    try {
+                        await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                            content: this.messages[aiMsgIndex].content,
+                            role: "assistant",
+                            update_last_assistant: true
+                        });
+                    } catch (e) { console.error("Failed to persist cancel:", e); }
+                    await this.loadMessages();
+                }
+            } else {
+                const hasError = !!this.messages[aiMsgIndex]._isError;
+                if (hasError) {
+                    // Persist error message to DB so it survives F5
+                    try {
+                        await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                            content: this.messages[aiMsgIndex].content,
+                            role: "assistant"
+                        });
+                    } catch (e) { console.error("Failed to persist error:", e); }
+                }
+                await this.loadMessages();
+            }
+        }
+    },
+
+    deleteMessage(msgId) {
+        this.confirmDeleteMsgId = msgId;
+        this.renderHistory();
+    },
+
+    async executeDeleteMessage(msgId) {
+        this.confirmDeleteMsgId = null;
+        try {
+            const resp = await fetch(`/api/chat/messages/${msgId}`, {
+                method: 'DELETE'
+            });
+            if (resp.ok) {
+                await this.loadMessages();
+            }
+        } catch (e) {
+            console.error("Error deleting message:", e);
+        }
+    },
+
+    cancelDeleteMessage() {
+        this.confirmDeleteMsgId = null;
+        this.renderHistory();
+    },
+
+
+    renderMath() {
+        if (window.renderMathInElement) {
+            renderMathInElement(document.getElementById('chatMessages'), {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "\\[", right: "\\]", display: true},
+                    {left: "$", right: "$", display: false},
+                    {left: "\\(", right: "\\)", display: false}
+                ]
+            });
+        }
+    },
+
+    scrollToBottom() {
+        const container = document.getElementById('chatMessages');
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
+    },
+
+    askDefaultQuestion() {
+        const session = this.sessions.find(s => s.id === this.activeSessionId);
+        const role = session ? session.role : 'advisor';
+        const input = document.getElementById('chatInput');
+        if (!input) return;
+        
+        if (role === 'advisor') {
+            input.value = window.i18n.t('chat_report_advisor');
+        } else if (role === 'simulator') {
+            input.value = window.i18n.t('chat_report_simulator');
+        } else if (role === 'alerts') {
+            input.value = window.i18n.t('chat_report_alerts');
+        } else if (role === 'optimizer') {
+            input.value = window.i18n.t('chat_report_optimizer');
+        } else if (role === 'budget_planner') {
+            input.value = window.i18n.t('chat_report_budget_planner');
+        } else if (role === 'forecaster') {
+            input.value = window.i18n.t('chat_report_forecaster');
+        } else if (role === 'auditor') {
+            input.value = window.i18n.t('chat_report_auditor');
+        }
+        
+        this.sendMessage();
+    },
+
+
+});
