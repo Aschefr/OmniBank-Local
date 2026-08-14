@@ -2486,10 +2486,10 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
         try:
             # --- Compression step (synchronous, inside the SSE generator) ---
             if needs_compression:
-                from datetime import datetime as _dt
+                from datetime import datetime as _dt, timezone as _tz
                 # Mark session as compressing
                 session.compressing = True
-                session.compression_started_at = _dt.utcnow()
+                session.compression_started_at = _dt.now(_tz.utc)
                 db.commit()
                 # Notify frontend that compression is starting
                 yield f"data: {json.dumps({'compressing': True})}\n\n"

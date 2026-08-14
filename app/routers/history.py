@@ -78,8 +78,8 @@ def redo_action_endpoint(action_id: int, db: Session = Depends(get_db)):
 
 @router.delete("/purge")
 def purge_history(older_than_days: int = Query(90), db: Session = Depends(get_db)):
-    from datetime import datetime, timedelta
-    cutoff = datetime.utcnow() - timedelta(days=older_than_days)
+    from datetime import datetime, timedelta, timezone
+    cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
     db.query(ActionHistory).filter(ActionHistory.timestamp < cutoff).delete()
     db.commit()
     return {"ok": True, "message": f"History older than {older_than_days} days purged"}

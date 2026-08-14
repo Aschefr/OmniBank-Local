@@ -87,7 +87,11 @@ def generate_ai_report_task(db_session_factory, force: bool = False):
             frequency = get_config_val(db, "ai_reports_frequency", "weekly")
             last_report = db.query(Notification).filter(Notification.type == "ai_report").order_by(Notification.created_at.desc()).first()
             if last_report:
-                diff_seconds = (datetime.utcnow() - last_report.created_at).total_seconds()
+                last_dt = last_report.created_at
+                now_dt = datetime.now(timezone.utc)
+                if last_dt.tzinfo is None:
+                    last_dt = last_dt.replace(tzinfo=timezone.utc)
+                diff_seconds = (now_dt - last_dt).total_seconds()
                 min_seconds = 24 * 3600 # Daily by default
                 if frequency == "weekly":
                     min_seconds = 7 * 24 * 3600

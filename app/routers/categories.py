@@ -97,7 +97,7 @@ def create_category(cat: CategoryBase, force_move: bool = False, db: Session = D
                 detail=f"Category '{cat.name}' already exists as a '{db_cat.type}' category and is currently in use."
             )
             
-    new_cat = Category(**cat.dict())
+    new_cat = Category(**cat.model_dump())
     db.add(new_cat)
     db.flush()
     action_id = record_action(db, "category", new_cat.id, "CREATE", None, snapshot_entity(new_cat))

@@ -23,10 +23,84 @@ def resource_path(relative_path):
 # Create tables if they don't exist + run idempotent migrations
 logger.info(f"[Startup] DATA_DIR = {DATA_DIR}")
 
+from contextlib import asynccontextmanager
 from starlette.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="OmniBank Local")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Cycle de vie de l'application : initialisation au démarrage et nettoyage à l'arrêt."""
+    # ── Startup ──
+    from app.profile_manager import ensure_profiles_initialized
+    ensure_profiles_initialized()
+    init_db()
+    from app.routers.auto_backup import start_scheduler
+    start_scheduler()
+    
+    # Start UDP local discovery beacon
+    try:
+        from app.services.discovery_service import start_discovery_listener
+        start_discovery_listener()
+    except Exception as e:
+        logger.warning(f"[Discovery] Could not start UDP discovery service: {e}")
+    
+    # Automatically generate recurrences on startup
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        from app.routers.recurrences import generate_recurrences
+        generate_recurrences(db=db)
+    except Exception as e:
+        logger.error(f"Failed to generate recurrences on startup: {e}")
+    finally:
+        db.close()
+
+    # Purge old actions on startup
+    db = SessionLocal()
+    try:
+        from datetime import datetime, timedelta, timezone
+        from app.models import GlobalConfig, ActionHistory
+        retention_days = 90
+        cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "history_retention_days").first()
+        if cfg and cfg.value.isdigit():
+            retention_days = int(cfg.value)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        db.query(ActionHistory).filter(ActionHistory.timestamp < cutoff).delete()
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to purge old action history on startup: {e}")
+    finally:
+        db.close()
+        
+    # Check/Generate periodic AI financial report on startup in background
+    try:
+        from app.routers.notifications import generate_ai_report_task, _active_report_thread
+        import app.routers.notifications as notif_module
+        import threading
+        t = threading.Thread(target=generate_ai_report_task, args=(SessionLocal, False), daemon=True)
+        notif_module._active_report_thread = t
+        t.start()
+    except Exception as e:
+        logger.error(f"Failed to launch startup AI report task check: {e}")
+
+    yield
+
+    # ── Shutdown ──
+    """Signal background AI report thread to stop and wait for it to finish gracefully."""
+    import app.routers.notifications as notif_module
+    notif_module._shutdown_event.set()
+    t = notif_module._active_report_thread
+    if t and t.is_alive():
+        logger.info("[Shutdown] Waiting for AI report thread to finish (max 10s)...")
+        t.join(timeout=10)
+        if t.is_alive():
+            logger.warning("[Shutdown] AI report thread did not finish in time — proceeding with shutdown.")
+        else:
+            logger.info("[Shutdown] AI report thread finished cleanly.")
+
+
+app = FastAPI(title="OmniBank Local", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -113,78 +187,6 @@ app.include_router(notifications.router)
 app.include_router(history.router)
 app.include_router(profiles.router)
 app.include_router(cross_profile.router)
-
-
-
-@app.on_event("startup")
-async def startup_init():
-    """Initialise la base de données et lance le scheduler de backup automatique."""
-    from app.profile_manager import ensure_profiles_initialized
-    ensure_profiles_initialized()
-    init_db()
-    from app.routers.auto_backup import start_scheduler
-    start_scheduler()
-    
-    # Start UDP local discovery beacon
-    try:
-        from app.services.discovery_service import start_discovery_listener
-        start_discovery_listener()
-    except Exception as e:
-        logger.warning(f"[Discovery] Could not start UDP discovery service: {e}")
-    
-    # Automatically generate recurrences on startup
-    from app.database import SessionLocal
-    db = SessionLocal()
-    try:
-        from app.routers.recurrences import generate_recurrences
-        generate_recurrences(db=db)
-    except Exception as e:
-        logger.error(f"Failed to generate recurrences on startup: {e}")
-    finally:
-        db.close()
-
-    # Purge old actions on startup
-    db = SessionLocal()
-    try:
-        from datetime import datetime, timedelta
-        from app.models import GlobalConfig, ActionHistory
-        retention_days = 90
-        cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "history_retention_days").first()
-        if cfg and cfg.value.isdigit():
-            retention_days = int(cfg.value)
-        cutoff = datetime.utcnow() - timedelta(days=retention_days)
-        db.query(ActionHistory).filter(ActionHistory.timestamp < cutoff).delete()
-        db.commit()
-    except Exception as e:
-        logger.error(f"Failed to purge old action history on startup: {e}")
-    finally:
-        db.close()
-        
-    # Check/Generate periodic AI financial report on startup in background
-    try:
-        from app.routers.notifications import generate_ai_report_task, _active_report_thread
-        import app.routers.notifications as notif_module
-        import threading
-        t = threading.Thread(target=generate_ai_report_task, args=(SessionLocal, False), daemon=True)
-        notif_module._active_report_thread = t
-        t.start()
-    except Exception as e:
-        logger.error(f"Failed to launch startup AI report task check: {e}")
-
-
-@app.on_event("shutdown")
-async def shutdown_cleanup():
-    """Signal background AI report thread to stop and wait for it to finish gracefully."""
-    import app.routers.notifications as notif_module
-    notif_module._shutdown_event.set()
-    t = notif_module._active_report_thread
-    if t and t.is_alive():
-        logger.info("[Shutdown] Waiting for AI report thread to finish (max 10s)...")
-        t.join(timeout=10)
-        if t.is_alive():
-            logger.warning("[Shutdown] AI report thread did not finish in time — proceeding with shutdown.")
-        else:
-            logger.info("[Shutdown] AI report thread finished cleanly.")
 
 
 

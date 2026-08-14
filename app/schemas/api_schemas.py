@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator, ConfigDict
 from typing import Optional, List
 from datetime import date
 
@@ -43,9 +43,10 @@ class TransactionBase(BaseModel):
     cross_profile_label: Optional[str] = None
     cross_profile_status: Optional[str] = None
 
-    _val_date_saisie = validator('date_saisie', allow_reuse=True)(_validate_date_range)
-    _val_date_op = validator('date_operation', allow_reuse=True)(_validate_date_range)
-    _val_recon = validator('reconciliation_date', allow_reuse=True)(_validate_date_range)
+    @field_validator('date_saisie', 'date_operation', 'reconciliation_date', mode='after')
+    @classmethod
+    def validate_dates(cls, v: Optional[date]) -> Optional[date]:
+        return _validate_date_range(v)
 
 class TransactionCreate(TransactionBase):
     pass
@@ -68,9 +69,6 @@ class TransactionUpdate(BaseModel):
     cross_profile_id: Optional[str] = None
     cross_profile_label: Optional[str] = None
     cross_profile_status: Optional[str] = None
-
-    _val_date_op = validator('date_operation', allow_reuse=True)(_validate_date_range)
-    _val_recon = validator('reconciliation_date', allow_reuse=True)(_validate_date_range)
     attachments: Optional[str] = None
     check_slip_number: Optional[str] = None
     from_account_id: Optional[int] = None
@@ -79,6 +77,11 @@ class TransactionUpdate(BaseModel):
     budget_id: Optional[int] = None  # Assign/unassign to project budget
     modified_by: Optional[str] = None
     modified_at: Optional[str] = None
+
+    @field_validator('date_operation', 'reconciliation_date', mode='after')
+    @classmethod
+    def validate_dates(cls, v: Optional[date]) -> Optional[date]:
+        return _validate_date_range(v)
 
 class CrossProfileTransferRequest(BaseModel):
     target_profile_id: str
@@ -99,9 +102,7 @@ class TransactionOut(TransactionBase):
     csv_id: Optional[str] = None
     action_id: Optional[int] = None
 
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class CategoryBase(BaseModel):
     name: str
@@ -112,8 +113,7 @@ class CategoryOut(CategoryBase):
     id: int
     action_id: Optional[int] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class RecurrenceTemplateBase(BaseModel):
     description: str
@@ -157,8 +157,7 @@ class RecurrenceTemplateOut(RecurrenceTemplateBase):
     id: int
     action_id: Optional[int] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class AccountBase(BaseModel):
     name: str
@@ -172,9 +171,7 @@ class AccountOut(AccountBase):
     id: int
     action_id: Optional[int] = None
 
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ConfigItem(BaseModel):
     key: str
@@ -223,9 +220,7 @@ class OrgUserOut(OrgUserBase):
     id: int
     action_id: Optional[int] = None
 
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Phase 3: AI Facts memory editor schemas
@@ -246,9 +241,7 @@ class AIFactOut(AIFactBase):
     id: int
     user_name: Optional[str] = None
 
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ExchangeRateBase(BaseModel):
@@ -262,6 +255,5 @@ class ExchangeRateCreate(ExchangeRateBase):
 class ExchangeRateOut(ExchangeRateBase):
     id: int
 
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
