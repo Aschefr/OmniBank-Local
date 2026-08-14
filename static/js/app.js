@@ -520,13 +520,27 @@ class App {
                 const styleUnread = n.is_read ? 'opacity: 0.85; cursor: default; user-select: text;' : 'border-left: 4px solid var(--accent); background: rgba(99,102,241,0.02); font-weight: 500; cursor: pointer;';
                 const isReport = n.type === 'ai_report';
                 const clickCallback = `onclick="window.app.handleNotifClick(${n.id})"`;
+                
+                let displayContent = n.content || '';
+                if (displayContent.includes('"summary"') || displayContent.trim().startsWith('{') || displayContent.trim().startsWith('```')) {
+                    try {
+                        const cleaned = displayContent.replace(/```(?:json)?/g, '').trim();
+                        const parsed = JSON.parse(cleaned);
+                        if (parsed.summary) displayContent = parsed.summary;
+                    } catch (e) {
+                        const match = displayContent.match(/"summary"\s*:\s*"([^"]+)"/);
+                        if (match && match[1]) displayContent = match[1];
+                    }
+                }
+                displayContent = displayContent.replace(/\\n/g, '\n').trim();
+
                 return `
                 <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); ${styleUnread} transition: background 0.2s;" ${clickCallback}>
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
                         <span style="font-weight: 700; font-size:13px; color: ${n.is_read ? 'var(--text-color)' : 'var(--accent)'}">${n.title}</span>
                         <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">${dateStr}</span>
                     </div>
-                    <div style="font-size:12.5px; margin-top:6px; line-height:1.5; color:var(--text-main); white-space: pre-wrap;">${n.content}</div>
+                    <div style="font-size:12.5px; margin-top:6px; line-height:1.5; color:var(--text-main); white-space: pre-wrap;">${displayContent}</div>
                     <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
                         ${isReport ? `<button class="btn btn-primary btn-sm notif-action-btn" style="font-size:11px; padding:6px 12px; border-radius:8px; height:30px; width:auto; background:var(--accent); color:white; border:none; cursor:pointer; font-weight:600; transition: all 0.2s; box-shadow:0 2px 4px rgba(32,101,209,0.24);" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); window.app.deepenAIReportById(${n.id})" data-i18n="notif_btn_deepen">${window.i18n.t('notif_btn_deepen')}</button>` : ''}
                         <button id="delete-notif-btn-${n.id}" class="btn btn-secondary btn-sm notif-action-btn" style="font-size:11px; padding:6px 12px; border-radius:8px; height:30px; width:auto; border:1px solid rgba(239,68,68,0.2); color:#ff5630; background:rgba(255,86,48,0.05); cursor:pointer; font-weight:600; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,86,48,0.15)'" onmouseout="this.style.background='rgba(255,86,48,0.05)'" onclick="event.stopPropagation(); window.app.deleteNotif(${n.id}, event)" data-i18n="notif_btn_delete">${window.i18n.t('notif_btn_delete')}</button>
@@ -640,6 +654,30 @@ class App {
             const isEn = window.i18n.lang === 'en';
             const sessionTitle = isEn ? "AI Financial Report Deepening" : "Approfondissement Bilan IA";
 
+            // Helper to extract clean Markdown text from raw/escaped JSON
+            const extractCleanText = (text) => {
+                if (!text) return '';
+                let cleaned = text.trim();
+                if (cleaned.includes('"detailed_analysis"') || cleaned.includes('"summary"') || cleaned.startsWith('{') || cleaned.startsWith('```')) {
+                    try {
+                        const jsonCandidate = cleaned.replace(/```(?:json)?/g, '').trim();
+                        const parsed = JSON.parse(jsonCandidate);
+                        if (parsed.detailed_analysis) return parsed.detailed_analysis.replace(/\\n/g, '\n').replace(/\\"/g, '"').trim();
+                        if (parsed.summary) return parsed.summary.replace(/\\n/g, '\n').replace(/\\"/g, '"').trim();
+                    } catch (e) {
+                        const detMatch = cleaned.match(/"detailed_analysis"\s*:\s*"([\s\S]*?)(?<!\\)"/);
+                        if (detMatch && detMatch[1]) {
+                            return detMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim();
+                        }
+                        const sumMatch = cleaned.match(/"summary"\s*:\s*"([\s\S]*?)(?<!\\)"/);
+                        if (sumMatch && sumMatch[1]) {
+                            return sumMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim();
+                        }
+                    }
+                }
+                return cleaned.replace(/\\n/g, '\n').trim();
+            };
+
             // Create a new session
             const newSession = await API.post('/api/chat/sessions', {
                 title: sessionTitle,
@@ -649,10 +687,12 @@ class App {
             const sessionId = newSession.id;
 
             // 1. Insert the detailed report as an ASSISTANT message (will render with full markdown)
-            const textReport = detailedContent && detailedContent.trim() ? detailedContent.trim() : content.trim();
+            const cleanDetailed = extractCleanText(detailedContent);
+            const cleanSummary = extractCleanText(content);
+            const textReport = cleanDetailed || cleanSummary;
             const reportIntro = isEn
-                ? `## 📊 Financial Health Report\n\nHere is your detailed financial health analysis:\n\n${textReport}`
-                : `## 📊 Bilan de Santé Financière\n\nVoici votre analyse financière détaillée :\n\n${textReport}`;
+                ? `## 📊 Financial Health Report\n\n${textReport}`
+                : `## 📊 Bilan de Santé Financière\n\n${textReport}`;
 
             await API.post(`/api/chat/sessions/${sessionId}/system-message`, {
                 content: reportIntro,
@@ -667,17 +707,17 @@ class App {
 
             this.loadView('chat');
 
-            // 3. After the view loads, send a follow-up user message to trigger AI response
-            setTimeout(async () => {
+            // 3. Pre-fill the suggested question into the chat input so user can send or customize
+            setTimeout(() => {
                 const textarea = document.getElementById('chatInput');
                 if (textarea) {
                     const userPrompt = isEn 
                         ? "Could you analyze my financial situation in detail based on this report? What are the key risks and what concrete actions do you recommend?"
                         : "Pouvez-vous analyser ma situation financière en détail à partir de ce bilan ? Quels sont les principaux risques et quelles actions concrètes me recommandez-vous ?";
                     textarea.value = userPrompt;
-                    window.ChatView.sendMessage();
+                    textarea.focus();
                 }
-            }, 600);
+            }, 300);
 
         } catch (e) {
             console.error("Failed to deepen AI report", e);

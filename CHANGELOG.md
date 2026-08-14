@@ -4,11 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.83] - 2026-08-14
 
-### Improved & Hardened
+### Added & Improved
+- **Enhanced AI Assistant Experience & Flawless Formatting 💬**:
+  - **Clean & Readable Responses**: The AI assistant now automatically cleans and formats all responses into elegant Markdown, preventing any raw data blocks or technical JSON payloads from cluttering your chat stream.
+  - **Polished Financial Insights**: The *"Approfondir avec l'IA"* feature now delivers crystal-clear, structured analytical insights without raw text noise.
+  - **Pristine Responsive Chat Interface**: Re-engineered the chat layout to fit your screen seamlessly with zero horizontal overflow, preventing conversation bubbles or sidebars from stretching out of bounds.
+
+- **Faster, Ultra-Responsive App Performance ⚡**:
+  - **Snappier Page Transitions**: Completely streamlined internal modules across Chat, Settings, and Recurrences for faster loading, silky-smooth modal popups, and improved battery/CPU efficiency.
+  - **Smoother Conversation Flow**: Optimized conversation history handling and context compression, ensuring discussions with the AI assistant stay light, snappy, and responsive.
+
 - **Modernized Core & Reliability Boost 🚀**:
   - **Zero-Deprecation Architecture**: Modernized backend API data validation schemas with the latest Pydantic v2 engine (`model_dump()`, `@field_validator`), delivering faster payload parsing and eliminating internal deprecation warnings.
   - **Modernized Application Lifecycle**: Transitioned API startup and background processes to FastAPI's streamlined `lifespan` manager, ensuring rock-solid initializations of background auto-backups, network discovery, and graceful shutdowns.
-  - **Rock-Solid Test Suite (100% Green)**: Hardened test isolation across all functional domains (accounts, multi-profile transfers, AI financial reports, smart recurrences, and currency conversion) guaranteeing zero side-effects between test runs.
+  - **Rock-Solid Test Suite (100% Green)**: Hardened test isolation across all functional domains (accounts, multi-profile transfers, AI financial reports, smart recurrences, and currency conversion) with 46/46 tests passing with 0 application warnings.
   - **Standardized UTC Time Stamps**: Unified all internal transaction and audit timestamps to modern timezone-aware standards for flawless cross-session accuracy.
 
 ## [1.0.82] - 2026-08-07

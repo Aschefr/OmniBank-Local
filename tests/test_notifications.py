@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -73,3 +74,21 @@ def test_notifications_lifecycle():
 
     # Clean dependency overrides
     app.dependency_overrides.pop(get_db, None)
+
+
+def test_generate_ai_report_task_frequency():
+    """Test that frequency calculation with timezone.utc works without NameError."""
+    db = TestingSessionLocal()
+    # Create an existing report in DB
+    existing_report = Notification(
+        type="ai_report",
+        title="Existing Report",
+        content="Report content",
+        created_at=datetime.now(timezone.utc)
+    )
+    db.add(existing_report)
+    db.commit()
+    db.close()
+
+    # Calling generate_ai_report_task with force=False should check the frequency and skip safely
+    generate_ai_report_task(TestingSessionLocal, force=False)

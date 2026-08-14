@@ -5,6 +5,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.profile_manager import (
     load_profiles_data,
