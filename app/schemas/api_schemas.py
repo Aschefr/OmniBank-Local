@@ -332,15 +332,15 @@ class ScenarioOut(ScenarioBase):
 
 class SimulationRunRequest(BaseModel):
     scenario_id: Optional[int] = None
-    horizon_months: int = 12  # 6, 12, 18, 24, 36
+    horizon_months: int = 36  # 6, 12, 18, 24, 36, 60, 120, 180, 240, 300
     account_id: Optional[int] = None  # None = main account / all liquid accounts
     custom_events: Optional[List[ScenarioEventBase]] = None  # For instant live simulation without saving
-    income_mode: Optional[str] = "auto"  # 'auto', 'historical_n1', 'custom', 'none'
+    income_mode: Optional[str] = "historical_n1"  # 'historical_n1', 'average', 'custom', 'none'
     custom_income_amount: Optional[float] = None  # in €/month when income_mode == 'custom'
     inflation_rate: Optional[float] = 0.0  # Annual inflation rate (e.g. 0.03 = 3%/year), 0 = disabled
     variable_expense_adjustment_pct: Optional[float] = 0.0  # Effort/adjustment on variable spending (-0.20 = -20%, +0.10 = +10%)
-    projection_profile: Optional[str] = "realistic"  # 'realistic' (flux réels constatés) ou 'conservative' (stress-test strict)
-    conservative_weight: Optional[float] = None  # Curseur continu de prudence : 0.0 (100% Réel) à 1.0 (100% Conservateur)
+    projection_profile: Optional[str] = "blend"  # 'realistic', 'conservative', 'blend'
+    conservative_weight: Optional[float] = 0.20  # Curseur continu de prudence : 0.0 (Recettes du modèle) à 1.0 (Recettes minimales), 0.20 par défaut
 
 
 
