@@ -845,11 +845,18 @@ def run_simulation(
         optimistic_simulated = current_optimistic_bal + simulated_events_impact
         pessimistic_simulated = current_pessimistic_bal + simulated_events_impact
 
+        fixed_expense_actual = blended_fixed_for_month if existing_fixed_total == 0 else (existing_fixed_total + max(0.0, blended_fixed_for_month - existing_fixed_total))
+        var_expense_actual = variable_expense_projected if not has_real_variable_txs else sum(abs(t.amount) for t in existing_txs if t.type == "expense_var" and (not target_acc_ids or t.from_account_id in target_acc_ids or t.to_account_id in target_acc_ids))
+        inflation_delta_actual = inflation_delta if (inflation_rate > 0 and m_offset > 0) else 0.0
+
         monthly_data.append({
             "month": month_str,
             "month_label": month_label,
             "start_balance_baseline": round(month_start_baseline, 2),
             "baseline_income": round(baseline_income, 2),
+            "baseline_fixed": round(fixed_expense_actual, 2),
+            "baseline_variable": round(var_expense_actual, 2),
+            "baseline_inflation_delta": round(inflation_delta_actual, 2),
             "baseline_expense": round(baseline_expense, 2),
             "baseline_net": round(baseline_net, 2),
             "baseline_end_balance": round(current_baseline_bal, 2),
@@ -868,6 +875,10 @@ def run_simulation(
             "events_applied": events_applied_this_month,
             "is_negative": current_simulated_bal < 0
         })
+
+    # Marquer le point bas de trésorerie simulée
+    for m_item in monthly_data:
+        m_item["is_min_cash"] = (m_item["month"] == min_simulated_date)
 
     total_diff = current_simulated_bal - current_baseline_bal
     pct_diff = round((total_diff / abs(current_baseline_bal) * 100), 1) if current_baseline_bal != 0 else 0.0

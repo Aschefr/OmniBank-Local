@@ -79,6 +79,8 @@ window.SimulatorView = {
     },
 
     async runSimulation() {
+        this._simSeq = (this._simSeq || 0) + 1;
+        const currentSeq = this._simSeq;
         try {
             const payload = {
                 scenario_id: this.activeScenarioId,
@@ -90,10 +92,15 @@ window.SimulatorView = {
                 variable_expense_adjustment_pct: this.varExpenseAdjustmentPct || 0.0,
                 conservative_weight: (typeof this.conservativeWeight === 'number') ? this.conservativeWeight : 0.0
             };
-            this.simulationData = await API.post('/api/simulator/run', payload);
+            const result = await API.post('/api/simulator/run', payload);
+            if (this._simSeq === currentSeq) {
+                this.simulationData = result;
+            }
         } catch (err) {
-            console.error("[SimulatorView] Erreur lors de la simulation:", err);
-            this.simulationData = null;
+            if (this._simSeq === currentSeq) {
+                console.error("[SimulatorView] Erreur lors de la simulation:", err);
+                this.simulationData = null;
+            }
         }
     },
 
@@ -431,77 +438,94 @@ window.SimulatorView = {
                 ` : ''}
             </div>
 
-            <!-- Dedicated Interactive Controls Panel (Direct Clickable Extremities) -->
-            <div class="sim-card" style="margin-bottom:16px;padding:12px 16px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;">
-                <div class="sim-sliders-grid">
+            <!-- Dedicated Interactive Controls Panel (Symmetric 2-Column Grid & Macro Toolbar) -->
+            <div class="sim-card" style="margin-bottom:16px;padding:14px 18px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;box-shadow:var(--shadow-sm);">
+                <div class="sim-sliders-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start;">
                     
-                    <!-- Slider 1 : Curseur de Prudence & Réalisme (Élargi & Extrémités Cliquables) -->
+                    <!-- Colonne 1 : Curseur de Prudence & Réalisme -->
                     <div style="display:flex;flex-direction:column;gap:6px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
                             <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_prudence_slider_tooltip')}">
-                                <span>🛡️</span>
-                                <span data-i18n="sim_prudence_slider_label">${window.i18n.t('sim_prudence_slider_label')}</span>
+                                <span style="font-size:14px;">🛡️</span>
+                                <span data-i18n="sim_prudence_title">${window.i18n.t('sim_prudence_title')}</span>
                             </label>
-                            <button type="button" id="simPrudenceBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setPrudenceWeight(0.5)" title="Cliquer pour basculer à 50% Mix équilibré" style="color:${(this.conservativeWeight || 0) === 0 ? '#10b981' : ((this.conservativeWeight || 0) >= 0.8 ? '#ef4444' : ((this.conservativeWeight || 0) >= 0.4 ? '#f59e0b' : 'var(--text-main)'))};">
+                            <button type="button" id="simPrudenceBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setPrudenceWeight(0.5)" title="${window.i18n.t('sim_tooltip_click_blend')}" style="color:${(this.conservativeWeight || 0) === 0 ? '#10b981' : ((this.conservativeWeight || 0) >= 0.8 ? '#ef4444' : ((this.conservativeWeight || 0) >= 0.4 ? '#f59e0b' : 'var(--text-main)'))};">
                                 ${this.getPrudenceBadgeText(this.conservativeWeight || 0)}
                             </button>
                         </div>
                         
-                        <div style="display:flex;align-items:center;gap:10px;width:100%;">
-                            <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setPrudenceWeight(0.0)" title="Cliquer pour 100% Flux Réels (0% Prudence)">🎯 100% Réel</button>
-                            <input type="range" id="simPrudenceSlider" class="sim-range-input" min="0" max="100" step="5" value="${Math.round((this.conservativeWeight || 0) * 100)}" oninput="window.SimulatorView.onConservativeWeightInput(this.value)" onchange="window.SimulatorView.onConservativeWeightChange(this.value)">
-                            <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setPrudenceWeight(1.0)" title="Cliquer pour 100% Stress-test">🛡️ Stress-test</button>
+                        <div style="display:flex;align-items:center;gap:10px;width:100%;margin:2px 0;">
+                            <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setPrudenceWeight(0.0)" title="${window.i18n.t('sim_tooltip_click_100real')}">🎯 <span data-i18n="sim_prudence_badge_100real">${window.i18n.t('sim_prudence_badge_100real')}</span></button>
+                            <input type="range" id="simPrudenceSlider" class="sim-range-input" min="0" max="100" step="1" value="${Math.round((this.conservativeWeight || 0) * 100)}" oninput="window.SimulatorView.onConservativeWeightInput(this.value)" onchange="window.SimulatorView.onConservativeWeightChange(this.value)">
+                            <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setPrudenceWeight(1.0)" title="${window.i18n.t('sim_tooltip_click_100stress')}">🛡️ <span data-i18n="sim_prudence_badge_100cons">${window.i18n.t('sim_prudence_badge_100cons')}</span></button>
+                        </div>
+
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--text-muted);opacity:0.85;">
+                            <span data-i18n="sim_prudence_hint_left">${window.i18n.t('sim_prudence_hint_left')}</span>
+                            <span data-i18n="sim_prudence_hint_right">${window.i18n.t('sim_prudence_hint_right')}</span>
                         </div>
                     </div>
 
-                    <!-- Slider 2 & Paramètres Annexes : Effort Dépenses Variables & Revenus (Extrémités Cliquables) -->
-                    <div style="display:flex;flex-direction:column;gap:6px;border-left:1px solid var(--border-color);padding-left:18px;" class="sim-secondary-controls">
-                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                    <!-- Colonne 2 : Curseur d'Effort Budgétaire (Dépenses Variables) -->
+                    <div style="display:flex;flex-direction:column;gap:6px;border-left:1px solid var(--border-color);padding-left:24px;" class="sim-secondary-controls">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
                             <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_var_adj_tooltip')}">
-                                <span>⚡</span>
-                                <span data-i18n="sim_var_adj_label">${window.i18n.t('sim_var_adj_label')}</span>
+                                <span style="font-size:14px;">⚡</span>
+                                <span data-i18n="sim_effort_title">${window.i18n.t('sim_effort_title')}</span>
                             </label>
-                            <button type="button" id="simVarAdjBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setVarExpenseAdjustment(0.0)" title="Cliquer pour réinitialiser à 0% normal" style="color:${this.varExpenseAdjustmentPct < 0 ? '#10b981' : (this.varExpenseAdjustmentPct > 0 ? '#ef4444' : 'var(--text-main)')};">
+                            <button type="button" id="simVarAdjBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setVarExpenseAdjustment(0.0)" title="${window.i18n.t('sim_tooltip_click_reset_effort')}" style="color:${this.varExpenseAdjustmentPct < 0 ? '#10b981' : (this.varExpenseAdjustmentPct > 0 ? '#ef4444' : 'var(--text-main)')};">
                                 ${this.varExpenseAdjustmentPct > 0 ? '+' : ''}${Math.round(this.varExpenseAdjustmentPct * 100)}%${(data && data.avg_variable_expense && this.varExpenseAdjustmentPct !== 0) ? ` (${this.varExpenseAdjustmentPct > 0 ? '+' : ''}${Math.round(data.avg_variable_expense * this.varExpenseAdjustmentPct).toLocaleString('fr-FR')} €/m)` : ''}
                             </button>
                         </div>
 
-                        <div style="display:flex;align-items:center;gap:10px;width:100%;">
-                            <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setVarExpenseAdjustment(-1.0)" title="Cliquer pour supprimer 100% des dépenses variables">-100%</button>
-                            <input type="range" id="simVarAdjSlider" class="sim-range-input" min="-100" max="20" step="5" value="${Math.round(this.varExpenseAdjustmentPct * 100)}" oninput="window.SimulatorView.onVarExpenseAdjustmentInput(this.value)" onchange="window.SimulatorView.onVarExpenseAdjustmentChange(this.value)">
-                            <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setVarExpenseAdjustment(0.2)" title="Cliquer pour augmenter les dépenses de 20%">+20%</button>
+                        <div style="display:flex;align-items:center;gap:10px;width:100%;margin:2px 0;">
+                            <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setVarExpenseAdjustment(-1.0)" title="${window.i18n.t('sim_tooltip_click_min_effort')}">-100%</button>
+                            <input type="range" id="simVarAdjSlider" class="sim-range-input" min="-100" max="20" step="1" value="${Math.round(this.varExpenseAdjustmentPct * 100)}" oninput="window.SimulatorView.onVarExpenseAdjustmentInput(this.value)" onchange="window.SimulatorView.onVarExpenseAdjustmentChange(this.value)">
+                            <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setVarExpenseAdjustment(0.2)" title="${window.i18n.t('sim_tooltip_click_max_effort')}">+20%</button>
                         </div>
-                        
-                        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;flex-wrap:wrap;">
-                            <!-- Mode de Revenu -->
-                            <div style="display:flex;align-items:center;gap:5px;">
-                                <label style="font-size:10px;font-weight:600;color:var(--text-muted);" data-i18n="sim_income_mode_label">${window.i18n.t('sim_income_mode_label')}</label>
-                                <select id="simIncomeModeSelect" class="inline-input" style="padding:2px 6px;font-size:11px;border-radius:6px;max-width:160px;" onchange="window.SimulatorView.onIncomeModeChange(this.value)">
-                                    <option value="auto" ${this.incomeMode === 'auto' ? 'selected' : ''}>${autoLabel}</option>
-                                    <option value="historical_n1" ${this.incomeMode === 'historical_n1' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_historical')}</option>
-                                    <option value="custom" ${this.incomeMode === 'custom' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_custom')}</option>
-                                    <option value="none" ${this.incomeMode === 'none' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_none')}</option>
-                                </select>
-                                ${this.incomeMode === 'custom' ? `
-                                    <div style="display:flex;align-items:center;gap:2px;background:var(--bg-input);padding:1px 4px;border-radius:4px;border:1px solid var(--border-color);">
-                                        <input type="number" step="50" id="simCustomIncomeInput" class="inline-input" value="${this.customIncomeAmount || (estSalary || 2500)}" style="width:55px;padding:1px 2px;font-size:11px;font-weight:700;border:none;background:transparent;text-align:right;" onchange="window.SimulatorView.onCustomIncomeChange(this.value)">
-                                        <span style="font-size:10px;color:var(--text-muted);">€/m</span>
-                                    </div>
-                                ` : ''}
-                            </div>
 
-                            <!-- Inflation Control (visible when horizon >= 12 months) -->
-                            ${this.horizonMonths >= 12 ? `
-                            <div style="display:flex;align-items:center;gap:4px;">
-                                <label style="font-size:10px;font-weight:600;color:var(--text-muted);" data-i18n="sim_inflation_label">${window.i18n.t('sim_inflation_label')}</label>
-                                <div style="display:flex;align-items:center;gap:2px;background:var(--bg-input);padding:1px 4px;border-radius:4px;border:1px solid var(--border-color);">
-                                    <input type="number" step="0.5" min="0" max="20" id="simInflationInput" class="inline-input" value="${(this.inflationRate * 100).toFixed(1)}" style="width:38px;padding:1px 2px;font-size:11px;font-weight:700;border:none;background:transparent;text-align:right;" onchange="window.SimulatorView.onInflationChange(this.value)">
-                                    <span style="font-size:10px;color:var(--text-muted);" data-i18n="sim_inflation_suffix">${window.i18n.t('sim_inflation_suffix')}</span>
-                                </div>
-                            </div>
-                            ` : ''}
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--text-muted);opacity:0.85;">
+                            <span data-i18n="sim_effort_hint_left">${window.i18n.t('sim_effort_hint_left')}</span>
+                            <span data-i18n="sim_effort_hint_right">${window.i18n.t('sim_effort_hint_right')}</span>
                         </div>
                     </div>
+                </div>
+
+                <!-- Ligne Inférieure : Paramètres de Revenu & Inflation (Pleine Largeur Équilibrée) -->
+                <div style="border-top:1px solid var(--border-color);margin-top:12px;padding-top:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                    <!-- Mode de Revenu de Référence -->
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">
+                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:5px;white-space:nowrap;">
+                            <span>💼</span>
+                            <span data-i18n="sim_income_mode_label">${window.i18n.t('sim_income_mode_label')}</span>
+                        </label>
+                        <select id="simIncomeModeSelect" class="inline-input" style="padding:3px 8px;font-size:12px;font-weight:500;border-radius:6px;width:auto;min-width:240px;" onchange="window.SimulatorView.onIncomeModeChange(this.value)">
+                            <option value="auto" ${this.incomeMode === 'auto' ? 'selected' : ''}>${autoLabel}</option>
+                            <option value="historical_n1" ${this.incomeMode === 'historical_n1' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_historical')}</option>
+                            <option value="custom" ${this.incomeMode === 'custom' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_custom')}</option>
+                            <option value="none" ${this.incomeMode === 'none' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_none')}</option>
+                        </select>
+                        ${this.incomeMode === 'custom' ? `
+                            <div style="display:flex;align-items:center;gap:3px;background:var(--bg-input);padding:2px 6px;border-radius:6px;border:1px solid var(--border-color);">
+                                <input type="number" step="50" id="simCustomIncomeInput" class="inline-input" value="${this.customIncomeAmount || (estSalary || 2500)}" style="width:65px;padding:1px 2px;font-size:12px;font-weight:700;border:none;background:transparent;text-align:right;" onchange="window.SimulatorView.onCustomIncomeChange(this.value)">
+                                <span style="font-size:11px;color:var(--text-muted);font-weight:600;">€/m</span>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Contrôle de l'Inflation (visible si horizon >= 12 mois) -->
+                    ${this.horizonMonths >= 12 ? `
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
+                            <span>📈</span>
+                            <span data-i18n="sim_inflation_label">${window.i18n.t('sim_inflation_label')} :</span>
+                        </label>
+                        <div style="display:flex;align-items:center;gap:3px;background:var(--bg-input);padding:2px 6px;border-radius:6px;border:1px solid var(--border-color);">
+                            <input type="number" step="0.5" min="0" max="20" id="simInflationInput" class="inline-input" value="${(this.inflationRate * 100).toFixed(1)}" style="width:42px;padding:1px 2px;font-size:12px;font-weight:700;border:none;background:transparent;text-align:right;" onchange="window.SimulatorView.onInflationChange(this.value)">
+                            <span style="font-size:11px;color:var(--text-muted);font-weight:600;" data-i18n="sim_inflation_suffix">${window.i18n.t('sim_inflation_suffix')}</span>
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
             </div>
 
@@ -931,27 +955,44 @@ window.SimulatorView = {
                         const impactSign = m.simulated_events_impact > 0 ? '+' : '';
                         const isNeg = m.simulated_end_balance < 0;
 
+                        // Tooltip décomposant précisément Entrées / Fixe / Variable / Inflation
+                        const inc = (m.baseline_income || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+                        const fix = (m.baseline_fixed || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+                        const vExp = (m.baseline_variable || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+                        const inf = (m.baseline_inflation_delta || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+                        const netStr = `${m.baseline_net > 0 ? '+' : ''}${m.baseline_net.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €`;
+                        
+                        const flowTooltip = `💼 ${window.i18n.t('sim_flow_tooltip_income')} : +${inc} €\n🏠 ${window.i18n.t('sim_flow_tooltip_fixed')} : -${fix} €\n🛒 ${window.i18n.t('sim_flow_tooltip_variable')} : -${vExp} €${m.baseline_inflation_delta > 0 ? `\n📈 ${window.i18n.t('sim_flow_tooltip_inflation')} : -${inf} €` : ''}\n─────────────────────\n➜ ${window.i18n.t('sim_flow_tooltip_net')} : ${netStr}`;
+
                         return `
                             <tr style="${isNeg ? 'background:rgba(239, 68, 68, 0.08);' : ''}">
-                                <td style="font-weight:600;white-space:nowrap;">
+                                <td style="font-weight:600;white-space:nowrap;vertical-align:middle;">
                                     ${escapeHtml(this.formatMonthLabel(m.month))}
+                                    ${m.is_min_cash ? `<span class="sim-badge" style="background:rgba(99, 102, 241, 0.15);color:#818cf8;border:1px solid rgba(99, 102, 241, 0.3);font-size:9px;margin-left:6px;padding:1px 4px;vertical-align:middle;" title="${window.i18n.t('sim_kpi_min_cash')}">⚓ ${window.i18n.t('sim_badge_min_cash')}</span>` : ''}
+                                    ${isNeg ? `<span class="sim-badge" style="background:rgba(239, 68, 68, 0.15);color:#ef4444;border:1px solid rgba(239, 68, 68, 0.3);font-size:9px;margin-left:6px;padding:1px 4px;vertical-align:middle;" title="${window.i18n.t('sim_kpi_overdraft_title')}">⚠️ ${window.i18n.t('sim_badge_overdraft')}</span>` : ''}
                                 </td>
-                                <td style="text-align:right;color:var(--text-muted);">
+                                <td style="text-align:right;color:var(--text-muted);vertical-align:middle;">
                                     ${m.start_balance_simulated.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
                                 </td>
-                                <td style="text-align:right;color:${m.baseline_net >= 0 ? '#10b981' : '#ef4444'};">
-                                    ${m.baseline_net > 0 ? '+' : ''}${m.baseline_net.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
+                                <td style="text-align:right;vertical-align:middle;cursor:help;" title="${flowTooltip}">
+                                    <div style="font-weight:600;color:${m.baseline_net >= 0 ? '#10b981' : '#ef4444'};display:inline-flex;align-items:center;gap:3px;justify-content:flex-end;">
+                                        <span>${m.baseline_net > 0 ? '+' : ''}${m.baseline_net.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €</span>
+                                        <span style="font-size:10px;opacity:0.65;">ℹ️</span>
+                                    </div>
+                                    <div style="font-size:9.5px;color:var(--text-muted);opacity:0.75;font-weight:400;margin-top:1px;">
+                                        +${Math.round(m.baseline_income || 0).toLocaleString('fr-FR')} / -${Math.round(m.baseline_expense || 0).toLocaleString('fr-FR')}
+                                    </div>
                                 </td>
-                                <td style="text-align:right;font-weight:600;color:${m.simulated_events_impact > 0 ? '#10b981' : (m.simulated_events_impact < 0 ? '#ef4444' : 'var(--text-muted)')};">
+                                <td style="text-align:right;font-weight:600;color:${m.simulated_events_impact > 0 ? '#10b981' : (m.simulated_events_impact < 0 ? '#ef4444' : 'var(--text-muted)')};vertical-align:middle;">
                                     ${m.simulated_events_impact !== 0 ? `${impactSign}${m.simulated_events_impact.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : '-'}
                                 </td>
-                                <td style="text-align:right;font-weight:700;color:${isNeg ? '#ef4444' : 'var(--text-main)'};">
+                                <td style="text-align:right;font-weight:700;color:${isNeg ? '#ef4444' : 'var(--text-main)'};vertical-align:middle;">
                                     ${m.simulated_end_balance.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
                                 </td>
-                                <td style="text-align:right;font-weight:600;color:${m.difference > 0 ? '#10b981' : (m.difference < 0 ? '#ef4444' : 'var(--text-muted)')};">
+                                <td style="text-align:right;font-weight:600;color:${m.difference > 0 ? '#10b981' : (m.difference < 0 ? '#ef4444' : 'var(--text-muted)')};vertical-align:middle;">
                                     ${m.difference !== 0 ? `${diffSign}${m.difference.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : '-'}
                                 </td>
-                                <td style="color:var(--text-muted);font-size:11px;">
+                                <td style="color:var(--text-muted);font-size:11px;vertical-align:middle;">
                                     ${m.events_applied.length > 0 ? m.events_applied.map(e => `<span class="sim-badge sim-badge-neutral" style="margin-right:4px;margin-bottom:2px;">${escapeHtml(e)}</span>`).join('') : '<span style="opacity:0.4;">-</span>'}
                                 </td>
                             </tr>
@@ -1103,9 +1144,11 @@ window.SimulatorView = {
     getPrudenceBadgeText(w) {
         const pctCons = Math.round(w * 100);
         const pctReal = 100 - pctCons;
-        if (pctCons === 0) return '🎯 100% Réel';
-        if (pctCons === 100) return '🛡️ 100% Stress-test';
-        return `⚖️ ${pctReal}% / ${pctCons}%`;
+        const t = (k) => window.i18n ? window.i18n.t(k) : k;
+        if (pctCons === 0) return `🎯 ${t('sim_prudence_badge_100real') || '100% Réel'}`;
+        if (pctCons === 100) return `🛡️ ${t('sim_prudence_badge_100cons') || '100% Stress-test'}`;
+        const blendTemplate = t('sim_prudence_badge_blend') || '{real}% Réel / {cons}% Prudent';
+        return `⚖️ ${blendTemplate.replace('{real}', pctReal).replace('{cons}', pctCons)}`;
     },
 
     onConservativeWeightInput(val) {
@@ -1117,12 +1160,23 @@ window.SimulatorView = {
             badge.style.color = this.conservativeWeight === 0 ? '#10b981' : (this.conservativeWeight >= 0.8 ? '#ef4444' : (this.conservativeWeight >= 0.4 ? '#f59e0b' : 'var(--text-main)'));
         }
 
-        // Live smooth calculation without full page rebuild
+        // Live calculation throttle with decoupled lightweight chart update & debounced table
         clearTimeout(this._liveDebounceTimer);
+        clearTimeout(this._tableDebounceTimer);
+
         this._liveDebounceTimer = setTimeout(async () => {
             await this.runSimulation();
-            this.updateLiveSimulationView();
-        }, 30);
+            this.updateLiveSimulationView(false); // Live Chart & KPIs only (ultra-snappy 60 FPS)
+        }, 50);
+
+        this._tableDebounceTimer = setTimeout(() => {
+            if (this.simulationData) {
+                const tableContainer = document.getElementById('simMonthlyTableContainer');
+                if (tableContainer) {
+                    tableContainer.innerHTML = this.renderMonthlyTable(this.simulationData);
+                }
+            }
+        }, 180);
     },
 
     async setPrudenceWeight(val) {
@@ -1136,7 +1190,7 @@ window.SimulatorView = {
         }
         ProfileStorage.set('sim_conservative_weight', this.conservativeWeight);
         await this.runSimulation();
-        this.updateLiveSimulationView();
+        this.updateLiveSimulationView(true);
     },
 
     async setVarExpenseAdjustment(val) {
@@ -1154,7 +1208,7 @@ window.SimulatorView = {
         }
         ProfileStorage.set('sim_var_expense_adj', this.varExpenseAdjustmentPct);
         await this.runSimulation();
-        this.updateLiveSimulationView();
+        this.updateLiveSimulationView(true);
     },
 
     async onConservativeWeightChange(val) {
@@ -1162,10 +1216,10 @@ window.SimulatorView = {
         this.conservativeWeight = intVal / 100.0;
         ProfileStorage.set('sim_conservative_weight', this.conservativeWeight);
         await this.runSimulation();
-        this.updateLiveSimulationView();
+        this.updateLiveSimulationView(true);
     },
 
-    updateLiveSimulationView() {
+    updateLiveSimulationView(updateTable = false) {
         const data = this.simulationData;
         if (!data) return;
 
@@ -1219,10 +1273,12 @@ window.SimulatorView = {
             breakEvenContainer.innerHTML = this.renderBreakEvenBanner(data);
         }
 
-        // 5. Update Monthly Table
-        const tableContainer = document.getElementById('simMonthlyTableContainer');
-        if (tableContainer) {
-            tableContainer.innerHTML = this.renderMonthlyTable(data);
+        // 5. Update Monthly Table (only on demand or settled pause)
+        if (updateTable) {
+            const tableContainer = document.getElementById('simMonthlyTableContainer');
+            if (tableContainer) {
+                tableContainer.innerHTML = this.renderMonthlyTable(data);
+            }
         }
     },
 
@@ -1271,23 +1327,36 @@ window.SimulatorView = {
             badge.style.color = intVal < 0 ? '#10b981' : (intVal > 0 ? '#ef4444' : 'var(--text-main)');
         }
 
+        // Live calculation throttle with decoupled lightweight chart update & debounced table
         clearTimeout(this._liveDebounceTimer);
+        clearTimeout(this._tableDebounceTimer);
+
         this._liveDebounceTimer = setTimeout(async () => {
             await this.runSimulation();
-            this.updateLiveSimulationView();
-        }, 30);
+            this.updateLiveSimulationView(false); // Live Chart & KPIs only
+        }, 50);
+
+        this._tableDebounceTimer = setTimeout(() => {
+            if (this.simulationData) {
+                const tableContainer = document.getElementById('simMonthlyTableContainer');
+                if (tableContainer) {
+                    tableContainer.innerHTML = this.renderMonthlyTable(this.simulationData);
+                }
+            }
+        }, 180);
     },
 
     async onVarExpenseAdjustmentChange(val) {
-        this.varExpenseAdjustmentPct = (parseFloat(val) || 0) / 100.0;
+        const intVal = parseInt(val) || 0;
+        this.varExpenseAdjustmentPct = intVal / 100.0;
         ProfileStorage.set('sim_var_expense_adj', this.varExpenseAdjustmentPct);
         await this.runSimulation();
-        this.updateLiveSimulationView();
+        this.updateLiveSimulationView(true);
     },
 
     async applyBreakEvenEffort(pct) {
-        // Arrondi au multiple de 5 supérieur pour correspondre aux pas du curseur, plafonné à 100%
-        let targetPct = Math.min(100, Math.ceil(pct / 5) * 5);
+        // Arrondi au pourcent supérieur (pas de 1%), plafonné à 100%
+        let targetPct = Math.min(100, Math.ceil(pct));
         this.varExpenseAdjustmentPct = -(targetPct / 100.0);
         ProfileStorage.set('sim_var_expense_adj', this.varExpenseAdjustmentPct);
         await this.runSimulation();
