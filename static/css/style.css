@@ -205,6 +205,12 @@ body {
 .main-nav {
     display: flex;
     gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.main-nav::-webkit-scrollbar {
+    display: none;
 }
 
 .nav-btn {
@@ -878,7 +884,7 @@ body.privacy-mode #valNextPayAmount:hover {
     display: none !important;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .app-header {
         height: 52px;
         padding: 0 12px !important;
@@ -4543,6 +4549,27 @@ input[type="range"]::-moz-range-thumb:hover {
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
     transform: scale(1.03);
 }
+
+.ov-action-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-main);
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.ov-action-menu-item:hover {
+    background: var(--bg-hover);
+}
+
 
 .overview-op-more {
     text-align: center;
