@@ -163,6 +163,14 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                         </div>
                         <span data-i18n="config_opt_overview">Activer la vue d'ensemble (page d'accueil simplifiée)</span>
                     </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                        <div style="position: relative; width: 40px; height: 24px;">
+                            <input type="checkbox" id="conf_enable_simulator" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
+                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                            <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                        </div>
+                        <span data-i18n="config_opt_simulator">Activer le simulateur de projets & What-If</span>
+                    </label>
                 </div>
                 <div id="configLicenseStatus" style="margin-top: 8px; display: none;"></div>
                 <style>
@@ -445,6 +453,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             if (this.configData.enable_check_slips === 'true') document.getElementById('conf_enable_check_slips').checked = true;
             if (this.configData.enable_org_mode === 'true') document.getElementById('conf_enable_org_mode').checked = true;
             if (this.configData.enable_overview === 'true') document.getElementById('conf_enable_overview').checked = true;
+            if (document.getElementById('conf_enable_simulator')) {
+                document.getElementById('conf_enable_simulator').checked = (this.configData.enable_simulator !== 'false');
+            }
             if (this.configData.recurrence_generation_months) {
                 document.getElementById('conf_recurrence_months').value = this.configData.recurrence_generation_months;
             } else {
@@ -521,6 +532,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 enable_check_slips: document.getElementById('conf_enable_check_slips').checked ? 'true' : 'false',
                 enable_org_mode: document.getElementById('conf_enable_org_mode').checked ? 'true' : 'false',
                 enable_overview: document.getElementById('conf_enable_overview').checked ? 'true' : 'false',
+                enable_simulator: document.getElementById('conf_enable_simulator') ? (document.getElementById('conf_enable_simulator').checked ? 'true' : 'false') : 'true',
                 auto_backup_enabled: document.getElementById('conf_auto_backup_enabled').checked ? 'true' : 'false',
                 auto_backup_frequency: document.getElementById('conf_auto_backup_frequency').value,
                 auto_backup_max_count: document.getElementById('conf_auto_backup_max_count').value,
@@ -545,6 +557,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 });
                 document.querySelectorAll('.nav-btn[data-view="overview"]').forEach(btn => {
                     btn.style.display = data.enable_overview === 'true' ? '' : 'none';
+                });
+                document.querySelectorAll('.nav-btn[data-view="simulator"]').forEach(btn => {
+                    btn.style.display = data.enable_simulator === 'true' ? '' : 'none';
                 });
             }
             

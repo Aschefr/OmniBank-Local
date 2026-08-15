@@ -578,7 +578,7 @@ window.OverviewView = {
                         <th style="width: 140px;">${catTh}</th>
                         ${isOrgMode ? `<th style="width: 110px;">${authorTh}</th>` : ''}
                         <th style="width: 120px; text-align: right;">${amtTh}</th>
-                        <th style="width: 110px; text-align: center;">${actTh}</th>
+                        <th style="width: 150px; text-align: right;">${actTh}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -608,10 +608,15 @@ window.OverviewView = {
                     <td class="ov-td-cat"><span class="overview-cat-badge">${escapeHtml(catLabel)}</span></td>
                     ${authorHtml}
                     <td class="ov-td-amt privacy-blur" style="color: ${amountColor}; font-weight: 700;">${formatCurrency(tx.amount)}</td>
-                    <td class="ov-td-action">
-                        <button class="btn btn-sm overview-recon-action-btn" onclick="window.OverviewView.toggleReconciliation(${tx.id})">
-                            ${reconBtnText}
-                        </button>
+                    <td class="ov-td-action" style="text-align: right; white-space: nowrap;">
+                        <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
+                            <button class="btn btn-sm overview-recon-action-btn" onclick="window.OverviewView.toggleReconciliation(${tx.id})" title="${reconBtnText}">
+                                ${reconBtnText}
+                            </button>
+                            <button class="btn btn-secondary btn-sm ov-action-menu-trigger" style="padding: 4px 8px; font-size: 14px; font-weight: 700; line-height: 1; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; height: 28px; width: 28px;" onclick="event.stopPropagation(); window.OverviewView.toggleActionMenu(${tx.id}, event)" title="${window.i18n.t('th_actions') || 'Actions'}">
+                                ⋮
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -1126,6 +1131,61 @@ window.OverviewView = {
     },
 
 
+    edit(id) {
+        const tx = (this._transactions || []).find(t => t.id === id);
+        if (tx && window.FormView) {
+            window.FormView.openEdit(tx);
+        }
+    },
+
+    duplicate(id) {
+        const tx = (this._transactions || []).find(t => t.id === id);
+        if (tx && window.FormView) {
+            window.FormView.openDuplicate(tx);
+        }
+    },
+
+    async toggleSkip(id) {
+        const row = document.getElementById(`ovRow_${id}`);
+        if (row) {
+            row.style.transition = 'opacity 0.2s, transform 0.2s';
+            row.style.opacity = '0.15';
+            row.style.transform = 'translateX(-10px)';
+            row.style.pointerEvents = 'none';
+        }
+        try {
+            const res = await API.post(`/api/transactions/${id}/toggle_skip`);
+            showUndoToast(window.i18n.t('toast_tx_updated') || "Opération modifiée", res.action_id, () => this.init());
+            Promise.all([window.app.refreshSidebar(), this.init()]).catch(e => console.error('[overview] Erreur refresh arrière-plan:', e));
+        } catch (e) {
+            console.error('[overview] Erreur toggle skip', e);
+            if (row) {
+                row.style.opacity = '1';
+                row.style.transform = '';
+                row.style.pointerEvents = '';
+            }
+        }
+    },
+
+    async delete(id) {
+        if (await showInlineConfirm(window.i18n.t('title_confirmation') || "Confirmation", window.i18n.t('confirm_delete_operation') || "Supprimer cette opération ?")) {
+            const row = document.getElementById(`ovRow_${id}`);
+            if (row) {
+                row.style.transition = 'opacity 0.2s, transform 0.2s';
+                row.style.opacity = '0';
+                row.style.transform = 'translateX(-20px)';
+            }
+            try {
+                const res = await API.del(`/api/transactions/${id}`);
+                showUndoToast(window.i18n.t('toast_tx_deleted') || "Opération supprimée", res.action_id, () => this.init());
+                Promise.all([window.app.refreshSidebar(), this.init()]).catch(e => console.error('[overview] Erreur refresh arrière-plan:', e));
+            } catch (e) {
+                if (row) { row.style.opacity = ''; row.style.transform = ''; }
+                console.error('[overview] Erreur suppression', e);
+            }
+        }
+    },
+
     showAddModal() {
         if (window.FormView) {
             window.FormView.open();
@@ -1166,7 +1226,85 @@ window.OverviewView = {
         });
     },
 
+    toggleActionMenu(id, event) {
+        if (event) event.stopPropagation();
+        const existing = document.getElementById('ovFloatingActionMenu');
+        if (existing) {
+            const wasId = existing.getAttribute('data-tx-id');
+            existing.remove();
+            if (wasId === String(id)) return;
+        }
+
+        const tx = (this._transactions || []).find(t => t.id === id);
+        if (!tx) return;
+
+        const btn = event.currentTarget;
+        const rect = btn.getBoundingClientRect();
+
+        const menu = document.createElement('div');
+        menu.id = 'ovFloatingActionMenu';
+        menu.setAttribute('data-tx-id', String(id));
+        menu.style.position = 'fixed';
+        menu.style.top = `${rect.bottom + 4}px`;
+        menu.style.right = `${window.innerWidth - rect.right}px`;
+        menu.style.zIndex = '99999';
+        menu.style.background = 'var(--bg-surface)';
+        menu.style.border = '1px solid var(--border-color)';
+        menu.style.borderRadius = '8px';
+        menu.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.4)';
+        menu.style.padding = '4px 0';
+        menu.style.minWidth = '170px';
+        menu.style.display = 'flex';
+        menu.style.flexDirection = 'column';
+
+        const editLabel = window.i18n.t('tooltip_edit') || 'Modifier';
+        const dupLabel = window.i18n.t('tooltip_duplicate') || 'Dupliquer';
+        const skipLabel = window.i18n.t('tooltip_skip') || 'Ignorer cette occurrence';
+        const delLabel = window.i18n.t('tooltip_delete') || 'Supprimer';
+
+        let itemsHtml = `
+            <button class="ov-action-menu-item" onclick="window.OverviewView.edit(${id}); window.OverviewView.closeActionMenu();">
+                <span>✏️</span> <span>${editLabel}</span>
+            </button>
+            <button class="ov-action-menu-item" onclick="window.OverviewView.duplicate(${id}); window.OverviewView.closeActionMenu();">
+                <span>📋</span> <span>${dupLabel}</span>
+            </button>
+        `;
+
+        if (tx.recurrence_id) {
+            itemsHtml += `
+                <button class="ov-action-menu-item" onclick="window.OverviewView.toggleSkip(${id}); window.OverviewView.closeActionMenu();">
+                    <span>⏭️</span> <span>${skipLabel}</span>
+                </button>
+            `;
+        }
+
+        itemsHtml += `
+            <div style="height:1px; background:var(--border-color); margin:4px 0;"></div>
+            <button class="ov-action-menu-item" style="color:#ef4444;" onclick="window.OverviewView.delete(${id}); window.OverviewView.closeActionMenu();">
+                <span>🗑️</span> <span>${delLabel}</span>
+            </button>
+        `;
+
+        menu.innerHTML = itemsHtml;
+        document.body.appendChild(menu);
+
+        const closeHandler = (e) => {
+            if (!menu.contains(e.target) && e.target !== btn) {
+                menu.remove();
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeHandler), 10);
+    },
+
+    closeActionMenu() {
+        const existing = document.getElementById('ovFloatingActionMenu');
+        if (existing) existing.remove();
+    },
+
     destroy() {
+        this.closeActionMenu();
         if (this._chart) {
             this._chart.destroy();
             this._chart = null;

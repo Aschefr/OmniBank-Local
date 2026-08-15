@@ -20,7 +20,8 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     
-    <link rel="stylesheet" href="/static/css/style.css?v=10">
+    <link rel="stylesheet" href="/static/css/style.css?v=12">
+
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
@@ -49,8 +50,10 @@
                 <button data-view="analytics" class="nav-btn">📊 <span data-i18n="nav_analytics">Synthèse</span></button>
                 <button data-view="budgets" class="nav-btn">🎯 <span data-i18n="nav_budgets">Budgets</span></button>
                 <button data-view="trends" class="nav-btn">📉 <span data-i18n="nav_trends">Tendances</span></button>
+                <button data-view="simulator" class="nav-btn">🔮 <span data-i18n="nav_simulator">Simulateur</span></button>
                 <button data-view="chat" class="nav-btn">💬 <span data-i18n="nav_chat">Chat IA</span></button>
                 <button data-view="recurrences" class="nav-btn">🔄 <span data-i18n="nav_recurrences">Récurrences</span></button>
+
                 <button data-view="categories" class="nav-btn">🏷️ <span data-i18n="nav_categories">Catégories</span></button>
                 <button data-view="accounts" class="nav-btn">🏦 <span data-i18n="nav_accounts">Comptes</span></button>
                 <button data-view="history" class="nav-btn">🕓 <span data-i18n="nav_history_actions">Actions</span></button>
@@ -136,8 +139,10 @@
                     <button data-view="analytics" class="nav-btn" style="text-align: left;">📊 <span data-i18n="nav_analytics">Synthèse</span></button>
                     <button data-view="budgets" class="nav-btn" style="text-align: left;">🎯 <span data-i18n="nav_budgets">Budgets</span></button>
                     <button data-view="trends" class="nav-btn" style="text-align: left;">📉 <span data-i18n="nav_trends">Tendances</span></button>
+                    <button data-view="simulator" class="nav-btn" style="text-align: left;">🔮 <span data-i18n="nav_simulator">Simulateur</span></button>
                     <button data-view="chat" class="nav-btn" style="text-align: left;">💬 <span data-i18n="nav_chat">Chat IA</span></button>
                     <button data-view="recurrences" class="nav-btn" style="text-align: left;">🔄 <span data-i18n="nav_recurrences">Récurrences</span></button>
+
                     <button data-view="categories" class="nav-btn" style="text-align: left;">🏷️ <span data-i18n="nav_categories">Catégories</span></button>
                     <button data-view="accounts" class="nav-btn" style="text-align: left;">🏦 <span data-i18n="nav_accounts">Comptes</span></button>
                     <button data-view="history" class="nav-btn" style="text-align: left;">🕓 <span data-i18n="nav_history_actions">Actions</span></button>
@@ -772,7 +777,7 @@
 
     <script src="/static/js/i18n.js"></script>
     <script src="/static/js/virtual_table.js"></script>
-    <script src="/static/js/common.js?v=10"></script>
+    <script src="/static/js/common.js?v=11"></script>
     <script src="/static/js/components/multi-select.js"></script>
     <script src="/static/js/views/timeline.js?v=2"></script>
     <script src="/static/js/views/all_operations.js?v=2"></script>
@@ -792,7 +797,9 @@
     <script src="/static/js/views/chat/chat_renderer.js?v=6"></script>
     <script src="/static/js/views/chat/chat_actions.js?v=2"></script>
     <script src="/static/js/views/chat/chat_stream.js?v=3"></script>
-    <script src="/static/js/views/chat.js?v=137"></script>
+    <script src="/static/js/views/chat.js?v=139"></script>
+
+
     <script src="/static/js/views/form.js?v=3"></script>
     <script src="/static/js/views/import_wizard.js?v=4"></script>
     <script src="/static/js/views/analytics.js?v=6"></script>
@@ -1126,11 +1133,18 @@
     <script src="/static/js/views/budgets/budgets_ai.js?v=13"></script>
     <script src="/static/js/views/budgets.js?v=3"></script>
     <script src="/static/js/views/trends.js?v=4"></script>
-    <script src="/static/js/views/overview.js?v=1"></script>
+    <script src="/static/js/views/overview.js?v=3"></script>
+    <script src="/static/js/views/simulator.js?v=24"></script>
+
+
+
+
     <script src="/static/js/views/license_manager.js"></script>
     <script src="/static/js/views/setup_wizard.js?v=2"></script>
     <script src="/static/js/views/history_manager.js"></script>
     <script src="/static/js/components/server_config.js"></script>
-    <script src="/static/js/app.js?v=13"></script>
+    <script src="/static/js/app.js?v=14"></script>
+
 </body>
 </html>
+

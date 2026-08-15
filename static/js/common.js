@@ -136,6 +136,36 @@ const API = {
         }
         const res = await fetch(targetUrl, options);
         if (!res.ok) await _handleApiError(res);
+        if (res.status === 204) {
+            if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
+                window.app.updateHeaderHistoryState();
+            }
+            return { ok: true };
+        }
+        const json = await res.json();
+        if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
+            window.app.updateHeaderHistoryState();
+        }
+        return json;
+    },
+    async delete(endpoint, data = null) {
+        return this.del(endpoint, data);
+    },
+    async patch(endpoint, data) {
+        this._invalidateInflight();
+        const targetUrl = this.fullUrl(endpoint);
+        const res = await fetch(targetUrl, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) await _handleApiError(res);
+        if (res.status === 204) {
+            if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
+                window.app.updateHeaderHistoryState();
+            }
+            return { ok: true };
+        }
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
             window.app.updateHeaderHistoryState();

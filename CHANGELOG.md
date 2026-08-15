@@ -2,23 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.83] - 2026-08-14
+## [1.0.83] - 2026-08-15
 
 ### Added & Improved
+- **Financial Project & What-If Scenario Simulator 🔮 (Feature 1.C)**:
+  - **100% Secure Sandbox**: Simulate major financial projects (vehicle purchase, home renovations, mortgage loan, sabbatical leave, cost-of-living adjustments) over customizable horizons (6 to 36 months) without altering or polluting real database transactions.
+  - **Real-Time Prudence & Realism Slider (Curseur de Prudence) 🛡️**: Seamless interactive slider allowing you to blend your real historical past cash flows (`🎯 100% Réel`) with conservative stress-test assumptions (`🛡️ Stress-test`) at 60 FPS with instant curve morphing.
+  - **Direct Clickable Shortcuts & Reset Badges**: Click directly on the extremity labels (`🎯 100% Réel`, `🛡️ Stress-test`, `-100%`, `+20%`) or value badges (`⚖️ 50% Mix`, `0% Normal`) to snap sliders instantly without navigating menus.
+  - **Budget Effort Slider & Monthly Impact ⚡**: Dynamically adjust your variable spending from $-100\%$ to $+20\%$ with real-time feedback displaying the exact monthly saving in €/month.
+  - **Smart Break-Even Advisor ("Conseiller d'Équilibre") 💡**: Automatically calculates the exact effort needed to prevent an overdraft during major projects, offering a one-click button to apply the optimal variable expense reduction.
+  - **Dual-Curve Interactive Projection**: Visualise your simulated financial trajectory with Chart.js compared against your baseline trajectory, including zero-threshold overdraft markers and lowest cash points.
+  - **Instant Scenario Builder & Live Toggles**: Add, edit, or duplicate custom simulated events (one-off expenses, lump-sum incomes, monthly recurring loans, relative percentage variations) with instant toggle switches for real-time recalculations.
+  - **Configurable Reference Income Options**: Choose how your regular income is projected in the baseline trajectory — Auto-estimated 12-month average, Historical N-1 month-by-month seasonality (including 13th month & bonuses), Custom fixed amount (€/month), or Disabled (declared recurrences only).
+  - **Ready-to-Use Presets**: Quick templates with pre-configured parameters for Auto Loans, Home Renovations, Sabbatical Leaves, and Real Estate projects.
+  - **Polished Mobile & Desktop Ergonomics 📱**: Refined mobile viewport with comfortable 14px horizontal margins (preventing text edge-clipping), widened comfortable sliders, and responsive 4-card KPI grid.
+  - **Full Multilingual & Localized Presets**: Complete bilingual (FR/EN) support across all simulator components — including dynamic month labels on curves and tables, localized horizon selectors, overdraft badges, and preset templates that generate scenario descriptions and event labels in the user's active language.
+  - **Optional Feature Toggle in Settings**: Easily enable or disable the Simulator module from the *Fonctionnalités Optionnelles* section in Settings to customize your navigation bar.
+  - **Comprehensive Monthly Breakdown**: Detailed month-by-month table highlighting starting balances, baseline cash flows, simulated impacts, final balances, and critical overdraft alerts.
+
+
+
+
 - **Enhanced AI Assistant Experience & Flawless Formatting 💬**:
   - **Clean & Readable Responses**: The AI assistant now automatically cleans and formats all responses into elegant Markdown, preventing any raw data blocks or technical JSON payloads from cluttering your chat stream.
   - **Polished Financial Insights**: The *"Approfondir avec l'IA"* feature now delivers crystal-clear, structured analytical insights without raw text noise.
   - **Pristine Responsive Chat Interface**: Re-engineered the chat layout to fit your screen seamlessly with zero horizontal overflow, preventing conversation bubbles or sidebars from stretching out of bounds.
 
+- **Direct Quick Actions on Overview Dashboard ⚡**:
+  - **Complete Action Suite**: The *Opérations à rapprocher* list on the Overview page now features the full suite of quick actions directly on each row: **✓ Rapprocher** (Instant reconcile), **⏭️ Passer** (Skip occurrence for recurrences), **📋 Dupliquer** (Clone operation), **✏️ Modifier** (Quick edit modal), and **✕ Supprimer** (Delete with confirmation and undo toast).
+
 - **Faster, Ultra-Responsive App Performance ⚡**:
+
   - **Snappier Page Transitions**: Completely streamlined internal modules across Chat, Settings, and Recurrences for faster loading, silky-smooth modal popups, and improved battery/CPU efficiency.
   - **Smoother Conversation Flow**: Optimized conversation history handling and context compression, ensuring discussions with the AI assistant stay light, snappy, and responsive.
 
 - **Modernized Core & Reliability Boost 🚀**:
   - **Zero-Deprecation Architecture**: Modernized backend API data validation schemas with the latest Pydantic v2 engine (`model_dump()`, `@field_validator`), delivering faster payload parsing and eliminating internal deprecation warnings.
   - **Modernized Application Lifecycle**: Transitioned API startup and background processes to FastAPI's streamlined `lifespan` manager, ensuring rock-solid initializations of background auto-backups, network discovery, and graceful shutdowns.
-  - **Rock-Solid Test Suite (100% Green)**: Hardened test isolation across all functional domains (accounts, multi-profile transfers, AI financial reports, smart recurrences, and currency conversion) with 46/46 tests passing with 0 application warnings.
+  - **Rock-Solid Test Suite (100% Green)**: Hardened test isolation across all functional domains (accounts, multi-profile transfers, AI financial reports, smart recurrences, currency conversion, and simulator) with 52/52 tests passing.
   - **Standardized UTC Time Stamps**: Unified all internal transaction and audit timestamps to modern timezone-aware standards for flawless cross-session accuracy.
+
 
 ## [1.0.82] - 2026-08-07
 

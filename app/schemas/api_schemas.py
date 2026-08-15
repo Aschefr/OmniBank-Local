@@ -1,6 +1,6 @@
 from pydantic import BaseModel, field_validator, ConfigDict
 from typing import Optional, List
-from datetime import date
+from datetime import date, datetime
 
 
 def _validate_date_range(v: Optional[date]) -> Optional[date]:
@@ -256,4 +256,92 @@ class ExchangeRateOut(ExchangeRateBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ─── Simulateur & Scénarios What-If (Lot 1.C) ──────────────────────────────────
+class ScenarioEventBase(BaseModel):
+    label: str
+    event_type: str  # "one_off_expense", "one_off_income", "recurring_expense", "recurring_income", "percentage_adjustment"
+    amount: float = 0.0
+    account_id: Optional[int] = None
+    category: Optional[str] = None
+    start_date: date
+    end_date: Optional[date] = None
+    duration_months: Optional[int] = None
+    is_active: bool = True
+    notes: Optional[str] = None
+
+    @field_validator('start_date', 'end_date', mode='after')
+    @classmethod
+    def validate_dates(cls, v: Optional[date]) -> Optional[date]:
+        return _validate_date_range(v)
+
+class ScenarioEventCreate(ScenarioEventBase):
+    pass
+
+class ScenarioEventUpdate(BaseModel):
+    label: Optional[str] = None
+    event_type: Optional[str] = None
+    amount: Optional[float] = None
+    account_id: Optional[int] = None
+    category: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    duration_months: Optional[int] = None
+    is_active: Optional[bool] = None
+    notes: Optional[str] = None
+
+    @field_validator('start_date', 'end_date', mode='after')
+    @classmethod
+    def validate_dates(cls, v: Optional[date]) -> Optional[date]:
+        return _validate_date_range(v)
+
+class ScenarioEventOut(ScenarioEventBase):
+    id: int
+    scenario_id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ScenarioBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    color: Optional[str] = "#8b5cf6"
+    is_active: bool = True
+
+class ScenarioCreate(ScenarioBase):
+    events: Optional[List[ScenarioEventCreate]] = []
+
+class ScenarioUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class ScenarioOut(ScenarioBase):
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    events: List[ScenarioEventOut] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+class SimulationRunRequest(BaseModel):
+    scenario_id: Optional[int] = None
+    horizon_months: int = 12  # 6, 12, 18, 24, 36
+    account_id: Optional[int] = None  # None = main account / all liquid accounts
+    custom_events: Optional[List[ScenarioEventBase]] = None  # For instant live simulation without saving
+    income_mode: Optional[str] = "auto"  # 'auto', 'historical_n1', 'custom', 'none'
+    custom_income_amount: Optional[float] = None  # in €/month when income_mode == 'custom'
+    inflation_rate: Optional[float] = 0.0  # Annual inflation rate (e.g. 0.03 = 3%/year), 0 = disabled
+    variable_expense_adjustment_pct: Optional[float] = 0.0  # Effort/adjustment on variable spending (-0.20 = -20%, +0.10 = +10%)
+    projection_profile: Optional[str] = "realistic"  # 'realistic' (flux réels constatés) ou 'conservative' (stress-test strict)
+    conservative_weight: Optional[float] = None  # Curseur continu de prudence : 0.0 (100% Réel) à 1.0 (100% Conservateur)
+
+
+
 

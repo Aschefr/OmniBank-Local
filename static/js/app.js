@@ -275,6 +275,12 @@ class App {
             btn.style.display = this.config.enable_overview === 'true' ? '' : 'none';
         });
 
+        // Simulator Features Visibility
+        document.querySelectorAll('.nav-btn[data-view="simulator"]').forEach(btn => {
+            btn.style.display = this.config.enable_simulator !== 'false' ? '' : 'none';
+        });
+
+
         // Navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -1570,7 +1576,11 @@ class App {
     }
 
     loadView(viewName) {
+        if (viewName === 'simulator' && this.config.enable_simulator === 'false') {
+            viewName = 'dashboard';
+        }
         this.currentView = viewName;
+
         ProfileStorage.set('omni_current_view', viewName);
         this.updateHeaderHistoryState();
         
@@ -1643,9 +1653,13 @@ class App {
         } else if (viewName === 'trends' && window.TrendsView) {
             main.innerHTML = window.TrendsView.render();
             window.TrendsView.init();
+        } else if (viewName === 'simulator' && window.SimulatorView) {
+            main.innerHTML = window.SimulatorView.render();
+            window.SimulatorView.init();
         } else if (viewName === 'history' && window.HistoryView) {
             main.innerHTML = window.HistoryView.render();
             window.HistoryView.init();
+
         } else {
             main.innerHTML = `<h2>${window.i18n.t('nav_' + viewName)}</h2><p>${window.i18n.t('label_in_construction')}</p>`;
         }
