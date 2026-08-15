@@ -426,6 +426,48 @@ def init_db(target_engine=None):
                 pass
             conn.commit()
 
+        if schema_version < 18:
+            # Schema v18: Simulator & What-If Scenarios (Sandbox)
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS scenarios (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        description TEXT,
+                        color TEXT DEFAULT '#8b5cf6',
+                        is_active BOOLEAN DEFAULT 1,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS scenario_events (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        scenario_id INTEGER NOT NULL REFERENCES scenarios(id) ON DELETE CASCADE,
+                        label TEXT NOT NULL,
+                        event_type TEXT NOT NULL,
+                        amount REAL NOT NULL DEFAULT 0.0,
+                        account_id INTEGER REFERENCES accounts(id),
+                        category TEXT,
+                        start_date DATE NOT NULL,
+                        end_date DATE,
+                        duration_months INTEGER,
+                        is_active BOOLEAN DEFAULT 1,
+                        notes TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_scenario_events_scenario_id ON scenario_events (scenario_id)"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '18')"))
+            except Exception:
+                pass
+            conn.commit()
+
+
 
 
 def wipe_db(db: Session):

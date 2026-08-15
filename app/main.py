@@ -163,7 +163,8 @@ from app.routers import (
     notifications,
     history,
     profiles,
-    cross_profile
+    cross_profile,
+    simulator
 )
 
 app.include_router(transactions.router)
@@ -187,6 +188,8 @@ app.include_router(notifications.router)
 app.include_router(history.router)
 app.include_router(profiles.router)
 app.include_router(cross_profile.router)
+app.include_router(simulator.router)
+
 
 
 

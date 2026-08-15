@@ -241,3 +241,41 @@ class AIFact(Base):
     fact_value = Column(String, nullable=False)
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+
+class Scenario(Base):
+    """Bac à sable prévisionnel : Scénario What-If contenant plusieurs événements financiers simulés."""
+    __tablename__ = "scenarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    color = Column(String, default="#8b5cf6")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+    events = relationship("ScenarioEvent", back_populates="scenario", cascade="all, delete-orphan", order_by="ScenarioEvent.start_date")
+
+
+class ScenarioEvent(Base):
+    """Événement financier simulé (dépense/recette unique, récurrente ou variation en %) au sein d'un scénario."""
+    __tablename__ = "scenario_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scenario_id = Column(Integer, ForeignKey("scenarios.id", ondelete="CASCADE"), nullable=False, index=True)
+    label = Column(String, nullable=False)
+    event_type = Column(String, nullable=False)  # "one_off_expense", "one_off_income", "recurring_expense", "recurring_income", "percentage_adjustment"
+    amount = Column(Float, nullable=False, default=0.0)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+    category = Column(String, nullable=True)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=True)
+    duration_months = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+    scenario = relationship("Scenario", back_populates="events")
+

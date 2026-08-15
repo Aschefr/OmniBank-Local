@@ -187,7 +187,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     display: flex;
                     flex-direction: column;
                     position: relative;
-                    max-width: min(85%, 900px);
+                    max-width: 85%;
                     width: fit-content;
                     margin-bottom: 8px;
                     word-break: break-word;
