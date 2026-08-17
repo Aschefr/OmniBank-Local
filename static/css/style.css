@@ -5550,7 +5550,97 @@ body.overview-fullscreen .app-body {
     font-weight: 800;
 }
 
+/* ── Ghost Rows (Lignes fantômes bancaires) ────────────────────────── */
+.ghost-row {
+    transition: background 0.15s ease, opacity 0.15s ease;
+}
+.ghost-row:hover {
+    background: rgba(245, 158, 11, 0.08) !important;
+}
+.ghost-badge {
+    animation: ghostPulse 2s ease-in-out infinite;
+}
+@keyframes ghostPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.75; transform: scale(0.98); }
+}
+#ghostRowsBox {
+    animation: fadeInGhost 0.25s ease-out;
+}
+@keyframes fadeInGhost {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
+.ghost-desktop-table-wrapper {
+    display: block;
+    overflow-x: auto;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.ghost-mobile-cards-wrapper {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.ghost-mobile-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ghost-mobile-card:active {
+    transform: scale(0.99);
+}
+
+@media (max-width: 768px) {
+    .ghost-desktop-table-wrapper {
+        display: none !important;
+    }
+    .ghost-mobile-cards-wrapper {
+        display: flex !important;
+    }
+    .ghost-box-header-btn-wrap {
+        width: 100% !important;
+    }
+    .ghost-box-header-btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+    .overview-op-tr.ov-ghost-tr {
+        background: rgba(245, 158, 11, 0.06) !important;
+        border: 1px dashed rgba(245, 158, 11, 0.4) !important;
+        border-left: 3px dashed #f59e0b !important;
+    }
+}
+
+.ov-ghost-tr:hover {
+    background: rgba(245, 158, 11, 0.08) !important;
+}
+
+/* Bouton Doré Premium pour validation groupée fantômes */
+.btn-gold {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+    border: 1px solid #92400e !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(180, 83, 9, 0.25) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+    transition: all 0.15s ease !important;
+}
+
+.btn-gold:hover {
+    background: linear-gradient(135deg, #e58712 0%, #c25e10 100%) !important;
+    border-color: #a14810 !important;
+    box-shadow: 0 3px 10px rgba(180, 83, 9, 0.35) !important;
+    transform: translateY(-1px);
+}
+
+.btn-gold:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(180, 83, 9, 0.2) !important;
+}
 
 
 

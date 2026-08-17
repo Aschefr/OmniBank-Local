@@ -66,7 +66,10 @@ def pytest_sessionfinish(session, exitstatus):
                 # Restauration immédiate du snapshot de sécurité
                 snapshot_src = os.path.join(_SNAPSHOT_DIR, fname)
                 if os.path.isfile(snapshot_src):
-                    shutil.copy2(snapshot_src, target_path)
+                    try:
+                        shutil.copy2(snapshot_src, target_path)
+                    except OSError:
+                        pass
 
         profiles_dir = os.path.join(data_dir, "profiles")
         initial_dirs = _BASELINE_HASHES.get("_initial_profile_dirs", set())

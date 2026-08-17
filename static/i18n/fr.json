@@ -1881,5 +1881,18 @@
   "acc_th_current_balance": "Solde Actuel",
   "bank_badge_found_online_tooltip": "Opération détectée sur votre compte bancaire. Cliquez pour rapprocher en 1 clic !",
   "bank_sync_ready_to_reconcile": "prête(s) à rapprocher",
-  "bank_sync_reconciled_success": "Opération rapprochée avec succès !"
+  "bank_sync_reconciled_success": "Opération rapprochée avec succès !",
+  "ghost_validation_header": "Validation d'une opération en ligne",
+  "ghost_validate_single": "Valider",
+  "ghost_edit_single": "Modifier",
+  "ghost_dismiss_single": "Ignorer",
+  "ghost_commit_all": "Valider les nouvelles opérations",
+  "ghost_commit_all_confirm": "Valider {count} nouvelle(s) opération(s) d'un seul coup ?",
+  "ghost_committed_success": "{count} opération(s) validée(s) avec succès",
+  "ghost_dismissed": "Opération ignorée",
+  "ghost_validated": "Opération validée",
+  "ghost_new_operations": "Nouvelles opérations en ligne",
+  "ghost_box_title": "Opérations en ligne non enregistrées",
+  "ghost_badge": "En ligne",
+  "ghost_auto_categorizing": "Catégorisation IA en cours..."
 }
