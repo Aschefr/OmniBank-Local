@@ -296,6 +296,73 @@ def reconcile_all_matched_pending(db: Session = Depends(get_db)):
     return {"ok": True, "reconciled_count": reconciled_count}
 
 
+@router.post("/commit-ghost")
+def commit_single_ghost_transaction(data: Dict[str, Any], db: Session = Depends(get_db)):
+    """Valide et enregistre en base une ligne fantôme individuelle (1-clic ou modale FormView)."""
+    from app.services.bank_sync_scheduler import remove_committed_from_pending
+    conn_id = data.get("connection_id", 0)
+    tx_data = data.get("transaction", {})
+    if not tx_data:
+        raise HTTPException(status_code=400, detail="Données de transaction requises")
+
+    csv_id = tx_data.get("csv_id")
+    res = BankSyncService.commit_reviewed_transactions(
+        db=db,
+        connection_id=conn_id,
+        transactions_data=[tx_data]
+    )
+
+    if csv_id:
+        remove_committed_from_pending(db, [csv_id])
+
+    return {"ok": True, "result": res}
+
+
+@router.post("/commit-all-ghosts")
+def commit_all_ghost_transactions(db: Session = Depends(get_db)):
+    """Valide et enregistre en lot toutes les nouvelles opérations fantômes non encore rapprochées."""
+    from app.services.bank_sync_scheduler import get_all_pending_sync, remove_committed_from_pending
+    pending = get_all_pending_sync(db)
+    committed_total = 0
+    csv_ids_to_purge = []
+
+    # Parcourir chaque compte et récupérer les transactions non rapprochées
+    for acc in pending.get("accounts", []):
+        conn_id = acc.get("connection_id", 0)
+        account_id = acc.get("account_id")
+        unreconciled_txs = []
+        for tx in acc.get("transactions", []):
+            if not tx.get("is_reconciled"):
+                tx_copy = dict(tx)
+                if not tx_copy.get("account_id"):
+                    tx_copy["account_id"] = account_id
+                unreconciled_txs.append(tx_copy)
+                if tx_copy.get("csv_id"):
+                    csv_ids_to_purge.append(tx_copy["csv_id"])
+
+        if unreconciled_txs:
+            res = BankSyncService.commit_reviewed_transactions(
+                db=db,
+                connection_id=conn_id,
+                transactions_data=unreconciled_txs
+            )
+            committed_total += res.get("imported", 0)
+
+    if csv_ids_to_purge:
+        remove_committed_from_pending(db, csv_ids_to_purge)
+
+    return {"ok": True, "committed_count": committed_total}
+
+
+@router.post("/dismiss-ghost/{csv_id}")
+def dismiss_single_ghost(csv_id: str, db: Session = Depends(get_db)):
+    """Ignore et retire du sas d'attente une ligne fantôme."""
+    from app.services.bank_sync_scheduler import dismiss_pending_transaction
+    success = dismiss_pending_transaction(db, csv_id)
+    return {"ok": True, "dismissed": success}
+
+
+
 @router.post("/test-credentials", response_model=List[RemoteAccountOut])
 def test_credentials(data: TestConnectionRequest):
     """Teste des identifiants bruts et retourne la liste des comptes distants détectés."""

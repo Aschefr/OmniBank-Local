@@ -11,6 +11,9 @@ window.FormView = {
     _deleteMode: false,
     _pendingDelete: false,
     _pendingDeleteTimer: null,
+    _ghostMode: false,
+    _ghostCsvId: null,
+    _ghostConnId: null,
 
     _setupCategoriesListener() {
         if (this._categoriesListenerBound) return;
@@ -461,14 +464,65 @@ window.FormView = {
         document.getElementById('operationModal').style.display = 'flex';
     },
 
+    async openGhost(ghostTx) {
+        await this.open();
+        this._ghostMode = true;
+        this._ghostCsvId = ghostTx.csv_id || null;
+        this._ghostConnId = ghostTx.connection_id || null;
+
+        document.getElementById('op_desc').value = ghostTx.description || '';
+        const rawAmt = typeof ghostTx.raw_amount !== 'undefined' ? parseFloat(ghostTx.raw_amount) : (parseFloat(ghostTx.amount) || 0);
+        const absAmt = Math.abs(parseFloat(ghostTx.amount) || rawAmt || 0);
+        document.getElementById('op_amount').value = absAmt ? absAmt.toFixed(2) : '';
+
+        const opDate = ghostTx.date_operation ? String(ghostTx.date_operation).substring(0, 10) : new Date().toISOString().split('T')[0];
+        document.getElementById('op_date').value = opDate;
+        document.getElementById('op_recon_date').value = new Date().toISOString().split('T')[0];
+
+        const accId = ghostTx.account_id ? String(ghostTx.account_id) : '';
+        if (rawAmt < 0) {
+            document.getElementById('op_from_account').value = accId;
+            document.getElementById('op_to_account').value = '';
+        } else {
+            document.getElementById('op_from_account').value = '';
+            document.getElementById('op_to_account').value = accId;
+        }
+
+        this.updateInferredType();
+        this.renderCategories();
+
+        if (ghostTx.category) {
+            document.getElementById('op_category').value = ghostTx.category;
+        }
+
+        const modalTitle = document.getElementById('operationModalTitle') || document.querySelector('#operationModal h3');
+        if (modalTitle) {
+            if (!modalTitle.dataset.origText) {
+                modalTitle.dataset.origText = modalTitle.innerHTML;
+            }
+            modalTitle.innerHTML = `👻 ${window.i18n ? window.i18n.t('ghost_validation_header') || 'Validation d\'une opération en ligne' : 'Validation d\'une opération en ligne'}`;
+        }
+    },
+
     close() {
         document.getElementById('operationModal').style.display = 'none';
         this.currentTxId = null;
         this.currentTxBase = null;
+        this._ghostMode = false;
+        this._ghostCsvId = null;
+        this._ghostConnId = null;
+
+        const modalTitle = document.getElementById('operationModalTitle') || document.querySelector('#operationModal h3');
+        if (modalTitle && modalTitle.dataset.origText) {
+            modalTitle.innerHTML = modalTitle.dataset.origText;
+            delete modalTitle.dataset.origText;
+        }
+
         // Reset delete pending state
         this._pendingDelete = false;
         if (this._pendingDeleteTimer) { clearTimeout(this._pendingDeleteTimer); this._pendingDeleteTimer = null; }
     },
+
 
     toggleRecurrenceFields() {
         const isRecurrent = document.getElementById('op_is_recurrent').checked;
@@ -1195,10 +1249,46 @@ window.FormView = {
     async executeSave(propagate) {
         try {
             let actionId = null;
+
+            if (this._ghostMode === true) {
+                // GHOST TRANSACTION COMMIT
+                const ghostAccId = this.pendingSaveData.from_account_id || this.pendingSaveData.to_account_id;
+                const isIncome = this.pendingSaveData.type === 'income';
+                const ghostPayload = {
+                    connection_id: this._ghostConnId || 0,
+                    transaction: {
+                        csv_id: this._ghostCsvId,
+                        description: this.pendingSaveData.description,
+                        amount: this.pendingSaveData.amount,
+                        raw_amount: isIncome ? this.pendingSaveData.amount : -this.pendingSaveData.amount,
+                        date_operation: this.pendingSaveData.date_operation,
+                        category: this.pendingSaveData.category || null,
+                        account_id: ghostAccId,
+                        is_reconciled: false
+                    }
+                };
+                await API.post('/api/bank-sync/commit-ghost', ghostPayload);
+                if (window.BankSyncView && window.BankSyncView.ghostTransactions) {
+                    window.BankSyncView.ghostTransactions = window.BankSyncView.ghostTransactions.filter(g => g.csv_id !== this._ghostCsvId);
+                }
+                this._ghostMode = false;
+                this._ghostCsvId = null;
+                this._ghostConnId = null;
+                this.close();
+                if (window.BankSyncView && typeof window.BankSyncView.refreshActiveViews === 'function') {
+                    await window.BankSyncView.refreshActiveViews();
+                }
+                if (typeof showToast === 'function') {
+                    showToast(window.i18n ? window.i18n.t('ghost_validated') || 'Opération validée' : 'Opération validée', 'success');
+                }
+                return;
+            }
+
             if (this.currentTxId) {
                 // UPDATE
                 const res = await API.put(`/api/transactions/${this.currentTxId}?propagate=${propagate}`, this.pendingSaveData);
                 actionId = res.action_id;
+
                 
                 // If propagating and recurrence limit changed, update template and regenerate
                 if (propagate && this.currentTxBase && this.currentTxBase.recurrence_id) {

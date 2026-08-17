@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [1.0.84] - 2026-08-17
 
 ### Added & Improved
+- **Organic Bank Sync & Ghost Rows Validation Engine 👻⚡**:
+  - **100% Visual Ghost Rows**: Unreconciled transactions detected online now display naturally in dedicated ghost panels above Dashboard (Timeline) and All Operations views, as well as seamlessly injected at the top of the Vue d'ensemble (Overview) table with distinct styling, pulsating badges (`👻 Online`), and zero premature database writes.
+  - **1-Click Direct Validation (`✔ Valider`)**: Instant inline validation persists ghost transactions into SQLite with today's reconciliation date, records audit history, and cleans the sync staging buffer.
+  - **In-App Editing via Standard Form (`✏️ Modifier`)**: Opens the standard transaction modal pre-filled (`FormView.openGhost()`), allowing users to adjust category, description, accounts, and dates before saving.
+  - **Dismiss Ghost Row (`✕ Ignorer`)**: Instantly removes unwanted or irrelevant pending transactions from the staging buffer without touching database records.
+  - **Batch Commit All Ghosts (`📥 Valider les nouvelles opérations`)**: One-click bulk validation with golden button (`.btn-gold`) and inline confirmation modal (`showInlineConfirm`) to record all newly detected transactions at once.
+  - **Background AI Auto-Categorization (Ollama)**: Automatically suggests categories for unrecorded online transactions in the background when AI is enabled.
+  - **Mobile Card Viewport Transformation**: Automatically transforms ghost rows and overview tables into tactile mobile cards on viewports ≤ 768px.
+  - **Comprehensive Test Coverage & Bilingual Support**: Added complete pytest unit tests verifying the full ghost rows lifecycle and 100% synchronized FR/EN i18n keys.
 - **Universal Bank Synchronization & Open-Banking Engine (Woob) 🏦⚡**:
   - **100% Local & Zero-Cloud Security**: Connect your bank accounts directly through local Woob backend modules with zero third-party cloud intermediates, zero telemetry, and zero data leakage.
   - **Encrypted Credential Vault (Fernet AES-128)**: Secure in-memory vault session protected by your master password with configurable auto-lock TTL.

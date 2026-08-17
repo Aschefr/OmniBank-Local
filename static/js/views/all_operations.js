@@ -89,6 +89,7 @@ window.AllOperationsView = {
                 </div>
             </div>
             <div style="padding-bottom: 20px;">
+                <div id="allOpsGhostBox"></div>
                 <table class="data-table timeline-table mobile-card-table">
                     <thead>
                         <tr>
@@ -432,8 +433,17 @@ window.AllOperationsView = {
         const unrecFilter = document.getElementById('historyUnreconciledFilter');
         const unrecChecked = unrecFilter ? unrecFilter.checked : false;
 
+        // Rendu du bloc d'opérations fantômes bancaires en attente
+        if (window.BankSyncView && typeof window.BankSyncView.renderGhostBox === 'function') {
+            const ghostContainer = document.getElementById('allOpsGhostBox');
+            if (ghostContainer) {
+                window.BankSyncView.renderGhostBox(ghostContainer, tAcc || null);
+            }
+        }
+
         // Apply filters
         let filtered = this.transactions;
+
         if (q) {
             filtered = filtered.filter(tx => 
                 window.cleanStringForSearch(tx.description || '').includes(q) ||

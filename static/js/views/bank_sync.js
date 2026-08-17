@@ -20,6 +20,8 @@ window.BankSyncView = {
 
     // Correspondances en attente pour pointage rapide depuis Dashboard & Historique
     pendingMatches: {},
+    ghostTransactions: [],
+    _ghostCategorized: false,
     vaultStatus: { is_unlocked: false, remaining_days: 0, remaining_seconds: 0 },
     autoSyncSettings: { enabled: false, interval_hours: 24 },
 
@@ -755,11 +757,63 @@ window.BankSyncView = {
         try {
             const data = await API.get('/api/bank-sync/pending');
             this.pendingMatches = data?.matches_by_tx_id || {};
+
+            // Extraire toutes les opérations fantômes (non encore rapprochées)
+            this.ghostTransactions = [];
+            if (data && data.accounts) {
+                data.accounts.forEach(acc => {
+                    const connId = acc.connection_id || 0;
+                    const connLabel = acc.connection_label || '';
+                    const accId = acc.account_id;
+                    const accName = acc.account_name || acc.name || `Compte #${accId}`;
+                    (acc.transactions || []).forEach(tx => {
+                        if (!tx.is_reconciled) {
+                            this.ghostTransactions.push({
+                                ...tx,
+                                account_id: tx.account_id || accId,
+                                account_name: accName,
+                                connection_id: connId,
+                                connection_label: connLabel
+                            });
+                        }
+                    });
+                });
+            }
+
+            // Auto-catégorisation IA en tâche de fond si activée
+            if (this.isAIEnabled() && !this._ghostCategorized && this.ghostTransactions.some(g => !g.category)) {
+                this.autoCategorizeGhosts();
+            }
+
             this.renderPendingSyncBox(data);
             return data;
         } catch (e) {
             console.warn('[BankSync] Erreur chargement pending sync:', e);
             return null;
+        }
+    },
+
+    async autoCategorizeGhosts() {
+        const toCat = this.ghostTransactions.filter(g => !g.category && g.description);
+        if (!toCat.length) return;
+        this._ghostCategorized = true;
+        try {
+            const descriptions = Array.from(new Set(toCat.map(g => g.description)));
+            const res = await API.post('/api/ai/categorize_batch', { descriptions });
+            if (res && res.categories) {
+                this.ghostTransactions.forEach(g => {
+                    if (!g.category && res.categories[g.description]) {
+                        g.category = res.categories[g.description];
+                    }
+                });
+                // Re-render ghost box in current view
+                const box = document.getElementById('ghostRowsBox');
+                if (box && box.parentElement) {
+                    this.renderGhostBox(box.parentElement);
+                }
+            }
+        } catch(e) {
+            console.warn('[BankSync] Erreur auto-catégorisation IA des fantômes:', e);
         }
     },
 
@@ -827,6 +881,11 @@ window.BankSyncView = {
                     <span>⚡</span> <span>${window.i18n.t('bank_btn_reconcile_all') || 'Rapprocher en banque'} (${totalMatches})</span>
                 </button>
                 ` : ''}
+                ${totalNew > 0 ? `
+                <button class="btn btn-gold" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 700; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
+                    <span>📥</span> <span>${window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations'} (${totalNew})</span>
+                </button>
+                ` : ''}
                 ${data.accounts && data.accounts.length > 0 ? `
                 <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
                     <span>📋</span> <span>${window.i18n.t('bank_sync_pending_review_btn') || 'Ouvrir la revue'}</span>
@@ -835,6 +894,210 @@ window.BankSyncView = {
             </div>
         </div>
         `;
+    },
+
+    renderGhostBox(container, accountFilter = null) {
+        let box = document.getElementById('ghostRowsBox');
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'ghostRowsBox';
+            if (container) {
+                container.insertBefore(box, container.firstChild);
+            }
+        }
+
+        let ghosts = this.ghostTransactions || [];
+        if (accountFilter) {
+            ghosts = ghosts.filter(g => String(g.account_id) === String(accountFilter));
+        }
+
+        if (ghosts.length === 0) {
+            box.style.display = 'none';
+            box.innerHTML = '';
+            return;
+        }
+
+        box.style.display = 'block';
+        const totalCount = ghosts.length;
+
+        const rowsHtml = ghosts.map(g => {
+            const rawAmt = typeof g.raw_amount !== 'undefined' ? parseFloat(g.raw_amount) : (parseFloat(g.amount) || 0);
+            const absAmt = Math.abs(parseFloat(g.amount) || rawAmt || 0);
+            const isPositive = rawAmt >= 0;
+            const amtFormatted = (isPositive ? '+ ' : '- ') + absAmt.toFixed(2) + ' €';
+            const amtColor = isPositive ? 'var(--accent-success, #10b981)' : 'var(--text-main, #f87171)';
+            const dateStr = g.date_operation ? String(g.date_operation).substring(0, 10) : '';
+
+            return `
+            <tr class="ghost-row" style="background: rgba(245, 158, 11, 0.04); border-left: 3px dashed #f59e0b; transition: background 0.15s ease;">
+                <td style="padding: 8px 12px; font-size: 11px; white-space: nowrap;">
+                    <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
+                </td>
+                <td style="padding: 8px 12px; font-size: 12px; white-space: nowrap; color: var(--text-muted);">${dateStr}</td>
+                <td style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--text-main);">${window.escapeHtml ? window.escapeHtml(g.description) : g.description}</td>
+                <td style="padding: 8px 12px; font-size: 11px; color: var(--text-muted);">${g.account_name ? (window.escapeHtml ? window.escapeHtml(g.account_name) : g.account_name) : ''}</td>
+                <td style="padding: 8px 12px; font-size: 11px;">
+                    ${g.category ? `<span style="background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">🏷️ ${window.escapeHtml ? window.escapeHtml(g.category) : g.category}</span>` : `<span style="color: var(--text-muted); font-size: 11px; font-style: italic;">Sans catégorie</span>`}
+                </td>
+                <td style="padding: 8px 12px; font-size: 12px; font-weight: 700; text-align: right; color: ${amtColor}; white-space: nowrap;">${amtFormatted}</td>
+                <td style="padding: 8px 12px; text-align: right; white-space: nowrap;">
+                    <div style="display: inline-flex; gap: 4px; align-items: center;">
+                        <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11px; padding: 3px 8px; border-radius: 4px; height: 24px; font-weight: 700;">
+                            ✔ ${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}
+                        </button>
+                        <button class="btn btn-secondary" onclick="window.BankSyncView.editGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_edit_single') || 'Modifier' : 'Modifier'}" style="font-size: 11px; padding: 3px 8px; border-radius: 4px; height: 24px;">
+                            ✏️
+                        </button>
+                        <button class="btn btn-secondary" onclick="window.BankSyncView.dismissGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_dismiss_single') || 'Ignorer' : 'Ignorer'}" style="font-size: 11px; padding: 3px 6px; border-radius: 4px; height: 24px; color: var(--text-muted);">
+                            ✕
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            `;
+        }).join('');
+
+        const cardsHtml = ghosts.map(g => {
+            const rawAmt = typeof g.raw_amount !== 'undefined' ? parseFloat(g.raw_amount) : (parseFloat(g.amount) || 0);
+            const absAmt = Math.abs(parseFloat(g.amount) || rawAmt || 0);
+            const isPositive = rawAmt >= 0;
+            const amtFormatted = (isPositive ? '+ ' : '- ') + absAmt.toFixed(2) + ' €';
+            const amtColor = isPositive ? 'var(--accent-success, #10b981)' : 'var(--text-main, #f87171)';
+            const dateStr = g.date_operation ? String(g.date_operation).substring(0, 10) : '';
+
+            return `
+            <div class="ghost-mobile-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-left: 3px dashed #f59e0b; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
+                        <span style="font-size: 11px; color: var(--text-muted);">${dateStr}</span>
+                    </div>
+                    <span style="font-size: 13px; font-weight: 800; color: ${amtColor};">${amtFormatted}</span>
+                </div>
+                <div style="font-size: 13px; font-weight: 600; color: var(--text-main); line-height: 1.3;">
+                    ${window.escapeHtml ? window.escapeHtml(g.description) : g.description}
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px;">
+                    ${g.account_name ? `<span style="background: var(--bg-base); border: 1px solid var(--border-color); color: var(--text-muted); padding: 1px 6px; border-radius: 4px; font-size: 11px;">💳 ${window.escapeHtml ? window.escapeHtml(g.account_name) : g.account_name}</span>` : ''}
+                    ${g.category ? `<span style="background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">🏷️ ${window.escapeHtml ? window.escapeHtml(g.category) : g.category}</span>` : `<span style="color: var(--text-muted); font-size: 11px; font-style: italic;">Sans catégorie</span>`}
+                </div>
+                <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--border-color);">
+                    <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" style="flex: 1; font-size: 12px; padding: 6px 10px; border-radius: 6px; font-weight: 700; height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                        ✔ ${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}
+                    </button>
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.editGhostRow('${g.csv_id}')" style="font-size: 12px; padding: 6px 12px; border-radius: 6px; height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                        ✏️ ${window.i18n ? window.i18n.t('ghost_edit_single') || 'Modifier' : 'Modifier'}
+                    </button>
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.dismissGhostRow('${g.csv_id}')" style="font-size: 12px; padding: 6px 10px; border-radius: 6px; height: 32px; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center;" title="${window.i18n ? window.i18n.t('ghost_dismiss_single') || 'Ignorer' : 'Ignorer'}">
+                        ✕
+                    </button>
+                </div>
+            </div>
+            `;
+        }).join('');
+
+        box.innerHTML = `
+        <div class="ghost-rows-container" style="background: rgba(245, 158, 11, 0.06); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 18px;">👻</span>
+                    <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">
+                        ${window.i18n ? window.i18n.t('ghost_box_title') || 'Opérations en ligne non enregistrées' : 'Opérations en ligne non enregistrées'}
+                    </span>
+                    <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px;">
+                        ${totalCount}
+                    </span>
+                </div>
+                <div class="ghost-box-header-btn-wrap" style="display: flex;">
+                    <button class="btn btn-gold ghost-box-header-btn" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 14px; border-radius: 6px; font-weight: 700; height: 30px; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>📥</span> <span>${window.i18n ? window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations' : 'Valider les nouvelles opérations'} (${totalCount})</span>
+                    </button>
+                </div>
+            </div>
+            <!-- Vue Tableau Desktop -->
+            <div class="ghost-desktop-table-wrapper">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid rgba(245, 158, 11, 0.2); text-align: left; color: var(--text-muted); font-size: 11px;">
+                            <th style="padding: 4px 12px; width: 60px;">Statut</th>
+                            <th style="padding: 4px 12px; width: 90px;">Date</th>
+                            <th style="padding: 4px 12px;">Description</th>
+                            <th style="padding: 4px 12px; width: 140px;">Compte</th>
+                            <th style="padding: 4px 12px; width: 140px;">Catégorie</th>
+                            <th style="padding: 4px 12px; width: 100px; text-align: right;">Montant</th>
+                            <th style="padding: 4px 12px; width: 130px; text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+            <!-- Vue Cartes Mobile -->
+            <div class="ghost-mobile-cards-wrapper">
+                ${cardsHtml}
+            </div>
+        </div>
+        `;
+    },
+
+
+    async validateGhostRow(csvId) {
+        const ghost = this.ghostTransactions.find(g => g.csv_id === csvId);
+        if (!ghost) return;
+        try {
+            await API.post('/api/bank-sync/commit-ghost', {
+                connection_id: ghost.connection_id || 0,
+                transaction: ghost
+            });
+            this.ghostTransactions = this.ghostTransactions.filter(g => g.csv_id !== csvId);
+            this.showToast(window.i18n ? window.i18n.t('ghost_validated') || 'Opération validée' : 'Opération validée', 'success');
+            await this.refreshActiveViews();
+        } catch (err) {
+            this.showToast('Erreur validation : ' + (err.detail || err.message), 'error');
+        }
+    },
+
+    async dismissGhostRow(csvId) {
+        try {
+            await API.post(`/api/bank-sync/dismiss-ghost/${encodeURIComponent(csvId)}`);
+            this.ghostTransactions = this.ghostTransactions.filter(g => g.csv_id !== csvId);
+            this.showToast(window.i18n ? window.i18n.t('ghost_dismissed') || 'Opération ignorée' : 'Opération ignorée', 'info');
+            await this.refreshActiveViews();
+        } catch (err) {
+            this.showToast('Erreur : ' + (err.detail || err.message), 'error');
+        }
+    },
+
+    editGhostRow(csvId) {
+        const ghost = this.ghostTransactions.find(g => g.csv_id === csvId);
+        if (!ghost) return;
+        if (window.FormView && typeof window.FormView.openGhost === 'function') {
+            window.FormView.openGhost(ghost);
+        }
+    },
+
+    async commitAllGhosts() {
+        const count = this.ghostTransactions.length;
+        if (count === 0) {
+            this.showToast('Aucune nouvelle opération à valider.', 'info');
+            return;
+        }
+        const confirmMsg = (window.i18n ? window.i18n.t('ghost_commit_all_confirm') || 'Valider {count} nouvelle(s) opération(s) d\'un seul coup ?' : 'Valider {count} nouvelle(s) opération(s) d\'un seul coup ?').replace('{count}', count);
+        if (typeof showInlineConfirm === 'function') {
+            const ok = await showInlineConfirm(window.i18n ? window.i18n.t('title_confirmation') || 'Confirmation' : 'Confirmation', confirmMsg);
+            if (!ok) return;
+        }
+        try {
+            const res = await API.post('/api/bank-sync/commit-all-ghosts');
+            const committed = res?.committed_count || count;
+            const toastMsg = (window.i18n ? window.i18n.t('ghost_committed_success') || '{count} opération(s) validée(s) avec succès' : '{count} opération(s) validée(s) avec succès').replace('{count}', committed);
+            this.showToast(toastMsg, 'success');
+            this.ghostTransactions = [];
+            await this.refreshActiveViews();
+        } catch (err) {
+            this.showToast('Erreur validation en lot : ' + (err.detail || err.message), 'error');
+        }
     },
 
     async openPendingReviewModal() {
@@ -885,6 +1148,7 @@ window.BankSyncView = {
             this.showToast('Erreur : ' + (err.detail || err.message), 'error');
         }
     },
+
 
     // ── PROMPT MASTER PASSWORD (Custom in-app modal) ────────────────
     promptMasterPassword(title = 'Déverrouillage sécurisé', message = 'Entrez votre mot de passe maître :') {

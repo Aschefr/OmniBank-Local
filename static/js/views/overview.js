@@ -385,10 +385,15 @@ window.OverviewView = {
                 </div>
             </div>
 
-            <div style="display: flex; gap: 8px; align-items: center;">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                 ${totalMatches > 0 ? `
                 <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.reconcileAllPending().then(() => window.OverviewView.init())" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
                     ⚡ ${window.i18n.t('bank_btn_reconcile_all') || 'Rapprocher en banque'} (${totalMatches})
+                </button>
+                ` : ''}
+                ${totalNew > 0 ? `
+                <button class="btn btn-gold btn-sm" onclick="window.BankSyncView.commitAllGhosts().then(() => window.OverviewView.init())" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
+                    📥 ${window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations'} (${totalNew})
                 </button>
                 ` : ''}
                 ${pendingData.accounts && pendingData.accounts.length > 0 ? `
@@ -408,32 +413,24 @@ window.OverviewView = {
         const isOrgMode = window.app?.config?.enable_org_mode === 'true';
 
         if (stats.overdraft_warning) {
-            badge.className = 'overview-health-badge badge-danger';
-            badge.innerHTML = `⚠️ ${window.i18n.t('overview_health_overdraft') || 'Risque Découvert'} (${formatCurrency(stats.overdraft_warning.projected_balance)})`;
-        } else if (stats.savings_overflow && stats.savings_overflow.fully_consumed) {
-            badge.className = 'overview-health-badge badge-warning';
-            badge.innerHTML = `🟧 ${window.i18n.t('overview_health_savings_consumed') || 'Épargne entamée'}`;
+            badge.className = 'overview-health-badge danger';
+            badge.textContent = window.i18n.t('overview_health_danger') || '⚠️ Risque Découvert';
         } else if (stats.rest_to_live < 0) {
-            badge.className = 'overview-health-badge badge-warning';
-            badge.innerHTML = `🟧 ${window.i18n.t('overview_health_rav_negative') || 'Reste à vivre négatif'}`;
+            badge.className = 'overview-health-badge warning';
+            badge.textContent = window.i18n.t('overview_health_warning') || '⚡ Reste à vivre négatif';
         } else {
-            badge.className = 'overview-health-badge badge-success';
-            const text = isOrgMode
-                ? (window.i18n.t('overview_org_health_healthy') || 'Trésorerie Saine')
-                : (window.i18n.t('overview_health_healthy') || 'Situation Saine');
-            badge.innerHTML = `🟢 ${text}`;
+            badge.className = 'overview-health-badge success';
+            badge.textContent = isOrgMode
+                ? (window.i18n.t('overview_org_health_ok') || '✨ Trésorerie Saine')
+                : (window.i18n.t('overview_health_ok') || '✨ Budget Équilibré');
         }
     },
 
     _renderHero(stats) {
-        const isOrgMode = window.app?.config?.enable_org_mode === 'true';
-
-        // Tag Mode Org dans le header
-        const orgTag = document.getElementById('ovOrgTag');
-        if (orgTag) orgTag.style.display = isOrgMode ? 'inline-flex' : 'none';
-
         const nw = document.getElementById('ovNetWorth');
         const nwLabel = document.getElementById('ovNetWorthLabel');
+        const isOrgMode = window.app?.config?.enable_org_mode === 'true';
+
         if (nw) {
             if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
                 const acc = this._accountsMap[this._selectedAccountId];
@@ -467,7 +464,6 @@ window.OverviewView = {
             }
         }
 
-        // Projection Fin de Mois
         const projAmt = document.getElementById('ovProjectionAmount');
         const projSub = document.getElementById('ovProjectionSub');
         if (projAmt) {
@@ -555,7 +551,14 @@ window.OverviewView = {
 
         const todayISO = new Date().toISOString().split('T')[0];
 
-        // Filter base unreconciled ops
+        // 1. Filtrer les opérations bancaires fantômes (en attente de validation)
+        let ghosts = (window.BankSyncView && window.BankSyncView.ghostTransactions) || [];
+        if (this._selectedAccountId) {
+            const accIdStr = String(this._selectedAccountId);
+            ghosts = ghosts.filter(g => String(g.account_id) === accIdStr);
+        }
+
+        // 2. Filtrer les opérations prévues de la base
         let allUnreconciled = transactions.filter(tx =>
             !tx.reconciliation_date &&
             !tx.is_skipped &&
@@ -572,17 +575,28 @@ window.OverviewView = {
         allUnreconciled.sort((a, b) => new Date(a.date_operation) - new Date(b.date_operation));
 
         this._unreconciledTxs = allUnreconciled;
-        if (badge) badge.textContent = allUnreconciled.length;
+        const totalPendingCount = allUnreconciled.length + ghosts.length;
+        if (badge) badge.textContent = totalPendingCount;
 
-        // Compute tab counts
+        // Compute tab counts (opérations réelles + fantômes)
         const overdueTxs = allUnreconciled.filter(tx => tx.date_operation < todayISO);
         const expenseTxs = allUnreconciled.filter(tx => tx.type !== 'income');
         const incomeTxs = allUnreconciled.filter(tx => tx.type === 'income');
 
-        document.getElementById('ovTabCount_all').textContent = `(${allUnreconciled.length})`;
-        document.getElementById('ovTabCount_overdue').textContent = `(${overdueTxs.length})`;
-        document.getElementById('ovTabCount_expenses').textContent = `(${expenseTxs.length})`;
-        document.getElementById('ovTabCount_income').textContent = `(${incomeTxs.length})`;
+        const overdueGhosts = ghosts.filter(g => (g.date_operation ? String(g.date_operation).substring(0, 10) : '') < todayISO);
+        const expenseGhosts = ghosts.filter(g => {
+            const raw = typeof g.raw_amount !== 'undefined' ? parseFloat(g.raw_amount) : (parseFloat(g.amount) || 0);
+            return raw < 0;
+        });
+        const incomeGhosts = ghosts.filter(g => {
+            const raw = typeof g.raw_amount !== 'undefined' ? parseFloat(g.raw_amount) : (parseFloat(g.amount) || 0);
+            return raw >= 0;
+        });
+
+        document.getElementById('ovTabCount_all').textContent = `(${totalPendingCount})`;
+        document.getElementById('ovTabCount_overdue').textContent = `(${overdueTxs.length + overdueGhosts.length})`;
+        document.getElementById('ovTabCount_expenses').textContent = `(${expenseTxs.length + expenseGhosts.length})`;
+        document.getElementById('ovTabCount_income').textContent = `(${incomeTxs.length + incomeGhosts.length})`;
 
         // Render Bulk Reconcile Button & Tooltip
         const bulkWrapper = document.getElementById('ovBulkWrapper');
@@ -637,11 +651,17 @@ window.OverviewView = {
             bulkWrapper.style.display = 'none';
         }
 
-        // Apply Tab Filter
+        // Apply Tab Filter (Transactions standard)
         let filtered = allUnreconciled;
         if (this._activeTab === 'overdue') filtered = overdueTxs;
         else if (this._activeTab === 'expenses') filtered = expenseTxs;
         else if (this._activeTab === 'income') filtered = incomeTxs;
+
+        // Apply Tab Filter (Fantômes)
+        let filteredGhosts = ghosts;
+        if (this._activeTab === 'overdue') filteredGhosts = overdueGhosts;
+        else if (this._activeTab === 'expenses') filteredGhosts = expenseGhosts;
+        else if (this._activeTab === 'income') filteredGhosts = incomeGhosts;
 
         // Apply Search Query
         if (this._searchQuery) {
@@ -650,9 +670,14 @@ window.OverviewView = {
                 (tx.description || '').toLowerCase().includes(q) ||
                 (tx.category || '').toLowerCase().includes(q)
             );
+            filteredGhosts = filteredGhosts.filter(g =>
+                (g.description || '').toLowerCase().includes(q) ||
+                (g.category || '').toLowerCase().includes(q) ||
+                (g.account_name || '').toLowerCase().includes(q)
+            );
         }
 
-        if (filtered.length === 0) {
+        if (filtered.length === 0 && filteredGhosts.length === 0) {
             container.innerHTML = `
                 <div class="overview-empty">
                     <span>🎉 ${window.i18n.t('overview_no_unreconciled') || 'Aucune opération à rapprocher'}</span>
@@ -674,6 +699,49 @@ window.OverviewView = {
         const actTh = window.i18n.t('th_actions') || 'Action';
         const reconBtnText = window.i18n.t('btn_reconcile') || '✓ Rapprocher';
 
+        // Lignes fantômes injectées au début du tableau
+        let ghostRowsHtml = '';
+        for (const g of filteredGhosts) {
+            const rawAmt = typeof g.raw_amount !== 'undefined' ? parseFloat(g.raw_amount) : (parseFloat(g.amount) || 0);
+            const absAmt = Math.abs(parseFloat(g.amount) || rawAmt || 0);
+            const isPositive = rawAmt >= 0;
+            const amtFormatted = (isPositive ? '+ ' : '- ') + absAmt.toFixed(2) + ' €';
+            const amtColor = isPositive ? 'var(--accent-success, #10b981)' : 'var(--text-main, #f87171)';
+            const dateStr = g.date_operation ? String(g.date_operation).substring(0, 10) : '';
+            const accName = g.account_name || (g.account_id && this._accountsMap[g.account_id]?.name) || '—';
+            const catLabel = g.category ? `🏷️ ${escapeHtml(g.category)}` : `<span style="color:var(--text-muted); font-size:11px; font-style:italic;">Sans catégorie</span>`;
+            const authorHtml = isOrgMode 
+                ? `<td class="ov-td-author"><span style="color:var(--text-muted); font-size: 11px;">🤖 Woob</span></td>`
+                : '';
+
+            ghostRowsHtml += `
+                <tr id="ovGhostRow_${g.csv_id}" class="overview-op-tr ghost-row ov-ghost-tr" data-ghost-id="${g.csv_id}" style="background: rgba(245, 158, 11, 0.04); border-left: 3px dashed #f59e0b;">
+                    <td class="ov-td-date">
+                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
+                        <span>${dateStr ? formatDate(dateStr) : '—'}</span>
+                    </td>
+                    <td class="ov-td-acc"><span class="overview-acc-badge" style="border-color: rgba(245, 158, 11, 0.3);">${escapeHtml(accName)}</span></td>
+                    <td class="ov-td-desc" title="${escapeHtml(g.description || '')}">${escapeHtml(g.description || '—')}</td>
+                    <td class="ov-td-cat"><span class="overview-cat-badge">${catLabel}</span></td>
+                    ${authorHtml}
+                    <td class="ov-td-amt privacy-blur" style="color: ${amtColor}; font-weight: 700;">${amtFormatted}</td>
+                    <td class="ov-td-action" style="text-align: right; white-space: nowrap;">
+                        <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end;">
+                            <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}').then(() => window.OverviewView.init())" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700; height: 28px; display: inline-flex; align-items: center; gap: 3px;">
+                                ✔ ${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.editGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_edit_single') || 'Modifier' : 'Modifier'}" style="font-size: 11px; padding: 3px 7px; border-radius: 6px; height: 28px;">
+                                ✏️
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.dismissGhostRow('${g.csv_id}').then(() => window.OverviewView.init())" title="${window.i18n ? window.i18n.t('ghost_dismiss_single') || 'Ignorer' : 'Ignorer'}" style="font-size: 11px; padding: 3px 7px; border-radius: 6px; height: 28px; color: var(--text-muted);">
+                                ✕
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
         let html = `
             <table class="overview-ops-table">
                 <thead>
@@ -688,6 +756,7 @@ window.OverviewView = {
                     </tr>
                 </thead>
                 <tbody>
+                    ${ghostRowsHtml}
         `;
 
         for (const tx of display) {
