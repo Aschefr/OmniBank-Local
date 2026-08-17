@@ -87,6 +87,7 @@ window.TimelineView = {
                 </div>
             </div>
             <div style="padding-bottom: 20px;">
+                <div id="timelineGhostBox"></div>
                 <table class="data-table timeline-table mobile-card-table">
                     <thead>
                         <tr>
@@ -475,8 +476,17 @@ window.TimelineView = {
         const selectedCats = window.MultiSelect.getSelected('timelineCategoryFilter');
         const tAttach = attachFilter ? attachFilter.checked : false;
 
+        // Rendu du bloc d'opérations fantômes bancaires en attente
+        if (window.BankSyncView && typeof window.BankSyncView.renderGhostBox === 'function') {
+            const ghostContainer = document.getElementById('timelineGhostBox');
+            if (ghostContainer) {
+                window.BankSyncView.renderGhostBox(ghostContainer);
+            }
+        }
+
         // Apply filters
         let filtered = this.transactions;
+
         if (q) {
             filtered = filtered.filter(tx => 
                 window.cleanStringForSearch(tx.description || '').includes(q) ||

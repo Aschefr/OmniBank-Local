@@ -61,6 +61,43 @@ def clear_all_pending_sync(db: Session):
     logger.info("[BankSyncScheduler] Intégralité du sas de synchronisation purgé.")
 
 
+def dismiss_pending_transaction(db: Session, csv_id: str) -> bool:
+    """Retire une opération spécifique du sas d'attente à partir de son csv_id."""
+    global _PENDING_SYNC_DATA
+    found = False
+    for conn_id, data in list(_PENDING_SYNC_DATA.items()):
+        for acc in data.get("accounts", []):
+            initial_len = len(acc.get("transactions", []))
+            acc["transactions"] = [tx for tx in acc.get("transactions", []) if tx.get("csv_id") != csv_id]
+            if len(acc.get("transactions", [])) < initial_len:
+                found = True
+    if found:
+        serializable = {str(k): v for k, v in _PENDING_SYNC_DATA.items()}
+        _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if _PENDING_SYNC_DATA else "")
+        logger.info(f"[BankSyncScheduler] Opération en attente #{csv_id} ignorée et retirée du sas.")
+    return found
+
+
+def remove_committed_from_pending(db: Session, csv_ids: List[str]):
+    """Purge une liste de transactions (par csv_id) du sas d'attente."""
+    global _PENDING_SYNC_DATA
+    if not csv_ids:
+        return
+    csv_set = set(csv_ids)
+    changed = False
+    for conn_id, data in list(_PENDING_SYNC_DATA.items()):
+        for acc in data.get("accounts", []):
+            initial_len = len(acc.get("transactions", []))
+            acc["transactions"] = [tx for tx in acc.get("transactions", []) if tx.get("csv_id") not in csv_set]
+            if len(acc.get("transactions", [])) < initial_len:
+                changed = True
+    if changed:
+        serializable = {str(k): v for k, v in _PENDING_SYNC_DATA.items()}
+        _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if _PENDING_SYNC_DATA else "")
+        logger.info(f"[BankSyncScheduler] {len(csv_ids)} opération(s) purgée(s) du sas d'attente.")
+
+
+
 def get_all_pending_sync(db: Session) -> Dict[str, Any]:
     """
     Retourne la liste globale des opérations en attente (rapprochements détectés + nouvelles opérations).

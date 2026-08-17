@@ -211,6 +211,126 @@ def test_auto_sync_settings_and_pending():
     assert "Échec relevé" in notifs[0].title
 
 
+def test_ghost_rows_endpoints_lifecycle():
+    from app.services.bank_sync_scheduler import _PENDING_SYNC_DATA, save_pending_sync_data
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    # 1. Create a bank connection and an account
+    conn = BankConnection(backend="boursorama", label="Boursorama Test", is_active=True)
+    acc = Account(name="Compte Courant Test", initial_balance=1000.0)
+    test_db.add(conn)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(conn)
+    test_db.refresh(acc)
+
+    # 2. Populate _PENDING_SYNC_DATA with 3 ghost transactions
+    preview_data = {
+        "accounts": [
+            {
+                "account_id": acc.id,
+                "account_name": acc.name,
+                "connection_id": conn.id,
+                "transactions": [
+                    {
+                        "csv_id": "ghost_tx_001",
+                        "description": "Supermarché Bio",
+                        "amount": 42.50,
+                        "raw_amount": -42.50,
+                        "date_operation": "2026-08-15",
+                        "category": "Alimentation",
+                        "account_id": acc.id,
+                        "is_reconciled": False
+                    },
+                    {
+                        "csv_id": "ghost_tx_002",
+                        "description": "Facture Electricite",
+                        "amount": 80.00,
+                        "raw_amount": -80.00,
+                        "date_operation": "2026-08-16",
+                        "category": "Logement",
+                        "account_id": acc.id,
+                        "is_reconciled": False
+                    },
+                    {
+                        "csv_id": "ghost_tx_003",
+                        "description": "Virement Remboursement",
+                        "amount": 120.00,
+                        "raw_amount": 120.00,
+                        "date_operation": "2026-08-17",
+                        "category": "Revenus",
+                        "account_id": acc.id,
+                        "is_reconciled": False
+                    }
+                ]
+            }
+        ]
+    }
+    save_pending_sync_data(test_db, conn.id, preview_data)
+
+    # 3. Check pending endpoint returns 3 new
+    res_pending = client.get("/api/bank-sync/pending")
+    assert res_pending.status_code == 200
+    pdata = res_pending.json()
+    assert pdata["total_new"] == 3
+
+    # 4. Commit single ghost (ghost_tx_001)
+    res_commit_single = client.post("/api/bank-sync/commit-ghost", json={
+        "connection_id": conn.id,
+        "transaction": {
+            "csv_id": "ghost_tx_001",
+            "description": "Supermarché Bio Validé",
+            "amount": 42.50,
+            "raw_amount": -42.50,
+            "date_operation": "2026-08-15",
+            "category": "Alimentation",
+            "account_id": acc.id,
+            "is_reconciled": False
+        }
+    })
+    assert res_commit_single.status_code == 200
+    assert res_commit_single.json()["ok"] is True
+
+    # Verify transaction is in database
+    tx1 = test_db.query(Transaction).filter(Transaction.csv_id == "ghost_tx_001").first()
+    assert tx1 is not None
+    assert tx1.description == "Supermarché Bio Validé"
+    assert tx1.reconciliation_date is not None
+
+    # Check pending count decreased to 2
+    res_pending2 = client.get("/api/bank-sync/pending")
+    assert res_pending2.json()["total_new"] == 2
+
+    # 5. Dismiss single ghost (ghost_tx_002)
+    res_dismiss = client.post("/api/bank-sync/dismiss-ghost/ghost_tx_002")
+    assert res_dismiss.status_code == 200
+    assert res_dismiss.json()["dismissed"] is True
+
+    # Verify ghost_tx_002 was NOT saved in database
+    tx2 = test_db.query(Transaction).filter(Transaction.csv_id == "ghost_tx_002").first()
+    assert tx2 is None
+
+    # Check pending count decreased to 1
+    res_pending3 = client.get("/api/bank-sync/pending")
+    assert res_pending3.json()["total_new"] == 1
+
+    # 6. Commit all remaining ghosts (ghost_tx_003)
+    res_commit_all = client.post("/api/bank-sync/commit-all-ghosts")
+    assert res_commit_all.status_code == 200
+    assert res_commit_all.json()["committed_count"] == 1
+
+    # Verify ghost_tx_003 is in database
+    tx3 = test_db.query(Transaction).filter(Transaction.csv_id == "ghost_tx_003").first()
+    assert tx3 is not None
+    assert tx3.type == "income"
+    assert tx3.reconciliation_date is not None
+
+    # Check pending count is now 0
+    res_pending4 = client.get("/api/bank-sync/pending")
+    assert res_pending4.json()["total_new"] == 0
+
+
 
 
 
