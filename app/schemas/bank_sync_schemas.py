@@ -27,7 +27,8 @@ class BankBackendInfo(BaseModel):
 class BankConnectionCreate(BaseModel):
     backend: str
     label: str
-    master_password: str
+    master_password: Optional[str] = None
+    vault_token: Optional[str] = None
     credentials: Dict[str, Any]  # Key/Value credentials matching backend fields
 
 

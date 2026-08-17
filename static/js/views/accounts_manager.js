@@ -78,6 +78,7 @@ window.AccountsView = {
                             <th data-i18n="acc_th_type">${window.i18n.t('acc_th_type')}</th>
                             <th data-i18n="acc_th_currency">${window.i18n.t('acc_th_currency') || 'Devise'}</th>
                             <th data-i18n="acc_th_initial_balance">${window.i18n.t('acc_th_initial_balance')}</th>
+                            <th data-i18n="acc_th_current_balance">${window.i18n.t('acc_th_current_balance') || 'Solde Actuel'}</th>
                             <th data-i18n="acc_th_color">${window.i18n.t('acc_th_color')}</th>
                             <th class="col-actions" style="width: 190px; min-width: 190px;" data-i18n="acc_th_actions">${window.i18n.t('acc_th_actions')}</th>
                         </tr>
@@ -149,6 +150,10 @@ window.AccountsView = {
                 this.mainAccountId = mainAcc?.id || null;
             } catch(e) { this.mainAccountId = null; }
             this.renderTable();
+
+            if (window.BankSyncView && typeof window.BankSyncView.init === 'function') {
+                window.BankSyncView.init().catch(e => console.warn('[BankSync] Erreur init:', e));
+            }
         } catch (e) {
             console.error("Failed to load accounts", e);
         }
@@ -170,7 +175,7 @@ window.AccountsView = {
         if (!tbody) return;
 
         if (!this.accounts || this.accounts.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">${window.i18n.t('no_accounts') || 'Aucun compte enregistré.'}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">${window.i18n.t('no_accounts') || 'Aucun compte enregistré.'}</td></tr>`;
             return;
         }
 
@@ -179,19 +184,22 @@ window.AccountsView = {
                 title: window.i18n.t('acc_section_checking') || 'Comptes Courants & Cartes',
                 icon: '💳',
                 accounts: [],
-                total: 0
+                total_current: 0,
+                total_initial: 0
             },
             savings: {
                 title: window.i18n.t('acc_section_savings') || 'Épargne & Placements',
                 icon: '🏦',
                 accounts: [],
-                total: 0
+                total_current: 0,
+                total_initial: 0
             },
             loans: {
                 title: window.i18n.t('acc_section_loans') || 'Crédits & Emprunts',
                 icon: '📑',
                 accounts: [],
-                total: 0
+                total_current: 0,
+                total_initial: 0
             }
         };
 
@@ -199,7 +207,9 @@ window.AccountsView = {
             const cat = this._getAccountCategory(acc.type);
             groups[cat].accounts.push(acc);
             if (!acc.is_closed) {
-                groups[cat].total += (acc.initial_balance || 0);
+                const curBal = acc.current_balance !== undefined && acc.current_balance !== null ? acc.current_balance : (acc.initial_balance || 0);
+                groups[cat].total_current += curBal;
+                groups[cat].total_initial += (acc.initial_balance || 0);
             }
         });
 
@@ -208,23 +218,26 @@ window.AccountsView = {
             const group = groups[key];
             if (group.accounts.length === 0) return;
 
-            const totalColor = key === 'loans' ? '#ef4444' : (group.total >= 0 ? '#10b981' : '#ef4444');
+            const totalColor = key === 'loans' ? '#ef4444' : (group.total_current >= 0 ? '#10b981' : '#ef4444');
             const totalPrefix = key === 'loans' 
                 ? (window.i18n.t('acc_total_crd') || 'Capital restant dû :') 
                 : (key === 'savings' ? (window.i18n.t('acc_total_saved') || 'Épargne totale :') : (window.i18n.t('acc_total_available') || 'Disponibilités :'));
 
             html += `
             <tr class="acc-group-header-tr" style="background: var(--bg-hover, rgba(255,255,255,0.03)); border-top: 2px solid var(--border-color);">
-                <td colspan="6" style="padding: 10px 14px;">
+                <td colspan="7" style="padding: 10px 14px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <span style="font-weight: 700; font-size: 13px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
                             <span>${group.icon}</span> <span>${group.title}</span>
                             <span style="font-size: 11px; color: var(--text-muted); font-weight: 500;">(${group.accounts.length})</span>
                         </span>
-                        <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px;">
-                            <span>${totalPrefix}</span>
-                            <strong style="color: ${totalColor}; font-family: monospace; font-size: 13px;" class="privacy-blur">${formatCurrency(group.total)}</strong>
-                        </span>
+                        <div style="display: flex; align-items: center; gap: 12px; font-size: 12px;">
+                            <span style="color: var(--text-muted); font-size: 11px;">(Initial : <strong class="privacy-blur" style="font-family: monospace;">${formatCurrency(group.total_initial)}</strong>)</span>
+                            <span style="font-weight: 600; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                                <span>${totalPrefix}</span>
+                                <strong style="color: ${totalColor}; font-family: monospace; font-size: 13px;" class="privacy-blur">${formatCurrency(group.total_current)}</strong>
+                            </span>
+                        </div>
                     </div>
                 </td>
             </tr>
@@ -234,14 +247,15 @@ window.AccountsView = {
                 const isMain = acc.id === this.mainAccountId;
                 const color = acc.color || ACCOUNT_COLORS[0];
                 const curr = acc.currency || 'EUR';
-                const balColor = acc.initial_balance < 0 ? '#ef4444' : '#10b981';
+                const curBal = acc.current_balance !== undefined && acc.current_balance !== null ? acc.current_balance : (acc.initial_balance || 0);
+                const curBalColor = curBal < 0 ? '#ef4444' : '#10b981';
 
                 // Calculs dynamiques de taux et mensualités
                 let subInfoHtml = '';
                 if (key === 'savings' && acc.interest_rate > 0) {
                     const today = new Date();
                     const monthsLeft = Math.max(1, 12 - today.getMonth());
-                    const bal = Math.max(0, acc.initial_balance || 0);
+                    const bal = Math.max(0, curBal);
                     const estimated = Math.round(bal * (acc.interest_rate / 100) * (monthsLeft / 12) * 100) / 100;
                     subInfoHtml = `
                     <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
@@ -254,7 +268,7 @@ window.AccountsView = {
                     </div>
                     `;
                 } else if (key === 'loans') {
-                    const crd = Math.abs(acc.initial_balance || 0);
+                    const crd = Math.abs(curBal);
                     const rate = acc.interest_rate || 0;
                     const payment = acc.monthly_payment || 0;
                     const interestM = rate > 0 ? Math.round(crd * (rate / 100) / 12 * 100) / 100 : 0;
@@ -286,7 +300,8 @@ window.AccountsView = {
                     </td>
                     <td><span class="badge" style="background: var(--bg-hover); color: var(--text-main); font-size: 11px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-color);">${acc.type}</span></td>
                     <td><span class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-weight:bold; padding:2px 6px; border-radius:4px; font-size:11px;">${curr}</span></td>
-                    <td><span class="privacy-blur" style="font-weight: 600; color: ${balColor};">${formatCurrency(acc.initial_balance, curr)}</span></td>
+                    <td><span class="privacy-blur" style="color: var(--text-muted); font-family: monospace;">${formatCurrency(acc.initial_balance, curr)}</span></td>
+                    <td><strong class="privacy-blur" style="color: ${curBalColor}; font-family: monospace;">${formatCurrency(curBal, curr)}</strong></td>
                     <td>
                         <span class="acc-color-dot" style="background:${color}; cursor:pointer;" onclick="window.AccountsView.openColorPopover(${acc.id}, this)" title="${window.i18n.t('acc_color_label')}"></span>
                     </td>

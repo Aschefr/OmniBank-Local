@@ -14,9 +14,22 @@ All notable changes to this project will be documented in this file.
   - **In-App Review & Reconciliation Studio**: Live streaming progress bar, interactive 2FA modal support (App validation push & SMS OTP), smart categorization suggestions, and duplicate filtering.
   - **Real-Time 1-Click Reconciliation Buttons (`⚡ Trouvé en banque`)**: Instant visual badges appear dynamically across Vue d'ensemble, Dashboard & History views with harmonized height and styling.
 
-- **Dedicated Loans, Mortgages & Savings Architecture 📊**:
-  - **Isolated Loans & Mortgages Section**: Loans are separated into a dedicated section in Accounts and sidebar navigation to maintain accurate daily available net worth while providing a full breakdown of Monthly Payment, Principal Repayment, and Interest.
-  - **1-Click Savings Interest Recording (`🎁`)**: Dynamic calculation of estimated year-end interest with in-line booking modal.
+- **Self-Generating Diagnostics & 1-Click Anonymized Bug Reporter 🩺📋**:
+  - **Automated In-App Error Tracking**: Automatically captures unexpected frontend exceptions, unhandled Promise rejections, failed API calls, and recent backend debug logs into an in-memory rotating ring buffer (50 logs, 20 exceptions, 20 user breadcrumbs).
+  - **100% Zero-Leak Anonymization Engine**: Automatically sanitizes confidential user data prior to report generation — replacing emails, IP addresses, IBAN account numbers, and absolute local filesystem paths (`~/app/...`) with privacy-safe placeholders (`***`, `[EMAIL]`, `[IBAN_ANONYMIZED]`).
+  - **1-Click GitHub Issue Markdown Generator**: Formats comprehensive technical diagnostic reports in standardized English (system OS, Python version, database table row counts, browser engine, stack traces, and breadcrumbs) with one-click copy to clipboard and pre-filled GitHub issue templates.
+  - **Live Diagnostics Hub in Configuration**: Dedicated diagnostic management panel allowing users to preview anonymized data in real time, trigger instant error simulations for testing, and clear in-memory buffers at will.
+
+- **Unified Bank Synchronization Hub & Dual Accounts Management 💳⚡**:
+  - **Sleek Unified Bank Sync Card**: Replaced stacked banners with a single compact control card featuring real-time vault lock status, background auto-sync toggles, pending sync alerts, and responsive bank connection cards.
+  - **Context-Aware Master Password Modal**: Automatically detects unlocked vault sessions during multi-bank setup so users never have to retype master passwords when adding subsequent banks.
+  - **Automatic Orphan Pending Sync Purge 🧹**: Automatically purges temporary staging transactions and caches when a bank connection is removed or when no bank connections exist, eliminating phantom reconciliation prompts.
+  - **Dual Balances Display (Initial & Real-Time)**: The Accounts table now clearly displays both the configured **Solde Initial** and live **Solde Actuel** side-by-side for every account.
+  - **Meaningful Category Subtotals**: Category headers (Comptes Courants, Épargne & Placements, Crédits & Emprunts) now compute and display the **true real-time cumulative balance** (e.g. `Disponibilités actuelles`, `Épargne totale`, `Capital restant dû`) alongside the initial balance subtotal.
+  - **Dynamic Interest & Loan Amortization**: Automatically calculates estimated annual savings interest and remaining loan principal directly from live current balances.
+  - **Pytest Data Guardian & Anti-Regression Sentinel 🛡️**: Automatic SHA-256 pre-test snapshot and post-test verification across test suites to strictly isolate user data, prevent test side-effects, and auto-restore database state with prominent safety alerts.
+  - **Persistent Settings & Filters Engine 💾**: Automatically restores all user options, filters, and toggles (including auto-sync toggle, interval dropdown, theme, language, and table views) directly from SQLite `global_config` and per-profile storage across browser refreshes (`F5`).
+  - **Harmonized Reconciliation Terminology (Rapprochement Bancaire vs Échéances) ⚖️**: Standardized on formal French banking terminology across all views: distinguished live certified bank matches (`⚡ Rapprocher les opérations trouvées en ligne (N)`) from calendar-based overdue items (`✓ Rapprocher les échéances passées (N)`), removing ambiguity and clunky zero-amount labels.
   - **Full Bilingual Support (FR/EN)**: 100% complete internationalization across all bank sync modals, settings, and badges encoded in UTF-8 with BOM.
 
 ## [1.0.83] - 2026-08-15
