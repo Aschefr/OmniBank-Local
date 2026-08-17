@@ -160,14 +160,23 @@
                     </div>
                 </nav>
 
-                <div>
-                    <h3 data-i18n="sidebar_accounts">Comptes & Livrets</h3>
+                <div class="sidebar-accounts-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <h3 id="sidebarAccountsTitle" style="margin:0; font-size:13px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                            <span id="sidebarAccountsIcon">🏦</span> <span id="sidebarAccountsLabel" data-i18n="sidebar_accounts">Comptes & Livrets</span>
+                        </h3>
+                        <div id="sidebarAccountsNav" style="display:none; gap:4px; align-items:center;">
+                            <button id="sidebarAccPrevBtn" class="btn btn-secondary btn-sm" onclick="window.app.toggleSidebarAccountMode(-1)" style="padding:1px 6px; font-size:10px; height:20px; line-height:1; border-radius:4px;" title="Volet précédent">◀</button>
+                            <span id="sidebarAccModeBadge" style="font-size:10px; font-weight:700; color:var(--text-muted); min-width:20px; text-align:center;">1/2</span>
+                            <button id="sidebarAccNextBtn" class="btn btn-secondary btn-sm" onclick="window.app.toggleSidebarAccountMode(1)" style="padding:1px 6px; font-size:10px; height:20px; line-height:1; border-radius:4px;" title="Volet suivant">▶</button>
+                        </div>
+                    </div>
                     <div id="accountsList" class="accounts-list">
                         <!-- Populated by JS -->
                     </div>
-                    <div style="display:flex; justify-content:space-between; padding-top: 12px; font-size: 14px;">
-                        <span style="color: var(--text-muted); font-weight: 600;" data-i18n="sidebar_total">Total</span>
-                        <strong id="valNetWorth" style="color: var(--text-main); font-size: 15px;">0.00 €</strong>
+                    <div style="display:flex; justify-content:space-between; padding-top: 10px; font-size: 13px; border-top: 1px solid var(--border-color); margin-top: 6px;">
+                        <span id="sidebarTotalLabel" style="color: var(--text-muted); font-weight: 600;" data-i18n="sidebar_total_liquid">Trésorerie & Épargne</span>
+                        <strong id="valNetWorth" style="color: #10b981; font-size: 14px;">0.00 €</strong>
                     </div>
                 </div>
                 
@@ -1135,6 +1144,7 @@
     <script src="/static/js/views/trends.js?v=4"></script>
     <script src="/static/js/views/overview.js?v=3"></script>
     <script src="/static/js/views/simulator.js?v=30"></script>
+    <script src="/static/js/views/bank_sync.js?v=1"></script>
 
 
 

@@ -46,7 +46,13 @@ def ensure_profiles_initialized() -> dict:
         }
         _save_profiles_data(data)
         return data
-    return load_profiles_data()
+    data = load_profiles_data()
+    # Garantir que les dossiers de chaque profil existent
+    for p in data.get("profiles", []):
+        if p.get("id") != "default":
+            p_dir = os.path.join(PROFILES_DIR, p["id"])
+            os.makedirs(os.path.join(p_dir, "uploads"), exist_ok=True)
+    return data
 
 
 def load_profiles_data() -> dict:

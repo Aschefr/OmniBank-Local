@@ -683,6 +683,62 @@ h3 {
     outline: none;
 }
 
+/* ── Custom Styled Inputs for Modals & Dialogs (Bank Sync, Vault, etc.) ── */
+.input-styled {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 8px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    outline: none;
+}
+
+.input-styled:hover {
+    background-color: var(--bg-surface);
+    border-color: var(--text-muted);
+}
+
+.input-styled:focus {
+    background-color: var(--bg-surface);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.input-styled::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+select.input-styled {
+    cursor: pointer;
+    background-color: var(--bg-input);
+    color: var(--text-main);
+    padding: 8px 12px;
+}
+
+select.input-styled option {
+    background-color: var(--bg-surface);
+    color: var(--text-main);
+    padding: 8px 10px;
+}
+
+.backend-card {
+    transition: all 0.2s ease;
+}
+
+.backend-card:hover {
+    border-color: var(--accent) !important;
+    background: var(--bg-surface) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
 /* Toggle Switch (Compact 36x20) */
 .toggle-switch {
     position: relative;
@@ -4184,6 +4240,79 @@ input[type="range"]::-moz-range-thumb:hover {
     color: var(--text-main);
 }
 
+.overview-bank-sync-btn {
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-sizing: border-box;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    white-space: nowrap;
+}
+
+.overview-bank-sync-btn:hover {
+    transform: translateY(-1px);
+    border-color: var(--accent-light, #818cf8);
+    background: rgba(99, 102, 241, 0.08);
+    box-shadow: var(--shadow-sm);
+}
+
+.overview-bank-sync-btn.is-syncing {
+    position: relative;
+    overflow: hidden;
+    pointer-events: none;
+    border-color: rgba(99, 102, 241, 0.7) !important;
+    box-shadow: 0 0 14px rgba(99, 102, 241, 0.25) !important;
+    background: var(--bg-surface);
+}
+
+.overview-bank-sync-btn.is-syncing::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.25), rgba(129, 140, 248, 0.5));
+    animation: bankSyncProgressAnim 20s cubic-bezier(0.1, 0.6, 0.2, 1) forwards;
+    z-index: 0;
+}
+
+.overview-bank-sync-btn.is-syncing > * {
+    position: relative;
+    z-index: 1;
+}
+
+.overview-bank-sync-btn.is-success {
+    border-color: #10b981 !important;
+    background: rgba(16, 185, 129, 0.12) !important;
+    color: #10b981 !important;
+}
+
+.overview-bank-sync-btn.is-error {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.12) !important;
+    color: #ef4444 !important;
+}
+
+@keyframes bankSyncProgressAnim {
+    0% { width: 0%; }
+    15% { width: 30%; }
+    40% { width: 62%; }
+    75% { width: 85%; }
+    95% { width: 94%; }
+    100% { width: 97%; }
+}
+
 .overview-add-btn {
     height: 38px;
     padding: 0 16px;
@@ -4531,7 +4660,11 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .overview-recon-action-btn {
-    padding: 6px 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    padding: 0 14px;
     font-size: 12px;
     font-weight: 700;
     border-radius: 8px;
@@ -4541,12 +4674,39 @@ input[type="range"]::-moz-range-thumb:hover {
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
+    box-sizing: border-box;
 }
 
 .overview-recon-action-btn:hover {
     background: var(--accent);
     color: #ffffff;
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    transform: scale(1.03);
+}
+
+.overview-matched-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 14px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.overview-matched-action-btn:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45);
     transform: scale(1.03);
 }
 
@@ -4768,6 +4928,7 @@ body.overview-fullscreen .app-body {
         overflow: hidden;
     }
 
+    .overview-bank-sync-btn,
     .overview-add-btn {
         height: 36px;
         padding: 0 12px;
@@ -4956,8 +5117,10 @@ body.overview-fullscreen .app-body {
         justify-content: flex-end;
     }
 
-    .overview-recon-action-btn {
-        padding: 8px 16px;
+    .overview-recon-action-btn,
+    .overview-matched-action-btn {
+        height: 32px;
+        padding: 0 16px;
         font-size: 12px;
         border-radius: 10px;
     }

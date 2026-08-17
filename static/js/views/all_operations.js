@@ -61,6 +61,9 @@ window.AllOperationsView = {
                         <option value="income" data-i18n="type_income">${window.i18n.t('type_income')}</option>
                         <option value="transfer" data-i18n="type_transfer">${window.i18n.t('type_transfer')}</option>
                     </select>
+                    <select id="historyAccountFilter" class="inline-input" style="min-width:130px; flex:1; max-width:180px;" onchange="window.AllOperationsView.applyFilters()">
+                        <option value="" data-i18n="filter_all_accounts">${window.i18n.t('filter_all_accounts') || 'Tous les comptes'}</option>
+                    </select>
                     <div id="historyCategoryFilter" style="min-width:130px; flex:1; max-width:220px;"></div>
                     <button class="btn btn-secondary" style="padding:0 8px; font-size:14px; border-radius:8px; min-height:32px; line-height:32px;" onclick="window.MultiSelect.reset('historyCategoryFilter')" title="${window.i18n.t('filter_reset_categories') || 'Reset categories'}">&#x21BA;</button>
                     <div style="display:flex; align-items:center; gap:8px;">
@@ -223,6 +226,22 @@ window.AllOperationsView = {
             // Sort by operation date descending (newest first)
             this.transactions = allTx.sort((a, b) => new Date(b.date_operation) - new Date(a.date_operation));
             
+            // Populate account select dropdown
+            const accSelect = document.getElementById('historyAccountFilter');
+            if (accSelect) {
+                const currentAccVal = accSelect.value;
+                let accHtml = `<option value="" data-i18n="filter_all_accounts">${window.i18n.t('filter_all_accounts') || 'Tous les comptes'}</option>`;
+                accs.forEach(a => {
+                    const icon = a.type && (a.type.toLowerCase().includes('livret') || a.type.toLowerCase().includes('epargne') || a.type.toLowerCase().includes('saving')) ? '🏦 ' :
+                                (a.type && (a.type.toLowerCase().includes('prêt') || a.type.toLowerCase().includes('pret') || a.type.toLowerCase().includes('emprunt') || a.type.toLowerCase().includes('loan')) ? '📑 ' : '💳 ');
+                    accHtml += `<option value="${a.id}">${icon}${a.name}</option>`;
+                });
+                accSelect.innerHTML = accHtml;
+                if (currentAccVal) {
+                    accSelect.value = currentAccVal;
+                }
+            }
+
             // Populate category multi-select (including uncategorized option if present)
             const hasUncategorized = this.transactions.some(t => !t.category);
             const categories = [...new Set(this.transactions.map(t => t.category).filter(Boolean))].sort();
@@ -310,6 +329,11 @@ window.AllOperationsView = {
                     const typeInput = document.getElementById('historyTypeFilter');
                     if (typeInput) typeInput.value = pf.type;
                 }
+                // Set account filter
+                if (pf.accountId) {
+                    const accInput = document.getElementById('historyAccountFilter');
+                    if (accInput) accInput.value = pf.accountId.toString();
+                }
                 // Set year in search
                 if (pf.year) {
                     const searchInput = document.getElementById('historySearch');
@@ -391,9 +415,11 @@ window.AllOperationsView = {
         // Read filters
         const searchInput = document.getElementById('historySearch');
         const typeFilter = document.getElementById('historyTypeFilter');
+        const accFilter = document.getElementById('historyAccountFilter');
         
         const q = searchInput ? window.cleanStringForSearch(searchInput.value) : '';
         const tType = typeFilter ? typeFilter.value : '';
+        const tAcc = accFilter ? accFilter.value : '';
         const selectedCats = window.MultiSelect.getSelected('historyCategoryFilter');
 
         // Month filter (YYYY-MM)
@@ -420,6 +446,10 @@ window.AllOperationsView = {
         }
         if (tType) {
             filtered = filtered.filter(tx => tx.type === tType);
+        }
+        if (tAcc) {
+            const accId = parseInt(tAcc);
+            filtered = filtered.filter(tx => tx.from_account_id === accId || tx.to_account_id === accId);
         }
         if (selectedCats.length > 0) {
             const uncatLabel = (window.i18n && window.i18n.t('uncategorized')) || 'Sans catégorie';
@@ -537,7 +567,7 @@ window.AllOperationsView = {
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>
                     ${origSubtext}
                 </td>
-                <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}" style="text-align: center;">${tx.is_skipped ? `<span style="font-size:11px; font-weight: 600; color: #64748b; background: rgba(100, 116, 139, 0.1); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(100, 116, 139, 0.2); white-space: nowrap;">${window.i18n.t('rec_status_skipped') || '⏭️ Ignorée'}</span>` : formatDate(tx.reconciliation_date) || '-'}</td>
+                <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}" style="text-align: center;">${tx.is_skipped ? `<span style="font-size:11px; font-weight: 600; color: #64748b; background: rgba(100, 116, 139, 0.1); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(100, 116, 139, 0.2); white-space: nowrap;">${window.i18n.t('rec_status_skipped') || '⏭️ Ignorée'}</span>` : (isReconciled ? formatDate(tx.reconciliation_date) || '-' : ((window.BankSyncView && window.BankSyncView.pendingMatches && window.BankSyncView.pendingMatches[tx.id]) ? `<span style="cursor:pointer; font-size:11px; font-weight:700; color:white; background:linear-gradient(135deg, #10b981, #059669); padding:3px 8px; border-radius:6px; box-shadow:0 2px 6px rgba(16,185,129,0.3); display:inline-flex; align-items:center; gap:4px;" onclick="window.BankSyncView.reconcileFast(${tx.id})" title="Opération trouvée sur votre relevé bancaire. Cliquez pour pointer en 1 clic !">⚡ <span>${window.i18n.t('bank_badge_found_online') || 'Trouvé'}</span></span>` : '-'))}</td>
                 <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && this.budgetsMap[tx.budget_id]) ? this.budgetsMap[tx.budget_id] : (tx.category && this.categoryToBudgetMap && this.categoryToBudgetMap[tx.category]) ? this.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
                 <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuisTitle}">${depuisBadge}</td>
                 <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${versBadge}</td>
