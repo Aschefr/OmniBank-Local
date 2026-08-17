@@ -37,6 +37,8 @@ async def lifespan(app: FastAPI):
     init_db()
     from app.routers.auto_backup import start_scheduler
     start_scheduler()
+    from app.services.bank_sync_scheduler import start_bank_sync_scheduler
+    start_bank_sync_scheduler()
     
     # Start UDP local discovery beacon
     try:
@@ -164,7 +166,8 @@ from app.routers import (
     history,
     profiles,
     cross_profile,
-    simulator
+    simulator,
+    bank_sync
 )
 
 app.include_router(transactions.router)
@@ -189,6 +192,7 @@ app.include_router(history.router)
 app.include_router(profiles.router)
 app.include_router(cross_profile.router)
 app.include_router(simulator.router)
+app.include_router(bank_sync.router)
 
 
 

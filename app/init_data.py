@@ -59,6 +59,31 @@ def init_db(target_engine=None):
             except Exception:
                 pass  # Column likely already exists
 
+            try:
+                conn.execute(text("ALTER TABLE accounts ADD COLUMN interest_rate FLOAT"))
+            except Exception:
+                pass
+
+            try:
+                conn.execute(text("ALTER TABLE accounts ADD COLUMN borrowed_amount FLOAT"))
+            except Exception:
+                pass
+
+            try:
+                conn.execute(text("ALTER TABLE accounts ADD COLUMN monthly_payment FLOAT"))
+            except Exception:
+                pass
+
+            try:
+                conn.execute(text("ALTER TABLE accounts ADD COLUMN loan_end_date DATE"))
+            except Exception:
+                pass
+
+            try:
+                conn.execute(text("ALTER TABLE accounts ADD COLUMN loan_insurance FLOAT"))
+            except Exception:
+                pass
+
             # Phase 9: Multi-user audit columns
             try:
                 conn.execute(text("ALTER TABLE transactions ADD COLUMN created_by TEXT"))
@@ -463,6 +488,25 @@ def init_db(target_engine=None):
                 pass
             try:
                 conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '18')"))
+            except Exception:
+                pass
+            conn.commit()
+
+        if schema_version < 19:
+            # Schema v19: Loan & Savings interest rates parameters on accounts
+            for col, col_type in [
+                ("interest_rate", "FLOAT"),
+                ("borrowed_amount", "FLOAT"),
+                ("monthly_payment", "FLOAT"),
+                ("loan_end_date", "DATE"),
+                ("loan_insurance", "FLOAT"),
+            ]:
+                try:
+                    conn.execute(text(f"ALTER TABLE accounts ADD COLUMN {col} {col_type}"))
+                except Exception:
+                    pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '19')"))
             except Exception:
                 pass
             conn.commit()

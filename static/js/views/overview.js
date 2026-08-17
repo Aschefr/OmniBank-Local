@@ -32,6 +32,9 @@ window.OverviewView = {
                                 <option value="">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</option>
                             </select>
                         </div>
+                        <button class="overview-bank-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" title="${window.i18n.t('bank_sync_run_background_btn') || 'Relever en arrière-plan'}">
+                            <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en arrière-plan'}</span>
+                        </button>
                         <button class="btn btn-primary overview-add-btn" onclick="window.OverviewView.showAddModal()">
                             <span>${window.i18n.t('btn_add_operation') || 'Nouvelle opération'}</span>
                         </button>
@@ -89,6 +92,9 @@ window.OverviewView = {
                         </div>
                     </div>
                 </div>
+
+                <!-- Section Pending Bank Sync Banner -->
+                <div id="ovPendingBankSyncBanner" style="display: none; margin-bottom: 20px;"></div>
 
                 <!-- Section 2: Central Wide Card — Opérations non rapprochées -->
                 <div class="overview-main-card">
@@ -239,6 +245,8 @@ window.OverviewView = {
         this._updateTrendModeUI();
         this._renderHealthBadge(stats);
         this._renderHero(stats);
+        await this._checkBankConnections();
+        await this._renderPendingBankSyncBanner();
         this._renderUnreconciled(transactions);
         this._renderTop3(transactions);
         this._renderBudgets(stats);
@@ -277,12 +285,36 @@ window.OverviewView = {
         const select = document.getElementById('ovAccountSelect');
         if (!select) return;
 
-        let html = `<option value="">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</option>`;
+        const groups = {
+            checking: { label: window.i18n.t('acc_section_checking') || 'Comptes Courants & Cartes', accounts: [] },
+            savings: { label: window.i18n.t('acc_section_savings') || 'Épargne & Placements', accounts: [] },
+            loans: { label: window.i18n.t('acc_section_loans') || 'Crédits & Emprunts', accounts: [] }
+        };
+
         for (const a of this._accounts) {
             if (a.is_closed) continue;
-            const selected = String(a.id) === String(this._selectedAccountId) ? 'selected' : '';
-            html += `<option value="${a.id}" ${selected}>${escapeHtml(a.name)} (${formatCurrency(a.balance)})</option>`;
+            const t = (a.type || '').toLowerCase();
+            let cat = 'checking';
+            if (t.includes('prêt') || t.includes('pret') || t.includes('emprunt') || t.includes('loan') || t.includes('crédit') || t.includes('credit')) {
+                cat = 'loans';
+            } else if (t.includes('livret') || t.includes('saving') || t.includes('epargne') || t.includes('épargne') || t.includes('pea') || t.includes('assurance') || t.includes('per') || t.includes('titres')) {
+                cat = 'savings';
+            }
+            groups[cat].accounts.push(a);
         }
+
+        let html = `<option value="">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</option>`;
+        ['checking', 'savings', 'loans'].forEach(k => {
+            const grp = groups[k];
+            if (grp.accounts.length === 0) return;
+            html += `<optgroup label="${grp.label}">`;
+            for (const a of grp.accounts) {
+                const selected = String(a.id) === String(this._selectedAccountId) ? 'selected' : '';
+                html += `<option value="${a.id}" ${selected}>${escapeHtml(a.name)} (${formatCurrency(a.balance)})</option>`;
+            }
+            html += `</optgroup>`;
+        });
+
         select.innerHTML = html;
     },
 
@@ -302,6 +334,71 @@ window.OverviewView = {
             await window.app._showUserPicker();
             await this.init();
         }
+    },
+
+    async _checkBankConnections() {
+        const syncBtn = document.querySelector('.overview-bank-sync-btn');
+        if (!syncBtn) return;
+        try {
+            const conns = await API.get('/api/bank-sync/connections');
+            syncBtn.style.display = (conns && conns.length > 0) ? 'inline-flex' : 'none';
+        } catch (_) {
+            syncBtn.style.display = 'none';
+        }
+    },
+
+    async _renderPendingBankSyncBanner() {
+        const banner = document.getElementById('ovPendingBankSyncBanner');
+        if (!banner) return;
+
+        if (window.BankSyncView && window.BankSyncView.loadPendingSync) {
+            await window.BankSyncView.loadPendingSync();
+        }
+
+        let pendingData = null;
+        try {
+            pendingData = await API.get('/api/bank-sync/pending');
+        } catch (_) {}
+
+        const totalMatches = pendingData?.total_matches || 0;
+        const totalNew = pendingData?.total_new || 0;
+
+        if (totalMatches === 0 && totalNew === 0) {
+            banner.style.display = 'none';
+            return;
+        }
+
+        banner.style.display = 'block';
+        banner.innerHTML = `
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 14px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 4px 12px rgba(99,102,241,0.06);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 22px;">⚡</span>
+                <div>
+                    <h4 style="margin: 0 0 2px 0; font-size: 13px; font-weight: 700; color: var(--text-main);">
+                        ${window.i18n.t('bank_sync_pending_box_title') || 'Opérations bancaires en attente'}
+                    </h4>
+                    <div style="font-size: 12px; color: var(--text-muted);">
+                        ${totalMatches > 0 ? `<strong>${totalMatches}</strong> prête(s) à pointer ` : ''}
+                        ${(totalMatches > 0 && totalNew > 0) ? '• ' : ''}
+                        ${totalNew > 0 ? `<strong>${totalNew}</strong> nouvelle(s) opération(s) à ajouter` : ''}
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center;">
+                ${totalMatches > 0 ? `
+                <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.reconcileAllPending().then(() => window.OverviewView.init())" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
+                    ⚡ ${window.i18n.t('bank_btn_reconcile_all') || 'Tout pointer'} (${totalMatches})
+                </button>
+                ` : ''}
+                ${pendingData.accounts && pendingData.accounts.length > 0 ? `
+                <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.openPendingReviewModal()" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 600;">
+                    📋 ${window.i18n.t('bank_sync_pending_review_btn') || 'Revue des opérations'}
+                </button>
+                ` : ''}
+            </div>
+        </div>
+        `;
     },
 
     _renderHealthBadge(stats) {
@@ -600,6 +697,11 @@ window.OverviewView = {
                 ? `<td class="ov-td-author">${tx.created_by ? `<span class="overview-author-badge">👤 ${escapeHtml(tx.created_by)}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>`
                 : '';
 
+            const isMatched = window.BankSyncView?.pendingMatches && window.BankSyncView.pendingMatches[tx.id];
+            const reconBtnHtml = isMatched
+                ? `<button class="overview-matched-action-btn" onclick="window.BankSyncView.reconcileFast(${tx.id})" title="${window.i18n.t('bank_badge_found_online_tooltip') || 'Opération détectée sur votre compte bancaire. Cliquez pour pointer en 1 clic !'}"><span>⚡</span> <span>${window.i18n.t('bank_badge_found_online') || 'Trouvé en banque'}</span></button>`
+                : `<button class="overview-recon-action-btn" onclick="window.OverviewView.toggleReconciliation(${tx.id})" title="${reconBtnText}">${reconBtnText}</button>`;
+
             html += `
                 <tr id="ovRow_${tx.id}" class="overview-op-tr" data-id="${tx.id}">
                     <td class="ov-td-date">${renderDateWithStatus(tx)}</td>
@@ -610,9 +712,7 @@ window.OverviewView = {
                     <td class="ov-td-amt privacy-blur" style="color: ${amountColor}; font-weight: 700;">${formatCurrency(tx.amount)}</td>
                     <td class="ov-td-action" style="text-align: right; white-space: nowrap;">
                         <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
-                            <button class="btn btn-sm overview-recon-action-btn" onclick="window.OverviewView.toggleReconciliation(${tx.id})" title="${reconBtnText}">
-                                ${reconBtnText}
-                            </button>
+                            ${reconBtnHtml}
                             <button class="btn btn-secondary btn-sm ov-action-menu-trigger" style="padding: 4px 8px; font-size: 14px; font-weight: 700; line-height: 1; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; height: 28px; width: 28px;" onclick="event.stopPropagation(); window.OverviewView.toggleActionMenu(${tx.id}, event)" title="${window.i18n.t('th_actions') || 'Actions'}">
                                 ⋮
                             </button>

@@ -6,7 +6,7 @@ import calendar
 from app.database import get_db
 from app.models import Account, Transaction
 from app.schemas.api_schemas import AccountOut
-from app.services.finance_engine import calculate_balances, get_net_worth, calculate_rest_to_live, get_overdraft_warning, predict_next_paycheck, get_main_account
+from app.services.finance_engine import calculate_balances, get_net_worth, get_liquid_net_worth, calculate_rest_to_live, get_overdraft_warning, predict_next_paycheck, get_main_account
 from app.services import stats_cache
 from app.profile_manager import get_active_profile
 
@@ -53,6 +53,7 @@ def get_accounts(db: Session = Depends(get_db)):
     
     result = []
     for acc in accounts:
+        is_loan = bool(acc.type and any(k in acc.type.lower() for k in ['prêt', 'pret', 'emprunt', 'loan', 'crédit', 'credit']))
         result.append({
             "id": acc.id,
             "name": acc.name,
@@ -60,7 +61,12 @@ def get_accounts(db: Session = Depends(get_db)):
             "is_closed": acc.is_closed,
             "color": acc.color,
             "currency": getattr(acc, "currency", "EUR") or "EUR",
-            "balance": balances.get(acc.id, 0.0)
+            "balance": balances.get(acc.id, 0.0),
+            "interest_rate": getattr(acc, "interest_rate", None),
+            "monthly_payment": getattr(acc, "monthly_payment", None),
+            "borrowed_amount": getattr(acc, "borrowed_amount", None),
+            "loan_insurance": getattr(acc, "loan_insurance", None),
+            "is_loan": is_loan
         })
     
     stats_cache.set(profile_id, "accounts", result)
@@ -78,6 +84,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     
     # User wants net worth to be based only on reconciled transactions
     net_worth = get_net_worth(db, only_reconciled=True)
+    liquid_net_worth, loan_total = get_liquid_net_worth(db, only_reconciled=True)
     
     pay_info = predict_next_paycheck(db)
     next_pay_date = pay_info["date"]
@@ -193,6 +200,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
 
     result = {
         "net_worth": net_worth,
+        "liquid_net_worth": liquid_net_worth,
+        "loan_total": loan_total,
         "rest_to_live": rest_to_live,
         "next_pay_date": next_pay_date,
         "next_pay_amount": next_pay_amount,

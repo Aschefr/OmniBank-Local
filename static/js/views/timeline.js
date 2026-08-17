@@ -709,6 +709,8 @@ window.TimelineView = {
             } else if (isReconciled) {
                 const dateStr = formatDate(tx.reconciliation_date);
                 reconcileHTML = `<span style="font-size:12px; cursor:pointer;" onclick="window.TimelineView.toggleReconciliation(${tx.id})" title="${window.i18n.t('tooltip_cancel_reconciliation')}">${dateStr}</span>`;
+            } else if (window.BankSyncView && window.BankSyncView.pendingMatches && window.BankSyncView.pendingMatches[tx.id]) {
+                reconcileHTML = `<button class="btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(16,185,129,0.3); cursor: pointer;" onclick="window.BankSyncView.reconcileFast(${tx.id})" title="${window.i18n.t('bank_badge_found_online_tooltip') || 'Opération trouvée sur votre relevé bancaire. Cliquez pour pointer en 1 clic !'}">⚡ <span>${window.i18n.t('bank_badge_found_online') || 'Trouvé en banque'}</span></button>`;
             } else {
                 reconcileHTML = `<button class="btn btn-primary" style="padding: 4px 10px; font-size: 11px; border-radius: 6px;" onclick="window.TimelineView.toggleReconciliation(${tx.id})">${window.i18n.t('btn_reconcile')}</button>`;
             }

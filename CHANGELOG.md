@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.84] - 2026-08-17
+
+### Added & Improved
+- **Universal Bank Synchronization & Open-Banking Engine (Woob) 🏦⚡**:
+  - **100% Local & Zero-Cloud Security**: Connect your bank accounts directly through local Woob backend modules with zero third-party cloud intermediates, zero telemetry, and zero data leakage.
+  - **Encrypted Credential Vault (Fernet AES-128)**: Secure in-memory vault session protected by your master password with configurable auto-lock TTL.
+  - **Non-Blocking Background Sync & Smart Scheduler ⏰**: Automated and manual background sync execution with immediate reactive in-app toast and notification alerts.
+  - **Anti-Spam Security Cooldown (5 min) 🛡️**: Protects bank accounts against excessive authentication queries and prevents unexpected 2FA spams, while offering instant cached preview access.
+  - **Smart Single-Entry Mirror Transfer Recognition 🔁**: Automatic detection of internal mirror transfers between owned accounts (e.g. Current account debit ➔ Savings account credit) to prevent duplicate transactions on receiving accounts.
+  - **In-App Review & Reconciliation Studio**: Live streaming progress bar, interactive 2FA modal support (App validation push & SMS OTP), smart categorization suggestions, and duplicate filtering.
+  - **Real-Time 1-Click Reconciliation Buttons (`⚡ Trouvé en banque`)**: Instant visual badges appear dynamically across Vue d'ensemble, Dashboard & History views with harmonized height and styling.
+
+- **Dedicated Loans, Mortgages & Savings Architecture 📊**:
+  - **Isolated Loans & Mortgages Section**: Loans are separated into a dedicated section in Accounts and sidebar navigation to maintain accurate daily available net worth while providing a full breakdown of Monthly Payment, Principal Repayment, and Interest.
+  - **1-Click Savings Interest Recording (`🎁`)**: Dynamic calculation of estimated year-end interest with in-line booking modal.
+  - **Full Bilingual Support (FR/EN)**: 100% complete internationalization across all bank sync modals, settings, and badges encoded in UTF-8 with BOM.
+
 ## [1.0.83] - 2026-08-15
 
 ### Added & Improved

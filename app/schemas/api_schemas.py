@@ -166,6 +166,11 @@ class AccountBase(BaseModel):
     is_closed: bool = False
     color: Optional[str] = None
     currency: Optional[str] = "EUR"
+    interest_rate: Optional[float] = None
+    borrowed_amount: Optional[float] = None
+    monthly_payment: Optional[float] = None
+    loan_end_date: Optional[date] = None
+    loan_insurance: Optional[float] = None
 
 class AccountOut(AccountBase):
     id: int
