@@ -13,3 +13,4 @@ python-dateutil
 pytest
 openpyxl
 cryptography
+woob

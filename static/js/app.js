@@ -314,6 +314,11 @@ class App {
         // Init Notification Center
         this._initNotifications();
 
+        // Initial check for pending bank sync matches
+        if (window.BankSyncView && window.BankSyncView.loadPendingSync) {
+            window.BankSyncView.loadPendingSync();
+        }
+
         // Setup Undo / Redo Header Buttons
         const undoBtn = document.getElementById('headerUndoBtn');
         const redoBtn = document.getElementById('headerRedoBtn');
@@ -436,12 +441,16 @@ class App {
             } catch (err) { /* silent catch if endpoint fails or cross profile not active */ }
             
             // Check for new unread notifications to display toast
+            let hasBankSyncNotif = false;
             if (this._knownNotifIds) {
                 let foundNew = false;
                 notifs.forEach(n => {
                     if (!n.is_read && !this._knownNotifIds.has(n.id)) {
                         this._knownNotifIds.add(n.id);
                         foundNew = true;
+                        if (n.type === 'bank_sync' || n.type === 'bank_sync_error') {
+                            hasBankSyncNotif = true;
+                        }
                         if (typeof showToast === 'function') {
                             showToast(`${n.title} 🔔`, 'info', 5000);
                         }
@@ -452,6 +461,10 @@ class App {
                 }
             } else {
                 this._knownNotifIds = new Set(notifs.map(n => n.id));
+            }
+
+            if (hasBankSyncNotif && window.BankSyncView && typeof window.BankSyncView.refreshActiveViews === 'function') {
+                window.BankSyncView.refreshActiveViews();
             }
 
             const pendingCount = (pendingTransfers && Array.isArray(pendingTransfers)) ? pendingTransfers.length : 0;
@@ -582,6 +595,16 @@ class App {
                     const notifMenu = document.getElementById('notifMenu');
                     if (notifMenu) notifMenu.style.display = 'none';
                     this.loadView('chat');
+                } else if (linkObj.action === 'open_pending' || linkObj.action === 'bank_sync') {
+                    const notifMenu = document.getElementById('notifMenu');
+                    if (notifMenu) notifMenu.style.display = 'none';
+                    if (window.BankSyncView && window.BankSyncView.openPendingReviewModal) {
+                        window.BankSyncView.openPendingReviewModal();
+                    }
+                } else if (linkObj.view === 'accounts' || linkObj.view === 'accounts_manager') {
+                    const notifMenu = document.getElementById('notifMenu');
+                    if (notifMenu) notifMenu.style.display = 'none';
+                    this.loadView('accounts');
                 }
             } catch (e) {
                 console.error("Failed to parse link_data", e);
@@ -854,6 +877,82 @@ class App {
         this.loadView('dashboard');
     }
 
+    toggleSidebarAccountMode(direction = 1) {
+        this.sidebarAccountMode = this.sidebarAccountMode === 'loans' ? 'liquid' : 'loans';
+        localStorage.setItem('omnibank_sidebar_acc_mode', this.sidebarAccountMode);
+        this.renderSidebarAccounts();
+    }
+
+    renderSidebarAccounts() {
+        const accounts = this.accounts || [];
+        const stats = this.dashboardStats || {};
+        const list = document.getElementById('accountsList');
+        if (!list) return;
+        list.innerHTML = '';
+
+        const activeAccounts = accounts.filter(a => !a.is_closed);
+        const liquidAccounts = activeAccounts.filter(a => !a.is_loan);
+        const loanAccounts = activeAccounts.filter(a => a.is_loan);
+
+        const nav = document.getElementById('sidebarAccountsNav');
+        const badge = document.getElementById('sidebarAccModeBadge');
+        const iconEl = document.getElementById('sidebarAccountsIcon');
+        const labelEl = document.getElementById('sidebarAccountsLabel');
+        const totalLabel = document.getElementById('sidebarTotalLabel');
+        const totalVal = document.getElementById('valNetWorth');
+
+        if (!this.sidebarAccountMode) {
+            this.sidebarAccountMode = localStorage.getItem('omnibank_sidebar_acc_mode') || 'liquid';
+        }
+
+        if (loanAccounts.length > 0) {
+            if (nav) nav.style.display = 'flex';
+        } else {
+            if (nav) nav.style.display = 'none';
+            this.sidebarAccountMode = 'liquid';
+        }
+
+        if (this.sidebarAccountMode === 'loans' && loanAccounts.length > 0) {
+            if (badge) badge.textContent = '2/2';
+            if (iconEl) iconEl.textContent = '📑';
+            if (labelEl) labelEl.textContent = window.i18n ? (window.i18n.t('sidebar_loans') || 'Prêts & Emprunts') : 'Prêts & Emprunts';
+            if (totalLabel) totalLabel.textContent = window.i18n ? (window.i18n.t('sidebar_total_loans') || 'Capital restant dû') : 'Capital restant dû';
+
+            loanAccounts.forEach(acc => {
+                const div = document.createElement('div');
+                div.className = 'account-item';
+                const crd = Math.abs(acc.balance || 0);
+                const rateBadge = acc.interest_rate ? ` <span style="font-size:10px; color:var(--text-muted); font-weight:normal;">(${acc.interest_rate}%)</span>` : '';
+                div.innerHTML = `<span>${acc.name}${rateBadge}</span><strong style="color: #ef4444;" class="privacy-blur">${formatCurrency(crd, acc.currency || 'EUR')}</strong>`;
+                list.appendChild(div);
+            });
+
+            const totalCRD = stats.loan_total !== undefined ? stats.loan_total : loanAccounts.reduce((sum, a) => sum + Math.abs(a.balance || 0), 0);
+            if (totalVal) {
+                totalVal.textContent = formatCurrency(totalCRD);
+                totalVal.style.color = '#ef4444';
+            }
+        } else {
+            if (badge) badge.textContent = loanAccounts.length > 0 ? '1/2' : '1/1';
+            if (iconEl) iconEl.textContent = '🏦';
+            if (labelEl) labelEl.textContent = window.i18n ? (window.i18n.t('sidebar_accounts') || 'Comptes & Livrets') : 'Comptes & Livrets';
+            if (totalLabel) totalLabel.textContent = window.i18n ? (window.i18n.t('sidebar_total_liquid') || 'Trésorerie & Épargne') : 'Trésorerie & Épargne';
+
+            liquidAccounts.forEach(acc => {
+                const div = document.createElement('div');
+                div.className = 'account-item';
+                div.innerHTML = `<span>${acc.name}</span><strong class="privacy-blur">${formatCurrency(acc.balance, acc.currency || 'EUR')}</strong>`;
+                list.appendChild(div);
+            });
+
+            const liquidTotal = stats.liquid_net_worth !== undefined ? stats.liquid_net_worth : liquidAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
+            if (totalVal) {
+                totalVal.textContent = formatCurrency(liquidTotal);
+                totalVal.style.color = liquidTotal >= 0 ? '#10b981' : '#ef4444';
+            }
+        }
+    }
+
     async refreshSidebar() {
         try {
             // PERF: Fetch accounts and dashboard stats in parallel
@@ -862,19 +961,12 @@ class App {
                 API.get('/api/stats/dashboard')
             ]);
             this.accounts = accounts;
-            const list = document.getElementById('accountsList');
-            list.innerHTML = '';
+            this.dashboardStats = stats;
             
-            accounts.filter(a => !a.is_closed).forEach(acc => {
-                const div = document.createElement('div');
-                div.className = 'account-item';
-                div.innerHTML = `<span>${acc.name}</span><strong>${formatCurrency(acc.balance)}</strong>`;
-                list.appendChild(div);
-            });
+            this.renderSidebarAccounts();
 
             this.isPayValidated = stats.is_pay_validated;
             this.validatedPayDate = stats.validated_pay_date;
-            document.getElementById('valNetWorth').textContent = formatCurrency(stats.net_worth);
             
             const valRestToLive = document.getElementById('valRestToLive');
             valRestToLive.textContent = formatCurrency(stats.rest_to_live);
@@ -1576,6 +1668,9 @@ class App {
     }
 
     loadView(viewName) {
+        if (viewName === 'accounts_manager') {
+            viewName = 'accounts';
+        }
         if (viewName === 'simulator' && this.config.enable_simulator === 'false') {
             viewName = 'dashboard';
         }
@@ -1659,6 +1754,9 @@ class App {
         } else if (viewName === 'history' && window.HistoryView) {
             main.innerHTML = window.HistoryView.render();
             window.HistoryView.init();
+        } else if (viewName === 'bank_sync' && window.BankSyncView) {
+            main.innerHTML = window.BankSyncView.render();
+            window.BankSyncView.init();
 
         } else {
             main.innerHTML = `<h2>${window.i18n.t('nav_' + viewName)}</h2><p>${window.i18n.t('label_in_construction')}</p>`;

@@ -96,6 +96,28 @@ def get_net_worth(db: Session, end_date: date = None, only_reconciled: bool = Fa
             
     return round(total, 2)
 
+def get_liquid_net_worth(db: Session, end_date: date = None, only_reconciled: bool = False):
+    balances = calculate_balances(db, end_date, only_reconciled)
+    accounts = db.query(Account).all()
+    base_curr = get_base_currency(db)
+    acc_map = {a.id: a for a in accounts}
+    
+    liquid_total = 0.0
+    loan_total = 0.0
+    for acc_id, balance in balances.items():
+        acc = acc_map.get(acc_id)
+        if acc and not acc.is_closed:
+            is_loan = bool(acc.type and any(k in acc.type.lower() for k in ['prêt', 'pret', 'emprunt', 'loan', 'crédit', 'credit']))
+            acc_currency = getattr(acc, "currency", None) or base_curr
+            converted_bal = convert_currency(db, balance, acc_currency, base_curr)
+            if is_loan:
+                loan_total += abs(converted_bal)
+            else:
+                liquid_total += converted_bal
+            
+    return round(liquid_total, 2), round(loan_total, 2)
+
+
 def get_main_account(db: Session):
     """
     Returns the main checking account.

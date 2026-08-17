@@ -105,11 +105,12 @@ def heuristic_parse(df):
 
     return date_col, amount_col, desc_col
 
-def check_reconciliation(db, tx_date, tx_amount, matched_ids=None):
+def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=None):
     """
     Checks if a transaction with the exact amount exists in the database.
     First looks for an already-reconciled transaction with a close reconciliation date (+/- 4 days).
     Then looks for an unreconciled planned transaction with a close operation date (+/- 15 days).
+    Handles internal transfers across accounts (from_account_id / to_account_id).
     """
     import pandas as pd
     from datetime import timedelta
@@ -119,14 +120,21 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None):
     abs_amount = abs(float(tx_amount))
     epsilon = 0.01
     
-    # 1. Search for already reconciled duplicate (ordered by closest date_operation)
-    # Match if reconciliation_date is close (+/- 4 days) OR date_operation is close (+/- 10 days)
-    from sqlalchemy import or_, func
+    from sqlalchemy import or_, and_, func
     start_recon = tx_date - timedelta(days=4)
     end_recon = tx_date + timedelta(days=4)
     start_op_limit = tx_date - timedelta(days=10)
     end_op_limit = tx_date + timedelta(days=10)
     
+    # Clause de filtre par compte si fourni
+    acc_filter = None
+    if account_id:
+        acc_filter = or_(
+            Transaction.from_account_id == account_id,
+            Transaction.to_account_id == account_id
+        )
+
+    # 1. Recherche d'un doublon déjà rapproché / existant
     recon_query = db.query(Transaction).filter(
         Transaction.reconciliation_date != None,
         Transaction.amount >= abs_amount - epsilon,
@@ -136,15 +144,28 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None):
             (Transaction.date_operation >= start_op_limit) & (Transaction.date_operation <= end_op_limit)
         )
     )
+    if acc_filter is not None:
+        recon_query = recon_query.filter(acc_filter)
+
+    # Pour les virements internes (type == 'transfer' ou from & to renseignés),
+    # autoriser la détection même si l'ID a déjà été vu dans le lot
     if matched_ids:
-        recon_query = recon_query.filter(Transaction.id.notin_(matched_ids))
+        recon_query_filtered = recon_query.filter(
+            or_(
+                Transaction.id.notin_(matched_ids),
+                Transaction.type == "transfer",
+                and_(Transaction.from_account_id.isnot(None), Transaction.to_account_id.isnot(None))
+            )
+        )
+    else:
+        recon_query_filtered = recon_query
         
     tx_date_str = tx_date.strftime("%Y-%m-%d")
-    recon_query = recon_query.order_by(
+    recon_query_filtered = recon_query_filtered.order_by(
         func.abs(func.julianday(Transaction.date_operation) - func.julianday(tx_date_str))
     )
     
-    recon_match = recon_query.first()
+    recon_match = recon_query_filtered.first()
     if recon_match:
         return {
             "id": recon_match.id, 
@@ -152,7 +173,7 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None):
             "already_reconciled": True
         }
         
-    # 2. Search for unreconciled prediction/planned transaction
+    # 2. Recherche d'une prédiction non pointée / transaction planifiée
     start_op = tx_date - timedelta(days=15)
     end_op = tx_date + timedelta(days=15)
     
@@ -163,21 +184,45 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None):
         Transaction.amount >= abs_amount - epsilon,
         Transaction.amount <= abs_amount + epsilon
     )
+    if acc_filter is not None:
+        op_query = op_query.filter(acc_filter)
+
+    # 2.A : D'abord chercher parmi les transactions non encore appariées
+    available_op_query = op_query
     if matched_ids:
-        op_query = op_query.filter(Transaction.id.notin_(matched_ids))
+        available_op_query = op_query.filter(Transaction.id.notin_(matched_ids))
         
-    from sqlalchemy import func
-    tx_date_str = tx_date.strftime("%Y-%m-%d")
-    op_query = op_query.order_by(
+    available_op_query = available_op_query.order_by(
         func.abs(func.julianday(Transaction.date_operation) - func.julianday(tx_date_str))
     )
-    op_match = op_query.first()
+    op_match = available_op_query.first()
     if op_match:
         return {
             "id": op_match.id,
             "description": op_match.description,
             "already_reconciled": False
         }
+
+    # 2.B : Si aucun match libre, vérifier si c'est le pendant miroir d'un virement interne
+    # déjà apparié dans ce même lot (dans matched_ids)
+    if matched_ids:
+        mirror_query = op_query.filter(
+            Transaction.id.in_(matched_ids),
+            or_(
+                Transaction.type == "transfer",
+                and_(Transaction.from_account_id.isnot(None), Transaction.to_account_id.isnot(None))
+            )
+        ).order_by(
+            func.abs(func.julianday(Transaction.date_operation) - func.julianday(tx_date_str))
+        )
+        mirror_match = mirror_query.first()
+        if mirror_match:
+            return {
+                "id": mirror_match.id,
+                "description": mirror_match.description,
+                "already_reconciled": True,
+                "is_mirror_transfer": True
+            }
         
     return None
 

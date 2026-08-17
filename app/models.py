@@ -12,11 +12,16 @@ class Account(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
-    type = Column(String) # "Compte courant", "Livret", etc.
+    type = Column(String) # "Compte courant", "Livret", "Prêt / Emprunt", etc.
     initial_balance = Column(Float, default=0.0)
     is_closed = Column(Boolean, default=False)
     color = Column(String, nullable=True)  # Hex color for badge display (e.g. "#3366ff")
     currency = Column(String, default="EUR")  # Currency code (e.g. "EUR", "USD", "GBP", "CHF")
+    interest_rate = Column(Float, nullable=True)  # Taux annuel (%) pour livrets ou emprunts
+    borrowed_amount = Column(Float, nullable=True)  # Montant initial emprunté
+    monthly_payment = Column(Float, nullable=True)  # Mensualité hors assurance
+    loan_end_date = Column(Date, nullable=True)  # Date d'échéance du prêt
+    loan_insurance = Column(Float, nullable=True)  # Assurance mensuelle du prêt
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -278,4 +283,22 @@ class ScenarioEvent(Base):
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     scenario = relationship("Scenario", back_populates="events")
+
+
+class BankConnection(Base):
+    """Connexion bancaire synchronisée via Woob (identifiants chiffrés dans global_config)."""
+    __tablename__ = "bank_connections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    backend = Column(String, nullable=False, index=True)   # "cragr", "boursorama", "bnp", etc.
+    label = Column(String, nullable=False)                  # Nom libre ("Mon Crédit Agricole")
+    website = Column(String, nullable=True)                 # Sous-domaine ou caisse si applicable
+    is_active = Column(Boolean, default=True)
+    last_sync_at = Column(DateTime, nullable=True)
+    last_sync_status = Column(String, nullable=True)        # "success", "error", "2fa_required"
+    last_sync_count = Column(Integer, default=0)            # Nombre d'opérations importées lors du dernier sync
+    last_error = Column(Text, nullable=True)
+    account_mapping = Column(Text, nullable=True)           # JSON {remote_account_id: omnibank_account_id}
+    created_at = Column(DateTime, default=_utcnow)
+
 
