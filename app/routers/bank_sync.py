@@ -63,11 +63,23 @@ def list_connections(db: Session = Depends(get_db)):
 @router.post("/connections", response_model=BankConnectionOut)
 def create_connection(data: BankConnectionCreate, db: Session = Depends(get_db)):
     """Crée une nouvelle connexion bancaire et chiffre immédiatement ses identifiants dans le coffre."""
+    master_pw = data.master_password
+    if not master_pw and data.vault_token:
+        master_pw = VaultSessionManager.get_password(data.vault_token)
+    if not master_pw:
+        master_pw = VaultSessionManager.get_password()
+    
+    if not master_pw:
+        raise HTTPException(
+            status_code=400,
+            detail="Mot de passe maître requis pour chiffrer les identifiants de connexion."
+        )
+
     # Si des connexions avec identifiants existent déjà, valider la cohérence du mot de passe maître unique
     existing_conns = db.query(BankConnection).all()
     for ex_conn in existing_conns:
         if CredentialVault.has_credentials(db, ex_conn.id):
-            test_creds = CredentialVault.retrieve_credentials(db, ex_conn.id, data.master_password)
+            test_creds = CredentialVault.retrieve_credentials(db, ex_conn.id, master_pw)
             if test_creds is None:
                 raise HTTPException(
                     status_code=400,
@@ -89,7 +101,7 @@ def create_connection(data: BankConnectionCreate, db: Session = Depends(get_db))
     db.flush()
 
     # Stocker les identifiants chiffrés avec le mot de passe maître
-    CredentialVault.store_credentials(db, conn.id, data.credentials, data.master_password)
+    CredentialVault.store_credentials(db, conn.id, data.credentials, master_pw)
     db.commit()
     db.refresh(conn)
 
@@ -121,17 +133,20 @@ def update_connection(conn_id: int, data: BankConnectionUpdate, db: Session = De
 
 @router.delete("/connections/{conn_id}")
 def delete_connection(conn_id: int, db: Session = Depends(get_db)):
-    """Supprime une connexion bancaire et efface définitivement ses clés chiffrées du coffre."""
+    """Supprime une connexion bancaire et efface définitivement ses clés chiffrées du coffre et son sas d'attente."""
+    from app.services.bank_sync_scheduler import clear_pending_sync_for_connection
+
     conn = db.query(BankConnection).filter(BankConnection.id == conn_id).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connexion bancaire introuvable")
 
-    # Purge sécurisée du coffre
+    # Purge sécurisée du coffre et du sas d'attente
     CredentialVault.delete_credentials(db, conn.id)
+    clear_pending_sync_for_connection(db, conn.id)
 
     db.delete(conn)
     db.commit()
-    return {"ok": True, "message": "Connexion et identifiants supprimés."}
+    return {"ok": True, "message": "Connexion, identifiants et sas d'attente supprimés."}
 
 
 @router.post("/vault/unlock", response_model=Dict[str, Any])

@@ -378,7 +378,7 @@ window.OverviewView = {
                         ${window.i18n.t('bank_sync_pending_box_title') || 'Opérations bancaires en attente'}
                     </h4>
                     <div style="font-size: 12px; color: var(--text-muted);">
-                        ${totalMatches > 0 ? `<strong>${totalMatches}</strong> prête(s) à pointer ` : ''}
+                        ${totalMatches > 0 ? `<strong>${totalMatches}</strong> ${window.i18n ? window.i18n.t('bank_sync_ready_to_reconcile') || 'prête(s) à rapprocher' : 'prête(s) à rapprocher'} ` : ''}
                         ${(totalMatches > 0 && totalNew > 0) ? '• ' : ''}
                         ${totalNew > 0 ? `<strong>${totalNew}</strong> nouvelle(s) opération(s) à ajouter` : ''}
                     </div>
@@ -388,7 +388,7 @@ window.OverviewView = {
             <div style="display: flex; gap: 8px; align-items: center;">
                 ${totalMatches > 0 ? `
                 <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.reconcileAllPending().then(() => window.OverviewView.init())" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
-                    ⚡ ${window.i18n.t('bank_btn_reconcile_all') || 'Tout pointer'} (${totalMatches})
+                    ⚡ ${window.i18n.t('bank_btn_reconcile_all') || 'Rapprocher en banque'} (${totalMatches})
                 </button>
                 ` : ''}
                 ${pendingData.accounts && pendingData.accounts.length > 0 ? `
@@ -600,11 +600,20 @@ window.OverviewView = {
                 else pastExpenseSum += tx.amount;
             });
 
-            const bulkText = window.i18n.t('overview_bulk_reconcile') || 'Tout rapprocher';
-            bulkBtnLabel.textContent = `✓ ${bulkText} (+${formatCurrency(pastIncomeSum)} / -${formatCurrency(pastExpenseSum)})`;
+            let amtSummary = '';
+            if (pastIncomeSum > 0 && pastExpenseSum > 0) {
+                amtSummary = ` (+${formatCurrency(pastIncomeSum)} / -${formatCurrency(pastExpenseSum)})`;
+            } else if (pastExpenseSum > 0) {
+                amtSummary = ` (-${formatCurrency(pastExpenseSum)})`;
+            } else if (pastIncomeSum > 0) {
+                amtSummary = ` (+${formatCurrency(pastIncomeSum)})`;
+            }
+
+            const bulkText = window.i18n.t('overview_bulk_reconcile') || 'Rapprocher les échéances passées';
+            bulkBtnLabel.textContent = `✓ ${bulkText} (${overdueTxs.length})${amtSummary}`;
 
             // Tooltip contents
-            let ttHtml = `<div class="overview-tt-title">${window.i18n.t('overview_bulk_reconcile_tooltip_title') || 'Opérations passées qui seront rapprochées'} (${overdueTxs.length}) :</div>`;
+            let ttHtml = `<div class="overview-tt-title">${window.i18n.t('overview_bulk_reconcile_tooltip_title') || 'Échéances passées qui seront rapprochées'} (${overdueTxs.length}) :</div>`;
             ttHtml += `<div class="overview-tt-list">`;
             for (const tx of overdueTxs.slice(0, 15)) {
                 let accName = '—';

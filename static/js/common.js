@@ -39,6 +39,11 @@ async function _handleApiError(res) {
             errMsg = typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail);
         }
     } catch(e) {}
+    
+    if (window.ErrorReporter && typeof window.ErrorReporter.recordApiError === 'function') {
+        window.ErrorReporter.recordApiError(res.url || 'API', res.status, errMsg);
+    }
+    
     throw new Error(errMsg);
 }
 
@@ -409,8 +414,46 @@ function showToast(message, type = 'success', duration = 3000) {
         transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), bottom 0.3s ease;
         pointer-events: auto; cursor: pointer;
     `;
-    toast.innerHTML = `<span style="font-size:16px;">${c.icon}</span> ${message}`;
-    toast.onclick = () => dismiss();
+    const msgSpan = document.createElement('span');
+    msgSpan.innerHTML = `<span style="font-size:16px;">${c.icon}</span> ${message}`;
+    toast.appendChild(msgSpan);
+
+    if (type === 'error') {
+        const reportBtn = document.createElement('button');
+        reportBtn.style.cssText = `
+            margin-left: auto;
+            background: rgba(255, 86, 48, 0.2);
+            border: 1px solid rgba(255, 86, 48, 0.5);
+            color: #ff5630;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+        `;
+        reportBtn.textContent = window.i18n?.t('diag_toast_copy_report') || '📋 Rapport';
+        reportBtn.title = window.i18n?.t('diag_toast_copy_report_tooltip') || 'Copier un rapport de bug anonymisé pour GitHub';
+        reportBtn.onmouseover = () => { reportBtn.style.background = 'rgba(255, 86, 48, 0.35)'; };
+        reportBtn.onmouseout = () => { reportBtn.style.background = 'rgba(255, 86, 48, 0.2)'; };
+        reportBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (window.ErrorReporter && typeof window.ErrorReporter.copyReportToClipboard === 'function') {
+                window.ErrorReporter.copyReportToClipboard(message);
+            }
+        };
+        toast.appendChild(reportBtn);
+    }
+
+    toast.onclick = (e) => {
+        if (e.target.tagName !== 'BUTTON') {
+            dismiss();
+        }
+    };
 
     document.body.appendChild(toast);
     requestAnimationFrame(() => { toast.style.transform = 'translateX(0)'; });

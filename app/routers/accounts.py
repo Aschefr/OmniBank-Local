@@ -12,7 +12,12 @@ router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
 @router.get("/", response_model=List[AccountOut])
 def get_accounts(db: Session = Depends(get_db)):
-    return db.query(Account).all()
+    from app.services.finance_engine import calculate_balances
+    accounts = db.query(Account).all()
+    balances = calculate_balances(db, only_reconciled=True)
+    for acc in accounts:
+        acc.current_balance = round(balances.get(acc.id, acc.initial_balance or 0.0), 2)
+    return accounts
 
 @router.post("/", response_model=AccountOut)
 def create_account(acc: AccountBase, db: Session = Depends(get_db)):
@@ -24,6 +29,7 @@ def create_account(acc: AccountBase, db: Session = Depends(get_db)):
     stats_cache.invalidate()
     db.refresh(new_acc)
     new_acc.action_id = action_id
+    new_acc.current_balance = round(new_acc.initial_balance or 0.0, 2)
     return new_acc
 
 @router.put("/{acc_id}", response_model=AccountOut)
@@ -42,6 +48,9 @@ def update_account(acc_id: int, acc: AccountBase, db: Session = Depends(get_db))
     stats_cache.invalidate()
     db.refresh(db_acc)
     db_acc.action_id = action_id
+    from app.services.finance_engine import calculate_balances
+    balances = calculate_balances(db, only_reconciled=True)
+    db_acc.current_balance = round(balances.get(db_acc.id, db_acc.initial_balance or 0.0), 2)
     return db_acc
 
 @router.delete("/{acc_id}")
@@ -93,7 +102,7 @@ def get_account_financial_info(acc_id: int, db: Session = Depends(get_db)):
     is_loan = any(k in t for k in ["prêt", "pret", "emprunt", "loan", "crédit", "credit"])
     
     from app.services.finance_engine import calculate_balances
-    balances = calculate_balances(db, only_reconciled=False)
+    balances = calculate_balances(db, only_reconciled=True)
     current_balance = balances.get(acc.id, acc.initial_balance or 0.0)
 
     if is_loan:
