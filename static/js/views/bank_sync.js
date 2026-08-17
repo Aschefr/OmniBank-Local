@@ -99,49 +99,49 @@ window.BankSyncView = {
     render() {
         this.ensureModalsExist();
         return `
-        <div id="bankSyncRoot" style="margin-bottom: 15px;">
-            <!-- Header -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
-                        <h3 style="font-size: 18px; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                            <span>⚡</span> <span data-i18n="bank_sync_title">${window.i18n.t('bank_sync_title')}</span>
-                        </h3>
-                        <span style="font-size: 10px; font-weight: 700; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 2px 8px; border-radius: 20px;" data-i18n="bank_sync_beta_badge">
-                            ${window.i18n.t('bank_sync_beta_badge')}
-                        </span>
-                    </div>
-                    <p style="margin: 0; color: var(--text-muted); font-size: 13px;" data-i18n="bank_sync_subtitle">
-                        ${window.i18n.t('bank_sync_subtitle')}
-                    </p>
+        <div id="bankSyncRoot" class="bank-sync-unified-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 16px; padding: 20px; box-shadow: var(--shadow-sm); margin-bottom: 24px;">
+            <!-- Top Row: Title, Badges, Vault status & Actions -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <h3 style="font-size: 17px; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                        <span>⚡</span> <span data-i18n="bank_sync_title">${window.i18n.t('bank_sync_title')}</span>
+                    </h3>
+                    <span style="font-size: 11px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.25); padding: 2px 9px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; cursor: help;" title="${window.i18n.t('bank_sync_security_notice')}">
+                        <span>🛡️</span> <span>100% Local & Chiffré</span>
+                    </span>
+                    <span id="bankSyncVaultPill"></span>
                 </div>
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <button id="btnHeaderBgSync" class="btn btn-secondary overview-bank-sync-btn" onclick="window.BankSyncView.triggerBackgroundSyncNow()" style="display: ${this.connections.length > 0 ? 'inline-flex' : 'none'}; height: 38px; align-items: center; gap: 6px; font-weight: 600; padding: 0 16px; border-radius: 10px; box-sizing: border-box; white-space: nowrap;" title="Interroger toutes vos banques en arrière-plan sans bloquer l'interface">
+
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <!-- Auto-Sync Compact Switch -->
+                    <div id="bankSyncAutoSyncCompact" style="display: ${this.connections.length > 0 ? 'inline-flex' : 'none'}; height: 32px; align-items: center; gap: 6px; padding: 0 10px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; font-size: 11px; font-weight: 600; color: var(--text-muted); box-sizing: border-box;">
+                        <label style="display: inline-flex; align-items: center; gap: 5px; cursor: pointer; margin: 0; white-space: nowrap;">
+                            <input type="checkbox" id="chkAutoSyncToggle" ${this.autoSyncSettings?.enabled ? 'checked' : ''} onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: var(--accent);">
+                            <span>⏰ <span data-i18n="bank_sync_auto_sync_label">${window.i18n.t('bank_sync_auto_sync_label') || 'Relevé auto'}</span></span>
+                        </label>
+                        <select id="selAutoSyncInterval" class="input-styled" style="height: 20px; font-size: 10px; padding: 0 2px; border: none; background: transparent; color: var(--text-main); font-weight: 700;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
+                            <option value="12" ${this.autoSyncSettings?.interval_hours === 12 ? 'selected' : ''}>12h</option>
+                            <option value="24" ${this.autoSyncSettings?.interval_hours === 24 ? 'selected' : ''}>24h</option>
+                            <option value="48" ${this.autoSyncSettings?.interval_hours === 48 ? 'selected' : ''}>48h</option>
+                        </select>
+                    </div>
+
+                    <button id="btnHeaderBgSync" class="btn btn-secondary overview-bank-sync-btn" onclick="window.BankSyncView.triggerBackgroundSyncNow()" style="display: ${this.connections.length > 0 ? 'inline-flex' : 'none'}; height: 32px; padding: 0 12px; font-size: 12px; border-radius: 8px; align-items: center; gap: 5px; font-weight: 600; box-sizing: border-box; white-space: nowrap;" title="Interroger toutes vos banques en arrière-plan sans bloquer l'interface">
                         <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn')}</span>
                     </button>
-                    <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="display: inline-flex; height: 38px; align-items: center; gap: 6px; font-weight: 600; padding: 0 18px; border-radius: 10px; box-shadow: 0 4px 12px rgba(99,102,241,0.25); box-sizing: border-box; white-space: nowrap;">
+
+                    <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="display: inline-flex; height: 32px; align-items: center; gap: 5px; font-weight: 700; padding: 0 14px; font-size: 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(99,102,241,0.25); box-sizing: border-box; white-space: nowrap;">
                         <span>➕</span> <span data-i18n="bank_sync_add_btn">${window.i18n.t('bank_sync_add_btn')}</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Barre de Statut du Coffre-Fort Sécurisé & Relevé Automatique -->
-            <div id="bankVaultStatusBar" style="margin-bottom: 14px;"></div>
-
-            <!-- Notice Sécurité & Confidentialité -->
-            <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 14px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px;">
-                <span style="font-size: 22px;">🛡️</span>
-                <div style="font-size: 13px; color: var(--text-main); line-height: 1.4;">
-                    <span data-i18n="bank_sync_security_notice">${window.i18n.t('bank_sync_security_notice')}</span>
-                </div>
-            </div>
-
             <!-- Encart Opérations en attente (si détectées par le scheduler) -->
-            <div id="bankPendingSyncBox" style="display: none; margin-bottom: 20px;"></div>
+            <div id="bankPendingSyncBox" style="display: none; margin-bottom: 14px;"></div>
 
-            <!-- Liste des Connexions -->
-            <div id="bankConnectionsList" style="display: flex; flex-direction: column; gap: 14px;">
-                <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+            <!-- Liste des Connexions (Grille moderne) -->
+            <div id="bankConnectionsList">
+                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
                     Chargement des connexions...
                 </div>
             </div>
@@ -258,7 +258,7 @@ window.BankSyncView = {
 
                         <div id="dynamicFormFields" style="display: flex; flex-direction: column; gap: 14px;"></div>
 
-                        <div style="margin-top: 20px; padding-top: 18px; border-top: 1px dashed var(--border-color);">
+                        <div id="masterPwSection" style="margin-top: 20px; padding-top: 18px; border-top: 1px dashed var(--border-color);">
                             <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;" data-i18n="bank_sync_master_pw_title">
                                 🔐 3. Mot de passe maître (Chiffrement local)
                             </label>
@@ -545,86 +545,40 @@ window.BankSyncView = {
     },
 
     renderVaultStatusBar() {
-        const bar = document.getElementById('bankVaultStatusBar');
-        if (!bar) return;
+        const pill = document.getElementById('bankSyncVaultPill');
+        const autoSyncBox = document.getElementById('bankSyncAutoSyncCompact');
+        const headerBtn = document.getElementById('btnHeaderBgSync');
 
-        // Si aucune connexion bancaire configurée, masquer complètement la barre
+        if (headerBtn) {
+            headerBtn.style.display = this.connections && this.connections.length > 0 ? 'inline-flex' : 'none';
+        }
+        if (autoSyncBox) {
+            autoSyncBox.style.display = this.connections && this.connections.length > 0 ? 'inline-flex' : 'none';
+        }
+
+        if (!pill) return;
+
         if (!this.connections || this.connections.length === 0) {
-            bar.innerHTML = '';
-            bar.style.display = 'none';
+            pill.innerHTML = '';
+            pill.style.display = 'none';
             return;
         }
-        bar.style.display = 'block';
+        pill.style.display = 'inline-flex';
 
         const isUnlocked = this.vaultStatus?.is_unlocked;
         const days = this.vaultStatus?.remaining_days || 0;
-        const autoSync = this.autoSyncSettings;
 
         if (isUnlocked) {
-            bar.innerHTML = `
-            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 14px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 20px;">🔓</span>
-                    <div>
-                        <div style="font-size: 13px; font-weight: 700; color: #10b981;">
-                            ${window.i18n.tp('bank_vault_unlocked_status', { days })}
-                        </div>
-                        <div style="font-size: 11px; color: var(--text-muted);">
-                            <span data-i18n="bank_sync_security_unlocked_desc">${window.i18n.t('bank_sync_security_unlocked_desc')}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <!-- 1. Bouton déclenchement relevé auto en arrière-plan -->
-                    <button class="btn btn-secondary overview-bank-sync-btn" onclick="window.BankSyncView.triggerBackgroundSyncNow()" style="height: 36px; padding: 0 14px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; white-space: nowrap; box-sizing: border-box;" title="Lancer un relevé en arrière-plan pour toutes vos banques maintenant">
-                        <span>⚡</span> <span>${window.i18n.t('bank_sync_run_background_btn')}</span>
-                    </button>
-
-                    <!-- 2. Auto-Sync Toggle & Sélecteur d'intervalle -->
-                    <div style="height: 36px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; font-size: 12px; white-space: nowrap; box-sizing: border-box;">
-                        <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; white-space: nowrap; font-weight: 600; color: var(--text-main);">
-                            <input type="checkbox" id="chkAutoSyncToggle" ${autoSync.enabled ? 'checked' : ''} onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: var(--accent);">
-                            <span>⏰ <span data-i18n="bank_sync_auto_sync_label">${window.i18n.t('bank_sync_auto_sync_label')}</span></span>
-                        </label>
-                        <select id="selAutoSyncInterval" class="input-styled" style="height: 26px; padding: 0 6px; font-size: 11px; border-radius: 6px; width: auto; min-width: 58px;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
-                            <option value="12" ${autoSync.interval_hours === 12 ? 'selected' : ''}>12h</option>
-                            <option value="24" ${autoSync.interval_hours === 24 ? 'selected' : ''}>24h</option>
-                            <option value="48" ${autoSync.interval_hours === 48 ? 'selected' : ''}>48h</option>
-                        </select>
-                    </div>
-
-                    <!-- 3. Bouton Verrouiller -->
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.lockVault()" style="height: 36px; padding: 0 14px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; white-space: nowrap; box-sizing: border-box;">
-                        <span>🔒</span> <span data-i18n="bank_vault_lock_btn">${window.i18n.t('bank_vault_lock_btn')}</span>
-                    </button>
-                </div>
-            </div>
+            pill.innerHTML = `
+                <span style="font-size: 11px; font-weight: 600; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25); padding: 2px 9px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" onclick="window.BankSyncView.lockVault()" title="Coffre déverrouillé en mémoire (encore ${days}j). Cliquez pour verrouiller">
+                    <span>🔓</span> <span>Déverrouillé (${days}j)</span> <span style="font-size: 10px; opacity: 0.8;">🔒</span>
+                </span>
             `;
         } else {
-            bar.innerHTML = `
-            <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 14px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 20px;">🔒</span>
-                    <div>
-                        <div style="font-size: 13px; font-weight: 700; color: #f59e0b;" data-i18n="bank_vault_locked_status">
-                            ${window.i18n.t('bank_vault_locked_status')}
-                        </div>
-                        <div style="font-size: 11px; color: var(--text-muted);">
-                            <span data-i18n="bank_sync_security_locked_desc">${window.i18n.t('bank_sync_security_locked_desc')}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                    <button class="btn btn-secondary overview-bank-sync-btn" onclick="window.BankSyncView.triggerBackgroundSyncNow()" style="height: 36px; padding: 0 14px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; white-space: nowrap; box-sizing: border-box;" title="Déverrouille et lance le relevé en tâche de fond">
-                        <span>⚡</span> <span>${window.i18n.t('bank_sync_run_background_btn')}</span>
-                    </button>
-                    <button class="btn btn-primary" onclick="window.BankSyncView.unlockVaultManually()" style="height: 36px; padding: 0 16px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; white-space: nowrap; box-sizing: border-box;">
-                        <span>🔓</span> <span data-i18n="bank_vault_unlock_btn">${window.i18n.t('bank_vault_unlock_btn')}</span>
-                    </button>
-                </div>
-            </div>
+            pill.innerHTML = `
+                <span style="font-size: 11px; font-weight: 600; background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.25); padding: 2px 9px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" onclick="window.BankSyncView.unlockVaultManually()" title="Coffre verrouillé. Cliquez pour déverrouiller et activer les relevés automatiques">
+                    <span>🔒</span> <span>Coffre verrouillé</span> <span style="font-size: 10px; text-decoration: underline;">(Déverrouiller)</span>
+                </span>
             `;
         }
     },
@@ -655,6 +609,16 @@ window.BankSyncView = {
         try {
             const data = await API.get('/api/bank-sync/settings/auto-sync');
             this.autoSyncSettings = data || { enabled: false, interval_hours: 24 };
+
+            // Mettre à jour immédiatement l'état visuel du toggle et du sélecteur
+            const chk = document.getElementById('chkAutoSyncToggle');
+            if (chk) {
+                chk.checked = !!this.autoSyncSettings.enabled;
+            }
+            const sel = document.getElementById('selAutoSyncInterval');
+            if (sel && this.autoSyncSettings.interval_hours) {
+                sel.value = String(this.autoSyncSettings.interval_hours);
+            }
         } catch (e) {
             console.warn('[BankSync] Erreur settings auto-sync:', e);
         }
@@ -832,38 +796,40 @@ window.BankSyncView = {
 
         const totalMatches = data?.total_matches || 0;
         const totalNew = data?.total_new || 0;
+        const hasConnections = this.connections && this.connections.length > 0;
 
-        if (totalMatches === 0 && totalNew === 0) {
+        if (!hasConnections || (totalMatches === 0 && totalNew === 0)) {
             box.style.display = 'none';
+            box.innerHTML = '';
             return;
         }
 
         box.style.display = 'block';
         box.innerHTML = `
-        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 14px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <span style="font-size: 24px;">📥</span>
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">📥</span>
                 <div>
-                    <h4 style="margin: 0 0 2px 0; font-size: 14px; font-weight: 700; color: var(--text-main);">
-                        ${window.i18n.t('bank_sync_pending_box_title')}
-                    </h4>
-                    <div style="font-size: 12px; color: var(--text-muted);">
-                        ${totalMatches > 0 ? `<strong>${totalMatches}</strong> prête(s) à pointer ` : ''}
-                        ${(totalMatches > 0 && totalNew > 0) ? '• ' : ''}
-                        ${totalNew > 0 ? `<strong>${totalNew}</strong> nouvelle(s) opération(s)` : ''}
-                    </div>
+                    <span style="font-size: 13px; font-weight: 700; color: var(--text-main); margin-right: 6px;">
+                        ${window.i18n.t('bank_sync_pending_box_title') || 'Opérations en attente de synchronisation'} :
+                    </span>
+                    <span style="font-size: 12px; color: var(--text-muted);">
+                        ${totalMatches > 0 ? `<strong style="color: #10b981;">${totalMatches}</strong> ${window.i18n ? window.i18n.t('bank_sync_ready_to_reconcile') || 'prête(s) à rapprocher' : 'prête(s) à rapprocher'}` : ''}
+                        ${(totalMatches > 0 && totalNew > 0) ? ' • ' : ''}
+                        ${totalNew > 0 ? `<strong>${totalNew}</strong> nouvelle(s)` : ''}
+                    </span>
                 </div>
             </div>
 
-            <div style="display: flex; gap: 8px;">
+            <div style="display: flex; gap: 8px; align-items: center;">
                 ${totalMatches > 0 ? `
-                <button class="btn btn-primary" onclick="window.BankSyncView.reconcileAllPending()" style="font-size: 12px; padding: 6px 14px; border-radius: 8px; font-weight: 700;">
-                    ⚡ ${window.i18n.t('bank_btn_reconcile_all')} (${totalMatches})
+                <button class="btn btn-primary" onclick="window.BankSyncView.reconcileAllPending()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 700; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
+                    <span>⚡</span> <span>${window.i18n.t('bank_btn_reconcile_all') || 'Rapprocher en banque'} (${totalMatches})</span>
                 </button>
                 ` : ''}
                 ${data.accounts && data.accounts.length > 0 ? `
-                <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal()" style="font-size: 12px; padding: 6px 14px; border-radius: 8px; font-weight: 600;">
-                    📋 ${window.i18n.t('bank_sync_pending_review_btn')}
+                <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
+                    <span>📋</span> <span>${window.i18n.t('bank_sync_pending_review_btn') || 'Ouvrir la revue'}</span>
                 </button>
                 ` : ''}
             </div>
@@ -1065,15 +1031,15 @@ window.BankSyncView = {
 
         if (this.connections.length === 0) {
             container.innerHTML = `
-            <div style="text-align: center; padding: 40px 20px; background: var(--bg-card); border: 1px dashed var(--border-color); border-radius: 16px;">
-                <div style="font-size: 40px; margin-bottom: 12px;">🏦</div>
-                <h4 style="font-size: 16px; font-weight: 700; margin: 0 0 6px 0; color: var(--text-main);" data-i18n="bank_sync_empty_state">
+            <div style="text-align: center; padding: 24px 20px; background: var(--bg-base); border: 1px dashed var(--border-color); border-radius: 12px;">
+                <div style="font-size: 32px; margin-bottom: 8px;">🏦</div>
+                <h4 style="font-size: 14px; font-weight: 700; margin: 0 0 4px 0; color: var(--text-main);" data-i18n="bank_sync_empty_state">
                     ${window.i18n.t('bank_sync_empty_state')}
                 </h4>
-                <p style="font-size: 13px; color: var(--text-muted); max-width: 420px; margin: 0 auto 16px auto;" data-i18n="bank_sync_empty_desc">
+                <p style="font-size: 12px; color: var(--text-muted); max-width: 420px; margin: 0 auto 12px auto;" data-i18n="bank_sync_empty_desc">
                     ${window.i18n.t('bank_sync_empty_desc')}
                 </p>
-                <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="font-weight: 600; padding: 8px 18px; border-radius: 10px;">
+                <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="font-weight: 600; padding: 6px 14px; font-size: 12px; border-radius: 8px;">
                     ➕ <span data-i18n="bank_sync_add_btn">${window.i18n.t('bank_sync_add_btn')}</span>
                 </button>
             </div>
@@ -1081,58 +1047,63 @@ window.BankSyncView = {
             return;
         }
 
-        container.innerHTML = this.connections.map(conn => {
-            const lastSyncText = conn.last_sync_at 
-                ? new Date(conn.last_sync_at).toLocaleString() 
-                : window.i18n.t('bank_sync_never');
-            
-            const isError = conn.last_sync_status === 'error' || conn.last_sync_status === 'auto_error';
-            const statusBadge = isError 
-                ? `<span style="background: rgba(239,68,68,0.15); color: #ef4444; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px;">🔴 ${window.i18n.t('bank_sync_status_error')}</span>`
-                : `<span style="background: rgba(16,185,129,0.15); color: #10b981; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px;">🟢 ${window.i18n.t('bank_sync_status_connected')}</span>`;
+        container.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 14px;">
+            ${this.connections.map(conn => {
+                const lastSyncText = conn.last_sync_at 
+                    ? new Date(conn.last_sync_at).toLocaleString() 
+                    : window.i18n.t('bank_sync_never');
+                
+                const isError = conn.last_sync_status === 'error' || conn.last_sync_status === 'auto_error';
+                const statusBadge = isError 
+                    ? `<span style="background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🔴</span> <span>${window.i18n.t('bank_sync_status_error')}</span></span>`
+                    : `<span style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🟢</span> <span>${window.i18n.t('bank_sync_status_connected')}</span></span>`;
 
-            const cachedPreview = this.getCachedPreview(conn.id);
-            const cachedBtn = cachedPreview ? `
-                <button class="btn btn-secondary" onclick="window.BankSyncView.openCachedPreviewDirectly(${conn.id})" style="padding: 7px 12px; border-radius: 8px; font-size: 13px;" title="${window.i18n.t('bank_sync_cached_preview_tooltip')}" data-i18n="bank_sync_cached_preview_btn">
-                    ${window.i18n.t('bank_sync_cached_preview_btn')}
-                </button>
-            ` : '';
+                const cachedPreview = this.getCachedPreview(conn.id);
+                const cachedBtn = cachedPreview ? `
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.openCachedPreviewDirectly(${conn.id})" style="padding: 0 10px; border-radius: 8px; font-size: 12px; height: 32px; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" title="${window.i18n.t('bank_sync_cached_preview_tooltip')}" data-i18n="bank_sync_cached_preview_btn">
+                        <span>📋</span> <span>${window.i18n.t('bank_sync_cached_preview_btn')}</span>
+                    </button>
+                ` : '';
 
-            return `
-            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: var(--shadow-sm);">
-                <div style="display: flex; align-items: center; gap: 14px;">
-                    <div style="width: 44px; height: 44px; border-radius: 12px; background: var(--bg-base); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 22px;">
-                        🏦
+                return `
+                <div class="bank-connection-item" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px; box-shadow: var(--shadow-sm); transition: border-color 0.2s ease;">
+                    <div style="display: flex; align-items: center; gap: 14px; min-width: 0;">
+                        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
+                            🏦
+                        </div>
+                        <div style="min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
+                                <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-main); white-space: nowrap;">${conn.label}</h4>
+                                ${statusBadge}
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <span style="background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; color: var(--text-main); font-weight: 600;">${conn.backend}</span>
+                                <span>•</span>
+                                <span>${lastSyncText}</span>
+                                ${conn.last_sync_count ? `<span style="background: rgba(16,185,129,0.12); color: #10b981; font-weight: 700; padding: 1px 8px; border-radius: 6px; font-size: 11px;">+${conn.last_sync_count} op.</span>` : ''}
+                            </div>
+                            ${conn.last_error ? `<div style="font-size: 11px; color: #ef4444; margin-top: 4px;">⚠️ ${conn.last_error}</div>` : ''}
+                        </div>
                     </div>
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
-                            <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-main);">${conn.label}</h4>
-                            ${statusBadge}
-                        </div>
-                        <div style="font-size: 12px; color: var(--text-muted); display: flex; gap: 12px;">
-                            <span><span data-i18n="bank_sync_bank_label">${window.i18n.t('bank_sync_bank_label')}</span> <strong>${conn.backend}</strong></span>
-                            <span>${window.i18n.t('bank_sync_last_sync')} <strong>${lastSyncText}</strong></span>
-                            ${conn.last_sync_count ? `<span>+${conn.last_sync_count} op.</span>` : ''}
-                        </div>
-                        ${conn.last_error ? `<div style="font-size: 11px; color: #ef4444; margin-top: 2px;">⚠️ ${conn.last_error}</div>` : ''}
+
+                    <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                        ${cachedBtn}
+                        <button class="btn btn-primary" onclick="window.BankSyncView.promptAndSync(${conn.id})" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; padding: 0 14px; border-radius: 8px; font-size: 12px; height: 32px; box-sizing: border-box;" title="Lancer la synchronisation">
+                            <span>🔄</span> <span data-i18n="bank_sync_sync_btn">${window.i18n.t('bank_sync_sync_btn')}</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="window.BankSyncView.openMappingModal(${conn.id})" style="padding: 0 12px; border-radius: 8px; font-size: 12px; height: 32px; display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; font-weight: 600;" title="${window.i18n.t('bank_sync_edit_mapping_btn')}">
+                            <span>🔗</span> <span data-i18n="bank_sync_mapping_btn">${window.i18n.t('bank_sync_mapping_btn')}</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="window.BankSyncView.deleteConnection(${conn.id})" style="padding: 0 10px; border-radius: 8px; color: #ef4444; height: 32px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;" title="${window.i18n.t('bank_sync_delete_btn')}">
+                            🗑️
+                        </button>
                     </div>
                 </div>
-
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    ${cachedBtn}
-                    <button class="btn btn-primary" onclick="window.BankSyncView.promptAndSync(${conn.id})" style="display: flex; align-items: center; gap: 6px; font-weight: 600; padding: 7px 14px; border-radius: 8px; font-size: 13px;">
-                        <span>🔄</span> <span data-i18n="bank_sync_sync_btn">${window.i18n.t('bank_sync_sync_btn')}</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.openMappingModal(${conn.id})" style="padding: 7px 12px; border-radius: 8px; font-size: 13px;" title="${window.i18n.t('bank_sync_edit_mapping_btn')}" data-i18n="bank_sync_mapping_btn">
-                        ${window.i18n.t('bank_sync_mapping_btn')}
-                    </button>
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.deleteConnection(${conn.id})" style="padding: 7px 10px; border-radius: 8px; color: #ef4444;" title="${window.i18n.t('bank_sync_delete_btn')}">
-                        🗑️
-                    </button>
-                </div>
-            </div>
-            `;
-        }).join('');
+                `;
+            }).join('')}
+        </div>
+        `;
     },
 
     openAddModal() {
@@ -1189,6 +1160,46 @@ window.BankSyncView = {
             🏦 <strong>${backend.description || backend.name}</strong> (${backend.name})
         `;
         document.getElementById('connLabelInput').value = backend.description || backend.name;
+
+        // Configuration dynamique du step 3 mot de passe maître
+        const isUnlocked = this.vaultStatus?.is_unlocked;
+        const hasConnections = this.connections && this.connections.length > 0;
+        const masterPwContainer = document.getElementById('masterPwSection');
+        
+        if (masterPwContainer) {
+            if (isUnlocked) {
+                masterPwContainer.innerHTML = `
+                    <div style="padding: 12px 14px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); border-radius: 10px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 22px;">🔓</span>
+                        <div style="font-size: 12px; color: var(--text-main); line-height: 1.4;">
+                            <strong style="color: #10b981;">Coffre-fort déverrouillé</strong><br/>
+                            <span style="color: var(--text-muted);">Vos identifiants seront automatiquement chiffrés avec votre mot de passe maître de coffre-fort.</span>
+                        </div>
+                    </div>
+                    <input type="password" id="connMasterPwInput" style="display: none;" />
+                `;
+            } else if (hasConnections) {
+                masterPwContainer.innerHTML = `
+                    <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">
+                        🔐 3. Mot de passe maître du coffre-fort
+                    </label>
+                    <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 8px 0; line-height: 1.4;">
+                        Entrez le mot de passe maître unique de votre coffre-fort local pour y rattacher cette banque.
+                    </p>
+                    <input type="password" id="connMasterPwInput" class="input-styled" placeholder="Mot de passe maître du coffre-fort" autocomplete="current-password" />
+                `;
+            } else {
+                masterPwContainer.innerHTML = `
+                    <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;" data-i18n="bank_sync_master_pw_title">
+                        🔐 3. Définir votre mot de passe maître (Chiffrement local)
+                    </label>
+                    <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 8px 0; line-height: 1.4;" data-i18n="bank_sync_master_pw_desc">
+                        Ce mot de passe servira de clé principale pour chiffrer l'ensemble de vos connexions bancaires (Fernet AES). Il ne quitte jamais votre appareil.
+                    </p>
+                    <input type="password" id="connMasterPwInput" class="input-styled" placeholder="Entrez un mot de passe maître sécurisé" autocomplete="new-password" />
+                `;
+            }
+        }
 
         this.renderDynamicFields(backend.fields || []);
     },
@@ -1250,7 +1261,9 @@ window.BankSyncView = {
         if (!this.selectedBackend) return;
 
         const label = document.getElementById('connLabelInput').value.trim();
-        const masterPw = document.getElementById('connMasterPwInput').value;
+        const masterPw = document.getElementById('connMasterPwInput')?.value;
+        const isUnlocked = this.vaultStatus?.is_unlocked;
+        const token = this.getVaultToken();
         const errDiv = document.getElementById('addBankErrorMsg');
         errDiv.style.display = 'none';
 
@@ -1259,8 +1272,8 @@ window.BankSyncView = {
             errDiv.style.display = 'block';
             return;
         }
-        if (!masterPw) {
-            errDiv.innerText = 'Veuillez saisir un mot de passe maître pour chiffrer vos identifiants.';
+        if (!masterPw && !isUnlocked) {
+            errDiv.innerText = 'Veuillez saisir le mot de passe maître pour chiffrer vos identifiants.';
             errDiv.style.display = 'block';
             return;
         }
@@ -1287,23 +1300,26 @@ window.BankSyncView = {
             const payload = {
                 backend: this.selectedBackend.name,
                 label: label,
-                master_password: masterPw,
+                master_password: masterPw || null,
+                vault_token: token || null,
                 credentials: credentials
             };
             const newConn = await API.post('/api/bank-sync/connections', payload);
             
-            // Stocker automatiquement le mot de passe maître en session si demandé
-            try {
-                const unlockRes = await API.post('/api/bank-sync/vault/unlock', {
-                    master_password: masterPw,
-                    remember_days: 7
-                });
-                if (unlockRes.vault_token) {
-                    this.setVaultToken(unlockRes.vault_token);
-                    this.vaultStatus = unlockRes;
-                    this.renderVaultStatusBar();
-                }
-            } catch (_) {}
+            // Stocker automatiquement le mot de passe maître en session si saisi
+            if (masterPw) {
+                try {
+                    const unlockRes = await API.post('/api/bank-sync/vault/unlock', {
+                        master_password: masterPw,
+                        remember_days: 7
+                    });
+                    if (unlockRes.vault_token) {
+                        this.setVaultToken(unlockRes.vault_token);
+                        this.vaultStatus = unlockRes;
+                        this.renderVaultStatusBar();
+                    }
+                } catch (_) {}
+            }
 
             this.closeAddModal();
             await this.loadConnections();

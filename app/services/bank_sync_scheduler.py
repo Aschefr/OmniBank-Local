@@ -42,11 +42,31 @@ def _set_config_value(db: Session, key: str, value: str):
     db.commit()
 
 
+def clear_pending_sync_for_connection(db: Session, conn_id: int):
+    """Purge le sas d'opérations en attente pour une connexion spécifique."""
+    global _PENDING_SYNC_DATA
+    _PENDING_SYNC_DATA.pop(conn_id, None)
+    if _PENDING_SYNC_DATA:
+        _set_config_value(db, "bank_pending_sync_cache", json.dumps(_PENDING_SYNC_DATA))
+    else:
+        _set_config_value(db, "bank_pending_sync_cache", "")
+    logger.info(f"[BankSyncScheduler] Sas de synchronisation purgé pour la connexion #{conn_id}")
+
+
+def clear_all_pending_sync(db: Session):
+    """Purge l'intégralité du sas d'opérations en attente."""
+    global _PENDING_SYNC_DATA
+    _PENDING_SYNC_DATA.clear()
+    _set_config_value(db, "bank_pending_sync_cache", "")
+    logger.info("[BankSyncScheduler] Intégralité du sas de synchronisation purgé.")
+
+
 def get_all_pending_sync(db: Session) -> Dict[str, Any]:
     """
     Retourne la liste globale des opérations en attente (rapprochements détectés + nouvelles opérations).
     Ré-évalue dynamiquement les rapprochements contre la base de données actuelle pour garantir
     l'exactitude (ex: détection des virements internes miroirs, opérations pointées manuellement).
+    Purgera automatiquement toute donnée résiduelle si la connexion n'existe plus dans la base.
     """
     global _PENDING_SYNC_DATA
     from app.routers.csv_parser import check_reconciliation
@@ -56,6 +76,21 @@ def get_all_pending_sync(db: Session) -> Dict[str, Any]:
     accounts_list = []
     matches_by_tx_id = {}  # db_tx_id -> matched pending item
     matched_ids_global = set()
+
+    # Vérifier l'existence de connexions valides
+    valid_conns = db.query(BankConnection).all()
+    valid_conn_map = {c.id: c.label for c in valid_conns}
+
+    if not valid_conn_map:
+        # Aucune connexion bancaire configurée -> Purge absolue
+        _PENDING_SYNC_DATA.clear()
+        _set_config_value(db, "bank_pending_sync_cache", "")
+        return {
+            "total_matches": 0,
+            "total_new": 0,
+            "accounts": [],
+            "matches_by_tx_id": {}
+        }
 
     # Récupérer aussi depuis global_config au démarrage si le cache RAM est vide
     if not _PENDING_SYNC_DATA:
@@ -68,9 +103,15 @@ def get_all_pending_sync(db: Session) -> Dict[str, Any]:
             except Exception:
                 pass
 
-    for conn_id, data in _PENDING_SYNC_DATA.items():
-        conn = db.query(BankConnection).filter(BankConnection.id == conn_id).first()
-        conn_label = conn.label if conn else f"Banque #{conn_id}"
+    # Purger immédiatement les conn_id orphelines qui n'existent plus
+    orphan_ids = [cid for cid in list(_PENDING_SYNC_DATA.keys()) if cid not in valid_conn_map]
+    if orphan_ids:
+        for oid in orphan_ids:
+            _PENDING_SYNC_DATA.pop(oid, None)
+        _set_config_value(db, "bank_pending_sync_cache", json.dumps(_PENDING_SYNC_DATA) if _PENDING_SYNC_DATA else "")
+
+    for conn_id, data in list(_PENDING_SYNC_DATA.items()):
+        conn_label = valid_conn_map.get(conn_id, f"Banque #{conn_id}")
 
         for acc in data.get("accounts", []):
             acc_copy = dict(acc)

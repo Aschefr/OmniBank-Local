@@ -144,10 +144,26 @@ def sync_profile_metadata_from_db(db_session=None) -> dict:
 
 def _save_profiles_data(data: dict):
     """Écrit profiles.json de manière atomique."""
+    import time
     tmp_path = f"{PROFILES_FILE}.tmp"
     with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(tmp_path, PROFILES_FILE)
+    
+    for attempt in range(5):
+        try:
+            os.replace(tmp_path, PROFILES_FILE)
+            return
+        except (PermissionError, OSError):
+            if attempt == 4:
+                with open(PROFILES_FILE, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                try:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+                except Exception:
+                    pass
+                return
+            time.sleep(0.05)
 
 
 def get_active_profile() -> dict:

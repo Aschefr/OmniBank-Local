@@ -1676,6 +1676,10 @@ class App {
         }
         this.currentView = viewName;
 
+        if (window.ErrorReporter && typeof window.ErrorReporter.recordBreadcrumb === 'function') {
+            window.ErrorReporter.recordBreadcrumb('NAV', `Navigated to view: ${viewName}`);
+        }
+
         ProfileStorage.set('omni_current_view', viewName);
         this.updateHeaderHistoryState();
         

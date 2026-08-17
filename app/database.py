@@ -11,12 +11,18 @@ logger = logging.getLogger(__name__)
 
 def get_data_dir() -> str:
     """Resolve the user data directory.
+    - Explicit override via OMNIBANK_DATA_DIR (e.g. for isolated test suites)
     - In production (PyInstaller):
         1. Check %PROGRAMDATA%/OmniBank/.shared_path → custom shared path
         2. Check %PROGRAMDATA%/OmniBank/.shared → %PROGRAMDATA%/OmniBank/
         3. Default: %APPDATA%/OmniBank/
     - In development: ./data/
     """
+    if os.environ.get('OMNIBANK_DATA_DIR'):
+        base = os.path.abspath(os.environ['OMNIBANK_DATA_DIR'])
+        os.makedirs(base, exist_ok=True)
+        return base
+
     if getattr(sys, 'frozen', False):
         programdata_dir = os.path.join(os.environ.get('PROGRAMDATA', ''), 'OmniBank')
         custom_path_file = os.path.join(programdata_dir, '.shared_path')

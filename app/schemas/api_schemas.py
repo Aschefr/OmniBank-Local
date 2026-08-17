@@ -174,6 +174,7 @@ class AccountBase(BaseModel):
 
 class AccountOut(AccountBase):
     id: int
+    current_balance: Optional[float] = None
     action_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)

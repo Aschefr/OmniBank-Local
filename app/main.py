@@ -144,6 +144,16 @@ async def serve_upload(file_path: str):
 async def serve_upload_compat(file_path: str):
     return await serve_upload(file_path)
 
+from app.services.diagnostic_service import DiagnosticLogHandler, record_backend_exception
+
+# Attach memory log handler to root logger
+root_logger = logging.getLogger()
+diag_handler = DiagnosticLogHandler()
+diag_handler.setLevel(logging.INFO)
+diag_formatter = logging.Formatter("[%(levelname)s] [%(name)s] %(message)s")
+diag_handler.setFormatter(diag_formatter)
+root_logger.addHandler(diag_handler)
+
 from app.routers import (
     transactions,
     categories,
@@ -167,7 +177,8 @@ from app.routers import (
     profiles,
     cross_profile,
     simulator,
-    bank_sync
+    bank_sync,
+    diagnostics
 )
 
 app.include_router(transactions.router)
@@ -193,6 +204,23 @@ app.include_router(profiles.router)
 app.include_router(cross_profile.router)
 app.include_router(simulator.router)
 app.include_router(bank_sync.router)
+app.include_router(diagnostics.router)
+
+from starlette.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi import Request
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, (StarletteHTTPException, RequestValidationError)):
+        raise exc
+    logger.error(f"Uncaught exception on {request.method} {request.url.path}: {exc}", exc_info=True)
+    record_backend_exception(exc, context=f"{request.method} {request.url.path}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Erreur interne du serveur: {str(exc)}"}
+    )
 
 
 

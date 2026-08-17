@@ -417,6 +417,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     </table>
                 </div>
             </div>
+
+            <!-- Diagnostics & Bug Reporting -->
+            ${window.ConfigDiagnostics ? window.ConfigDiagnostics.render() : ''}
         `;
     },
 
