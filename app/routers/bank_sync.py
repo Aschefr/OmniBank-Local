@@ -29,6 +29,7 @@ from app.schemas.bank_sync_schemas import (
 )
 from app.services.bank_sync_service import (
     BankSyncService,
+    clean_error_message,
     deliver_2fa_response,
     get_all_bank_backends,
     register_2fa_session,
@@ -206,6 +207,39 @@ def lock_vault(token: Optional[str] = Query(None)):
     active_pid = get_active_profile().get("id", "default")
     VaultSessionManager.lock_session(token, profile_id=active_pid)
     return {"ok": True, "message": "Coffre-fort verrouillé avec succès."}
+
+
+@router.post("/vault/reset")
+def reset_vault(db: Session = Depends(get_db)):
+    """
+    Réinitialise complètement le coffre-fort pour le profil actif.
+    Purge la session en mémoire vive, supprime toutes les connexions bancaires et leurs clés chiffrées associées.
+    """
+    from app.services.bank_sync_scheduler import clear_pending_sync_for_connection
+    from app.models import GlobalConfig
+    active_pid = get_active_profile().get("id", "default")
+    
+    # 1. Verrouiller et purger la session en mémoire vive
+    VaultSessionManager.lock_session(profile_id=active_pid)
+    
+    # 2. Supprimer toutes les connexions bancaires et leurs sas d'attente
+    connections = db.query(BankConnection).all()
+    deleted_count = len(connections)
+    for conn in connections:
+        CredentialVault.delete_credentials(db, conn.id)
+        clear_pending_sync_for_connection(db, conn.id)
+        db.delete(conn)
+
+    # 3. Purger les clés globales résiduelles du coffre
+    db.query(GlobalConfig).filter(GlobalConfig.key.like("bank_vault_%")).delete(synchronize_session=False)
+    db.commit()
+
+    logger.info(f"[Vault] Coffre-fort réinitialisé pour le profil '{active_pid}' ({deleted_count} connexions supprimées)")
+    return {
+        "ok": True,
+        "message": "Coffre-fort réinitialisé avec succès.",
+        "deleted_connections": deleted_count
+    }
 
 
 @router.get("/settings/auto-sync")
@@ -428,7 +462,7 @@ def test_credentials(data: TestConnectionRequest):
         return accounts
     except Exception as e:
         logger.warning(f"[BankSync] Échec du test d'identifiants ({data.backend}) : {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=clean_error_message(e))
 
 
 @router.post("/connections/{conn_id}/test", response_model=List[RemoteAccountOut])
@@ -455,7 +489,82 @@ def test_existing_connection(conn_id: int, req: SyncConnectionRequest, db: Sessi
         return accounts
     except Exception as e:
         logger.warning(f"[BankSync] Échec du test pour la connexion {conn_id} : {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=clean_error_message(e))
+
+
+@router.get("/connections/{conn_id}/test-stream")
+async def test_connection_stream(
+    conn_id: int,
+    master_password: Optional[str] = Query(None),
+    vault_token: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Flux SSE pour le test et la découverte des comptes bancaires distants avec support interactif 2FA/SCA.
+    """
+    conn = db.query(BankConnection).filter(BankConnection.id == conn_id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Connexion bancaire introuvable")
+
+    active_pid = get_active_profile().get("id", "default")
+    pw = master_password or VaultSessionManager.get_password(vault_token, profile_id=active_pid)
+    if not pw:
+        raise HTTPException(status_code=401, detail="Mot de passe maître requis ou coffre verrouillé")
+
+    creds = CredentialVault.retrieve_credentials(db, conn.id, pw)
+    if not creds:
+        raise HTTPException(status_code=401, detail="Mot de passe maître incorrect ou identifiants introuvables")
+
+    session_id = f"test_{conn_id}_{uuid.uuid4().hex[:8]}"
+    event_queue: asyncio.Queue = asyncio.Queue()
+    main_loop = asyncio.get_running_loop()
+    register_2fa_session(session_id)
+
+    def sse_callback(event_type: str, payload: Dict[str, Any]):
+        data_str = json.dumps({"session_id": session_id, **payload})
+        msg = f"event: {event_type}\ndata: {data_str}\n\n"
+        main_loop.call_soon_threadsafe(event_queue.put_nowait, msg)
+
+    def test_worker():
+        try:
+            sse_callback("progress", {"step": "auth", "message": f"Connexion sécurisée à {conn.label or conn.backend}..."})
+            accounts = BankSyncService.test_connection_and_list_accounts(
+                backend_name=conn.backend,
+                credentials=creds,
+                session_id=session_id,
+                event_callback=sse_callback
+            )
+            sse_callback("accounts", {"accounts": [a.model_dump() for a in accounts]})
+        except Exception as e:
+            logger.warning(f"[BankSync] Échec du flux de test {conn_id} : {e}")
+            sse_callback("error", {"message": clean_error_message(e)})
+        finally:
+            unregister_2fa_session(session_id)
+            main_loop.call_soon_threadsafe(event_queue.put_nowait, None)
+
+    import threading
+    worker_thread = threading.Thread(target=test_worker, daemon=True)
+    worker_thread.start()
+
+    async def event_generator():
+        try:
+            while True:
+                msg = await event_queue.get()
+                if msg is None:
+                    break
+                yield msg
+        except asyncio.CancelledError:
+            unregister_2fa_session(session_id)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 @router.post("/connections/{conn_id}/preview")

@@ -295,7 +295,14 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
                 type="bank_sync",
                 title=f"🏦 Synchronisation {conn.label}",
                 content=full_content,
-                link_data=json.dumps({"view": "accounts", "action": "open_pending", "conn_id": conn.id}),
+                link_data=json.dumps({
+                    "view": "accounts",
+                    "action": "open_pending",
+                    "conn_id": conn.id,
+                    "conn_label": conn.label,
+                    "matches": matches,
+                    "new_txs": new_txs
+                }),
                 is_read=False,
                 created_at=datetime.now(timezone.utc)
             )
@@ -305,7 +312,14 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
                 type="bank_sync",
                 title=f"🏦 Relevé {conn.label} : À jour",
                 content=f"Relevé terminé pour {conn.label} : aucun nouveau mouvement bancaire détecté.",
-                link_data=json.dumps({"view": "accounts", "action": "bank_sync", "conn_id": conn.id}),
+                link_data=json.dumps({
+                    "view": "accounts",
+                    "action": "bank_sync",
+                    "conn_id": conn.id,
+                    "conn_label": conn.label,
+                    "matches": 0,
+                    "new_txs": 0
+                }),
                 is_read=False,
                 created_at=datetime.now(timezone.utc)
             )
@@ -323,6 +337,7 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
         logger.warning(f"[BankScheduler] Échec du relevé auto pour '{conn.label}' (profil={pid}) : {err_msg}")
         conn.last_sync_status = "auto_error"
         conn.last_error = err_msg
+        conn.last_sync_at = datetime.now(timezone.utc)
 
         # Créer une notification in-app d'erreur
         try:
@@ -330,7 +345,13 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
                 type="bank_sync_error",
                 title=f"⚠️ Échec relevé {conn.label}",
                 content=f"Erreur lors du relevé bancaire de {conn.label} : {err_msg}",
-                link_data=json.dumps({"view": "accounts", "action": "bank_sync", "conn_id": conn.id}),
+                link_data=json.dumps({
+                    "view": "accounts",
+                    "action": "bank_sync",
+                    "conn_id": conn.id,
+                    "conn_label": conn.label,
+                    "error": err_msg
+                }),
                 is_read=False,
                 created_at=datetime.now(timezone.utc)
             )
@@ -387,6 +408,10 @@ async def bank_sync_scheduler_loop():
 
                                 now = datetime.now(timezone.utc)
                                 for conn in active_conns:
+                                    # Ne pas exécuter si aucun compte n'est encore mappé
+                                    if not conn.account_mapping or conn.account_mapping.strip() in ("", "{}", "null"):
+                                        continue
+
                                     should_run = False
                                     if not conn.last_sync_at:
                                         should_run = True
