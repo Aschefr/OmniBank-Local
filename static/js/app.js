@@ -300,13 +300,22 @@ class App {
         // Initial Load
         await this.refreshSidebar();
         
+        // Initial check for pending bank sync matches BEFORE loading the initial view
+        if (window.BankSyncView && window.BankSyncView.loadPendingSync) {
+            try {
+                await window.BankSyncView.loadPendingSync();
+            } catch (e) {
+                console.warn('[BankSync] Initial pending sync load failed:', e);
+            }
+        }
+
         // Restore view from ProfileStorage
         let savedView = ProfileStorage.get('omni_current_view') || this.currentView;
         // If overview is enabled and no saved view, default to overview
         if (!ProfileStorage.get('omni_current_view') && this.config.enable_overview === 'true') {
             savedView = 'overview';
         }
-        this.loadView(savedView);
+        await this.loadView(savedView);
 
         // Reveal UI after init is complete (prevents FOUC)
         const container = document.querySelector('.app-container');
@@ -317,11 +326,6 @@ class App {
 
         // Init Notification Center
         this._initNotifications();
-
-        // Initial check for pending bank sync matches
-        if (window.BankSyncView && window.BankSyncView.loadPendingSync) {
-            window.BankSyncView.loadPendingSync();
-        }
 
         // Setup Undo / Redo Header Buttons
         const undoBtn = document.getElementById('headerUndoBtn');
@@ -546,6 +550,62 @@ class App {
                 `;}).join('');
             }
 
+            // Helper de traduction dynamique pour les notifications (Banque, Système, etc.)
+            const translateNotification = (n) => {
+                let title = n.title || '';
+                let content = n.content || '';
+
+                let linkMeta = {};
+                if (n.link_data) {
+                    try {
+                        linkMeta = typeof n.link_data === 'string' ? JSON.parse(n.link_data) : n.link_data;
+                    } catch (_) {}
+                }
+
+                // 1. Notification d'échec de relevé bancaire
+                if (n.type === 'bank_sync_error' || title.includes('Échec relevé') || title.includes('Sync failed')) {
+                    const connLabel = linkMeta.conn_label || title.replace(/^⚠️\s*(?:Échec relevé|Sync failed for|Sync failed)\s*/i, '').trim();
+                    title = `⚠️ ${window.i18n ? window.i18n.tp('notif_bank_sync_failed_title', { label: connLabel }) : title}`;
+                    
+                    let err = linkMeta.error || '';
+                    if (!err && content.includes(':')) {
+                        err = content.substring(content.indexOf(':') + 1).trim();
+                    }
+                    content = window.i18n ? window.i18n.tp('notif_bank_sync_failed_content', { label: connLabel, error: err || content }) : content;
+                }
+                // 2. Notification de synchronisation réussie
+                else if (n.type === 'bank_sync' && (title.includes('Synchronisation') || title.includes('Sync ') || title.includes('Sync:'))) {
+                    const connLabel = linkMeta.conn_label || title.replace(/^🏦\s*(?:Synchronisation|Sync)\s*/i, '').trim();
+                    title = `🏦 ${window.i18n ? window.i18n.tp('notif_bank_sync_success_title', { label: connLabel }) : title}`;
+                    
+                    let detailsList = [];
+                    if (typeof linkMeta.matches === 'number' && linkMeta.matches > 0) {
+                        detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_matches', { count: linkMeta.matches }) : `${linkMeta.matches} rapprochement(s)`);
+                    }
+                    if (typeof linkMeta.new_txs === 'number' && linkMeta.new_txs > 0) {
+                        detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new', { count: linkMeta.new_txs }) : `${linkMeta.new_txs} nouvelle(s) opération(s)`);
+                    }
+                    if (detailsList.length === 0) {
+                        const matchMatches = content.match(/(\d+)\s+rapprochement/i);
+                        const matchNew = content.match(/(\d+)\s+nouvelle/i);
+                        if (matchMatches) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_matches', { count: parseInt(matchMatches[1]) }) : `${matchMatches[1]} rapprochement(s)`);
+                        if (matchNew) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new', { count: parseInt(matchNew[1]) }) : `${matchNew[1]} nouvelle(s) opération(s)`);
+                    }
+
+                    if (detailsList.length > 0 && window.i18n) {
+                        content = window.i18n.tp('notif_bank_sync_success_content', { label: connLabel, details: detailsList.join(', ') + '.' });
+                    }
+                }
+                // 3. Notification relevé à jour (0 nouvelle opération)
+                else if (n.type === 'bank_sync' && (title.includes('À jour') || title.includes('Up to date'))) {
+                    const connLabel = linkMeta.conn_label || title.replace(/^🏦\s*(?:Relevé|Sync)\s*/i, '').replace(/:\s*(?:À jour|Up to date)\s*$/i, '').trim();
+                    title = `🏦 ${window.i18n ? window.i18n.tp('notif_bank_sync_uptodate_title', { label: connLabel }) : title}`;
+                    content = window.i18n ? window.i18n.tp('notif_bank_sync_uptodate_content', { label: connLabel }) : content;
+                }
+
+                return { title, content };
+            };
+
             // 2. Render standard notifications
             html += notifs.map(n => {
                 const dateStr = new Date(n.created_at).toLocaleString(window.i18n.lang || 'fr', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
@@ -553,7 +613,10 @@ class App {
                 const isReport = n.type === 'ai_report';
                 const clickCallback = `onclick="window.app.handleNotifClick(${n.id})"`;
                 
-                let displayContent = n.content || '';
+                const translated = translateNotification(n);
+                let displayTitle = translated.title;
+                let displayContent = translated.content || '';
+
                 if (displayContent.includes('"summary"') || displayContent.trim().startsWith('{') || displayContent.trim().startsWith('```')) {
                     try {
                         const cleaned = displayContent.replace(/```(?:json)?/g, '').trim();
@@ -569,7 +632,7 @@ class App {
                 return `
                 <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); ${styleUnread} transition: background 0.2s;" ${clickCallback}>
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                        <span style="font-weight: 700; font-size:13px; color: ${n.is_read ? 'var(--text-color)' : 'var(--accent)'}">${n.title}</span>
+                        <span style="font-weight: 700; font-size:13px; color: ${n.is_read ? 'var(--text-color)' : 'var(--accent)'}">${displayTitle}</span>
                         <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">${dateStr}</span>
                     </div>
                     <div style="font-size:12.5px; margin-top:6px; line-height:1.5; color:var(--text-main); white-space: pre-wrap;">${displayContent}</div>

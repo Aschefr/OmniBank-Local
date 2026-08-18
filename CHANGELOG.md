@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.85] - 2026-08-18
+
+### Added & Improved
+- **Bank Synchronization & 2FA Account Discovery 🏦**:
+  - Interactive 2FA / SCA authentication stream during account association modal (supporting BoursoBank mobile validation and SMS OTP).
+  - Strict cryptographic and profile isolation for remote accounts cache (`omnibank_remote_accounts_{profile}_{backend}_{id}`) preventing cross-institution cache display.
+  - Automatic cache purge on connection deletion or new connection creation, enforcing live account fetching from the bank.
+  - Restored full dropdown selection for all 39 Crédit Agricole regional branches.
+  - Integrated 1-click diagnostic buttons in error banners (Configuration & Diagnostics, Copy Bug Report, Create GitHub Issue, Retry).
+  - Fixed background auto-sync scheduler loop on unmapped bank connections.
+- **Smart Labels & Original Bank Descriptions 🏷️**:
+  - Retained and displayed original raw bank descriptions with bank badge (`🏛️ <raw_description> 💡`) under editable description fields in review modals.
+  - Proactive smart label batch resolution during synchronization review.
+- **Account Balance Realignment & Retro-Adjustment ⚖️**:
+  - Added intelligent **Balance Realignment** assistant in the account edit modal to automatically compute starting balance from current actual bank balance.
+  - Automatic retro-calculation of initial balance on first batch import of newly connected bank accounts to prevent double-counting historical transactions.
+- **Secure Vault Management 🔐**:
+  - Added secure vault reset endpoint and interactive reset link on the master password modal with clear confirmation dialogs.
+- **Dynamic Multilingual Notifications & UI Polish 🌐**:
+  - Dynamic on-the-fly bilingual translation (FR/EN) for bank sync, success, up-to-date, and error notifications matching the user's active language.
+  - Fixed listbox scrollbars (`overflow-y: auto`) and visibility of 4+ accounts in transaction forms.
+  - Instant live removal of validated ghost operations without requiring a manual page refresh.
+
 ## [1.0.84] - 2026-08-18
 
 ### Added & Improved

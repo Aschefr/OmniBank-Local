@@ -482,6 +482,10 @@ window.AccountsView = {
         const isCustomType = !knownTypes.includes(acc.type);
         const currentColor = acc.color || ACCOUNT_COLORS[0];
         const currentCurrency = acc.currency || 'EUR';
+        const curBal = acc.current_balance !== undefined && acc.current_balance !== null ? acc.current_balance : (acc.initial_balance || 0);
+        const netFlow = curBal - (acc.initial_balance || 0);
+        const flowStr = typeof formatCurrency === 'function' ? formatCurrency(netFlow, currentCurrency) : `${netFlow.toFixed(2)} ${currentCurrency}`;
+        const curBalStr = typeof formatCurrency === 'function' ? formatCurrency(curBal, currentCurrency) : `${curBal.toFixed(2)} ${currentCurrency}`;
 
         const typeOptions = [
             { value: 'Compte courant', label: window.i18n.t('wizard_type_checking') },
@@ -523,6 +527,23 @@ window.AccountsView = {
                         <div style="flex: 1.5;">
                             <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_initial_balance')}</label>
                             <input type="number" id="accEditBalance" class="inline-input" value="${acc.initial_balance}" step="0.01" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">
+                        </div>
+                    </div>
+
+                    <!-- Encart Recalage / Ajustement Intelligent de Solde -->
+                    <div style="background: var(--bg-hover, rgba(255,255,255,0.03)); border: 1px dashed var(--border-color); border-radius: 8px; padding: 10px 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--accent);">${window.i18n.t('acc_realign_title')}</span>
+                            <span style="font-size: 11px; color: var(--text-muted);">${window.i18n.t('acc_current_balance_lbl')} : <strong style="color:var(--text-main); font-family: monospace;">${curBalStr}</strong></span>
+                        </div>
+                        <div style="font-size: 10.5px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.35;">
+                            ${(window.i18n.t('acc_realign_hint') || '').replace('{flow}', flowStr)}
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" step="0.01" id="accEditTargetBal" class="inline-input" placeholder="${window.i18n.t('ph_initial_balance') || 'Ex: 1119.68'}" style="flex: 1; height: 32px; padding: 0 8px; font-size: 12px; border-radius: 6px;">
+                            <button type="button" class="btn btn-secondary" style="height: 32px; font-size: 11px; padding: 0 10px; border-radius: 6px; white-space: nowrap; font-weight: 600;" onclick="window.AccountsView._realignInitialBalance(${acc.id})">
+                                ${window.i18n.t('acc_realign_btn')}
+                            </button>
                         </div>
                     </div>
 
@@ -602,6 +623,44 @@ window.AccountsView = {
             insuranceCol.style.display = 'none';
         } else {
             box.style.display = 'none';
+        }
+    },
+
+    _realignInitialBalance(accId) {
+        const acc = this.accounts.find(a => a.id === accId);
+        if (!acc) return;
+        const targetInput = document.getElementById('accEditTargetBal');
+        const rawStr = (targetInput ? targetInput.value : '').replace(/\s/g, '').replace(',', '.');
+        const targetVal = parseFloat(rawStr);
+        if (isNaN(targetVal)) {
+            if (typeof showToast === 'function') {
+                const errMsg = (window.i18n && window.i18n.t('toast_invalid_amount') && window.i18n.t('toast_invalid_amount') !== 'toast_invalid_amount') 
+                    ? window.i18n.t('toast_invalid_amount') 
+                    : (window.i18n ? window.i18n.t('msg_invalid_amount') || 'Veuillez saisir un montant valide.' : 'Veuillez saisir un montant valide.');
+                showToast(errMsg, 'warning');
+            }
+            if (targetInput) targetInput.focus();
+            return;
+        }
+
+        const curBal = acc.current_balance !== undefined && acc.current_balance !== null ? acc.current_balance : (acc.initial_balance || 0);
+        const netFlow = curBal - (acc.initial_balance || 0);
+        const calculatedInitial = parseFloat((targetVal - netFlow).toFixed(2));
+        
+        const initInput = document.getElementById('accEditBalance');
+        if (initInput) {
+            initInput.value = calculatedInitial;
+            initInput.style.borderColor = 'var(--accent)';
+            setTimeout(() => { initInput.style.borderColor = 'var(--border-color)'; }, 1500);
+        }
+
+        if (typeof showToast === 'function') {
+            const fmtInit = typeof formatCurrency === 'function' ? formatCurrency(calculatedInitial, acc.currency) : `${calculatedInitial} €`;
+            const fmtCur = typeof formatCurrency === 'function' ? formatCurrency(targetVal, acc.currency) : `${targetVal} €`;
+            const msg = (window.i18n.t('acc_realign_success') || 'Solde initial ajusté à {initial} pour un solde actuel de {current}')
+                .replace('{initial}', fmtInit)
+                .replace('{current}', fmtCur);
+            showToast(msg, 'success');
         }
     },
 
