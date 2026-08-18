@@ -1586,13 +1586,21 @@ body.privacy-mode #valNextPayAmount:hover {
     border-radius: 3px;
 }
 
-/* Custom Vibrant Selection for Listboxes */
 select.inline-input {
     scrollbar-width: thin;
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
     padding-right: 30px;
+}
+
+select.inline-input[size]:not([size="1"]),
+select#op_from_account,
+select#op_to_account {
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    padding-right: 4px;
+    scrollbar-width: thin;
 }
 
 select.inline-input option {

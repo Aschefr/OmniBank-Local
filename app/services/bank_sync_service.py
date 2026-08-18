@@ -137,6 +137,49 @@ def get_all_bank_backends(force_refresh: bool = False) -> List[BankBackendInfo]:
     return backends
 
 
+CRAGR_CAISSES_CHOICES = {
+    "www.ca-alpesprovence.fr": "Alpes Provence (www.ca-alpesprovence.fr)",
+    "www.ca-alsace-vosges.fr": "Alsace-Vosges (www.ca-alsace-vosges.fr)",
+    "www.ca-anjou-maine.fr": "Anjou Maine (www.ca-anjou-maine.fr)",
+    "www.ca-aquitaine.fr": "Aquitaine (www.ca-aquitaine.fr)",
+    "www.ca-atlantique-vendee.fr": "Atlantique Vendée (www.ca-atlantique-vendee.fr)",
+    "www.ca-briepicardie.fr": "Brie Picardie (www.ca-briepicardie.fr)",
+    "www.ca-cb.fr": "Champagne Bourgogne (www.ca-cb.fr)",
+    "www.ca-centrefrance.fr": "Centre France (www.ca-centrefrance.fr)",
+    "www.ca-centreloire.fr": "Centre Loire (www.ca-centreloire.fr)",
+    "www.ca-centreouest.fr": "Centre Ouest (www.ca-centreouest.fr)",
+    "www.ca-centrest.fr": "Centre Est (www.ca-centrest.fr)",
+    "www.ca-charente-perigord.fr": "Charente Périgord (www.ca-charente-perigord.fr)",
+    "www.ca-cmds.fr": "Charente-Maritime Deux-Sèvres (www.ca-cmds.fr)",
+    "www.ca-corse.fr": "Corse (www.ca-corse.fr)",
+    "www.ca-cotesdarmor.fr": "Côtes d'Armor (www.ca-cotesdarmor.fr)",
+    "www.ca-des-savoie.fr": "Des Savoie (www.ca-des-savoie.fr)",
+    "www.ca-finistere.fr": "Finistère (www.ca-finistere.fr)",
+    "www.ca-franchecomte.fr": "Franche-Comté (www.ca-franchecomte.fr)",
+    "www.ca-guadeloupe.fr": "Guadeloupe (www.ca-guadeloupe.fr)",
+    "www.ca-illeetvilaine.fr": "Ille-et-Vilaine (www.ca-illeetvilaine.fr)",
+    "www.ca-languedoc.fr": "Languedoc (www.ca-languedoc.fr)",
+    "www.ca-loirehauteloire.fr": "Loire Haute Loire (www.ca-loirehauteloire.fr)",
+    "www.ca-lorraine.fr": "Lorraine (www.ca-lorraine.fr)",
+    "www.ca-martinique.fr": "Martinique Guyane (www.ca-martinique.fr)",
+    "www.ca-morbihan.fr": "Morbihan (www.ca-morbihan.fr)",
+    "www.ca-nmp.fr": "Nord Midi-Pyrénées (www.ca-nmp.fr)",
+    "www.ca-nord-est.fr": "Nord Est (www.ca-nord-est.fr)",
+    "www.ca-norddefrance.fr": "Nord de France (www.ca-norddefrance.fr)",
+    "www.ca-normandie-seine.fr": "Normandie Seine (www.ca-normandie-seine.fr)",
+    "www.ca-normandie.fr": "Normandie (www.ca-normandie.fr)",
+    "www.ca-paris.fr": "Ile-de-France (www.ca-paris.fr)",
+    "www.ca-pca.fr": "Provence Côte d'Azur (www.ca-pca.fr)",
+    "www.ca-pyrenees-gascogne.fr": "Pyrénées Gascogne (www.ca-pyrenees-gascogne.fr)",
+    "www.ca-reunion.fr": "Réunion (www.ca-reunion.fr)",
+    "www.ca-sudmed.fr": "Sud Méditerranée (www.ca-sudmed.fr)",
+    "www.ca-sudrhonealpes.fr": "Sud Rhône Alpes (www.ca-sudrhonealpes.fr)",
+    "www.ca-toulouse31.fr": "Toulouse 31 (www.ca-toulouse31.fr)",
+    "www.ca-tourainepoitou.fr": "Touraine Poitou (www.ca-tourainepoitou.fr)",
+    "www.ca-valdefrance.fr": "Val de France (www.ca-valdefrance.fr)"
+}
+
+
 def _inspect_module_fields(w: Woob, module_name: str) -> List[BackendConfigField]:
     """Inspecte la configuration d'un module pour générer les champs du formulaire UI."""
     fields = []
@@ -159,11 +202,14 @@ def _inspect_module_fields(w: Woob, module_name: str) -> List[BackendConfigField
             if hasattr(val_obj, "choices") and val_obj.choices:
                 field_type = "select"
                 choices_dict = {str(k): str(v) for k, v in val_obj.choices.items()}
+            elif module_name == "cragr" and key == "website":
+                field_type = "select"
+                choices_dict = CRAGR_CAISSES_CHOICES
 
             label = getattr(val_obj, "label", key) or key
             description = getattr(val_obj, "description", None)
             required = getattr(val_obj, "required", True)
-            default = str(getattr(val_obj, "default", "")) if getattr(val_obj, "default", None) is not None else None
+            default = str(getattr(val_obj, "default", "")) if getattr(val_obj, "default", None) is not None else ("www.ca-centrest.fr" if module_name == "cragr" and key == "website" else None)
 
             fields.append(BackendConfigField(
                 id=key,
@@ -181,7 +227,14 @@ def _inspect_module_fields(w: Woob, module_name: str) -> List[BackendConfigField
             BackendConfigField(id="password", label="Mot de passe / Code secret", type="password", required=True),
         ]
         if module_name == "cragr":
-            fields.append(BackendConfigField(id="website", label="Caisse régionale", type="text", default="www.ca-centrest.fr", required=True))
+            fields.append(BackendConfigField(
+                id="website",
+                label="Caisse régionale",
+                type="select",
+                choices=CRAGR_CAISSES_CHOICES,
+                default="www.ca-centrest.fr",
+                required=True
+            ))
 
     return fields
 
@@ -256,6 +309,21 @@ def _format_account_type(acc_type) -> str:
     return s
 
 
+def clean_error_message(e: Exception) -> str:
+    """Fournit un message d'erreur clair et lisible pour l'UI, évitant les chaînes vides ou obscures."""
+    msg = str(e).strip()
+    if not msg or msg in ("{}", "''", '""'):
+        exc_name = type(e).__name__
+        if exc_name in ("NeedInteractiveFor2FA", "AppValidation"):
+            return "Authentification mobile ou validation 2FA requise par votre banque."
+        elif exc_name == "BrowserIncorrectPassword":
+            return "Identifiant ou mot de passe bancaire incorrect."
+        elif exc_name in ("BrowserUnavailable", "ActionNeeded"):
+            return "Action requise sur le site ou l'application mobile de votre banque."
+        return f"Erreur de communication avec la banque ({exc_name})."
+    return msg
+
+
 class BankSyncService:
     @staticmethod
     def test_connection_and_list_accounts(
@@ -320,7 +388,7 @@ class BankSyncService:
             return _do_fetch_accounts()
         except AppValidation as av:
             if not session_id or not event_callback:
-                raise Exception(f"Authentification mobile requise (SCA). Message: {av}")
+                raise Exception(f"Authentification mobile requise sur votre application bancaire (SCA).")
             # Émettre l'événement 2FA vers l'UI
             event_callback("2fa_required", {
                 "type": "app_validation",
@@ -339,8 +407,8 @@ class BankSyncService:
 
         except (BrowserQuestion, OTPQuestion, SentOTPQuestion, NeedInteractiveFor2FA) as bq:
             if not session_id or not event_callback:
-                raise Exception(f"Code de sécurité requis (SMS/Email).")
-            msg = getattr(bq, "message", "Veuillez entrer le code de sécurité reçu par SMS ou Email.")
+                raise Exception("Code de sécurité (SMS/Email) requis par votre banque.")
+            msg = getattr(bq, "message", None) or "Veuillez entrer le code de sécurité reçu par SMS ou Email."
             event_callback("2fa_required", {
                 "type": "otp_code",
                 "message": msg
@@ -365,7 +433,7 @@ class BankSyncService:
             raise Exception("Identifiant ou mot de passe bancaire incorrect.")
         except Exception as e:
             logger.error(f"[BankSync] Erreur lors de l'appel bancaire {backend_name} : {e}")
-            raise
+            raise Exception(clean_error_message(e))
 
     @staticmethod
     def fetch_preview_transactions(
@@ -522,6 +590,7 @@ class BankSyncService:
                     parsed_txs.append({
                         "date_operation": tx_date.isoformat(),
                         "description": tx_label,
+                        "raw_description": tx_label,
                         "amount": amount,
                         "raw_amount": raw_amount,
                         "is_reconciled": is_reconciled,
@@ -545,6 +614,31 @@ class BankSyncService:
                 "account_type": local_acc.type,
                 "transactions": parsed_txs
             })
+
+        # Résolution automatique des libellés et catégories (Smart Label / Règles bancaires / Historique)
+        try:
+            from app.services.smart_label_service import resolve_smart_labels_batch
+            all_raw_labels = []
+            for acc in accounts_preview:
+                for tx in acc.get("transactions", []):
+                    if not tx.get("is_reconciled"):
+                        all_raw_labels.append(tx.get("raw_description") or tx.get("description") or "")
+
+            if all_raw_labels:
+                resolutions = resolve_smart_labels_batch(db, all_raw_labels)
+                for acc in accounts_preview:
+                    for tx in acc.get("transactions", []):
+                        if not tx.get("is_reconciled"):
+                            raw = tx.get("raw_description") or tx.get("description") or ""
+                            if raw in resolutions:
+                                res = resolutions[raw]
+                                if res.get("source") in ("rule", "history"):
+                                    tx["description"] = res["description"]
+                                    if res.get("category"):
+                                        tx["category"] = res["category"]
+                                    tx["smart_suggested"] = True
+        except Exception as sl_err:
+            logger.warning(f"[BankSync] Erreur résolution smart labels: {sl_err}")
 
         summary = {
             "connection_id": connection.id,
@@ -581,13 +675,24 @@ class BankSyncService:
             row[0] for row in db.query(Transaction.csv_id).filter(Transaction.csv_id.isnot(None)).all()
         )
 
+        # Suivi des comptes vierges pour ajustement rétroactif automatique du solde initial
+        distinct_account_ids = set(item.get("account_id") for item in transactions_data if item.get("account_id"))
+        account_initial_tx_counts = {}
+        for acc_id in distinct_account_ids:
+            tx_count = db.query(Transaction).filter(
+                (Transaction.from_account_id == acc_id) | (Transaction.to_account_id == acc_id)
+            ).count()
+            account_initial_tx_counts[acc_id] = tx_count
+
+        account_net_flows = {acc_id: 0.0 for acc_id in distinct_account_ids}
+
         for item in transactions_data:
             account_id = item.get("account_id")
             if not account_id:
                 continue
 
             is_rec = item.get("is_reconciled", False)
-            already_rec = item.get("already_reconciled", False)
+            already_rec = item.get("already_rec", False) or item.get("already_reconciled", False)
             matched_id = item.get("matched_db_id")
 
             # 1. Si déjà rapproché : on ignore (doublon)
@@ -611,8 +716,8 @@ class BankSyncService:
             if csv_id and csv_id in existing_csv_ids:
                 continue
 
-            raw_amt = float(item.get("raw_amount") or item.get("amount") or 0.0)
-            amt = abs(float(item.get("amount", 0.0)))
+            raw_amt = float(item.get("raw_amount") if item.get("raw_amount") is not None else (item.get("amount") or 0.0))
+            amt = abs(float(item.get("amount", 0.0) or raw_amt))
 
             if raw_amt < 0:
                 t_type = "expense_var"
@@ -649,6 +754,7 @@ class BankSyncService:
 
             record_action(db, "transaction", new_tx.id, "CREATE", None, snapshot_entity(new_tx), user_name="Banque (Sync)")
             imported += 1
+            account_net_flows[account_id] += raw_amt
 
             # Auto-apprentissage transparent dans la base de connaissances Smart Label
             raw_lbl = item.get("raw_description") or item.get("raw_label") or item.get("description")
@@ -659,6 +765,19 @@ class BankSyncService:
                     learn_label_mapping(db, raw_label=raw_lbl, clean_description=clean_lbl, category=item.get("category"))
                 except Exception as ex_learn:
                     logger.debug(f"[BankSync] Ignoré échec apprentissage smart label: {ex_learn}")
+
+        # Rétro-calcul automatique du solde initial pour les comptes nouvellement alimentés :
+        # Pour que Solde Initial + Somme(opérations_importées) == Solde Réel de la banque au départ.
+        for acc_id, initial_tx_count in account_initial_tx_counts.items():
+            if initial_tx_count == 0 and account_net_flows.get(acc_id, 0.0) != 0.0:
+                acc = db.query(Account).filter(Account.id == acc_id).first()
+                if acc and acc.initial_balance is not None:
+                    original_init = acc.initial_balance
+                    acc.initial_balance = round(acc.initial_balance - account_net_flows[acc_id], 2)
+                    logger.info(
+                        f"[BankSync] Rétro-calcul solde initial pour compte #{acc.id} '{acc.name}' : "
+                        f"{original_init:.2f} -> {acc.initial_balance:.2f} (flux net importé : {account_net_flows[acc_id]:+.2f} €)"
+                    )
 
         if conn:
             conn.last_sync_at = datetime.now(timezone.utc)

@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.84-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.85-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -242,6 +242,13 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **🏢 Mode Organisation Adaptatif (Associations / CSE)** : Adaptation automatique des libellés (Trésorerie Globale, Trésorerie Disponible), carte Membre Actif avec sélecteur d'utilisateur rapide et colonne "Saisi par" dans le tableau d'audit.
 *   **📊 Tendances Multi-Graphiques** : 4 modes d'affichage interactifs (Dépenses, vs Recettes, Bilan mensuel, Solde historique) avec pan & zoom fluide.
 
+## 🆕 Dernières Mises à Jour (v1.0.85)
+
+*   **📱 Découverte des Comptes avec 2FA Interactive (BoursoBank, BNP...)** : Support complet des validations sur application mobile et codes SMS lors de l'association initiale des comptes distants.
+*   **🛡️ Isolation Stricte du Cache Bancaire & Sécurité Multi-Banques** : Compartimentation complète des comptes en cache par profil et par établissement (`omnibank_remote_accounts_{profil}_{banque}_{id}`) empêchant tout chevauchement d'affichage et purge automatique lors de la suppression ou création de connexion.
+*   **🏛️ Sélection Déroulante Crédit Agricole** : Intégration de la liste complète des 39 caisses régionales du Crédit Agricole sous forme de menu déroulant dynamique.
+*   **✨ Messages d'Erreurs Explicites** : Rendu clair et lisible en français en cas d'erreur de communication avec les serveurs bancaires.
+
 ## 🆕 Dernières Mises à Jour (v1.0.84)
 
 *   **🏷️ Moteur de Correspondance Intelligente & Règles Automatiques** : Traduction automatique des libellés bancaires cryptiques en commerçants clairs avec auto-catégorisation selon vos habitudes et gestion complète dans les Paramètres (bascule rapide 1 clic `🚫 Ignorer` / `🏷️ Associer`).
@@ -287,7 +294,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.84-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.85-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -512,6 +519,13 @@ Access the interface at `http://localhost:8434`.
 *   **👀 New Overview Dashboard**: All-in-one financial dashboard featuring hero KPI cards (Net Worth, Left-to-live, Forecast Balance), central pending operations table, 6-month trend chart, and budgets/savings snapshots.
 *   **🏢 Adaptive Organisation Mode (Nonprofits / CSE)**: Automatic terminology adaptation (Total Treasury, Available Treasury), Active Member hero card with fast switcher, and "Created by" audit column in the operations table.
 *   **📊 Multi-Mode Trend Visualizations**: 4 interactive chart modes (Expenses, vs Income, Monthly Cash Flow, Historical Balance) with smooth pan & pinch-zoom.
+
+## 🆕 Recent Updates (v1.0.85)
+
+*   **📱 Interactive 2FA / SCA Account Discovery (BoursoBank, BNP...)**: Full support for mobile application confirmation and SMS OTP codes during initial account association.
+*   **🛡️ Strict Bank Cache Isolation & Multi-Bank Security**: Complete compartmentalization of cached accounts per user profile and institution (`omnibank_remote_accounts_{profile}_{backend}_{id}`) preventing any visual cross-contamination, with automatic cache invalidation and purges on connection updates.
+*   **🏛️ Crédit Agricole Regional Branches Dropdown**: Integrated full dropdown selection covering all 39 Crédit Agricole regional branches.
+*   **✨ Clear & Human-Readable Error Messages**: Helpful French error diagnostics when encountering bank communication or authentication challenges.
 
 ## 🆕 Recent Updates (v1.0.84)
 

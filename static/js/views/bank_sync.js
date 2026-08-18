@@ -85,27 +85,58 @@ window.BankSyncView = {
     },
 
     // ── CACHE DES COMPTES DISTANTS À ASSOCIER (MAPPING INSTANTANÉ) ────
-    saveCachedRemoteAccounts(connId, accounts) {
+    _getRemoteAccountsCacheKey(conn) {
+        if (!conn) return null;
+        const connId = typeof conn === 'object' ? conn.id : conn;
+        const backend = typeof conn === 'object' ? (conn.backend || 'unknown') : 'generic';
+        const profileId = (window.ProfileStorage && window.ProfileStorage.getActiveProfileId) ? window.ProfileStorage.getActiveProfileId() : 'default';
+        return `omnibank_remote_accounts_${profileId}_${backend}_${connId}`;
+    },
+
+    saveCachedRemoteAccounts(conn, accounts) {
         try {
+            const key = this._getRemoteAccountsCacheKey(conn);
+            if (!key) return;
+            const backend = typeof conn === 'object' ? conn.backend : null;
             const entry = {
                 timestamp: Date.now(),
+                backend: backend,
                 accounts: accounts
             };
-            localStorage.setItem(`omnibank_remote_accounts_${connId}`, JSON.stringify(entry));
+            localStorage.setItem(key, JSON.stringify(entry));
         } catch (e) {
             console.warn('[BankSync] Impossible de cacher les comptes distants:', e);
         }
     },
 
-    getCachedRemoteAccounts(connId) {
+    getCachedRemoteAccounts(conn) {
         try {
-            const raw = localStorage.getItem(`omnibank_remote_accounts_${connId}`);
+            const key = this._getRemoteAccountsCacheKey(conn);
+            if (!key) return null;
+            const raw = localStorage.getItem(key);
             if (!raw) return null;
             const entry = JSON.parse(raw);
+            if (typeof conn === 'object' && conn.backend && entry.backend && entry.backend !== conn.backend) {
+                // Incohérence de backend détectée : purge immédiate du cache corrompu
+                localStorage.removeItem(key);
+                return null;
+            }
             return entry.accounts || null;
         } catch (e) {
             return null;
         }
+    },
+
+    clearCachedRemoteAccounts(conn) {
+        try {
+            const key = this._getRemoteAccountsCacheKey(conn);
+            if (key) localStorage.removeItem(key);
+            const connId = typeof conn === 'object' ? conn.id : conn;
+            if (connId) {
+                localStorage.removeItem(`omnibank_remote_accounts_${connId}`);
+                sessionStorage.removeItem(`omnibank_sync_preview_${connId}`);
+            }
+        } catch (_) {}
     },
 
     render() {
@@ -497,6 +528,11 @@ window.BankSyncView = {
                         ${window.i18n.t('bank_sync_master_pw_unlock_btn')}
                     </button>
                 </div>
+                <div style="margin-top: 14px; text-align: center; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                    <a href="javascript:void(0)" onclick="window.BankSyncView._cancelMasterPw(); window.BankSyncView.resetVault();" style="font-size: 11.5px; color: var(--text-muted); text-decoration: underline; cursor: pointer;">
+                        🔑 <span data-i18n="bank_sync_reset_vault_link">${window.i18n.t('bank_sync_reset_vault_link')}</span>
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -769,6 +805,49 @@ window.BankSyncView = {
         this.showToast('Coffre-fort verrouillé (mémoire purgée).', 'info');
     },
 
+    async resetVault() {
+        const count = this.connections ? this.connections.length : 0;
+        let confirmText = '';
+        if (count > 0) {
+            confirmText = window.i18n.tp('bank_sync_reset_vault_confirm_conns', { count });
+        } else {
+            confirmText = window.i18n.t('bank_sync_reset_vault_confirm_empty');
+        }
+
+        const confirmed = await this.confirmAction(
+            window.i18n.t('bank_sync_reset_vault_title'),
+            confirmText
+        );
+        if (!confirmed) return;
+
+        try {
+            await API.post('/api/bank-sync/vault/reset');
+            this.clearVaultToken();
+            this.clearAllCachedData();
+            this.vaultStatus = { is_unlocked: false, remaining_days: 0, remaining_seconds: 0 };
+            await this.loadVaultStatus();
+            await this.loadConnections();
+            this.showToast(window.i18n.t('bank_sync_reset_vault_success'), 'success');
+        } catch (err) {
+            this.showToast('Erreur : ' + (err.detail || err.message), 'error');
+        }
+    },
+
+    clearAllCachedData() {
+        try {
+            Object.keys(localStorage).forEach(k => {
+                if (k.startsWith('omnibank_remote_accounts_')) {
+                    localStorage.removeItem(k);
+                }
+            });
+            Object.keys(sessionStorage).forEach(k => {
+                if (k.startsWith('omnibank_sync_preview_')) {
+                    sessionStorage.removeItem(k);
+                }
+            });
+        } catch (_) {}
+    },
+
     async loadAutoSyncSettings() {
         try {
             const data = await API.get('/api/bank-sync/settings/auto-sync');
@@ -1011,25 +1090,20 @@ window.BankSyncView = {
 
     async refreshActiveViews() {
         await this.loadPendingSync();
-        if (window.OverviewView && document.getElementById('overviewRoot')) {
-            if (typeof window.OverviewView.init === 'function') {
-                await window.OverviewView.init();
-            }
+        if (window.app && typeof window.app.refreshCurrentView === 'function') {
+            await window.app.refreshCurrentView();
         }
-        if (window.TimelineView && document.getElementById('timelineRoot')) {
-            if (typeof window.TimelineView.loadData === 'function') {
-                await window.TimelineView.loadData();
-            }
+        if (window.TimelineView && typeof window.TimelineView.loadData === 'function') {
+            await window.TimelineView.loadData();
         }
-        if (window.AllOperationsView && document.getElementById('allOpsRoot')) {
-            if (typeof window.AllOperationsView.loadData === 'function') {
-                await window.AllOperationsView.loadData();
-            }
+        if (window.AllOperationsView && typeof window.AllOperationsView.loadData === 'function') {
+            await window.AllOperationsView.loadData();
         }
-        if (window.AccountsView && document.getElementById('accountsBody')) {
-            if (typeof window.AccountsView.loadData === 'function') {
-                await window.AccountsView.loadData();
-            }
+        if (window.OverviewView && typeof window.OverviewView.init === 'function') {
+            await window.OverviewView.init();
+        }
+        if (window.AccountsView && typeof window.AccountsView.loadData === 'function') {
+            await window.AccountsView.loadData();
         }
         if (window.app && window.app.refreshSidebar) {
             window.app.refreshSidebar();
@@ -1560,7 +1634,20 @@ window.BankSyncView = {
                                 <span>${lastSyncText}</span>
                                 ${conn.last_sync_count ? `<span style="background: rgba(16,185,129,0.12); color: #10b981; font-weight: 700; padding: 1px 8px; border-radius: 6px; font-size: 11px;">+${conn.last_sync_count} op.</span>` : ''}
                             </div>
-                            ${effectiveError ? `<div style="font-size: 11px; color: #ef4444; margin-top: 4px;">⚠️ ${effectiveError}</div>` : ''}
+                            ${effectiveError ? `
+                                <div style="font-size: 11px; color: #ef4444; margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <span>⚠️ ${effectiveError}</span>
+                                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur connexion bancaire: ${conn.backend || conn.id} - ${effectiveError.replace(/'/g, "\\'")}');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Copier un rapport technique anonymisé">
+                                        📋 Copier
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur connexion bancaire: ${conn.backend || conn.id}');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Créer une issue GitHub">
+                                        🐙 Issue
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="if(window.app && window.app.loadView) window.app.loadView('config');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Accéder aux diagnostics">
+                                        ⚙️ Diag
+                                    </button>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
 
@@ -1798,15 +1885,33 @@ window.BankSyncView = {
                 } catch (_) {}
             }
 
+            this.clearCachedRemoteAccounts(newConn);
             this.closeAddModal();
             await this.loadConnections();
             this.showToast('Connexion bancaire ajoutée et chiffrée avec succès !', 'success');
 
-            // Ouvrir directement la modale de mapping
-            setTimeout(() => this.openMappingModal(newConn.id), 400);
+            // Ouvrir directement la modale de mapping avec rafraîchissement obligatoire
+            setTimeout(() => this.openMappingModal(newConn.id, true), 400);
 
         } catch (err) {
-            errDiv.innerText = err.detail || err.message || 'Erreur lors de la création de la connexion.';
+            const rawMsg = err.detail || err.message || 'Erreur lors de la création de la connexion.';
+            errDiv.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+                    <span style="font-weight: 700; color: #ef4444;">⚠️ Erreur :</span>
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.closeAddModal(); if(window.app && window.app.loadView) window.app.loadView('config');" style="font-size: 11px; padding: 2px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; color: var(--text-main); border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;">
+                        ⚙️ Configuration & Diagnostics
+                    </button>
+                </div>
+                <div style="margin-bottom: 8px; line-height: 1.4; color: var(--text-main); font-size: 12.5px;">${rawMsg}</div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-top: 6px; border-top: 1px dashed rgba(239,68,68,0.2);">
+                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur création connexion: ${this.selectedBackend?.name || ''} - ${rawMsg.replace(/'/g, "\\'")}');" style="font-size: 11px; padding: 3px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px;">
+                        📋 Copier le rapport
+                    </button>
+                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur création connexion: ${this.selectedBackend?.name || ''}');" style="font-size: 11px; padding: 3px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px;">
+                        🐙 Créer une Issue GitHub
+                    </button>
+                </div>
+            `;
             errDiv.style.display = 'block';
         } finally {
             btn.disabled = false;
@@ -1824,8 +1929,8 @@ window.BankSyncView = {
         const container = document.getElementById('mappingRowsContainer');
         modal.style.display = 'flex';
 
-        // 1. Vérifier si les comptes distants sont déjà en cache
-        const cachedAccounts = this.getCachedRemoteAccounts(connId);
+        // 1. Vérifier si les comptes distants sont déjà en cache pour cette connexion exacte
+        const cachedAccounts = forceRefresh ? null : this.getCachedRemoteAccounts(conn);
         if (cachedAccounts && cachedAccounts.length > 0 && !forceRefresh) {
             this.currentConnection = conn;
             this.currentRemoteAccounts = cachedAccounts;
@@ -1833,7 +1938,17 @@ window.BankSyncView = {
             return;
         }
 
-        container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Récupération des comptes distants auprès de votre banque...</div>';
+        container.innerHTML = `
+            <div style="text-align: center; padding: 30px 20px; color: var(--text-muted);">
+                <div style="font-size: 28px; margin-bottom: 10px; animation: spin 1.5s linear infinite; display: inline-block;">🔄</div>
+                <div id="mappingModalLoadingText" style="font-size: 13px; font-weight: 600; color: var(--text-main);">
+                    Connexion sécurisée à votre banque...
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 6px;">
+                    Récupération de la liste de vos comptes distants
+                </div>
+            </div>
+        `;
 
         // 2. Demander le mot de passe maître si le coffre n'est pas déverrouillé
         let pw = null;
@@ -1858,33 +1973,106 @@ window.BankSyncView = {
             return;
         }
 
-        try {
-            const testReq = {
-                master_password: pw !== "__USE_VAULT_TOKEN__" ? pw : null,
-                vault_token: token
-            };
-            const remoteAccounts = await API.post(`/api/bank-sync/connections/${connId}/test`, testReq);
-            this.currentConnection = conn;
-            this.currentRemoteAccounts = remoteAccounts || [];
-            this.saveCachedRemoteAccounts(connId, this.currentRemoteAccounts);
-            this.renderMappingRows(conn, this.currentRemoteAccounts);
-        } catch (err) {
+        // Fermer un éventuel flux précédent
+        if (this.mappingEventSource) {
+            this.mappingEventSource.close();
+            this.mappingEventSource = null;
+        }
+
+        const queryParams = new URLSearchParams();
+        if (pw !== "__USE_VAULT_TOKEN__") {
+            queryParams.set("master_password", pw);
+        } else if (token) {
+            queryParams.set("vault_token", token);
+        }
+
+        const sseUrl = `/api/bank-sync/connections/${connId}/test-stream?${queryParams.toString()}`;
+        const es = new EventSource(sseUrl);
+        this.mappingEventSource = es;
+
+        es.addEventListener('progress', (e) => {
+            try {
+                const d = JSON.parse(e.data);
+                const txt = document.getElementById('mappingModalLoadingText');
+                if (txt && d.message) txt.innerText = d.message;
+            } catch (_) {}
+        });
+
+        es.addEventListener('2fa_required', (e) => {
+            try {
+                const d = JSON.parse(e.data);
+                this.activeSessionId = d.session_id;
+                this.show2FAModal(d.type, d.message);
+            } catch (_) {}
+        });
+
+        es.addEventListener('accounts', (e) => {
+            try {
+                const d = JSON.parse(e.data);
+                es.close();
+                this.mappingEventSource = null;
+                this.currentConnection = conn;
+                this.currentRemoteAccounts = d.accounts || [];
+                this.saveCachedRemoteAccounts(conn, this.currentRemoteAccounts);
+                this.renderMappingRows(conn, this.currentRemoteAccounts);
+            } catch (err) {
+                console.error('Erreur traitement comptes SSE:', err);
+            }
+        });
+
+        es.addEventListener('error', (e) => {
+            let errorMsg = 'Erreur lors de la communication avec la banque.';
+            try {
+                if (e.data) {
+                    const d = JSON.parse(e.data);
+                    if (d.message) errorMsg = d.message;
+                }
+            } catch (_) {}
+            es.close();
+            this.mappingEventSource = null;
+
             if (cachedAccounts && cachedAccounts.length > 0) {
                 this.currentConnection = conn;
                 this.currentRemoteAccounts = cachedAccounts;
                 this.renderMappingRows(conn, cachedAccounts);
-                this.showToast('Actualisation échouée, affichage des comptes en cache : ' + (err.detail || err.message), 'info');
+                this.showToast('Actualisation échouée, affichage des comptes en cache : ' + errorMsg, 'info');
                 return;
             }
+
             container.innerHTML = `
-                <div style="padding: 16px; background: rgba(239,68,68,0.1); border-radius: 10px; color: #ef4444; font-size: 13px;">
-                    ⚠️ Impossible de récupérer les comptes distants : ${err.detail || err.message}
+                <div style="padding: 16px 18px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); border-radius: 12px; font-size: 13px; margin: 10px 0;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
+                        <div style="font-weight: 700; color: #ef4444; display: flex; align-items: center; gap: 6px;">
+                            <span>⚠️</span> <span>${window.i18n.t('bank_sync_cannot_fetch_remote')}</span>
+                        </div>
+                        <button class="btn btn-secondary" onclick="window.BankSyncView.closeMappingModal(); if(window.app && window.app.loadView) window.app.loadView('config');" style="font-size: 11.5px; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; color: var(--text-main); border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;" title="${window.i18n.t('bank_sync_btn_config_diag')}">
+                            ⚙️ ${window.i18n.t('bank_sync_btn_config_diag')}
+                        </button>
+                    </div>
+                    <div style="color: var(--text-main); font-size: 12.5px; line-height: 1.4; margin-bottom: 14px;">
+                        ${errorMsg}
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 10px; border-top: 1px dashed rgba(239,68,68,0.2);">
+                        <button class="btn btn-primary" onclick="window.BankSyncView.openMappingModal(${connId}, true)" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600;">
+                            🔄 ${window.i18n.t('bank_sync_btn_retry')}
+                        </button>
+                        <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur synchro bancaire: ${conn.backend || connId} - ${errorMsg.replace(/'/g, "\\'")}');" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" title="${window.i18n.t('bank_sync_btn_copy_report')}">
+                            📋 ${window.i18n.t('bank_sync_btn_copy_report')}
+                        </button>
+                        <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur synchro bancaire: ${conn.backend || connId}');" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" title="${window.i18n.t('bank_sync_btn_github_issue')}">
+                            🐙 ${window.i18n.t('bank_sync_btn_github_issue')}
+                        </button>
+                    </div>
                 </div>
             `;
-        }
+        });
     },
 
     closeMappingModal() {
+        if (this.mappingEventSource) {
+            this.mappingEventSource.close();
+            this.mappingEventSource = null;
+        }
         document.getElementById('mappingModal').style.display = 'none';
     },
 
@@ -1994,6 +2182,9 @@ window.BankSyncView = {
                                 <span data-i18n="bank_sync_custom_create_cancel">${window.i18n.t('bank_sync_custom_create_cancel')}</span>
                             </button>
                         </div>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 6px; line-height: 1.3;" data-i18n="bank_sync_custom_create_bal_hint">
+                        💡 ${window.i18n.t('bank_sync_custom_create_bal_hint')}
                     </div>
                 </div>
             </div>
@@ -2306,6 +2497,41 @@ window.BankSyncView = {
         this.currentAccountIndex = 0;
         this.currentFilter = 'all';
 
+        // 1. Résolution proactive Smart Label pour garantir l'application des règles et la conservation du nom brut
+        try {
+            const unrecTxs = [];
+            (this.previewData?.accounts || []).forEach(acc => {
+                (acc.transactions || []).forEach(t => {
+                    if (!t.is_reconciled) {
+                        unrecTxs.push(t);
+                    }
+                });
+            });
+
+            if (unrecTxs.length > 0) {
+                const rawLabels = Array.from(new Set(unrecTxs.map(t => t.raw_description || t.description)));
+                const smartRes = await API.post('/api/smart-labels/resolve-batch', { labels: rawLabels });
+                if (smartRes && smartRes.results) {
+                    unrecTxs.forEach(t => {
+                        const raw = t.raw_description || t.description;
+                        t.raw_description = raw;
+                        if (smartRes.results[raw]) {
+                            const r = smartRes.results[raw];
+                            if (r.source === 'rule' || r.source === 'history') {
+                                t.description = r.description;
+                                if (r.category && !t.category) {
+                                    t.category = r.category;
+                                }
+                                t.smart_suggested = true;
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('[BankSync] Erreur smart label resolve dans review modal:', e);
+        }
+
         const modal = document.getElementById('bankSyncReviewModal');
         if (modal) modal.style.display = 'flex';
 
@@ -2440,10 +2666,18 @@ window.BankSyncView = {
                 actionColor = `color: var(--color-expense, #6366f1);`;
             }
 
-            const rawDesc = tx.db_description ? `<div style="font-size: 10px; color: var(--text-muted); margin-bottom: 2px;">${lblInDb} ${tx.db_description}</div>` : '';
+            const showRaw = tx.raw_description && tx.raw_description !== tx.description;
+            const tipSuggested = (window.i18n ? window.i18n.t('smart_label_suggested_tooltip') || window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique / règles' : 'Suggéré d’après votre historique / règles').replace(/"/g, '&quot;');
+            const rawSubHtml = showRaw 
+                ? `<div style="font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 3px; font-weight: normal; opacity: 0.85; display: flex; align-items: center; gap: 4px;"><span>🏛️</span> <span>${window.escapeHtml ? window.escapeHtml(tx.raw_description) : tx.raw_description}</span> ${tx.smart_suggested ? `<span title="${tipSuggested}" style="cursor:help; font-size:11px;">💡</span>` : ''}</div>` 
+                : '';
+            const dbDesc = (tx.db_description && tx.db_description !== tx.description) 
+                ? `<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 3px;">${lblInDb} ${window.escapeHtml ? window.escapeHtml(tx.db_description) : tx.db_description}</div>` 
+                : '';
+
             const descInput = isRec 
-                ? `${rawDesc}<input type="text" class="sync-desc input-styled" value="${tx.description.replace(/"/g, '&quot;')}" style="width: 100%; border: 1px solid transparent; background: transparent; padding: 4px; color: var(--text-muted);" readonly>` 
-                : `${rawDesc}<input type="text" class="sync-desc input-styled" value="${tx.description.replace(/"/g, '&quot;')}" style="width: 100%; padding: 4px;" onchange="window.BankSyncView.updateTxDesc(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">`;
+                ? `${dbDesc}<input type="text" class="sync-desc input-styled" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; border: 1px solid transparent; background: transparent; padding: 4px; color: var(--text-muted);" readonly>${rawSubHtml}` 
+                : `${dbDesc}<input type="text" class="sync-desc input-styled" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; padding: 4px;" onchange="window.BankSyncView.updateTxDesc(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">${rawSubHtml}`;
 
             const catOptions = `<option value="">${lblSelectCat}</option>` + categories.filter(c => !c.is_closed).map(c => 
                 `<option value="${c.name.replace(/"/g, '&quot;')}" ${tx.category === c.name ? 'selected' : ''}>${c.name}</option>`
@@ -2636,6 +2870,7 @@ window.BankSyncView = {
                     account_id: acc.account_id,
                     date_operation: tx.date_operation,
                     description: tx.description,
+                    raw_description: tx.raw_description || tx.description,
                     amount: tx.amount,
                     raw_amount: tx.raw_amount,
                     category: tx.category,
@@ -2755,7 +2990,7 @@ window.BankSyncView = {
 
         try {
             await API.del(`/api/bank-sync/connections/${connId}`);
-            sessionStorage.removeItem(`omnibank_sync_preview_${connId}`);
+            this.clearCachedRemoteAccounts(connId);
             await this.loadConnections();
             this.showToast('Connexion bancaire supprimée.', 'info');
         } catch (err) {
