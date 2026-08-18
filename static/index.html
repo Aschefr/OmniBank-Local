@@ -96,8 +96,9 @@
                         <div id="notifMenu" style="display:none; position:absolute; top:100%; right:0; margin-top:8px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; box-shadow:var(--shadow-lg); z-index:10000; width: min(450px, calc(100vw - 24px)); overflow:hidden; font-size:13px; color:var(--text-main);">
                         <div style="padding:12px 16px; border-bottom:1px solid var(--border-color); font-weight:600; display:flex; justify-content:space-between; align-items:center; background:var(--bg-base);">
                             <span data-i18n="notif_title_notifications">Notifications</span>
-                            <div style="display:flex; align-items:center; gap:12px;">
-                                <a href="#" onclick="event.preventDefault(); window.app.markAllNotifsRead();" class="notif-action-btn" style="font-size:11px; color:var(--accent); text-decoration:none; font-weight:500; cursor:pointer; white-space:nowrap;" data-i18n="notif_btn_mark_all_read">Tout marquer comme lu</a>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <a id="markAllNotifsReadBtn" href="#" onclick="event.preventDefault(); window.app.markAllNotifsRead();" class="notif-action-btn" style="font-size:11px; color:var(--accent); text-decoration:none; font-weight:500; cursor:pointer; white-space:nowrap;" data-i18n="notif_btn_mark_all_read">Tout marquer comme lu</a>
+                                <a id="deleteAllNotifsBtn" href="#" onclick="event.preventDefault(); window.app.deleteAllNotifs(event);" class="notif-action-btn" style="font-size:11px; color:#ff5630; text-decoration:none; font-weight:500; cursor:pointer; white-space:nowrap;" data-i18n="notif_btn_delete_all">Tout supprimer</a>
                                 <span id="notifTotalLabel" style="font-size:11px; color:var(--text-muted); font-weight:normal;">0</span>
                             </div>
                         </div>
@@ -420,6 +421,7 @@
                         <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_description">Description*</label>
                         <input type="text" id="op_desc" class="inline-input" data-i18n-placeholder="ph_description" placeholder="Ex: Amazon, Salaire..." list="descList" autocomplete="off" style="width: 100%; font-size: 13px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-input);" oninput="window.FormView.onDescriptionInput()">
                         <datalist id="descList"></datalist>
+                        <div id="op_raw_desc_hint" style="display: none; font-size: 11px; color: var(--text-muted); margin-top: 4px; font-style: italic;"></div>
                     </div>
                     <div>
                         <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_amount">Montant*</label>
@@ -802,6 +804,7 @@
     <script src="/static/js/views/config/config_backups.js?v=1"></script>
     <script src="/static/js/views/config/config_org_users.js?v=1"></script>
     <script src="/static/js/views/config/config_profiles.js?v=1"></script>
+    <script src="/static/js/views/config/config_smart_labels.js?v=1"></script>
     <script src="/static/js/views/config/config_diagnostics.js"></script>
     <script src="/static/js/views/config_manager.js?v=5"></script>
     <script src="/static/js/views/chat/chat_sessions.js?v=2"></script>

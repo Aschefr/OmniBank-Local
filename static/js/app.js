@@ -171,6 +171,10 @@ class App {
             document.body.classList.toggle('theme-dark');
             const isDark = document.body.classList.contains('theme-dark');
             ProfileStorage.set('omni_theme', isDark ? 'dark' : 'light');
+            window.dispatchEvent(new CustomEvent('themeChanged', { detail: { isDark } }));
+            if (window.SimulatorView && typeof window.SimulatorView.renderChart === 'function' && document.getElementById('simChartCanvas')) {
+                window.SimulatorView.renderChart();
+            }
         });
         
         // Privacy toggle
@@ -472,6 +476,15 @@ class App {
             const badge = document.getElementById('notifCountBadge');
             const totalLabel = document.getElementById('notifTotalLabel');
             const container = document.getElementById('notifListContainer');
+            const deleteAllBtn = document.getElementById('deleteAllNotifsBtn');
+            const markAllBtn = document.getElementById('markAllNotifsReadBtn');
+
+            if (deleteAllBtn) {
+                deleteAllBtn.style.display = notifs.length > 0 ? 'inline' : 'none';
+            }
+            if (markAllBtn) {
+                markAllBtn.style.display = notifs.some(n => !n.is_read) ? 'inline' : 'none';
+            }
 
             if (unreadCount > 0) {
                 badge.textContent = unreadCount;
@@ -627,6 +640,45 @@ class App {
             await this.loadNotifications();
         } catch (e) {
             console.error(e);
+        }
+    }
+
+    async deleteAllNotifs(event) {
+        const btn = event ? event.currentTarget : document.getElementById('deleteAllNotifsBtn');
+        if (!btn) return;
+
+        // If the button is already in confirmation state, execute deletion
+        if (btn.dataset.confirmState === "true") {
+            try {
+                await API.del('/api/notifications');
+                await this.loadNotifications();
+                if (typeof showToast === 'function') {
+                    const isEn = window.i18n && window.i18n.lang === 'en';
+                    showToast(isEn ? "All notifications deleted" : "Toutes les notifications ont été supprimées", "success");
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        } else {
+            // Put button in confirmation state
+            btn.dataset.confirmState = "true";
+            const originalText = btn.textContent;
+            const confirmTxt = (window.i18n && window.i18n.t('notif_btn_delete_all_confirm')) || (window.i18n && window.i18n.lang === 'en' ? "Confirm?" : "Confirmer ?");
+            btn.textContent = confirmTxt;
+            btn.style.color = "#ef4444";
+            btn.style.fontWeight = "700";
+
+            // Cancel confirmation state after 3 seconds
+            const resetBtn = () => {
+                if (btn && btn.dataset.confirmState === "true") {
+                    btn.dataset.confirmState = "false";
+                    btn.textContent = originalText;
+                    btn.style.color = "#ff5630";
+                    btn.style.fontWeight = "500";
+                }
+            };
+            if (btn._resetTimeout) clearTimeout(btn._resetTimeout);
+            btn._resetTimeout = setTimeout(resetBtn, 3000);
         }
     }
 

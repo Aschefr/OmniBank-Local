@@ -76,6 +76,40 @@ def test_notifications_lifecycle():
     app.dependency_overrides.pop(get_db, None)
 
 
+def test_delete_all_notifications():
+    client = TestClient(app)
+    from app.database import get_db
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+    app.dependency_overrides[get_db] = override_get_db
+
+    # Create 3 notifications
+    db = TestingSessionLocal()
+    for i in range(3):
+        db.add(Notification(type="system", title=f"Alert {i}", content="Content"))
+    db.commit()
+    db.close()
+
+    resp = client.get("/api/notifications")
+    assert resp.status_code == 200
+    assert len(resp.json()) == 3
+
+    # Delete all
+    resp_del_all = client.delete("/api/notifications")
+    assert resp_del_all.status_code == 200
+    assert resp_del_all.json()["ok"] is True
+    assert resp_del_all.json()["deleted_count"] == 3
+
+    resp_after = client.get("/api/notifications")
+    assert len(resp_after.json()) == 0
+
+    app.dependency_overrides.pop(get_db, None)
+
+
 def test_generate_ai_report_task_frequency():
     """Test that frequency calculation with timezone.utc works without NameError."""
     db = TestingSessionLocal()
@@ -92,3 +126,4 @@ def test_generate_ai_report_task_frequency():
 
     # Calling generate_ai_report_task with force=False should check the frequency and skip safely
     generate_ai_report_task(TestingSessionLocal, force=False)
+

@@ -418,6 +418,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div>
             </div>
 
+            <!-- Smart Label Matching Rules -->
+            ${window.ConfigSmartLabels ? window.ConfigSmartLabels.render() : ''}
+
             <!-- Diagnostics & Bug Reporting -->
             ${window.ConfigDiagnostics ? window.ConfigDiagnostics.render() : ''}
         `;
@@ -425,6 +428,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
     async init() {
         await this.loadData();
+        if (window.ConfigSmartLabels && typeof window.ConfigSmartLabels.init === 'function') {
+            await window.ConfigSmartLabels.init();
+        }
     },
 
     async loadData() {

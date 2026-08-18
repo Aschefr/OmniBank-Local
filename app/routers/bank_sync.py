@@ -34,6 +34,7 @@ from app.services.bank_sync_service import (
     register_2fa_session,
     unregister_2fa_session,
 )
+from app.profile_manager import get_active_profile
 from app.services.credential_vault import CredentialVault, VaultSessionManager
 
 logger = logging.getLogger(__name__)
@@ -51,11 +52,18 @@ def get_backends(force_refresh: bool = False):
 def list_connections(db: Session = Depends(get_db)):
     """Liste toutes les connexions bancaires configurées (sans jamais exposer d'identifiant en clair)."""
     connections = db.query(BankConnection).order_by(BankConnection.id.desc()).all()
+    active_pid = get_active_profile().get("id", "default")
+    is_unlocked = VaultSessionManager.is_unlocked(profile_id=active_pid)
     results = []
     for conn in connections:
         has_creds = CredentialVault.has_credentials(db, conn.id)
         out = BankConnectionOut.model_validate(conn)
         out.has_credentials = has_creds
+        # Si le coffre est actuellement déverrouillé, masquer l'erreur obsolète liée au mot de passe maître
+        if is_unlocked and out.last_error and "mot de passe" in out.last_error.lower():
+            out.last_error = None
+            if out.last_sync_status in ("auto_error", "error"):
+                out.last_sync_status = "idle"
         results.append(out)
     return results
 
@@ -63,11 +71,12 @@ def list_connections(db: Session = Depends(get_db)):
 @router.post("/connections", response_model=BankConnectionOut)
 def create_connection(data: BankConnectionCreate, db: Session = Depends(get_db)):
     """Crée une nouvelle connexion bancaire et chiffre immédiatement ses identifiants dans le coffre."""
+    active_pid = get_active_profile().get("id", "default")
     master_pw = data.master_password
     if not master_pw and data.vault_token:
-        master_pw = VaultSessionManager.get_password(data.vault_token)
+        master_pw = VaultSessionManager.get_password(data.vault_token, profile_id=active_pid)
     if not master_pw:
-        master_pw = VaultSessionManager.get_password()
+        master_pw = VaultSessionManager.get_password(profile_id=active_pid)
     
     if not master_pw:
         raise HTTPException(
@@ -152,9 +161,10 @@ def delete_connection(conn_id: int, db: Session = Depends(get_db)):
 @router.post("/vault/unlock", response_model=Dict[str, Any])
 def unlock_vault(req: VaultUnlockRequest, db: Session = Depends(get_db)):
     """
-    Déverrouille le coffre-fort en mémoire pour X jours.
+    Déverrouille le coffre-fort en mémoire pour X jours pour le profil actif.
     Valide le mot de passe maître sur les connexions existantes.
     """
+    active_pid = get_active_profile().get("id", "default")
     connections = db.query(BankConnection).filter(BankConnection.is_active == True).all()
     # Si des connexions existent, tester le mot de passe sur la première qui a des identifiants
     for conn in connections:
@@ -164,8 +174,17 @@ def unlock_vault(req: VaultUnlockRequest, db: Session = Depends(get_db)):
                 raise HTTPException(status_code=401, detail="Mot de passe maître incorrect")
             break
 
-    token = VaultSessionManager.create_session(req.master_password, req.remember_days or 7)
-    status = VaultSessionManager.get_status(token)
+    token = VaultSessionManager.create_session(req.master_password, req.remember_days or 7, profile_id=active_pid)
+    status = VaultSessionManager.get_status(token, profile_id=active_pid)
+
+    # Quand le déverrouillage réussit, purger en base les erreurs obsolètes liées au mot de passe/coffre
+    for conn in connections:
+        if conn.last_error and ("mot de passe" in conn.last_error.lower() or "coffre" in conn.last_error.lower()):
+            conn.last_error = None
+            if conn.last_sync_status in ("auto_error", "error"):
+                conn.last_sync_status = "idle"
+    db.commit()
+
     return {
         "ok": True,
         "vault_token": token,
@@ -175,15 +194,17 @@ def unlock_vault(req: VaultUnlockRequest, db: Session = Depends(get_db)):
 
 @router.get("/vault/status", response_model=VaultStatusOut)
 def get_vault_status(token: Optional[str] = Query(None)):
-    """Retourne l'état actuel de déverrouillage du coffre-fort."""
-    status = VaultSessionManager.get_status(token)
+    """Retourne l'état actuel de déverrouillage du coffre-fort pour le profil actif."""
+    active_pid = get_active_profile().get("id", "default")
+    status = VaultSessionManager.get_status(token, profile_id=active_pid)
     return VaultStatusOut(**status)
 
 
 @router.post("/vault/lock")
 def lock_vault(token: Optional[str] = Query(None)):
-    """Verrouille immédiatement le coffre-fort (purge de la mémoire vive)."""
-    VaultSessionManager.lock_session(token)
+    """Verrouille immédiatement le coffre-fort du profil actif (purge de la mémoire vive)."""
+    active_pid = get_active_profile().get("id", "default")
+    VaultSessionManager.lock_session(token, profile_id=active_pid)
     return {"ok": True, "message": "Coffre-fort verrouillé avec succès."}
 
 
@@ -191,12 +212,13 @@ def lock_vault(token: Optional[str] = Query(None)):
 def get_auto_sync_settings(db: Session = Depends(get_db)):
     """Retourne la configuration du relevé bancaire automatique."""
     from app.services.bank_sync_scheduler import _get_config_value
+    active_pid = get_active_profile().get("id", "default")
     enabled = _get_config_value(db, "bank_auto_sync_enabled", "false").lower() == "true"
     interval = int(_get_config_value(db, "bank_auto_sync_interval_hours", "24") or 24)
     return {
         "enabled": enabled,
         "interval_hours": interval,
-        "vault_unlocked": VaultSessionManager.get_status().get("is_unlocked", False)
+        "vault_unlocked": VaultSessionManager.get_status(profile_id=active_pid).get("is_unlocked", False)
     }
 
 
@@ -215,9 +237,10 @@ def update_auto_sync_settings(data: Dict[str, Any], db: Session = Depends(get_db
 def run_manual_auto_sync(data: Optional[Dict[str, Any]] = None):
     """Déclenche immédiatement un relevé automatique en arrière-plan."""
     from app.services.bank_sync_scheduler import trigger_manual_auto_sync
+    active_pid = get_active_profile().get("id", "default")
     master_password = data.get("master_password") if data else None
     vault_token = data.get("vault_token") if data else None
-    res = trigger_manual_auto_sync(master_password=master_password, vault_token=vault_token)
+    res = trigger_manual_auto_sync(master_password=master_password, vault_token=vault_token, profile_id=active_pid)
     if not res.get("ok"):
         raise HTTPException(status_code=401, detail=res.get("detail", "Coffre verrouillé"))
     return res
@@ -226,9 +249,40 @@ def run_manual_auto_sync(data: Optional[Dict[str, Any]] = None):
 
 @router.get("/pending")
 def get_pending_sync_summary(db: Session = Depends(get_db)):
-    """Retourne toutes les opérations en attente (rapprochements détectés + nouvelles opérations)."""
+    """Retourne toutes les opérations en attente (rapprochements détectés + nouvelles opérations enrichies par Smart Label)."""
     from app.services.bank_sync_scheduler import get_all_pending_sync
-    return get_all_pending_sync(db)
+    from app.services.smart_label_service import resolve_smart_labels_batch
+
+    pending = get_all_pending_sync(db)
+    if not pending or "accounts" not in pending:
+        return pending
+
+    # Collecter tous les libellés bruts des transactions non rapprochées
+    raw_labels = []
+    for acc in pending.get("accounts", []):
+        for tx in acc.get("transactions", []):
+            if not tx.get("is_reconciled"):
+                raw_desc = tx.get("raw_description") or tx.get("description") or ""
+                if raw_desc:
+                    raw_labels.append(raw_desc)
+
+    if raw_labels:
+        smart_resolutions = resolve_smart_labels_batch(db, raw_labels)
+        for acc in pending.get("accounts", []):
+            for tx in acc.get("transactions", []):
+                if not tx.get("is_reconciled"):
+                    raw_desc = tx.get("raw_description") or tx.get("description") or ""
+                    tx["raw_description"] = raw_desc
+                    if raw_desc in smart_resolutions:
+                        res = smart_resolutions[raw_desc]
+                        if res.get("source") in ("rule", "history"):
+                            tx["description"] = res["description"]
+                            tx["smart_suggested"] = True
+                            tx["smart_source"] = res["source"]
+                            if not tx.get("category") and res.get("category"):
+                                tx["category"] = res["category"]
+
+    return pending
 
 
 @router.post("/reconcile-fast/{tx_id}")
@@ -384,7 +438,8 @@ def test_existing_connection(conn_id: int, req: SyncConnectionRequest, db: Sessi
     if not conn:
         raise HTTPException(status_code=404, detail="Connexion introuvable")
 
-    pw = req.master_password or VaultSessionManager.get_password(req.vault_token)
+    active_pid = get_active_profile().get("id", "default")
+    pw = req.master_password or VaultSessionManager.get_password(req.vault_token, profile_id=active_pid)
     if not pw:
         raise HTTPException(status_code=401, detail="Mot de passe maître requis ou coffre verrouillé")
 
@@ -410,7 +465,8 @@ def fetch_preview(conn_id: int, req: SyncConnectionRequest, db: Session = Depend
     if not conn:
         raise HTTPException(status_code=404, detail="Connexion bancaire introuvable")
 
-    pw = req.master_password or VaultSessionManager.get_password(req.vault_token)
+    active_pid = get_active_profile().get("id", "default")
+    pw = req.master_password or VaultSessionManager.get_password(req.vault_token, profile_id=active_pid)
     if not pw:
         raise HTTPException(status_code=401, detail="Mot de passe maître requis ou coffre verrouillé")
 
@@ -475,7 +531,8 @@ async def sync_connection_stream(
     if not conn:
         raise HTTPException(status_code=404, detail="Connexion bancaire introuvable")
 
-    pw = master_password or VaultSessionManager.get_password(vault_token)
+    active_pid = get_active_profile().get("id", "default")
+    pw = master_password or VaultSessionManager.get_password(vault_token, profile_id=active_pid)
     if not pw:
         raise HTTPException(status_code=401, detail="Mot de passe maître requis ou coffre verrouillé")
 

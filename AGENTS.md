@@ -51,7 +51,8 @@ Target: Privacy-conscious individuals; French associations/CSE needing lightweig
 
 **IMPORTANT (user rule):** NEVER automatically commit changes. Always wait for explicit user instruction before committing to git.
 
-Will populate as patterns emerge during development.
+- **Changelog (`CHANGELOG.md`)** : Doit toujours être rédigé en anglais, concis et orienté utilisateur (fonctionnalités visibles et bugs corrigés perceptibles).
+- **GitHub Releases** : Les notes détaillées et techniques exhaustives doivent être intégrées dans les notes de release GitHub lors de la publication.
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
