@@ -128,73 +128,100 @@ class CredentialVault:
 class VaultSessionManager:
     """
     Gestionnaire de session de déverrouillage temporaire du coffre-fort (In-Memory RAM).
-    Garde le mot de passe maître en mémoire avec un délai d'expiration (TTL).
+    Garde le mot de passe maître en mémoire avec un délai d'expiration (TTL) et scopé par profile_id.
     Zéro écriture de mot de passe maître en clair sur disque.
     """
     _sessions: Dict[str, Dict[str, Any]] = {}
     _lock = threading.Lock()
 
     @classmethod
-    def create_session(cls, master_password: str, duration_days: int = 7) -> str:
-        """Crée un jeton de session en mémoire vive valable duration_days jours."""
+    def _resolve_profile_id(cls, profile_id: Optional[str] = None) -> str:
+        if profile_id:
+            return profile_id
+        try:
+            from app.profile_manager import get_active_profile
+            return get_active_profile().get("id", "default")
+        except Exception:
+            return "default"
+
+    @classmethod
+    def create_session(cls, master_password: str, duration_days: int = 7, profile_id: Optional[str] = None) -> str:
+        """Crée un jeton de session en mémoire vive valable duration_days jours pour un profil donné."""
         import secrets
         import time
 
+        pid = cls._resolve_profile_id(profile_id)
         token = secrets.token_urlsafe(32)
         ttl_seconds = max(1, duration_days) * 86400
         expires_at = time.time() + ttl_seconds
 
         with cls._lock:
+            # Purger toute session antérieure pour ce même profil
+            to_purge = [t for t, s in cls._sessions.items() if s.get("profile_id") == pid]
+            for t in to_purge:
+                cls._sessions.pop(t, None)
+
             cls._sessions[token] = {
                 "master_password": master_password,
                 "expires_at": expires_at,
                 "created_at": time.time(),
-                "duration_days": duration_days
+                "duration_days": duration_days,
+                "profile_id": pid
             }
-        logger.info(f"[VaultSession] Session créée (valable {duration_days} jours)")
+        logger.info(f"[VaultSession] Session créée pour le profil '{pid}' (valable {duration_days} jours)")
         return token
 
     @classmethod
-    def get_password(cls, token: Optional[str] = None) -> Optional[str]:
-        """Retourne le mot de passe maître en mémoire si la session est valide."""
-        if not token:
-            # S'il n'y a qu'une seule session active non expirée (usage mono-utilisateur local)
-            with cls._lock:
-                import time
-                now = time.time()
-                for t, s in list(cls._sessions.items()):
-                    if s["expires_at"] > now:
-                        return s["master_password"]
-                    else:
-                        cls._sessions.pop(t, None)
-            return None
-
-        with cls._lock:
-            import time
-            session = cls._sessions.get(token)
-            if not session:
-                return None
-            if session["expires_at"] <= time.time():
-                cls._sessions.pop(token, None)
-                logger.info("[VaultSession] Session expirée supprimée de la mémoire")
-                return None
-            return session["master_password"]
-
-    @classmethod
-    def get_status(cls, token: Optional[str] = None) -> Dict[str, Any]:
-        """Retourne l'état actuel de déverrouillage de la session."""
+    def get_password(cls, token: Optional[str] = None, profile_id: Optional[str] = None) -> Optional[str]:
+        """Retourne le mot de passe maître en mémoire si la session est valide et correspond au profil."""
         import time
         now = time.time()
+        pid = cls._resolve_profile_id(profile_id)
+
+        with cls._lock:
+            if token:
+                session = cls._sessions.get(token)
+                if not session:
+                    return None
+                if session["expires_at"] <= now:
+                    cls._sessions.pop(token, None)
+                    logger.info(f"[VaultSession] Session expirée supprimée de la mémoire (profil {session.get('profile_id')})")
+                    return None
+                if session.get("profile_id") != pid:
+                    logger.warning(f"[VaultSession] Jeton non valide pour le profil actif '{pid}' (appartient à '{session.get('profile_id')}')")
+                    return None
+                return session["master_password"]
+
+            # Si aucun token fourni : chercher une session active pour ce profil uniquement
+            for t, s in list(cls._sessions.items()):
+                if s["expires_at"] > now:
+                    if s.get("profile_id") == pid:
+                        return s["master_password"]
+                else:
+                    cls._sessions.pop(t, None)
+            return None
+
+    @classmethod
+    def get_status(cls, token: Optional[str] = None, profile_id: Optional[str] = None) -> Dict[str, Any]:
+        """Retourne l'état actuel de déverrouillage de la session pour le profil."""
+        import time
+        now = time.time()
+        pid = cls._resolve_profile_id(profile_id)
+
         with cls._lock:
             target = None
             if token and token in cls._sessions:
-                target = cls._sessions[token]
-            elif not token and len(cls._sessions) > 0:
-                # Trouver la session la plus récente
+                s = cls._sessions[token]
+                if s["expires_at"] > now and s.get("profile_id") == pid:
+                    target = s
+                elif s["expires_at"] <= now:
+                    cls._sessions.pop(token, None)
+            elif not token:
                 for t, s in list(cls._sessions.items()):
                     if s["expires_at"] > now:
-                        target = s
-                        break
+                        if s.get("profile_id") == pid:
+                            target = s
+                            break
                     else:
                         cls._sessions.pop(t, None)
 
@@ -208,16 +235,25 @@ class VaultSessionManager:
                 "is_unlocked": True,
                 "remaining_seconds": remaining_sec,
                 "remaining_days": remaining_days,
-                "expires_at": target["expires_at"]
+                "expires_at": target["expires_at"],
+                "profile_id": target.get("profile_id")
             }
 
     @classmethod
-    def lock_session(cls, token: Optional[str] = None):
-        """Purger la session de la mémoire."""
+    def is_unlocked(cls, token: Optional[str] = None, profile_id: Optional[str] = None) -> bool:
+        """Retourne True si une session valide non expirée est active pour le profil."""
+        return cls.get_password(token, profile_id) is not None
+
+    @classmethod
+    def lock_session(cls, token: Optional[str] = None, profile_id: Optional[str] = None):
+        """Purger la session du profil spécifié (ou actif) de la mémoire."""
+        pid = cls._resolve_profile_id(profile_id)
         with cls._lock:
             if token:
                 cls._sessions.pop(token, None)
             else:
-                cls._sessions.clear()
-        logger.info("[VaultSession] Coffre verrouillé (mémoire purgée)")
+                to_remove = [t for t, s in cls._sessions.items() if s.get("profile_id") == pid]
+                for t in to_remove:
+                    cls._sessions.pop(t, None)
+        logger.info(f"[VaultSession] Session coffre-fort verrouillée et purgée pour le profil '{pid}'")
 

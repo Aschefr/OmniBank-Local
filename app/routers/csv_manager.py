@@ -615,6 +615,16 @@ async def save_batch(data: dict, db: Session = Depends(get_db)):
         )
         db.add(new_tx)
         imported += 1
+
+        # Auto-apprentissage Smart Label
+        raw_lbl = tx.get("raw_description") or tx.get("description")
+        clean_lbl = tx.get("description")
+        if raw_lbl and clean_lbl:
+            try:
+                from app.services.smart_label_service import learn_label_mapping
+                learn_label_mapping(db, raw_label=raw_lbl, clean_description=clean_lbl, category=cat_name)
+            except Exception:
+                pass
         
     db.commit()
     return {"imported": imported}

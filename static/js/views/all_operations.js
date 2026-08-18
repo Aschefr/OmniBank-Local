@@ -81,13 +81,19 @@ window.AllOperationsView = {
                         </label>
                     </div>
                     </div>
-                <div class="header-buttons" style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-                    <button class="btn btn-secondary" onclick="document.getElementById('historyColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
-                    <button id="btnImportStatement" class="btn btn-secondary" onclick="window.ImportWizard.open()" data-i18n="btn_import_statement">📥 Importer un relevé</button>
-                    <button class="btn btn-primary" onclick="window.TimelineView.showAddRow()">${window.i18n.t('btn_add_operation')}</button>
+                <div class="header-buttons" style="display:flex; gap:6px; flex-wrap:nowrap; justify-content:flex-end; align-items:center; flex-shrink:0;">
+                    <button class="btn btn-secondary" onclick="document.getElementById('historyColsModal').style.display='flex'" data-i18n="btn_columns" style="height:32px; padding:0 10px; font-size:12px; border-radius:8px; white-space:nowrap;">${window.i18n.t('btn_columns')}</button>
+                    <button id="btnImportStatement" class="btn btn-secondary" onclick="window.ImportWizard.open()" data-i18n="btn_import_statement" style="height:32px; padding:0 10px; font-size:12px; border-radius:8px; white-space:nowrap;">${window.i18n.t('btn_import_statement') || '📥 Importer un relevé'}</button>
+                    <button id="btnHistoryBgSync" class="btn btn-secondary overview-bank-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à pointer et actualiser vos soldes sans bloquer l\'interface.'}" style="height:32px; padding:0 10px; font-size:12px; border-radius:8px; font-weight:600; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;">
+                        <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="window.TimelineView.showAddRow()" data-i18n="btn_add_operation" style="height:32px; padding:0 12px; font-size:12px; border-radius:8px; font-weight:700; white-space:nowrap;">${window.i18n.t('btn_add_operation')}</button>
+
                 </div>
                 </div>
             </div>
+
+
             <div style="padding-bottom: 20px;">
                 <div id="allOpsGhostBox"></div>
                 <table class="data-table timeline-table mobile-card-table">
