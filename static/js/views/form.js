@@ -147,6 +147,8 @@ window.FormView = {
         
         this.toggleRecurrenceFields();
         document.getElementById('op_rec_edit_hint').style.display = 'none';
+        const rawHintEl = document.getElementById('op_raw_desc_hint');
+        if (rawHintEl) { rawHintEl.style.display = 'none'; rawHintEl.innerHTML = ''; }
         this.hideNewCatInput();
         
         // Always reload fresh data (accounts, categories, descriptions)
@@ -392,6 +394,8 @@ window.FormView = {
         this.applyConfigVisibility();
         this.toggleRecurrenceFields();
         document.getElementById('op_rec_edit_hint').style.display = isRecurrent ? 'flex' : 'none';
+        const rawHintEl = document.getElementById('op_raw_desc_hint');
+        if (rawHintEl) { rawHintEl.style.display = 'none'; rawHintEl.innerHTML = ''; }
         this.hideNewCatInput();
         
         // This will update the type listbox and filter categories
@@ -469,6 +473,7 @@ window.FormView = {
         this._ghostMode = true;
         this._ghostCsvId = ghostTx.csv_id || null;
         this._ghostConnId = ghostTx.connection_id || null;
+        this._ghostRawDesc = ghostTx.raw_description || ghostTx.description || null;
 
         document.getElementById('op_desc').value = ghostTx.description || '';
         const rawAmt = typeof ghostTx.raw_amount !== 'undefined' ? parseFloat(ghostTx.raw_amount) : (parseFloat(ghostTx.amount) || 0);
@@ -489,10 +494,26 @@ window.FormView = {
         }
 
         this.updateInferredType();
-        this.renderCategories();
+        this.renderCategories(ghostTx.category || null);
 
         if (ghostTx.category) {
             document.getElementById('op_category').value = ghostTx.category;
+        }
+
+        const rawHintEl = document.getElementById('op_raw_desc_hint');
+        if (rawHintEl) {
+            const rawDesc = ghostTx.raw_description || ghostTx.description;
+            if (rawDesc && rawDesc !== ghostTx.description) {
+                const escapedRaw = (window.escapeHtml ? window.escapeHtml(rawDesc) : rawDesc).replace(/"/g, '&quot;');
+                const rawForJs = rawDesc.replace(/'/g, "\\'");
+                const origLabel = window.i18n ? window.i18n.t('smart_label_orig_bank') || 'En banque :' : 'En banque :';
+                const restoreLabel = window.i18n ? window.i18n.t('smart_label_restore') || 'Restaurer' : 'Restaurer';
+                rawHintEl.innerHTML = `🏦 ${origLabel} <strong style="color:var(--text-main); font-style:normal;">${escapedRaw}</strong> <button type="button" onclick="document.getElementById('op_desc').value='${rawForJs}'; window.FormView.onDescriptionInput();" style="background:none; border:none; color:var(--accent, #6366f1); font-size:11px; cursor:pointer; text-decoration:underline; padding:0 4px;" title="${restoreLabel}">(${restoreLabel})</button>`;
+                rawHintEl.style.display = 'block';
+            } else {
+                rawHintEl.style.display = 'none';
+                rawHintEl.innerHTML = '';
+            }
         }
 
         const modalTitle = document.getElementById('operationModalTitle') || document.querySelector('#operationModal h3');
@@ -511,6 +532,13 @@ window.FormView = {
         this._ghostMode = false;
         this._ghostCsvId = null;
         this._ghostConnId = null;
+        this._ghostRawDesc = null;
+
+        const rawHintEl = document.getElementById('op_raw_desc_hint');
+        if (rawHintEl) {
+            rawHintEl.style.display = 'none';
+            rawHintEl.innerHTML = '';
+        }
 
         const modalTitle = document.getElementById('operationModalTitle') || document.querySelector('#operationModal h3');
         if (modalTitle && modalTitle.dataset.origText) {
@@ -984,24 +1012,26 @@ window.FormView = {
         }
     },
 
-    renderCategories() {
+    renderCategories(forceCategoryName = null) {
         const currentType = document.getElementById('op_tx_type').value;
         const select = document.getElementById('op_category');
+        if (!select) return;
         
         // Check for search input
         const searchInput = document.getElementById('op_category_search');
         const search = searchInput ? window.cleanStringForSearch(searchInput.value) : '';
         
-        const currentVal = select.value;
+        const currentVal = forceCategoryName || select.value;
         
         let html = '<option value="">-- Sans cat\u00e9gorie --</option>';
         this.categories.forEach(c => {
             if (c.is_closed && c.name !== currentVal) return;
-            // Show only categories matching the current type
-            const typeMatch = !currentType || c.type === currentType;
+            // Show categories matching current type OR if it's the target selected category
+            const isSelected = (c.name === currentVal);
+            const typeMatch = !currentType || c.type === currentType || isSelected;
             if (typeMatch) {
-                if (!search || window.cleanStringForSearch(c.name).includes(search)) {
-                    html += `<option value="${c.name}">${c.name}</option>`;
+                if (!search || window.cleanStringForSearch(c.name).includes(search) || isSelected) {
+                    html += `<option value="${c.name}" ${isSelected ? 'selected' : ''}>${c.name}</option>`;
                 }
             }
         });
@@ -1259,6 +1289,7 @@ window.FormView = {
                     transaction: {
                         csv_id: this._ghostCsvId,
                         description: this.pendingSaveData.description,
+                        raw_description: this._ghostRawDesc || this.pendingSaveData.description,
                         amount: this.pendingSaveData.amount,
                         raw_amount: isIncome ? this.pendingSaveData.amount : -this.pendingSaveData.amount,
                         date_operation: this.pendingSaveData.date_operation,

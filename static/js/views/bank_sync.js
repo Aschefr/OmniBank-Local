@@ -32,19 +32,29 @@ window.BankSyncView = {
 
     // ── GESTION DU TOKEN DE SESSION COFFRE (RAM TTL BACKEND) ────────
     getVaultToken() {
-        return localStorage.getItem('omnibank_vault_token') || null;
+        if (window.ProfileStorage) {
+            return window.ProfileStorage.get('vault_token') || null;
+        }
+        return null;
     },
 
     setVaultToken(token) {
-        if (token) {
-            localStorage.setItem('omnibank_vault_token', token);
-        } else {
-            localStorage.removeItem('omnibank_vault_token');
+        if (window.ProfileStorage) {
+            if (token) {
+                window.ProfileStorage.set('vault_token', token);
+            } else {
+                window.ProfileStorage.remove('vault_token');
+            }
         }
+        // Purger également toute clé globale résiduelle
+        try { localStorage.removeItem('omnibank_vault_token'); } catch (_) {}
     },
 
     clearVaultToken() {
-        localStorage.removeItem('omnibank_vault_token');
+        if (window.ProfileStorage) {
+            window.ProfileStorage.remove('vault_token');
+        }
+        try { localStorage.removeItem('omnibank_vault_token'); } catch (_) {}
     },
 
     isAIEnabled() {
@@ -108,33 +118,25 @@ window.BankSyncView = {
                     <h3 style="font-size: 17px; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
                         <span>⚡</span> <span data-i18n="bank_sync_title">${window.i18n.t('bank_sync_title')}</span>
                     </h3>
-                    <span style="font-size: 11px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.25); padding: 2px 9px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; cursor: help;" title="${window.i18n.t('bank_sync_security_notice')}">
+                    <span style="font-size: 11.5px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.25); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: help; box-sizing: border-box; line-height: 1;" title="${window.i18n.t('bank_sync_security_notice')}">
                         <span>🛡️</span> <span>100% Local & Chiffré</span>
                     </span>
-                    <span id="bankSyncVaultPill"></span>
+                    <span id="bankSyncVaultPill" style="display: inline-flex; align-items: center;"></span>
                 </div>
 
                 <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                    <!-- Auto-Sync Compact Switch -->
-                    <div id="bankSyncAutoSyncCompact" style="display: ${this.connections.length > 0 ? 'inline-flex' : 'none'}; height: 32px; align-items: center; gap: 6px; padding: 0 10px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; font-size: 11px; font-weight: 600; color: var(--text-muted); box-sizing: border-box;">
-                        <label style="display: inline-flex; align-items: center; gap: 5px; cursor: pointer; margin: 0; white-space: nowrap;">
-                            <input type="checkbox" id="chkAutoSyncToggle" ${this.autoSyncSettings?.enabled ? 'checked' : ''} onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: var(--accent);">
-                            <span>⏰ <span data-i18n="bank_sync_auto_sync_label">${window.i18n.t('bank_sync_auto_sync_label') || 'Relevé auto'}</span></span>
-                        </label>
-                        <select id="selAutoSyncInterval" class="input-styled" style="height: 20px; font-size: 10px; padding: 0 2px; border: none; background: transparent; color: var(--text-main); font-weight: 700;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
-                            <option value="12" ${this.autoSyncSettings?.interval_hours === 12 ? 'selected' : ''}>12h</option>
-                            <option value="24" ${this.autoSyncSettings?.interval_hours === 24 ? 'selected' : ''}>24h</option>
-                            <option value="48" ${this.autoSyncSettings?.interval_hours === 48 ? 'selected' : ''}>48h</option>
-                        </select>
-                    </div>
+                    <!-- Auto-Sync Widget & Status -->
+                    <div id="bankSyncAutoSyncCompact" class="bank-sync-auto-sync-widget" style="display: ${this.connections.length > 0 ? 'inline-flex' : 'none'};"></div>
 
-                    <button id="btnHeaderBgSync" class="btn btn-secondary overview-bank-sync-btn" onclick="window.BankSyncView.triggerBackgroundSyncNow()" style="display: ${this.connections.length > 0 ? 'inline-flex' : 'none'}; height: 32px; padding: 0 12px; font-size: 12px; border-radius: 8px; align-items: center; gap: 5px; font-weight: 600; box-sizing: border-box; white-space: nowrap;" title="Interroger toutes vos banques en arrière-plan sans bloquer l'interface">
-                        <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn')}</span>
+
+                    <button id="btnHeaderBgSync" class="btn btn-secondary overview-bank-sync-btn" onclick="window.BankSyncView.triggerBackgroundSyncNow()" style="display: ${this.connections.length > 0 ? 'inline-flex' : 'none'}; height: 36px; padding: 0 14px; font-size: 13px; border-radius: 9px; align-items: center; gap: 6px; font-weight: 600; box-sizing: border-box; white-space: nowrap;" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à pointer et actualiser vos soldes sans bloquer l\'interface.'}">
+                        <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
                     </button>
 
-                    <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="display: inline-flex; height: 32px; align-items: center; gap: 5px; font-weight: 700; padding: 0 14px; font-size: 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(99,102,241,0.25); box-sizing: border-box; white-space: nowrap;">
+                    <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="display: inline-flex; height: 36px; align-items: center; gap: 6px; font-weight: 700; padding: 0 16px; font-size: 13px; border-radius: 9px; box-shadow: 0 2px 8px rgba(99,102,241,0.25); box-sizing: border-box; white-space: nowrap;">
                         <span>➕</span> <span data-i18n="bank_sync_add_btn">${window.i18n.t('bank_sync_add_btn')}</span>
                     </button>
+
                 </div>
             </div>
 
@@ -528,6 +530,56 @@ window.BankSyncView = {
     },
 
     // ── GESTION DU COFFRE & DÉVERROUILLAGE SÉCURISÉ ──────────────────
+    formatVaultRemaining(sec) {
+        if (!sec || sec <= 0) return '0s';
+        const d = Math.floor(sec / 86400);
+        const h = Math.floor((sec % 86400) / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        if (d > 0) return `${d}j ${h}h`;
+        if (h > 0) return `${h}h ${m}m`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
+    },
+
+    startVaultCountdown() {
+        this.stopVaultCountdown();
+        if (!this.vaultStatus?.is_unlocked || !this.vaultStatus?.remaining_seconds) return;
+
+        this._vaultCountdownInterval = setInterval(() => {
+            if (!this.vaultStatus || !this.vaultStatus.is_unlocked) {
+                this.stopVaultCountdown();
+                return;
+            }
+            this.vaultStatus.remaining_seconds = Math.max(0, this.vaultStatus.remaining_seconds - 1);
+            if (this.vaultStatus.remaining_seconds <= 0) {
+                this.stopVaultCountdown();
+                this.loadVaultStatus();
+                return;
+            }
+            this.updateVaultCountdownDisplay();
+        }, 1000);
+    },
+
+    stopVaultCountdown() {
+        if (this._vaultCountdownInterval) {
+            clearInterval(this._vaultCountdownInterval);
+            this._vaultCountdownInterval = null;
+        }
+    },
+
+    updateVaultCountdownDisplay() {
+        const pillText = document.getElementById('bankSyncVaultPillText');
+        const pillSpan = document.getElementById('bankSyncVaultPillBtn');
+        if (!pillText || !this.vaultStatus?.is_unlocked) return;
+
+        const timeStr = this.formatVaultRemaining(this.vaultStatus.remaining_seconds);
+        pillText.textContent = `Déverrouillé (${timeStr})`;
+        if (pillSpan) {
+            pillSpan.title = `Coffre-fort déverrouillé en mémoire (reverrouillage automatique dans ${timeStr}). Cliquez pour verrouiller immédiatement.`;
+        }
+    },
+
     async loadVaultStatus() {
         try {
             const token = this.getVaultToken();
@@ -541,7 +593,7 @@ window.BankSyncView = {
         } catch (e) {
             console.warn('[BankSync] Erreur lecture statut coffre:', e);
             this.clearVaultToken();
-            this.vaultStatus = { is_unlocked: false, remaining_days: 0 };
+            this.vaultStatus = { is_unlocked: false, remaining_days: 0, remaining_seconds: 0 };
             this.renderVaultStatusBar();
         }
     },
@@ -558,30 +610,139 @@ window.BankSyncView = {
             autoSyncBox.style.display = this.connections && this.connections.length > 0 ? 'inline-flex' : 'none';
         }
 
-        if (!pill) return;
+        const isUnlocked = !!this.vaultStatus?.is_unlocked;
+        const isAutoSyncEnabled = !!this.autoSyncSettings?.enabled;
+        const interval = this.autoSyncSettings?.interval_hours || 24;
 
-        if (!this.connections || this.connections.length === 0) {
-            pill.innerHTML = '';
-            pill.style.display = 'none';
-            return;
+        // ── 1. GESTION DU BADGE D'ÉTAT DU COFFRE ──
+        if (pill) {
+            if (!this.connections || this.connections.length === 0) {
+                pill.innerHTML = '';
+                pill.style.display = 'none';
+                this.stopVaultCountdown();
+            } else {
+                pill.style.display = 'inline-flex';
+                if (isUnlocked) {
+                    const timeStr = this.formatVaultRemaining(this.vaultStatus?.remaining_seconds || 0);
+                    pill.innerHTML = `
+                        <span id="bankSyncVaultPillBtn" style="font-size: 11.5px; font-weight: 600; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.lockVault()" title="Coffre-fort déverrouillé en mémoire (reverrouillage automatique dans ${timeStr}). Cliquez pour verrouiller immédiatement.">
+                            <span>🔓</span> <span id="bankSyncVaultPillText">Déverrouillé (${timeStr})</span> <span style="font-size: 11px; opacity: 0.75;" title="Verrouiller immédiatement">🔒</span>
+                        </span>
+                    `;
+                    this.startVaultCountdown();
+                } else {
+                    this.stopVaultCountdown();
+                    pill.innerHTML = `
+                        <span style="font-size: 11.5px; font-weight: 600; background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.unlockVaultManually()" title="Coffre verrouillé. Cliquez pour déverrouiller avec votre mot de passe maître.">
+                            <span>🔒</span> <span>Coffre verrouillé</span> <span style="font-size: 11px; text-decoration: underline; font-weight: 700;">(Déverrouiller)</span>
+                        </span>
+                    `;
+                }
+            }
         }
-        pill.style.display = 'inline-flex';
 
-        const isUnlocked = this.vaultStatus?.is_unlocked;
-        const days = this.vaultStatus?.remaining_days || 0;
-
-        if (isUnlocked) {
-            pill.innerHTML = `
-                <span style="font-size: 11px; font-weight: 600; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25); padding: 2px 9px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" onclick="window.BankSyncView.lockVault()" title="Coffre déverrouillé en mémoire (encore ${days}j). Cliquez pour verrouiller">
-                    <span>🔓</span> <span>Déverrouillé (${days}j)</span> <span style="font-size: 10px; opacity: 0.8;">🔒</span>
-                </span>
-            `;
-        } else {
-            pill.innerHTML = `
-                <span style="font-size: 11px; font-weight: 600; background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.25); padding: 2px 9px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" onclick="window.BankSyncView.unlockVaultManually()" title="Coffre verrouillé. Cliquez pour déverrouiller et activer les relevés automatiques">
-                    <span>🔒</span> <span>Coffre verrouillé</span> <span style="font-size: 10px; text-decoration: underline;">(Déverrouiller)</span>
-                </span>
-            `;
+        // ── 2. GESTION DU WIDGET RELEVÉ AUTO ──
+        if (autoSyncBox) {
+            if (isAutoSyncEnabled && !isUnlocked) {
+                // ÉTAT ALERTE CRITIQUE : Relevé auto programmé mais Coffre verrouillé !
+                autoSyncBox.className = 'bank-sync-auto-sync-widget is-locked-warning';
+                autoSyncBox.style.cssText = `
+                    display: inline-flex;
+                    height: 36px;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 0 12px;
+                    background: rgba(245, 158, 11, 0.12);
+                    border: 1.5px dashed #f59e0b;
+                    border-radius: 10px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #f59e0b;
+                    box-sizing: border-box;
+                    box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+                    transition: all 0.25s ease;
+                `;
+                autoSyncBox.title = "Le relevé automatique est programmé mais NE FONCTIONNE PAS car le coffre est verrouillé ! Cliquez pour déverrouiller.";
+                autoSyncBox.innerHTML = `
+                    <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; white-space: nowrap;">
+                        <input type="checkbox" id="chkAutoSyncToggle" checked onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: #f59e0b; width: 15px; height: 15px;">
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                            <span>⚠️</span> <strong style="color: #f59e0b;">Relevé auto :</strong>
+                        </span>
+                    </label>
+                    <select id="selAutoSyncInterval" class="input-styled" style="height: 24px; font-size: 11px; padding: 0 6px; border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; background: rgba(0,0,0,0.25); color: #f59e0b; font-weight: 700; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
+                        <option value="12" ${interval === 12 ? 'selected' : ''}>12h</option>
+                        <option value="24" ${interval === 24 ? 'selected' : ''}>24h</option>
+                        <option value="48" ${interval === 48 ? 'selected' : ''}>48h</option>
+                    </select>
+                    <button type="button" class="btn" onclick="window.BankSyncView.unlockVaultManually()" style="height: 24px; padding: 0 8px; font-size: 11px; font-weight: 700; background: #f59e0b; color: #1e1e2d; border-radius: 6px; border: none; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;" title="Déverrouiller le coffre pour autoriser les relevés automatiques">
+                        <span>🔓</span> <span>Déverrouiller</span>
+                    </button>
+                `;
+            } else if (isAutoSyncEnabled && isUnlocked) {
+                // ÉTAT OPÉRATIONNEL : Coffre déverrouillé & Relevé auto actif
+                autoSyncBox.className = 'bank-sync-auto-sync-widget is-active';
+                autoSyncBox.style.cssText = `
+                    display: inline-flex;
+                    height: 36px;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 0 12px;
+                    background: rgba(16, 185, 129, 0.08);
+                    border: 1px solid rgba(16, 185, 129, 0.4);
+                    border-radius: 10px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: var(--text-main);
+                    box-sizing: border-box;
+                    transition: all 0.25s ease;
+                `;
+                autoSyncBox.title = `Relevé automatique programmé toutes les ${interval}h (coffre déverrouillé).`;
+                autoSyncBox.innerHTML = `
+                    <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; white-space: nowrap;">
+                        <input type="checkbox" id="chkAutoSyncToggle" checked onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: #10b981; width: 15px; height: 15px;">
+                        <span>⏰ <strong style="color: #10b981;">Relevé auto</strong></span>
+                    </label>
+                    <select id="selAutoSyncInterval" class="input-styled" style="height: 24px; font-size: 11px; padding: 0 6px; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; background: rgba(0,0,0,0.15); color: var(--text-main); font-weight: 700; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
+                        <option value="12" ${interval === 12 ? 'selected' : ''}>12h</option>
+                        <option value="24" ${interval === 24 ? 'selected' : ''}>24h</option>
+                        <option value="48" ${interval === 48 ? 'selected' : ''}>48h</option>
+                    </select>
+                    <span style="font-size: 10px; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.16); padding: 2px 7px; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px;" title="Le planificateur exécute un relevé toutes les ${interval} heures.">
+                        <span style="width: 6px; height: 6px; background: #10b981; border-radius: 50%; display: inline-block;"></span> Actif
+                    </span>
+                `;
+            } else {
+                // ÉTAT INACTIF : Relevé auto décoché
+                autoSyncBox.className = 'bank-sync-auto-sync-widget is-disabled';
+                autoSyncBox.style.cssText = `
+                    display: inline-flex;
+                    height: 36px;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 0 12px;
+                    background: var(--bg-card);
+                    border: 1px solid var(--border-color);
+                    border-radius: 10px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    box-sizing: border-box;
+                    transition: all 0.25s ease;
+                `;
+                autoSyncBox.title = isUnlocked ? "Activer le relevé automatique en arrière-plan." : "Activer le relevé automatique (nécessite de déverrouiller le coffre).";
+                autoSyncBox.innerHTML = `
+                    <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; white-space: nowrap;">
+                        <input type="checkbox" id="chkAutoSyncToggle" onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: var(--accent); width: 15px; height: 15px;">
+                        <span>⏰ <span>Relevé auto</span></span>
+                    </label>
+                    <select id="selAutoSyncInterval" class="input-styled" style="height: 24px; font-size: 11px; padding: 0 6px; border: 1px solid var(--border-color); border-radius: 6px; background: transparent; color: var(--text-muted); font-weight: 600; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
+                        <option value="12" ${interval === 12 ? 'selected' : ''}>12h</option>
+                        <option value="24" ${interval === 24 ? 'selected' : ''}>24h</option>
+                        <option value="48" ${interval === 48 ? 'selected' : ''}>48h</option>
+                    </select>
+                `;
+            }
         }
     },
 
@@ -602,7 +763,8 @@ window.BankSyncView = {
             await API.post(`/api/bank-sync/vault/lock${token ? `?token=${encodeURIComponent(token)}` : ''}`);
         } catch (_) {}
         this.clearVaultToken();
-        this.vaultStatus = { is_unlocked: false, remaining_days: 0 };
+        this.stopVaultCountdown();
+        this.vaultStatus = { is_unlocked: false, remaining_days: 0, remaining_seconds: 0 };
         this.renderVaultStatusBar();
         this.showToast('Coffre-fort verrouillé (mémoire purgée).', 'info');
     },
@@ -611,16 +773,7 @@ window.BankSyncView = {
         try {
             const data = await API.get('/api/bank-sync/settings/auto-sync');
             this.autoSyncSettings = data || { enabled: false, interval_hours: 24 };
-
-            // Mettre à jour immédiatement l'état visuel du toggle et du sélecteur
-            const chk = document.getElementById('chkAutoSyncToggle');
-            if (chk) {
-                chk.checked = !!this.autoSyncSettings.enabled;
-            }
-            const sel = document.getElementById('selAutoSyncInterval');
-            if (sel && this.autoSyncSettings.interval_hours) {
-                sel.value = String(this.autoSyncSettings.interval_hours);
-            }
+            this.renderVaultStatusBar();
         } catch (e) {
             console.warn('[BankSync] Erreur settings auto-sync:', e);
         }
@@ -628,12 +781,17 @@ window.BankSyncView = {
 
     async toggleAutoSync(enabled) {
         this.autoSyncSettings.enabled = enabled;
+        this.renderVaultStatusBar();
         try {
             await API.post('/api/bank-sync/settings/auto-sync', {
                 enabled: enabled,
                 interval_hours: this.autoSyncSettings.interval_hours
             });
-            this.showToast(enabled ? 'Relevé automatique activé !' : 'Relevé automatique désactivé.', 'info');
+            if (enabled && !this.vaultStatus?.is_unlocked) {
+                this.showToast('Relevé auto activé. Note : le coffre doit être déverrouillé pour fonctionner.', 'warning');
+            } else {
+                this.showToast(enabled ? 'Relevé automatique activé !' : 'Relevé automatique désactivé.', 'info');
+            }
         } catch (err) {
             this.showToast('Erreur : ' + (err.detail || err.message), 'error');
         }
@@ -641,6 +799,7 @@ window.BankSyncView = {
 
     async changeAutoSyncInterval(interval) {
         this.autoSyncSettings.interval_hours = parseInt(interval) || 24;
+        this.renderVaultStatusBar();
         try {
             await API.post('/api/bank-sync/settings/auto-sync', {
                 enabled: this.autoSyncSettings.enabled,
@@ -674,7 +833,7 @@ window.BankSyncView = {
                     btn.innerHTML = `<span>⚠️</span> <span>${customHtml || (window.i18n ? window.i18n.t('bank_sync_progress_error') || 'Erreur relevé' : 'Erreur relevé')}</span>`;
                 } else {
                     btn.disabled = false;
-                    btn.innerHTML = `<span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n ? window.i18n.t('bank_sync_run_background_btn') || 'Relever en arrière-plan' : 'Relever en arrière-plan'}</span>`;
+                    btn.innerHTML = `<span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n ? window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne' : 'Relever en ligne'}</span>`;
                 }
             });
         };
@@ -689,9 +848,10 @@ window.BankSyncView = {
         // Si le coffre n'est pas déverrouillé, demander le mot de passe maître
         if (!token || !this.vaultStatus?.is_unlocked) {
             pw = await this.promptMasterPassword(
-                window.i18n ? window.i18n.t('bank_sync_run_background_btn') || 'Relevé en arrière-plan' : 'Relevé en arrière-plan',
+                window.i18n ? window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne' : 'Relever en ligne',
                 window.i18n ? window.i18n.t('bank_sync_vault_prompt_msg') || 'Entrez votre mot de passe maître pour autoriser le relevé en tâche de fond :' : 'Entrez votre mot de passe maître pour autoriser le relevé en tâche de fond :'
             );
+
             if (!pw) {
                 setButtonsState('idle');
                 return;
@@ -798,22 +958,54 @@ window.BankSyncView = {
         if (!toCat.length) return;
         this._ghostCategorized = true;
         try {
-            const descriptions = Array.from(new Set(toCat.map(g => g.description)));
-            const res = await API.post('/api/ai/categorize_batch', { descriptions });
-            if (res && res.categories) {
-                this.ghostTransactions.forEach(g => {
-                    if (!g.category && res.categories[g.description]) {
-                        g.category = res.categories[g.description];
+            // 1. Résolution Smart Label locale instantanée (Niveaux 1 et 2)
+            const rawLabels = Array.from(new Set(toCat.map(g => g.raw_description || g.description)));
+            let remainingForAI = [];
+            try {
+                const smartRes = await API.post('/api/smart-labels/resolve-batch', { labels: rawLabels });
+                if (smartRes && smartRes.results) {
+                    this.ghostTransactions.forEach(g => {
+                        const raw = g.raw_description || g.description;
+                        if (smartRes.results[raw]) {
+                            const r = smartRes.results[raw];
+                            if (r.source === 'rule' || r.source === 'history') {
+                                g.description = r.description;
+                                g.smart_suggested = true;
+                                g.smart_source = r.source;
+                                if (!g.category && r.category) {
+                                    g.category = r.category;
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (errSmart) {
+                console.warn('[BankSync] Erreur Smart Label batch:', errSmart);
+            }
+
+            // 2. Fallback IA pour les opérations restantes sans catégorie
+            if (this.isAIEnabled()) {
+                const stillUncat = this.ghostTransactions.filter(g => !g.category && g.description);
+                if (stillUncat.length > 0) {
+                    const descriptions = Array.from(new Set(stillUncat.map(g => g.description)));
+                    const res = await API.post('/api/ai/categorize_batch', { descriptions });
+                    if (res && res.categories) {
+                        this.ghostTransactions.forEach(g => {
+                            if (!g.category && res.categories[g.description]) {
+                                g.category = res.categories[g.description];
+                            }
+                        });
                     }
-                });
-                // Re-render ghost box in current view
-                const box = document.getElementById('ghostRowsBox');
-                if (box && box.parentElement) {
-                    this.renderGhostBox(box.parentElement);
                 }
             }
+
+            // Re-render ghost box in current view
+            const box = document.getElementById('ghostRowsBox');
+            if (box && box.parentElement) {
+                this.renderGhostBox(box.parentElement);
+            }
         } catch(e) {
-            console.warn('[BankSync] Erreur auto-catégorisation IA des fantômes:', e);
+            console.warn('[BankSync] Erreur auto-catégorisation des fantômes:', e);
         }
     },
 
@@ -927,6 +1119,11 @@ window.BankSyncView = {
             const amtFormatted = (isPositive ? '+ ' : '- ') + absAmt.toFixed(2) + ' €';
             const amtColor = isPositive ? 'var(--accent-success, #10b981)' : 'var(--text-main, #f87171)';
             const dateStr = g.date_operation ? String(g.date_operation).substring(0, 10) : '';
+            const isSuggested = g.smart_suggested;
+            const suggestedTip = (window.i18n ? window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique' : 'Suggéré d’après votre historique').replace(/"/g, '&quot;');
+
+            const showRaw = g.raw_description && g.raw_description !== g.description;
+            const rawSubHtml = showRaw ? `<div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85;">🏦 ${window.escapeHtml ? window.escapeHtml(g.raw_description) : g.raw_description}</div>` : '';
 
             return `
             <tr class="ghost-row" style="background: rgba(245, 158, 11, 0.04); border-left: 3px dashed #f59e0b; transition: background 0.15s ease;">
@@ -934,7 +1131,13 @@ window.BankSyncView = {
                     <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
                 </td>
                 <td style="padding: 8px 12px; font-size: 12px; white-space: nowrap; color: var(--text-muted);">${dateStr}</td>
-                <td style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--text-main);">${window.escapeHtml ? window.escapeHtml(g.description) : g.description}</td>
+                <td style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--text-main);">
+                    <div style="display: inline-flex; align-items: center; gap: 4px;">
+                        <span>${window.escapeHtml ? window.escapeHtml(g.description) : g.description}</span>
+                        ${isSuggested ? `<span title="${suggestedTip}" style="cursor:help; font-size: 11px;">💡</span>` : ''}
+                    </div>
+                    ${rawSubHtml}
+                </td>
                 <td style="padding: 8px 12px; font-size: 11px; color: var(--text-muted);">${g.account_name ? (window.escapeHtml ? window.escapeHtml(g.account_name) : g.account_name) : ''}</td>
                 <td style="padding: 8px 12px; font-size: 11px;">
                     ${g.category ? `<span style="background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">🏷️ ${window.escapeHtml ? window.escapeHtml(g.category) : g.category}</span>` : `<span style="color: var(--text-muted); font-size: 11px; font-style: italic;">Sans catégorie</span>`}
@@ -964,6 +1167,10 @@ window.BankSyncView = {
             const amtFormatted = (isPositive ? '+ ' : '- ') + absAmt.toFixed(2) + ' €';
             const amtColor = isPositive ? 'var(--accent-success, #10b981)' : 'var(--text-main, #f87171)';
             const dateStr = g.date_operation ? String(g.date_operation).substring(0, 10) : '';
+            const isSuggested = g.smart_suggested;
+            const suggestedTip = (window.i18n ? window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique' : 'Suggéré d’après votre historique').replace(/"/g, '&quot;');
+            const showRaw = g.raw_description && g.raw_description !== g.description;
+            const rawSubHtml = showRaw ? `<div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85;">🏦 ${window.escapeHtml ? window.escapeHtml(g.raw_description) : g.raw_description}</div>` : '';
 
             return `
             <div class="ghost-mobile-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-left: 3px dashed #f59e0b; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm);">
@@ -975,7 +1182,11 @@ window.BankSyncView = {
                     <span style="font-size: 13px; font-weight: 800; color: ${amtColor};">${amtFormatted}</span>
                 </div>
                 <div style="font-size: 13px; font-weight: 600; color: var(--text-main); line-height: 1.3;">
-                    ${window.escapeHtml ? window.escapeHtml(g.description) : g.description}
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span>${window.escapeHtml ? window.escapeHtml(g.description) : g.description}</span>
+                        ${isSuggested ? `<span title="${suggestedTip}" style="cursor:help; font-size: 11px;">💡</span>` : ''}
+                    </div>
+                    ${rawSubHtml}
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px;">
                     ${g.account_name ? `<span style="background: var(--bg-base); border: 1px solid var(--border-color); color: var(--text-muted); padding: 1px 6px; border-radius: 4px; font-size: 11px;">💳 ${window.escapeHtml ? window.escapeHtml(g.account_name) : g.account_name}</span>` : ''}
@@ -1318,15 +1529,17 @@ window.BankSyncView = {
                     ? new Date(conn.last_sync_at).toLocaleString() 
                     : window.i18n.t('bank_sync_never');
                 
-                const isError = conn.last_sync_status === 'error' || conn.last_sync_status === 'auto_error';
+                const isStalePasswordError = this.isVaultUnlocked && conn.last_error && (conn.last_error.toLowerCase().includes('mot de passe') || conn.last_error.toLowerCase().includes('coffre'));
+                const effectiveError = isStalePasswordError ? null : conn.last_error;
+                const isError = !isStalePasswordError && (conn.last_sync_status === 'error' || conn.last_sync_status === 'auto_error');
                 const statusBadge = isError 
                     ? `<span style="background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🔴</span> <span>${window.i18n.t('bank_sync_status_error')}</span></span>`
                     : `<span style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🟢</span> <span>${window.i18n.t('bank_sync_status_connected')}</span></span>`;
 
                 const cachedPreview = this.getCachedPreview(conn.id);
                 const cachedBtn = cachedPreview ? `
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.openCachedPreviewDirectly(${conn.id})" style="padding: 0 10px; border-radius: 8px; font-size: 12px; height: 32px; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" title="${window.i18n.t('bank_sync_cached_preview_tooltip')}" data-i18n="bank_sync_cached_preview_btn">
-                        <span>📋</span> <span>${window.i18n.t('bank_sync_cached_preview_btn')}</span>
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.openCachedPreviewDirectly(${conn.id})" style="padding: 0 10px; border-radius: 8px; font-size: 12px; height: 32px; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" title="${window.i18n.t('bank_sync_cached_preview_tooltip')}">
+                        <span>📋</span> <span data-i18n="bank_sync_cached_preview_btn">${window.i18n.t('bank_sync_cached_preview_btn')}</span>
                     </button>
                 ` : '';
 
@@ -1347,7 +1560,7 @@ window.BankSyncView = {
                                 <span>${lastSyncText}</span>
                                 ${conn.last_sync_count ? `<span style="background: rgba(16,185,129,0.12); color: #10b981; font-weight: 700; padding: 1px 8px; border-radius: 6px; font-size: 11px;">+${conn.last_sync_count} op.</span>` : ''}
                             </div>
-                            ${conn.last_error ? `<div style="font-size: 11px; color: #ef4444; margin-top: 4px;">⚠️ ${conn.last_error}</div>` : ''}
+                            ${effectiveError ? `<div style="font-size: 11px; color: #ef4444; margin-top: 4px;">⚠️ ${effectiveError}</div>` : ''}
                         </div>
                     </div>
 
@@ -1884,13 +2097,7 @@ window.BankSyncView = {
 
     // ── GESTION ANTI-SPAM & COOLDOWN ─────────────────────────────────
     async openCachedPreviewDirectly(connId) {
-        const cached = this.getCachedPreview(connId);
-        if (cached && cached.data) {
-            this.openReviewModal(connId, cached.data);
-            return;
-        }
-
-        // Récupérer depuis les opérations en attente (du relevé en arrière-plan)
+        // Toujours interroger en priorité le sas unifié du serveur (/api/bank-sync/pending)
         try {
             const data = await API.get('/api/bank-sync/pending');
             if (data && data.accounts && data.accounts.length > 0) {
@@ -1901,10 +2108,16 @@ window.BankSyncView = {
                     accounts: accountsToUse
                 };
                 this.saveCachedPreview(connId, preview);
-                this.openReviewModal(connId, preview);
+                await this.openReviewModal(connId, preview);
                 return;
             }
         } catch (_) {}
+
+        const cached = this.getCachedPreview(connId);
+        if (cached && cached.data) {
+            await this.openReviewModal(connId, cached.data);
+            return;
+        }
 
         this.showToast('Aucun aperçu récent disponible pour cette connexion.', 'info');
     },

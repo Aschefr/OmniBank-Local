@@ -32,12 +32,13 @@ window.OverviewView = {
                                 <option value="">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</option>
                             </select>
                         </div>
-                        <button class="overview-bank-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" title="${window.i18n.t('bank_sync_run_background_btn') || 'Relever en arrière-plan'}">
-                            <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en arrière-plan'}</span>
+                        <button class="overview-bank-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à pointer et actualiser vos soldes sans bloquer l\'interface.'}">
+                            <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
                         </button>
-                        <button class="btn btn-primary overview-add-btn" onclick="window.OverviewView.showAddModal()">
-                            <span>${window.i18n.t('btn_add_operation') || 'Nouvelle opération'}</span>
+                        <button class="btn btn-primary overview-add-btn" onclick="window.OverviewView.showAddModal()" data-i18n="btn_add_operation">
+                            <span>${window.i18n.t('btn_add_operation') || '➕ Nouvelle opération'}</span>
                         </button>
+
                     </div>
                 </div>
 
@@ -714,6 +715,9 @@ window.OverviewView = {
                 ? `<td class="ov-td-author"><span style="color:var(--text-muted); font-size: 11px;">🤖 Woob</span></td>`
                 : '';
 
+            const showRaw = g.raw_description && g.raw_description !== g.description;
+            const rawSubHtml = showRaw ? `<div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85;">🏦 ${escapeHtml(g.raw_description)}</div>` : '';
+
             ghostRowsHtml += `
                 <tr id="ovGhostRow_${g.csv_id}" class="overview-op-tr ghost-row ov-ghost-tr" data-ghost-id="${g.csv_id}" style="background: rgba(245, 158, 11, 0.04); border-left: 3px dashed #f59e0b;">
                     <td class="ov-td-date">
@@ -721,7 +725,13 @@ window.OverviewView = {
                         <span>${dateStr ? formatDate(dateStr) : '—'}</span>
                     </td>
                     <td class="ov-td-acc"><span class="overview-acc-badge" style="border-color: rgba(245, 158, 11, 0.3);">${escapeHtml(accName)}</span></td>
-                    <td class="ov-td-desc" title="${escapeHtml(g.description || '')}">${escapeHtml(g.description || '—')}</td>
+                    <td class="ov-td-desc" title="${escapeHtml(g.description || '')}">
+                        <div style="display: inline-flex; align-items: center; gap: 4px;">
+                            <span>${escapeHtml(g.description || '—')}</span>
+                            ${g.smart_suggested ? `<span title="${window.i18n ? window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique' : 'Suggéré d’après votre historique'}" style="cursor:help; font-size:11px;">💡</span>` : ''}
+                        </div>
+                        ${rawSubHtml}
+                    </td>
                     <td class="ov-td-cat"><span class="overview-cat-badge">${catLabel}</span></td>
                     ${authorHtml}
                     <td class="ov-td-amt privacy-blur" style="color: ${amtColor}; font-weight: 700;">${amtFormatted}</td>

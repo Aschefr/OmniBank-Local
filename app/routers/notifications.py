@@ -39,6 +39,15 @@ def mark_all_notifications_as_read(db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
+@router.delete("")
+@router.delete("/")
+@router.delete("/clear-all")
+def delete_all_notifications(db: Session = Depends(get_db)):
+    """Delete all notifications for the active profile."""
+    deleted_count = db.query(Notification).delete(synchronize_session=False)
+    db.commit()
+    return {"ok": True, "deleted_count": deleted_count}
+
 @router.delete("/{notification_id}")
 def delete_notification(notification_id: int, db: Session = Depends(get_db)):
     """Delete a specific notification."""

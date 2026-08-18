@@ -747,6 +747,8 @@ window.TrendsView = {
             }).join('');
         }
 
+        const isDark = document.body.classList.contains('theme-dark');
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.07)';
         const textColor = getComputedStyle(document.body).getPropertyValue('--text-muted').trim() || '#9ca3af';
         const mainTextColor = getComputedStyle(document.body).getPropertyValue('--text-main').trim() || '#f3f4f6';
 
@@ -818,7 +820,7 @@ window.TrendsView = {
                 },
                 scales: {
                     y: {
-                        grid: { color: 'rgba(255,255,255,0.06)' },
+                        grid: { color: gridColor },
                         ticks: {
                             color: textColor,
                             callback: (v) => v.toLocaleString('fr-FR', {style:'currency',currency:'EUR',maximumFractionDigits:0})
@@ -942,6 +944,8 @@ window.TrendsView = {
             }];
         }
 
+        const isDark = document.body.classList.contains('theme-dark');
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.07)';
         const textColor = getComputedStyle(document.body).getPropertyValue('--text-muted').trim() || '#9ca3af';
 
         this.chart = new Chart(canvasEl, {
@@ -989,7 +993,7 @@ window.TrendsView = {
                 scales: {
                     y: {
                         beginAtZero: this.chartMode !== 'balance',
-                        grid: { color: 'rgba(255,255,255,0.06)' },
+                        grid: { color: gridColor },
                         ticks: {
                             color: textColor,
                             callback: (v) => formatCurrency(v)

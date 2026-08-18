@@ -2,44 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.84] - 2026-08-17
+## [1.0.84] - 2026-08-18
 
 ### Added & Improved
-- **Organic Bank Sync & Ghost Rows Validation Engine 👻⚡**:
-  - **100% Visual Ghost Rows**: Unreconciled transactions detected online now display naturally in dedicated ghost panels above Dashboard (Timeline) and All Operations views, as well as seamlessly injected at the top of the Vue d'ensemble (Overview) table with distinct styling, pulsating badges (`👻 Online`), and zero premature database writes.
-  - **1-Click Direct Validation (`✔ Valider`)**: Instant inline validation persists ghost transactions into SQLite with today's reconciliation date, records audit history, and cleans the sync staging buffer.
-  - **In-App Editing via Standard Form (`✏️ Modifier`)**: Opens the standard transaction modal pre-filled (`FormView.openGhost()`), allowing users to adjust category, description, accounts, and dates before saving.
-  - **Dismiss Ghost Row (`✕ Ignorer`)**: Instantly removes unwanted or irrelevant pending transactions from the staging buffer without touching database records.
-  - **Batch Commit All Ghosts (`📥 Valider les nouvelles opérations`)**: One-click bulk validation with golden button (`.btn-gold`) and inline confirmation modal (`showInlineConfirm`) to record all newly detected transactions at once.
-  - **Background AI Auto-Categorization (Ollama)**: Automatically suggests categories for unrecorded online transactions in the background when AI is enabled.
-  - **Mobile Card Viewport Transformation**: Automatically transforms ghost rows and overview tables into tactile mobile cards on viewports ≤ 768px.
-  - **Comprehensive Test Coverage & Bilingual Support**: Added complete pytest unit tests verifying the full ghost rows lifecycle and 100% synchronized FR/EN i18n keys.
-- **Universal Bank Synchronization & Open-Banking Engine (Woob) 🏦⚡**:
-  - **100% Local & Zero-Cloud Security**: Connect your bank accounts directly through local Woob backend modules with zero third-party cloud intermediates, zero telemetry, and zero data leakage.
-  - **Encrypted Credential Vault (Fernet AES-128)**: Secure in-memory vault session protected by your master password with configurable auto-lock TTL.
-  - **Non-Blocking Background Sync & Smart Scheduler ⏰**: Automated and manual background sync execution with immediate reactive in-app toast and notification alerts.
-  - **Anti-Spam Security Cooldown (5 min) 🛡️**: Protects bank accounts against excessive authentication queries and prevents unexpected 2FA spams, while offering instant cached preview access.
-  - **Smart Single-Entry Mirror Transfer Recognition 🔁**: Automatic detection of internal mirror transfers between owned accounts (e.g. Current account debit ➔ Savings account credit) to prevent duplicate transactions on receiving accounts.
-  - **In-App Review & Reconciliation Studio**: Live streaming progress bar, interactive 2FA modal support (App validation push & SMS OTP), smart categorization suggestions, and duplicate filtering.
-  - **Real-Time 1-Click Reconciliation Buttons (`⚡ Trouvé en banque`)**: Instant visual badges appear dynamically across Vue d'ensemble, Dashboard & History views with harmonized height and styling.
-
-- **Self-Generating Diagnostics & 1-Click Anonymized Bug Reporter 🩺📋**:
-  - **Automated In-App Error Tracking**: Automatically captures unexpected frontend exceptions, unhandled Promise rejections, failed API calls, and recent backend debug logs into an in-memory rotating ring buffer (50 logs, 20 exceptions, 20 user breadcrumbs).
-  - **100% Zero-Leak Anonymization Engine**: Automatically sanitizes confidential user data prior to report generation — replacing emails, IP addresses, IBAN account numbers, and absolute local filesystem paths (`~/app/...`) with privacy-safe placeholders (`***`, `[EMAIL]`, `[IBAN_ANONYMIZED]`).
-  - **1-Click GitHub Issue Markdown Generator**: Formats comprehensive technical diagnostic reports in standardized English (system OS, Python version, database table row counts, browser engine, stack traces, and breadcrumbs) with one-click copy to clipboard and pre-filled GitHub issue templates.
-  - **Live Diagnostics Hub in Configuration**: Dedicated diagnostic management panel allowing users to preview anonymized data in real time, trigger instant error simulations for testing, and clear in-memory buffers at will.
-
-- **Unified Bank Synchronization Hub & Dual Accounts Management 💳⚡**:
-  - **Sleek Unified Bank Sync Card**: Replaced stacked banners with a single compact control card featuring real-time vault lock status, background auto-sync toggles, pending sync alerts, and responsive bank connection cards.
-  - **Context-Aware Master Password Modal**: Automatically detects unlocked vault sessions during multi-bank setup so users never have to retype master passwords when adding subsequent banks.
-  - **Automatic Orphan Pending Sync Purge 🧹**: Automatically purges temporary staging transactions and caches when a bank connection is removed or when no bank connections exist, eliminating phantom reconciliation prompts.
-  - **Dual Balances Display (Initial & Real-Time)**: The Accounts table now clearly displays both the configured **Solde Initial** and live **Solde Actuel** side-by-side for every account.
-  - **Meaningful Category Subtotals**: Category headers (Comptes Courants, Épargne & Placements, Crédits & Emprunts) now compute and display the **true real-time cumulative balance** (e.g. `Disponibilités actuelles`, `Épargne totale`, `Capital restant dû`) alongside the initial balance subtotal.
-  - **Dynamic Interest & Loan Amortization**: Automatically calculates estimated annual savings interest and remaining loan principal directly from live current balances.
-  - **Pytest Data Guardian & Anti-Regression Sentinel 🛡️**: Automatic SHA-256 pre-test snapshot and post-test verification across test suites to strictly isolate user data, prevent test side-effects, and auto-restore database state with prominent safety alerts.
-  - **Persistent Settings & Filters Engine 💾**: Automatically restores all user options, filters, and toggles (including auto-sync toggle, interval dropdown, theme, language, and table views) directly from SQLite `global_config` and per-profile storage across browser refreshes (`F5`).
-  - **Harmonized Reconciliation Terminology (Rapprochement Bancaire vs Échéances) ⚖️**: Standardized on formal French banking terminology across all views: distinguished live certified bank matches (`⚡ Rapprocher les opérations trouvées en ligne (N)`) from calendar-based overdue items (`✓ Rapprocher les échéances passées (N)`), removing ambiguity and clunky zero-amount labels.
-  - **Full Bilingual Support (FR/EN)**: 100% complete internationalization across all bank sync modals, settings, and badges encoded in UTF-8 with BOM.
+- **Smart Label Engine & Auto-Categorization 🏷️**:
+  - Automatically translates cryptic bank labels (e.g. `CB CARREFOUR 74210`, `PRLV SEPA SPB`) into clean merchant names (`Carrefour`, `Assurance Téléphone`) and auto-assigns matching categories based on your spending history.
+  - Automatically learns new merchant names and habits as you validate or edit transactions.
+  - New **Règles de correspondances** hub in Settings to view, search, add, edit, or delete label rules.
+  - 1-click inline status toggle between **Mapped** (`🏷️`) and **Ignored** (`🚫`) without losing original custom names and categories.
+  - Optimized table layout and column widths preventing truncated header labels.
+- **UI & Dark Mode Improvements 🎨**:
+  - Fixed chart gridlines visibility in light theme on Simulator and Trends charts with clear 0 € baseline highlighting.
+  - Harmonized badge height and alignment in Bank Sync header.
+  - Modern dark scrollbars and native `color-scheme: dark` integration for modal dialogs and scrollable panels.
+- **Visual Online Ghost Rows 👻**:
+  - Newly detected online bank transactions appear immediately as interactive ghost cards above Dashboard, Operations, and Overview views.
+  - 1-click inline actions to validate, edit, or dismiss unrecorded transactions directly.
+  - Bulk validation button (*Valider les nouvelles opérations*) to record all pending transactions in one go.
+- **Universal Bank Synchronization (Woob) 🏦**:
+  - Direct local sync with 96+ French banking institutions with 100% offline security (zero cloud, zero data tracking).
+  - Background auto-sync scheduler with in-app notification summaries and interactive mobile/SMS 2FA validation support.
+  - Automatic detection of internal mirror transfers between your accounts to avoid duplicates.
+- **Multi-Profile Vault Isolation 🔐**:
+  - Strict cryptographic and session isolation: each profile now manages its own encrypted vault and master password with zero cross-profile leakage.
+- **1-Click Anonymized Diagnostics & Bug Reporter 🩺**:
+  - New diagnostic hub in Settings collecting anonymized logs and error traces with 1-click export to GitHub Issues.
+- **Accounts Table Dual Balances & Live Subtotals 💳**:
+  - Clear side-by-side display of initial balance and live current balance for every account.
+  - Real-time cumulative balance subtotals per category (*Disponibilités actuelles*, *Épargne totale*, *Capital restant dû*).
+- **Notification Center Improvements 🔔**:
+  - Added a 1-click **Tout supprimer** button in the notification popover with double-click confirmation.
 
 ## [1.0.83] - 2026-08-15
 

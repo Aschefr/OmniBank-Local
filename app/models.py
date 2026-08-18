@@ -302,3 +302,16 @@ class BankConnection(Base):
     created_at = Column(DateTime, default=_utcnow)
 
 
+class BankLabelMapping(Base):
+    """Base de connaissances locale / Dictionnaire d'apprentissage pour la correspondance des libellés bancaires."""
+    __tablename__ = "bank_label_mappings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    raw_pattern = Column(String, unique=True, index=True, nullable=False) # Motif normalisé (ex: "FULLI", "SAS SPB", "CARREFOUR")
+    clean_description = Column(String, nullable=True)                     # Nom propre choisi (ex: "Fulli - Péages", "Assurance Téléphone")
+    category = Column(String, nullable=True)                              # Catégorie associée (ex: "Transports", "Assurances")
+    is_ignored = Column(Boolean, default=False, nullable=False)          # Si True, ne jamais suggérer automatiquement pour ce motif
+    match_count = Column(Integer, default=1)                              # Compteur de renforcement / fréquence
+    last_used_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+

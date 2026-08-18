@@ -412,8 +412,32 @@ window.ImportWizard = {
         const tableContainer = document.getElementById('importTableContainer');
         if (tableContainer) tableContainer.scrollTop = 0;
         
-        console.log(`[ImportWizard] Rendering ${txs.length} transactions. First:`, txs[0]);
-        
+        // Enrichissement Smart Label sur les opérations importées
+        const unrecTxs = txs.filter(t => !t.is_reconciled && t.description);
+        if (unrecTxs.length > 0) {
+            try {
+                const rawList = unrecTxs.map(t => t.raw_description || t.description);
+                const smartRes = await API.post('/api/smart-labels/resolve-batch', { labels: rawList });
+                if (smartRes && smartRes.results) {
+                    txs.forEach(t => {
+                        const raw = t.raw_description || t.description;
+                        if (!t.is_reconciled && raw && smartRes.results[raw]) {
+                            const r = smartRes.results[raw];
+                            if (r.source === 'rule' || r.source === 'history') {
+                                t.raw_description = raw;
+                                t.description = r.description;
+                                if (!t.category && r.category) {
+                                    t.category = r.category;
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch(errSmart) {
+                console.warn('[ImportWizard] Erreur smart-labels:', errSmart);
+            }
+        }
+
         txs.forEach((tx, i) => {
             const isRec = tx.is_reconciled;
             const alreadyRec = tx.already_reconciled;
@@ -485,6 +509,7 @@ window.ImportWizard = {
                 </td>
                 <td style="border-bottom: 1px solid var(--border-color); text-align: center;">
                     ${statusHtml}
+                    <input type="hidden" class="import-raw-desc" value="${(tx.raw_description || tx.description || '').replace(/"/g, '&quot;')}">
                     <input type="hidden" class="import-reconciled" value="${isRec ? 'true' : 'false'}">
                     <input type="hidden" class="import-already-rec" value="${alreadyRec ? 'true' : 'false'}">
                     <input type="hidden" class="import-matched-id" value="${tx.matched_db_id || ''}">
@@ -687,6 +712,7 @@ window.ImportWizard = {
         rows.forEach(tr => {
             const date = tr.querySelector('.import-date').value;
             const desc = tr.querySelector('.import-desc').value;
+            const rawDesc = tr.querySelector('.import-raw-desc')?.value || desc;
             const amt = parseFloat(tr.querySelector('.import-amt').value);
             const isRec = tr.querySelector('.import-reconciled').value === 'true';
             const matchId = tr.querySelector('.import-matched-id').value;
@@ -699,6 +725,7 @@ window.ImportWizard = {
                 txs.push({
                     date_operation: date,
                     description: desc,
+                    raw_description: rawDesc,
                     category: cat || null,
                     amount: amt,
                     is_reconciled: isRec,

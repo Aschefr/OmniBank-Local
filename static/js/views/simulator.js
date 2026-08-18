@@ -1194,8 +1194,9 @@ window.SimulatorView = {
         const pesData = data.map(d => d.pessimistic_end_balance);
         const hasConfidence = this.simulationData.variable_expense_stddev > 0;
 
-        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-        const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
+        const isDark = document.body.classList.contains('theme-dark');
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.07)';
+        const zeroGridColor = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.22)';
         const textColor = isDark ? '#94a3b8' : '#64748b';
 
         const datasets = [];
@@ -1306,7 +1307,10 @@ window.SimulatorView = {
                 },
                 scales: {
                     x: {
-                        grid: { color: gridColor },
+                        grid: {
+                            color: gridColor,
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)'
+                        },
                         ticks: {
                             color: textColor,
                             font: { size: tickFontSize },
@@ -1316,7 +1320,21 @@ window.SimulatorView = {
                     },
                     y: {
                         grace: '5%',
-                        grid: { color: gridColor },
+                        grid: {
+                            color: (context) => {
+                                if (context.tick && context.tick.value === 0) {
+                                    return zeroGridColor;
+                                }
+                                return gridColor;
+                            },
+                            lineWidth: (context) => {
+                                if (context.tick && context.tick.value === 0) {
+                                    return 1.5;
+                                }
+                                return 1;
+                            },
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)'
+                        },
                         ticks: {
                             color: textColor,
                             font: { size: tickFontSize },

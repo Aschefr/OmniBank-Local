@@ -511,6 +511,43 @@ def init_db(target_engine=None):
                 pass
             conn.commit()
 
+        if schema_version < 20:
+            # Schema v20: Smart Label Engine mapping knowledge base
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS bank_label_mappings (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        raw_pattern TEXT NOT NULL UNIQUE,
+                        clean_description TEXT,
+                        category TEXT,
+                        is_ignored BOOLEAN DEFAULT 0,
+                        match_count INTEGER DEFAULT 1,
+                        last_used_at DATETIME,
+                        created_at DATETIME
+                    )
+                """))
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_bank_label_mappings_raw_pattern ON bank_label_mappings (raw_pattern)"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '20')"))
+            except Exception:
+                pass
+            conn.commit()
+
+        if schema_version < 21:
+            # Schema v21: is_ignored flag for negative/exclusion bank label matching rules
+            try:
+                conn.execute(text("ALTER TABLE bank_label_mappings ADD COLUMN is_ignored BOOLEAN DEFAULT 0"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '21')"))
+            except Exception:
+                pass
+            conn.commit()
+
+
 
 
 

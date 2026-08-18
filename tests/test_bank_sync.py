@@ -331,6 +331,51 @@ def test_ghost_rows_endpoints_lifecycle():
     assert res_pending4.json()["total_new"] == 0
 
 
+def test_vault_multi_profile_isolation():
+    """Vérifie l'isolation stricte des sessions de coffre-fort entre profils distincts."""
+    from app.services.credential_vault import VaultSessionManager
+
+    # Nettoyage initial
+    VaultSessionManager.lock_session(profile_id="profile_a")
+    VaultSessionManager.lock_session(profile_id="profile_b")
+
+    # 1. Déverrouiller Profile A
+    token_a = VaultSessionManager.create_session("Password_A_123!", duration_days=7, profile_id="profile_a")
+    assert token_a is not None
+    assert VaultSessionManager.is_unlocked(profile_id="profile_a") is True
+
+    # 2. Profile B doit impérativement être verrouillé
+    assert VaultSessionManager.is_unlocked(profile_id="profile_b") is False
+    assert VaultSessionManager.get_password(profile_id="profile_b") is None
+
+    # 3. Le token de Profile A ne doit JAMAIS donner accès au mot de passe de Profile B
+    assert VaultSessionManager.get_password(token=token_a, profile_id="profile_b") is None
+    status_b_with_token_a = VaultSessionManager.get_status(token=token_a, profile_id="profile_b")
+    assert status_b_with_token_a["is_unlocked"] is False
+
+    # 4. Déverrouiller Profile B avec un mot de passe indépendant
+    token_b = VaultSessionManager.create_session("Password_B_456!", duration_days=3, profile_id="profile_b")
+    assert token_b is not None
+    assert VaultSessionManager.is_unlocked(profile_id="profile_b") is True
+
+    # 5. Chaque profil récupère uniquement son propre mot de passe maître
+    assert VaultSessionManager.get_password(token=token_a, profile_id="profile_a") == "Password_A_123!"
+    assert VaultSessionManager.get_password(token=token_b, profile_id="profile_b") == "Password_B_456!"
+    assert VaultSessionManager.get_password(profile_id="profile_a") == "Password_A_123!"
+    assert VaultSessionManager.get_password(profile_id="profile_b") == "Password_B_456!"
+
+    # 6. Verrouiller Profile A ne doit pas impacter Profile B
+    VaultSessionManager.lock_session(profile_id="profile_a")
+    assert VaultSessionManager.is_unlocked(profile_id="profile_a") is False
+    assert VaultSessionManager.is_unlocked(profile_id="profile_b") is True
+    assert VaultSessionManager.get_password(profile_id="profile_b") == "Password_B_456!"
+
+    # 7. Verrouiller Profile B
+    VaultSessionManager.lock_session(profile_id="profile_b")
+    assert VaultSessionManager.is_unlocked(profile_id="profile_b") is False
+
+
+
 
 
 

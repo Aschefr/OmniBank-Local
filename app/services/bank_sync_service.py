@@ -552,6 +552,12 @@ class BankSyncService:
             "accounts": accounts_preview
         }
 
+        try:
+            from app.services.bank_sync_scheduler import save_pending_sync_data
+            save_pending_sync_data(db, connection.id, summary)
+        except Exception as pend_err:
+            logger.warning(f"[BankSync] Erreur enregistrement pending data: {pend_err}")
+
         if event_callback:
             event_callback("preview_ready", summary)
 
@@ -643,6 +649,16 @@ class BankSyncService:
 
             record_action(db, "transaction", new_tx.id, "CREATE", None, snapshot_entity(new_tx), user_name="Banque (Sync)")
             imported += 1
+
+            # Auto-apprentissage transparent dans la base de connaissances Smart Label
+            raw_lbl = item.get("raw_description") or item.get("raw_label") or item.get("description")
+            clean_lbl = item.get("description")
+            if raw_lbl and clean_lbl:
+                try:
+                    from app.services.smart_label_service import learn_label_mapping
+                    learn_label_mapping(db, raw_label=raw_lbl, clean_description=clean_lbl, category=item.get("category"))
+                except Exception as ex_learn:
+                    logger.debug(f"[BankSync] Ignoré échec apprentissage smart label: {ex_learn}")
 
         if conn:
             conn.last_sync_at = datetime.now(timezone.utc)
