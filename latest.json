@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDE4Y29tYlhBUGFOT3BGSjhZUVNmR3NYaGRFWTNFOVF1MXh3eWVVdUlZcjRob0FmajNWTjJGaU9zZFRsRUFrbTQ1K01RcGE1TU5MWjhnQnNzMFNrTWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2ODIyMTU4CWZpbGU6T21uaUJhbmtfMS4wLjgzX3g2NF9mci1GUi5tc2kKQjYrNDd6VTZwUEVQNGI5Y0NzeTI0ZUlTU0QrNEhLeERreHZkcUYvMzdCcEc1VGdMZ1d4MTYyODdsbXc4Wkk4Mmh3Ri90R1JvZFN1UFpPZy84VmxpQXc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.83/OmniBank_1.0.83_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDg4Ymp3a0gvcnZwNTVlY3RVdGxyT1FtRzRHTEtBWDJnTUVSR1duSlI0SW5SeXloTkpYTzVnWDZxZzlzWCtZNDNzcjNNQmhZbnpoRDllb2FhbEFyNXcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MDc4NDQwCWZpbGU6T21uaUJhbmtfMS4wLjg0X3g2NF9mci1GUi5tc2kKOXN1WGFqL1lZRVBSOXR3MDI2OUFlZ1V6YUExOHJlQTZmSTdpamZENjlJOGtUYytWVnphcytLWGZXd1k1eU1KM1hTZmFQOXRFZXBmTlFBc0NLdXZtQXc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.84/OmniBank_1.0.84_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-15T19:29:18Z",
-    "version":  "1.0.83",
-    "notes":  "Simulateur de Projets What-If complet (horizons 6m-25 ans), 4 modeles de recettes, curseur de prudence interactif, conseiller d equilibre, et ameliorations UX"
+    "pub_date":  "2026-08-18T18:40:40Z",
+    "version":  "1.0.84",
+    "notes":  "Smart Label engine \u0026 rules toggle, bank ghost rows, Woob bank sync, vault isolation, light/dark theme polish"
 }
