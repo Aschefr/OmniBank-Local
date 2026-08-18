@@ -89,10 +89,13 @@ if (-not $SkipBuild) {
         --hidden-import "app.routers.budgets" `
         --hidden-import "app.routers.backup" `
         --hidden-import "app.routers.profiles" `
-        --hidden-import "app._license_secret" `
+        --hidden-import "cryptography" `
+        --hidden-import "woob" `
         --collect-submodules "uvicorn" `
         --collect-submodules "fastapi" `
         --collect-submodules "starlette" `
+        --collect-submodules "app" `
+        --collect-submodules "woob" `
         --clean `
         --noconfirm `
         run_server.py

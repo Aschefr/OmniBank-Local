@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.83-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.84-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -242,6 +242,15 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **🏢 Mode Organisation Adaptatif (Associations / CSE)** : Adaptation automatique des libellés (Trésorerie Globale, Trésorerie Disponible), carte Membre Actif avec sélecteur d'utilisateur rapide et colonne "Saisi par" dans le tableau d'audit.
 *   **📊 Tendances Multi-Graphiques** : 4 modes d'affichage interactifs (Dépenses, vs Recettes, Bilan mensuel, Solde historique) avec pan & zoom fluide.
 
+## 🆕 Dernières Mises à Jour (v1.0.84)
+
+*   **🏷️ Moteur de Correspondance Intelligente & Règles Automatiques** : Traduction automatique des libellés bancaires cryptiques en commerçants clairs avec auto-catégorisation selon vos habitudes et gestion complète dans les Paramètres (bascule rapide 1 clic `🚫 Ignorer` / `🏷️ Associer`).
+*   **👻 Lignes Fantômes Bancaires Interactives** : Détection visuelle immédiate des nouvelles opérations issues de vos banques en ligne avec validation unitaire ou groupée en 1 clic.
+*   **🏦 Synchronisation Bancaire Locale (Woob)** : Connexion directe et locale à +96 banques françaises, relevés automatiques programmés avec alertes et validation 2FA smartphone/SMS interactive.
+*   **🔐 Isolation Cryptographique Multi-Profils** : Gestion étanche des coffres-forts chiffrés et mots de passe maîtres par profil utilisateur.
+*   **🩺 Diagnostics & Rapporteur de Bug Anonymisé** : Exportation simplifiée en 1 clic des traces d'erreurs locales anonymisées vers GitHub Issues.
+*   **🎨 Polish Thème & Mode Sombre** : Lignes de grilles de graphiques contrastées en mode clair, ascenseurs sombres pour les modales et harmonisation visuelle.
+
 ## 🆕 Dernières Mises à Jour (v1.0.83)
 
 *   **🔮 Simulateur de Projets & Scénarios What-If** : Module complet de projection financière sécurisée (achats importants, prêts, rénovations, congés sabbatiques) sur des horizons de 6 mois à 25 ans (300 mois).
@@ -278,7 +287,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.83-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.84-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -503,6 +512,15 @@ Access the interface at `http://localhost:8434`.
 *   **👀 New Overview Dashboard**: All-in-one financial dashboard featuring hero KPI cards (Net Worth, Left-to-live, Forecast Balance), central pending operations table, 6-month trend chart, and budgets/savings snapshots.
 *   **🏢 Adaptive Organisation Mode (Nonprofits / CSE)**: Automatic terminology adaptation (Total Treasury, Available Treasury), Active Member hero card with fast switcher, and "Created by" audit column in the operations table.
 *   **📊 Multi-Mode Trend Visualizations**: 4 interactive chart modes (Expenses, vs Income, Monthly Cash Flow, Historical Balance) with smooth pan & pinch-zoom.
+
+## 🆕 Recent Updates (v1.0.84)
+
+*   **🏷️ Smart Label Engine & Auto-Categorization**: Automatically translates cryptic bank labels into clear merchant names with spending-habit auto-categorization and full management in Settings (1-click inline `🚫 Ignore` / `🏷️ Match` toggle).
+*   **👻 Interactive Bank Ghost Rows**: Instant visual discovery of newly detected online transactions with 1-click single or bulk recording.
+*   **🏦 Local Bank Synchronization (Woob)**: Direct offline connection to 96+ French financial institutions, scheduled background updates with alert summaries and interactive SMS/app 2FA validation.
+*   **🔐 Multi-Profile Cryptographic Vault Isolation**: Airtight isolation of encrypted credentials and master passwords per user profile.
+*   **🩺 Anonymized Diagnostics & Bug Reporter**: Simplified 1-click export of sanitized local error traces to GitHub Issues.
+*   **🎨 Theme Polish & Dark Mode**: High-contrast chart gridlines in light mode, dark scrollbars for modals and unified styling.
 
 ## 🆕 Recent Updates (v1.0.83)
 
