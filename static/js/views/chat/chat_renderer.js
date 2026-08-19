@@ -78,11 +78,12 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             // Check if this content is a standard connection or stream error
             if (rawContent.includes('**Erreur:**') || (rawContent.startsWith('*') && rawContent.endsWith('*') && rawContent.includes('Erreur')) || rawContent.startsWith('⚠️')) {
                 let cleanErr = rawContent.replace(/\*\*Erreur:\*\*/g, '').replace(/^\*/, '').replace(/\*$/, '').replace(/⚠️/g, '').trim();
+                const failedTitle = window.i18n ? window.i18n.t('chat_request_failed') : 'Échec de la requête';
                 displayContent = `
                     <div class="ai-error-box" style="padding: 12px 16px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; color: #ef4444; display: flex; align-items: start; gap: 10px;">
                         <span style="font-size: 18px; line-height: 1;">⚠️</span>
                         <div style="flex: 1;">
-                           <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">Échec de la requête</div>
+                           <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;" data-i18n="chat_request_failed">${failedTitle}</div>
                            <div style="font-size: 12px; opacity: 0.9;">${cleanErr}</div>
                         </div>
                     </div>
@@ -92,7 +93,11 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 
                 // Replace placeholders back to HTML details after sanitization
                 if (hasThink) {
-                    const thinkTitle = isOpenThink ? "🧠 Réflexion en cours..." : "🧠 Phase de réflexion";
+                    const defaultInProgress = '🧠 Réflexion en cours...';
+                    const defaultPhase = '🧠 Phase de réflexion';
+                    const thinkTitle = isOpenThink 
+                        ? (window.i18n ? (window.i18n.t('chat_thinking_in_progress') || defaultInProgress) : defaultInProgress)
+                        : (window.i18n ? (window.i18n.t('chat_thinking_phase') || defaultPhase) : defaultPhase);
                     const openAttr = isOpenThink ? "open" : "";
                     displayContent = displayContent
                         .replace(/___THINK_START___/g, `<details class="ai-think-details" ${openAttr}><summary class="ai-think-summary"><span>${thinkTitle}</span></summary><div class="ai-think-content">`)
@@ -291,9 +296,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 if (match && match[1]) {
                     const tools = match[1].split(',').map(t => t.trim()).filter(Boolean);
                     toolsBadges = tools.map(t => {
-                        const emoji = this._toolEmojiMap[t] || '⚙️';
-                        const desc = window.i18n.t(`tool_${t}`) || t;
-                        return `<span class="tool-badge" title="${t}">${emoji} ${desc}</span>`;
+                        const emoji = this._toolEmojiMap?.[t] || (window.ChatView?._toolEmojiMap?.[t]) || '⚙️';
+                        const label = (window.i18n && window.i18n.t(`tool_${t}`)) || t;
+                        const tooltipDesc = (window.i18n && window.i18n.t(`tool_${t}_desc`)) || label;
+                        return `<span class="tool-badge" title="${tooltipDesc.replace(/"/g, '&quot;')}">${emoji} ${label}</span>`;
                     }).join(' ');
                 }
             }

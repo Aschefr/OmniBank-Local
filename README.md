@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.86-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.87-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -107,12 +107,11 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.86)
+## 🆕 Nouveautés (v1.0.87)
 
-* **🛡️ Audit & Durcissement Backend** : Isolation stricte du cache multi-profils, sécurisation ORM des requêtes de maintenance et fiabilisation globale des exceptions.
-* **🩺 Diagnostics Intelligents & Auto-Scroll** : Boutons Diag généralisés avec redirection fluide et mise en surbrillance lumineuse de l'encart Diagnostics dans les paramètres.
-* **🏦 Robustesse Synchro Bancaire** : Traduction enrichie des erreurs Woob (FormNotFound, 2FA expirée), journalisation détaillée et persistance des actions de rapport même après rechargement (F5).
-* **🔄 Finitions UI & Animations** : Correction du sens de rotation des badges animés pour suivre naturellement les flèches du picto.
+* **🌐 Internationalisation Intégrale (FR / EN)** : Traduction complète du bandeau de synchro bancaire, des cartes de comptes, des modales de mapping et nettoyage de tous les textes en dur restants dans l'application.
+* **🤖 Badges d'Outils IA Améliorés** : Remplacement des noms techniques d'outils (`tool_...`) par des libellés conviviaux traduits et ajout d'infobulles explicatives au survol.
+* **🛡️ Stabilité & Synchronisation i18n** : Parité stricte des 110+ nouvelles clés de traduction en encodage UTF-8-SIG préservé.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -120,7 +119,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.86-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.87-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -220,12 +219,11 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.86)
+## 🆕 What's New (v1.0.87)
 
-* **🛡️ Backend Hardening & Code Audit**: Strict multi-profile cache isolation, parameterized ORM maintenance queries, and universal robust exception handling.
-* **🩺 Smart Diagnostics & Auto-Scroll**: Generalized Diag buttons with smooth scrolling and glowing highlight animation on the Settings Diagnostics section.
-* **🏦 Bank Synchronization Robustness**: Enhanced Woob error translation (`FormNotFound`, session timeouts), detailed tracebacks, and persistent error actions after page refresh (F5).
-* **🔄 UI Animation Polish**: Realignment of spinning badge animations to follow the natural direction of the icon's arrows.
+* **🌐 Comprehensive Bilingual Internationalization (FR / EN)**: Full translation of bank sync header badges, account cards, mapping modals, and clean-up of all remaining hardcoded strings.
+* **🤖 Enhanced AI Tool Badges**: Replaced technical function names (`tool_...`) with user-friendly translated labels and descriptive hover tooltips.
+* **🛡️ Stability & i18n Parity**: Strict synchronization of 110+ new translation keys with preserved UTF-8-SIG encoding.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 
