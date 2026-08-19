@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.85-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.86-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -107,12 +107,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.85)
+## 🆕 Nouveautés (v1.0.86)
 
-* **🏦 Synchronisation Bancaire Directe & 2FA** : Connexion 100% locale à +96 banques françaises (Woob) avec validation interactive des notifications mobiles et SMS OTP (BoursoBank, Crédit Agricole, etc.).
-* **🏷️ Smart Labels & Noms Originaux** : Traduction automatique des libellés bancaires en commerçants clairs avec conservation et affichage du libellé brut d'origine (`🏛️ <nom_brut> 💡`).
-* **⚖️ Recalage Intelligent de Solde** : Ajustement automatique du solde initial de départ lors de l'import des opérations pour une exactitude comptable absolue.
-* **🔐 Sécurité du Coffre-Fort** : Isolation hermétique par profil et procédure de réinitialisation sécurisée du coffre en cas d'oubli du mot de passe maître.
+* **🛡️ Audit & Durcissement Backend** : Isolation stricte du cache multi-profils, sécurisation ORM des requêtes de maintenance et fiabilisation globale des exceptions.
+* **🩺 Diagnostics Intelligents & Auto-Scroll** : Boutons Diag généralisés avec redirection fluide et mise en surbrillance lumineuse de l'encart Diagnostics dans les paramètres.
+* **🏦 Robustesse Synchro Bancaire** : Traduction enrichie des erreurs Woob (FormNotFound, 2FA expirée), journalisation détaillée et persistance des actions de rapport même après rechargement (F5).
+* **🔄 Finitions UI & Animations** : Correction du sens de rotation des badges animés pour suivre naturellement les flèches du picto.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -120,7 +120,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.85-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.86-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -220,12 +220,12 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.85)
+## 🆕 What's New (v1.0.86)
 
-* **🏦 Direct Bank Synchronization & 2FA**: 100% offline connection to 96+ French financial institutions (Woob) with interactive mobile app and SMS OTP authentication (BoursoBank, Crédit Agricole, etc.).
-* **🏷️ Smart Labels & Original Bank Descriptions**: Automatically translates cryptic bank labels into clean merchant names while preserving and displaying the original bank label (`🏛️ <raw_description> 💡`).
-* **⚖️ Intelligent Balance Realignment**: Automatic retro-calculation and 1-click starting balance adjustment for perfect accounting accuracy.
-* **🔐 Secure Vault Management**: Airtight profile-level isolation and secure vault reset procedure with master password recovery link.
+* **🛡️ Backend Hardening & Code Audit**: Strict multi-profile cache isolation, parameterized ORM maintenance queries, and universal robust exception handling.
+* **🩺 Smart Diagnostics & Auto-Scroll**: Generalized Diag buttons with smooth scrolling and glowing highlight animation on the Settings Diagnostics section.
+* **🏦 Bank Synchronization Robustness**: Enhanced Woob error translation (`FormNotFound`, session timeouts), detailed tracebacks, and persistent error actions after page refresh (F5).
+* **🔄 UI Animation Polish**: Realignment of spinning badge animations to follow the natural direction of the icon's arrows.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

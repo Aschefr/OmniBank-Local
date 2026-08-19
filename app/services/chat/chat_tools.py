@@ -356,7 +356,7 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     
     try:
         days = int(days)
-    except:
+    except Exception:
         days = 30
         
     today = date.today()

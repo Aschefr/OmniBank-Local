@@ -1672,8 +1672,22 @@ select.inline-input:focus option:checked {
     }
 }
 
+@keyframes spin-reverse {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(-360deg);
+    }
+}
+
 .animate-spin {
     animation: spin 1s linear infinite;
+}
+
+.animate-spin-reverse {
+    animation: spin-reverse 1s linear infinite;
 }
 
 /* Print / PDF Export Styles */
@@ -2830,11 +2844,31 @@ body.compact-mode .rec-instance-row .btn {
     background: transparent;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    padding: 4px 8px;
-    font-size: 13px;
+    padding: 3px 6px;
+    font-size: 12px;
     cursor: pointer;
     transition: all 0.15s ease;
-    margin-right: 4px;
+    margin-right: 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    box-sizing: border-box;
+}
+
+.acc-action-btn:last-child {
+    margin-right: 0;
+}
+
+.acc-history-btn {
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #818cf8;
+}
+
+.acc-history-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--primary, #6366f1);
 }
 
 .acc-edit-btn {
@@ -3539,6 +3573,28 @@ input[type="range"]::-moz-range-thumb:hover {
     animation: budgetCardHighlight 3s ease-out forwards !important;
 }
 
+@keyframes sectionHighlightPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+        border-color: var(--border-color);
+    }
+    15% {
+        box-shadow: 0 0 0 3px var(--accent), 0 0 25px var(--accent-glow, rgba(99, 102, 241, 0.5));
+        border-color: var(--accent) !important;
+    }
+    45% {
+        box-shadow: 0 0 0 3px var(--accent), 0 0 20px var(--accent-glow, rgba(99, 102, 241, 0.4));
+        border-color: var(--accent) !important;
+    }
+    100% {
+        box-shadow: none;
+    }
+}
+
+.section-highlight-flash {
+    animation: sectionHighlightPulse 3s ease-out forwards !important;
+}
+
 /* ── Budget Cards Styling ────────────────────────────────────── */
 .budget-envelope-card {
     background: var(--bg-body);
@@ -4235,22 +4291,28 @@ input[type="range"]::-moz-range-thumb:hover {
     border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
-.overview-health-badge.badge-success {
-    background: rgba(16, 185, 129, 0.12);
-    color: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+.overview-health-badge.badge-success,
+.overview-health-badge.success {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #10b981 !important;
+    border: 1px solid rgba(16, 185, 129, 0.35) !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
 }
 
-.overview-health-badge.badge-warning {
-    background: rgba(245, 158, 11, 0.12);
-    color: #f59e0b;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+.overview-health-badge.badge-warning,
+.overview-health-badge.warning {
+    background: rgba(245, 158, 11, 0.15) !important;
+    color: #f59e0b !important;
+    border: 1px solid rgba(245, 158, 11, 0.35) !important;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
 }
 
-.overview-health-badge.badge-danger {
-    background: rgba(239, 68, 68, 0.12);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+.overview-health-badge.badge-danger,
+.overview-health-badge.danger {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #ef4444 !important;
+    border: 1px solid rgba(239, 68, 68, 0.35) !important;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.15);
 }
 
 /* Account Select & Add Button Harmonization */
@@ -4328,9 +4390,10 @@ input[type="range"]::-moz-range-thumb:hover {
     position: relative;
     overflow: hidden;
     pointer-events: none;
-    border-color: rgba(99, 102, 241, 0.7) !important;
-    box-shadow: 0 0 14px rgba(99, 102, 241, 0.25) !important;
-    background: var(--bg-surface);
+    border-color: rgba(99, 102, 241, 0.8) !important;
+    box-shadow: 0 0 16px rgba(99, 102, 241, 0.3) !important;
+    background: var(--bg-surface) !important;
+    transition: all 0.3s ease;
 }
 
 .overview-bank-sync-btn.is-syncing::before {
@@ -4340,8 +4403,9 @@ input[type="range"]::-moz-range-thumb:hover {
     left: 0;
     height: 100%;
     width: 0%;
-    background: linear-gradient(90deg, rgba(99, 102, 241, 0.25), rgba(129, 140, 248, 0.5));
-    animation: bankSyncProgressAnim 20s cubic-bezier(0.1, 0.6, 0.2, 1) forwards;
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.25), rgba(129, 140, 248, 0.55), rgba(99, 102, 241, 0.4));
+    background-size: 200% 100%;
+    animation: bankSyncProgressAnim 20s cubic-bezier(0.1, 0.6, 0.2, 1) forwards, bankSyncShimmer 2s linear infinite;
     z-index: 0;
 }
 
@@ -4350,25 +4414,44 @@ input[type="range"]::-moz-range-thumb:hover {
     z-index: 1;
 }
 
+.overview-bank-sync-btn.is-syncing span:first-child {
+    display: inline-block;
+    animation: syncPulseIcon 1.2s ease-in-out infinite;
+}
+
 .overview-bank-sync-btn.is-success {
     border-color: #10b981 !important;
-    background: rgba(16, 185, 129, 0.12) !important;
+    background: rgba(16, 185, 129, 0.14) !important;
     color: #10b981 !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.25) !important;
+    transition: all 0.3s ease;
 }
 
 .overview-bank-sync-btn.is-error {
     border-color: #ef4444 !important;
-    background: rgba(239, 68, 68, 0.12) !important;
+    background: rgba(239, 68, 68, 0.14) !important;
     color: #ef4444 !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.25) !important;
+    transition: all 0.3s ease;
 }
 
 @keyframes bankSyncProgressAnim {
     0% { width: 0%; }
-    15% { width: 30%; }
-    40% { width: 62%; }
-    75% { width: 85%; }
-    95% { width: 94%; }
+    12% { width: 28%; }
+    35% { width: 58%; }
+    65% { width: 82%; }
+    85% { width: 92%; }
     100% { width: 97%; }
+}
+
+@keyframes bankSyncShimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
+@keyframes syncPulseIcon {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.25); opacity: 0.75; }
 }
 
 /* Auto-Sync Widget & Vault Countdown styling */

@@ -74,13 +74,13 @@ window.AccountsView = {
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th data-i18n="acc_th_name" style="min-width: 260px;">${window.i18n.t('acc_th_name')}</th>
-                            <th data-i18n="acc_th_type">${window.i18n.t('acc_th_type')}</th>
-                            <th data-i18n="acc_th_currency">${window.i18n.t('acc_th_currency') || 'Devise'}</th>
-                            <th data-i18n="acc_th_initial_balance">${window.i18n.t('acc_th_initial_balance')}</th>
-                            <th data-i18n="acc_th_current_balance">${window.i18n.t('acc_th_current_balance') || 'Solde Actuel'}</th>
-                            <th data-i18n="acc_th_color">${window.i18n.t('acc_th_color')}</th>
-                            <th class="col-actions" style="width: 190px; min-width: 190px;" data-i18n="acc_th_actions">${window.i18n.t('acc_th_actions')}</th>
+                            <th data-i18n="acc_th_name" style="width: 32%; min-width: 170px;">${window.i18n.t('acc_th_name')}</th>
+                            <th data-i18n="acc_th_type" style="width: 15%; min-width: 100px;">${window.i18n.t('acc_th_type')}</th>
+                            <th data-i18n="acc_th_currency" style="width: 8%; min-width: 60px; text-align: center;">${window.i18n.t('acc_th_currency') || 'Devise'}</th>
+                            <th data-i18n="acc_th_initial_balance" style="width: 13%; min-width: 90px; text-align: right;">${window.i18n.t('acc_th_initial_balance')}</th>
+                            <th data-i18n="acc_th_current_balance" style="width: 14%; min-width: 100px; text-align: right;">${window.i18n.t('acc_th_current_balance') || 'Solde Actuel'}</th>
+                            <th data-i18n="acc_th_color" style="width: 5%; min-width: 45px; text-align: center;">${window.i18n.t('acc_th_color')}</th>
+                            <th class="col-actions" style="width: 13%; min-width: 150px; text-align: right;" data-i18n="acc_th_actions">${window.i18n.t('acc_th_actions')}</th>
                         </tr>
                     </thead>
                     <tbody id="accountsBody">
@@ -299,14 +299,15 @@ window.AccountsView = {
                         ${subInfoHtml}
                     </td>
                     <td><span class="badge" style="background: var(--bg-hover); color: var(--text-main); font-size: 11px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-color);">${acc.type}</span></td>
-                    <td><span class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-weight:bold; padding:2px 6px; border-radius:4px; font-size:11px;">${curr}</span></td>
-                    <td><span class="privacy-blur" style="color: var(--text-muted); font-family: monospace;">${formatCurrency(acc.initial_balance, curr)}</span></td>
-                    <td><strong class="privacy-blur" style="color: ${curBalColor}; font-family: monospace;">${formatCurrency(curBal, curr)}</strong></td>
-                    <td>
+                    <td style="text-align: center;"><span class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-weight:bold; padding:2px 6px; border-radius:4px; font-size:11px;">${curr}</span></td>
+                    <td style="text-align: right;"><span class="privacy-blur" style="color: var(--text-muted); font-family: monospace;">${formatCurrency(acc.initial_balance, curr)}</span></td>
+                    <td style="text-align: right;"><strong class="privacy-blur" style="color: ${curBalColor}; font-family: monospace;">${formatCurrency(curBal, curr)}</strong></td>
+                    <td style="text-align: center;">
                         <span class="acc-color-dot" style="background:${color}; cursor:pointer;" onclick="window.AccountsView.openColorPopover(${acc.id}, this)" title="${window.i18n.t('acc_color_label')}"></span>
                     </td>
-                    <td class="col-actions" style="white-space: nowrap;">
+                    <td class="col-actions" style="white-space: nowrap; text-align: right;">
                         <button class="acc-action-btn ${isMain ? 'acc-star-active' : 'acc-star-btn'}" onclick="window.AccountsView.setMainAccount(${acc.id})" title="${window.i18n.t('acc_set_main')}">${isMain ? '⭐' : '☆'}</button>
+                        <button class="acc-action-btn acc-history-btn" onclick="window.AccountsView.viewHistory(${acc.id})" title="${window.i18n.t('acc_view_history') || 'Voir les opérations dans l\'historique'}">↗️</button>
                         <button class="acc-action-btn acc-edit-btn" onclick="window.AccountsView.edit(${acc.id})" title="${window.i18n.t('tooltip_edit')}">✏️</button>
                         <button class="acc-action-btn acc-lock-btn" onclick="window.AccountsView.toggleClose(${acc.id})" title="${acc.is_closed ? window.i18n.t('acc_reopen_action') : window.i18n.t('acc_close_action')}">${acc.is_closed ? '🔓' : '🔒'}</button>
                         <button class="acc-action-btn acc-del-btn" onclick="window.AccountsView.delete(${acc.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
@@ -806,6 +807,18 @@ window.AccountsView = {
         } catch (e) {
             console.error(e);
             showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_save_error_generic'));
+        }
+    },
+
+    viewHistory(accId) {
+        if (window.AllOperationsView) {
+            window.AllOperationsView.pendingFilter = {
+                accountId: accId,
+                backToView: 'accounts'
+            };
+        }
+        if (window.app && window.app.loadView) {
+            window.app.loadView('all_operations');
         }
     }
 };

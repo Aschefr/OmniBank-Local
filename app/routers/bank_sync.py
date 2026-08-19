@@ -65,6 +65,8 @@ def list_connections(db: Session = Depends(get_db)):
             out.last_error = None
             if out.last_sync_status in ("auto_error", "error"):
                 out.last_sync_status = "idle"
+        elif out.last_sync_status in ("auto_error", "error") and not out.last_error:
+            out.last_error = "Erreur lors de la synchronisation bancaire."
         results.append(out)
     return results
 
@@ -280,6 +282,17 @@ def run_manual_auto_sync(data: Optional[Dict[str, Any]] = None):
     return res
 
 
+@router.get("/status")
+def get_bank_sync_status(profile_id: Optional[str] = None):
+    """Retourne le statut d'exécution réel du relevé en arrière-plan."""
+    from app.services.bank_sync_scheduler import is_background_sync_running
+    active_pid = profile_id or get_active_profile().get("id", "default")
+    is_running = is_background_sync_running(active_pid)
+    return {
+        "is_running": is_running,
+        "running_tasks": [active_pid] if is_running else []
+    }
+
 
 @router.get("/pending")
 def get_pending_sync_summary(db: Session = Depends(get_db)):
@@ -340,10 +353,11 @@ def reconcile_single_matched_transaction(tx_id: int, db: Session = Depends(get_d
     record_action(db, "transaction", tx.id, "UPDATE", before_snap, snapshot_entity(tx), user_name="Banque (1-Clic)")
     stats_cache.invalidate()
 
-    # Nettoyer des pending
-    for conn_id, pdata in list(_PENDING_SYNC_DATA.items()):
-        for acc in pdata.get("accounts", []):
-            acc["transactions"] = [t for t in acc.get("transactions", []) if t.get("matched_db_id") != tx_id]
+    # Nettoyer des pending (structure: {profile_id: {conn_id: {"accounts": [...]}}}
+    for profile_data in _PENDING_SYNC_DATA.values():
+        for conn_data in profile_data.values():
+            for acc in conn_data.get("accounts", []):
+                acc["transactions"] = [t for t in acc.get("transactions", []) if t.get("matched_db_id") != tx_id]
 
     return {"ok": True, "reconciled_id": tx.id, "reconciliation_date": tx.reconciliation_date.isoformat()}
 
@@ -356,6 +370,7 @@ def reconcile_all_matched_pending(db: Session = Depends(get_db)):
     from app.services.history_service import record_action, snapshot_entity
     from app.services import stats_cache
     from app.services.bank_sync_scheduler import get_all_pending_sync, _PENDING_SYNC_DATA
+    from app.profile_manager import get_active_profile
 
     pending = get_all_pending_sync(db)
     matches = pending.get("matches_by_tx_id", {})
@@ -378,8 +393,9 @@ def reconcile_all_matched_pending(db: Session = Depends(get_db)):
     db.commit()
     stats_cache.invalidate()
 
-    # Vider les correspondances traitées du cache
-    _PENDING_SYNC_DATA.clear()
+    # Vider les correspondances traitées du cache pour le profil actif uniquement
+    active_pid = get_active_profile().get("id", "default")
+    _PENDING_SYNC_DATA.pop(active_pid, None)
 
     return {"ok": True, "reconciled_count": reconciled_count}
 
@@ -590,8 +606,9 @@ def fetch_preview(conn_id: int, req: SyncConnectionRequest, db: Session = Depend
         save_pending_sync_data(db, conn.id, preview)
         return preview
     except Exception as e:
-        logger.warning(f"[BankSync] Échec du preview pour connexion {conn_id} : {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        err_msg = clean_error_message(e)
+        logger.warning(f"[BankSync] Échec du preview pour connexion {conn_id} ({type(e).__name__}) : {err_msg}", exc_info=True)
+        raise HTTPException(status_code=400, detail=err_msg)
 
 
 @router.post("/connections/{conn_id}/commit")
@@ -672,12 +689,13 @@ async def sync_connection_stream(
                 session_id=session_id
             )
         except Exception as e:
-            logger.error(f"[BankSync] Erreur durant le flux de sync {conn_id} : {e}")
+            err_msg = clean_error_message(e)
+            logger.error(f"[BankSync] Erreur durant le flux de sync {conn_id} ({type(e).__name__}) : {err_msg}", exc_info=True)
             if worker_conn:
                 worker_conn.last_sync_status = "error"
-                worker_conn.last_error = str(e)
+                worker_conn.last_error = err_msg
                 worker_db.commit()
-            sse_callback("error", {"message": str(e)})
+            sse_callback("error", {"message": err_msg})
         finally:
             worker_db.close()
             unregister_2fa_session(session_id)

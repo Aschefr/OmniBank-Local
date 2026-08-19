@@ -474,6 +474,7 @@ function showToast(message, type = 'success', duration = 3000) {
     };
     setTimeout(dismiss, duration);
 }
+window.showToast = showToast;
 
 /**
  * Toast with an Undo button.

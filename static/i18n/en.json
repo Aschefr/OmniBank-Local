@@ -1952,5 +1952,14 @@
     "acc_realign_btn": "Recalculate starting balance",
     "acc_realign_success": "Starting balance adjusted to {initial} for a current balance of {current}",
     "acc_current_balance_lbl": "Calculated current balance",
-    "toast_invalid_amount": "Please enter a valid amount."
+    "toast_invalid_amount": "Please enter a valid amount.",
+    "overview_health_ok": "✨ Balanced Budget",
+    "overview_org_health_ok": "✨ Healthy Treasury",
+    "overview_health_danger": "⚠️ Overdraft Risk",
+    "overview_health_warning": "⚡ Negative Remaining to Live",
+    "no_accounts": "No accounts",
+    "uncategorized": "Uncategorized",
+    "error_loading_data": "Error loading data",
+    "btn_back": "Back",
+    "acc_view_history": "View operations in history"
 }

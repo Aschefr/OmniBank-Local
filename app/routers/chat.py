@@ -613,7 +613,7 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                                     d = json.loads(chunk[6:].strip())
                                     if d.get('content'):
                                         final_text += d['content']
-                                except: pass
+                                except Exception: pass
                             if request and await request.is_disconnected():
                                 _client_disconnected = True
                                 return

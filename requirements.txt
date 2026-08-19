@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-uvloop
+uvloop; sys_platform == "linux"
 httptools
 sqlalchemy
 pandas
