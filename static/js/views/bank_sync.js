@@ -158,7 +158,7 @@ window.BankSyncView = {
                         <span>⚡</span> <span data-i18n="bank_sync_title">${window.i18n.t('bank_sync_title')}</span>
                     </h3>
                     <span style="font-size: 11.5px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.25); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: help; box-sizing: border-box; line-height: 1;" title="${window.i18n.t('bank_sync_security_notice')}">
-                        <span>🛡️</span> <span>100% Local & Chiffré</span>
+                        <span>🛡️</span> <span data-i18n="bank_sync_badge_secure">${window.i18n.t('bank_sync_badge_secure')}</span>
                     </span>
                     <span id="bankSyncVaultPill" style="display: inline-flex; align-items: center;"></span>
                 </div>
@@ -184,8 +184,8 @@ window.BankSyncView = {
 
             <!-- Liste des Connexions (Grille moderne) -->
             <div id="bankConnectionsList">
-                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
-                    Chargement des connexions...
+                <div style="text-align: center; padding: 20px; color: var(--text-muted);" data-i18n="bank_sync_loading_connections">
+                    ${window.i18n.t('bank_sync_loading_connections')}
                 </div>
             </div>
         </div>
@@ -294,21 +294,21 @@ window.BankSyncView = {
                         
                         <div style="margin-bottom: 14px;">
                             <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-main);" data-i18n="bank_sync_conn_label">
-                                Nom de la connexion (ex: Mon Crédit Agricole)
+                                ${window.i18n ? window.i18n.t('bank_sync_conn_label') : 'Nom de la connexion (ex: Mon Crédit Agricole)'}
                             </label>
-                            <input type="text" id="connLabelInput" class="input-styled" placeholder="Ex: Mon Crédit Agricole" />
+                            <input type="text" id="connLabelInput" class="input-styled" placeholder="${window.i18n ? window.i18n.t('bank_sync_conn_label_placeholder') : 'Ex: Mon Crédit Agricole'}" />
                         </div>
 
                         <div id="dynamicFormFields" style="display: flex; flex-direction: column; gap: 14px;"></div>
 
                         <div id="masterPwSection" style="margin-top: 20px; padding-top: 18px; border-top: 1px dashed var(--border-color);">
                             <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;" data-i18n="bank_sync_master_pw_title">
-                                🔐 3. Mot de passe maître (Chiffrement local)
+                                ${window.i18n ? window.i18n.t('bank_sync_master_pw_title') : '🔐 3. Mot de passe maître (Chiffrement local)'}
                             </label>
                             <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 8px 0; line-height: 1.4;" data-i18n="bank_sync_master_pw_desc">
-                                Ce mot de passe sert à chiffrer vos identifiants sur votre machine (Fernet AES). Il ne quitte jamais votre appareil.
+                                ${window.i18n ? window.i18n.t('bank_sync_master_pw_desc') : 'Ce mot de passe sert à chiffrer vos identifiants sur votre machine (Fernet AES). Il ne quitte jamais votre appareil.'}
                             </p>
-                            <input type="password" id="connMasterPwInput" class="input-styled" placeholder="Entrez un mot de passe maître sécurisé" autocomplete="new-password" />
+                            <input type="password" id="connMasterPwInput" class="input-styled" placeholder="${window.i18n ? window.i18n.t('bank_sync_master_pw_field') : 'Entrez un mot de passe maître sécurisé'}" autocomplete="new-password" />
                         </div>
                         <div id="addBankErrorMsg" style="display:none; color:#ef4444; font-size:13px; margin-top:10px; padding:8px 12px; background:rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius:8px;"></div>
                     </div>
@@ -335,8 +335,8 @@ window.BankSyncView = {
                         <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main);" data-i18n="bank_sync_mapping_title">
                             🔗 ${window.i18n.t('bank_sync_mapping_title')}
                         </h3>
-                        <button class="btn btn-secondary" onclick="window.BankSyncView.openMappingModal(window.BankSyncView.activeConnId, true)" style="font-size: 12px; padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;" title="Actualiser la liste depuis votre banque">
-                            <span>🔄</span> <span data-i18n="bank_sync_refresh_btn">Actualiser</span>
+                        <button class="btn btn-secondary" onclick="window.BankSyncView.openMappingModal(window.BankSyncView.activeConnId, true)" style="font-size: 12px; padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;" title="${window.i18n ? window.i18n.t('bank_sync_refresh_mapping_tooltip') : 'Actualiser la liste depuis votre banque'}">
+                            <span>🔄</span> <span data-i18n="bank_sync_refresh_btn">${window.i18n ? window.i18n.t('bank_sync_refresh_btn') : 'Actualiser'}</span>
                         </button>
                     </div>
                     <button onclick="window.BankSyncView.closeMappingModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted);">&times;</button>
@@ -580,7 +580,8 @@ window.BankSyncView = {
         const h = Math.floor((sec % 86400) / 3600);
         const m = Math.floor((sec % 3600) / 60);
         const s = sec % 60;
-        if (d > 0) return `${d}j ${h}h`;
+        const dUnit = (window.i18n && window.i18n.lang === 'en') ? 'd' : 'j';
+        if (d > 0) return `${d}${dUnit} ${h}h`;
         if (h > 0) return `${h}h ${m}m`;
         if (m > 0) return `${m}m ${s}s`;
         return `${s}s`;
@@ -592,9 +593,6 @@ window.BankSyncView = {
 
         this._vaultCountdownInterval = setInterval(() => {
             if (!this.vaultStatus || !this.vaultStatus.is_unlocked) {
-                this.stopVaultCountdown();
-                return;
-            }
             this.vaultStatus.remaining_seconds = Math.max(0, this.vaultStatus.remaining_seconds - 1);
             if (this.vaultStatus.remaining_seconds <= 0) {
                 this.stopVaultCountdown();
@@ -618,9 +616,11 @@ window.BankSyncView = {
         if (!pillText || !this.vaultStatus?.is_unlocked) return;
 
         const timeStr = this.formatVaultRemaining(this.vaultStatus.remaining_seconds);
-        pillText.textContent = `Déverrouillé (${timeStr})`;
+        const unlockedLabel = window.i18n ? window.i18n.t('bank_sync_vault_unlocked') : 'Déverrouillé';
+        pillText.textContent = `${unlockedLabel} (${timeStr})`;
         if (pillSpan) {
-            pillSpan.title = `Coffre-fort déverrouillé en mémoire (reverrouillage automatique dans ${timeStr}). Cliquez pour verrouiller immédiatement.`;
+            const tooltipTpl = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_tooltip') : 'Coffre-fort déverrouillé en mémoire (reverrouillage automatique dans {time}). Cliquez pour verrouiller immédiatement.';
+            pillSpan.title = tooltipTpl.replace('{time}', timeStr);
         }
     },
 
@@ -668,17 +668,23 @@ window.BankSyncView = {
                 pill.style.display = 'inline-flex';
                 if (isUnlocked) {
                     const timeStr = this.formatVaultRemaining(this.vaultStatus?.remaining_seconds || 0);
+                    const unlockedLabel = window.i18n ? window.i18n.t('bank_sync_vault_unlocked') : 'Déverrouillé';
+                    const tooltipTpl = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_tooltip') : 'Coffre-fort déverrouillé en mémoire (reverrouillage automatique dans {time}). Cliquez pour verrouiller immédiatement.';
+                    const lockNowTooltip = window.i18n ? window.i18n.t('bank_sync_vault_lock_now_tooltip') : 'Verrouiller immédiatement';
                     pill.innerHTML = `
-                        <span id="bankSyncVaultPillBtn" style="font-size: 11.5px; font-weight: 600; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.lockVault()" title="Coffre-fort déverrouillé en mémoire (reverrouillage automatique dans ${timeStr}). Cliquez pour verrouiller immédiatement.">
-                            <span>🔓</span> <span id="bankSyncVaultPillText">Déverrouillé (${timeStr})</span> <span style="font-size: 11px; opacity: 0.75;" title="Verrouiller immédiatement">🔒</span>
+                        <span id="bankSyncVaultPillBtn" style="font-size: 11.5px; font-weight: 600; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.lockVault()" title="${tooltipTpl.replace('{time}', timeStr)}">
+                            <span>🔓</span> <span id="bankSyncVaultPillText">${unlockedLabel} (${timeStr})</span> <span style="font-size: 11px; opacity: 0.75;" title="${lockNowTooltip}">🔒</span>
                         </span>
                     `;
                     this.startVaultCountdown();
                 } else {
                     this.stopVaultCountdown();
+                    const lockedLabel = window.i18n ? window.i18n.t('bank_sync_vault_locked') : 'Coffre verrouillé';
+                    const unlockAction = window.i18n ? window.i18n.t('bank_sync_vault_unlock_action') : '(Déverrouiller)';
+                    const lockedTooltip = window.i18n ? window.i18n.t('bank_sync_vault_locked_tooltip') : 'Coffre verrouillé. Cliquez pour déverrouiller avec votre mot de passe maître.';
                     pill.innerHTML = `
-                        <span style="font-size: 11.5px; font-weight: 600; background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.unlockVaultManually()" title="Coffre verrouillé. Cliquez pour déverrouiller avec votre mot de passe maître.">
-                            <span>🔒</span> <span>Coffre verrouillé</span> <span style="font-size: 11px; text-decoration: underline; font-weight: 700;">(Déverrouiller)</span>
+                        <span style="font-size: 11.5px; font-weight: 600; background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.unlockVaultManually()" title="${lockedTooltip}">
+                            <span>🔒</span> <span>${lockedLabel}</span> <span style="font-size: 11px; text-decoration: underline; font-weight: 700;">${unlockAction}</span>
                         </span>
                     `;
                 }
@@ -687,6 +693,10 @@ window.BankSyncView = {
 
         // ── 2. GESTION DU WIDGET RELEVÉ AUTO ──
         if (autoSyncBox) {
+            const autoSyncLabel = window.i18n ? window.i18n.t('bank_sync_auto_sync_label') : 'Relevé auto';
+            const autoSyncActive = window.i18n ? window.i18n.t('bank_sync_auto_sync_active') : 'Actif';
+            const unlockBtnText = window.i18n ? window.i18n.t('bank_sync_auto_sync_unlock_btn') : 'Déverrouiller';
+
             if (isAutoSyncEnabled && !isUnlocked) {
                 // ÉTAT ALERTE CRITIQUE : Relevé auto programmé mais Coffre verrouillé !
                 autoSyncBox.className = 'bank-sync-auto-sync-widget is-locked-warning';
@@ -706,12 +716,12 @@ window.BankSyncView = {
                     box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
                     transition: all 0.25s ease;
                 `;
-                autoSyncBox.title = "Le relevé automatique est programmé mais NE FONCTIONNE PAS car le coffre est verrouillé ! Cliquez pour déverrouiller.";
+                autoSyncBox.title = window.i18n ? window.i18n.t('bank_sync_auto_sync_warning_tooltip') : "Le relevé automatique est programmé mais NE FONCTIONNE PAS car le coffre est verrouillé ! Cliquez pour déverrouiller.";
                 autoSyncBox.innerHTML = `
                     <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; white-space: nowrap;">
                         <input type="checkbox" id="chkAutoSyncToggle" checked onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: #f59e0b; width: 15px; height: 15px;">
                         <span style="display: inline-flex; align-items: center; gap: 4px;">
-                            <span>⚠️</span> <strong style="color: #f59e0b;">Relevé auto :</strong>
+                            <span>⚠️</span> <strong style="color: #f59e0b;">${autoSyncLabel} :</strong>
                         </span>
                     </label>
                     <select id="selAutoSyncInterval" class="input-styled" style="height: 24px; font-size: 11px; padding: 0 6px; border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; background: rgba(0,0,0,0.25); color: #f59e0b; font-weight: 700; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
@@ -719,8 +729,8 @@ window.BankSyncView = {
                         <option value="24" ${interval === 24 ? 'selected' : ''}>24h</option>
                         <option value="48" ${interval === 48 ? 'selected' : ''}>48h</option>
                     </select>
-                    <button type="button" class="btn" onclick="window.BankSyncView.unlockVaultManually()" style="height: 24px; padding: 0 8px; font-size: 11px; font-weight: 700; background: #f59e0b; color: #1e1e2d; border-radius: 6px; border: none; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;" title="Déverrouiller le coffre pour autoriser les relevés automatiques">
-                        <span>🔓</span> <span>Déverrouiller</span>
+                    <button type="button" class="btn" onclick="window.BankSyncView.unlockVaultManually()" style="height: 24px; padding: 0 8px; font-size: 11px; font-weight: 700; background: #f59e0b; color: #1e1e2d; border-radius: 6px; border: none; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;" title="${window.i18n ? window.i18n.t('bank_sync_vault_locked_tooltip') : 'Déverrouiller le coffre pour autoriser les relevés automatiques'}">
+                        <span>🔓</span> <span>${unlockBtnText}</span>
                     </button>
                 `;
             } else if (isAutoSyncEnabled && isUnlocked) {
@@ -741,19 +751,21 @@ window.BankSyncView = {
                     box-sizing: border-box;
                     transition: all 0.25s ease;
                 `;
-                autoSyncBox.title = `Relevé automatique programmé toutes les ${interval}h (coffre déverrouillé).`;
+                const activeTooltipTpl = window.i18n ? window.i18n.t('bank_sync_auto_sync_active_tooltip') : `Relevé automatique programmé toutes les {interval}h (coffre déverrouillé).`;
+                const pillTooltipTpl = window.i18n ? window.i18n.t('bank_sync_auto_sync_active_pill_tooltip') : `Le planificateur exécute un relevé toutes les {interval} heures.`;
+                autoSyncBox.title = activeTooltipTpl.replace('{interval}', interval);
                 autoSyncBox.innerHTML = `
                     <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; white-space: nowrap;">
                         <input type="checkbox" id="chkAutoSyncToggle" checked onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: #10b981; width: 15px; height: 15px;">
-                        <span>⏰ <strong style="color: #10b981;">Relevé auto</strong></span>
+                        <span>⏰ <strong style="color: #10b981;">${autoSyncLabel}</strong></span>
                     </label>
                     <select id="selAutoSyncInterval" class="input-styled" style="height: 24px; font-size: 11px; padding: 0 6px; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; background: rgba(0,0,0,0.15); color: var(--text-main); font-weight: 700; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
                         <option value="12" ${interval === 12 ? 'selected' : ''}>12h</option>
                         <option value="24" ${interval === 24 ? 'selected' : ''}>24h</option>
                         <option value="48" ${interval === 48 ? 'selected' : ''}>48h</option>
                     </select>
-                    <span style="font-size: 10px; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.16); padding: 2px 7px; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px;" title="Le planificateur exécute un relevé toutes les ${interval} heures.">
-                        <span style="width: 6px; height: 6px; background: #10b981; border-radius: 50%; display: inline-block;"></span> Actif
+                    <span style="font-size: 10px; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.16); padding: 2px 7px; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px;" title="${pillTooltipTpl.replace('{interval}', interval)}">
+                        <span style="width: 6px; height: 6px; background: #10b981; border-radius: 50%; display: inline-block;"></span> ${autoSyncActive}
                     </span>
                 `;
             } else {
@@ -774,11 +786,11 @@ window.BankSyncView = {
                     box-sizing: border-box;
                     transition: all 0.25s ease;
                 `;
-                autoSyncBox.title = isUnlocked ? "Activer le relevé automatique en arrière-plan." : "Activer le relevé automatique (nécessite de déverrouiller le coffre).";
+                autoSyncBox.title = isUnlocked ? (window.i18n ? window.i18n.t('bank_sync_auto_sync_enable_tooltip') : "Activer le relevé automatique en arrière-plan.") : (window.i18n ? window.i18n.t('bank_sync_auto_sync_enable_locked_tooltip') : "Activer le relevé automatique (nécessite de déverrouiller le coffre).");
                 autoSyncBox.innerHTML = `
                     <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; white-space: nowrap;">
                         <input type="checkbox" id="chkAutoSyncToggle" onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: var(--accent); width: 15px; height: 15px;">
-                        <span>⏰ <span>Relevé auto</span></span>
+                        <span>⏰ <span>${autoSyncLabel}</span></span>
                     </label>
                     <select id="selAutoSyncInterval" class="input-styled" style="height: 24px; font-size: 11px; padding: 0 6px; border: 1px solid var(--border-color); border-radius: 6px; background: transparent; color: var(--text-muted); font-weight: 600; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
                         <option value="12" ${interval === 12 ? 'selected' : ''}>12h</option>
@@ -1323,13 +1335,13 @@ window.BankSyncView = {
                 <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                     <thead>
                         <tr style="border-bottom: 1px solid rgba(245, 158, 11, 0.2); text-align: left; color: var(--text-muted); font-size: 11px;">
-                            <th style="padding: 4px 12px; width: 60px;">Statut</th>
-                            <th style="padding: 4px 12px; width: 90px;">Date</th>
-                            <th style="padding: 4px 12px;">Description</th>
-                            <th style="padding: 4px 12px; width: 140px;">Compte</th>
-                            <th style="padding: 4px 12px; width: 140px;">Catégorie</th>
-                            <th style="padding: 4px 12px; width: 100px; text-align: right;">Montant</th>
-                            <th style="padding: 4px 12px; width: 130px; text-align: right;">Actions</th>
+                            <th style="padding: 4px 12px; width: 60px;">${window.i18n ? window.i18n.t('col_status') || 'Statut' : 'Statut'}</th>
+                            <th style="padding: 4px 12px; width: 90px;">${window.i18n ? window.i18n.t('col_date') || 'Date' : 'Date'}</th>
+                            <th style="padding: 4px 12px;">${window.i18n ? window.i18n.t('col_description') || 'Description' : 'Description'}</th>
+                            <th style="padding: 4px 12px; width: 140px;">${window.i18n ? window.i18n.t('col_account') || 'Compte' : 'Compte'}</th>
+                            <th style="padding: 4px 12px; width: 140px;">${window.i18n ? window.i18n.t('col_category') || 'Catégorie' : 'Catégorie'}</th>
+                            <th style="padding: 4px 12px; width: 100px; text-align: right;">${window.i18n ? window.i18n.t('col_amount') || 'Montant' : 'Montant'}</th>
+                            <th style="padding: 4px 12px; width: 130px; text-align: right;">${window.i18n ? window.i18n.t('acc_th_actions') || 'Actions' : 'Actions'}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1506,8 +1518,10 @@ window.BankSyncView = {
 
 
     // ── PROMPT MASTER PASSWORD (Custom in-app modal) ────────────────
-    promptMasterPassword(title = 'Déverrouillage sécurisé', message = 'Entrez votre mot de passe maître :') {
+    promptMasterPassword(title = null, message = null) {
         this.ensureModalsExist();
+        const effectiveTitle = title || (window.i18n ? window.i18n.t('bank_sync_master_pw_modal_title') : 'Déverrouillage sécurisé');
+        const effectiveMessage = message || (window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître :');
         const token = this.getVaultToken();
         if (token && this.vaultStatus?.is_unlocked) {
             return Promise.resolve("__USE_VAULT_TOKEN__");
@@ -1521,8 +1535,8 @@ window.BankSyncView = {
             const input = document.getElementById('masterPwModalInput');
             const errEl = document.getElementById('masterPwModalError');
 
-            if (titleEl) titleEl.innerText = title;
-            if (msgEl) msgEl.innerText = message;
+            if (titleEl) titleEl.innerText = effectiveTitle;
+            if (msgEl) msgEl.innerText = effectiveMessage;
             if (input) input.value = '';
             if (errEl) errEl.style.display = 'none';
 
@@ -1540,7 +1554,7 @@ window.BankSyncView = {
         const val = input.value;
         const errEl = document.getElementById('masterPwModalError');
         if (!val) {
-            errEl.innerText = 'Veuillez saisir votre mot de passe maître.';
+            errEl.innerText = window.i18n ? window.i18n.t('bank_sync_master_pw_required') : 'Veuillez saisir votre mot de passe maître.';
             errEl.style.display = 'block';
             return;
         }
@@ -1585,12 +1599,14 @@ window.BankSyncView = {
     },
 
     // ── CONFIRM ACTION (Custom in-app modal) ────────────────────────
-    confirmAction(title = 'Confirmer', message = 'Êtes-vous sûr ?') {
+    confirmAction(title = null, message = null) {
+        const effectiveTitle = title || (window.i18n ? window.i18n.t('bank_sync_delete_title') : 'Confirmer');
+        const effectiveMessage = message || (window.i18n ? window.i18n.t('bank_sync_delete_msg') : 'Êtes-vous sûr ?');
         return new Promise((resolve) => {
             this._confirmResolve = resolve;
             const modal = document.getElementById('confirmDeleteModal');
-            document.getElementById('confirmDeleteTitle').innerText = title;
-            document.getElementById('confirmDeleteMsg').innerText = message;
+            document.getElementById('confirmDeleteTitle').innerText = effectiveTitle;
+            document.getElementById('confirmDeleteMsg').innerText = effectiveMessage;
             modal.style.display = 'flex';
         });
     },
@@ -1681,7 +1697,11 @@ window.BankSyncView = {
                     ? `<span style="background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🔴</span> <span>${window.i18n.t('bank_sync_status_error')}</span></span>`
                     : `<span style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🟢</span> <span>${window.i18n.t('bank_sync_status_connected')}</span></span>`;
 
-                const displayError = isError ? (effectiveError || window.i18n.t('bank_sync_status_error') || 'Erreur lors de la synchronisation.') : null;
+                let localizedError = effectiveError;
+                if (effectiveError && (effectiveError.includes('Erreur lors de la synchronisation') || effectiveError.includes('Erreur de synchronisation'))) {
+                    localizedError = window.i18n.t('bank_sync_error_default');
+                }
+                const displayError = isError ? (localizedError || window.i18n.t('bank_sync_error_default')) : null;
 
                 const cachedPreview = this.getCachedPreview(conn.id);
                 const cachedBtn = cachedPreview ? `
@@ -1710,14 +1730,14 @@ window.BankSyncView = {
                             ${displayError ? `
                                 <div style="font-size: 11px; color: #ef4444; margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                     <span>⚠️ ${displayError}</span>
-                                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur connexion bancaire: ${conn.backend || conn.id} - ${displayError.replace(/'/g, "\\'")}');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Copier un rapport technique anonymisé">
-                                        📋 Copier
+                                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur connexion bancaire: ${conn.backend || conn.id} - ${displayError.replace(/'/g, "\\'")}');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="${window.i18n.t('diag_btn_copy_tooltip')}">
+                                        📋 ${window.i18n.t('diag_btn_copy')}
                                     </button>
-                                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur connexion bancaire: ${conn.backend || conn.id}');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Créer une issue GitHub">
-                                        🐙 Issue
+                                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur connexion bancaire: ${conn.backend || conn.id}');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="${window.i18n.t('diag_btn_issue_tooltip')}">
+                                        🐙 ${window.i18n.t('diag_btn_issue')}
                                     </button>
-                                    <button class="btn btn-secondary" onclick="if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Accéder aux diagnostics">
-                                        ⚙️ Diag
+                                    <button class="btn btn-secondary" onclick="if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="${window.i18n.t('diag_btn_diag_tooltip')}">
+                                        ⚙️ ${window.i18n.t('diag_btn_diag')}
                                     </button>
                                 </div>
                             ` : ''}
@@ -1726,7 +1746,7 @@ window.BankSyncView = {
 
                     <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
                         ${cachedBtn}
-                        <button class="btn btn-primary" onclick="window.BankSyncView.promptAndSync(${conn.id})" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; padding: 0 14px; border-radius: 8px; font-size: 12px; height: 32px; box-sizing: border-box;" title="Lancer la synchronisation">
+                        <button class="btn btn-primary" onclick="window.BankSyncView.promptAndSync(${conn.id})" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; padding: 0 14px; border-radius: 8px; font-size: 12px; height: 32px; box-sizing: border-box;" title="${window.i18n.t('bank_sync_sync_btn_tooltip')}">
                             <span>🔄</span> <span data-i18n="bank_sync_sync_btn">${window.i18n.t('bank_sync_sync_btn')}</span>
                         </button>
                         <button class="btn btn-secondary" onclick="window.BankSyncView.openMappingModal(${conn.id})" style="padding: 0 12px; border-radius: 8px; font-size: 12px; height: 32px; display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; font-weight: 600;" title="${window.i18n.t('bank_sync_edit_mapping_btn')}">
@@ -1809,31 +1829,31 @@ window.BankSyncView = {
                     <div style="padding: 12px 14px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); border-radius: 10px; display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 22px;">🔓</span>
                         <div style="font-size: 12px; color: var(--text-main); line-height: 1.4;">
-                            <strong style="color: #10b981;">Coffre-fort déverrouillé</strong><br/>
-                            <span style="color: var(--text-muted);">Vos identifiants seront automatiquement chiffrés avec votre mot de passe maître de coffre-fort.</span>
+                            <strong style="color: #10b981;" data-i18n="bank_vault_unlocked_status">${window.i18n.t('bank_vault_unlocked_status') || 'Coffre-fort déverrouillé'}</strong><br/>
+                            <span style="color: var(--text-muted);" data-i18n="bank_sync_security_unlocked_desc">${window.i18n.t('bank_sync_security_unlocked_desc') || 'Vos identifiants seront automatiquement chiffrés avec votre mot de passe maître de coffre-fort.'}</span>
                         </div>
                     </div>
                     <input type="password" id="connMasterPwInput" style="display: none;" />
                 `;
             } else if (hasConnections) {
                 masterPwContainer.innerHTML = `
-                    <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">
-                        🔐 3. Mot de passe maître du coffre-fort
+                    <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;" data-i18n="bank_sync_master_pw_title">
+                        ${window.i18n.t('bank_sync_master_pw_title')}
                     </label>
                     <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 8px 0; line-height: 1.4;">
-                        Entrez le mot de passe maître unique de votre coffre-fort local pour y rattacher cette banque.
+                        ${window.i18n.t('bank_sync_enter_master_pw')}
                     </p>
-                    <input type="password" id="connMasterPwInput" class="input-styled" placeholder="Mot de passe maître du coffre-fort" autocomplete="current-password" />
+                    <input type="password" id="connMasterPwInput" class="input-styled" placeholder="${window.i18n.t('bank_sync_master_pw_field')}" autocomplete="current-password" />
                 `;
             } else {
                 masterPwContainer.innerHTML = `
                     <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;" data-i18n="bank_sync_master_pw_title">
-                        🔐 3. Définir votre mot de passe maître (Chiffrement local)
+                        ${window.i18n.t('bank_sync_master_pw_title')}
                     </label>
                     <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 8px 0; line-height: 1.4;" data-i18n="bank_sync_master_pw_desc">
-                        Ce mot de passe servira de clé principale pour chiffrer l'ensemble de vos connexions bancaires (Fernet AES). Il ne quitte jamais votre appareil.
+                        ${window.i18n.t('bank_sync_master_pw_desc')}
                     </p>
-                    <input type="password" id="connMasterPwInput" class="input-styled" placeholder="Entrez un mot de passe maître sécurisé" autocomplete="new-password" />
+                    <input type="password" id="connMasterPwInput" class="input-styled" placeholder="${window.i18n.t('bank_sync_master_pw_field')}" autocomplete="new-password" />
                 `;
             }
         }
@@ -1905,12 +1925,12 @@ window.BankSyncView = {
         errDiv.style.display = 'none';
 
         if (!label) {
-            errDiv.innerText = 'Veuillez saisir un nom pour cette connexion.';
+            errDiv.innerText = window.i18n ? window.i18n.t('bank_sync_conn_name_required') : 'Veuillez saisir un nom pour cette connexion.';
             errDiv.style.display = 'block';
             return;
         }
         if (!masterPw && !isUnlocked) {
-            errDiv.innerText = 'Veuillez saisir le mot de passe maître pour chiffrer vos identifiants.';
+            errDiv.innerText = window.i18n ? window.i18n.t('bank_sync_master_pw_required') : 'Veuillez saisir le mot de passe maître pour chiffrer vos identifiants.';
             errDiv.style.display = 'block';
             return;
         }
@@ -1931,7 +1951,7 @@ window.BankSyncView = {
 
         const btn = document.getElementById('btnSaveConnection');
         btn.disabled = true;
-        btn.innerText = 'Chiffrement & Sauvegarde...';
+        btn.innerText = window.i18n ? window.i18n.t('bank_sync_save_btn') || 'Chiffrement & Sauvegarde...' : 'Chiffrement & Sauvegarde...';
 
         try {
             const payload = {
@@ -1961,7 +1981,7 @@ window.BankSyncView = {
             this.clearCachedRemoteAccounts(newConn);
             this.closeAddModal();
             await this.loadConnections();
-            this.showToast('Connexion bancaire ajoutée et chiffrée avec succès !', 'success');
+            this.showToast(window.i18n ? window.i18n.t('bank_sync_toast_conn_saved') : 'Connexion bancaire ajoutée et chiffrée avec succès !', 'success');
 
             // Ouvrir directement la modale de mapping avec rafraîchissement obligatoire
             setTimeout(() => this.openMappingModal(newConn.id, true), 400);
@@ -2154,7 +2174,7 @@ window.BankSyncView = {
         if (!container) return;
 
         if (remoteAccounts.length === 0) {
-            container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Aucun compte trouvé sur votre banque.</div>';
+            container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);" data-i18n="bank_sync_no_remote_accounts">${window.i18n.t('bank_sync_no_remote_accounts') || 'Aucun compte trouvé sur votre banque.'}</div>`;
             return;
         }
 
@@ -2169,7 +2189,8 @@ window.BankSyncView = {
             }
         }
 
-        const localAccOptions = '<option value="">-- Ne pas synchroniser --</option>' + 
+        const doNotSyncText = window.i18n ? window.i18n.t('bank_sync_do_not_sync') || 'Ne pas synchroniser' : 'Ne pas synchroniser';
+        const localAccOptions = `<option value="">-- ${doNotSyncText} --</option>` + 
             this.localAccounts.map(a => `<option value="${a.id}">${a.name} (${a.type})</option>`).join('');
 
         const detectType = (r) => {
@@ -2193,6 +2214,13 @@ window.BankSyncView = {
             return 'Compte courant';
         };
 
+        const lblType = window.i18n ? window.i18n.t('bank_sync_lbl_type') || 'Type' : 'Type';
+        const lblNumber = window.i18n ? window.i18n.t('bank_sync_lbl_number') || 'N°' : 'N°';
+        const lblBalance = window.i18n ? window.i18n.t('bank_sync_lbl_balance') || 'Solde' : 'Solde';
+        const lblLinkedTo = window.i18n ? window.i18n.t('bank_sync_lbl_linked_to') || 'Lié à :' : 'Lié à :';
+        const btnCreateTitle = window.i18n ? window.i18n.t('bank_sync_btn_create_account_tooltip') || 'Personnaliser et créer ce compte dans OmniBank' : 'Personnaliser et créer ce compte dans OmniBank';
+        const btnCreateText = window.i18n ? window.i18n.t('bank_sync_btn_create_account') || 'Créer dans OmniBank' : 'Créer dans OmniBank';
+
         container.innerHTML = remoteAccounts.map(r => {
             const mappedLocalId = currentMapping[r.id] || '';
             const balStr = `${r.balance >= 0 ? '+' : ''}${r.balance.toFixed(2)} ${r.currency || '€'}`;
@@ -2205,19 +2233,19 @@ window.BankSyncView = {
                     <div>
                         <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${r.label}</div>
                         <div style="font-size: 12px; color: var(--text-muted); display: flex; gap: 10px; margin-top: 2px;">
-                            <span>Type: <strong>${r.type}</strong></span>
-                            <span>N°: <strong>${r.id}</strong></span>
-                            <span>Solde: <strong style="color: ${balColor};">${balStr}</strong></span>
+                            <span>${lblType}: <strong>${r.type}</strong></span>
+                            <span>${lblNumber}: <strong>${r.id}</strong></span>
+                            <span>${lblBalance}: <strong style="color: ${balColor};">${balStr}</strong></span>
                         </div>
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Lié à :</span>
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">${lblLinkedTo}</span>
                         <select class="input-styled mapping-select" data-remote-id="${r.id}" style="min-width: 200px; padding: 6px 10px;">
                             ${localAccOptions}
                         </select>
-                        <button class="btn btn-secondary" onclick="window.BankSyncView.toggleQuickCreateForm('${r.id}')" style="font-size: 11px; padding: 6px 10px; border-radius: 8px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="Personnaliser et créer ce compte dans OmniBank">
-                            <span>➕</span> <span>Créer dans OmniBank</span>
+                        <button class="btn btn-secondary" onclick="window.BankSyncView.toggleQuickCreateForm('${r.id}')" style="font-size: 11px; padding: 6px 10px; border-radius: 8px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${btnCreateTitle}">
+                            <span>➕</span> <span>${btnCreateText}</span>
                         </button>
                     </div>
                 </div>
@@ -3055,17 +3083,16 @@ window.BankSyncView = {
     },
 
     async deleteConnection(connId) {
-        const confirmed = await this.confirmAction(
-            'Supprimer la connexion',
-            'Voulez-vous vraiment supprimer cette connexion bancaire et ses identifiants chiffrés ?'
-        );
+        const title = window.i18n ? window.i18n.t('bank_sync_delete_title') : 'Supprimer la connexion';
+        const msg = window.i18n ? window.i18n.t('bank_sync_delete_confirm_msg') : 'Voulez-vous vraiment supprimer cette connexion bancaire et ses identifiants chiffrés ?';
+        const confirmed = await this.confirmAction(title, msg);
         if (!confirmed) return;
 
         try {
             await API.del(`/api/bank-sync/connections/${connId}`);
             this.clearCachedRemoteAccounts(connId);
             await this.loadConnections();
-            this.showToast('Connexion bancaire supprimée.', 'info');
+            this.showToast(window.i18n ? (window.i18n.t('bank_sync_delete_success') || 'Connexion bancaire supprimée.') : 'Connexion bancaire supprimée.', 'info');
         } catch (err) {
             this.showToast('Erreur suppression : ' + (err.detail || err.message), 'error');
         }

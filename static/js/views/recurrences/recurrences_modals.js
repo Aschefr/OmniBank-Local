@@ -272,7 +272,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 5px;">
                             <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_max_occurrences') || 'Occurrences Max (Optionnel)'}</label>
-                            <input type="number" id="edit_max_occurrences" class="inline-input" value="${tpl.max_occurrences || ''}" min="1" placeholder="Illimité" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit;">
+                            <input type="number" id="edit_max_occurrences" class="inline-input" value="${tpl.max_occurrences || ''}" min="1" placeholder="${window.i18n ? window.i18n.t('recurrence_unlimited') : 'Illimité'}" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit;">
                         </div>
                     </div>
 
@@ -303,7 +303,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
 
                     <!-- Real-time Preview Container -->
                     <div id="edit_preview_dates_container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px; padding: 12px; background: rgba(99, 102, 241, 0.05); border-radius: 8px; border: 1px solid var(--border-color);">
-                        <span id="edit_preview_dates_title" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Aperçu des 6 prochaines dates :</span>
+                        <span id="edit_preview_dates_title" style="font-size: 13px; font-weight: 600; color: var(--text-muted);" data-i18n="recurrence_preview_dates_title">${window.i18n.t('recurrence_preview_dates_title') || 'Aperçu des 6 prochaines dates :'}</span>
                         <div id="edit_preview_dates_list" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px; font-weight: 500; text-align: center;"></div>
                     </div>
 

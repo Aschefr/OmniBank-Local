@@ -200,8 +200,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             </span>`;
 
             const toolsHtml = g.tools.split(', ').map(t => {
-                const toolDesc = window.i18n.t(`tool_${t}`) || t;
-                return `<code title="${toolDesc}" style="font-size: 10px; padding: 1px 4px; background: rgba(128,128,128,0.15); border-radius: 4px; color: var(--text-muted); display: inline-block; margin: 1px 2px 1px 0; font-family: monospace; cursor: help;">${t}</code>`;
+                const toolLabel = (window.i18n && window.i18n.t(`tool_${t}`)) || t;
+                const toolDesc = (window.i18n && window.i18n.t(`tool_${t}_desc`)) || toolLabel;
+                return `<code title="${toolDesc.replace(/"/g, '&quot;')}" style="font-size: 10px; padding: 1px 4px; background: rgba(128,128,128,0.15); border-radius: 4px; color: var(--text-muted); display: inline-block; margin: 1px 2px 1px 0; font-family: monospace; cursor: help;">${toolLabel}</code>`;
             }).join(' ');
 
             return `<tr>
@@ -568,13 +569,27 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         'get_envelopes_impact': '🔮',
         'suggest_transaction_category': '🏷️',
         'forecast_balances_history': '📅',
+        'get_monthly_overview': '📋',
         'detect_anomalies_and_subscriptions': '🔎',
         'apply_transaction_correction': '✏️',
         'get_saving_recommendations': '💡',
         'search_similar_past_spends': '📆',
         'generate_csv_export_link': '📥',
         'simulate_loan_amortization': '🏠',
-        'get_recent_transactions': '📝'
+        'get_recent_transactions': '📝',
+        'create_budget_envelope': '📁',
+        'update_budget_envelope': '✏️',
+        'delete_budget_envelope': '🗑️',
+        'allocate_savings_funds': '🐷',
+        'create_recurrence_template': '🔁',
+        'update_recurrence_template': '✏️',
+        'delete_recurrence_template': '🗑️',
+        'create_category': '🏷️',
+        'delete_category': '🗑️',
+        'set_predicted_paycheck': '💵',
+        'delete_transaction': '🗑️',
+        'store_financial_fact': '🧠',
+        'forget_financial_fact': '🧹'
     },
 
 

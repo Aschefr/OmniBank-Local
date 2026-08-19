@@ -46,8 +46,8 @@ window.ConfigDiagnostics = {
 
                 <div id="diag_preview_container" style="display: none; margin-top: 15px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Aperçu du Markdown Anonymisé</span>
-                        <button class="btn btn-sm btn-secondary" onclick="window.ConfigDiagnostics.refreshPreview()" style="font-size: 11px; padding: 2px 8px;">🔄 Rafraîchir</button>
+                        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_diag_preview_title">${window.i18n?.t('config_diag_preview_title') || 'Aperçu du Markdown Anonymisé'}</span>
+                        <button class="btn btn-sm btn-secondary" onclick="window.ConfigDiagnostics.refreshPreview()" style="font-size: 11px; padding: 2px 8px;">🔄 <span data-i18n="config_diag_refresh_preview">${window.i18n?.t('config_diag_refresh_preview') || 'Rafraîchir'}</span></button>
                     </div>
                     <pre id="diag_preview_content" style="max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 11px; line-height: 1.4; color: #e2e8f0; margin: 0; white-space: pre-wrap; word-break: break-all;"></pre>
                 </div>

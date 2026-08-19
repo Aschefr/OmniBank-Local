@@ -215,9 +215,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                     <div>
                         <label style="font-weight: 600; font-size: 12px; color: var(--text-main);" data-i18n="profiles_autolock_label">Verrouillage automatique (inactivité)</label>
-                        <div style="font-size: 11px; color: var(--text-muted);">Actif si un code PIN de protection est configuré sur le profil</div>
+                        <div style="font-size: 11px; color: var(--text-muted);" data-i18n="profiles_autolock_hint">${window.i18n ? window.i18n.t('profiles_autolock_hint') : 'Actif si un code PIN de protection est configuré sur le profil'}</div>
                     </div>
-                    <select id="autoLockMinutesSelect" class="inline-input" style="min-width: 180px;" onchange="if(window.ProfileStorage){ window.ProfileStorage.set('omni_autolock_minutes', this.value); if(window.app && window.app.initAutoLock) window.app.initAutoLock(); } showToast('Réglage de verrouillage sauvegardé', 'success');">
+                    <select id="autoLockMinutesSelect" class="inline-input" style="min-width: 180px;" onchange="if(window.ProfileStorage){ window.ProfileStorage.set('omni_autolock_minutes', this.value); if(window.app && window.app.initAutoLock) window.app.initAutoLock(); } showToast(window.i18n ? window.i18n.t('profiles_autolock_saved') : 'Réglage de verrouillage sauvegardé', 'success');">
                         <option value="5" data-i18n="profiles_autolock_5m">Après 5 minutes (Recommandé)</option>
                         <option value="1" data-i18n="profiles_autolock_1m">Après 1 minute</option>
                         <option value="15" data-i18n="profiles_autolock_15m">Après 15 minutes</option>
@@ -267,13 +267,13 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     </button>
 
                     <!-- Backup Global All Profiles -->
-                    <button class="btn btn-secondary" onclick="window.ConfigView.downloadAllProfilesBackup()" style="display: flex; align-items: center; gap: 5px;" title="Sauvegarder tous les profils maîtres dans une seule archive">
+                    <button class="btn btn-secondary" onclick="window.ConfigView.downloadAllProfilesBackup()" style="display: flex; align-items: center; gap: 5px;" title="${window.i18n ? window.i18n.t('profiles_backup_all_tooltip') : 'Sauvegarder tous les profils maîtres dans une seule archive'}">
                         📦 <span data-i18n="profiles_backup_all">Sauvegarder tous les profils (ZIP)</span>
                     </button>
 
                     <!-- Restore Global All Profiles -->
                     <input type="file" id="restoreAllProfilesBackupInput" accept=".zip" style="display: none;" onchange="window.ConfigView.restoreAllProfilesBackup(event)">
-                    <button class="btn btn-secondary" onclick="document.getElementById('restoreAllProfilesBackupInput').click()" style="display: flex; align-items: center; gap: 5px;" title="Restaurer tous les profils maîtres depuis une archive globale">
+                    <button class="btn btn-secondary" onclick="document.getElementById('restoreAllProfilesBackupInput').click()" style="display: flex; align-items: center; gap: 5px;" title="${window.i18n ? window.i18n.t('profiles_restore_all_tooltip') : 'Restaurer tous les profils maîtres depuis une archive globale'}">
                         📂 <span data-i18n="profiles_restore_all">Restaurer tous les profils (ZIP)</span>
                     </button>
                 </div>
@@ -312,11 +312,11 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                     <div>
-                        <h3 style="display:flex; align-items:center; gap:8px; margin:0 0 4px 0;">📡 Connexion Serveur (Docker / Client Distant)</h3>
-                        <p style="color: var(--text-muted); font-size: 12px; margin: 0;">Configurez l'adresse IP et le port du serveur backend auto-hébergé pour les accès distants ou mobiles.</p>
+                        <h3 style="display:flex; align-items:center; gap:8px; margin:0 0 4px 0;" data-i18n="config_server_title">📡 ${window.i18n ? window.i18n.t('config_server_title') : 'Connexion Serveur (Docker / Client Distant)'}</h3>
+                        <p style="color: var(--text-muted); font-size: 12px; margin: 0;" data-i18n="config_server_desc">${window.i18n ? window.i18n.t('config_server_desc') : "Configurez l'adresse IP et le port du serveur backend auto-hébergé pour les accès distants ou mobiles."}</p>
                     </div>
                     <button class="btn btn-primary" onclick="window.ServerConfig.openModal()" style="display:flex; align-items:center; gap:6px;">
-                        <span>⚙️</span> <span>Configurer le serveur</span>
+                        <span>⚙️</span> <span data-i18n="config_server_btn">${window.i18n ? window.i18n.t('config_server_btn') : 'Configurer le serveur'}</span>
                     </button>
                 </div>
             </div>
@@ -390,15 +390,15 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div>
                 
                 <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
-                    <input type="text" id="rate_from" class="inline-input" placeholder="De (ex: USD)" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
-                    <input type="text" id="rate_to" class="inline-input" placeholder="Vers (ex: EUR)" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
-                    <input type="number" id="rate_value" class="inline-input" placeholder="Taux (ex: 0.92)" step="0.0001" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 120px; font-size: 12px;">
+                    <input type="text" id="rate_from" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_from_placeholder') : 'De (ex: USD)'}" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
+                    <input type="text" id="rate_to" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_to_placeholder') : 'Vers (ex: EUR)'}" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
+                    <input type="number" id="rate_value" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_val_placeholder') : 'Taux (ex: 0.92)'}" step="0.0001" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 120px; font-size: 12px;">
                     <button class="btn btn-secondary" onclick="window.ConfigView.addExchangeRate()" style="font-size:12px; padding:5px 10px;" data-i18n="config_btn_add_rate">➕ Ajouter</button>
                     <button class="btn btn-secondary" id="btnFetchOnlineRates" onclick="window.ConfigView.fetchOnlineRates()" style="margin-left: auto; font-size:12px; padding:5px 10px;" data-i18n="config_btn_fetch_online">🌐 Actualiser en ligne</button>
                 </div>
 
                 <div style="margin-bottom: 8px;">
-                    <input type="text" id="rateSearchInput" class="inline-input" placeholder="🔍 Rechercher une devise (USD, GBP, CHF...)" style="width:100%; font-size:11px; padding:5px 10px; border:1px solid var(--border-color); border-radius:6px;" oninput="window.ConfigView.filterExchangeRates()">
+                    <input type="text" id="rateSearchInput" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_search_placeholder') : '🔍 Rechercher une devise (USD, GBP, CHF...)'}" style="width:100%; font-size:11px; padding:5px 10px; border:1px solid var(--border-color); border-radius:6px;" oninput="window.ConfigView.filterExchangeRates()">
                 </div>
 
                 <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
