@@ -338,7 +338,7 @@ async def inspect_file(
     else:
         try:
             decoded = content.decode('utf-8-sig')
-        except:
+        except Exception:
             decoded = content.decode('latin-1')
         df = pd.read_csv(StringIO(decoded), sep=';', dtype=str)
         if len(df.columns) == 1:
@@ -372,7 +372,7 @@ async def analyze_heuristic(
     else:
         try:
             decoded = content.decode('utf-8-sig')
-        except:
+        except Exception:
             decoded = content.decode('latin-1')
         df = pd.read_csv(StringIO(decoded), sep=';', dtype=str)
         if len(df.columns) == 1:
@@ -419,7 +419,7 @@ async def analyze_heuristic(
                             if potential_amt != 0 and not math.isnan(potential_amt):
                                 file_balance = potential_amt
                                 break
-                    except:
+                    except Exception:
                         pass
                 if file_balance is not None:
                     break
@@ -433,7 +433,7 @@ async def analyze_heuristic(
                 pd.to_datetime(str(col), format='%d/%m/%Y', errors='raise')
                 is_data_row = True
                 break
-            except:
+            except Exception:
                 pass
 
     if is_data_row:
@@ -465,7 +465,7 @@ async def analyze_heuristic(
             if math.isnan(val) or math.isinf(val):
                 return 0.0
             return val
-        except:
+        except Exception:
             return 0.0
             
     df['_parsed_amount'] = df[amount_col].apply(clean_amt)
@@ -474,7 +474,7 @@ async def analyze_heuristic(
         with open(r"C:\Users\Adminlocal\.gemini\antigravity\brain\d3091038-9bc2-4231-8468-b628ecf15491\scratch\debug_df.json", "w", encoding="utf-8") as f:
             df_str = df.astype(str)
             json.dump(df_str.to_dict('records'), f, indent=2)
-    except: pass
+    except Exception: pass
     
     matched_ids = []
     for idx, row in df.iterrows():
@@ -536,7 +536,7 @@ async def save_batch(data: dict, db: Session = Depends(get_db)):
     if account_id:
         try:
             account_id = int(account_id)
-        except:
+        except Exception:
             account_id = None
             
     imported = 0
@@ -597,7 +597,7 @@ async def save_batch(data: dict, db: Session = Depends(get_db)):
                 try:
                     shutil.copy2(src_path, dst_path)
                     final_attachment = f"uploads/{unique_filename}"
-                except:
+                except Exception:
                     pass
 
         new_tx = Transaction(
@@ -670,7 +670,7 @@ async def upload_attachments(files: List[UploadFile] = File(...), relative_paths
     import os
     try:
         paths = json.loads(relative_paths)
-    except:
+    except Exception:
         paths = []
         
     uploads_dir = get_current_uploads_dir()

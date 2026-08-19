@@ -55,7 +55,7 @@ async def call_ollama(db: Session, prompt: str, sys_prompt: str, format_json: bo
     options = {"temperature": 0.1} # low temp for strict parsing
     if ctx_conf and ctx_conf.value:
         try: options["num_ctx"] = int(ctx_conf.value)
-        except: pass
+        except Exception: pass
 
     payload = {
         "model": model,
@@ -138,7 +138,7 @@ async def import_csv_ai(
     else:
         try:
             decoded = content.decode('utf-8-sig')
-        except:
+        except Exception:
             decoded = content.decode('latin-1')
         df = pd.read_csv(StringIO(decoded), sep=';', dtype=str)
         if len(df.columns) == 1:
@@ -173,7 +173,7 @@ async def import_csv_ai(
                             if potential_amt != 0 and not math.isnan(potential_amt):
                                 file_balance = potential_amt
                                 break
-                    except:
+                    except Exception:
                         pass
                 if file_balance is not None:
                     break
@@ -239,7 +239,7 @@ async def import_csv_ai(
                 tx['already_reconciled'] = matched_info["already_reconciled"] if matched_info else False
                 tx['matched_db_id'] = matched_info["id"] if matched_info else None
                 tx['db_description'] = matched_info["description"] if matched_info else None
-            except:
+            except Exception:
                 tx['is_reconciled'] = False
                 tx['already_reconciled'] = False
                 tx['matched_db_id'] = None

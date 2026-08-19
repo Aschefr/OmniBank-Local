@@ -30,6 +30,14 @@ window.BankSyncView = {
     _pwReject: null,
     _confirmResolve: null,
 
+    showToast(msg, type = 'info', duration = 3000) {
+        if (typeof window.showToast === 'function') {
+            window.showToast(msg, type, duration);
+        } else if (typeof showToast === 'function') {
+            showToast(msg, type, duration);
+        }
+    },
+
     // ── GESTION DU TOKEN DE SESSION COFFRE (RAM TTL BACKEND) ────────
     getVaultToken() {
         if (window.ProfileStorage) {
@@ -383,7 +391,7 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <div id="syncProgressModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 500px; padding: 28px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
-                <div style="font-size: 40px; margin-bottom: 14px; animation: spin 2s linear infinite;">🔄</div>
+                <div style="font-size: 40px; margin-bottom: 14px; display: inline-block; animation: spin-reverse 2s linear infinite;">🔄</div>
                 <h3 id="syncProgressTitle" style="margin: 0 0 8px 0; font-size: 18px; font-weight: 700; color: var(--text-main);" data-i18n="bank_sync_progress_title">
                     ${window.i18n.t('bank_sync_progress_title')}
                 </h3>
@@ -894,8 +902,8 @@ window.BankSyncView = {
     async triggerBackgroundSyncNow() {
         this.ensureModalsExist();
 
-        const syncButtons = document.querySelectorAll('.overview-bank-sync-btn, #btnTriggerAutoSync');
         const setButtonsState = (state, customHtml) => {
+            const syncButtons = document.querySelectorAll('.overview-bank-sync-btn, #btnTriggerAutoSync');
             syncButtons.forEach(btn => {
                 btn.classList.remove('is-syncing', 'is-success', 'is-error');
                 if (state === 'syncing') {
@@ -953,21 +961,37 @@ window.BankSyncView = {
                 window.app.setFastNotificationsPolling(true);
             }
 
-            // Rafraîchir les données et l'état
-            const refreshAll = async () => {
-                await this.refreshActiveViews();
-                if (this.connections && this.connections.length > 0) this.loadConnections();
-                if (window.app && window.app.loadNotifications) window.app.loadNotifications();
+            // Suivi intelligent et non intrusif du relevé en arrière-plan
+            let pollCount = 0;
+            const checkSyncStatus = async () => {
+                pollCount++;
+                try {
+                    const statusRes = await API.get('/api/bank-sync/status');
+                    const isStillRunning = statusRes && statusRes.running_tasks && statusRes.running_tasks.length > 0;
+                    
+                    if (!isStillRunning || pollCount >= 12) {
+                        // Fin du relevé : mise à jour unique et propre
+                        setButtonsState('success');
+                        setTimeout(() => setButtonsState('idle'), 3000);
+                        if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+                            window.app.setFastNotificationsPolling(false);
+                        }
+                        await this.refreshActiveViews();
+                        if (this.connections && this.connections.length > 0) this.loadConnections();
+                        if (window.app && typeof window.app.loadNotifications === 'function') {
+                            window.app.loadNotifications();
+                        }
+                        return;
+                    }
+                } catch(e) {
+                    console.warn('[BankSync] Erreur polling statut sync:', e);
+                }
+
+                // Vérifier à nouveau dans 2.5 secondes si le relevé est toujours en cours
+                setTimeout(checkSyncStatus, 2500);
             };
 
-            setTimeout(refreshAll, 3000);
-            setTimeout(refreshAll, 8000);
-            setTimeout(refreshAll, 14000);
-            setTimeout(async () => {
-                await refreshAll();
-                setButtonsState('success');
-                setTimeout(() => setButtonsState('idle'), 2500);
-            }, 20000);
+            setTimeout(checkSyncStatus, 3000);
         } catch (err) {
             console.error('[BankSync] Erreur trigger-auto-sync:', err);
             if (err.status === 401 || (err.detail && err.detail.includes('verrouill'))) {
@@ -1090,22 +1114,17 @@ window.BankSyncView = {
 
     async refreshActiveViews() {
         await this.loadPendingSync();
-        if (window.app && typeof window.app.refreshCurrentView === 'function') {
-            await window.app.refreshCurrentView();
-        }
-        if (window.TimelineView && typeof window.TimelineView.loadData === 'function') {
-            await window.TimelineView.loadData();
-        }
-        if (window.AllOperationsView && typeof window.AllOperationsView.loadData === 'function') {
-            await window.AllOperationsView.loadData();
-        }
-        if (window.OverviewView && typeof window.OverviewView.init === 'function') {
+        const curView = window.app?.currentView;
+        if (curView === 'overview' && window.OverviewView && typeof window.OverviewView.init === 'function') {
             await window.OverviewView.init();
-        }
-        if (window.AccountsView && typeof window.AccountsView.loadData === 'function') {
+        } else if ((curView === 'dashboard' || curView === 'timeline') && window.TimelineView && typeof window.TimelineView.loadData === 'function') {
+            await window.TimelineView.loadData();
+        } else if (curView === 'all_operations' && window.AllOperationsView && typeof window.AllOperationsView.loadData === 'function') {
+            await window.AllOperationsView.loadData();
+        } else if (curView === 'accounts' && window.AccountsView && typeof window.AccountsView.loadData === 'function') {
             await window.AccountsView.loadData();
         }
-        if (window.app && window.app.refreshSidebar) {
+        if (window.app && typeof window.app.refreshSidebar === 'function') {
             window.app.refreshSidebar();
         }
     },
@@ -1200,7 +1219,7 @@ window.BankSyncView = {
             const rawSubHtml = showRaw ? `<div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85;">🏦 ${window.escapeHtml ? window.escapeHtml(g.raw_description) : g.raw_description}</div>` : '';
 
             return `
-            <tr class="ghost-row" style="background: rgba(245, 158, 11, 0.04); border-left: 3px dashed #f59e0b; transition: background 0.15s ease;">
+            <tr id="ghostRow_${g.csv_id}" class="ghost-row" style="background: rgba(245, 158, 11, 0.04); border-left: 3px dashed #f59e0b; transition: background 0.15s ease;">
                 <td style="padding: 8px 12px; font-size: 11px; white-space: nowrap;">
                     <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
                 </td>
@@ -1247,7 +1266,7 @@ window.BankSyncView = {
             const rawSubHtml = showRaw ? `<div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85;">🏦 ${window.escapeHtml ? window.escapeHtml(g.raw_description) : g.raw_description}</div>` : '';
 
             return `
-            <div class="ghost-mobile-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-left: 3px dashed #f59e0b; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm);">
+            <div id="ghostCard_${g.csv_id}" class="ghost-mobile-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-left: 3px dashed #f59e0b; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
@@ -1330,6 +1349,20 @@ window.BankSyncView = {
     async validateGhostRow(csvId) {
         const ghost = this.ghostTransactions.find(g => g.csv_id === csvId);
         if (!ghost) return;
+
+        const rowEls = [
+            document.getElementById(`ovGhostRow_${csvId}`),
+            document.getElementById(`ghostRow_${csvId}`),
+            document.getElementById(`ghostCard_${csvId}`)
+        ].filter(Boolean);
+
+        rowEls.forEach(el => {
+            el.style.transition = 'opacity 0.2s, transform 0.2s';
+            el.style.opacity = '0.15';
+            el.style.transform = 'translateX(-10px)';
+            el.style.pointerEvents = 'none';
+        });
+
         try {
             await API.post('/api/bank-sync/commit-ghost', {
                 connection_id: ghost.connection_id || 0,
@@ -1339,17 +1372,40 @@ window.BankSyncView = {
             this.showToast(window.i18n ? window.i18n.t('ghost_validated') || 'Opération validée' : 'Opération validée', 'success');
             await this.refreshActiveViews();
         } catch (err) {
+            rowEls.forEach(el => {
+                el.style.opacity = '1';
+                el.style.transform = '';
+                el.style.pointerEvents = '';
+            });
             this.showToast('Erreur validation : ' + (err.detail || err.message), 'error');
         }
     },
 
     async dismissGhostRow(csvId) {
+        const rowEls = [
+            document.getElementById(`ovGhostRow_${csvId}`),
+            document.getElementById(`ghostRow_${csvId}`),
+            document.getElementById(`ghostCard_${csvId}`)
+        ].filter(Boolean);
+
+        rowEls.forEach(el => {
+            el.style.transition = 'opacity 0.2s, transform 0.2s';
+            el.style.opacity = '0.15';
+            el.style.transform = 'translateX(-10px)';
+            el.style.pointerEvents = 'none';
+        });
+
         try {
             await API.post(`/api/bank-sync/dismiss-ghost/${encodeURIComponent(csvId)}`);
             this.ghostTransactions = this.ghostTransactions.filter(g => g.csv_id !== csvId);
             this.showToast(window.i18n ? window.i18n.t('ghost_dismissed') || 'Opération ignorée' : 'Opération ignorée', 'info');
             await this.refreshActiveViews();
         } catch (err) {
+            rowEls.forEach(el => {
+                el.style.opacity = '1';
+                el.style.transform = '';
+                el.style.pointerEvents = '';
+            });
             this.showToast('Erreur : ' + (err.detail || err.message), 'error');
         }
     },
@@ -1407,6 +1463,14 @@ window.BankSyncView = {
     // ── RAPPROCHEMENT EN 1 CLIC (Depuis Dashboard ou Historique) ─────
     async reconcileFast(txId) {
         try {
+            const ovRow = document.getElementById(`ovRow_${txId}`);
+            if (ovRow) {
+                ovRow.style.transition = 'opacity 0.2s, transform 0.2s';
+                ovRow.style.opacity = '0.15';
+                ovRow.style.transform = 'translateX(-10px)';
+                ovRow.style.pointerEvents = 'none';
+            }
+
             const res = await API.post(`/api/bank-sync/reconcile-fast/${txId}`);
             this.showToast(window.i18n ? window.i18n.t('bank_sync_reconciled_success') || 'Opération pointée avec succès !' : 'Opération pointée avec succès !', 'success');
 
@@ -1417,6 +1481,12 @@ window.BankSyncView = {
 
             await this.refreshActiveViews();
         } catch (err) {
+            const ovRow = document.getElementById(`ovRow_${txId}`);
+            if (ovRow) {
+                ovRow.style.opacity = '1';
+                ovRow.style.transform = '';
+                ovRow.style.pointerEvents = '';
+            }
             this.showToast('Erreur pointage : ' + (err.detail || err.message), 'error');
         }
     },
@@ -1603,12 +1673,15 @@ window.BankSyncView = {
                     ? new Date(conn.last_sync_at).toLocaleString() 
                     : window.i18n.t('bank_sync_never');
                 
-                const isStalePasswordError = this.isVaultUnlocked && conn.last_error && (conn.last_error.toLowerCase().includes('mot de passe') || conn.last_error.toLowerCase().includes('coffre'));
-                const effectiveError = isStalePasswordError ? null : conn.last_error;
-                const isError = !isStalePasswordError && (conn.last_sync_status === 'error' || conn.last_sync_status === 'auto_error');
+                const isVaultUnlocked = Boolean(this.vaultStatus && this.vaultStatus.is_unlocked);
+                const isStalePasswordError = isVaultUnlocked && conn.last_error && (conn.last_error.toLowerCase().includes('mot de passe') || conn.last_error.toLowerCase().includes('coffre'));
+                const effectiveError = isStalePasswordError ? null : (conn.last_error && conn.last_error.trim() ? conn.last_error.trim() : null);
+                const isError = !isStalePasswordError && (conn.last_sync_status === 'error' || conn.last_sync_status === 'auto_error' || Boolean(effectiveError));
                 const statusBadge = isError 
                     ? `<span style="background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🔴</span> <span>${window.i18n.t('bank_sync_status_error')}</span></span>`
                     : `<span style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🟢</span> <span>${window.i18n.t('bank_sync_status_connected')}</span></span>`;
+
+                const displayError = isError ? (effectiveError || window.i18n.t('bank_sync_status_error') || 'Erreur lors de la synchronisation.') : null;
 
                 const cachedPreview = this.getCachedPreview(conn.id);
                 const cachedBtn = cachedPreview ? `
@@ -1634,16 +1707,16 @@ window.BankSyncView = {
                                 <span>${lastSyncText}</span>
                                 ${conn.last_sync_count ? `<span style="background: rgba(16,185,129,0.12); color: #10b981; font-weight: 700; padding: 1px 8px; border-radius: 6px; font-size: 11px;">+${conn.last_sync_count} op.</span>` : ''}
                             </div>
-                            ${effectiveError ? `
+                            ${displayError ? `
                                 <div style="font-size: 11px; color: #ef4444; margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                    <span>⚠️ ${effectiveError}</span>
-                                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur connexion bancaire: ${conn.backend || conn.id} - ${effectiveError.replace(/'/g, "\\'")}');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Copier un rapport technique anonymisé">
+                                    <span>⚠️ ${displayError}</span>
+                                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur connexion bancaire: ${conn.backend || conn.id} - ${displayError.replace(/'/g, "\\'")}');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Copier un rapport technique anonymisé">
                                         📋 Copier
                                     </button>
                                     <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur connexion bancaire: ${conn.backend || conn.id}');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Créer une issue GitHub">
                                         🐙 Issue
                                     </button>
-                                    <button class="btn btn-secondary" onclick="if(window.app && window.app.loadView) window.app.loadView('config');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Accéder aux diagnostics">
+                                    <button class="btn btn-secondary" onclick="if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Accéder aux diagnostics">
                                         ⚙️ Diag
                                     </button>
                                 </div>
@@ -1898,7 +1971,7 @@ window.BankSyncView = {
             errDiv.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
                     <span style="font-weight: 700; color: #ef4444;">⚠️ Erreur :</span>
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.closeAddModal(); if(window.app && window.app.loadView) window.app.loadView('config');" style="font-size: 11px; padding: 2px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; color: var(--text-main); border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;">
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.closeAddModal(); if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" style="font-size: 11px; padding: 2px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; color: var(--text-main); border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;">
                         ⚙️ Configuration & Diagnostics
                     </button>
                 </div>
@@ -1940,7 +2013,7 @@ window.BankSyncView = {
 
         container.innerHTML = `
             <div style="text-align: center; padding: 30px 20px; color: var(--text-muted);">
-                <div style="font-size: 28px; margin-bottom: 10px; animation: spin 1.5s linear infinite; display: inline-block;">🔄</div>
+                <div style="font-size: 28px; margin-bottom: 10px; animation: spin-reverse 1.5s linear infinite; display: inline-block;">🔄</div>
                 <div id="mappingModalLoadingText" style="font-size: 13px; font-weight: 600; color: var(--text-main);">
                     Connexion sécurisée à votre banque...
                 </div>
@@ -2045,7 +2118,7 @@ window.BankSyncView = {
                         <div style="font-weight: 700; color: #ef4444; display: flex; align-items: center; gap: 6px;">
                             <span>⚠️</span> <span>${window.i18n.t('bank_sync_cannot_fetch_remote')}</span>
                         </div>
-                        <button class="btn btn-secondary" onclick="window.BankSyncView.closeMappingModal(); if(window.app && window.app.loadView) window.app.loadView('config');" style="font-size: 11.5px; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; color: var(--text-main); border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;" title="${window.i18n.t('bank_sync_btn_config_diag')}">
+                        <button class="btn btn-secondary" onclick="window.BankSyncView.closeMappingModal(); if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" style="font-size: 11.5px; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; color: var(--text-main); border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;" title="${window.i18n.t('bank_sync_btn_config_diag')}">
                             ⚙️ ${window.i18n.t('bank_sync_btn_config_diag')}
                         </button>
                     </div>

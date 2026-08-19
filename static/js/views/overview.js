@@ -204,60 +204,77 @@ window.OverviewView = {
         `;
     },
 
+    _initInFlight: false,
+    _queuedInit: false,
+
     async loadData() {
         return this.init();
     },
 
     async init() {
-        const [config, stats, accounts, transactions] = await Promise.all([
-            API.get('/api/config/'),
-            API.get('/api/stats/dashboard'),
-            API.get('/api/stats/accounts'),
-            API.get('/api/transactions/?limit=1000')
-        ]);
-
-        if (config) {
-            if (config.overview_account_id !== undefined) {
-                this._selectedAccountId = config.overview_account_id;
-            }
-            if (config.overview_active_tab !== undefined) {
-                this._activeTab = config.overview_active_tab;
-            }
-            if (config.overview_trend_mode !== undefined) {
-                this._trendMode = config.overview_trend_mode;
-            }
-            if (config.overview_top6_filter !== undefined) {
-                this._top6Filter = config.overview_top6_filter;
-            }
+        if (this._initInFlight) {
+            this._queuedInit = true;
+            return;
         }
-        if (window.ProfileStorage) {
-            const savedTop6 = window.ProfileStorage.get('overview_top6_filter');
-            if (savedTop6) this._top6Filter = savedTop6;
-        }
+        this._initInFlight = true;
 
-        this._stats = stats;
-        this._accounts = accounts || [];
-        this._transactions = transactions || [];
-        this._accountsMap = {};
-        this._accounts.forEach(a => { this._accountsMap[a.id] = a; });
+        try {
+            const [config, stats, accounts, transactions] = await Promise.all([
+                API.get('/api/config/'),
+                API.get('/api/stats/dashboard'),
+                API.get('/api/stats/accounts'),
+                API.get('/api/transactions/?limit=1000')
+            ]);
 
-        this._populateAccountSelect();
-        this._updateActiveTabUI();
-        this._updateTrendModeUI();
-        this._renderHealthBadge(stats);
-        this._renderHero(stats);
-        await this._checkBankConnections();
-        await this._renderPendingBankSyncBanner();
-        this._renderUnreconciled(transactions);
-        this._renderTop3(transactions);
-        this._renderBudgets(stats);
-        this._renderSavings(stats);
-        await this._renderTrend();
+            if (config) {
+                if (config.overview_account_id !== undefined) {
+                    this._selectedAccountId = config.overview_account_id;
+                }
+                if (config.overview_active_tab !== undefined) {
+                    this._activeTab = config.overview_active_tab;
+                }
+                if (config.overview_trend_mode !== undefined) {
+                    this._trendMode = config.overview_trend_mode;
+                }
+                if (config.overview_top6_filter !== undefined) {
+                    this._top6Filter = config.overview_top6_filter;
+                }
+            }
+            if (window.ProfileStorage) {
+                const savedTop6 = window.ProfileStorage.get('overview_top6_filter');
+                if (savedTop6) this._top6Filter = savedTop6;
+            }
 
-        if (this._pendingHighlightTxId) {
-            const txId = this._pendingHighlightTxId;
-            this._pendingHighlightTxId = null;
-            requestAnimationFrame(() => this.highlightRow(txId));
+            this._stats = stats;
+            this._accounts = accounts || [];
+            this._transactions = transactions || [];
+            this._accountsMap = {};
+            this._accounts.forEach(a => { this._accountsMap[a.id] = a; });
+
+            this._populateAccountSelect();
+            this._updateActiveTabUI();
+            this._updateTrendModeUI();
+            this._renderHealthBadge(stats);
+            this._renderHero(stats);
+            await this._checkBankConnections();
+            await this._renderPendingBankSyncBanner();
+            this._renderUnreconciled(transactions);
+            this._renderTop3(transactions);
+            this._renderBudgets(stats);
+            this._renderSavings(stats);
+            await this._renderTrend();
+
+            if (this._pendingHighlightTxId) {
+                const txId = this._pendingHighlightTxId;
+                this._pendingHighlightTxId = null;
+                requestAnimationFrame(() => this.highlightRow(txId));
+            }
+        } finally {
+            this._initInFlight = false;
+            if (this._queuedInit) {
+                this._queuedInit = false;
+                this.init();
+            }
         }
     },
 
@@ -388,12 +405,12 @@ window.OverviewView = {
 
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                 ${totalMatches > 0 ? `
-                <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.reconcileAllPending().then(() => window.OverviewView.init())" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
+                <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.reconcileAllPending()" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
                     ⚡ ${window.i18n.t('bank_btn_reconcile_all') || 'Rapprocher en banque'} (${totalMatches})
                 </button>
                 ` : ''}
                 ${totalNew > 0 ? `
-                <button class="btn btn-gold btn-sm" onclick="window.BankSyncView.commitAllGhosts().then(() => window.OverviewView.init())" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
+                <button class="btn btn-gold btn-sm" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
                     📥 ${window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations'} (${totalNew})
                 </button>
                 ` : ''}
@@ -414,13 +431,13 @@ window.OverviewView = {
         const isOrgMode = window.app?.config?.enable_org_mode === 'true';
 
         if (stats.overdraft_warning) {
-            badge.className = 'overview-health-badge danger';
+            badge.className = 'overview-health-badge danger badge-danger';
             badge.textContent = window.i18n.t('overview_health_danger') || '⚠️ Risque Découvert';
         } else if (stats.rest_to_live < 0) {
-            badge.className = 'overview-health-badge warning';
+            badge.className = 'overview-health-badge warning badge-warning';
             badge.textContent = window.i18n.t('overview_health_warning') || '⚡ Reste à vivre négatif';
         } else {
-            badge.className = 'overview-health-badge success';
+            badge.className = 'overview-health-badge success badge-success';
             badge.textContent = isOrgMode
                 ? (window.i18n.t('overview_org_health_ok') || '✨ Trésorerie Saine')
                 : (window.i18n.t('overview_health_ok') || '✨ Budget Équilibré');
@@ -737,13 +754,13 @@ window.OverviewView = {
                     <td class="ov-td-amt privacy-blur" style="color: ${amtColor}; font-weight: 700;">${amtFormatted}</td>
                     <td class="ov-td-action" style="text-align: right; white-space: nowrap;">
                         <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end;">
-                            <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}').then(() => window.OverviewView.init())" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700; height: 28px; display: inline-flex; align-items: center; gap: 3px;">
+                            <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700; height: 28px; display: inline-flex; align-items: center; gap: 3px;">
                                 ✔ ${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.editGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_edit_single') || 'Modifier' : 'Modifier'}" style="font-size: 11px; padding: 3px 7px; border-radius: 6px; height: 28px;">
                                 ✏️
                             </button>
-                            <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.dismissGhostRow('${g.csv_id}').then(() => window.OverviewView.init())" title="${window.i18n ? window.i18n.t('ghost_dismiss_single') || 'Ignorer' : 'Ignorer'}" style="font-size: 11px; padding: 3px 7px; border-radius: 6px; height: 28px; color: var(--text-muted);">
+                            <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.dismissGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_dismiss_single') || 'Ignorer' : 'Ignorer'}" style="font-size: 11px; padding: 3px 7px; border-radius: 6px; height: 28px; color: var(--text-muted);">
                                 ✕
                             </button>
                         </div>
@@ -1138,11 +1155,6 @@ window.OverviewView = {
 
             const netTotals = monthKeys.map((mk, i) => Math.round((incomeTotals[i] - expenseTotals[i]) * 100) / 100);
 
-            if (this._chart) {
-                this._chart.destroy();
-                this._chart = null;
-            }
-
             const ctx = canvas.getContext('2d');
             let datasets = [];
 
@@ -1202,8 +1214,23 @@ window.OverviewView = {
                 }];
             }
 
+            const targetType = this._trendMode === 'balance' ? 'bar' : 'line';
+            if (this._chart && this._chart.config && this._chart.config.type === targetType) {
+                this._chart.data.labels = monthLabels;
+                this._chart.data.datasets = datasets;
+                this._chart.options.plugins.legend.display = this._trendMode === 'compare';
+                this._chart.options.scales.y.beginAtZero = this._trendMode !== 'balance';
+                this._chart.update('none');
+                return;
+            }
+
+            if (this._chart) {
+                this._chart.destroy();
+                this._chart = null;
+            }
+
             this._chart = new Chart(canvas, {
-                type: this._trendMode === 'balance' ? 'bar' : 'line',
+                type: targetType,
                 data: {
                     labels: monthLabels,
                     datasets: datasets
