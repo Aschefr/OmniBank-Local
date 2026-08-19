@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.87] - 2026-08-19
+
+### Improved & Fixed
+- **Comprehensive Bilingual Internationalization (FR / EN) 🌐**:
+  - Fully translated bank synchronization header badges (encrypted status, vault countdown with dynamic day units, auto-sync widget).
+  - Localized bank connection error fallbacks, error reporting action buttons (`Copy`, `Issue`, `Diag`), and account mapping modal.
+  - Eliminated all remaining hardcoded UI strings, placeholders, and tooltips across diagnostics, smart rules, settings, recurrences, and budgets.
+  - Synchronized over 110 new translation keys with strict parity in `fr.json` and `en.json` (UTF-8-SIG).
+- **AI Assistant Tool Badges & Descriptive Tooltips 🤖**:
+  - Replaced technical function names (`tool_get_financial_summary`, `tool_forecast_balances_history`, etc.) on AI tool usage badges with user-friendly translated labels.
+  - Added descriptive hover tooltips explaining the exact action taken by the AI assistant for each tool.
+  - Updated tool emoji mapping across all 32 read and write assistant actions.
+
 ## [1.0.86] - 2026-08-19
 
 ### Added & Improved

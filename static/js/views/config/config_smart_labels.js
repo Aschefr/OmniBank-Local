@@ -64,7 +64,7 @@ window.ConfigSmartLabels = {
                             </tr>
                         </thead>
                         <tbody id="smartLabelsTableBody">
-                            <tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);">Chargement des règles...</td></tr>
+                            <tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);" data-i18n="smart_label_loading">${window.i18n?.t('smart_label_loading') || 'Chargement des règles...'}</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -131,7 +131,7 @@ window.ConfigSmartLabels = {
             console.warn('[SmartLabels] Erreur chargement des règles:', e);
             const tbody = document.getElementById('smartLabelsTableBody');
             if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);">Erreur de chargement.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);" data-i18n="smart_label_load_error">${window.i18n?.t('smart_label_load_error') || 'Erreur de chargement.'}</td></tr>`;
             }
         }
     },
@@ -140,7 +140,8 @@ window.ConfigSmartLabels = {
         const tbody = document.getElementById('smartLabelsTableBody');
         const badge = document.getElementById('smartLabelsCountBadge');
         if (badge) {
-            badge.textContent = `${this.mappings.length} ${this.mappings.length > 1 ? 'règles' : 'règle'}`;
+            const ruleWord = this.mappings.length > 1 ? (window.i18n?.t('smart_label_rules_plural') || 'règles') : (window.i18n?.t('smart_label_rules_singular') || 'règle');
+            badge.textContent = `${this.mappings.length} ${ruleWord}`;
         }
         if (!tbody) return;
 
