@@ -1952,5 +1952,14 @@
     "acc_realign_btn": "Recalculer solde de départ",
     "acc_realign_success": "Solde initial ajusté à {initial} pour un solde actuel de {current}",
     "acc_current_balance_lbl": "Solde actuel calculé",
-    "toast_invalid_amount": "Veuillez saisir un montant valide."
+    "toast_invalid_amount": "Veuillez saisir un montant valide.",
+    "overview_health_ok": "✨ Budget Équilibré",
+    "overview_org_health_ok": "✨ Trésorerie Saine",
+    "overview_health_danger": "⚠️ Risque Découvert",
+    "overview_health_warning": "⚡ Reste à vivre négatif",
+    "no_accounts": "Aucun compte",
+    "uncategorized": "Sans catégorie",
+    "error_loading_data": "Erreur lors du chargement des données",
+    "btn_back": "Retour",
+    "acc_view_history": "Voir les opérations dans l'historique"
 }

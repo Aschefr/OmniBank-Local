@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHlyNjRWSTlZb05zbjlTVDZnQis1cEplclZZNDNOSFVjNUpOdXUvbC9LNmFySWdBMGhwRHc3UVgrNnpmYnIwZDE1clExY0F3VVJESE9FUmc0clRrOGdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MDg0OTc2CWZpbGU6T21uaUJhbmtfMS4wLjg1X3g2NF9mci1GUi5tc2kKWFdrSTJDVnhGZEtUOXFnZDVvU00vczgvaTBHS2FnM2pxejRhWVNLL1B1dmc1RTUxVGVpRWczcS9IcXdBVklYaHpBanYvZllOQ1NNa0JZRU80ZGFhQVE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.85/OmniBank_1.0.85_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDVsdXhkYk92WDRCcEg3NVVuNElXWlovN2pyVFk1SVBxSmcyV2tTczkyZy81U2tSSENSOE9pVS81RkZacE5rWmZhd210bWIxMkg5dkRqYmE5b2JIeVFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MTU2NTUzCWZpbGU6T21uaUJhbmtfMS4wLjg2X3g2NF9mci1GUi5tc2kKTVA1NEkrbEgwMjRURmRDaUl3bkJkdFR5bFJ2dElBWm92L3FNSGpkdHZpeGtMSVRKUktBdWJ5TlpuVFFKQ1Z2b2ZRYnBHV3kwd2dWYjdiNmZjdjVwRFE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.86/OmniBank_1.0.86_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-18T20:29:36Z",
-    "version":  "1.0.85",
-    "notes":  "Bank sync BoursoBank support, smart labels, balance realignment, vault security"
+    "pub_date":  "2026-08-19T16:22:33Z",
+    "version":  "1.0.86",
+    "notes":  "OmniBank v1.0.86 - Code Audit \u0026 Hardening, Smart Diagnostics Auto-Scroll, Bank Sync Robustness"
 }

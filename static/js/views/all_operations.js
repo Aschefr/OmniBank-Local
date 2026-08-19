@@ -42,40 +42,40 @@ window.AllOperationsView = {
             <div id="historyHeader" class="view-header responsive-header" style="position: sticky; top: -32px; z-index: 10; background-color: var(--bg-base); padding: 32px 0 15px 0; margin-top: -32px;">
                 <h2 style="margin:0; display:flex; align-items:center; gap:10px;">
                     📋 <span data-i18n="nav_history">Historique</span>
-                    <button id="btnHistoryBackToAnalytics" class="btn btn-secondary" style="display:none; padding: 4px 10px; font-size: 13px; font-weight: 500; align-items: center; gap: 4px;" onclick="window.app.loadView(window.AllOperationsView.backToView || 'analytics')" title="Retour">⬅️ Retour</button>
+                    <button id="btnHistoryBackToAnalytics" class="btn btn-secondary" style="display:none; padding: 4px 10px; font-size: 13px; font-weight: 500; align-items: center; gap: 4px;" onclick="window.app.loadView(window.AllOperationsView.backToView || 'analytics')" title="${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}">⬅️ <span data-i18n="btn_back">${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}</span></button>
                 </h2>
-                <div class="responsive-header-controls">
-                    <div class="history-filters" style="display:flex; gap:8px; width:100%; max-width:900px; justify-content:flex-end; flex-wrap:wrap; align-items: center;">
-                    <input type="text" id="historySearch" class="inline-input" data-i18n-placeholder="ph_search" placeholder="Rechercher..." style="min-width:0; flex:1; max-width: 180px;" oninput="window.AllOperationsView.applyFilters()">
-                    <div style="display:inline-flex; align-items:center; gap:4px; margin-right: 4px;">
-                        <button id="historyMonthPrevBtn" class="btn btn-secondary" style="display:none; padding:0 8px; font-size:11px; min-height:32px; line-height:32px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-surface); cursor: pointer;" onclick="window.AllOperationsView.navigateMonthFilter(-1)" title="Mois précédent">◀</button>
-                        <select id="historyMonthFilter" class="inline-input" style="min-width:110px; flex:1;" onchange="window.AllOperationsView.applyFilters(); window.AllOperationsView.updateMonthNavButtons();">
+                <div class="responsive-header-controls" style="display:flex; align-items:center; gap:6px; flex:1; justify-content:flex-end;">
+                    <div class="history-filters" style="display:flex; gap:6px; flex:1; max-width:880px; justify-content:flex-end; flex-wrap:nowrap; align-items: center;">
+                    <input type="text" id="historySearch" class="inline-input" data-i18n-placeholder="ph_search" placeholder="Rechercher..." style="width: 135px; height:32px; font-size:12px; padding: 2px 8px; flex-shrink:0;" oninput="window.AllOperationsView.applyFilters()">
+                    <div style="display:inline-flex; align-items:center; gap:3px; flex-shrink:0;">
+                        <button id="historyMonthPrevBtn" class="btn btn-secondary" style="display:none; padding:0 6px; font-size:11px; height:32px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-surface); cursor: pointer;" onclick="window.AllOperationsView.navigateMonthFilter(-1)" title="Mois précédent">◀</button>
+                        <select id="historyMonthFilter" class="inline-input" style="width: 125px; height:32px; font-size:12px; padding: 2px 8px;" onchange="window.AllOperationsView.applyFilters(); window.AllOperationsView.updateMonthNavButtons();">
                             <option value="" data-i18n="filter_all_months">${window.i18n.t('filter_all_months') || 'Tous les mois'}</option>
                         </select>
-                        <button id="historyMonthNextBtn" class="btn btn-secondary" style="display:none; padding:0 8px; font-size:11px; min-height:32px; line-height:32px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-surface); cursor: pointer;" onclick="window.AllOperationsView.navigateMonthFilter(1)" title="Mois suivant">▶</button>
+                        <button id="historyMonthNextBtn" class="btn btn-secondary" style="display:none; padding:0 6px; font-size:11px; height:32px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-surface); cursor: pointer;" onclick="window.AllOperationsView.navigateMonthFilter(1)" title="Mois suivant">▶</button>
                     </div>
-                    <select id="historyTypeFilter" class="inline-input" style="min-width:130px; flex:1;" onchange="window.AllOperationsView.applyFilters()">
+                    <select id="historyTypeFilter" class="inline-input" style="width: 145px; height:32px; font-size:12px; padding: 2px 8px; flex-shrink:0;" onchange="window.AllOperationsView.applyFilters()">
                         <option value="" data-i18n="filter_all_types">${window.i18n.t('filter_all_types')}</option>
                         <option value="expense_fixed" data-i18n="type_expense_fixed">${window.i18n.t('type_expense_fixed')}</option>
                         <option value="expense_var" data-i18n="type_expense_var">${window.i18n.t('type_expense_var')}</option>
                         <option value="income" data-i18n="type_income">${window.i18n.t('type_income')}</option>
                         <option value="transfer" data-i18n="type_transfer">${window.i18n.t('type_transfer')}</option>
                     </select>
-                    <select id="historyAccountFilter" class="inline-input" style="min-width:130px; flex:1; max-width:180px;" onchange="window.AllOperationsView.applyFilters()">
+                    <select id="historyAccountFilter" class="inline-input" style="width: 165px; height:32px; font-size:12px; padding: 2px 8px; flex-shrink:0;" onchange="window.AllOperationsView.applyFilters()">
                         <option value="" data-i18n="filter_all_accounts">${window.i18n.t('filter_all_accounts') || 'Tous les comptes'}</option>
                     </select>
-                    <div id="historyCategoryFilter" style="min-width:130px; flex:1; max-width:220px;"></div>
-                    <button class="btn btn-secondary" style="padding:0 8px; font-size:14px; border-radius:8px; min-height:32px; line-height:32px;" onclick="window.MultiSelect.reset('historyCategoryFilter')" title="${window.i18n.t('filter_reset_categories') || 'Reset categories'}">&#x21BA;</button>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="font-size:12px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_unreconciled_before_pay">${window.i18n.t('filter_unreconciled_before_pay')}</span>
-                        <label class="toggle-switch" style="flex-shrink: 0;" data-i18n-title="tooltip_filter_unreconciled" title="Filtre les dépenses non-rapprochées prévues avant la prochaine paie">
+                    <div id="historyCategoryFilter" style="width: 155px; flex-shrink:0;"></div>
+                    <button class="btn btn-secondary" style="padding:0 6px; font-size:13px; border-radius:6px; height:30px; line-height:30px; min-height:30px; flex-shrink:0;" onclick="window.MultiSelect.reset('historyCategoryFilter')" title="${window.i18n.t('filter_reset_categories') || 'Reset categories'}">&#x21BA;</button>
+                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                        <span style="font-size:11px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_unreconciled_before_pay">${window.i18n.t('filter_unreconciled_before_pay')}</span>
+                        <label class="toggle-switch" style="flex-shrink: 0; transform: scale(0.9);" data-i18n-title="tooltip_filter_unreconciled" title="Filtre les dépenses non-rapprochées prévues avant la prochaine paie">
                             <input type="checkbox" id="historyUnreconciledFilter" onchange="window.AllOperationsView.applyFilters()">
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px; ${attachDisp}">
-                        <span style="font-size:12px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_attachments">Pièces jointes</span>
-                        <label class="toggle-switch" style="flex-shrink: 0;" data-i18n-title="tooltip_filter_attachments" title="Uniquement avec pièces jointes">
+                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0; ${attachDisp}">
+                        <span style="font-size:11px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_attachments">Pièces jointes</span>
+                        <label class="toggle-switch" style="flex-shrink: 0; transform: scale(0.9);" data-i18n-title="tooltip_filter_attachments" title="Uniquement avec pièces jointes">
                             <input type="checkbox" id="historyAttachmentFilter" onchange="window.AllOperationsView.applyFilters()">
                             <span class="slider"></span>
                         </label>

@@ -450,6 +450,15 @@ async def bank_sync_scheduler_loop():
         await asyncio.sleep(60)
 
 
+_ACTIVE_BACKGROUND_SYNCS: set = set()
+
+
+def is_background_sync_running(profile_id: Optional[str] = None) -> bool:
+    """Retourne True si un relevé en arrière-plan est actuellement en cours d'exécution."""
+    pid = _resolve_profile_id(profile_id)
+    return pid in _ACTIVE_BACKGROUND_SYNCS
+
+
 def trigger_manual_auto_sync(
     master_password: Optional[str] = None,
     vault_token: Optional[str] = None,
@@ -465,6 +474,8 @@ def trigger_manual_auto_sync(
             "ok": False,
             "detail": "Coffre-fort verrouillé. Veuillez d'abord déverrouiller le coffre pour lancer le relevé."
         }
+
+    _ACTIVE_BACKGROUND_SYNCS.add(pid)
 
     def _worker():
         import time
@@ -484,6 +495,7 @@ def trigger_manual_auto_sync(
         except Exception as e:
             logger.error(f"[BankScheduler] Erreur lors du relevé manuel d'arrière-plan (profil={pid}): {e}")
         finally:
+            _ACTIVE_BACKGROUND_SYNCS.discard(pid)
             worker_db.close()
 
     import threading

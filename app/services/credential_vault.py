@@ -47,6 +47,7 @@ class CredentialVault:
     ) -> bool:
         """
         Chiffre et stocke les paramètres d'authentification pour une connexion bancaire donnée.
+        Note : l'appelant doit effectuer le db.commit() pour persister les changements.
         """
         salt = os.urandom(16)
         salt_b64 = base64.b64encode(salt).decode("ascii")
@@ -69,7 +70,6 @@ class CredentialVault:
             else:
                 db.add(GlobalConfig(key=k, value=v))
 
-        db.commit()
         logger.info(f"[Vault] Identifiants chiffrés enregistrés pour la connexion {connection_id}")
         return True
 
@@ -109,12 +109,12 @@ class CredentialVault:
 
     @staticmethod
     def delete_credentials(db: Session, connection_id: int) -> bool:
-        """Supprime définitivement les clés et données chiffrées d'une connexion."""
+        """Supprime définitivement les clés et données chiffrées d'une connexion.
+        Note : l'appelant doit effectuer le db.commit() pour persister les changements."""
         salt_key = f"bank_vault_{connection_id}_salt"
         payload_key = f"bank_vault_{connection_id}_data"
 
         db.query(GlobalConfig).filter(GlobalConfig.key.in_([salt_key, payload_key])).delete(synchronize_session=False)
-        db.commit()
         logger.info(f"[Vault] Identifiants supprimés pour la connexion {connection_id}")
         return True
 

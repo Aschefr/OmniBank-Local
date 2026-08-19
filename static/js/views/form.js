@@ -995,8 +995,10 @@ window.FormView = {
                 if (window.app.loadNotifications) {
                     await window.app.loadNotifications();
                 }
-                if (typeof window.app.refreshCurrentView === 'function') {
-                    window.app.refreshCurrentView();
+                if (window.BankSyncView && typeof window.BankSyncView.refreshActiveViews === 'function') {
+                    await window.BankSyncView.refreshActiveViews();
+                } else if (window.app.refreshSidebar) {
+                    window.app.refreshSidebar();
                 }
             }
             if (typeof showToast === 'function') {

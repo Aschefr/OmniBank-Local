@@ -28,24 +28,24 @@ def _find_mismatch_rows(db: Session):
 def _find_affected_categories(db: Session, tx_ids: list[int]) -> list[str]:
     if not tx_ids:
         return []
-    placeholders = ','.join(str(i) for i in tx_ids)
-    result = db.execute(text(f"""
-        SELECT DISTINCT category FROM transactions
-        WHERE id IN ({placeholders})
-          AND category IS NOT NULL AND category != ''
-    """))
-    return [r[0] for r in result]
+    from app.models import Transaction
+    rows = db.query(Transaction.category).filter(
+        Transaction.id.in_(tx_ids),
+        Transaction.category.isnot(None),
+        Transaction.category != ''
+    ).distinct().all()
+    return [r[0] for r in rows]
 
 
 def _cat_has_other_expense_var(db: Session, cat_name: str, exclude_ids: list[int]) -> bool:
-    placeholders = ','.join(str(i) for i in exclude_ids) if exclude_ids else '0'
-    result = db.execute(text(f"""
-        SELECT COUNT(*) FROM transactions
-        WHERE type = 'expense_var'
-          AND category = :cat
-          AND id NOT IN ({placeholders})
-    """), {'cat': cat_name})
-    return result.scalar() > 0
+    from app.models import Transaction
+    query = db.query(Transaction).filter(
+        Transaction.type == 'expense_var',
+        Transaction.category == cat_name
+    )
+    if exclude_ids:
+        query = query.filter(~Transaction.id.in_(exclude_ids))
+    return query.count() > 0
 
 
 @router.get("/fix_type_mismatch/preview")

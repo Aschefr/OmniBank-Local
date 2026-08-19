@@ -24,7 +24,7 @@ def heuristic_parse(df):
                 
             if parsed.notna().sum() >= len(sample) * 0.8: # 80% success
                 date_col = col
-        except:
+        except Exception:
             pass
 
     # 2. Find Amount Column(s)
@@ -46,7 +46,7 @@ def heuristic_parse(df):
             try:
                 float(x)
                 return True
-            except:
+            except Exception:
                 return False
                 
         if cleaned.apply(is_float).sum() >= len(sample) * 0.8:
@@ -65,7 +65,7 @@ def heuristic_parse(df):
                 if math.isnan(parsed) or math.isinf(parsed):
                     return 0.0
                 return parsed
-            except:
+            except Exception:
                 return 0.0
                 
         # We assume if there are two columns, one is positive, one is negative, or they just need to be summed/coalesced

@@ -311,16 +311,38 @@ def _format_account_type(acc_type) -> str:
 
 def clean_error_message(e: Exception) -> str:
     """Fournit un message d'erreur clair et lisible pour l'UI, évitant les chaînes vides ou obscures."""
-    msg = str(e).strip()
-    if not msg or msg in ("{}", "''", '""'):
-        exc_name = type(e).__name__
+    msg = str(e).strip() if e else ""
+    exc_name = type(e).__name__ if e else "UnknownException"
+
+    if not msg or msg in ("{}", "''", '""', "None"):
         if exc_name in ("NeedInteractiveFor2FA", "AppValidation"):
             return "Authentification mobile ou validation 2FA requise par votre banque."
         elif exc_name == "BrowserIncorrectPassword":
             return "Identifiant ou mot de passe bancaire incorrect."
         elif exc_name in ("BrowserUnavailable", "ActionNeeded"):
             return "Action requise sur le site ou l'application mobile de votre banque."
+        elif exc_name in ("AppValidationExpired", "AppValidationCancelled"):
+            return "La validation sur votre application bancaire a expiré ou a été annulée."
+        elif exc_name in ("ModuleLoadError", "NoModuleException"):
+            return "Le module bancaire n'a pas pu être chargé."
+        elif exc_name == "FormNotFound":
+            return "Formulaire d'authentification introuvable. Votre banque peut demander une action préalable sur son application mobile ou bloquer temporairement les accès automatisés."
         return f"Erreur de communication avec la banque ({exc_name})."
+
+    # Nettoyage des motifs d'erreurs récurrents
+    if "FormNotFound" in msg or exc_name == "FormNotFound":
+        return "Formulaire d'authentification introuvable. Votre banque peut demander une action préalable sur son application mobile ou bloquer temporairement les accès automatisés."
+    if "BrowserIncorrectPassword" in msg or "bad login" in msg.lower():
+        return "Identifiant ou mot de passe bancaire incorrect."
+    if "ActionNeeded" in msg:
+        return "Action requise sur le site ou l'application mobile de votre banque."
+    if "BrowserUnavailable" in msg:
+        return "Le serveur de votre banque est temporairement indisponible."
+    if "AppValidationCancelled" in msg or "Authentification annulée" in msg:
+        return "Validation 2FA annulée."
+    if "AppValidationExpired" in msg or "Session 2FA expirée" in msg:
+        return "Le délai de validation sur votre application bancaire a expiré."
+
     return msg
 
 

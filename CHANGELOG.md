@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.86] - 2026-08-19
+
+### Added & Improved
+- **Code Audit & Backend Hardening 🛡️**:
+  - Scoped pending bank synchronization cache management (`_PENDING_SYNC_DATA`) strictly per profile ID to eliminate race conditions.
+  - Converted maintenance queries in `maintenance.py` to parameterized SQLAlchemy ORM queries.
+  - Eliminated bare `except:` clauses across `finance_engine.py`, `csv_parser.py`, `csv_manager.py`, `ai_helpers.py`, and `chat.py`.
+  - Enforced single-responsibility and caller-controlled database transaction atomicity in `CredentialVault`.
+  - Added Linux environment marker for `uvloop` dependency in `requirements.txt`.
+- **Bank Synchronization Error Handling & Diagnostics 🩺**:
+  - Enhanced Woob error translation (`clean_error_message`) with explicit detection of `FormNotFound`, `BrowserUnavailable`, `AppValidation`, and `ActionNeeded`.
+  - Full traceback logging for synchronization exceptions.
+  - Persistent error reporting and action buttons (`📋 Copier`, `🐙 Issue`, `⚙️ Diag`) on connection cards surviving page reloads (F5).
+- **Diagnostics Navigation & Visual Highlighting 🎯**:
+  - Added `window.app.navigateToDiagnostics()` helper for all Diag triggers across the app.
+  - Smooth auto-scroll with glowing pulse highlight animation (`sectionHighlightPulse`) directly centering on the Diagnostics & Incident Report section in Settings.
+- **UI Animation Direction Polish 🔄**:
+  - Added counter-clockwise spinning animation (`spin-reverse`) matching the natural arrow direction of badge sync icons.
+
 ## [1.0.85] - 2026-08-18
 
 ### Added & Improved

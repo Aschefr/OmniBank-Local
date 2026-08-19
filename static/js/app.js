@@ -448,6 +448,62 @@ class App {
                 pendingTransfers = await API.get('/api/cross-profile/pending');
             } catch (err) { /* silent catch if endpoint fails or cross profile not active */ }
             
+            // Helper de traduction dynamique pour les notifications (Banque, Système, etc.)
+            const translateNotification = (n) => {
+                let title = n.title || '';
+                let content = n.content || '';
+
+                let linkMeta = {};
+                if (n.link_data) {
+                    try {
+                        linkMeta = typeof n.link_data === 'string' ? JSON.parse(n.link_data) : n.link_data;
+                    } catch (_) {}
+                }
+
+                // 1. Notification d'échec de relevé bancaire
+                if (n.type === 'bank_sync_error' || title.includes('Échec relevé') || title.includes('Sync failed')) {
+                    const connLabel = linkMeta.conn_label || title.replace(/^⚠️\s*(?:Échec relevé|Sync failed for|Sync failed)\s*/i, '').trim();
+                    title = `⚠️ ${window.i18n ? window.i18n.tp('notif_bank_sync_failed_title', { label: connLabel }) : title}`;
+                    
+                    let err = linkMeta.error || '';
+                    if (!err && content.includes(':')) {
+                        err = content.substring(content.indexOf(':') + 1).trim();
+                    }
+                    content = window.i18n ? window.i18n.tp('notif_bank_sync_failed_content', { label: connLabel, error: err || content }) : content;
+                }
+                // 2. Notification de synchronisation réussie
+                else if (n.type === 'bank_sync' && (title.includes('Synchronisation') || title.includes('Sync ') || title.includes('Sync:'))) {
+                    const connLabel = linkMeta.conn_label || title.replace(/^🏦\s*(?:Synchronisation|Sync)\s*/i, '').trim();
+                    title = `🏦 ${window.i18n ? window.i18n.tp('notif_bank_sync_success_title', { label: connLabel }) : title}`;
+                    
+                    let detailsList = [];
+                    if (typeof linkMeta.matches === 'number' && linkMeta.matches > 0) {
+                        detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_matches', { count: linkMeta.matches }) : `${linkMeta.matches} rapprochement(s)`);
+                    }
+                    if (typeof linkMeta.new_txs === 'number' && linkMeta.new_txs > 0) {
+                        detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new', { count: linkMeta.new_txs }) : `${linkMeta.new_txs} nouvelle(s) opération(s)`);
+                    }
+                    if (detailsList.length === 0) {
+                        const matchMatches = content.match(/(\d+)\s+rapprochement/i);
+                        const matchNew = content.match(/(\d+)\s+nouvelle/i);
+                        if (matchMatches) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_matches', { count: parseInt(matchMatches[1]) }) : `${matchMatches[1]} rapprochement(s)`);
+                        if (matchNew) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new', { count: parseInt(matchNew[1]) }) : `${matchNew[1]} nouvelle(s) opération(s)`);
+                    }
+
+                    if (detailsList.length > 0 && window.i18n) {
+                        content = window.i18n.tp('notif_bank_sync_success_content', { label: connLabel, details: detailsList.join(', ') + '.' });
+                    }
+                }
+                // 3. Notification relevé à jour (0 nouvelle opération)
+                else if (n.type === 'bank_sync' && (title.includes('À jour') || title.includes('Up to date'))) {
+                    const connLabel = linkMeta.conn_label || title.replace(/^🏦\s*(?:Relevé|Sync)\s*/i, '').replace(/:\s*(?:À jour|Up to date)\s*$/i, '').trim();
+                    title = `🏦 ${window.i18n ? window.i18n.tp('notif_bank_sync_uptodate_title', { label: connLabel }) : title}`;
+                    content = window.i18n ? window.i18n.tp('notif_bank_sync_uptodate_content', { label: connLabel }) : content;
+                }
+
+                return { title, content };
+            };
+
             // Check for new unread notifications to display toast
             let hasBankSyncNotif = false;
             if (this._knownNotifIds) {
@@ -459,8 +515,12 @@ class App {
                         if (n.type === 'bank_sync' || n.type === 'bank_sync_error') {
                             hasBankSyncNotif = true;
                         }
-                        if (typeof showToast === 'function') {
-                            showToast(`${n.title} 🔔`, 'info', 5000);
+                        const translated = translateNotification(n);
+                        const toastTitle = translated.title || n.title;
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(`${toastTitle} 🔔`, 'info', 5000);
+                        } else if (typeof showToast === 'function') {
+                            showToast(`${toastTitle} 🔔`, 'info', 5000);
                         }
                     }
                 });
@@ -550,62 +610,6 @@ class App {
                 `;}).join('');
             }
 
-            // Helper de traduction dynamique pour les notifications (Banque, Système, etc.)
-            const translateNotification = (n) => {
-                let title = n.title || '';
-                let content = n.content || '';
-
-                let linkMeta = {};
-                if (n.link_data) {
-                    try {
-                        linkMeta = typeof n.link_data === 'string' ? JSON.parse(n.link_data) : n.link_data;
-                    } catch (_) {}
-                }
-
-                // 1. Notification d'échec de relevé bancaire
-                if (n.type === 'bank_sync_error' || title.includes('Échec relevé') || title.includes('Sync failed')) {
-                    const connLabel = linkMeta.conn_label || title.replace(/^⚠️\s*(?:Échec relevé|Sync failed for|Sync failed)\s*/i, '').trim();
-                    title = `⚠️ ${window.i18n ? window.i18n.tp('notif_bank_sync_failed_title', { label: connLabel }) : title}`;
-                    
-                    let err = linkMeta.error || '';
-                    if (!err && content.includes(':')) {
-                        err = content.substring(content.indexOf(':') + 1).trim();
-                    }
-                    content = window.i18n ? window.i18n.tp('notif_bank_sync_failed_content', { label: connLabel, error: err || content }) : content;
-                }
-                // 2. Notification de synchronisation réussie
-                else if (n.type === 'bank_sync' && (title.includes('Synchronisation') || title.includes('Sync ') || title.includes('Sync:'))) {
-                    const connLabel = linkMeta.conn_label || title.replace(/^🏦\s*(?:Synchronisation|Sync)\s*/i, '').trim();
-                    title = `🏦 ${window.i18n ? window.i18n.tp('notif_bank_sync_success_title', { label: connLabel }) : title}`;
-                    
-                    let detailsList = [];
-                    if (typeof linkMeta.matches === 'number' && linkMeta.matches > 0) {
-                        detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_matches', { count: linkMeta.matches }) : `${linkMeta.matches} rapprochement(s)`);
-                    }
-                    if (typeof linkMeta.new_txs === 'number' && linkMeta.new_txs > 0) {
-                        detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new', { count: linkMeta.new_txs }) : `${linkMeta.new_txs} nouvelle(s) opération(s)`);
-                    }
-                    if (detailsList.length === 0) {
-                        const matchMatches = content.match(/(\d+)\s+rapprochement/i);
-                        const matchNew = content.match(/(\d+)\s+nouvelle/i);
-                        if (matchMatches) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_matches', { count: parseInt(matchMatches[1]) }) : `${matchMatches[1]} rapprochement(s)`);
-                        if (matchNew) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new', { count: parseInt(matchNew[1]) }) : `${matchNew[1]} nouvelle(s) opération(s)`);
-                    }
-
-                    if (detailsList.length > 0 && window.i18n) {
-                        content = window.i18n.tp('notif_bank_sync_success_content', { label: connLabel, details: detailsList.join(', ') + '.' });
-                    }
-                }
-                // 3. Notification relevé à jour (0 nouvelle opération)
-                else if (n.type === 'bank_sync' && (title.includes('À jour') || title.includes('Up to date'))) {
-                    const connLabel = linkMeta.conn_label || title.replace(/^🏦\s*(?:Relevé|Sync)\s*/i, '').replace(/:\s*(?:À jour|Up to date)\s*$/i, '').trim();
-                    title = `🏦 ${window.i18n ? window.i18n.tp('notif_bank_sync_uptodate_title', { label: connLabel }) : title}`;
-                    content = window.i18n ? window.i18n.tp('notif_bank_sync_uptodate_content', { label: connLabel }) : content;
-                }
-
-                return { title, content };
-            };
-
             // 2. Render standard notifications
             html += notifs.map(n => {
                 const dateStr = new Date(n.created_at).toLocaleString(window.i18n.lang || 'fr', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
@@ -680,7 +684,9 @@ class App {
                 } else if (linkObj.view === 'accounts' || linkObj.view === 'accounts_manager') {
                     const notifMenu = document.getElementById('notifMenu');
                     if (notifMenu) notifMenu.style.display = 'none';
-                    this.loadView('accounts');
+                    if (this.currentView !== 'accounts') {
+                        this.loadView('accounts');
+                    }
                 }
             } catch (e) {
                 console.error("Failed to parse link_data", e);
@@ -1936,6 +1942,28 @@ class App {
         poll();
     }
 
+    async navigateToDiagnostics() {
+        if (this.currentView !== 'config') {
+            this.loadView('config');
+        }
+        const startTime = Date.now();
+        const poll = () => {
+            const el = document.getElementById('configDiagSection') || document.querySelector('[data-i18n="config_diag_title"]')?.closest('div');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.remove('section-highlight-flash');
+                void el.offsetWidth; // force DOM reflow
+                el.classList.add('section-highlight-flash');
+                setTimeout(() => {
+                    el.classList.remove('section-highlight-flash');
+                }, 3500);
+            } else if (Date.now() - startTime < 3500) {
+                setTimeout(poll, 80);
+            }
+        };
+        setTimeout(poll, 120);
+    }
+
     // ── Changelog popup ──────────────────────────────────────────────
     async showChangelog() {
         const modal = document.getElementById('changelogModal');
@@ -2456,4 +2484,5 @@ class App {
 }
 
 window.app = new App();
+window.navigateToDiagnostics = () => window.app?.navigateToDiagnostics();
 document.addEventListener('DOMContentLoaded', () => window.app.init());

@@ -129,7 +129,7 @@ def get_main_account(db: Session):
             acc = db.query(Account).filter(Account.id == int(conf.value)).first()
             if acc:
                 return acc
-        except:
+        except Exception:
             pass
     # Auto-detect: account with most outgoing transactions
     from sqlalchemy import func as sqlfunc
@@ -464,14 +464,14 @@ def predict_next_paycheck(db: Session):
                     o_date = date.fromisoformat(o_date_str)
                     if o_date <= today:
                         current_month_received = True
-                except:
+                except Exception:
                     current_month_received = True
             o_amount = float(override_amount_conf.value) if override_amount_conf and override_amount_conf.value else 0.0
             historical_amounts.append(o_amount)
             
             try:
                 historical_days.append(date.fromisoformat(o_date_str).day)
-            except:
+            except Exception:
                 historical_days.append(base_pay_day)
                 
             history_records.append({
@@ -586,7 +586,7 @@ def predict_next_paycheck(db: Session):
                     "history": history_records,
                     "logical_period": logical_period_str
                 }
-        except:
+        except Exception:
             pass
             
     try:
