@@ -1,0 +1,841 @@
+﻿Date de saisie;Date opération;Description;Montant;Type;Catégorie;Date de rapprochement;Répétition mensuelle;Répétition annuelle;Depuis;Vers;ID
+01/01/2023;01/01/2023;Solde initial Compte Courant;1150,00;Recettes;Solde initial;01/01/2023;FAUX;FAUX;;Compte Courant Principal;1
+26/01/2023;27/01/2023;Salaire Mensuel 💶;1750,96;Recettes;Salaire;27/01/2023;VRAI;FAUX;;Compte Courant Principal;2
+01/01/2023;02/01/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/01/2023;VRAI;FAUX;Compte Courant Principal;Livret A;3
+04/01/2023;05/01/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/01/2023;VRAI;FAUX;Compte Courant Principal;;4
+08/01/2023;10/01/2023;Facture Électricité & Gaz ⚡;94,10;Dépenses fixes;Énergie & Eau;10/01/2023;VRAI;FAUX;Compte Courant Principal;;5
+11/01/2023;12/01/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/01/2023;VRAI;FAUX;Compte Courant Principal;;6
+17/01/2023;18/01/2023;Assurance Habitation & Auto 🛡️;66,89;Dépenses fixes;Assurance;18/01/2023;VRAI;FAUX;Compte Courant Principal;;7
+19/01/2023;20/01/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/01/2023;VRAI;FAUX;Compte Courant Principal;;8
+21/01/2023;22/01/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/01/2023;VRAI;FAUX;Compte Courant Principal;;9
+02/01/2023;02/01/2023;Courses Carrefour 🛒;93,61;Dépenses variables;Alimentation;02/01/2023;FAUX;FAUX;Compte Courant Principal;;10
+12/01/2023;12/01/2023;Courses Auchan 🛒;90,20;Dépenses variables;Alimentation;12/01/2023;FAUX;FAUX;Compte Courant Principal;;11
+20/01/2023;20/01/2023;Courses E.Leclerc 🛒;96,09;Dépenses variables;Alimentation;20/01/2023;FAUX;FAUX;Compte Courant Principal;;12
+25/01/2023;25/01/2023;Courses Lidl 🛒;94,98;Dépenses variables;Alimentation;25/01/2023;FAUX;FAUX;Compte Courant Principal;;13
+07/01/2023;07/01/2023;Station TotalEnergies - Carburant ⛽;57,22;Dépenses variables;Transport & Carburant;07/01/2023;FAUX;FAUX;Compte Courant Principal;;14
+20/01/2023;20/01/2023;Station TotalEnergies - Carburant ⛽;62,66;Dépenses variables;Transport & Carburant;20/01/2023;FAUX;FAUX;Compte Courant Principal;;15
+08/01/2023;08/01/2023;Pizzeria Bella Vista 🍕;33,02;Dépenses variables;Restauration & Sorties;08/01/2023;FAUX;FAUX;Compte Courant Principal;;16
+21/01/2023;21/01/2023;Pizzeria Bella Vista 🍕;35,59;Dépenses variables;Restauration & Sorties;21/01/2023;FAUX;FAUX;Compte Courant Principal;;17
+16/01/2023;16/01/2023;Pharmacie Centrale 💊;22,12;Dépenses variables;Santé & Mutuelle;16/01/2023;FAUX;FAUX;Compte Courant Principal;;18
+22/01/2023;22/01/2023;Decathlon - Loisirs ⚽;129,59;Dépenses variables;Loisirs & Culture;22/01/2023;FAUX;FAUX;Compte Courant Principal;;19
+12/01/2023;12/01/2023;Shopping Habillement 🛍️;54,46;Dépenses variables;Shopping & Habillement;12/01/2023;FAUX;FAUX;Compte Courant Principal;;20
+27/02/2023;28/02/2023;Salaire Mensuel 💶;1752,57;Recettes;Salaire;28/02/2023;VRAI;FAUX;;Compte Courant Principal;21
+31/01/2023;02/02/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/02/2023;VRAI;FAUX;Compte Courant Principal;Livret A;22
+04/02/2023;05/02/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/02/2023;VRAI;FAUX;Compte Courant Principal;;23
+09/02/2023;10/02/2023;Facture Électricité & Gaz ⚡;94,17;Dépenses fixes;Énergie & Eau;10/02/2023;VRAI;FAUX;Compte Courant Principal;;24
+11/02/2023;12/02/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/02/2023;VRAI;FAUX;Compte Courant Principal;;25
+17/02/2023;18/02/2023;Assurance Habitation & Auto 🛡️;68,51;Dépenses fixes;Assurance;18/02/2023;VRAI;FAUX;Compte Courant Principal;;26
+18/02/2023;20/02/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/02/2023;VRAI;FAUX;Compte Courant Principal;;27
+21/02/2023;22/02/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/02/2023;VRAI;FAUX;Compte Courant Principal;;28
+02/02/2023;02/02/2023;Courses Carrefour 🛒;91,80;Dépenses variables;Alimentation;02/02/2023;FAUX;FAUX;Compte Courant Principal;;29
+11/02/2023;11/02/2023;Courses E.Leclerc 🛒;89,63;Dépenses variables;Alimentation;11/02/2023;FAUX;FAUX;Compte Courant Principal;;30
+19/02/2023;19/02/2023;Courses Lidl 🛒;94,70;Dépenses variables;Alimentation;19/02/2023;FAUX;FAUX;Compte Courant Principal;;31
+27/02/2023;27/02/2023;Courses Carrefour 🛒;94,09;Dépenses variables;Alimentation;27/02/2023;FAUX;FAUX;Compte Courant Principal;;32
+06/02/2023;06/02/2023;Station TotalEnergies - Carburant ⛽;59,27;Dépenses variables;Transport & Carburant;06/02/2023;FAUX;FAUX;Compte Courant Principal;;33
+20/02/2023;20/02/2023;Station TotalEnergies - Carburant ⛽;56,31;Dépenses variables;Transport & Carburant;20/02/2023;FAUX;FAUX;Compte Courant Principal;;34
+09/02/2023;09/02/2023;Bistrot Gourmand 🍕;34,70;Dépenses variables;Restauration & Sorties;09/02/2023;FAUX;FAUX;Compte Courant Principal;;35
+25/02/2023;25/02/2023;Pizzeria Bella Vista 🍕;34,20;Dépenses variables;Restauration & Sorties;25/02/2023;FAUX;FAUX;Compte Courant Principal;;36
+18/02/2023;18/02/2023;Pharmacie Centrale 💊;26,15;Dépenses variables;Santé & Mutuelle;18/02/2023;FAUX;FAUX;Compte Courant Principal;;37
+22/02/2023;22/02/2023;Pathé Gaumont - Cinéma 🎬;119,58;Dépenses variables;Loisirs & Culture;22/02/2023;FAUX;FAUX;Compte Courant Principal;;38
+14/02/2023;14/02/2023;Shopping Habillement 🛍️;43,02;Dépenses variables;Shopping & Habillement;14/02/2023;FAUX;FAUX;Compte Courant Principal;;39
+26/03/2023;27/03/2023;Salaire Mensuel 💶;1756,54;Recettes;Salaire;27/03/2023;VRAI;FAUX;;Compte Courant Principal;40
+28/02/2023;02/03/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/03/2023;VRAI;FAUX;Compte Courant Principal;Livret A;41
+04/03/2023;05/03/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/03/2023;VRAI;FAUX;Compte Courant Principal;;42
+08/03/2023;10/03/2023;Facture Électricité & Gaz ⚡;80,77;Dépenses fixes;Énergie & Eau;10/03/2023;VRAI;FAUX;Compte Courant Principal;;43
+10/03/2023;12/03/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/03/2023;VRAI;FAUX;Compte Courant Principal;;44
+16/03/2023;18/03/2023;Assurance Habitation & Auto 🛡️;69,51;Dépenses fixes;Assurance;18/03/2023;VRAI;FAUX;Compte Courant Principal;;45
+19/03/2023;20/03/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/03/2023;VRAI;FAUX;Compte Courant Principal;;46
+20/03/2023;22/03/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/03/2023;VRAI;FAUX;Compte Courant Principal;;47
+02/03/2023;02/03/2023;Courses Lidl 🛒;95,45;Dépenses variables;Alimentation;02/03/2023;FAUX;FAUX;Compte Courant Principal;;48
+12/03/2023;12/03/2023;Courses E.Leclerc 🛒;95,47;Dépenses variables;Alimentation;12/03/2023;FAUX;FAUX;Compte Courant Principal;;49
+19/03/2023;19/03/2023;Courses Auchan 🛒;91,62;Dépenses variables;Alimentation;19/03/2023;FAUX;FAUX;Compte Courant Principal;;50
+25/03/2023;25/03/2023;Courses Auchan 🛒;88,91;Dépenses variables;Alimentation;25/03/2023;FAUX;FAUX;Compte Courant Principal;;51
+05/03/2023;05/03/2023;Station TotalEnergies - Carburant ⛽;61,89;Dépenses variables;Transport & Carburant;05/03/2023;FAUX;FAUX;Compte Courant Principal;;52
+20/03/2023;20/03/2023;Station TotalEnergies - Carburant ⛽;60,02;Dépenses variables;Transport & Carburant;20/03/2023;FAUX;FAUX;Compte Courant Principal;;53
+09/03/2023;09/03/2023;Pizzeria Bella Vista 🍕;37,96;Dépenses variables;Restauration & Sorties;09/03/2023;FAUX;FAUX;Compte Courant Principal;;54
+24/03/2023;24/03/2023;Pizzeria Bella Vista 🍕;37,96;Dépenses variables;Restauration & Sorties;24/03/2023;FAUX;FAUX;Compte Courant Principal;;55
+16/03/2023;16/03/2023;Pharmacie Centrale 💊;22,01;Dépenses variables;Santé & Mutuelle;16/03/2023;FAUX;FAUX;Compte Courant Principal;;56
+26/03/2023;26/03/2023;Pathé Gaumont - Cinéma 🎬;132,22;Dépenses variables;Loisirs & Culture;26/03/2023;FAUX;FAUX;Compte Courant Principal;;57
+12/03/2023;12/03/2023;Shopping Habillement 🛍️;48,63;Dépenses variables;Shopping & Habillement;12/03/2023;FAUX;FAUX;Compte Courant Principal;;58
+14/03/2023;14/03/2023;Chèque N° 458921 - Cotisation Club 🎨;35,00;Dépenses variables;Loisirs & Culture;14/03/2023;FAUX;FAUX;Compte Courant Principal;;59
+27/04/2023;28/04/2023;Salaire Mensuel 💶;1773,27;Recettes;Salaire;28/04/2023;VRAI;FAUX;;Compte Courant Principal;60
+01/04/2023;02/04/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/04/2023;VRAI;FAUX;Compte Courant Principal;Livret A;61
+03/04/2023;05/04/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/04/2023;VRAI;FAUX;Compte Courant Principal;;62
+09/04/2023;10/04/2023;Facture Électricité & Gaz ⚡;78,36;Dépenses fixes;Énergie & Eau;10/04/2023;VRAI;FAUX;Compte Courant Principal;;63
+10/04/2023;12/04/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/04/2023;VRAI;FAUX;Compte Courant Principal;;64
+17/04/2023;18/04/2023;Assurance Habitation & Auto 🛡️;67,17;Dépenses fixes;Assurance;18/04/2023;VRAI;FAUX;Compte Courant Principal;;65
+19/04/2023;20/04/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/04/2023;VRAI;FAUX;Compte Courant Principal;;66
+20/04/2023;22/04/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/04/2023;VRAI;FAUX;Compte Courant Principal;;67
+04/04/2023;04/04/2023;Courses Lidl 🛒;89,53;Dépenses variables;Alimentation;04/04/2023;FAUX;FAUX;Compte Courant Principal;;68
+10/04/2023;10/04/2023;Courses Carrefour 🛒;93,99;Dépenses variables;Alimentation;10/04/2023;FAUX;FAUX;Compte Courant Principal;;69
+19/04/2023;19/04/2023;Courses Carrefour 🛒;89,12;Dépenses variables;Alimentation;19/04/2023;FAUX;FAUX;Compte Courant Principal;;70
+26/04/2023;26/04/2023;Courses E.Leclerc 🛒;90,39;Dépenses variables;Alimentation;26/04/2023;FAUX;FAUX;Compte Courant Principal;;71
+06/04/2023;06/04/2023;Station TotalEnergies - Carburant ⛽;62,02;Dépenses variables;Transport & Carburant;06/04/2023;FAUX;FAUX;Compte Courant Principal;;72
+19/04/2023;19/04/2023;Station TotalEnergies - Carburant ⛽;55,69;Dépenses variables;Transport & Carburant;19/04/2023;FAUX;FAUX;Compte Courant Principal;;73
+09/04/2023;09/04/2023;Bistrot Gourmand 🍕;40,16;Dépenses variables;Restauration & Sorties;09/04/2023;FAUX;FAUX;Compte Courant Principal;;74
+22/04/2023;22/04/2023;Pizzeria Bella Vista 🍕;33,28;Dépenses variables;Restauration & Sorties;22/04/2023;FAUX;FAUX;Compte Courant Principal;;75
+16/04/2023;16/04/2023;Pharmacie Centrale 💊;21,32;Dépenses variables;Santé & Mutuelle;16/04/2023;FAUX;FAUX;Compte Courant Principal;;76
+26/04/2023;26/04/2023;Fnac - Livres & Musique 📚;132,45;Dépenses variables;Loisirs & Culture;26/04/2023;FAUX;FAUX;Compte Courant Principal;;77
+13/04/2023;13/04/2023;Shopping Habillement 🛍️;53,58;Dépenses variables;Shopping & Habillement;13/04/2023;FAUX;FAUX;Compte Courant Principal;;78
+26/05/2023;27/05/2023;Salaire Mensuel 💶;1771,60;Recettes;Salaire;27/05/2023;VRAI;FAUX;;Compte Courant Principal;79
+30/04/2023;02/05/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/05/2023;VRAI;FAUX;Compte Courant Principal;Livret A;80
+03/05/2023;05/05/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/05/2023;VRAI;FAUX;Compte Courant Principal;;81
+08/05/2023;10/05/2023;Facture Électricité & Gaz ⚡;78,60;Dépenses fixes;Énergie & Eau;10/05/2023;VRAI;FAUX;Compte Courant Principal;;82
+11/05/2023;12/05/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/05/2023;VRAI;FAUX;Compte Courant Principal;;83
+17/05/2023;18/05/2023;Assurance Habitation & Auto 🛡️;68,69;Dépenses fixes;Assurance;18/05/2023;VRAI;FAUX;Compte Courant Principal;;84
+19/05/2023;20/05/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/05/2023;VRAI;FAUX;Compte Courant Principal;;85
+21/05/2023;22/05/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/05/2023;VRAI;FAUX;Compte Courant Principal;;86
+03/05/2023;03/05/2023;Courses Carrefour 🛒;93,88;Dépenses variables;Alimentation;03/05/2023;FAUX;FAUX;Compte Courant Principal;;87
+10/05/2023;10/05/2023;Courses Lidl 🛒;88,07;Dépenses variables;Alimentation;10/05/2023;FAUX;FAUX;Compte Courant Principal;;88
+20/05/2023;20/05/2023;Courses Carrefour 🛒;90,29;Dépenses variables;Alimentation;20/05/2023;FAUX;FAUX;Compte Courant Principal;;89
+25/05/2023;25/05/2023;Courses E.Leclerc 🛒;88,71;Dépenses variables;Alimentation;25/05/2023;FAUX;FAUX;Compte Courant Principal;;90
+06/05/2023;06/05/2023;Station TotalEnergies - Carburant ⛽;57,23;Dépenses variables;Transport & Carburant;06/05/2023;FAUX;FAUX;Compte Courant Principal;;91
+22/05/2023;22/05/2023;Station TotalEnergies - Carburant ⛽;56,71;Dépenses variables;Transport & Carburant;22/05/2023;FAUX;FAUX;Compte Courant Principal;;92
+07/05/2023;07/05/2023;Bistrot Gourmand 🍕;39,23;Dépenses variables;Restauration & Sorties;07/05/2023;FAUX;FAUX;Compte Courant Principal;;93
+25/05/2023;25/05/2023;Pizzeria Bella Vista 🍕;36,73;Dépenses variables;Restauration & Sorties;25/05/2023;FAUX;FAUX;Compte Courant Principal;;94
+18/05/2023;18/05/2023;Pharmacie Centrale 💊;23,26;Dépenses variables;Santé & Mutuelle;18/05/2023;FAUX;FAUX;Compte Courant Principal;;95
+22/05/2023;22/05/2023;Fnac - Livres & Musique 📚;116,94;Dépenses variables;Loisirs & Culture;22/05/2023;FAUX;FAUX;Compte Courant Principal;;96
+14/05/2023;14/05/2023;Shopping Habillement 🛍️;43,47;Dépenses variables;Shopping & Habillement;14/05/2023;FAUX;FAUX;Compte Courant Principal;;97
+27/06/2023;28/06/2023;Salaire Mensuel 💶;1776,13;Recettes;Salaire;28/06/2023;VRAI;FAUX;;Compte Courant Principal;98
+01/06/2023;02/06/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/06/2023;VRAI;FAUX;Compte Courant Principal;Livret A;99
+04/06/2023;05/06/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/06/2023;VRAI;FAUX;Compte Courant Principal;;100
+08/06/2023;10/06/2023;Facture Électricité & Gaz ⚡;77,22;Dépenses fixes;Énergie & Eau;10/06/2023;VRAI;FAUX;Compte Courant Principal;;101
+10/06/2023;12/06/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/06/2023;VRAI;FAUX;Compte Courant Principal;;102
+17/06/2023;18/06/2023;Assurance Habitation & Auto 🛡️;68,61;Dépenses fixes;Assurance;18/06/2023;VRAI;FAUX;Compte Courant Principal;;103
+19/06/2023;20/06/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/06/2023;VRAI;FAUX;Compte Courant Principal;;104
+21/06/2023;22/06/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/06/2023;VRAI;FAUX;Compte Courant Principal;;105
+02/06/2023;02/06/2023;Courses Auchan 🛒;89,40;Dépenses variables;Alimentation;02/06/2023;FAUX;FAUX;Compte Courant Principal;;106
+10/06/2023;10/06/2023;Courses E.Leclerc 🛒;92,63;Dépenses variables;Alimentation;10/06/2023;FAUX;FAUX;Compte Courant Principal;;107
+18/06/2023;18/06/2023;Courses Auchan 🛒;96,08;Dépenses variables;Alimentation;18/06/2023;FAUX;FAUX;Compte Courant Principal;;108
+27/06/2023;27/06/2023;Courses Carrefour 🛒;88,51;Dépenses variables;Alimentation;27/06/2023;FAUX;FAUX;Compte Courant Principal;;109
+09/06/2023;09/06/2023;Station TotalEnergies - Carburant ⛽;61,69;Dépenses variables;Transport & Carburant;09/06/2023;FAUX;FAUX;Compte Courant Principal;;110
+19/06/2023;19/06/2023;Station TotalEnergies - Carburant ⛽;62,41;Dépenses variables;Transport & Carburant;19/06/2023;FAUX;FAUX;Compte Courant Principal;;111
+07/06/2023;07/06/2023;Pizzeria Bella Vista 🍕;33,66;Dépenses variables;Restauration & Sorties;07/06/2023;FAUX;FAUX;Compte Courant Principal;;112
+24/06/2023;24/06/2023;Pizzeria Bella Vista 🍕;34,14;Dépenses variables;Restauration & Sorties;24/06/2023;FAUX;FAUX;Compte Courant Principal;;113
+12/06/2023;12/06/2023;Pharmacie Centrale 💊;21,32;Dépenses variables;Santé & Mutuelle;12/06/2023;FAUX;FAUX;Compte Courant Principal;;114
+22/06/2023;22/06/2023;Fnac - Livres & Musique 📚;134,71;Dépenses variables;Loisirs & Culture;22/06/2023;FAUX;FAUX;Compte Courant Principal;;115
+15/06/2023;15/06/2023;Shopping Habillement 🛍️;40,70;Dépenses variables;Shopping & Habillement;15/06/2023;FAUX;FAUX;Compte Courant Principal;;116
+27/07/2023;28/07/2023;Salaire Mensuel 💶;1754,85;Recettes;Salaire;28/07/2023;VRAI;FAUX;;Compte Courant Principal;117
+01/07/2023;02/07/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/07/2023;VRAI;FAUX;Compte Courant Principal;Livret A;118
+03/07/2023;05/07/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/07/2023;VRAI;FAUX;Compte Courant Principal;;119
+09/07/2023;10/07/2023;Facture Électricité & Gaz ⚡;78,19;Dépenses fixes;Énergie & Eau;10/07/2023;VRAI;FAUX;Compte Courant Principal;;120
+11/07/2023;12/07/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/07/2023;VRAI;FAUX;Compte Courant Principal;;121
+16/07/2023;18/07/2023;Assurance Habitation & Auto 🛡️;69,87;Dépenses fixes;Assurance;18/07/2023;VRAI;FAUX;Compte Courant Principal;;122
+19/07/2023;20/07/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/07/2023;VRAI;FAUX;Compte Courant Principal;;123
+21/07/2023;22/07/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/07/2023;VRAI;FAUX;Compte Courant Principal;;124
+04/07/2023;04/07/2023;Courses Carrefour 🛒;96,51;Dépenses variables;Alimentation;04/07/2023;FAUX;FAUX;Compte Courant Principal;;125
+10/07/2023;10/07/2023;Courses Carrefour 🛒;94,75;Dépenses variables;Alimentation;10/07/2023;FAUX;FAUX;Compte Courant Principal;;126
+18/07/2023;18/07/2023;Courses Auchan 🛒;89,20;Dépenses variables;Alimentation;18/07/2023;FAUX;FAUX;Compte Courant Principal;;127
+27/07/2023;27/07/2023;Courses Lidl 🛒;93,79;Dépenses variables;Alimentation;27/07/2023;FAUX;FAUX;Compte Courant Principal;;128
+05/07/2023;05/07/2023;Station TotalEnergies - Carburant ⛽;59,96;Dépenses variables;Transport & Carburant;05/07/2023;FAUX;FAUX;Compte Courant Principal;;129
+22/07/2023;22/07/2023;Station TotalEnergies - Carburant ⛽;60,26;Dépenses variables;Transport & Carburant;22/07/2023;FAUX;FAUX;Compte Courant Principal;;130
+10/07/2023;10/07/2023;Pizzeria Bella Vista 🍕;37,23;Dépenses variables;Restauration & Sorties;10/07/2023;FAUX;FAUX;Compte Courant Principal;;131
+22/07/2023;22/07/2023;Pizzeria Bella Vista 🍕;38,70;Dépenses variables;Restauration & Sorties;22/07/2023;FAUX;FAUX;Compte Courant Principal;;132
+13/07/2023;13/07/2023;Pharmacie Centrale 💊;22,12;Dépenses variables;Santé & Mutuelle;13/07/2023;FAUX;FAUX;Compte Courant Principal;;133
+23/07/2023;23/07/2023;Fnac - Livres & Musique 📚;128,43;Dépenses variables;Loisirs & Culture;23/07/2023;FAUX;FAUX;Compte Courant Principal;;134
+15/07/2023;15/07/2023;Shopping Habillement 🛍️;41,32;Dépenses variables;Shopping & Habillement;15/07/2023;FAUX;FAUX;Compte Courant Principal;;135
+16/07/2023;16/07/2023;Camping Les Pins - Vacances 🏖️;90,00;Dépenses variables;Loisirs & Culture;16/07/2023;FAUX;FAUX;Compte Courant Principal;;136
+26/08/2023;27/08/2023;Salaire Mensuel 💶;1750,49;Recettes;Salaire;27/08/2023;VRAI;FAUX;;Compte Courant Principal;137
+01/08/2023;02/08/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/08/2023;VRAI;FAUX;Compte Courant Principal;Livret A;138
+04/08/2023;05/08/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/08/2023;VRAI;FAUX;Compte Courant Principal;;139
+09/08/2023;10/08/2023;Facture Électricité & Gaz ⚡;79,48;Dépenses fixes;Énergie & Eau;10/08/2023;VRAI;FAUX;Compte Courant Principal;;140
+10/08/2023;12/08/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/08/2023;VRAI;FAUX;Compte Courant Principal;;141
+17/08/2023;18/08/2023;Assurance Habitation & Auto 🛡️;68,25;Dépenses fixes;Assurance;18/08/2023;VRAI;FAUX;Compte Courant Principal;;142
+18/08/2023;20/08/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/08/2023;VRAI;FAUX;Compte Courant Principal;;143
+21/08/2023;22/08/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/08/2023;VRAI;FAUX;Compte Courant Principal;;144
+02/08/2023;02/08/2023;Courses E.Leclerc 🛒;90,85;Dépenses variables;Alimentation;02/08/2023;FAUX;FAUX;Compte Courant Principal;;145
+11/08/2023;11/08/2023;Courses E.Leclerc 🛒;94,12;Dépenses variables;Alimentation;11/08/2023;FAUX;FAUX;Compte Courant Principal;;146
+20/08/2023;20/08/2023;Courses Carrefour 🛒;94,68;Dépenses variables;Alimentation;20/08/2023;FAUX;FAUX;Compte Courant Principal;;147
+27/08/2023;27/08/2023;Courses E.Leclerc 🛒;97,32;Dépenses variables;Alimentation;27/08/2023;FAUX;FAUX;Compte Courant Principal;;148
+05/08/2023;05/08/2023;Station TotalEnergies - Carburant ⛽;62,51;Dépenses variables;Transport & Carburant;05/08/2023;FAUX;FAUX;Compte Courant Principal;;149
+20/08/2023;20/08/2023;Station TotalEnergies - Carburant ⛽;57,12;Dépenses variables;Transport & Carburant;20/08/2023;FAUX;FAUX;Compte Courant Principal;;150
+06/08/2023;06/08/2023;Brasserie du Centre 🍕;39,42;Dépenses variables;Restauration & Sorties;06/08/2023;FAUX;FAUX;Compte Courant Principal;;151
+23/08/2023;23/08/2023;Brasserie du Centre 🍕;34,82;Dépenses variables;Restauration & Sorties;23/08/2023;FAUX;FAUX;Compte Courant Principal;;152
+17/08/2023;17/08/2023;Pharmacie Centrale 💊;22,74;Dépenses variables;Santé & Mutuelle;17/08/2023;FAUX;FAUX;Compte Courant Principal;;153
+24/08/2023;24/08/2023;Fnac - Livres & Musique 📚;125,11;Dépenses variables;Loisirs & Culture;24/08/2023;FAUX;FAUX;Compte Courant Principal;;154
+12/08/2023;12/08/2023;Shopping Habillement 🛍️;36,85;Dépenses variables;Shopping & Habillement;12/08/2023;FAUX;FAUX;Compte Courant Principal;;155
+16/08/2023;16/08/2023;Péages & Autoroute 🛣️;35,00;Dépenses variables;Transport & Carburant;16/08/2023;FAUX;FAUX;Compte Courant Principal;;156
+27/09/2023;28/09/2023;Salaire Mensuel 💶;1775,09;Recettes;Salaire;28/09/2023;VRAI;FAUX;;Compte Courant Principal;157
+01/09/2023;02/09/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/09/2023;VRAI;FAUX;Compte Courant Principal;Livret A;158
+03/09/2023;05/09/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/09/2023;VRAI;FAUX;Compte Courant Principal;;159
+09/09/2023;10/09/2023;Facture Électricité & Gaz ⚡;77,18;Dépenses fixes;Énergie & Eau;10/09/2023;VRAI;FAUX;Compte Courant Principal;;160
+10/09/2023;12/09/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/09/2023;VRAI;FAUX;Compte Courant Principal;;161
+16/09/2023;18/09/2023;Assurance Habitation & Auto 🛡️;67,33;Dépenses fixes;Assurance;18/09/2023;VRAI;FAUX;Compte Courant Principal;;162
+19/09/2023;20/09/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/09/2023;VRAI;FAUX;Compte Courant Principal;;163
+21/09/2023;22/09/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/09/2023;VRAI;FAUX;Compte Courant Principal;;164
+02/09/2023;02/09/2023;Courses Lidl 🛒;93,46;Dépenses variables;Alimentation;02/09/2023;FAUX;FAUX;Compte Courant Principal;;165
+11/09/2023;11/09/2023;Courses Lidl 🛒;92,30;Dépenses variables;Alimentation;11/09/2023;FAUX;FAUX;Compte Courant Principal;;166
+18/09/2023;18/09/2023;Courses E.Leclerc 🛒;91,65;Dépenses variables;Alimentation;18/09/2023;FAUX;FAUX;Compte Courant Principal;;167
+25/09/2023;25/09/2023;Courses E.Leclerc 🛒;90,10;Dépenses variables;Alimentation;25/09/2023;FAUX;FAUX;Compte Courant Principal;;168
+06/09/2023;06/09/2023;Station TotalEnergies - Carburant ⛽;60,34;Dépenses variables;Transport & Carburant;06/09/2023;FAUX;FAUX;Compte Courant Principal;;169
+21/09/2023;21/09/2023;Station TotalEnergies - Carburant ⛽;61,24;Dépenses variables;Transport & Carburant;21/09/2023;FAUX;FAUX;Compte Courant Principal;;170
+09/09/2023;09/09/2023;Bistrot Gourmand 🍕;41,74;Dépenses variables;Restauration & Sorties;09/09/2023;FAUX;FAUX;Compte Courant Principal;;171
+22/09/2023;22/09/2023;Brasserie du Centre 🍕;41,26;Dépenses variables;Restauration & Sorties;22/09/2023;FAUX;FAUX;Compte Courant Principal;;172
+18/09/2023;18/09/2023;Pharmacie Centrale 💊;21,30;Dépenses variables;Santé & Mutuelle;18/09/2023;FAUX;FAUX;Compte Courant Principal;;173
+23/09/2023;23/09/2023;Pathé Gaumont - Cinéma 🎬;132,63;Dépenses variables;Loisirs & Culture;23/09/2023;FAUX;FAUX;Compte Courant Principal;;174
+13/09/2023;13/09/2023;Shopping Habillement 🛍️;49,73;Dépenses variables;Shopping & Habillement;13/09/2023;FAUX;FAUX;Compte Courant Principal;;175
+27/10/2023;28/10/2023;Salaire Mensuel 💶;1773,68;Recettes;Salaire;28/10/2023;VRAI;FAUX;;Compte Courant Principal;176
+01/10/2023;02/10/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/10/2023;VRAI;FAUX;Compte Courant Principal;Livret A;177
+03/10/2023;05/10/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/10/2023;VRAI;FAUX;Compte Courant Principal;;178
+09/10/2023;10/10/2023;Facture Électricité & Gaz ⚡;78,65;Dépenses fixes;Énergie & Eau;10/10/2023;VRAI;FAUX;Compte Courant Principal;;179
+11/10/2023;12/10/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/10/2023;VRAI;FAUX;Compte Courant Principal;;180
+16/10/2023;18/10/2023;Assurance Habitation & Auto 🛡️;68,68;Dépenses fixes;Assurance;18/10/2023;VRAI;FAUX;Compte Courant Principal;;181
+19/10/2023;20/10/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/10/2023;VRAI;FAUX;Compte Courant Principal;;182
+20/10/2023;22/10/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/10/2023;VRAI;FAUX;Compte Courant Principal;;183
+02/10/2023;02/10/2023;Courses Lidl 🛒;96,17;Dépenses variables;Alimentation;02/10/2023;FAUX;FAUX;Compte Courant Principal;;184
+11/10/2023;11/10/2023;Courses E.Leclerc 🛒;91,05;Dépenses variables;Alimentation;11/10/2023;FAUX;FAUX;Compte Courant Principal;;185
+18/10/2023;18/10/2023;Courses Lidl 🛒;88,24;Dépenses variables;Alimentation;18/10/2023;FAUX;FAUX;Compte Courant Principal;;186
+25/10/2023;25/10/2023;Courses Auchan 🛒;91,28;Dépenses variables;Alimentation;25/10/2023;FAUX;FAUX;Compte Courant Principal;;187
+05/10/2023;05/10/2023;Station TotalEnergies - Carburant ⛽;62,74;Dépenses variables;Transport & Carburant;05/10/2023;FAUX;FAUX;Compte Courant Principal;;188
+21/10/2023;21/10/2023;Station TotalEnergies - Carburant ⛽;57,81;Dépenses variables;Transport & Carburant;21/10/2023;FAUX;FAUX;Compte Courant Principal;;189
+10/10/2023;10/10/2023;Bistrot Gourmand 🍕;36,00;Dépenses variables;Restauration & Sorties;10/10/2023;FAUX;FAUX;Compte Courant Principal;;190
+23/10/2023;23/10/2023;Brasserie du Centre 🍕;41,39;Dépenses variables;Restauration & Sorties;23/10/2023;FAUX;FAUX;Compte Courant Principal;;191
+14/10/2023;14/10/2023;Pharmacie Centrale 💊;21,43;Dépenses variables;Santé & Mutuelle;14/10/2023;FAUX;FAUX;Compte Courant Principal;;192
+24/10/2023;24/10/2023;Decathlon - Loisirs ⚽;115,77;Dépenses variables;Loisirs & Culture;24/10/2023;FAUX;FAUX;Compte Courant Principal;;193
+15/10/2023;15/10/2023;Shopping Habillement 🛍️;41,91;Dépenses variables;Shopping & Habillement;15/10/2023;FAUX;FAUX;Compte Courant Principal;;194
+27/11/2023;28/11/2023;Salaire Mensuel 💶;1763,30;Recettes;Salaire;28/11/2023;VRAI;FAUX;;Compte Courant Principal;195
+01/11/2023;02/11/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/11/2023;VRAI;FAUX;Compte Courant Principal;Livret A;196
+03/11/2023;05/11/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/11/2023;VRAI;FAUX;Compte Courant Principal;;197
+09/11/2023;10/11/2023;Facture Électricité & Gaz ⚡;96,94;Dépenses fixes;Énergie & Eau;10/11/2023;VRAI;FAUX;Compte Courant Principal;;198
+10/11/2023;12/11/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/11/2023;VRAI;FAUX;Compte Courant Principal;;199
+17/11/2023;18/11/2023;Assurance Habitation & Auto 🛡️;66,46;Dépenses fixes;Assurance;18/11/2023;VRAI;FAUX;Compte Courant Principal;;200
+19/11/2023;20/11/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/11/2023;VRAI;FAUX;Compte Courant Principal;;201
+20/11/2023;22/11/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/11/2023;VRAI;FAUX;Compte Courant Principal;;202
+03/11/2023;03/11/2023;Courses Carrefour 🛒;97,49;Dépenses variables;Alimentation;03/11/2023;FAUX;FAUX;Compte Courant Principal;;203
+11/11/2023;11/11/2023;Courses E.Leclerc 🛒;94,63;Dépenses variables;Alimentation;11/11/2023;FAUX;FAUX;Compte Courant Principal;;204
+18/11/2023;18/11/2023;Courses E.Leclerc 🛒;93,07;Dépenses variables;Alimentation;18/11/2023;FAUX;FAUX;Compte Courant Principal;;205
+27/11/2023;27/11/2023;Courses Auchan 🛒;91,26;Dépenses variables;Alimentation;27/11/2023;FAUX;FAUX;Compte Courant Principal;;206
+07/11/2023;07/11/2023;Station TotalEnergies - Carburant ⛽;59,44;Dépenses variables;Transport & Carburant;07/11/2023;FAUX;FAUX;Compte Courant Principal;;207
+20/11/2023;20/11/2023;Station TotalEnergies - Carburant ⛽;58,36;Dépenses variables;Transport & Carburant;20/11/2023;FAUX;FAUX;Compte Courant Principal;;208
+09/11/2023;09/11/2023;Brasserie du Centre 🍕;38,77;Dépenses variables;Restauration & Sorties;09/11/2023;FAUX;FAUX;Compte Courant Principal;;209
+25/11/2023;25/11/2023;Pizzeria Bella Vista 🍕;37,69;Dépenses variables;Restauration & Sorties;25/11/2023;FAUX;FAUX;Compte Courant Principal;;210
+16/11/2023;16/11/2023;Pharmacie Centrale 💊;26,67;Dépenses variables;Santé & Mutuelle;16/11/2023;FAUX;FAUX;Compte Courant Principal;;211
+24/11/2023;24/11/2023;Fnac - Livres & Musique 📚;120,74;Dépenses variables;Loisirs & Culture;24/11/2023;FAUX;FAUX;Compte Courant Principal;;212
+16/11/2023;16/11/2023;Shopping Habillement 🛍️;47,13;Dépenses variables;Shopping & Habillement;16/11/2023;FAUX;FAUX;Compte Courant Principal;;213
+24/11/2023;24/11/2023;Frais Auto Exceptionnels 🔧;1400,00;Dépenses variables;Transport & Carburant;24/11/2023;FAUX;FAUX;Compte Courant Principal;;214
+27/12/2023;28/12/2023;Salaire Mensuel 💶;1764,16;Recettes;Salaire;28/12/2023;VRAI;FAUX;;Compte Courant Principal;215
+30/11/2023;02/12/2023;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/12/2023;VRAI;FAUX;Compte Courant Principal;Livret A;216
+04/12/2023;05/12/2023;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/12/2023;VRAI;FAUX;Compte Courant Principal;;217
+09/12/2023;10/12/2023;Facture Électricité & Gaz ⚡;94,77;Dépenses fixes;Énergie & Eau;10/12/2023;VRAI;FAUX;Compte Courant Principal;;218
+10/12/2023;12/12/2023;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/12/2023;VRAI;FAUX;Compte Courant Principal;;219
+16/12/2023;18/12/2023;Assurance Habitation & Auto 🛡️;66,85;Dépenses fixes;Assurance;18/12/2023;VRAI;FAUX;Compte Courant Principal;;220
+19/12/2023;20/12/2023;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/12/2023;VRAI;FAUX;Compte Courant Principal;;221
+21/12/2023;22/12/2023;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/12/2023;VRAI;FAUX;Compte Courant Principal;;222
+04/12/2023;04/12/2023;Courses E.Leclerc 🛒;90,25;Dépenses variables;Alimentation;04/12/2023;FAUX;FAUX;Compte Courant Principal;;223
+10/12/2023;10/12/2023;Courses Lidl 🛒;88,24;Dépenses variables;Alimentation;10/12/2023;FAUX;FAUX;Compte Courant Principal;;224
+18/12/2023;18/12/2023;Courses Auchan 🛒;94,11;Dépenses variables;Alimentation;18/12/2023;FAUX;FAUX;Compte Courant Principal;;225
+25/12/2023;25/12/2023;Courses Auchan 🛒;92,14;Dépenses variables;Alimentation;25/12/2023;FAUX;FAUX;Compte Courant Principal;;226
+09/12/2023;09/12/2023;Station TotalEnergies - Carburant ⛽;56,56;Dépenses variables;Transport & Carburant;09/12/2023;FAUX;FAUX;Compte Courant Principal;;227
+22/12/2023;22/12/2023;Station TotalEnergies - Carburant ⛽;58,96;Dépenses variables;Transport & Carburant;22/12/2023;FAUX;FAUX;Compte Courant Principal;;228
+07/12/2023;07/12/2023;Bistrot Gourmand 🍕;33,48;Dépenses variables;Restauration & Sorties;07/12/2023;FAUX;FAUX;Compte Courant Principal;;229
+21/12/2023;21/12/2023;Brasserie du Centre 🍕;40,93;Dépenses variables;Restauration & Sorties;21/12/2023;FAUX;FAUX;Compte Courant Principal;;230
+18/12/2023;18/12/2023;Pharmacie Centrale 💊;23,40;Dépenses variables;Santé & Mutuelle;18/12/2023;FAUX;FAUX;Compte Courant Principal;;231
+23/12/2023;23/12/2023;Decathlon - Loisirs ⚽;131,08;Dépenses variables;Loisirs & Culture;23/12/2023;FAUX;FAUX;Compte Courant Principal;;232
+16/12/2023;16/12/2023;Shopping Habillement 🛍️;44,29;Dépenses variables;Shopping & Habillement;16/12/2023;FAUX;FAUX;Compte Courant Principal;;233
+18/12/2023;18/12/2023;Cadeaux de Noël & Fêtes 🎁;85,00;Dépenses variables;Shopping & Habillement;18/12/2023;FAUX;FAUX;Compte Courant Principal;;234
+15/12/2023;15/12/2023;Remboursement Assurance Auto 🛡️;1400,00;Recettes;Remboursement;15/12/2023;FAUX;FAUX;;Compte Courant Principal;235
+26/01/2024;27/01/2024;Salaire Mensuel 💶;1777,73;Recettes;Salaire;27/01/2024;VRAI;FAUX;;Compte Courant Principal;236
+31/12/2023;02/01/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/01/2024;VRAI;FAUX;Compte Courant Principal;Livret A;237
+03/01/2024;05/01/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/01/2024;VRAI;FAUX;Compte Courant Principal;;238
+08/01/2024;10/01/2024;Facture Électricité & Gaz ⚡;93,49;Dépenses fixes;Énergie & Eau;10/01/2024;VRAI;FAUX;Compte Courant Principal;;239
+10/01/2024;12/01/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/01/2024;VRAI;FAUX;Compte Courant Principal;;240
+16/01/2024;18/01/2024;Assurance Habitation & Auto 🛡️;66,53;Dépenses fixes;Assurance;18/01/2024;VRAI;FAUX;Compte Courant Principal;;241
+19/01/2024;20/01/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/01/2024;VRAI;FAUX;Compte Courant Principal;;242
+20/01/2024;22/01/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/01/2024;VRAI;FAUX;Compte Courant Principal;;243
+03/01/2024;03/01/2024;Courses E.Leclerc 🛒;95,52;Dépenses variables;Alimentation;03/01/2024;FAUX;FAUX;Compte Courant Principal;;244
+12/01/2024;12/01/2024;Courses E.Leclerc 🛒;95,66;Dépenses variables;Alimentation;12/01/2024;FAUX;FAUX;Compte Courant Principal;;245
+20/01/2024;20/01/2024;Courses Auchan 🛒;94,27;Dépenses variables;Alimentation;20/01/2024;FAUX;FAUX;Compte Courant Principal;;246
+26/01/2024;26/01/2024;Courses Auchan 🛒;88,77;Dépenses variables;Alimentation;26/01/2024;FAUX;FAUX;Compte Courant Principal;;247
+07/01/2024;07/01/2024;Station TotalEnergies - Carburant ⛽;56,88;Dépenses variables;Transport & Carburant;07/01/2024;FAUX;FAUX;Compte Courant Principal;;248
+21/01/2024;21/01/2024;Station TotalEnergies - Carburant ⛽;57,56;Dépenses variables;Transport & Carburant;21/01/2024;FAUX;FAUX;Compte Courant Principal;;249
+10/01/2024;10/01/2024;Brasserie du Centre 🍕;32,81;Dépenses variables;Restauration & Sorties;10/01/2024;FAUX;FAUX;Compte Courant Principal;;250
+22/01/2024;22/01/2024;Brasserie du Centre 🍕;35,83;Dépenses variables;Restauration & Sorties;22/01/2024;FAUX;FAUX;Compte Courant Principal;;251
+17/01/2024;17/01/2024;Pharmacie Centrale 💊;21,71;Dépenses variables;Santé & Mutuelle;17/01/2024;FAUX;FAUX;Compte Courant Principal;;252
+25/01/2024;25/01/2024;Decathlon - Loisirs ⚽;123,15;Dépenses variables;Loisirs & Culture;25/01/2024;FAUX;FAUX;Compte Courant Principal;;253
+15/01/2024;15/01/2024;Shopping Habillement 🛍️;43,32;Dépenses variables;Shopping & Habillement;15/01/2024;FAUX;FAUX;Compte Courant Principal;;254
+26/02/2024;27/02/2024;Salaire Mensuel 💶;1775,20;Recettes;Salaire;27/02/2024;VRAI;FAUX;;Compte Courant Principal;255
+01/02/2024;02/02/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/02/2024;VRAI;FAUX;Compte Courant Principal;Livret A;256
+03/02/2024;05/02/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/02/2024;VRAI;FAUX;Compte Courant Principal;;257
+08/02/2024;10/02/2024;Facture Électricité & Gaz ⚡;94,56;Dépenses fixes;Énergie & Eau;10/02/2024;VRAI;FAUX;Compte Courant Principal;;258
+11/02/2024;12/02/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/02/2024;VRAI;FAUX;Compte Courant Principal;;259
+16/02/2024;18/02/2024;Assurance Habitation & Auto 🛡️;69,08;Dépenses fixes;Assurance;18/02/2024;VRAI;FAUX;Compte Courant Principal;;260
+18/02/2024;20/02/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/02/2024;VRAI;FAUX;Compte Courant Principal;;261
+20/02/2024;22/02/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/02/2024;VRAI;FAUX;Compte Courant Principal;;262
+03/02/2024;03/02/2024;Courses Lidl 🛒;92,88;Dépenses variables;Alimentation;03/02/2024;FAUX;FAUX;Compte Courant Principal;;263
+11/02/2024;11/02/2024;Courses Auchan 🛒;92,86;Dépenses variables;Alimentation;11/02/2024;FAUX;FAUX;Compte Courant Principal;;264
+19/02/2024;19/02/2024;Courses E.Leclerc 🛒;94,69;Dépenses variables;Alimentation;19/02/2024;FAUX;FAUX;Compte Courant Principal;;265
+26/02/2024;26/02/2024;Courses Lidl 🛒;96,41;Dépenses variables;Alimentation;26/02/2024;FAUX;FAUX;Compte Courant Principal;;266
+06/02/2024;06/02/2024;Station TotalEnergies - Carburant ⛽;62,85;Dépenses variables;Transport & Carburant;06/02/2024;FAUX;FAUX;Compte Courant Principal;;267
+23/02/2024;23/02/2024;Station TotalEnergies - Carburant ⛽;55,22;Dépenses variables;Transport & Carburant;23/02/2024;FAUX;FAUX;Compte Courant Principal;;268
+09/02/2024;09/02/2024;Bistrot Gourmand 🍕;37,92;Dépenses variables;Restauration & Sorties;09/02/2024;FAUX;FAUX;Compte Courant Principal;;269
+21/02/2024;21/02/2024;Pizzeria Bella Vista 🍕;32,84;Dépenses variables;Restauration & Sorties;21/02/2024;FAUX;FAUX;Compte Courant Principal;;270
+13/02/2024;13/02/2024;Pharmacie Centrale 💊;26,93;Dépenses variables;Santé & Mutuelle;13/02/2024;FAUX;FAUX;Compte Courant Principal;;271
+23/02/2024;23/02/2024;Fnac - Livres & Musique 📚;116,01;Dépenses variables;Loisirs & Culture;23/02/2024;FAUX;FAUX;Compte Courant Principal;;272
+14/02/2024;14/02/2024;Shopping Habillement 🛍️;39,23;Dépenses variables;Shopping & Habillement;14/02/2024;FAUX;FAUX;Compte Courant Principal;;273
+27/03/2024;28/03/2024;Salaire Mensuel 💶;1760,34;Recettes;Salaire;28/03/2024;VRAI;FAUX;;Compte Courant Principal;274
+29/02/2024;02/03/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/03/2024;VRAI;FAUX;Compte Courant Principal;Livret A;275
+03/03/2024;05/03/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/03/2024;VRAI;FAUX;Compte Courant Principal;;276
+09/03/2024;10/03/2024;Facture Électricité & Gaz ⚡;80,52;Dépenses fixes;Énergie & Eau;10/03/2024;VRAI;FAUX;Compte Courant Principal;;277
+10/03/2024;12/03/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/03/2024;VRAI;FAUX;Compte Courant Principal;;278
+17/03/2024;18/03/2024;Assurance Habitation & Auto 🛡️;67,11;Dépenses fixes;Assurance;18/03/2024;VRAI;FAUX;Compte Courant Principal;;279
+19/03/2024;20/03/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/03/2024;VRAI;FAUX;Compte Courant Principal;;280
+20/03/2024;22/03/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/03/2024;VRAI;FAUX;Compte Courant Principal;;281
+02/03/2024;02/03/2024;Courses Carrefour 🛒;95,81;Dépenses variables;Alimentation;02/03/2024;FAUX;FAUX;Compte Courant Principal;;282
+12/03/2024;12/03/2024;Courses Carrefour 🛒;95,54;Dépenses variables;Alimentation;12/03/2024;FAUX;FAUX;Compte Courant Principal;;283
+18/03/2024;18/03/2024;Courses Lidl 🛒;96,39;Dépenses variables;Alimentation;18/03/2024;FAUX;FAUX;Compte Courant Principal;;284
+27/03/2024;27/03/2024;Courses Lidl 🛒;90,39;Dépenses variables;Alimentation;27/03/2024;FAUX;FAUX;Compte Courant Principal;;285
+08/03/2024;08/03/2024;Station TotalEnergies - Carburant ⛽;60,36;Dépenses variables;Transport & Carburant;08/03/2024;FAUX;FAUX;Compte Courant Principal;;286
+23/03/2024;23/03/2024;Station TotalEnergies - Carburant ⛽;62,58;Dépenses variables;Transport & Carburant;23/03/2024;FAUX;FAUX;Compte Courant Principal;;287
+09/03/2024;09/03/2024;Pizzeria Bella Vista 🍕;38,99;Dépenses variables;Restauration & Sorties;09/03/2024;FAUX;FAUX;Compte Courant Principal;;288
+22/03/2024;22/03/2024;Bistrot Gourmand 🍕;38,06;Dépenses variables;Restauration & Sorties;22/03/2024;FAUX;FAUX;Compte Courant Principal;;289
+17/03/2024;17/03/2024;Pharmacie Centrale 💊;20,92;Dépenses variables;Santé & Mutuelle;17/03/2024;FAUX;FAUX;Compte Courant Principal;;290
+23/03/2024;23/03/2024;Pathé Gaumont - Cinéma 🎬;134,29;Dépenses variables;Loisirs & Culture;23/03/2024;FAUX;FAUX;Compte Courant Principal;;291
+16/03/2024;16/03/2024;Shopping Habillement 🛍️;35,51;Dépenses variables;Shopping & Habillement;16/03/2024;FAUX;FAUX;Compte Courant Principal;;292
+14/03/2024;14/03/2024;Chèque N° 458921 - Cotisation Club 🎨;35,00;Dépenses variables;Loisirs & Culture;14/03/2024;FAUX;FAUX;Compte Courant Principal;;293
+27/04/2024;28/04/2024;Salaire Mensuel 💶;1767,48;Recettes;Salaire;28/04/2024;VRAI;FAUX;;Compte Courant Principal;294
+01/04/2024;02/04/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/04/2024;VRAI;FAUX;Compte Courant Principal;Livret A;295
+04/04/2024;05/04/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/04/2024;VRAI;FAUX;Compte Courant Principal;;296
+09/04/2024;10/04/2024;Facture Électricité & Gaz ⚡;80,63;Dépenses fixes;Énergie & Eau;10/04/2024;VRAI;FAUX;Compte Courant Principal;;297
+11/04/2024;12/04/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/04/2024;VRAI;FAUX;Compte Courant Principal;;298
+16/04/2024;18/04/2024;Assurance Habitation & Auto 🛡️;67,50;Dépenses fixes;Assurance;18/04/2024;VRAI;FAUX;Compte Courant Principal;;299
+19/04/2024;20/04/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/04/2024;VRAI;FAUX;Compte Courant Principal;;300
+21/04/2024;22/04/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/04/2024;VRAI;FAUX;Compte Courant Principal;;301
+03/04/2024;03/04/2024;Courses Auchan 🛒;94,62;Dépenses variables;Alimentation;03/04/2024;FAUX;FAUX;Compte Courant Principal;;302
+10/04/2024;10/04/2024;Courses E.Leclerc 🛒;88,13;Dépenses variables;Alimentation;10/04/2024;FAUX;FAUX;Compte Courant Principal;;303
+19/04/2024;19/04/2024;Courses Auchan 🛒;89,06;Dépenses variables;Alimentation;19/04/2024;FAUX;FAUX;Compte Courant Principal;;304
+26/04/2024;26/04/2024;Courses Auchan 🛒;95,07;Dépenses variables;Alimentation;26/04/2024;FAUX;FAUX;Compte Courant Principal;;305
+08/04/2024;08/04/2024;Station TotalEnergies - Carburant ⛽;56,41;Dépenses variables;Transport & Carburant;08/04/2024;FAUX;FAUX;Compte Courant Principal;;306
+23/04/2024;23/04/2024;Station TotalEnergies - Carburant ⛽;62,72;Dépenses variables;Transport & Carburant;23/04/2024;FAUX;FAUX;Compte Courant Principal;;307
+08/04/2024;08/04/2024;Bistrot Gourmand 🍕;38,16;Dépenses variables;Restauration & Sorties;08/04/2024;FAUX;FAUX;Compte Courant Principal;;308
+24/04/2024;24/04/2024;Bistrot Gourmand 🍕;36,65;Dépenses variables;Restauration & Sorties;24/04/2024;FAUX;FAUX;Compte Courant Principal;;309
+16/04/2024;16/04/2024;Pharmacie Centrale 💊;22,15;Dépenses variables;Santé & Mutuelle;16/04/2024;FAUX;FAUX;Compte Courant Principal;;310
+23/04/2024;23/04/2024;Pathé Gaumont - Cinéma 🎬;131,61;Dépenses variables;Loisirs & Culture;23/04/2024;FAUX;FAUX;Compte Courant Principal;;311
+14/04/2024;14/04/2024;Shopping Habillement 🛍️;52,63;Dépenses variables;Shopping & Habillement;14/04/2024;FAUX;FAUX;Compte Courant Principal;;312
+26/05/2024;27/05/2024;Salaire Mensuel 💶;1772,72;Recettes;Salaire;27/05/2024;VRAI;FAUX;;Compte Courant Principal;313
+30/04/2024;02/05/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/05/2024;VRAI;FAUX;Compte Courant Principal;Livret A;314
+04/05/2024;05/05/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/05/2024;VRAI;FAUX;Compte Courant Principal;;315
+08/05/2024;10/05/2024;Facture Électricité & Gaz ⚡;79,28;Dépenses fixes;Énergie & Eau;10/05/2024;VRAI;FAUX;Compte Courant Principal;;316
+10/05/2024;12/05/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/05/2024;VRAI;FAUX;Compte Courant Principal;;317
+17/05/2024;18/05/2024;Assurance Habitation & Auto 🛡️;68,67;Dépenses fixes;Assurance;18/05/2024;VRAI;FAUX;Compte Courant Principal;;318
+18/05/2024;20/05/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/05/2024;VRAI;FAUX;Compte Courant Principal;;319
+21/05/2024;22/05/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/05/2024;VRAI;FAUX;Compte Courant Principal;;320
+03/05/2024;03/05/2024;Courses E.Leclerc 🛒;91,40;Dépenses variables;Alimentation;03/05/2024;FAUX;FAUX;Compte Courant Principal;;321
+12/05/2024;12/05/2024;Courses E.Leclerc 🛒;93,56;Dépenses variables;Alimentation;12/05/2024;FAUX;FAUX;Compte Courant Principal;;322
+20/05/2024;20/05/2024;Courses Lidl 🛒;88,86;Dépenses variables;Alimentation;20/05/2024;FAUX;FAUX;Compte Courant Principal;;323
+27/05/2024;27/05/2024;Courses Auchan 🛒;92,89;Dépenses variables;Alimentation;27/05/2024;FAUX;FAUX;Compte Courant Principal;;324
+06/05/2024;06/05/2024;Station TotalEnergies - Carburant ⛽;60,52;Dépenses variables;Transport & Carburant;06/05/2024;FAUX;FAUX;Compte Courant Principal;;325
+22/05/2024;22/05/2024;Station TotalEnergies - Carburant ⛽;58,59;Dépenses variables;Transport & Carburant;22/05/2024;FAUX;FAUX;Compte Courant Principal;;326
+06/05/2024;06/05/2024;Brasserie du Centre 🍕;32,93;Dépenses variables;Restauration & Sorties;06/05/2024;FAUX;FAUX;Compte Courant Principal;;327
+24/05/2024;24/05/2024;Pizzeria Bella Vista 🍕;38,92;Dépenses variables;Restauration & Sorties;24/05/2024;FAUX;FAUX;Compte Courant Principal;;328
+17/05/2024;17/05/2024;Pharmacie Centrale 💊;24,65;Dépenses variables;Santé & Mutuelle;17/05/2024;FAUX;FAUX;Compte Courant Principal;;329
+25/05/2024;25/05/2024;Fnac - Livres & Musique 📚;126,07;Dépenses variables;Loisirs & Culture;25/05/2024;FAUX;FAUX;Compte Courant Principal;;330
+15/05/2024;15/05/2024;Shopping Habillement 🛍️;54,93;Dépenses variables;Shopping & Habillement;15/05/2024;FAUX;FAUX;Compte Courant Principal;;331
+27/06/2024;28/06/2024;Salaire Mensuel 💶;1760,76;Recettes;Salaire;28/06/2024;VRAI;FAUX;;Compte Courant Principal;332
+01/06/2024;02/06/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/06/2024;VRAI;FAUX;Compte Courant Principal;Livret A;333
+04/06/2024;05/06/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/06/2024;VRAI;FAUX;Compte Courant Principal;;334
+09/06/2024;10/06/2024;Facture Électricité & Gaz ⚡;78,81;Dépenses fixes;Énergie & Eau;10/06/2024;VRAI;FAUX;Compte Courant Principal;;335
+10/06/2024;12/06/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/06/2024;VRAI;FAUX;Compte Courant Principal;;336
+17/06/2024;18/06/2024;Assurance Habitation & Auto 🛡️;67,23;Dépenses fixes;Assurance;18/06/2024;VRAI;FAUX;Compte Courant Principal;;337
+19/06/2024;20/06/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/06/2024;VRAI;FAUX;Compte Courant Principal;;338
+21/06/2024;22/06/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/06/2024;VRAI;FAUX;Compte Courant Principal;;339
+02/06/2024;02/06/2024;Courses Auchan 🛒;90,76;Dépenses variables;Alimentation;02/06/2024;FAUX;FAUX;Compte Courant Principal;;340
+12/06/2024;12/06/2024;Courses E.Leclerc 🛒;97,81;Dépenses variables;Alimentation;12/06/2024;FAUX;FAUX;Compte Courant Principal;;341
+18/06/2024;18/06/2024;Courses E.Leclerc 🛒;90,27;Dépenses variables;Alimentation;18/06/2024;FAUX;FAUX;Compte Courant Principal;;342
+25/06/2024;25/06/2024;Courses E.Leclerc 🛒;88,14;Dépenses variables;Alimentation;25/06/2024;FAUX;FAUX;Compte Courant Principal;;343
+09/06/2024;09/06/2024;Station TotalEnergies - Carburant ⛽;56,01;Dépenses variables;Transport & Carburant;09/06/2024;FAUX;FAUX;Compte Courant Principal;;344
+19/06/2024;19/06/2024;Station TotalEnergies - Carburant ⛽;62,79;Dépenses variables;Transport & Carburant;19/06/2024;FAUX;FAUX;Compte Courant Principal;;345
+10/06/2024;10/06/2024;Brasserie du Centre 🍕;34,92;Dépenses variables;Restauration & Sorties;10/06/2024;FAUX;FAUX;Compte Courant Principal;;346
+24/06/2024;24/06/2024;Brasserie du Centre 🍕;33,03;Dépenses variables;Restauration & Sorties;24/06/2024;FAUX;FAUX;Compte Courant Principal;;347
+16/06/2024;16/06/2024;Pharmacie Centrale 💊;22,27;Dépenses variables;Santé & Mutuelle;16/06/2024;FAUX;FAUX;Compte Courant Principal;;348
+25/06/2024;25/06/2024;Pathé Gaumont - Cinéma 🎬;123,81;Dépenses variables;Loisirs & Culture;25/06/2024;FAUX;FAUX;Compte Courant Principal;;349
+12/06/2024;12/06/2024;Shopping Habillement 🛍️;40,05;Dépenses variables;Shopping & Habillement;12/06/2024;FAUX;FAUX;Compte Courant Principal;;350
+27/07/2024;28/07/2024;Salaire Mensuel 💶;1753,63;Recettes;Salaire;28/07/2024;VRAI;FAUX;;Compte Courant Principal;351
+01/07/2024;02/07/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/07/2024;VRAI;FAUX;Compte Courant Principal;Livret A;352
+04/07/2024;05/07/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/07/2024;VRAI;FAUX;Compte Courant Principal;;353
+09/07/2024;10/07/2024;Facture Électricité & Gaz ⚡;77,26;Dépenses fixes;Énergie & Eau;10/07/2024;VRAI;FAUX;Compte Courant Principal;;354
+10/07/2024;12/07/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/07/2024;VRAI;FAUX;Compte Courant Principal;;355
+17/07/2024;18/07/2024;Assurance Habitation & Auto 🛡️;67,97;Dépenses fixes;Assurance;18/07/2024;VRAI;FAUX;Compte Courant Principal;;356
+19/07/2024;20/07/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/07/2024;VRAI;FAUX;Compte Courant Principal;;357
+21/07/2024;22/07/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/07/2024;VRAI;FAUX;Compte Courant Principal;;358
+04/07/2024;04/07/2024;Courses Auchan 🛒;94,06;Dépenses variables;Alimentation;04/07/2024;FAUX;FAUX;Compte Courant Principal;;359
+12/07/2024;12/07/2024;Courses Lidl 🛒;95,76;Dépenses variables;Alimentation;12/07/2024;FAUX;FAUX;Compte Courant Principal;;360
+19/07/2024;19/07/2024;Courses Auchan 🛒;97,09;Dépenses variables;Alimentation;19/07/2024;FAUX;FAUX;Compte Courant Principal;;361
+26/07/2024;26/07/2024;Courses Auchan 🛒;91,05;Dépenses variables;Alimentation;26/07/2024;FAUX;FAUX;Compte Courant Principal;;362
+09/07/2024;09/07/2024;Station TotalEnergies - Carburant ⛽;55,48;Dépenses variables;Transport & Carburant;09/07/2024;FAUX;FAUX;Compte Courant Principal;;363
+19/07/2024;19/07/2024;Station TotalEnergies - Carburant ⛽;62,58;Dépenses variables;Transport & Carburant;19/07/2024;FAUX;FAUX;Compte Courant Principal;;364
+07/07/2024;07/07/2024;Pizzeria Bella Vista 🍕;38,26;Dépenses variables;Restauration & Sorties;07/07/2024;FAUX;FAUX;Compte Courant Principal;;365
+21/07/2024;21/07/2024;Brasserie du Centre 🍕;33,57;Dépenses variables;Restauration & Sorties;21/07/2024;FAUX;FAUX;Compte Courant Principal;;366
+16/07/2024;16/07/2024;Pharmacie Centrale 💊;20,60;Dépenses variables;Santé & Mutuelle;16/07/2024;FAUX;FAUX;Compte Courant Principal;;367
+22/07/2024;22/07/2024;Decathlon - Loisirs ⚽;123,17;Dépenses variables;Loisirs & Culture;22/07/2024;FAUX;FAUX;Compte Courant Principal;;368
+16/07/2024;16/07/2024;Shopping Habillement 🛍️;44,40;Dépenses variables;Shopping & Habillement;16/07/2024;FAUX;FAUX;Compte Courant Principal;;369
+16/07/2024;16/07/2024;Camping Les Pins - Vacances 🏖️;90,00;Dépenses variables;Loisirs & Culture;16/07/2024;FAUX;FAUX;Compte Courant Principal;;370
+26/08/2024;27/08/2024;Salaire Mensuel 💶;1757,15;Recettes;Salaire;27/08/2024;VRAI;FAUX;;Compte Courant Principal;371
+31/07/2024;02/08/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/08/2024;VRAI;FAUX;Compte Courant Principal;Livret A;372
+04/08/2024;05/08/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/08/2024;VRAI;FAUX;Compte Courant Principal;;373
+09/08/2024;10/08/2024;Facture Électricité & Gaz ⚡;79,83;Dépenses fixes;Énergie & Eau;10/08/2024;VRAI;FAUX;Compte Courant Principal;;374
+10/08/2024;12/08/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/08/2024;VRAI;FAUX;Compte Courant Principal;;375
+17/08/2024;18/08/2024;Assurance Habitation & Auto 🛡️;68,81;Dépenses fixes;Assurance;18/08/2024;VRAI;FAUX;Compte Courant Principal;;376
+18/08/2024;20/08/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/08/2024;VRAI;FAUX;Compte Courant Principal;;377
+21/08/2024;22/08/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/08/2024;VRAI;FAUX;Compte Courant Principal;;378
+04/08/2024;04/08/2024;Courses Lidl 🛒;94,48;Dépenses variables;Alimentation;04/08/2024;FAUX;FAUX;Compte Courant Principal;;379
+11/08/2024;11/08/2024;Courses Lidl 🛒;88,71;Dépenses variables;Alimentation;11/08/2024;FAUX;FAUX;Compte Courant Principal;;380
+18/08/2024;18/08/2024;Courses E.Leclerc 🛒;93,95;Dépenses variables;Alimentation;18/08/2024;FAUX;FAUX;Compte Courant Principal;;381
+27/08/2024;27/08/2024;Courses E.Leclerc 🛒;92,39;Dépenses variables;Alimentation;27/08/2024;FAUX;FAUX;Compte Courant Principal;;382
+08/08/2024;08/08/2024;Station TotalEnergies - Carburant ⛽;60,51;Dépenses variables;Transport & Carburant;08/08/2024;FAUX;FAUX;Compte Courant Principal;;383
+22/08/2024;22/08/2024;Station TotalEnergies - Carburant ⛽;62,54;Dépenses variables;Transport & Carburant;22/08/2024;FAUX;FAUX;Compte Courant Principal;;384
+10/08/2024;10/08/2024;Pizzeria Bella Vista 🍕;37,40;Dépenses variables;Restauration & Sorties;10/08/2024;FAUX;FAUX;Compte Courant Principal;;385
+21/08/2024;21/08/2024;Pizzeria Bella Vista 🍕;37,98;Dépenses variables;Restauration & Sorties;21/08/2024;FAUX;FAUX;Compte Courant Principal;;386
+17/08/2024;17/08/2024;Pharmacie Centrale 💊;22,58;Dépenses variables;Santé & Mutuelle;17/08/2024;FAUX;FAUX;Compte Courant Principal;;387
+24/08/2024;24/08/2024;Pathé Gaumont - Cinéma 🎬;115,52;Dépenses variables;Loisirs & Culture;24/08/2024;FAUX;FAUX;Compte Courant Principal;;388
+16/08/2024;16/08/2024;Shopping Habillement 🛍️;46,74;Dépenses variables;Shopping & Habillement;16/08/2024;FAUX;FAUX;Compte Courant Principal;;389
+16/08/2024;16/08/2024;Péages & Autoroute 🛣️;35,00;Dépenses variables;Transport & Carburant;16/08/2024;FAUX;FAUX;Compte Courant Principal;;390
+26/09/2024;27/09/2024;Salaire Mensuel 💶;1780,20;Recettes;Salaire;27/09/2024;VRAI;FAUX;;Compte Courant Principal;391
+01/09/2024;02/09/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/09/2024;VRAI;FAUX;Compte Courant Principal;Livret A;392
+04/09/2024;05/09/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/09/2024;VRAI;FAUX;Compte Courant Principal;;393
+08/09/2024;10/09/2024;Facture Électricité & Gaz ⚡;79,69;Dépenses fixes;Énergie & Eau;10/09/2024;VRAI;FAUX;Compte Courant Principal;;394
+10/09/2024;12/09/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/09/2024;VRAI;FAUX;Compte Courant Principal;;395
+16/09/2024;18/09/2024;Assurance Habitation & Auto 🛡️;67,08;Dépenses fixes;Assurance;18/09/2024;VRAI;FAUX;Compte Courant Principal;;396
+19/09/2024;20/09/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/09/2024;VRAI;FAUX;Compte Courant Principal;;397
+20/09/2024;22/09/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/09/2024;VRAI;FAUX;Compte Courant Principal;;398
+04/09/2024;04/09/2024;Courses Auchan 🛒;97,69;Dépenses variables;Alimentation;04/09/2024;FAUX;FAUX;Compte Courant Principal;;399
+11/09/2024;11/09/2024;Courses E.Leclerc 🛒;92,08;Dépenses variables;Alimentation;11/09/2024;FAUX;FAUX;Compte Courant Principal;;400
+19/09/2024;19/09/2024;Courses Carrefour 🛒;96,58;Dépenses variables;Alimentation;19/09/2024;FAUX;FAUX;Compte Courant Principal;;401
+26/09/2024;26/09/2024;Courses Auchan 🛒;94,94;Dépenses variables;Alimentation;26/09/2024;FAUX;FAUX;Compte Courant Principal;;402
+07/09/2024;07/09/2024;Station TotalEnergies - Carburant ⛽;60,30;Dépenses variables;Transport & Carburant;07/09/2024;FAUX;FAUX;Compte Courant Principal;;403
+22/09/2024;22/09/2024;Station TotalEnergies - Carburant ⛽;61,51;Dépenses variables;Transport & Carburant;22/09/2024;FAUX;FAUX;Compte Courant Principal;;404
+10/09/2024;10/09/2024;Brasserie du Centre 🍕;32,37;Dépenses variables;Restauration & Sorties;10/09/2024;FAUX;FAUX;Compte Courant Principal;;405
+23/09/2024;23/09/2024;Brasserie du Centre 🍕;34,52;Dépenses variables;Restauration & Sorties;23/09/2024;FAUX;FAUX;Compte Courant Principal;;406
+18/09/2024;18/09/2024;Pharmacie Centrale 💊;23,23;Dépenses variables;Santé & Mutuelle;18/09/2024;FAUX;FAUX;Compte Courant Principal;;407
+26/09/2024;26/09/2024;Pathé Gaumont - Cinéma 🎬;131,50;Dépenses variables;Loisirs & Culture;26/09/2024;FAUX;FAUX;Compte Courant Principal;;408
+16/09/2024;16/09/2024;Shopping Habillement 🛍️;44,24;Dépenses variables;Shopping & Habillement;16/09/2024;FAUX;FAUX;Compte Courant Principal;;409
+26/10/2024;27/10/2024;Salaire Mensuel 💶;1755,84;Recettes;Salaire;27/10/2024;VRAI;FAUX;;Compte Courant Principal;410
+30/09/2024;02/10/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/10/2024;VRAI;FAUX;Compte Courant Principal;Livret A;411
+04/10/2024;05/10/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/10/2024;VRAI;FAUX;Compte Courant Principal;;412
+09/10/2024;10/10/2024;Facture Électricité & Gaz ⚡;78,45;Dépenses fixes;Énergie & Eau;10/10/2024;VRAI;FAUX;Compte Courant Principal;;413
+10/10/2024;12/10/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/10/2024;VRAI;FAUX;Compte Courant Principal;;414
+17/10/2024;18/10/2024;Assurance Habitation & Auto 🛡️;69,03;Dépenses fixes;Assurance;18/10/2024;VRAI;FAUX;Compte Courant Principal;;415
+18/10/2024;20/10/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/10/2024;VRAI;FAUX;Compte Courant Principal;;416
+20/10/2024;22/10/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/10/2024;VRAI;FAUX;Compte Courant Principal;;417
+04/10/2024;04/10/2024;Courses Auchan 🛒;89,21;Dépenses variables;Alimentation;04/10/2024;FAUX;FAUX;Compte Courant Principal;;418
+12/10/2024;12/10/2024;Courses Lidl 🛒;95,10;Dépenses variables;Alimentation;12/10/2024;FAUX;FAUX;Compte Courant Principal;;419
+19/10/2024;19/10/2024;Courses Carrefour 🛒;93,52;Dépenses variables;Alimentation;19/10/2024;FAUX;FAUX;Compte Courant Principal;;420
+25/10/2024;25/10/2024;Courses Lidl 🛒;97,92;Dépenses variables;Alimentation;25/10/2024;FAUX;FAUX;Compte Courant Principal;;421
+05/10/2024;05/10/2024;Station TotalEnergies - Carburant ⛽;58,69;Dépenses variables;Transport & Carburant;05/10/2024;FAUX;FAUX;Compte Courant Principal;;422
+19/10/2024;19/10/2024;Station TotalEnergies - Carburant ⛽;60,18;Dépenses variables;Transport & Carburant;19/10/2024;FAUX;FAUX;Compte Courant Principal;;423
+07/10/2024;07/10/2024;Bistrot Gourmand 🍕;36,98;Dépenses variables;Restauration & Sorties;07/10/2024;FAUX;FAUX;Compte Courant Principal;;424
+23/10/2024;23/10/2024;Pizzeria Bella Vista 🍕;37,09;Dépenses variables;Restauration & Sorties;23/10/2024;FAUX;FAUX;Compte Courant Principal;;425
+15/10/2024;15/10/2024;Pharmacie Centrale 💊;26,68;Dépenses variables;Santé & Mutuelle;15/10/2024;FAUX;FAUX;Compte Courant Principal;;426
+25/10/2024;25/10/2024;Decathlon - Loisirs ⚽;119,87;Dépenses variables;Loisirs & Culture;25/10/2024;FAUX;FAUX;Compte Courant Principal;;427
+13/10/2024;13/10/2024;Shopping Habillement 🛍️;42,67;Dépenses variables;Shopping & Habillement;13/10/2024;FAUX;FAUX;Compte Courant Principal;;428
+26/11/2024;27/11/2024;Salaire Mensuel 💶;1776,13;Recettes;Salaire;27/11/2024;VRAI;FAUX;;Compte Courant Principal;429
+31/10/2024;02/11/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/11/2024;VRAI;FAUX;Compte Courant Principal;Livret A;430
+03/11/2024;05/11/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/11/2024;VRAI;FAUX;Compte Courant Principal;;431
+08/11/2024;10/11/2024;Facture Électricité & Gaz ⚡;94,10;Dépenses fixes;Énergie & Eau;10/11/2024;VRAI;FAUX;Compte Courant Principal;;432
+11/11/2024;12/11/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/11/2024;VRAI;FAUX;Compte Courant Principal;;433
+16/11/2024;18/11/2024;Assurance Habitation & Auto 🛡️;69,16;Dépenses fixes;Assurance;18/11/2024;VRAI;FAUX;Compte Courant Principal;;434
+18/11/2024;20/11/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/11/2024;VRAI;FAUX;Compte Courant Principal;;435
+20/11/2024;22/11/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/11/2024;VRAI;FAUX;Compte Courant Principal;;436
+02/11/2024;02/11/2024;Courses Auchan 🛒;93,39;Dépenses variables;Alimentation;02/11/2024;FAUX;FAUX;Compte Courant Principal;;437
+11/11/2024;11/11/2024;Courses E.Leclerc 🛒;93,52;Dépenses variables;Alimentation;11/11/2024;FAUX;FAUX;Compte Courant Principal;;438
+20/11/2024;20/11/2024;Courses Auchan 🛒;92,55;Dépenses variables;Alimentation;20/11/2024;FAUX;FAUX;Compte Courant Principal;;439
+26/11/2024;26/11/2024;Courses Lidl 🛒;97,81;Dépenses variables;Alimentation;26/11/2024;FAUX;FAUX;Compte Courant Principal;;440
+06/11/2024;06/11/2024;Station TotalEnergies - Carburant ⛽;59,57;Dépenses variables;Transport & Carburant;06/11/2024;FAUX;FAUX;Compte Courant Principal;;441
+20/11/2024;20/11/2024;Station TotalEnergies - Carburant ⛽;61,85;Dépenses variables;Transport & Carburant;20/11/2024;FAUX;FAUX;Compte Courant Principal;;442
+09/11/2024;09/11/2024;Bistrot Gourmand 🍕;32,44;Dépenses variables;Restauration & Sorties;09/11/2024;FAUX;FAUX;Compte Courant Principal;;443
+24/11/2024;24/11/2024;Pizzeria Bella Vista 🍕;39,05;Dépenses variables;Restauration & Sorties;24/11/2024;FAUX;FAUX;Compte Courant Principal;;444
+15/11/2024;15/11/2024;Pharmacie Centrale 💊;27,91;Dépenses variables;Santé & Mutuelle;15/11/2024;FAUX;FAUX;Compte Courant Principal;;445
+23/11/2024;23/11/2024;Pathé Gaumont - Cinéma 🎬;124,91;Dépenses variables;Loisirs & Culture;23/11/2024;FAUX;FAUX;Compte Courant Principal;;446
+13/11/2024;13/11/2024;Shopping Habillement 🛍️;45,05;Dépenses variables;Shopping & Habillement;13/11/2024;FAUX;FAUX;Compte Courant Principal;;447
+27/12/2024;28/12/2024;Salaire Mensuel 💶;1776,30;Recettes;Salaire;28/12/2024;VRAI;FAUX;;Compte Courant Principal;448
+30/11/2024;02/12/2024;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/12/2024;VRAI;FAUX;Compte Courant Principal;Livret A;449
+04/12/2024;05/12/2024;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/12/2024;VRAI;FAUX;Compte Courant Principal;;450
+09/12/2024;10/12/2024;Facture Électricité & Gaz ⚡;96,50;Dépenses fixes;Énergie & Eau;10/12/2024;VRAI;FAUX;Compte Courant Principal;;451
+10/12/2024;12/12/2024;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/12/2024;VRAI;FAUX;Compte Courant Principal;;452
+17/12/2024;18/12/2024;Assurance Habitation & Auto 🛡️;67,76;Dépenses fixes;Assurance;18/12/2024;VRAI;FAUX;Compte Courant Principal;;453
+19/12/2024;20/12/2024;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/12/2024;VRAI;FAUX;Compte Courant Principal;;454
+20/12/2024;22/12/2024;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/12/2024;VRAI;FAUX;Compte Courant Principal;;455
+03/12/2024;03/12/2024;Courses E.Leclerc 🛒;94,23;Dépenses variables;Alimentation;03/12/2024;FAUX;FAUX;Compte Courant Principal;;456
+11/12/2024;11/12/2024;Courses Carrefour 🛒;96,52;Dépenses variables;Alimentation;11/12/2024;FAUX;FAUX;Compte Courant Principal;;457
+20/12/2024;20/12/2024;Courses Auchan 🛒;97,54;Dépenses variables;Alimentation;20/12/2024;FAUX;FAUX;Compte Courant Principal;;458
+27/12/2024;27/12/2024;Courses Auchan 🛒;96,72;Dépenses variables;Alimentation;27/12/2024;FAUX;FAUX;Compte Courant Principal;;459
+05/12/2024;05/12/2024;Station TotalEnergies - Carburant ⛽;59,94;Dépenses variables;Transport & Carburant;05/12/2024;FAUX;FAUX;Compte Courant Principal;;460
+20/12/2024;20/12/2024;Station TotalEnergies - Carburant ⛽;60,05;Dépenses variables;Transport & Carburant;20/12/2024;FAUX;FAUX;Compte Courant Principal;;461
+08/12/2024;08/12/2024;Bistrot Gourmand 🍕;41,97;Dépenses variables;Restauration & Sorties;08/12/2024;FAUX;FAUX;Compte Courant Principal;;462
+21/12/2024;21/12/2024;Brasserie du Centre 🍕;36,34;Dépenses variables;Restauration & Sorties;21/12/2024;FAUX;FAUX;Compte Courant Principal;;463
+18/12/2024;18/12/2024;Pharmacie Centrale 💊;25,07;Dépenses variables;Santé & Mutuelle;18/12/2024;FAUX;FAUX;Compte Courant Principal;;464
+22/12/2024;22/12/2024;Decathlon - Loisirs ⚽;123,87;Dépenses variables;Loisirs & Culture;22/12/2024;FAUX;FAUX;Compte Courant Principal;;465
+14/12/2024;14/12/2024;Shopping Habillement 🛍️;53,07;Dépenses variables;Shopping & Habillement;14/12/2024;FAUX;FAUX;Compte Courant Principal;;466
+18/12/2024;18/12/2024;Cadeaux de Noël & Fêtes 🎁;85,00;Dépenses variables;Shopping & Habillement;18/12/2024;FAUX;FAUX;Compte Courant Principal;;467
+26/01/2025;27/01/2025;Salaire Mensuel 💶;1759,94;Recettes;Salaire;27/01/2025;VRAI;FAUX;;Compte Courant Principal;468
+31/12/2024;02/01/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/01/2025;VRAI;FAUX;Compte Courant Principal;Livret A;469
+04/01/2025;05/01/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/01/2025;VRAI;FAUX;Compte Courant Principal;;470
+09/01/2025;10/01/2025;Facture Électricité & Gaz ⚡;93,22;Dépenses fixes;Énergie & Eau;10/01/2025;VRAI;FAUX;Compte Courant Principal;;471
+10/01/2025;12/01/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/01/2025;VRAI;FAUX;Compte Courant Principal;;472
+17/01/2025;18/01/2025;Assurance Habitation & Auto 🛡️;67,43;Dépenses fixes;Assurance;18/01/2025;VRAI;FAUX;Compte Courant Principal;;473
+19/01/2025;20/01/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/01/2025;VRAI;FAUX;Compte Courant Principal;;474
+21/01/2025;22/01/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/01/2025;VRAI;FAUX;Compte Courant Principal;;475
+02/01/2025;02/01/2025;Courses Auchan 🛒;94,20;Dépenses variables;Alimentation;02/01/2025;FAUX;FAUX;Compte Courant Principal;;476
+10/01/2025;10/01/2025;Courses Auchan 🛒;97,13;Dépenses variables;Alimentation;10/01/2025;FAUX;FAUX;Compte Courant Principal;;477
+18/01/2025;18/01/2025;Courses Lidl 🛒;92,61;Dépenses variables;Alimentation;18/01/2025;FAUX;FAUX;Compte Courant Principal;;478
+26/01/2025;26/01/2025;Courses Auchan 🛒;90,55;Dépenses variables;Alimentation;26/01/2025;FAUX;FAUX;Compte Courant Principal;;479
+05/01/2025;05/01/2025;Station TotalEnergies - Carburant ⛽;62,19;Dépenses variables;Transport & Carburant;05/01/2025;FAUX;FAUX;Compte Courant Principal;;480
+22/01/2025;22/01/2025;Station TotalEnergies - Carburant ⛽;62,21;Dépenses variables;Transport & Carburant;22/01/2025;FAUX;FAUX;Compte Courant Principal;;481
+10/01/2025;10/01/2025;Pizzeria Bella Vista 🍕;33,58;Dépenses variables;Restauration & Sorties;10/01/2025;FAUX;FAUX;Compte Courant Principal;;482
+23/01/2025;23/01/2025;Pizzeria Bella Vista 🍕;41,88;Dépenses variables;Restauration & Sorties;23/01/2025;FAUX;FAUX;Compte Courant Principal;;483
+17/01/2025;17/01/2025;Pharmacie Centrale 💊;27,70;Dépenses variables;Santé & Mutuelle;17/01/2025;FAUX;FAUX;Compte Courant Principal;;484
+24/01/2025;24/01/2025;Fnac - Livres & Musique 📚;124,14;Dépenses variables;Loisirs & Culture;24/01/2025;FAUX;FAUX;Compte Courant Principal;;485
+13/01/2025;13/01/2025;Shopping Habillement 🛍️;54,99;Dépenses variables;Shopping & Habillement;13/01/2025;FAUX;FAUX;Compte Courant Principal;;486
+27/02/2025;28/02/2025;Salaire Mensuel 💶;1753,41;Recettes;Salaire;28/02/2025;VRAI;FAUX;;Compte Courant Principal;487
+31/01/2025;02/02/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/02/2025;VRAI;FAUX;Compte Courant Principal;Livret A;488
+03/02/2025;05/02/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/02/2025;VRAI;FAUX;Compte Courant Principal;;489
+09/02/2025;10/02/2025;Facture Électricité & Gaz ⚡;94,53;Dépenses fixes;Énergie & Eau;10/02/2025;VRAI;FAUX;Compte Courant Principal;;490
+10/02/2025;12/02/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/02/2025;VRAI;FAUX;Compte Courant Principal;;491
+16/02/2025;18/02/2025;Assurance Habitation & Auto 🛡️;67,44;Dépenses fixes;Assurance;18/02/2025;VRAI;FAUX;Compte Courant Principal;;492
+19/02/2025;20/02/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/02/2025;VRAI;FAUX;Compte Courant Principal;;493
+21/02/2025;22/02/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/02/2025;VRAI;FAUX;Compte Courant Principal;;494
+04/02/2025;04/02/2025;Courses Auchan 🛒;96,33;Dépenses variables;Alimentation;04/02/2025;FAUX;FAUX;Compte Courant Principal;;495
+11/02/2025;11/02/2025;Courses Lidl 🛒;94,07;Dépenses variables;Alimentation;11/02/2025;FAUX;FAUX;Compte Courant Principal;;496
+19/02/2025;19/02/2025;Courses Lidl 🛒;94,37;Dépenses variables;Alimentation;19/02/2025;FAUX;FAUX;Compte Courant Principal;;497
+27/02/2025;27/02/2025;Courses E.Leclerc 🛒;94,78;Dépenses variables;Alimentation;27/02/2025;FAUX;FAUX;Compte Courant Principal;;498
+06/02/2025;06/02/2025;Station TotalEnergies - Carburant ⛽;60,03;Dépenses variables;Transport & Carburant;06/02/2025;FAUX;FAUX;Compte Courant Principal;;499
+19/02/2025;19/02/2025;Station TotalEnergies - Carburant ⛽;57,47;Dépenses variables;Transport & Carburant;19/02/2025;FAUX;FAUX;Compte Courant Principal;;500
+09/02/2025;09/02/2025;Pizzeria Bella Vista 🍕;32,33;Dépenses variables;Restauration & Sorties;09/02/2025;FAUX;FAUX;Compte Courant Principal;;501
+22/02/2025;22/02/2025;Pizzeria Bella Vista 🍕;32,90;Dépenses variables;Restauration & Sorties;22/02/2025;FAUX;FAUX;Compte Courant Principal;;502
+14/02/2025;14/02/2025;Pharmacie Centrale 💊;25,98;Dépenses variables;Santé & Mutuelle;14/02/2025;FAUX;FAUX;Compte Courant Principal;;503
+23/02/2025;23/02/2025;Decathlon - Loisirs ⚽;119,02;Dépenses variables;Loisirs & Culture;23/02/2025;FAUX;FAUX;Compte Courant Principal;;504
+14/02/2025;14/02/2025;Shopping Habillement 🛍️;45,62;Dépenses variables;Shopping & Habillement;14/02/2025;FAUX;FAUX;Compte Courant Principal;;505
+27/03/2025;28/03/2025;Salaire Mensuel 💶;1775,12;Recettes;Salaire;28/03/2025;VRAI;FAUX;;Compte Courant Principal;506
+28/02/2025;02/03/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/03/2025;VRAI;FAUX;Compte Courant Principal;Livret A;507
+03/03/2025;05/03/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/03/2025;VRAI;FAUX;Compte Courant Principal;;508
+08/03/2025;10/03/2025;Facture Électricité & Gaz ⚡;78,03;Dépenses fixes;Énergie & Eau;10/03/2025;VRAI;FAUX;Compte Courant Principal;;509
+11/03/2025;12/03/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/03/2025;VRAI;FAUX;Compte Courant Principal;;510
+16/03/2025;18/03/2025;Assurance Habitation & Auto 🛡️;69,30;Dépenses fixes;Assurance;18/03/2025;VRAI;FAUX;Compte Courant Principal;;511
+19/03/2025;20/03/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/03/2025;VRAI;FAUX;Compte Courant Principal;;512
+21/03/2025;22/03/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/03/2025;VRAI;FAUX;Compte Courant Principal;;513
+02/03/2025;02/03/2025;Courses Auchan 🛒;97,67;Dépenses variables;Alimentation;02/03/2025;FAUX;FAUX;Compte Courant Principal;;514
+12/03/2025;12/03/2025;Courses E.Leclerc 🛒;88,90;Dépenses variables;Alimentation;12/03/2025;FAUX;FAUX;Compte Courant Principal;;515
+19/03/2025;19/03/2025;Courses Carrefour 🛒;90,64;Dépenses variables;Alimentation;19/03/2025;FAUX;FAUX;Compte Courant Principal;;516
+25/03/2025;25/03/2025;Courses Auchan 🛒;91,69;Dépenses variables;Alimentation;25/03/2025;FAUX;FAUX;Compte Courant Principal;;517
+07/03/2025;07/03/2025;Station TotalEnergies - Carburant ⛽;59,68;Dépenses variables;Transport & Carburant;07/03/2025;FAUX;FAUX;Compte Courant Principal;;518
+21/03/2025;21/03/2025;Station TotalEnergies - Carburant ⛽;55,87;Dépenses variables;Transport & Carburant;21/03/2025;FAUX;FAUX;Compte Courant Principal;;519
+07/03/2025;07/03/2025;Bistrot Gourmand 🍕;36,71;Dépenses variables;Restauration & Sorties;07/03/2025;FAUX;FAUX;Compte Courant Principal;;520
+25/03/2025;25/03/2025;Bistrot Gourmand 🍕;35,28;Dépenses variables;Restauration & Sorties;25/03/2025;FAUX;FAUX;Compte Courant Principal;;521
+13/03/2025;13/03/2025;Pharmacie Centrale 💊;25,18;Dépenses variables;Santé & Mutuelle;13/03/2025;FAUX;FAUX;Compte Courant Principal;;522
+25/03/2025;25/03/2025;Fnac - Livres & Musique 📚;133,19;Dépenses variables;Loisirs & Culture;25/03/2025;FAUX;FAUX;Compte Courant Principal;;523
+15/03/2025;15/03/2025;Shopping Habillement 🛍️;37,33;Dépenses variables;Shopping & Habillement;15/03/2025;FAUX;FAUX;Compte Courant Principal;;524
+14/03/2025;14/03/2025;Chèque N° 458921 - Cotisation Club 🎨;35,00;Dépenses variables;Loisirs & Culture;14/03/2025;FAUX;FAUX;Compte Courant Principal;;525
+26/04/2025;27/04/2025;Salaire Mensuel 💶;1778,60;Recettes;Salaire;27/04/2025;VRAI;FAUX;;Compte Courant Principal;526
+01/04/2025;02/04/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/04/2025;VRAI;FAUX;Compte Courant Principal;Livret A;527
+04/04/2025;05/04/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/04/2025;VRAI;FAUX;Compte Courant Principal;;528
+09/04/2025;10/04/2025;Facture Électricité & Gaz ⚡;78,22;Dépenses fixes;Énergie & Eau;10/04/2025;VRAI;FAUX;Compte Courant Principal;;529
+10/04/2025;12/04/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/04/2025;VRAI;FAUX;Compte Courant Principal;;530
+16/04/2025;18/04/2025;Assurance Habitation & Auto 🛡️;67,97;Dépenses fixes;Assurance;18/04/2025;VRAI;FAUX;Compte Courant Principal;;531
+18/04/2025;20/04/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/04/2025;VRAI;FAUX;Compte Courant Principal;;532
+20/04/2025;22/04/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/04/2025;VRAI;FAUX;Compte Courant Principal;;533
+04/04/2025;04/04/2025;Courses Lidl 🛒;96,85;Dépenses variables;Alimentation;04/04/2025;FAUX;FAUX;Compte Courant Principal;;534
+12/04/2025;12/04/2025;Courses Carrefour 🛒;96,34;Dépenses variables;Alimentation;12/04/2025;FAUX;FAUX;Compte Courant Principal;;535
+20/04/2025;20/04/2025;Courses Auchan 🛒;97,39;Dépenses variables;Alimentation;20/04/2025;FAUX;FAUX;Compte Courant Principal;;536
+26/04/2025;26/04/2025;Courses Carrefour 🛒;94,90;Dépenses variables;Alimentation;26/04/2025;FAUX;FAUX;Compte Courant Principal;;537
+06/04/2025;06/04/2025;Station TotalEnergies - Carburant ⛽;58,55;Dépenses variables;Transport & Carburant;06/04/2025;FAUX;FAUX;Compte Courant Principal;;538
+20/04/2025;20/04/2025;Station TotalEnergies - Carburant ⛽;61,84;Dépenses variables;Transport & Carburant;20/04/2025;FAUX;FAUX;Compte Courant Principal;;539
+06/04/2025;06/04/2025;Pizzeria Bella Vista 🍕;41,81;Dépenses variables;Restauration & Sorties;06/04/2025;FAUX;FAUX;Compte Courant Principal;;540
+25/04/2025;25/04/2025;Bistrot Gourmand 🍕;41,02;Dépenses variables;Restauration & Sorties;25/04/2025;FAUX;FAUX;Compte Courant Principal;;541
+14/04/2025;14/04/2025;Pharmacie Centrale 💊;20,48;Dépenses variables;Santé & Mutuelle;14/04/2025;FAUX;FAUX;Compte Courant Principal;;542
+24/04/2025;24/04/2025;Pathé Gaumont - Cinéma 🎬;118,80;Dépenses variables;Loisirs & Culture;24/04/2025;FAUX;FAUX;Compte Courant Principal;;543
+15/04/2025;15/04/2025;Shopping Habillement 🛍️;36,83;Dépenses variables;Shopping & Habillement;15/04/2025;FAUX;FAUX;Compte Courant Principal;;544
+26/05/2025;27/05/2025;Salaire Mensuel 💶;1769,46;Recettes;Salaire;27/05/2025;VRAI;FAUX;;Compte Courant Principal;545
+30/04/2025;02/05/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/05/2025;VRAI;FAUX;Compte Courant Principal;Livret A;546
+04/05/2025;05/05/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/05/2025;VRAI;FAUX;Compte Courant Principal;;547
+09/05/2025;10/05/2025;Facture Électricité & Gaz ⚡;79,39;Dépenses fixes;Énergie & Eau;10/05/2025;VRAI;FAUX;Compte Courant Principal;;548
+11/05/2025;12/05/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/05/2025;VRAI;FAUX;Compte Courant Principal;;549
+17/05/2025;18/05/2025;Assurance Habitation & Auto 🛡️;66,09;Dépenses fixes;Assurance;18/05/2025;VRAI;FAUX;Compte Courant Principal;;550
+19/05/2025;20/05/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/05/2025;VRAI;FAUX;Compte Courant Principal;;551
+21/05/2025;22/05/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/05/2025;VRAI;FAUX;Compte Courant Principal;;552
+02/05/2025;02/05/2025;Courses E.Leclerc 🛒;95,74;Dépenses variables;Alimentation;02/05/2025;FAUX;FAUX;Compte Courant Principal;;553
+12/05/2025;12/05/2025;Courses Carrefour 🛒;90,77;Dépenses variables;Alimentation;12/05/2025;FAUX;FAUX;Compte Courant Principal;;554
+18/05/2025;18/05/2025;Courses Lidl 🛒;93,40;Dépenses variables;Alimentation;18/05/2025;FAUX;FAUX;Compte Courant Principal;;555
+25/05/2025;25/05/2025;Courses Carrefour 🛒;94,61;Dépenses variables;Alimentation;25/05/2025;FAUX;FAUX;Compte Courant Principal;;556
+05/05/2025;05/05/2025;Station TotalEnergies - Carburant ⛽;56,05;Dépenses variables;Transport & Carburant;05/05/2025;FAUX;FAUX;Compte Courant Principal;;557
+21/05/2025;21/05/2025;Station TotalEnergies - Carburant ⛽;61,32;Dépenses variables;Transport & Carburant;21/05/2025;FAUX;FAUX;Compte Courant Principal;;558
+07/05/2025;07/05/2025;Brasserie du Centre 🍕;37,89;Dépenses variables;Restauration & Sorties;07/05/2025;FAUX;FAUX;Compte Courant Principal;;559
+22/05/2025;22/05/2025;Brasserie du Centre 🍕;34,65;Dépenses variables;Restauration & Sorties;22/05/2025;FAUX;FAUX;Compte Courant Principal;;560
+17/05/2025;17/05/2025;Pharmacie Centrale 💊;23,37;Dépenses variables;Santé & Mutuelle;17/05/2025;FAUX;FAUX;Compte Courant Principal;;561
+22/05/2025;22/05/2025;Fnac - Livres & Musique 📚;129,91;Dépenses variables;Loisirs & Culture;22/05/2025;FAUX;FAUX;Compte Courant Principal;;562
+15/05/2025;15/05/2025;Shopping Habillement 🛍️;50,56;Dépenses variables;Shopping & Habillement;15/05/2025;FAUX;FAUX;Compte Courant Principal;;563
+26/06/2025;27/06/2025;Salaire Mensuel 💶;1763,77;Recettes;Salaire;27/06/2025;VRAI;FAUX;;Compte Courant Principal;564
+31/05/2025;02/06/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/06/2025;VRAI;FAUX;Compte Courant Principal;Livret A;565
+03/06/2025;05/06/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/06/2025;VRAI;FAUX;Compte Courant Principal;;566
+09/06/2025;10/06/2025;Facture Électricité & Gaz ⚡;77,89;Dépenses fixes;Énergie & Eau;10/06/2025;VRAI;FAUX;Compte Courant Principal;;567
+11/06/2025;12/06/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/06/2025;VRAI;FAUX;Compte Courant Principal;;568
+16/06/2025;18/06/2025;Assurance Habitation & Auto 🛡️;68,46;Dépenses fixes;Assurance;18/06/2025;VRAI;FAUX;Compte Courant Principal;;569
+18/06/2025;20/06/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/06/2025;VRAI;FAUX;Compte Courant Principal;;570
+20/06/2025;22/06/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/06/2025;VRAI;FAUX;Compte Courant Principal;;571
+04/06/2025;04/06/2025;Courses Carrefour 🛒;92,90;Dépenses variables;Alimentation;04/06/2025;FAUX;FAUX;Compte Courant Principal;;572
+11/06/2025;11/06/2025;Courses Carrefour 🛒;96,99;Dépenses variables;Alimentation;11/06/2025;FAUX;FAUX;Compte Courant Principal;;573
+19/06/2025;19/06/2025;Courses Lidl 🛒;88,66;Dépenses variables;Alimentation;19/06/2025;FAUX;FAUX;Compte Courant Principal;;574
+26/06/2025;26/06/2025;Courses E.Leclerc 🛒;91,81;Dépenses variables;Alimentation;26/06/2025;FAUX;FAUX;Compte Courant Principal;;575
+09/06/2025;09/06/2025;Station TotalEnergies - Carburant ⛽;59,24;Dépenses variables;Transport & Carburant;09/06/2025;FAUX;FAUX;Compte Courant Principal;;576
+22/06/2025;22/06/2025;Station TotalEnergies - Carburant ⛽;59,04;Dépenses variables;Transport & Carburant;22/06/2025;FAUX;FAUX;Compte Courant Principal;;577
+09/06/2025;09/06/2025;Bistrot Gourmand 🍕;32,99;Dépenses variables;Restauration & Sorties;09/06/2025;FAUX;FAUX;Compte Courant Principal;;578
+21/06/2025;21/06/2025;Bistrot Gourmand 🍕;40,53;Dépenses variables;Restauration & Sorties;21/06/2025;FAUX;FAUX;Compte Courant Principal;;579
+18/06/2025;18/06/2025;Pharmacie Centrale 💊;24,41;Dépenses variables;Santé & Mutuelle;18/06/2025;FAUX;FAUX;Compte Courant Principal;;580
+23/06/2025;23/06/2025;Pathé Gaumont - Cinéma 🎬;123,60;Dépenses variables;Loisirs & Culture;23/06/2025;FAUX;FAUX;Compte Courant Principal;;581
+15/06/2025;15/06/2025;Shopping Habillement 🛍️;41,78;Dépenses variables;Shopping & Habillement;15/06/2025;FAUX;FAUX;Compte Courant Principal;;582
+27/07/2025;28/07/2025;Salaire Mensuel 💶;1762,17;Recettes;Salaire;28/07/2025;VRAI;FAUX;;Compte Courant Principal;583
+30/06/2025;02/07/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/07/2025;VRAI;FAUX;Compte Courant Principal;Livret A;584
+03/07/2025;05/07/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/07/2025;VRAI;FAUX;Compte Courant Principal;;585
+08/07/2025;10/07/2025;Facture Électricité & Gaz ⚡;79,92;Dépenses fixes;Énergie & Eau;10/07/2025;VRAI;FAUX;Compte Courant Principal;;586
+11/07/2025;12/07/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/07/2025;VRAI;FAUX;Compte Courant Principal;;587
+16/07/2025;18/07/2025;Assurance Habitation & Auto 🛡️;67,25;Dépenses fixes;Assurance;18/07/2025;VRAI;FAUX;Compte Courant Principal;;588
+19/07/2025;20/07/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/07/2025;VRAI;FAUX;Compte Courant Principal;;589
+21/07/2025;22/07/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/07/2025;VRAI;FAUX;Compte Courant Principal;;590
+02/07/2025;02/07/2025;Courses Carrefour 🛒;92,32;Dépenses variables;Alimentation;02/07/2025;FAUX;FAUX;Compte Courant Principal;;591
+12/07/2025;12/07/2025;Courses E.Leclerc 🛒;96,12;Dépenses variables;Alimentation;12/07/2025;FAUX;FAUX;Compte Courant Principal;;592
+20/07/2025;20/07/2025;Courses Carrefour 🛒;93,86;Dépenses variables;Alimentation;20/07/2025;FAUX;FAUX;Compte Courant Principal;;593
+27/07/2025;27/07/2025;Courses E.Leclerc 🛒;94,70;Dépenses variables;Alimentation;27/07/2025;FAUX;FAUX;Compte Courant Principal;;594
+08/07/2025;08/07/2025;Station TotalEnergies - Carburant ⛽;57,83;Dépenses variables;Transport & Carburant;08/07/2025;FAUX;FAUX;Compte Courant Principal;;595
+22/07/2025;22/07/2025;Station TotalEnergies - Carburant ⛽;61,94;Dépenses variables;Transport & Carburant;22/07/2025;FAUX;FAUX;Compte Courant Principal;;596
+06/07/2025;06/07/2025;Bistrot Gourmand 🍕;41,68;Dépenses variables;Restauration & Sorties;06/07/2025;FAUX;FAUX;Compte Courant Principal;;597
+23/07/2025;23/07/2025;Bistrot Gourmand 🍕;35,52;Dépenses variables;Restauration & Sorties;23/07/2025;FAUX;FAUX;Compte Courant Principal;;598
+16/07/2025;16/07/2025;Pharmacie Centrale 💊;21,70;Dépenses variables;Santé & Mutuelle;16/07/2025;FAUX;FAUX;Compte Courant Principal;;599
+25/07/2025;25/07/2025;Pathé Gaumont - Cinéma 🎬;119,48;Dépenses variables;Loisirs & Culture;25/07/2025;FAUX;FAUX;Compte Courant Principal;;600
+14/07/2025;14/07/2025;Shopping Habillement 🛍️;51,91;Dépenses variables;Shopping & Habillement;14/07/2025;FAUX;FAUX;Compte Courant Principal;;601
+16/07/2025;16/07/2025;Camping Les Pins - Vacances 🏖️;90,00;Dépenses variables;Loisirs & Culture;16/07/2025;FAUX;FAUX;Compte Courant Principal;;602
+27/08/2025;28/08/2025;Salaire Mensuel 💶;1753,66;Recettes;Salaire;28/08/2025;VRAI;FAUX;;Compte Courant Principal;603
+31/07/2025;02/08/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/08/2025;VRAI;FAUX;Compte Courant Principal;Livret A;604
+04/08/2025;05/08/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/08/2025;VRAI;FAUX;Compte Courant Principal;;605
+08/08/2025;10/08/2025;Facture Électricité & Gaz ⚡;78,11;Dépenses fixes;Énergie & Eau;10/08/2025;VRAI;FAUX;Compte Courant Principal;;606
+11/08/2025;12/08/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/08/2025;VRAI;FAUX;Compte Courant Principal;;607
+17/08/2025;18/08/2025;Assurance Habitation & Auto 🛡️;66,90;Dépenses fixes;Assurance;18/08/2025;VRAI;FAUX;Compte Courant Principal;;608
+18/08/2025;20/08/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/08/2025;VRAI;FAUX;Compte Courant Principal;;609
+20/08/2025;22/08/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/08/2025;VRAI;FAUX;Compte Courant Principal;;610
+03/08/2025;03/08/2025;Courses E.Leclerc 🛒;88,06;Dépenses variables;Alimentation;03/08/2025;FAUX;FAUX;Compte Courant Principal;;611
+10/08/2025;10/08/2025;Courses Auchan 🛒;88,70;Dépenses variables;Alimentation;10/08/2025;FAUX;FAUX;Compte Courant Principal;;612
+20/08/2025;20/08/2025;Courses Carrefour 🛒;88,92;Dépenses variables;Alimentation;20/08/2025;FAUX;FAUX;Compte Courant Principal;;613
+27/08/2025;27/08/2025;Courses Lidl 🛒;91,76;Dépenses variables;Alimentation;27/08/2025;FAUX;FAUX;Compte Courant Principal;;614
+08/08/2025;08/08/2025;Station TotalEnergies - Carburant ⛽;57,73;Dépenses variables;Transport & Carburant;08/08/2025;FAUX;FAUX;Compte Courant Principal;;615
+21/08/2025;21/08/2025;Station TotalEnergies - Carburant ⛽;57,49;Dépenses variables;Transport & Carburant;21/08/2025;FAUX;FAUX;Compte Courant Principal;;616
+08/08/2025;08/08/2025;Bistrot Gourmand 🍕;39,77;Dépenses variables;Restauration & Sorties;08/08/2025;FAUX;FAUX;Compte Courant Principal;;617
+25/08/2025;25/08/2025;Brasserie du Centre 🍕;32,85;Dépenses variables;Restauration & Sorties;25/08/2025;FAUX;FAUX;Compte Courant Principal;;618
+13/08/2025;13/08/2025;Pharmacie Centrale 💊;21,26;Dépenses variables;Santé & Mutuelle;13/08/2025;FAUX;FAUX;Compte Courant Principal;;619
+26/08/2025;26/08/2025;Pathé Gaumont - Cinéma 🎬;116,00;Dépenses variables;Loisirs & Culture;26/08/2025;FAUX;FAUX;Compte Courant Principal;;620
+14/08/2025;14/08/2025;Shopping Habillement 🛍️;43,86;Dépenses variables;Shopping & Habillement;14/08/2025;FAUX;FAUX;Compte Courant Principal;;621
+16/08/2025;16/08/2025;Péages & Autoroute 🛣️;35,00;Dépenses variables;Transport & Carburant;16/08/2025;FAUX;FAUX;Compte Courant Principal;;622
+27/09/2025;28/09/2025;Salaire Mensuel 💶;1764,78;Recettes;Salaire;28/09/2025;VRAI;FAUX;;Compte Courant Principal;623
+01/09/2025;02/09/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/09/2025;VRAI;FAUX;Compte Courant Principal;Livret A;624
+03/09/2025;05/09/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/09/2025;VRAI;FAUX;Compte Courant Principal;;625
+08/09/2025;10/09/2025;Facture Électricité & Gaz ⚡;78,77;Dépenses fixes;Énergie & Eau;10/09/2025;VRAI;FAUX;Compte Courant Principal;;626
+11/09/2025;12/09/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/09/2025;VRAI;FAUX;Compte Courant Principal;;627
+16/09/2025;18/09/2025;Assurance Habitation & Auto 🛡️;67,09;Dépenses fixes;Assurance;18/09/2025;VRAI;FAUX;Compte Courant Principal;;628
+18/09/2025;20/09/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/09/2025;VRAI;FAUX;Compte Courant Principal;;629
+20/09/2025;22/09/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/09/2025;VRAI;FAUX;Compte Courant Principal;;630
+02/09/2025;02/09/2025;Courses Lidl 🛒;91,95;Dépenses variables;Alimentation;02/09/2025;FAUX;FAUX;Compte Courant Principal;;631
+12/09/2025;12/09/2025;Courses Carrefour 🛒;88,08;Dépenses variables;Alimentation;12/09/2025;FAUX;FAUX;Compte Courant Principal;;632
+19/09/2025;19/09/2025;Courses Lidl 🛒;95,67;Dépenses variables;Alimentation;19/09/2025;FAUX;FAUX;Compte Courant Principal;;633
+26/09/2025;26/09/2025;Courses E.Leclerc 🛒;91,28;Dépenses variables;Alimentation;26/09/2025;FAUX;FAUX;Compte Courant Principal;;634
+05/09/2025;05/09/2025;Station TotalEnergies - Carburant ⛽;58,98;Dépenses variables;Transport & Carburant;05/09/2025;FAUX;FAUX;Compte Courant Principal;;635
+22/09/2025;22/09/2025;Station TotalEnergies - Carburant ⛽;56,41;Dépenses variables;Transport & Carburant;22/09/2025;FAUX;FAUX;Compte Courant Principal;;636
+09/09/2025;09/09/2025;Brasserie du Centre 🍕;37,33;Dépenses variables;Restauration & Sorties;09/09/2025;FAUX;FAUX;Compte Courant Principal;;637
+25/09/2025;25/09/2025;Bistrot Gourmand 🍕;37,59;Dépenses variables;Restauration & Sorties;25/09/2025;FAUX;FAUX;Compte Courant Principal;;638
+18/09/2025;18/09/2025;Pharmacie Centrale 💊;22,83;Dépenses variables;Santé & Mutuelle;18/09/2025;FAUX;FAUX;Compte Courant Principal;;639
+25/09/2025;25/09/2025;Pathé Gaumont - Cinéma 🎬;132,24;Dépenses variables;Loisirs & Culture;25/09/2025;FAUX;FAUX;Compte Courant Principal;;640
+15/09/2025;15/09/2025;Shopping Habillement 🛍️;35,37;Dépenses variables;Shopping & Habillement;15/09/2025;FAUX;FAUX;Compte Courant Principal;;641
+26/10/2025;27/10/2025;Salaire Mensuel 💶;1776,07;Recettes;Salaire;27/10/2025;VRAI;FAUX;;Compte Courant Principal;642
+30/09/2025;02/10/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/10/2025;VRAI;FAUX;Compte Courant Principal;Livret A;643
+03/10/2025;05/10/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/10/2025;VRAI;FAUX;Compte Courant Principal;;644
+09/10/2025;10/10/2025;Facture Électricité & Gaz ⚡;79,30;Dépenses fixes;Énergie & Eau;10/10/2025;VRAI;FAUX;Compte Courant Principal;;645
+10/10/2025;12/10/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/10/2025;VRAI;FAUX;Compte Courant Principal;;646
+17/10/2025;18/10/2025;Assurance Habitation & Auto 🛡️;68,29;Dépenses fixes;Assurance;18/10/2025;VRAI;FAUX;Compte Courant Principal;;647
+18/10/2025;20/10/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/10/2025;VRAI;FAUX;Compte Courant Principal;;648
+21/10/2025;22/10/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/10/2025;VRAI;FAUX;Compte Courant Principal;;649
+04/10/2025;04/10/2025;Courses Auchan 🛒;96,32;Dépenses variables;Alimentation;04/10/2025;FAUX;FAUX;Compte Courant Principal;;650
+11/10/2025;11/10/2025;Courses Carrefour 🛒;92,37;Dépenses variables;Alimentation;11/10/2025;FAUX;FAUX;Compte Courant Principal;;651
+18/10/2025;18/10/2025;Courses Lidl 🛒;92,36;Dépenses variables;Alimentation;18/10/2025;FAUX;FAUX;Compte Courant Principal;;652
+26/10/2025;26/10/2025;Courses Carrefour 🛒;91,96;Dépenses variables;Alimentation;26/10/2025;FAUX;FAUX;Compte Courant Principal;;653
+07/10/2025;07/10/2025;Station TotalEnergies - Carburant ⛽;60,97;Dépenses variables;Transport & Carburant;07/10/2025;FAUX;FAUX;Compte Courant Principal;;654
+20/10/2025;20/10/2025;Station TotalEnergies - Carburant ⛽;57,66;Dépenses variables;Transport & Carburant;20/10/2025;FAUX;FAUX;Compte Courant Principal;;655
+07/10/2025;07/10/2025;Bistrot Gourmand 🍕;32,76;Dépenses variables;Restauration & Sorties;07/10/2025;FAUX;FAUX;Compte Courant Principal;;656
+21/10/2025;21/10/2025;Brasserie du Centre 🍕;37,31;Dépenses variables;Restauration & Sorties;21/10/2025;FAUX;FAUX;Compte Courant Principal;;657
+18/10/2025;18/10/2025;Pharmacie Centrale 💊;22,80;Dépenses variables;Santé & Mutuelle;18/10/2025;FAUX;FAUX;Compte Courant Principal;;658
+23/10/2025;23/10/2025;Pathé Gaumont - Cinéma 🎬;119,73;Dépenses variables;Loisirs & Culture;23/10/2025;FAUX;FAUX;Compte Courant Principal;;659
+14/10/2025;14/10/2025;Shopping Habillement 🛍️;38,95;Dépenses variables;Shopping & Habillement;14/10/2025;FAUX;FAUX;Compte Courant Principal;;660
+04/10/2025;04/10/2025;Remboursement Assurance 🏦;3500,00;Recettes;Remboursement;04/10/2025;FAUX;FAUX;;Compte Courant Principal;661
+18/10/2025;18/10/2025;Virement Épargne Exceptionnel 🐷;3500,00;Virement;Épargne;18/10/2025;FAUX;FAUX;Compte Courant Principal;Livret A;662
+26/11/2025;27/11/2025;Salaire Mensuel 💶;1773,02;Recettes;Salaire;27/11/2025;VRAI;FAUX;;Compte Courant Principal;663
+31/10/2025;02/11/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/11/2025;VRAI;FAUX;Compte Courant Principal;Livret A;664
+03/11/2025;05/11/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/11/2025;VRAI;FAUX;Compte Courant Principal;;665
+08/11/2025;10/11/2025;Facture Électricité & Gaz ⚡;95,62;Dépenses fixes;Énergie & Eau;10/11/2025;VRAI;FAUX;Compte Courant Principal;;666
+10/11/2025;12/11/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/11/2025;VRAI;FAUX;Compte Courant Principal;;667
+16/11/2025;18/11/2025;Assurance Habitation & Auto 🛡️;66,71;Dépenses fixes;Assurance;18/11/2025;VRAI;FAUX;Compte Courant Principal;;668
+19/11/2025;20/11/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/11/2025;VRAI;FAUX;Compte Courant Principal;;669
+20/11/2025;22/11/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/11/2025;VRAI;FAUX;Compte Courant Principal;;670
+02/11/2025;02/11/2025;Courses Auchan 🛒;92,42;Dépenses variables;Alimentation;02/11/2025;FAUX;FAUX;Compte Courant Principal;;671
+11/11/2025;11/11/2025;Courses E.Leclerc 🛒;93,91;Dépenses variables;Alimentation;11/11/2025;FAUX;FAUX;Compte Courant Principal;;672
+19/11/2025;19/11/2025;Courses Carrefour 🛒;91,10;Dépenses variables;Alimentation;19/11/2025;FAUX;FAUX;Compte Courant Principal;;673
+26/11/2025;26/11/2025;Courses Carrefour 🛒;88,57;Dépenses variables;Alimentation;26/11/2025;FAUX;FAUX;Compte Courant Principal;;674
+07/11/2025;07/11/2025;Station TotalEnergies - Carburant ⛽;55,61;Dépenses variables;Transport & Carburant;07/11/2025;FAUX;FAUX;Compte Courant Principal;;675
+19/11/2025;19/11/2025;Station TotalEnergies - Carburant ⛽;59,92;Dépenses variables;Transport & Carburant;19/11/2025;FAUX;FAUX;Compte Courant Principal;;676
+10/11/2025;10/11/2025;Bistrot Gourmand 🍕;35,84;Dépenses variables;Restauration & Sorties;10/11/2025;FAUX;FAUX;Compte Courant Principal;;677
+25/11/2025;25/11/2025;Bistrot Gourmand 🍕;41,54;Dépenses variables;Restauration & Sorties;25/11/2025;FAUX;FAUX;Compte Courant Principal;;678
+12/11/2025;12/11/2025;Pharmacie Centrale 💊;23,60;Dépenses variables;Santé & Mutuelle;12/11/2025;FAUX;FAUX;Compte Courant Principal;;679
+26/11/2025;26/11/2025;Fnac - Livres & Musique 📚;128,04;Dépenses variables;Loisirs & Culture;26/11/2025;FAUX;FAUX;Compte Courant Principal;;680
+16/11/2025;16/11/2025;Shopping Habillement 🛍️;44,51;Dépenses variables;Shopping & Habillement;16/11/2025;FAUX;FAUX;Compte Courant Principal;;681
+26/12/2025;27/12/2025;Salaire Mensuel 💶;1778,94;Recettes;Salaire;27/12/2025;VRAI;FAUX;;Compte Courant Principal;682
+30/11/2025;02/12/2025;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/12/2025;VRAI;FAUX;Compte Courant Principal;Livret A;683
+04/12/2025;05/12/2025;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/12/2025;VRAI;FAUX;Compte Courant Principal;;684
+09/12/2025;10/12/2025;Facture Électricité & Gaz ⚡;94,80;Dépenses fixes;Énergie & Eau;10/12/2025;VRAI;FAUX;Compte Courant Principal;;685
+11/12/2025;12/12/2025;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/12/2025;VRAI;FAUX;Compte Courant Principal;;686
+17/12/2025;18/12/2025;Assurance Habitation & Auto 🛡️;69,24;Dépenses fixes;Assurance;18/12/2025;VRAI;FAUX;Compte Courant Principal;;687
+18/12/2025;20/12/2025;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/12/2025;VRAI;FAUX;Compte Courant Principal;;688
+20/12/2025;22/12/2025;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/12/2025;VRAI;FAUX;Compte Courant Principal;;689
+04/12/2025;04/12/2025;Courses Lidl 🛒;91,64;Dépenses variables;Alimentation;04/12/2025;FAUX;FAUX;Compte Courant Principal;;690
+11/12/2025;11/12/2025;Courses Auchan 🛒;92,09;Dépenses variables;Alimentation;11/12/2025;FAUX;FAUX;Compte Courant Principal;;691
+19/12/2025;19/12/2025;Courses Carrefour 🛒;95,89;Dépenses variables;Alimentation;19/12/2025;FAUX;FAUX;Compte Courant Principal;;692
+27/12/2025;27/12/2025;Courses E.Leclerc 🛒;88,66;Dépenses variables;Alimentation;27/12/2025;FAUX;FAUX;Compte Courant Principal;;693
+05/12/2025;05/12/2025;Station TotalEnergies - Carburant ⛽;59,46;Dépenses variables;Transport & Carburant;05/12/2025;FAUX;FAUX;Compte Courant Principal;;694
+22/12/2025;22/12/2025;Station TotalEnergies - Carburant ⛽;57,27;Dépenses variables;Transport & Carburant;22/12/2025;FAUX;FAUX;Compte Courant Principal;;695
+10/12/2025;10/12/2025;Pizzeria Bella Vista 🍕;40,73;Dépenses variables;Restauration & Sorties;10/12/2025;FAUX;FAUX;Compte Courant Principal;;696
+21/12/2025;21/12/2025;Brasserie du Centre 🍕;37,83;Dépenses variables;Restauration & Sorties;21/12/2025;FAUX;FAUX;Compte Courant Principal;;697
+14/12/2025;14/12/2025;Pharmacie Centrale 💊;22,48;Dépenses variables;Santé & Mutuelle;14/12/2025;FAUX;FAUX;Compte Courant Principal;;698
+25/12/2025;25/12/2025;Decathlon - Loisirs ⚽;117,58;Dépenses variables;Loisirs & Culture;25/12/2025;FAUX;FAUX;Compte Courant Principal;;699
+12/12/2025;12/12/2025;Shopping Habillement 🛍️;41,19;Dépenses variables;Shopping & Habillement;12/12/2025;FAUX;FAUX;Compte Courant Principal;;700
+18/12/2025;18/12/2025;Cadeaux de Noël & Fêtes 🎁;85,00;Dépenses variables;Shopping & Habillement;18/12/2025;FAUX;FAUX;Compte Courant Principal;;701
+27/01/2026;28/01/2026;Salaire Mensuel 💶;1769,51;Recettes;Salaire;28/01/2026;VRAI;FAUX;;Compte Courant Principal;702
+01/01/2026;02/01/2026;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/01/2026;VRAI;FAUX;Compte Courant Principal;Livret A;703
+03/01/2026;05/01/2026;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/01/2026;VRAI;FAUX;Compte Courant Principal;;704
+08/01/2026;10/01/2026;Facture Électricité & Gaz ⚡;94,31;Dépenses fixes;Énergie & Eau;10/01/2026;VRAI;FAUX;Compte Courant Principal;;705
+11/01/2026;12/01/2026;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/01/2026;VRAI;FAUX;Compte Courant Principal;;706
+16/01/2026;18/01/2026;Assurance Habitation & Auto 🛡️;66,51;Dépenses fixes;Assurance;18/01/2026;VRAI;FAUX;Compte Courant Principal;;707
+18/01/2026;20/01/2026;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/01/2026;VRAI;FAUX;Compte Courant Principal;;708
+21/01/2026;22/01/2026;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/01/2026;VRAI;FAUX;Compte Courant Principal;;709
+02/01/2026;02/01/2026;Courses E.Leclerc 🛒;97,48;Dépenses variables;Alimentation;02/01/2026;FAUX;FAUX;Compte Courant Principal;;710
+11/01/2026;11/01/2026;Courses Lidl 🛒;90,27;Dépenses variables;Alimentation;11/01/2026;FAUX;FAUX;Compte Courant Principal;;711
+18/01/2026;18/01/2026;Courses Lidl 🛒;88,77;Dépenses variables;Alimentation;18/01/2026;FAUX;FAUX;Compte Courant Principal;;712
+25/01/2026;25/01/2026;Courses Carrefour 🛒;94,62;Dépenses variables;Alimentation;25/01/2026;FAUX;FAUX;Compte Courant Principal;;713
+09/01/2026;09/01/2026;Station TotalEnergies - Carburant ⛽;56,05;Dépenses variables;Transport & Carburant;09/01/2026;FAUX;FAUX;Compte Courant Principal;;714
+22/01/2026;22/01/2026;Station TotalEnergies - Carburant ⛽;56,23;Dépenses variables;Transport & Carburant;22/01/2026;FAUX;FAUX;Compte Courant Principal;;715
+07/01/2026;07/01/2026;Bistrot Gourmand 🍕;40,31;Dépenses variables;Restauration & Sorties;07/01/2026;FAUX;FAUX;Compte Courant Principal;;716
+22/01/2026;22/01/2026;Brasserie du Centre 🍕;39,21;Dépenses variables;Restauration & Sorties;22/01/2026;FAUX;FAUX;Compte Courant Principal;;717
+15/01/2026;15/01/2026;Pharmacie Centrale 💊;22,91;Dépenses variables;Santé & Mutuelle;15/01/2026;FAUX;FAUX;Compte Courant Principal;;718
+23/01/2026;23/01/2026;Decathlon - Loisirs ⚽;134,39;Dépenses variables;Loisirs & Culture;23/01/2026;FAUX;FAUX;Compte Courant Principal;;719
+14/01/2026;14/01/2026;Shopping Habillement 🛍️;50,05;Dépenses variables;Shopping & Habillement;14/01/2026;FAUX;FAUX;Compte Courant Principal;;720
+27/02/2026;28/02/2026;Salaire Mensuel 💶;1757,23;Recettes;Salaire;28/02/2026;VRAI;FAUX;;Compte Courant Principal;721
+31/01/2026;02/02/2026;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/02/2026;VRAI;FAUX;Compte Courant Principal;Livret A;722
+04/02/2026;05/02/2026;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/02/2026;VRAI;FAUX;Compte Courant Principal;;723
+08/02/2026;10/02/2026;Facture Électricité & Gaz ⚡;93,96;Dépenses fixes;Énergie & Eau;10/02/2026;VRAI;FAUX;Compte Courant Principal;;724
+10/02/2026;12/02/2026;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/02/2026;VRAI;FAUX;Compte Courant Principal;;725
+16/02/2026;18/02/2026;Assurance Habitation & Auto 🛡️;69,86;Dépenses fixes;Assurance;18/02/2026;VRAI;FAUX;Compte Courant Principal;;726
+18/02/2026;20/02/2026;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/02/2026;VRAI;FAUX;Compte Courant Principal;;727
+20/02/2026;22/02/2026;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/02/2026;VRAI;FAUX;Compte Courant Principal;;728
+04/02/2026;04/02/2026;Courses Auchan 🛒;97,66;Dépenses variables;Alimentation;04/02/2026;FAUX;FAUX;Compte Courant Principal;;729
+10/02/2026;10/02/2026;Courses Lidl 🛒;96,73;Dépenses variables;Alimentation;10/02/2026;FAUX;FAUX;Compte Courant Principal;;730
+18/02/2026;18/02/2026;Courses Auchan 🛒;96,74;Dépenses variables;Alimentation;18/02/2026;FAUX;FAUX;Compte Courant Principal;;731
+27/02/2026;27/02/2026;Courses Carrefour 🛒;95,11;Dépenses variables;Alimentation;27/02/2026;FAUX;FAUX;Compte Courant Principal;;732
+09/02/2026;09/02/2026;Station TotalEnergies - Carburant ⛽;61,81;Dépenses variables;Transport & Carburant;09/02/2026;FAUX;FAUX;Compte Courant Principal;;733
+21/02/2026;21/02/2026;Station TotalEnergies - Carburant ⛽;55,67;Dépenses variables;Transport & Carburant;21/02/2026;FAUX;FAUX;Compte Courant Principal;;734
+07/02/2026;07/02/2026;Bistrot Gourmand 🍕;34,73;Dépenses variables;Restauration & Sorties;07/02/2026;FAUX;FAUX;Compte Courant Principal;;735
+22/02/2026;22/02/2026;Brasserie du Centre 🍕;40,31;Dépenses variables;Restauration & Sorties;22/02/2026;FAUX;FAUX;Compte Courant Principal;;736
+13/02/2026;13/02/2026;Pharmacie Centrale 💊;26,53;Dépenses variables;Santé & Mutuelle;13/02/2026;FAUX;FAUX;Compte Courant Principal;;737
+24/02/2026;24/02/2026;Fnac - Livres & Musique 📚;133,61;Dépenses variables;Loisirs & Culture;24/02/2026;FAUX;FAUX;Compte Courant Principal;;738
+12/02/2026;12/02/2026;Shopping Habillement 🛍️;42,93;Dépenses variables;Shopping & Habillement;12/02/2026;FAUX;FAUX;Compte Courant Principal;;739
+27/03/2026;28/03/2026;Salaire Mensuel 💶;1757,28;Recettes;Salaire;28/03/2026;VRAI;FAUX;;Compte Courant Principal;740
+01/03/2026;02/03/2026;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/03/2026;VRAI;FAUX;Compte Courant Principal;Livret A;741
+03/03/2026;05/03/2026;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/03/2026;VRAI;FAUX;Compte Courant Principal;;742
+09/03/2026;10/03/2026;Facture Électricité & Gaz ⚡;80,98;Dépenses fixes;Énergie & Eau;10/03/2026;VRAI;FAUX;Compte Courant Principal;;743
+10/03/2026;12/03/2026;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/03/2026;VRAI;FAUX;Compte Courant Principal;;744
+17/03/2026;18/03/2026;Assurance Habitation & Auto 🛡️;67,50;Dépenses fixes;Assurance;18/03/2026;VRAI;FAUX;Compte Courant Principal;;745
+19/03/2026;20/03/2026;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/03/2026;VRAI;FAUX;Compte Courant Principal;;746
+21/03/2026;22/03/2026;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/03/2026;VRAI;FAUX;Compte Courant Principal;;747
+03/03/2026;03/03/2026;Courses Auchan 🛒;94,96;Dépenses variables;Alimentation;03/03/2026;FAUX;FAUX;Compte Courant Principal;;748
+10/03/2026;10/03/2026;Courses Auchan 🛒;92,49;Dépenses variables;Alimentation;10/03/2026;FAUX;FAUX;Compte Courant Principal;;749
+18/03/2026;18/03/2026;Courses Carrefour 🛒;88,19;Dépenses variables;Alimentation;18/03/2026;FAUX;FAUX;Compte Courant Principal;;750
+25/03/2026;25/03/2026;Courses Lidl 🛒;93,49;Dépenses variables;Alimentation;25/03/2026;FAUX;FAUX;Compte Courant Principal;;751
+09/03/2026;09/03/2026;Station TotalEnergies - Carburant ⛽;59,22;Dépenses variables;Transport & Carburant;09/03/2026;FAUX;FAUX;Compte Courant Principal;;752
+19/03/2026;19/03/2026;Station TotalEnergies - Carburant ⛽;61,21;Dépenses variables;Transport & Carburant;19/03/2026;FAUX;FAUX;Compte Courant Principal;;753
+07/03/2026;07/03/2026;Brasserie du Centre 🍕;35,01;Dépenses variables;Restauration & Sorties;07/03/2026;FAUX;FAUX;Compte Courant Principal;;754
+22/03/2026;22/03/2026;Bistrot Gourmand 🍕;36,20;Dépenses variables;Restauration & Sorties;22/03/2026;FAUX;FAUX;Compte Courant Principal;;755
+15/03/2026;15/03/2026;Pharmacie Centrale 💊;20,50;Dépenses variables;Santé & Mutuelle;15/03/2026;FAUX;FAUX;Compte Courant Principal;;756
+25/03/2026;25/03/2026;Pathé Gaumont - Cinéma 🎬;126,93;Dépenses variables;Loisirs & Culture;25/03/2026;FAUX;FAUX;Compte Courant Principal;;757
+16/03/2026;16/03/2026;Shopping Habillement 🛍️;46,50;Dépenses variables;Shopping & Habillement;16/03/2026;FAUX;FAUX;Compte Courant Principal;;758
+14/03/2026;14/03/2026;Chèque N° 458921 - Cotisation Club 🎨;35,00;Dépenses variables;Loisirs & Culture;14/03/2026;FAUX;FAUX;Compte Courant Principal;;759
+26/04/2026;27/04/2026;Salaire Mensuel 💶;1758,95;Recettes;Salaire;27/04/2026;VRAI;FAUX;;Compte Courant Principal;760
+31/03/2026;02/04/2026;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/04/2026;VRAI;FAUX;Compte Courant Principal;Livret A;761
+04/04/2026;05/04/2026;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/04/2026;VRAI;FAUX;Compte Courant Principal;;762
+09/04/2026;10/04/2026;Facture Électricité & Gaz ⚡;77,01;Dépenses fixes;Énergie & Eau;10/04/2026;VRAI;FAUX;Compte Courant Principal;;763
+10/04/2026;12/04/2026;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/04/2026;VRAI;FAUX;Compte Courant Principal;;764
+17/04/2026;18/04/2026;Assurance Habitation & Auto 🛡️;67,41;Dépenses fixes;Assurance;18/04/2026;VRAI;FAUX;Compte Courant Principal;;765
+19/04/2026;20/04/2026;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/04/2026;VRAI;FAUX;Compte Courant Principal;;766
+20/04/2026;22/04/2026;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/04/2026;VRAI;FAUX;Compte Courant Principal;;767
+03/04/2026;03/04/2026;Courses Carrefour 🛒;94,36;Dépenses variables;Alimentation;03/04/2026;FAUX;FAUX;Compte Courant Principal;;768
+11/04/2026;11/04/2026;Courses E.Leclerc 🛒;95,47;Dépenses variables;Alimentation;11/04/2026;FAUX;FAUX;Compte Courant Principal;;769
+19/04/2026;19/04/2026;Courses Carrefour 🛒;91,45;Dépenses variables;Alimentation;19/04/2026;FAUX;FAUX;Compte Courant Principal;;770
+27/04/2026;27/04/2026;Courses Carrefour 🛒;95,72;Dépenses variables;Alimentation;27/04/2026;FAUX;FAUX;Compte Courant Principal;;771
+07/04/2026;07/04/2026;Station TotalEnergies - Carburant ⛽;56,07;Dépenses variables;Transport & Carburant;07/04/2026;FAUX;FAUX;Compte Courant Principal;;772
+21/04/2026;21/04/2026;Station TotalEnergies - Carburant ⛽;59,37;Dépenses variables;Transport & Carburant;21/04/2026;FAUX;FAUX;Compte Courant Principal;;773
+07/04/2026;07/04/2026;Bistrot Gourmand 🍕;40,30;Dépenses variables;Restauration & Sorties;07/04/2026;FAUX;FAUX;Compte Courant Principal;;774
+24/04/2026;24/04/2026;Pizzeria Bella Vista 🍕;41,81;Dépenses variables;Restauration & Sorties;24/04/2026;FAUX;FAUX;Compte Courant Principal;;775
+17/04/2026;17/04/2026;Pharmacie Centrale 💊;21,46;Dépenses variables;Santé & Mutuelle;17/04/2026;FAUX;FAUX;Compte Courant Principal;;776
+23/04/2026;23/04/2026;Fnac - Livres & Musique 📚;116,26;Dépenses variables;Loisirs & Culture;23/04/2026;FAUX;FAUX;Compte Courant Principal;;777
+12/04/2026;12/04/2026;Shopping Habillement 🛍️;40,87;Dépenses variables;Shopping & Habillement;12/04/2026;FAUX;FAUX;Compte Courant Principal;;778
+26/05/2026;27/05/2026;Salaire Mensuel 💶;1773,94;Recettes;Salaire;27/05/2026;VRAI;FAUX;;Compte Courant Principal;779
+30/04/2026;02/05/2026;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/05/2026;VRAI;FAUX;Compte Courant Principal;Livret A;780
+03/05/2026;05/05/2026;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/05/2026;VRAI;FAUX;Compte Courant Principal;;781
+08/05/2026;10/05/2026;Facture Électricité & Gaz ⚡;80,54;Dépenses fixes;Énergie & Eau;10/05/2026;VRAI;FAUX;Compte Courant Principal;;782
+10/05/2026;12/05/2026;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/05/2026;VRAI;FAUX;Compte Courant Principal;;783
+17/05/2026;18/05/2026;Assurance Habitation & Auto 🛡️;67,26;Dépenses fixes;Assurance;18/05/2026;VRAI;FAUX;Compte Courant Principal;;784
+19/05/2026;20/05/2026;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/05/2026;VRAI;FAUX;Compte Courant Principal;;785
+20/05/2026;22/05/2026;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/05/2026;VRAI;FAUX;Compte Courant Principal;;786
+03/05/2026;03/05/2026;Courses Carrefour 🛒;96,66;Dépenses variables;Alimentation;03/05/2026;FAUX;FAUX;Compte Courant Principal;;787
+11/05/2026;11/05/2026;Courses E.Leclerc 🛒;89,24;Dépenses variables;Alimentation;11/05/2026;FAUX;FAUX;Compte Courant Principal;;788
+19/05/2026;19/05/2026;Courses Auchan 🛒;96,89;Dépenses variables;Alimentation;19/05/2026;FAUX;FAUX;Compte Courant Principal;;789
+27/05/2026;27/05/2026;Courses Auchan 🛒;96,95;Dépenses variables;Alimentation;27/05/2026;FAUX;FAUX;Compte Courant Principal;;790
+08/05/2026;08/05/2026;Station TotalEnergies - Carburant ⛽;57,71;Dépenses variables;Transport & Carburant;08/05/2026;FAUX;FAUX;Compte Courant Principal;;791
+20/05/2026;20/05/2026;Station TotalEnergies - Carburant ⛽;58,97;Dépenses variables;Transport & Carburant;20/05/2026;FAUX;FAUX;Compte Courant Principal;;792
+09/05/2026;09/05/2026;Bistrot Gourmand 🍕;35,67;Dépenses variables;Restauration & Sorties;09/05/2026;FAUX;FAUX;Compte Courant Principal;;793
+23/05/2026;23/05/2026;Bistrot Gourmand 🍕;40,01;Dépenses variables;Restauration & Sorties;23/05/2026;FAUX;FAUX;Compte Courant Principal;;794
+15/05/2026;15/05/2026;Pharmacie Centrale 💊;20,63;Dépenses variables;Santé & Mutuelle;15/05/2026;FAUX;FAUX;Compte Courant Principal;;795
+26/05/2026;26/05/2026;Pathé Gaumont - Cinéma 🎬;134,90;Dépenses variables;Loisirs & Culture;26/05/2026;FAUX;FAUX;Compte Courant Principal;;796
+16/05/2026;16/05/2026;Shopping Habillement 🛍️;40,88;Dépenses variables;Shopping & Habillement;16/05/2026;FAUX;FAUX;Compte Courant Principal;;797
+26/06/2026;27/06/2026;Salaire Mensuel 💶;1752,61;Recettes;Salaire;27/06/2026;VRAI;FAUX;;Compte Courant Principal;798
+31/05/2026;02/06/2026;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/06/2026;VRAI;FAUX;Compte Courant Principal;Livret A;799
+04/06/2026;05/06/2026;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/06/2026;VRAI;FAUX;Compte Courant Principal;;800
+08/06/2026;10/06/2026;Facture Électricité & Gaz ⚡;79,64;Dépenses fixes;Énergie & Eau;10/06/2026;VRAI;FAUX;Compte Courant Principal;;801
+10/06/2026;12/06/2026;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/06/2026;VRAI;FAUX;Compte Courant Principal;;802
+16/06/2026;18/06/2026;Assurance Habitation & Auto 🛡️;67,23;Dépenses fixes;Assurance;18/06/2026;VRAI;FAUX;Compte Courant Principal;;803
+19/06/2026;20/06/2026;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/06/2026;VRAI;FAUX;Compte Courant Principal;;804
+20/06/2026;22/06/2026;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/06/2026;VRAI;FAUX;Compte Courant Principal;;805
+04/06/2026;04/06/2026;Courses Auchan 🛒;90,75;Dépenses variables;Alimentation;04/06/2026;FAUX;FAUX;Compte Courant Principal;;806
+10/06/2026;10/06/2026;Courses Carrefour 🛒;94,71;Dépenses variables;Alimentation;10/06/2026;FAUX;FAUX;Compte Courant Principal;;807
+19/06/2026;19/06/2026;Courses E.Leclerc 🛒;93,13;Dépenses variables;Alimentation;19/06/2026;FAUX;FAUX;Compte Courant Principal;;808
+27/06/2026;27/06/2026;Courses Lidl 🛒;97,53;Dépenses variables;Alimentation;27/06/2026;FAUX;FAUX;Compte Courant Principal;;809
+06/06/2026;06/06/2026;Station TotalEnergies - Carburant ⛽;61,79;Dépenses variables;Transport & Carburant;06/06/2026;FAUX;FAUX;Compte Courant Principal;;810
+22/06/2026;22/06/2026;Station TotalEnergies - Carburant ⛽;55,28;Dépenses variables;Transport & Carburant;22/06/2026;FAUX;FAUX;Compte Courant Principal;;811
+06/06/2026;06/06/2026;Bistrot Gourmand 🍕;34,36;Dépenses variables;Restauration & Sorties;06/06/2026;FAUX;FAUX;Compte Courant Principal;;812
+23/06/2026;23/06/2026;Bistrot Gourmand 🍕;35,62;Dépenses variables;Restauration & Sorties;23/06/2026;FAUX;FAUX;Compte Courant Principal;;813
+12/06/2026;12/06/2026;Pharmacie Centrale 💊;24,84;Dépenses variables;Santé & Mutuelle;12/06/2026;FAUX;FAUX;Compte Courant Principal;;814
+25/06/2026;25/06/2026;Fnac - Livres & Musique 📚;133,98;Dépenses variables;Loisirs & Culture;25/06/2026;FAUX;FAUX;Compte Courant Principal;;815
+15/06/2026;15/06/2026;Shopping Habillement 🛍️;50,26;Dépenses variables;Shopping & Habillement;15/06/2026;FAUX;FAUX;Compte Courant Principal;;816
+26/07/2026;27/07/2026;Salaire Mensuel 💶;1766,09;Recettes;Salaire;27/07/2026;VRAI;FAUX;;Compte Courant Principal;817
+01/07/2026;02/07/2026;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/07/2026;VRAI;FAUX;Compte Courant Principal;Livret A;818
+04/07/2026;05/07/2026;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;05/07/2026;VRAI;FAUX;Compte Courant Principal;;819
+09/07/2026;10/07/2026;Facture Électricité & Gaz ⚡;78,59;Dépenses fixes;Énergie & Eau;10/07/2026;VRAI;FAUX;Compte Courant Principal;;820
+11/07/2026;12/07/2026;Abonnement Fibre & Mobile 📱;48,00;Dépenses fixes;Téléphonie & Internet;12/07/2026;VRAI;FAUX;Compte Courant Principal;;821
+16/07/2026;18/07/2026;Assurance Habitation & Auto 🛡️;68,60;Dépenses fixes;Assurance;18/07/2026;VRAI;FAUX;Compte Courant Principal;;822
+18/07/2026;20/07/2026;Abonnement Streaming 🎬;22,00;Dépenses fixes;Abonnements & Médias;20/07/2026;VRAI;FAUX;Compte Courant Principal;;823
+21/07/2026;22/07/2026;Cotisation Mutuelle 💊;32,00;Dépenses fixes;Santé & Mutuelle;22/07/2026;VRAI;FAUX;Compte Courant Principal;;824
+03/07/2026;03/07/2026;Courses E.Leclerc 🛒;95,04;Dépenses variables;Alimentation;03/07/2026;FAUX;FAUX;Compte Courant Principal;;825
+10/07/2026;10/07/2026;Courses E.Leclerc 🛒;94,94;Dépenses variables;Alimentation;10/07/2026;FAUX;FAUX;Compte Courant Principal;;826
+19/07/2026;19/07/2026;Courses Lidl 🛒;89,23;Dépenses variables;Alimentation;19/07/2026;FAUX;FAUX;Compte Courant Principal;;827
+25/07/2026;25/07/2026;Courses Auchan 🛒;89,73;Dépenses variables;Alimentation;25/07/2026;FAUX;FAUX;Compte Courant Principal;;828
+08/07/2026;08/07/2026;Station TotalEnergies - Carburant ⛽;62,98;Dépenses variables;Transport & Carburant;08/07/2026;FAUX;FAUX;Compte Courant Principal;;829
+21/07/2026;21/07/2026;Station TotalEnergies - Carburant ⛽;60,34;Dépenses variables;Transport & Carburant;21/07/2026;FAUX;FAUX;Compte Courant Principal;;830
+06/07/2026;06/07/2026;Pizzeria Bella Vista 🍕;37,50;Dépenses variables;Restauration & Sorties;06/07/2026;FAUX;FAUX;Compte Courant Principal;;831
+23/07/2026;23/07/2026;Bistrot Gourmand 🍕;40,51;Dépenses variables;Restauration & Sorties;23/07/2026;FAUX;FAUX;Compte Courant Principal;;832
+17/07/2026;17/07/2026;Pharmacie Centrale 💊;27,42;Dépenses variables;Santé & Mutuelle;17/07/2026;FAUX;FAUX;Compte Courant Principal;;833
+23/07/2026;23/07/2026;Decathlon - Loisirs ⚽;130,87;Dépenses variables;Loisirs & Culture;23/07/2026;FAUX;FAUX;Compte Courant Principal;;834
+13/07/2026;13/07/2026;Shopping Habillement 🛍️;37,43;Dépenses variables;Shopping & Habillement;13/07/2026;FAUX;FAUX;Compte Courant Principal;;835
+16/07/2026;16/07/2026;Camping Les Pins - Vacances 🏖️;90,00;Dépenses variables;Loisirs & Culture;16/07/2026;FAUX;FAUX;Compte Courant Principal;;836
+31/07/2026;02/08/2026;Virement Épargne Mensuelle 🐷;120,00;Virement;Épargne;02/08/2026;VRAI;FAUX;Compte Courant Principal;Livret A;837
+04/08/2026;05/08/2026;Loyer & Charges 🏠;620,00;Dépenses fixes;Logement;;VRAI;FAUX;Compte Courant Principal;;838
+03/08/2026;03/08/2026;Courses E.Leclerc 🛒;92,67;Dépenses variables;Alimentation;03/08/2026;FAUX;FAUX;Compte Courant Principal;;839
+05/08/2026;05/08/2026;Station TotalEnergies - Carburant ⛽;55,53;Dépenses variables;Transport & Carburant;;FAUX;FAUX;Compte Courant Principal;;840
