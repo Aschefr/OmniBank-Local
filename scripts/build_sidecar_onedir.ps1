@@ -1,4 +1,4 @@
-# Build the FastAPI sidecar with PyInstaller and copy to Tauri bin directory
+# Build the FastAPI sidecar with PyInstaller spec and copy to Tauri resources directory
 param(
     [switch]$SkipBuild
 )
@@ -6,99 +6,42 @@ param(
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 
-Write-Host "=== OmniBank Sidecar Builder ===" -ForegroundColor Cyan
+Write-Host "=== OmniBank Sidecar Builder (spec) ===" -ForegroundColor Cyan
 Write-Host "Project root: $ProjectRoot"
 
 # Target directory name
 $DirName = "omnibank-api"
 $ExeName = "omnibank-api.exe"
+$SpecFile = Join-Path $ProjectRoot "build\omnibank-api.spec"
 
 if (-not $SkipBuild) {
-    Write-Host "`n[1/3] Building sidecar with PyInstaller..." -ForegroundColor Yellow
+    Write-Host "`n[1/3] Building sidecar with PyInstaller spec..." -ForegroundColor Yellow
 
-    $PyInstallerPath = "$env:APPDATA\Python\Python314\Scripts\pyinstaller.exe"
+    if (-not (Test-Path $SpecFile)) {
+        Write-Host "ERROR: Spec file not found at $SpecFile" -ForegroundColor Red
+        exit 1
+    }
+
+    # Find PyInstaller
+    $PyInstallerPath = Join-Path $ProjectRoot "venv\Scripts\pyinstaller.exe"
+    if (-not (Test-Path $PyInstallerPath)) {
+        $PyInstallerPath = "$env:APPDATA\Python\Python314\Scripts\pyinstaller.exe"
+    }
     if (-not (Test-Path $PyInstallerPath)) {
         $PyInstallerPath = "pyinstaller"
     }
 
+    # Clean previous build artifacts
+    $WorkPath = Join-Path $ProjectRoot "build\pyinstaller"
+    $DistPath = Join-Path $ProjectRoot "dist"
+    if (Test-Path $WorkPath) { Remove-Item -Recurse -Force $WorkPath }
+
     Push-Location $ProjectRoot
     & $PyInstallerPath `
-        --onedir `
-        --name $DirName `
-        --add-data "static;static" `
-        --add-data "app;app" `
-        --add-data "package.json;." `
-        --add-data "CHANGELOG.md;." `
-        --hidden-import "uvicorn" `
-        --hidden-import "uvicorn.config" `
-        --hidden-import "uvicorn.main" `
-        --hidden-import "uvicorn.server" `
-        --hidden-import "uvicorn.logging" `
-        --hidden-import "uvicorn.loops" `
-        --hidden-import "uvicorn.loops.auto" `
-        --hidden-import "uvicorn.loops.asyncio" `
-        --hidden-import "uvicorn.protocols" `
-        --hidden-import "uvicorn.protocols.http" `
-        --hidden-import "uvicorn.protocols.http.auto" `
-        --hidden-import "uvicorn.protocols.http.h11_impl" `
-        --hidden-import "uvicorn.protocols.http.httptools_impl" `
-        --hidden-import "uvicorn.protocols.websockets" `
-        --hidden-import "uvicorn.protocols.websockets.auto" `
-        --hidden-import "uvicorn.lifespan" `
-        --hidden-import "uvicorn.lifespan.on" `
-        --hidden-import "uvicorn.lifespan.off" `
-        --hidden-import "fastapi" `
-        --hidden-import "fastapi.routing" `
-        --hidden-import "fastapi.staticfiles" `
-        --hidden-import "fastapi.responses" `
-        --hidden-import "fastapi.middleware" `
-        --hidden-import "starlette" `
-        --hidden-import "starlette.routing" `
-        --hidden-import "starlette.staticfiles" `
-        --hidden-import "starlette.responses" `
-        --hidden-import "starlette.middleware" `
-        --hidden-import "starlette.formparsers" `
-        --hidden-import "multipart" `
-        --hidden-import "multipart.multipart" `
-        --hidden-import "python_multipart" `
-        --hidden-import "sqlalchemy" `
-        --hidden-import "sqlalchemy.sql.default_comparator" `
-        --hidden-import "sqlalchemy.ext.declarative" `
-        --hidden-import "pydantic" `
-        --hidden-import "pydantic_settings" `
-        --hidden-import "pandas" `
-        --hidden-import "chardet" `
-        --hidden-import "httpx" `
-        --hidden-import "openpyxl" `
-        --hidden-import "dateutil" `
-        --hidden-import "app.main" `
-        --hidden-import "app.database" `
-        --hidden-import "app.models" `
-        --hidden-import "app.init_data" `
-        --hidden-import "app.profile_manager" `
-        --hidden-import "app.routers.transactions" `
-        --hidden-import "app.routers.categories" `
-        --hidden-import "app.routers.recurrences" `
-        --hidden-import "app.routers.stats" `
-        --hidden-import "app.routers.accounts" `
-        --hidden-import "app.routers.config" `
-        --hidden-import "app.routers.chat" `
-        --hidden-import "app.routers.csv_manager" `
-        --hidden-import "app.routers.csv_parser" `
-        --hidden-import "app.routers.ai_helpers" `
-        --hidden-import "app.routers.budgets" `
-        --hidden-import "app.routers.backup" `
-        --hidden-import "app.routers.profiles" `
-        --hidden-import "cryptography" `
-        --hidden-import "woob" `
-        --collect-submodules "uvicorn" `
-        --collect-submodules "fastapi" `
-        --collect-submodules "starlette" `
-        --collect-submodules "app" `
-        --collect-submodules "woob" `
-        --clean `
         --noconfirm `
-        run_server.py
+        $SpecFile `
+        --distpath $DistPath `
+        --workpath $WorkPath
     Pop-Location
 
     if ($LASTEXITCODE -ne 0) {
@@ -122,4 +65,5 @@ if (-not (Test-Path $SourceDir)) {
 Copy-Item -Path $SourceDir -Destination (Split-Path $ResourcesDir) -Recurse -Force
 
 Write-Host "`n[3/3] Done!" -ForegroundColor Green
-Write-Host "  Sidecar Dir: $ResourcesDir"
+$sidecarSize = [math]::Round(((Get-ChildItem $ResourcesDir -Recurse | Measure-Object -Property Length -Sum).Sum) / 1MB, 1)
+Write-Host "  Sidecar Dir: $ResourcesDir ($sidecarSize MB)"
