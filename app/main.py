@@ -1,5 +1,7 @@
 import sys
 import os
+import re as _re
+import uuid as _uuid
 import multiprocessing
 from fastapi import FastAPI, UploadFile, File
 from fastapi.staticfiles import StaticFiles
@@ -103,9 +105,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="OmniBank Local", lifespan=lifespan)
+# Restrict CORS to known origins (SEC-05)
+_CORS_ORIGINS = [
+    "http://127.0.0.1:8434",
+    "http://localhost:8434",
+    "tauri://localhost",
+    "https://tauri.localhost",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -131,10 +140,17 @@ from fastapi.responses import FileResponse
 
 @app.get("/uploads/{file_path:path}")
 async def serve_upload(file_path: str):
-    full_path = os.path.join(get_current_uploads_dir(), file_path)
+    uploads_dir = get_current_uploads_dir()
+    full_path = os.path.join(uploads_dir, file_path)
+    # Protection path traversal (SEC-02)
+    if not os.path.realpath(full_path).startswith(os.path.realpath(uploads_dir)):
+        raise HTTPException(status_code=400, detail="Chemin d'accès invalide.")
     if not os.path.isfile(full_path):
         # Fallback pour rétrocompatibilité : dossier global uploads/
-        fallback_path = os.path.join(DATA_DIR, "uploads", file_path)
+        fallback_dir = os.path.join(DATA_DIR, "uploads")
+        fallback_path = os.path.join(fallback_dir, file_path)
+        if not os.path.realpath(fallback_path).startswith(os.path.realpath(fallback_dir)):
+            raise HTTPException(status_code=400, detail="Chemin d'accès invalide.")
         if os.path.isfile(fallback_path):
             return FileResponse(fallback_path)
         raise HTTPException(status_code=404, detail="Fichier introuvable.")
@@ -404,14 +420,27 @@ def get_changelog(version: str = None):
     }
 
 
+def _safe_filename(raw_name: str) -> str:
+    """Sanitise un nom de fichier uploadé : supprime les composants de chemin et caractères dangereux."""
+    base = os.path.basename(raw_name) if raw_name else ""
+    safe = _re.sub(r'[^\w\-.]', '_', base)
+    if not safe or safe.startswith('.'):
+        safe = f"upload_{_uuid.uuid4().hex[:8]}"
+    return safe
+
+
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
     target_dir = get_current_uploads_dir()
     os.makedirs(target_dir, exist_ok=True)
-    file_location = os.path.join(target_dir, file.filename)
+    safe_name = _safe_filename(file.filename)
+    file_location = os.path.join(target_dir, safe_name)
+    # Double vérification : le chemin résolu doit rester dans target_dir (SEC-02)
+    if not os.path.realpath(file_location).startswith(os.path.realpath(target_dir)):
+        raise HTTPException(status_code=400, detail="Nom de fichier invalide.")
     with open(file_location, "wb+") as file_object:
         file_object.write(file.file.read())
-    return {"path": f"/uploads/{file.filename}"}
+    return {"path": f"/uploads/{safe_name}"}
 
 
 if __name__ == "__main__":

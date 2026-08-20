@@ -593,6 +593,9 @@ window.BankSyncView = {
 
         this._vaultCountdownInterval = setInterval(() => {
             if (!this.vaultStatus || !this.vaultStatus.is_unlocked) {
+                this.stopVaultCountdown();
+                return;
+            }
             this.vaultStatus.remaining_seconds = Math.max(0, this.vaultStatus.remaining_seconds - 1);
             if (this.vaultStatus.remaining_seconds <= 0) {
                 this.stopVaultCountdown();
@@ -2073,9 +2076,7 @@ window.BankSyncView = {
         }
 
         const queryParams = new URLSearchParams();
-        if (pw !== "__USE_VAULT_TOKEN__") {
-            queryParams.set("master_password", pw);
-        } else if (token) {
+        if (token) {
             queryParams.set("vault_token", token);
         }
 
@@ -2517,7 +2518,6 @@ window.BankSyncView = {
         progressBar.style.width = '25%';
 
         let url = `/api/bank-sync/connections/${connId}/sync-stream?since_days=90`;
-        if (masterPassword) url += `&master_password=${encodeURIComponent(masterPassword)}`;
         if (vaultToken) url += `&vault_token=${encodeURIComponent(vaultToken)}`;
 
         const es = new EventSource(url);

@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBJTG5DeE1yZzR6YnlkNzVRdG1Ob0E2ZXdnaVJUbmxJcnovYUs3dkVndUlLZ0IzejZ4SXc5M2wzWjUzRW5Mb2ozTCtlZGxaM3U1RmtZanI0NGQvMVE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MTYxMTE0CWZpbGU6T21uaUJhbmtfMS4wLjg3X3g2NF9mci1GUi5tc2kKdEZMYm1CUFNyZ1ZkL1FhOEpiSmJicUZXMW5RTktuNmprWXJlNEpQYWs0bitSUEdUM1daZi8yT0JEZi9ETUFwRHpZYk5FenBQNWFEK3B0a2Jvbm5sQXc9PQo=",
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDhlZk9weHVLOUNaOXlFdHlVcmc1T3BHUGdFTjNrMVFQSWlUbVJqYTJicFFJNk9kM1JxaFJCNzd6NTdXMldxK09QZlBzZWl5OGVDa2pkTXY3YWlhZFE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MjEyMjY4CWZpbGU6T21uaUJhbmtfMS4wLjg3X3g2NF9mci1GUi5tc2kKOHZoQ3NidWQ4Z3pnRHJVbFFRQkJpbERtcjJESkpSQ2hLeUdlTExHY1hwKytwcHc1Mm1PaktoR2ZzOCtHOG9DOWtrRWdxcjZ6aS9SU1VsUUIvRStaQXc9PQo=",
                                              "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.87/OmniBank_1.0.87_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-19T17:38:34Z",
+    "pub_date":  "2026-08-20T07:51:08Z",
     "version":  "1.0.87",
-    "notes":  "Mise a jour v1.0.87"
+    "notes":  "Security hardening, Docker auth, build optimization (-39% MSI size), bank sync fix"
 }

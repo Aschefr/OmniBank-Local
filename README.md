@@ -18,6 +18,9 @@
 > [!CAUTION]
 > **Avertissement** : La sécurité du code n'a pas fait l'objet d'un audit indépendant. Utilisez cette application à vos propres risques et uniquement dans un environnement local sécurisé.
 
+> [!TIP]
+> **Chiffrement du disque recommandé** : La base de données SQLite stocke vos données financières en clair sur le disque. Pour une protection optimale, activez le chiffrement intégral de votre disque (BitLocker sous Windows, LUKS sous Linux, FileVault sous macOS).
+
 ---
 
 ## 🌟 Pourquoi OmniBank ?
