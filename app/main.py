@@ -109,6 +109,8 @@ app = FastAPI(title="OmniBank Local", lifespan=lifespan)
 _CORS_ORIGINS = [
     "http://127.0.0.1:8434",
     "http://localhost:8434",
+    "http://127.0.0.1:8435",
+    "http://localhost:8435",
     "tauri://localhost",
     "https://tauri.localhost",
 ]
