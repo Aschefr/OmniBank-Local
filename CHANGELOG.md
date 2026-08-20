@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.87] - 2026-08-19
+## [1.0.87] - 2026-08-20
 
 ### Improved & Fixed
 - **Comprehensive Bilingual Internationalization (FR / EN) 🌐**:
@@ -11,9 +11,29 @@ All notable changes to this project will be documented in this file.
   - Eliminated all remaining hardcoded UI strings, placeholders, and tooltips across diagnostics, smart rules, settings, recurrences, and budgets.
   - Synchronized over 110 new translation keys with strict parity in `fr.json` and `en.json` (UTF-8-SIG).
 - **AI Assistant Tool Badges & Descriptive Tooltips 🤖**:
-  - Replaced technical function names (`tool_get_financial_summary`, `tool_forecast_balances_history`, etc.) on AI tool usage badges with user-friendly translated labels.
+  - Replaced technical function names on AI tool usage badges with user-friendly translated labels.
   - Added descriptive hover tooltips explaining the exact action taken by the AI assistant for each tool.
   - Updated tool emoji mapping across all 32 read and write assistant actions.
+- **Security Hardening 🔒**:
+  - Added strict Content Security Policy (CSP) for the Tauri WebView with CDN whitelist.
+  - Fixed path traversal vulnerability in file upload endpoints with `_safe_filename()` sanitization.
+  - Removed unnecessary shell execution capabilities from Tauri desktop permissions.
+  - Moved sensitive credentials from URL query parameters to request body in bank sync API.
+  - Restricted CORS to localhost/Tauri origins only.
+  - Added XSS protection with `escapeHtml()` for user-generated content display.
+  - Pinned all Python dependency versions in `requirements.txt`.
+  - Removed dead code containing legacy license secrets.
+- **Docker Password Protection 🐳**:
+  - Optional HTTP Basic Auth for Docker deployments via `OMNIBANK_PASSWORD` environment variable.
+  - Zero-config default: no password required for backward compatibility.
+  - Unraid template updated with the new optional password field.
+- **Build Optimization ⚡**:
+  - Reduced installer size from 87 MB to 53 MB (-39%) by excluding unused binary dependencies (scipy OpenBLAS, Pillow AVIF/FreeType codecs).
+  - Fixed PyInstaller spec to properly bundle static files via `datas` entries.
+  - Fixed sidecar directory structure for correct auto-update migration.
+- **Bug Fix — Bank Sync UI 🐛**:
+  - Fixed a pre-existing syntax error in `bank_sync.js` (unclosed `if` block) that silently broke the bank synchronization section rendering.
+
 
 ## [1.0.86] - 2026-08-19
 

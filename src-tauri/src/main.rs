@@ -174,7 +174,17 @@ fn main() {
             // NEW WAY (ONEDIR)
             use std::process::Stdio;
             let resource_dir = app.path().resource_dir().expect("Failed to get resource dir");
-            let exe_path = resource_dir.join("resources").join("omnibank-api").join("omnibank-api.exe");
+            let sidecar_dir = resource_dir.join("resources").join("omnibank-api");
+            let exe_path = sidecar_dir.join("omnibank-api.exe");
+
+            // Nettoyage de l'ancienne structure imbriquée (pré-v1.0.87)
+            // L'ancien build créait resources/omnibank-api/omnibank-api/ (doublon imbriqué).
+            // L'auto-updater ne supprime pas ces résidus : on le fait ici avant le spawn.
+            let legacy_nested = sidecar_dir.join("omnibank-api");
+            if legacy_nested.is_dir() {
+                eprintln!("[cleanup] Suppression ancienne structure imbriquée: {:?}", legacy_nested);
+                let _ = std::fs::remove_dir_all(&legacy_nested);
+            }
             
             let mut child = std::process::Command::new(exe_path)
                 .stdout(Stdio::piped())
