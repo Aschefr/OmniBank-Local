@@ -21,6 +21,7 @@ env/
 *.sqlite
 *.sqlite3
 *.csv
+!demo_dataset_omnibank.csv
 *.xlsx
 *.xls
 *.pdf
@@ -29,6 +30,7 @@ data/profiles/
 data/uploads/
 data/backups/
 data/*.txt
+data/e2e_test_data/
 export_omnibank*
 *.zip
 CA*.csv
@@ -44,14 +46,17 @@ scratch/
 .DS_Store
 Thumbs.db
 
-# Node.js
+# Node.js & Playwright E2E
 node_modules/
 package-lock.json
+playwright-report/
+test-results/
 
 # PyInstaller
 dist/
 build/
 *.spec
+!e2e/*.spec.js
 
 # Tauri
 src-tauri/target/
