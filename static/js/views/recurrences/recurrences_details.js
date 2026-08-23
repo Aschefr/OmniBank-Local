@@ -1,14 +1,9 @@
 // static/js/views/recurrences/recurrences_details.js — Tiroir de détails des opérations annuelles & propagation
 window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
     async toggleReconciliationInDetails(txId, templateId) {
-        try {
-            await API.post(`/api/transactions/${txId}/toggle_reconciliation`);
-            window.app.refreshSidebar();
-            await this.loadData();
-        } catch (e) {
-            console.error(e);
-            showToast("Erreur lors de la modification", "error");
-        }
+        await window.ReconciliationActions.toggle(txId, {
+            refreshView: () => this.loadData()
+        });
     },
 
     toggleRow(templateId) {

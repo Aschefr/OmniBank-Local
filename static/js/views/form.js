@@ -115,6 +115,11 @@ window.FormView = {
         document.getElementById('op_date').value = new Date().toISOString().split('T')[0];
         document.getElementById('op_date_saisie').value = new Date().toISOString().split('T')[0];
         document.getElementById('op_recon_date').value = '';
+        const alertEl = document.getElementById('op_recon_discrepancy_alert');
+        if (alertEl) {
+            alertEl.style.display = 'none';
+            alertEl.innerHTML = '';
+        }
         
         this._isSkipped = false;
         const skipBtn = document.getElementById('op_skip_btn');
@@ -328,6 +333,19 @@ window.FormView = {
         document.getElementById('op_date_saisie').value = tx.date_saisie || new Date().toISOString().split('T')[0];
         document.getElementById('op_recon_date').value = tx.reconciliation_date || '';
         
+        const alertEl = document.getElementById('op_recon_discrepancy_alert');
+        if (alertEl) {
+            if (tx && tx.id && window.BankSyncView?.pendingDiscrepancies?.[tx.id]) {
+                const infoMsg = window.i18n ? window.i18n.t('form_reconciled_pending_discrepancy_info') || 'Cette opération est pointée dans OmniBank, mais apparaît encore dans les opérations en attente sur votre compte bancaire en ligne.' : 'Cette opération est pointée dans OmniBank, mais apparaît encore dans les opérations en attente sur votre compte bancaire en ligne.';
+                const badgeLbl = window.i18n ? window.i18n.t('bank_badge_discrepancy') || 'En attente en ligne' : 'En attente en ligne';
+                alertEl.innerHTML = `⚠️ <strong>${badgeLbl} :</strong> ${infoMsg}`;
+                alertEl.style.display = 'block';
+            } else {
+                alertEl.style.display = 'none';
+                alertEl.innerHTML = '';
+            }
+        }
+        
         // is_salary flag (checkbox)
         const isSalaryCheckbox = document.getElementById('op_is_salary');
         if (isSalaryCheckbox) {
@@ -483,6 +501,11 @@ window.FormView = {
         const opDate = ghostTx.date_operation ? String(ghostTx.date_operation).substring(0, 10) : new Date().toISOString().split('T')[0];
         document.getElementById('op_date').value = opDate;
         document.getElementById('op_recon_date').value = new Date().toISOString().split('T')[0];
+        const alertEl = document.getElementById('op_recon_discrepancy_alert');
+        if (alertEl) {
+            alertEl.style.display = 'none';
+            alertEl.innerHTML = '';
+        }
 
         const accId = ghostTx.account_id ? String(ghostTx.account_id) : '';
         if (rawAmt < 0) {

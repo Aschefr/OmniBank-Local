@@ -239,6 +239,9 @@ window.HistoryView = {
                 if (window.app && window.app.refreshSidebar) {
                     window.app.refreshSidebar();
                 }
+                if (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') {
+                    window.BankSyncView.loadPendingSync().catch(() => {});
+                }
                 await this.loadActions();
             } else {
                 const failMsg = (window.i18n.t('history_undo_fail') || 'Failed to undo').replace('{error}', res.detail || '');

@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.87-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.88-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,11 +110,13 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.87)
+## 🆕 Nouveautés (v1.0.88)
 
-* **🌐 Internationalisation Intégrale (FR / EN)** : Traduction complète du bandeau de synchro bancaire, des cartes de comptes, des modales de mapping et nettoyage de tous les textes en dur restants dans l'application.
-* **🤖 Badges d'Outils IA Améliorés** : Remplacement des noms techniques d'outils (`tool_...`) par des libellés conviviaux traduits et ajout d'infobulles explicatives au survol.
-* **🛡️ Stabilité & Synchronisation i18n** : Parité stricte des 110+ nouvelles clés de traduction en encodage UTF-8-SIG préservé.
+* **⏳ Détection des Opérations en Attente** : Récupération automatique des opérations non encore imputées (autorisations carte, prélèvements à venir) avec badge distinctif `⏳ À venir` et indicateurs de discordance d'état bancaire.
+* **🔗 Liaison Automatique des Virements Orphelins** : Identification et fusion automatique des écritures isolées inter-comptes en virements internes, éliminant les doublons lors de la synchronisation multi-comptes.
+* **⚖️ Indicateur de Conformité des Soldes** : Comparaison automatique du solde pointé local avec le solde bancaire distant, avec guide de validation delta et badges `🎯 Résout l'écart`.
+* **🎨 États de Rapprochement Unifiés** : Centralisation de la logique de rapprochement dans un module unique, distinguant visuellement les opérations à venir (⏳) des opérations confirmées (⚡) à travers toutes les vues.
+* **🏗️ Refactoring Modulaire Bank Sync** : Extraction du monolithe `bank_sync.js` en 5 sous-modules focalisés pour une meilleure maintenabilité.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -122,7 +124,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.87-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.88-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -222,11 +224,13 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.87)
+## 🆕 What's New (v1.0.88)
 
-* **🌐 Comprehensive Bilingual Internationalization (FR / EN)**: Full translation of bank sync header badges, account cards, mapping modals, and clean-up of all remaining hardcoded strings.
-* **🤖 Enhanced AI Tool Badges**: Replaced technical function names (`tool_...`) with user-friendly translated labels and descriptive hover tooltips.
-* **🛡️ Stability & i18n Parity**: Strict synchronization of 110+ new translation keys with preserved UTF-8-SIG encoding.
+* **⏳ Upcoming Transactions Detection**: Automatically fetches unposted/pending bank operations (card authorizations, upcoming direct debits) with a distinctive `⏳ Upcoming` badge and bank state discrepancy indicators.
+* **🔗 Orphan Internal Transfer Auto-Linking**: Automatically identifies and merges isolated single-leg transactions across accounts into internal transfers, eliminating duplicates when syncing multiple bank accounts.
+* **⚖️ Bank Balance Consistency Indicator**: Automatic comparison of local reconciled balance with remote bank balance, with delta-guided validation and `🎯 Resolves difference` badges.
+* **🎨 Unified Reconciliation States**: Centralized reconciliation logic into a single module, visually distinguishing upcoming (⏳) from confirmed (⚡) operations across all views.
+* **🏗️ Bank Sync Modular Refactoring**: Extracted the monolithic `bank_sync.js` into 5 focused sub-modules for improved maintainability.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

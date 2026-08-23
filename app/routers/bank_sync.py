@@ -332,6 +332,16 @@ def get_pending_sync_summary(db: Session = Depends(get_db)):
     return pending
 
 
+@router.post("/re-evaluate-preview")
+def re_evaluate_preview_endpoint(data: Dict[str, Any], db: Session = Depends(get_db)):
+    """
+    Re-calcule dynamiquement en direct le statut de rapprochement d'un aperçu bancaire
+    par rapport à l'état actuel de la base SQLite.
+    """
+    from app.services.bank_sync_service import re_evaluate_preview_data
+    return re_evaluate_preview_data(db, data)
+
+
 @router.post("/reconcile-fast/{tx_id}")
 def reconcile_single_matched_transaction(tx_id: int, db: Session = Depends(get_db)):
     """Pointe immédiatement en 1 clic une opération détectée en ligne."""
@@ -353,12 +363,6 @@ def reconcile_single_matched_transaction(tx_id: int, db: Session = Depends(get_d
     record_action(db, "transaction", tx.id, "UPDATE", before_snap, snapshot_entity(tx), user_name="Banque (1-Clic)")
     stats_cache.invalidate()
 
-    # Nettoyer des pending (structure: {profile_id: {conn_id: {"accounts": [...]}}}
-    for profile_data in _PENDING_SYNC_DATA.values():
-        for conn_data in profile_data.values():
-            for acc in conn_data.get("accounts", []):
-                acc["transactions"] = [t for t in acc.get("transactions", []) if t.get("matched_db_id") != tx_id]
-
     return {"ok": True, "reconciled_id": tx.id, "reconciliation_date": tx.reconciliation_date.isoformat()}
 
 
@@ -369,14 +373,16 @@ def reconcile_all_matched_pending(db: Session = Depends(get_db)):
     from app.models import Transaction
     from app.services.history_service import record_action, snapshot_entity
     from app.services import stats_cache
-    from app.services.bank_sync_scheduler import get_all_pending_sync, _PENDING_SYNC_DATA
-    from app.profile_manager import get_active_profile
+    from app.services.bank_sync_scheduler import get_all_pending_sync
 
     pending = get_all_pending_sync(db)
     matches = pending.get("matches_by_tx_id", {})
     reconciled_count = 0
 
     for tx_id_str, match_info in matches.items():
+        if match_info.get("is_coming"):
+            # Ne pointer en lot que les opérations confirmées / imputées en banque
+            continue
         try:
             tx_id = int(tx_id_str)
         except ValueError:
@@ -392,10 +398,6 @@ def reconcile_all_matched_pending(db: Session = Depends(get_db)):
 
     db.commit()
     stats_cache.invalidate()
-
-    # Vider les correspondances traitées du cache pour le profil actif uniquement
-    active_pid = get_active_profile().get("id", "default")
-    _PENDING_SYNC_DATA.pop(active_pid, None)
 
     return {"ok": True, "reconciled_count": reconciled_count}
 
