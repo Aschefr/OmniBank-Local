@@ -208,11 +208,14 @@ window.AllOperationsView = {
 
     async loadData() {
         try {
-            // PERF: Fetch budgets, accounts, and transactions in parallel
+            // PERF: Fetch budgets, accounts, transactions, and pending bank sync in parallel
             const [budgets, accs, allTx] = await Promise.all([
                 API.get('/api/budgets/').catch(e => { console.error('Failed to load budgets', e); return []; }),
                 API.get('/api/accounts/'),
-                API.get('/api/transactions/?limit=10000')
+                API.get('/api/transactions/?limit=10000'),
+                (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') 
+                    ? window.BankSyncView.loadPendingSync().catch(e => { console.warn('Failed to load pending bank sync', e); return null; })
+                    : Promise.resolve(null)
             ]);
 
             // Process budgets map
@@ -370,6 +373,11 @@ window.AllOperationsView = {
             }
         } catch (e) {
             console.error("Failed to load operations", e);
+            const tbody = document.getElementById('historyBody');
+            if (tbody) {
+                const msg = (window.i18n && window.i18n.t('msg_save_error')) || 'Erreur de chargement';
+                tbody.innerHTML = `<tr><td class="row-marker"></td><td colspan="15" style="text-align:center; padding: 25px; color: var(--text-muted); font-style: italic;">⚠️ ${msg}</td></tr>`;
+            }
         }
     },
     
@@ -571,6 +579,9 @@ window.AllOperationsView = {
             if (tx.is_bimonthly) recText = window.i18n.t('rec_bimonthly');
             const origSubtext = (tx.original_amount && tx.original_currency) ? `<div style="font-size: 10px; font-weight: 500; opacity: 0.8; color: var(--accent); white-space: nowrap;">🌐 ${formatCurrency(tx.original_amount, tx.original_currency)}</div>` : '';
 
+
+            const reconCellHtml = window.ReconciliationStates.resolve(tx, { view: 'all_operations', formatDate }).html;
+
             return `
             <tr data-id="${tx.id}" class="${rowClass}" ${idAttr}>
                 <td class="row-marker"></td>
@@ -583,7 +594,7 @@ window.AllOperationsView = {
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>
                     ${origSubtext}
                 </td>
-                <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}" style="text-align: center;">${tx.is_skipped ? `<span style="font-size:11px; font-weight: 600; color: #64748b; background: rgba(100, 116, 139, 0.1); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(100, 116, 139, 0.2); white-space: nowrap;">${window.i18n.t('rec_status_skipped') || '⏭️ Ignorée'}</span>` : (isReconciled ? formatDate(tx.reconciliation_date) || '-' : ((window.BankSyncView && window.BankSyncView.pendingMatches && window.BankSyncView.pendingMatches[tx.id]) ? `<span style="cursor:pointer; font-size:11px; font-weight:700; color:white; background:linear-gradient(135deg, #10b981, #059669); padding:3px 8px; border-radius:6px; box-shadow:0 2px 6px rgba(16,185,129,0.3); display:inline-flex; align-items:center; gap:4px;" onclick="window.BankSyncView.reconcileFast(${tx.id})" title="Opération trouvée sur votre relevé bancaire. Cliquez pour pointer en 1 clic !">⚡ <span>${window.i18n.t('bank_badge_found_online') || 'Trouvé'}</span></span>` : '-'))}</td>
+                <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}" style="text-align: center;">${reconCellHtml}</td>
                 <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && this.budgetsMap[tx.budget_id]) ? this.budgetsMap[tx.budget_id] : (tx.category && this.categoryToBudgetMap && this.categoryToBudgetMap[tx.category]) ? this.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
                 <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuisTitle}">${depuisBadge}</td>
                 <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${versBadge}</td>
@@ -761,5 +772,11 @@ window.AllOperationsView = {
         } else {
             window.open(fileUrl, '_blank');
         }
+    },
+
+    async toggleReconciliation(id) {
+        await window.ReconciliationActions.toggle(id, {
+            refreshView: () => this.loadData()
+        });
     }
 };

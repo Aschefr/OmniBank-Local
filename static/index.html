@@ -611,6 +611,7 @@
                             <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 11px; color: var(--color-expense);" onclick="document.getElementById('op_recon_date').value = ''; event.preventDefault();" type="button" title="Effacer la date">✕</button>
                             <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 11px;" onclick="document.getElementById('op_recon_date').value = new Date().toISOString().split('T')[0]; event.preventDefault();" data-i18n-title="tooltip_reconcile_today" title="Rapprocher aujourd'hui">✓</button>
                         </div>
+                        <div id="op_recon_discrepancy_alert" style="display: none; margin-top: 6px; font-size: 11px; color: #d97706; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 6px 8px; line-height: 1.3;"></div>
                     </div>
                 </div>
 
@@ -791,8 +792,9 @@
     <script src="/static/js/common.js?v=11"></script>
     <script src="/static/js/diagnostic_reporter.js"></script>
     <script src="/static/js/components/multi-select.js"></script>
-    <script src="/static/js/views/timeline.js?v=2"></script>
-    <script src="/static/js/views/all_operations.js?v=2"></script>
+    <script src="/static/js/reconciliation_states.js?v=1"></script>
+    <script src="/static/js/views/timeline.js?v=3"></script>
+    <script src="/static/js/views/all_operations.js?v=3"></script>
     <script src="/static/js/views/recurrences/recurrences_timeline.js?v=1"></script>
     <script src="/static/js/views/recurrences/recurrences_details.js?v=1"></script>
     <script src="/static/js/views/recurrences/recurrences_wizard.js?v=1"></script>
@@ -1149,7 +1151,12 @@
     <script src="/static/js/views/trends.js?v=4"></script>
     <script src="/static/js/views/overview.js?v=3"></script>
     <script src="/static/js/views/simulator.js?v=30"></script>
-    <script src="/static/js/views/bank_sync.js?v=1"></script>
+    <script src="/static/js/views/bank_sync.js?v=3"></script>
+    <script src="/static/js/views/bank_sync_vault.js?v=1"></script>
+    <script src="/static/js/views/bank_sync_pending.js?v=1"></script>
+    <script src="/static/js/views/bank_sync_review.js?v=2"></script>
+    <script src="/static/js/views/bank_sync_sync.js?v=2"></script>
+    <script src="/static/js/views/bank_sync_connections.js?v=1"></script>
 
 
 

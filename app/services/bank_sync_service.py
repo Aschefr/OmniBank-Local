@@ -549,6 +549,8 @@ class BankSyncService:
 
         matched_ids_global = set()
         accounts_preview = []
+        from app.services.finance_engine import calculate_balances
+        balances_reconciled = calculate_balances(db, only_reconciled=True)
 
         for acc in raw_accounts:
             remote_id = _clean_str(getattr(acc, "id", None), "")
@@ -561,6 +563,15 @@ class BankSyncService:
                 continue
 
             acc_label = _clean_str(getattr(acc, "label", None), remote_id)
+
+            raw_bal = getattr(acc, "balance", None)
+            try:
+                bank_balance = float(raw_bal) if _clean_str(raw_bal) is not None else None
+            except (ValueError, TypeError):
+                bank_balance = None
+
+            local_reconciled_bal = round(balances_reconciled.get(local_acc.id, local_acc.initial_balance or 0.0), 2)
+
             if event_callback:
                 event_callback("progress", {
                     "step": "sync_account",
@@ -594,6 +605,9 @@ class BankSyncService:
                     is_reconciled = False
                     already_reconciled = False
                     is_mirror = False
+                    is_orphan_link = False
+                    orphan_acc_id = None
+                    orphan_acc_name = None
                     matched_id = None
                     db_desc = None
 
@@ -601,6 +615,9 @@ class BankSyncService:
                         is_reconciled = True
                         already_reconciled = rec_info.get("already_reconciled", False)
                         is_mirror = rec_info.get("is_mirror_transfer", False)
+                        is_orphan_link = rec_info.get("is_orphan_transfer_link", False)
+                        orphan_acc_id = rec_info.get("orphan_account_id")
+                        orphan_acc_name = rec_info.get("orphan_account_name")
                         matched_id = rec_info.get("id")
                         db_desc = rec_info.get("description")
                         if matched_id:
@@ -618,22 +635,102 @@ class BankSyncService:
                         "is_reconciled": is_reconciled,
                         "already_reconciled": already_reconciled,
                         "is_mirror_transfer": is_mirror,
+                        "is_orphan_transfer_link": is_orphan_link,
+                        "orphan_account_id": orphan_acc_id,
+                        "orphan_account_name": orphan_acc_name,
                         "matched_db_id": matched_id,
                         "db_description": db_desc,
                         "category": None,
                         "csv_id": csv_id,
                         "account_id": local_acc.id,
                         "account_name": local_acc.name,
-                        "remote_id": remote_id
+                        "remote_id": remote_id,
+                        "is_coming": False
                     })
             except Exception as hist_err:
                 logger.warning(f"[BankSync] Erreur lecture historique de {acc_label}: {hist_err}")
+
+            # Récupération des opérations à venir (cartes à débit immédiat en attente, prélèvements programmés)
+            try:
+                for tx in backend.iter_coming(acc):
+                    tx_date = getattr(tx, "date", None)
+                    if hasattr(tx_date, "date"):
+                        tx_date = tx_date.date()
+                    elif isinstance(tx_date, datetime):
+                        tx_date = tx_date.date()
+                    elif isinstance(tx_date, str):
+                        try:
+                            tx_date = datetime.strptime(tx_date[:10], "%Y-%m-%d").date()
+                        except Exception:
+                            tx_date = date.today()
+
+                    if not tx_date:
+                        tx_date = date.today()
+
+                    raw_amount = float(getattr(tx, "amount", 0.0) or 0.0)
+                    amount = abs(raw_amount)
+                    tx_label = (getattr(tx, "label", "") or "Opération à venir").strip()
+
+                    raw_hash = hashlib.sha256(f"{connection.backend}_{remote_id}_{tx_date}_{raw_amount}_{tx_label}".encode("utf-8")).hexdigest()[:12]
+                    csv_id = f"woob_coming_{connection.backend}_{remote_id}_{raw_hash}"
+
+                    # Matching de rapprochement (même pipeline que iter_history)
+                    rec_info = check_reconciliation(db, tx_date, raw_amount, matched_ids=matched_ids_global, account_id=local_acc.id)
+                    is_reconciled = False
+                    already_reconciled = False
+                    is_mirror = False
+                    is_orphan_link = False
+                    orphan_acc_id = None
+                    orphan_acc_name = None
+                    matched_id = None
+                    db_desc = None
+
+                    if rec_info:
+                        is_reconciled = True
+                        already_reconciled = rec_info.get("already_reconciled", False)
+                        is_mirror = rec_info.get("is_mirror_transfer", False)
+                        is_orphan_link = rec_info.get("is_orphan_transfer_link", False)
+                        orphan_acc_id = rec_info.get("orphan_account_id")
+                        orphan_acc_name = rec_info.get("orphan_account_name")
+                        matched_id = rec_info.get("id")
+                        db_desc = rec_info.get("description")
+                        if matched_id:
+                            matched_ids_global.add(matched_id)
+
+                    parsed_txs.append({
+                        "date_operation": tx_date.isoformat(),
+                        "description": tx_label,
+                        "raw_description": tx_label,
+                        "amount": amount,
+                        "raw_amount": raw_amount,
+                        "is_reconciled": is_reconciled,
+                        "already_reconciled": already_reconciled,
+                        "is_mirror_transfer": is_mirror,
+                        "is_orphan_transfer_link": is_orphan_link,
+                        "orphan_account_id": orphan_acc_id,
+                        "orphan_account_name": orphan_acc_name,
+                        "matched_db_id": matched_id,
+                        "db_description": db_desc,
+                        "category": None,
+                        "csv_id": csv_id,
+                        "account_id": local_acc.id,
+                        "account_name": local_acc.name,
+                        "remote_id": remote_id,
+                        "is_coming": True
+                    })
+            except Exception as coming_err:
+                logger.debug(f"[BankSync] iter_coming non supporté ou ignoré pour {acc_label}: {coming_err}")
+
+            # Tri chronologique décroissant des opérations (les plus récentes en premier)
+            parsed_txs.sort(key=lambda x: str(x.get("date_operation") or ""), reverse=True)
 
             accounts_preview.append({
                 "remote_id": remote_id,
                 "account_id": local_acc.id,
                 "account_name": local_acc.name,
                 "account_type": local_acc.type,
+                "bank_balance": bank_balance,
+                "local_reconciled_balance": local_reconciled_bal,
                 "transactions": parsed_txs
             })
 
@@ -721,12 +818,39 @@ class BankSyncService:
             if is_rec and already_rec:
                 continue
 
-            # 2. Si prédiction existante en attente de pointage :
+            is_orphan_link = item.get("is_orphan_transfer_link", False)
+
+            # 2. Si liaison de virement orphelin (Auto-linking multi-comptes) :
+            if is_rec and matched_id and is_orphan_link:
+                existing = db.query(Transaction).filter(Transaction.id == matched_id).first()
+                if existing:
+                    before_snap = snapshot_entity(existing)
+                    raw_amt = float(item.get("raw_amount") if item.get("raw_amount") is not None else (item.get("amount") or 0.0))
+                    # Si raw_amt < 0, l'opération courante est le débit (from_account = account_id)
+                    # et l'écriture existante était le crédit isolé sur l'autre compte
+                    if raw_amt < 0:
+                        existing.from_account_id = account_id
+                    else:
+                        # Si raw_amt > 0, l'opération courante est le crédit (to_account = account_id)
+                        # et l'écriture existante était le débit isolé sur l'autre compte
+                        existing.to_account_id = account_id
+
+                    existing.type = "transfer"
+                    if not item.get("is_coming", False):
+                        existing.reconciliation_date = date.today()
+                    if item.get("category"):
+                        existing.category = item["category"]
+                    record_action(db, "transaction", existing.id, "UPDATE", before_snap, snapshot_entity(existing), user_name="Banque (Liaison Virement)")
+                    reconciled_count += 1
+                continue
+
+            # 2.B Si prédiction existante en attente de pointage classique :
             if is_rec and matched_id:
                 existing = db.query(Transaction).filter(Transaction.id == matched_id).first()
                 if existing:
                     before_snap = snapshot_entity(existing)
-                    existing.reconciliation_date = date.today()
+                    if not item.get("is_coming", False):
+                        existing.reconciliation_date = date.today()
                     if item.get("category"):
                         existing.category = item["category"]
                     record_action(db, "transaction", existing.id, "UPDATE", before_snap, snapshot_entity(existing), user_name="Banque (Sync)")
@@ -756,6 +880,8 @@ class BankSyncService:
             except Exception:
                 op_date = date.today()
 
+            is_coming = bool(item.get("is_coming", False))
+
             new_tx = Transaction(
                 csv_id=csv_id,
                 date_saisie=date.today(),
@@ -764,7 +890,7 @@ class BankSyncService:
                 amount=amt,
                 type=t_type,
                 category=item.get("category"),
-                reconciliation_date=date.today(),
+                reconciliation_date=None if is_coming else date.today(),
                 from_account_id=from_acc,
                 to_account_id=to_acc,
                 created_by="Banque (Sync)"
@@ -776,7 +902,8 @@ class BankSyncService:
 
             record_action(db, "transaction", new_tx.id, "CREATE", None, snapshot_entity(new_tx), user_name="Banque (Sync)")
             imported += 1
-            account_net_flows[account_id] += raw_amt
+            if not is_coming:
+                account_net_flows[account_id] += raw_amt
 
             # Auto-apprentissage transparent dans la base de connaissances Smart Label
             raw_lbl = item.get("raw_description") or item.get("raw_label") or item.get("description")
@@ -837,3 +964,103 @@ class BankSyncService:
             session_id=session_id
         )
         return preview
+
+
+def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Re-calcule dynamiquement en direct le statut de rapprochement (is_reconciled, already_reconciled,
+    matched_db_id, solde pointé local, etc.) d'un aperçu bancaire par rapport à l'état actuel de la base SQLite.
+    Permet à toute opération supprimée ou ajoutée en local de basculer instantanément dans l'aperçu mis en cache.
+    """
+    if not preview_data or "accounts" not in preview_data:
+        return preview_data
+
+    from datetime import date
+    from app.routers.csv_parser import check_reconciliation
+    from app.services.finance_engine import calculate_balances
+    from app.services.smart_label_service import resolve_smart_labels_batch
+
+    balances_reconciled = calculate_balances(db, only_reconciled=True)
+    matched_ids_global = set()
+
+    for acc in preview_data.get("accounts", []):
+        local_acc_id = acc.get("account_id")
+        if local_acc_id:
+            acc["local_reconciled_balance"] = round(balances_reconciled.get(local_acc_id, 0.0), 2)
+
+        re_evaluated_txs = []
+        for tx in acc.get("transactions", []):
+            tx_copy = dict(tx)
+            is_coming = bool(tx.get("is_coming", False))
+            tx_copy["is_coming"] = is_coming
+            tx_date_str = tx.get("date_operation")
+            raw_amount = tx.get("raw_amount")
+
+            if tx_date_str and raw_amount is not None and local_acc_id:
+                try:
+                    tx_date = date.fromisoformat(str(tx_date_str)[:10])
+                    rec_info = check_reconciliation(
+                        db,
+                        tx_date,
+                        float(raw_amount),
+                        matched_ids=matched_ids_global,
+                        account_id=local_acc_id
+                    )
+                    if rec_info:
+                        tx_copy["is_reconciled"] = True
+                        tx_copy["already_reconciled"] = rec_info.get("already_reconciled", False)
+                        tx_copy["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
+                        tx_copy["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
+                        tx_copy["orphan_account_id"] = rec_info.get("orphan_account_id")
+                        tx_copy["orphan_account_name"] = rec_info.get("orphan_account_name")
+                        tx_copy["matched_db_id"] = rec_info.get("id")
+                        tx_copy["db_description"] = rec_info.get("description")
+                        if rec_info.get("id"):
+                            matched_ids_global.add(rec_info.get("id"))
+                    else:
+                        tx_copy["is_reconciled"] = False
+                        tx_copy["already_reconciled"] = False
+                        tx_copy["is_mirror_transfer"] = False
+                        tx_copy["is_orphan_transfer_link"] = False
+                        tx_copy["orphan_account_id"] = None
+                        tx_copy["orphan_account_name"] = None
+                        tx_copy["matched_db_id"] = None
+                        tx_copy["db_description"] = None
+                except Exception as err:
+                    logger.warning(f"[BankSync] Erreur re-matching preview tx: {err}")
+
+            re_evaluated_txs.append(tx_copy)
+
+        # Tri chronologique décroissant (plus récentes en premier)
+        re_evaluated_txs.sort(key=lambda x: str(x.get("date_operation") or ""), reverse=True)
+        acc["transactions"] = re_evaluated_txs
+
+    # Résolution des libellés intelligents pour toutes les opérations qui ne sont plus rapprochées
+    raw_labels = []
+    for acc in preview_data.get("accounts", []):
+        for tx in acc.get("transactions", []):
+            if not tx.get("is_reconciled"):
+                raw_desc = tx.get("raw_description") or tx.get("description") or ""
+                if raw_desc:
+                    raw_labels.append(raw_desc)
+
+    if raw_labels:
+        try:
+            smart_resolutions = resolve_smart_labels_batch(db, raw_labels)
+            for acc in preview_data.get("accounts", []):
+                for tx in acc.get("transactions", []):
+                    if not tx.get("is_reconciled"):
+                        raw_desc = tx.get("raw_description") or tx.get("description") or ""
+                        tx["raw_description"] = raw_desc
+                        if raw_desc in smart_resolutions:
+                            res = smart_resolutions[raw_desc]
+                            if res.get("source") in ("rule", "history"):
+                                tx["description"] = res["description"]
+                                tx["smart_suggested"] = True
+                                tx["smart_source"] = res["source"]
+                                if not tx.get("category") and res.get("category"):
+                                    tx["category"] = res["category"]
+        except Exception as e:
+            logger.debug(f"[BankSync] Smart labels batch resolution error: {e}")
+
+    return preview_data

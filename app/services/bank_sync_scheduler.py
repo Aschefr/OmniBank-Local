@@ -126,16 +126,20 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
     global _PENDING_SYNC_DATA
     from app.routers.csv_parser import check_reconciliation
     from datetime import date
-    pid = _resolve_profile_id(profile_id)
     total_matches = 0
+    total_confirmed_matches = 0
+    total_coming_matches = 0
     total_new = 0
+    total_discrepancies = 0
     accounts_list = []
-    matches_by_tx_id = {}  # db_tx_id -> matched pending item
+    matches_by_tx_id = {}
+    discrepancies_by_tx_id = {}  # db_tx_id -> state discrepancy pending item (reconciled locally, pending online)
     matched_ids_global = set()
 
     # Vérifier l'existence de connexions valides
     valid_conns = db.query(BankConnection).all()
     valid_conn_map = {c.id: c.label for c in valid_conns}
+    pid = _resolve_profile_id(profile_id)
 
     if pid not in _PENDING_SYNC_DATA:
         _PENDING_SYNC_DATA[pid] = {}
@@ -148,9 +152,13 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
         _set_config_value(db, "bank_pending_sync_cache", "")
         return {
             "total_matches": 0,
+            "total_confirmed_matches": 0,
+            "total_coming_matches": 0,
             "total_new": 0,
+            "total_discrepancies": 0,
             "accounts": [],
             "matches_by_tx_id": {},
+            "discrepancies_by_tx_id": {},
             "vault_unlocked": VaultSessionManager.get_status(profile_id=pid).get("is_unlocked", False)
         }
 
@@ -172,6 +180,9 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
             prof_data.pop(oid, None)
         _set_config_value(db, "bank_pending_sync_cache", json.dumps(prof_data) if prof_data else "")
 
+    from app.services.finance_engine import calculate_balances
+    balances_reconciled = calculate_balances(db, only_reconciled=True)
+
     for conn_id, data in list(prof_data.items()):
         conn_label = valid_conn_map.get(conn_id, f"Banque #{conn_id}")
 
@@ -179,11 +190,18 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
             acc_copy = dict(acc)
             acc_copy["connection_id"] = conn_id
             acc_copy["connection_label"] = conn_label
+            acc_copy["bank_balance"] = acc.get("bank_balance")
             local_acc_id = acc.get("account_id")
+            if local_acc_id:
+                acc_copy["local_reconciled_balance"] = round(balances_reconciled.get(local_acc_id, 0.0), 2)
+            else:
+                acc_copy["local_reconciled_balance"] = None
 
             re_evaluated_txs = []
             for tx in acc.get("transactions", []):
                 tx_copy = dict(tx)
+                is_coming = bool(tx.get("is_coming", False))
+                tx_copy["is_coming"] = is_coming
                 tx_date_str = tx.get("date_operation")
                 raw_amount = tx.get("raw_amount")
                 if tx_date_str and raw_amount is not None and local_acc_id:
@@ -200,6 +218,9 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                             tx_copy["is_reconciled"] = True
                             tx_copy["already_reconciled"] = rec_info.get("already_reconciled", False)
                             tx_copy["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
+                            tx_copy["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
+                            tx_copy["orphan_account_id"] = rec_info.get("orphan_account_id")
+                            tx_copy["orphan_account_name"] = rec_info.get("orphan_account_name")
                             tx_copy["matched_db_id"] = rec_info.get("id")
                             tx_copy["db_description"] = rec_info.get("description")
                             if rec_info.get("id"):
@@ -208,15 +229,30 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                             tx_copy["is_reconciled"] = False
                             tx_copy["already_reconciled"] = False
                             tx_copy["is_mirror_transfer"] = False
+                            tx_copy["is_orphan_transfer_link"] = False
+                            tx_copy["orphan_account_id"] = None
+                            tx_copy["orphan_account_name"] = None
                             tx_copy["matched_db_id"] = None
                             tx_copy["db_description"] = None
                     except Exception as err:
-                        logger.warning(f"[BankScheduler] Erreur re-matching pending tx: {err}")
+                        tx_kind = "coming" if is_coming else "pending"
+                        logger.warning(f"[BankScheduler] Erreur re-matching {tx_kind} tx: {err}")
 
                 re_evaluated_txs.append(tx_copy)
                 if tx_copy.get("is_reconciled") and not tx_copy.get("already_reconciled") and tx_copy.get("matched_db_id"):
                     total_matches += 1
+                    if tx_copy.get("is_coming"):
+                        total_coming_matches += 1
+                    else:
+                        total_confirmed_matches += 1
                     matches_by_tx_id[tx_copy["matched_db_id"]] = {
+                        **tx_copy,
+                        "connection_id": conn_id,
+                        "connection_label": conn_label
+                    }
+                elif tx_copy.get("is_coming") and tx_copy.get("is_reconciled") and tx_copy.get("already_reconciled") and tx_copy.get("matched_db_id"):
+                    total_discrepancies += 1
+                    discrepancies_by_tx_id[tx_copy["matched_db_id"]] = {
                         **tx_copy,
                         "connection_id": conn_id,
                         "connection_label": conn_label
@@ -229,9 +265,13 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
 
     return {
         "total_matches": total_matches,
+        "total_confirmed_matches": total_confirmed_matches,
+        "total_coming_matches": total_coming_matches,
         "total_new": total_new,
+        "total_discrepancies": total_discrepancies,
         "accounts": accounts_list,
         "matches_by_tx_id": matches_by_tx_id,
+        "discrepancies_by_tx_id": discrepancies_by_tx_id,
         "vault_unlocked": VaultSessionManager.get_status(profile_id=pid).get("is_unlocked", False)
     }
 
