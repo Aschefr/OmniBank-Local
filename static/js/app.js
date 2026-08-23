@@ -2429,12 +2429,7 @@ class App {
             opt.addEventListener('click', async (e) => {
                 const l = e.currentTarget.getAttribute('data-lang');
                 langMenu.style.display = 'none';
-                await window.i18n.setLang(l);
-                this.updateMobileLangUI();
-                this.updateDesktopLangUI();
-                await this.refreshSidebar();
-                this.loadView(this.currentView);
-                this.updateHeaderHistoryState();
+                await this.setLanguage(l);
             });
         });
     }

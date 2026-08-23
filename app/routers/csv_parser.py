@@ -223,6 +223,59 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
                 "already_reconciled": True,
                 "is_mirror_transfer": True
             }
+
+    # 3. Recherche d'un virement orphelin inter-comptes (Auto-linking)
+    # Si aucun match sur le compte courant, vérifier s'il existe une écriture isolée du même montant
+    # sur un AUTRE compte actif qui correspond à l'autre patte du virement
+    if account_id:
+        from app.models import Account
+        start_orphan = tx_date - timedelta(days=5)
+        end_orphan = tx_date + timedelta(days=5)
+
+        raw_num = float(tx_amount)
+        if raw_num < 0:
+            # Débit sur ce compte (ex: Boursorama -> CA) : on cherche un crédit isolé sur un autre compte
+            orphan_q = db.query(Transaction).filter(
+                Transaction.from_account_id == None,
+                Transaction.to_account_id != None,
+                Transaction.to_account_id != account_id,
+                Transaction.date_operation >= start_orphan,
+                Transaction.date_operation <= end_orphan,
+                Transaction.amount >= abs_amount - epsilon,
+                Transaction.amount <= abs_amount + epsilon
+            )
+        else:
+            # Crédit sur ce compte (ex: CA reçu de Boursorama) : on cherche un débit isolé sur un autre compte
+            orphan_q = db.query(Transaction).filter(
+                Transaction.from_account_id != None,
+                Transaction.from_account_id != account_id,
+                Transaction.to_account_id == None,
+                Transaction.date_operation >= start_orphan,
+                Transaction.date_operation <= end_orphan,
+                Transaction.amount >= abs_amount - epsilon,
+                Transaction.amount <= abs_amount + epsilon
+            )
+
+        if matched_ids:
+            orphan_q = orphan_q.filter(Transaction.id.notin_(matched_ids))
+
+        orphan_q = orphan_q.order_by(
+            func.abs(func.julianday(Transaction.date_operation) - func.julianday(tx_date_str))
+        )
+        orphan_match = orphan_q.first()
+        if orphan_match:
+            other_acc_id = orphan_match.to_account_id if raw_num < 0 else orphan_match.from_account_id
+            other_acc = db.query(Account).filter(Account.id == other_acc_id).first()
+            other_acc_name = other_acc.name if other_acc else f"Compte #{other_acc_id}"
+
+            return {
+                "id": orphan_match.id,
+                "description": orphan_match.description,
+                "already_reconciled": False,
+                "is_orphan_transfer_link": True,
+                "orphan_account_id": other_acc_id,
+                "orphan_account_name": other_acc_name
+            }
         
     return None
 

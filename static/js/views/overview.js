@@ -379,11 +379,53 @@ window.OverviewView = {
         } catch (_) {}
 
         const totalMatches = pendingData?.total_matches || 0;
+        const totalConfirmedMatches = typeof pendingData?.total_confirmed_matches === 'number'
+            ? pendingData.total_confirmed_matches
+            : Object.values(pendingData?.matches_by_tx_id || {}).filter(m => !m.is_coming).length;
+        const totalComingMatches = typeof pendingData?.total_coming_matches === 'number'
+            ? pendingData.total_coming_matches
+            : Object.values(pendingData?.matches_by_tx_id || {}).filter(m => m.is_coming).length;
         const totalNew = pendingData?.total_new || 0;
+        const totalDiscrepancies = pendingData?.total_discrepancies || 0;
 
-        if (totalMatches === 0 && totalNew === 0) {
+        if (totalMatches === 0 && totalNew === 0 && totalDiscrepancies === 0) {
             banner.style.display = 'none';
             return;
+        }
+
+        let matchesText = '';
+        if (totalConfirmedMatches > 0 && totalComingMatches > 0) {
+            const readyLbl = window.i18n ? window.i18n.t('bank_sync_ready_to_reconcile') || 'prête(s) à rapprocher' : 'prête(s) à rapprocher';
+            const comingLbl = window.i18n ? window.i18n.t('bank_sync_coming_in_banner') || 'en attente en ligne' : 'en attente en ligne';
+            matchesText = `<strong>${totalConfirmedMatches}</strong> ${readyLbl} • <span style="color: #818cf8; font-weight: 600;">⏳ <strong>${totalComingMatches}</strong> ${comingLbl}</span>`;
+        } else if (totalConfirmedMatches > 0) {
+            const readyLbl = window.i18n ? window.i18n.t('bank_sync_ready_to_reconcile') || 'prête(s) à rapprocher' : 'prête(s) à rapprocher';
+            matchesText = `<strong>${totalConfirmedMatches}</strong> ${readyLbl}`;
+        } else if (totalComingMatches > 0) {
+            const comingLbl = window.i18n ? window.i18n.t('bank_sync_coming_in_banner') || 'en attente en ligne' : 'en attente en ligne';
+            matchesText = `<span style="color: #818cf8; font-weight: 600;">⏳ <strong>${totalComingMatches}</strong> ${comingLbl}</span>`;
+        }
+
+        let discrepancyHtml = '';
+        if (totalDiscrepancies > 0) {
+            const discMsg = window.i18n && window.i18n.tp ? window.i18n.tp('bank_sync_banner_discrepancies', { count: totalDiscrepancies }) : `${totalDiscrepancies} pointée(s) en attente banque`;
+            discrepancyHtml = ` • <span style="color: #d97706; font-weight: 600; cursor: help;" title="${(window.i18n ? window.i18n.t('bank_sync_discrepancy_tooltip') : 'Opérations pointées dans OmniBank mais encore en attente à la banque.').replace(/"/g, '&quot;')}">⏳ ${discMsg}</span>`;
+        }
+
+        let balanceStatusHtml = '';
+        if (pendingData.accounts && pendingData.accounts.length > 0) {
+            const accsWithBal = pendingData.accounts.filter(a => typeof a.bank_balance === 'number' && typeof a.local_reconciled_balance === 'number');
+            if (accsWithBal.length > 0) {
+                const hasDiff = accsWithBal.some(a => Math.abs(a.bank_balance - a.local_reconciled_balance) >= 0.005);
+                if (hasDiff) {
+                    const firstDiffAcc = accsWithBal.find(a => Math.abs(a.bank_balance - a.local_reconciled_balance) >= 0.005);
+                    const diff = Math.round((firstDiffAcc.bank_balance - firstDiffAcc.local_reconciled_balance) * 100) / 100;
+                    const diffFormatted = (diff > 0 ? '+' : '') + diff.toFixed(2) + ' €';
+                    balanceStatusHtml = ` • <span style="color: #f59e0b; font-weight: 600;">⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart'} : ${diffFormatted}</span>`;
+                } else {
+                    balanceStatusHtml = ` • <span style="color: #10b981; font-weight: 600;">🟢 ${window.i18n ? window.i18n.t('bank_sync_balance_synced') || 'Soldes conformes' : 'Soldes conformes'}</span>`;
+                }
+            }
         }
 
         banner.style.display = 'block';
@@ -396,17 +438,19 @@ window.OverviewView = {
                         ${window.i18n.t('bank_sync_pending_box_title') || 'Opérations bancaires en attente'}
                     </h4>
                     <div style="font-size: 12px; color: var(--text-muted);">
-                        ${totalMatches > 0 ? `<strong>${totalMatches}</strong> ${window.i18n ? window.i18n.t('bank_sync_ready_to_reconcile') || 'prête(s) à rapprocher' : 'prête(s) à rapprocher'} ` : ''}
-                        ${(totalMatches > 0 && totalNew > 0) ? '• ' : ''}
+                        ${matchesText}
+                        ${(matchesText && totalNew > 0) ? ' • ' : ''}
                         ${totalNew > 0 ? `<strong>${totalNew}</strong> nouvelle(s) opération(s) à ajouter` : ''}
+                        ${discrepancyHtml}
+                        ${balanceStatusHtml}
                     </div>
                 </div>
             </div>
 
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                ${totalMatches > 0 ? `
+                ${totalConfirmedMatches > 0 ? `
                 <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.reconcileAllPending()" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
-                    ⚡ ${window.i18n.t('bank_btn_reconcile_all') || 'Rapprocher en banque'} (${totalMatches})
+                    ⚡ ${window.i18n ? window.i18n.t('bank_btn_reconcile_confirmed') || 'Rapprocher les opérations confirmées' : 'Rapprocher les opérations confirmées'} (${totalConfirmedMatches})
                 </button>
                 ` : ''}
                 ${totalNew > 0 ? `
@@ -735,10 +779,14 @@ window.OverviewView = {
             const showRaw = g.raw_description && g.raw_description !== g.description;
             const rawSubHtml = showRaw ? `<div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85;">🏦 ${escapeHtml(g.raw_description)}</div>` : '';
 
+            const comingBadge = g.is_coming
+                ? `<span class="badge coming-badge" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_coming_tooltip') : 'Opération non encore imputée par la banque').replace(/"/g, '&quot;')}">⏳ ${window.i18n ? window.i18n.t('bank_sync_coming_badge') || 'À venir' : 'À venir'}</span>`
+                : '';
+
             ghostRowsHtml += `
                 <tr id="ovGhostRow_${g.csv_id}" class="overview-op-tr ghost-row ov-ghost-tr" data-ghost-id="${g.csv_id}" style="background: rgba(245, 158, 11, 0.04); border-left: 3px dashed #f59e0b;">
                     <td class="ov-td-date">
-                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
+                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>${comingBadge}
                         <span>${dateStr ? formatDate(dateStr) : '—'}</span>
                     </td>
                     <td class="ov-td-acc"><span class="overview-acc-badge" style="border-color: rgba(245, 158, 11, 0.3);">${escapeHtml(accName)}</span></td>
@@ -802,10 +850,7 @@ window.OverviewView = {
                 ? `<td class="ov-td-author">${tx.created_by ? `<span class="overview-author-badge">👤 ${escapeHtml(tx.created_by)}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>`
                 : '';
 
-            const isMatched = window.BankSyncView?.pendingMatches && window.BankSyncView.pendingMatches[tx.id];
-            const reconBtnHtml = isMatched
-                ? `<button class="overview-matched-action-btn" onclick="window.BankSyncView.reconcileFast(${tx.id})" title="${window.i18n.t('bank_badge_found_online_tooltip') || 'Opération détectée sur votre compte bancaire. Cliquez pour pointer en 1 clic !'}"><span>⚡</span> <span>${window.i18n.t('bank_badge_found_online') || 'Trouvé en banque'}</span></button>`
-                : `<button class="overview-recon-action-btn" onclick="window.OverviewView.toggleReconciliation(${tx.id})" title="${reconBtnText}">${reconBtnText}</button>`;
+            const reconBtnHtml = window.ReconciliationStates.resolve(tx, { view: 'overview', formatDate }).html;
 
             html += `
                 <tr id="ovRow_${tx.id}" class="overview-op-tr" data-id="${tx.id}">
@@ -1322,27 +1367,11 @@ window.OverviewView = {
     },
 
     async toggleReconciliation(id) {
-        try {
-            const row = document.getElementById(`ovRow_${id}`);
-            if (row) {
-                row.style.transition = 'opacity 0.2s, transform 0.2s';
-                row.style.opacity = '0.15';
-                row.style.transform = 'translateX(-10px)';
-                row.style.pointerEvents = 'none';
-            }
-            const res = await API.post(`/api/transactions/${id}/toggle_reconciliation`);
-            showUndoToast(window.i18n.t('toast_tx_updated') || "Opération modifiée", res.action_id, () => this.init());
-            // PERF: Refresh en arrière-plan, non-bloquant
-            Promise.all([window.app.refreshSidebar(), this.init()]).catch(e => console.error('[overview] Erreur refresh arrière-plan:', e));
-        } catch (e) {
-            console.error('[overview] Erreur rapprochement', e);
-            const row = document.getElementById(`ovRow_${id}`);
-            if (row) {
-                row.style.opacity = '1';
-                row.style.transform = '';
-                row.style.pointerEvents = '';
-            }
-        }
+        await window.ReconciliationActions.toggle(id, {
+            rowSelector: `#ovRow_${id}`,
+            animateFade: true,
+            refreshView: () => this.init()
+        });
     },
 
 

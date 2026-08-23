@@ -82,21 +82,16 @@ def _configure_sqlite_pragmas(target_engine: Engine):
         except Exception:
             pass
 
-        if IS_DOCKER:
-            # Sur les volumes Docker montés sur hôte Windows, journal_mode MEMORY évite les 'disk I/O error' lors de la création des tables et index
+        # Utiliser DELETE par défaut pour une compatibilité parfaite entre Docker (Linux/WSL2) et l'hôte Windows
+        # sans conflit de verrous POSIX / shared-memory (.db-shm / .db-wal) sur les montages partagés.
+        try:
+            cursor.execute("PRAGMA journal_mode=DELETE")
+        except Exception as e:
+            logger.warning(f"[DB] PRAGMA journal_mode=DELETE failed, falling back: {e}")
             try:
                 cursor.execute("PRAGMA journal_mode=MEMORY")
             except Exception:
                 pass
-        else:
-            try:
-                cursor.execute("PRAGMA journal_mode=WAL")
-            except Exception as e:
-                logger.warning(f"[DB] PRAGMA journal_mode=WAL failed, falling back: {e}")
-                try:
-                    cursor.execute("PRAGMA journal_mode=MEMORY")
-                except Exception:
-                    pass
 
         try:
             cursor.execute("PRAGMA synchronous=NORMAL")

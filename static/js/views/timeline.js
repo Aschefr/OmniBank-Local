@@ -407,11 +407,14 @@ window.TimelineView = {
 
     async loadData() {
         try {
-            // PERF: Fetch transactions, budgets, and dashboard stats in parallel
+            // PERF: Fetch transactions, budgets, dashboard stats, and pending bank sync in parallel
             const [allTransactions, budgets, stats] = await Promise.all([
                 API.get('/api/transactions/?limit=10000'),
                 API.get('/api/budgets/').catch(e => { console.error('Failed to load budgets', e); return []; }),
-                API.get('/api/stats/dashboard').catch(e => { console.error('Failed to load paycheck stats', e); return null; })
+                API.get('/api/stats/dashboard').catch(e => { console.error('Failed to load paycheck stats', e); return null; }),
+                (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') 
+                    ? window.BankSyncView.loadPendingSync().catch(e => { console.warn('Failed to load pending bank sync', e); return null; })
+                    : Promise.resolve(null)
             ]);
             
             // Keep all transactions, filtering will be done in renderTable
@@ -461,6 +464,11 @@ window.TimelineView = {
             }
         } catch (e) {
             console.error("Failed to load timeline", e);
+            const tbody = document.getElementById('timelineBody');
+            if (tbody) {
+                const msg = (window.i18n && window.i18n.t('msg_save_error')) || 'Erreur de chargement';
+                tbody.innerHTML = `<tr><td class="row-marker"></td><td colspan="15" style="text-align:center; padding: 25px; color: var(--text-muted); font-style: italic;">⚠️ ${msg}</td></tr>`;
+            }
         }
     },
 
@@ -719,17 +727,7 @@ window.TimelineView = {
             
             const idAttr = tx._isFirstReconciled ? 'id="first-reconciled"' : '';
             
-            let reconcileHTML = '';
-            if (tx.is_skipped) {
-                reconcileHTML = `<span style="font-size:11px; font-weight: 600; color: #64748b; background: rgba(100, 116, 139, 0.1); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(100, 116, 139, 0.2); white-space: nowrap;">${window.i18n.t('rec_status_skipped') || '⏭️ Ignorée'}</span>`;
-            } else if (isReconciled) {
-                const dateStr = formatDate(tx.reconciliation_date);
-                reconcileHTML = `<span style="font-size:12px; cursor:pointer;" onclick="window.TimelineView.toggleReconciliation(${tx.id})" title="${window.i18n.t('tooltip_cancel_reconciliation')}">${dateStr}</span>`;
-            } else if (window.BankSyncView && window.BankSyncView.pendingMatches && window.BankSyncView.pendingMatches[tx.id]) {
-                reconcileHTML = `<button class="btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(16,185,129,0.3); cursor: pointer;" onclick="window.BankSyncView.reconcileFast(${tx.id})" title="${window.i18n.t('bank_badge_found_online_tooltip') || 'Opération trouvée sur votre relevé bancaire. Cliquez pour pointer en 1 clic !'}">⚡ <span>${window.i18n.t('bank_badge_found_online') || 'Trouvé en banque'}</span></button>`;
-            } else {
-                reconcileHTML = `<button class="btn btn-primary" style="padding: 4px 10px; font-size: 11px; border-radius: 6px;" onclick="window.TimelineView.toggleReconciliation(${tx.id})">${window.i18n.t('btn_reconcile')}</button>`;
-            }
+            const reconcileHTML = window.ReconciliationStates.resolve(tx, { view: 'timeline', formatDate }).html;
 
             const accounts = window.app.accounts || [];
             const getAcc = (id) => accounts.find(x => x.id === id);
@@ -869,24 +867,11 @@ window.TimelineView = {
     },
 
     async toggleReconciliation(id) {
-        // PERF: UI Optimiste — feedback visuel immédiat avant la réponse API
-        const row = document.querySelector(`tr[data-tx-id="${id}"]`);
-        const btn = row ? row.querySelector('.btn-reconcile, .btn-unreconcile') : null;
-        if (row) row.style.opacity = '0.5';
-        if (btn) btn.disabled = true;
-        try {
-            const res = await API.post(`/api/transactions/${id}/toggle_reconciliation`);
-            if (row) row.style.opacity = '';
-            if (btn) btn.disabled = false;
-            this._pendingHighlightTxId = id;
-            showUndoToast(window.i18n.t('toast_tx_updated') || "Opération modifiée", res.action_id, () => this.loadData());
-            // PERF: Refresh en arrière-plan, non-bloquant
-            Promise.all([window.app.refreshSidebar(), this.loadData()]).catch(e => console.error('[Timeline] Erreur refresh arrière-plan:', e));
-        } catch (e) {
-            if (row) row.style.opacity = '';
-            if (btn) btn.disabled = false;
-            console.error(e);
-        }
+        this._pendingHighlightTxId = id;
+        await window.ReconciliationActions.toggle(id, {
+            rowSelector: `tr[data-tx-id="${id}"]`,
+            refreshView: () => this.loadData()
+        });
     },
 
     async delete(id) {

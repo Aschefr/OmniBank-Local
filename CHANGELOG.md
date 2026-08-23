@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.88] - 2026-08-23
+
+### Added & Improved
+- **Upcoming Transactions Detection (Woob `iter_coming`) ⏳**:
+  - Automatically fetches unposted/pending bank operations (immediate debit card authorizations, upcoming direct debits) from online banking.
+  - Seamlessly integrates with the ghost operations pipeline with a distinctive `⏳ Upcoming` (`À venir`) badge.
+  - Commits upcoming operations as unreconciled entries (`reconciliation_date: null`) that will automatically match once posted by the bank.
+- **Bank State Discrepancy & Pending Online Indicators ⏳**:
+  - Automatically identifies operations reconciled locally in OmniBank that are still listed as pending/upcoming authorizations (`iter_coming`) by the online bank.
+  - Added dedicated `⏳ Pending online` (`En attente en ligne`) filter tab with live counts inside the Bank Sync Review modal.
+  - Enhanced row styling with distinct warm amber background and border highlights for all pending online operations.
+  - Added automatic balance delta explanation badge explaining when an account balance discrepancy is 100% accounted for by pending online authorizations.
+- **Orphan Internal Transfer Auto-Linking 🔗**:
+  - Automatically identifies isolated single-leg transactions on other accounts matching an incoming or outgoing transfer amount (±0.01 €) and date (±5 days).
+  - Seamlessly links and updates existing transactions into internal transfers (`from_account` ➔ `to_account`, `type: transfer`) upon synchronization or review commit, completely eliminating transfer duplicates when adding or syncing multiple bank accounts.
+  - Surfaces a clear `🔗 Transfer link` (`Liaison virement`) badge and explanatory tooltip in the review modal and ghost box.
+- **Bank Balance Consistency Indicator & Delta Validation Guide ⚖️**:
+  - Automatically fetches live remote bank balances (`acc.balance`) from Woob and compares against OmniBank's local reconciled balance (`calculate_balances(only_reconciled=True)`).
+  - Smart 3-state balance indicators: 🟢 `In Sync` (exact match), 🔵 `In Sync after Commit` (difference solved by pending ghosts), and ⚠️ `Difference` with precise delta amount.
+  - **Delta-Guided Validation 🎯**: Automatically identifies and visually highlights ghost transactions whose amount exactly matches the balance difference with a `🎯 Resolves difference` (`Résout l'écart`) badge.
+- **Unified Reconciliation States Across All Views 🎨**:
+  - Centralized reconciliation logic into `ReconciliationStates` and `ReconciliationActions` modules, eliminating duplicated implementations across 5 views (Timeline, All Operations, Overview, Recurrence Details, Recurrence Timeline).
+  - Overview "Opérations à rapprocher" table now properly distinguishes unposted upcoming authorizations (displaying purple `⏳ À venir` button) from posted bank transactions (displaying emerald `⚡ Trouvé en banque`).
+- **Confirmed-Only Batch Reconciliation 🛡️**:
+  - Batch bank reconciliation ("Rapprocher les opérations confirmées") now strictly targets confirmed/settled bank operations, safely ignoring pending/unposted authorizations (`is_coming`).
+  - The sync banner dynamically separates confirmed matches from upcoming online operations, displaying `X prête(s) à rapprocher • Y en attente en ligne` and only surfacing the batch action button when confirmed transactions are available.
+- **Bank Sync Modular Refactoring 🏗️**:
+  - Extracted the monolithic `bank_sync.js` (3100+ lines) into 5 focused sub-modules: `bank_sync_vault.js`, `bank_sync_pending.js`, `bank_sync_review.js`, `bank_sync_sync.js`, `bank_sync_connections.js`.
+  - Full backward compatibility preserved via `Object.assign(window.BankSyncView, {...})` pattern.
+- **SQLite Journal Mode Compatibility 💾**:
+  - Unified journal mode to `DELETE` across all environments (local + Docker) to eliminate `.db-wal`/`.db-shm` lock conflicts on Docker Windows volume mounts.
+
+### Fixed
+- **Reconciliation error toast restored**: Centralized `ReconciliationActions.toggle()` now properly displays an error toast on API failure, restoring the feedback that was lost during the refactoring.
+- **Error message display in Timeline/All Operations**: Added user-visible error fallback when data loading fails, replacing a silent empty table.
+
+
 ## [1.0.87] - 2026-08-20
 
 ### Improved & Fixed
@@ -33,6 +70,7 @@ All notable changes to this project will be documented in this file.
   - Fixed sidecar directory structure for correct auto-update migration.
 - **Bug Fix — Bank Sync UI 🐛**:
   - Fixed a pre-existing syntax error in `bank_sync.js` (unclosed `if` block) that silently broke the bank synchronization section rendering.
+
 
 
 ## [1.0.86] - 2026-08-19
