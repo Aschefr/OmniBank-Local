@@ -38,6 +38,7 @@ Object.assign(window.BankSyncView, {
                 this.autoCategorizeGhosts();
             }
 
+            this._ghostBoxManualCollapse = undefined;
             this.renderPendingSyncBox(data);
             return data;
         } catch (e) {
@@ -206,13 +207,7 @@ Object.assign(window.BankSyncView, {
             ghosts = ghosts.filter(g => String(g.account_id) === String(accountFilter));
         }
 
-        if (ghosts.length === 0) {
-            box.style.display = 'none';
-            box.innerHTML = '';
-            return;
-        }
-
-        box.style.display = 'block';
+        const hasGhosts = ghosts.length > 0;
         const totalCount = ghosts.length;
 
         // ── 1. Cohérence des soldes & Guide par Delta ─────────────────────
@@ -222,6 +217,26 @@ Object.assign(window.BankSyncView, {
         if (accountFilter) {
             relevantAccounts = relevantAccounts.filter(a => String(a.account_id) === String(accountFilter));
         }
+
+        const accsWithBalance = relevantAccounts.filter(a =>
+            typeof a.bank_balance === 'number' && typeof a.local_reconciled_balance === 'number'
+        );
+        const hasDiscrepancy = accsWithBalance.some(a => Math.abs(a.bank_balance - a.local_reconciled_balance) >= 0.005);
+
+        // Masquer si aucune opération fantôme ET aucun écart de solde
+        if (!hasGhosts && !hasDiscrepancy) {
+            box.style.display = 'none';
+            box.innerHTML = '';
+            return;
+        }
+
+        box.style.display = 'block';
+
+        // État replié/déplié : déplié si opérations fantômes, replié si seulement écarts
+        const defaultCollapsed = !hasGhosts;
+        const isCollapsed = (this._ghostBoxManualCollapse !== undefined)
+            ? this._ghostBoxManualCollapse
+            : defaultCollapsed;
 
         // Réinitialiser le flag de résolution delta sur les fantômes
         ghosts.forEach(g => { g._resolves_diff = false; });
@@ -397,25 +412,76 @@ Object.assign(window.BankSyncView, {
             `;
         }).join('');
 
+        // ── Résumé pour l'en-tête replié ─────────────────────────────
+        const confirmedMatchCount = Object.values(this.pendingMatches || {}).filter(m => !m.is_coming).length;
+        let summaryParts = [];
+        if (confirmedMatchCount > 0) {
+            const readyLbl = window.i18n ? window.i18n.t('bank_sync_ready_to_reconcile') || 'prête(s) à rapprocher' : 'prête(s) à rapprocher';
+            summaryParts.push(`<strong style="color: #10b981;">${confirmedMatchCount}</strong> ${readyLbl}`);
+        }
+        if (hasGhosts) {
+            summaryParts.push(`<strong>${totalCount}</strong> nouvelle(s)`);
+        }
+        if (hasDiscrepancy) {
+            let totalDiff = 0;
+            accsWithBalance.forEach(a => {
+                const d = a.bank_balance - a.local_reconciled_balance;
+                if (Math.abs(d) >= 0.005) totalDiff += d;
+            });
+            totalDiff = Math.round(totalDiff * 100) / 100;
+            const diffFmt = (totalDiff > 0 ? '+' : '') + totalDiff.toFixed(2) + ' €';
+            summaryParts.push(`⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart'} : ${diffFmt}`);
+        }
+        const summaryText = summaryParts.join(' • ');
+
+        const chevron = isCollapsed ? '▶' : '▼';
+        const containerBg = hasGhosts
+            ? 'background: rgba(245, 158, 11, 0.06);'
+            : 'background: rgba(99, 102, 241, 0.06);';
+        const containerBorder = hasGhosts
+            ? 'border: 1px dashed rgba(245, 158, 11, 0.35);'
+            : 'border: 1px solid rgba(99, 102, 241, 0.25);';
+        const headerIcon = hasGhosts ? '👻' : '📥';
+        const headerTitle = hasGhosts
+            ? (window.i18n ? window.i18n.t('ghost_box_title') || 'Opérations en ligne non enregistrées' : 'Opérations en ligne non enregistrées')
+            : (window.i18n ? window.i18n.t('bank_sync_pending_box_title') || 'Synchronisation bancaire' : 'Synchronisation bancaire');
+
         box.innerHTML = `
-        <div class="ghost-rows-container" style="background: rgba(245, 158, 11, 0.06); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 18px;">👻</span>
+        <div class="ghost-rows-container" style="${containerBg} ${containerBorder} border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;">
+            <div onclick="window.BankSyncView.toggleGhostBox()" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; cursor: pointer; user-select: none;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-size: 14px; color: var(--text-muted); display: inline-block;">${chevron}</span>
+                    <span style="font-size: 18px;">${headerIcon}</span>
                     <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">
-                        ${window.i18n ? window.i18n.t('ghost_box_title') || 'Opérations en ligne non enregistrées' : 'Opérations en ligne non enregistrées'}
+                        ${headerTitle}
                     </span>
+                    ${hasGhosts ? `
                     <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px;">
                         ${totalCount}
-                    </span>
+                    </span>` : ''}
+                    ${isCollapsed && summaryText ? `
+                    <span style="font-size: 12px; color: var(--text-muted); margin-left: 4px;">
+                        ${summaryText}
+                    </span>` : ''}
                 </div>
-                <div class="ghost-box-header-btn-wrap" style="display: flex;">
+                <div class="ghost-box-header-btn-wrap" style="display: flex; gap: 8px;" onclick="event.stopPropagation();">
+                    ${confirmedMatchCount > 0 ? `
+                    <button class="btn btn-primary" onclick="window.BankSyncView.reconcileAllPending()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 700; height: 30px; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>⚡</span> <span>${window.i18n ? window.i18n.t('bank_btn_reconcile_confirmed') || 'Rapprocher' : 'Rapprocher'} (${confirmedMatchCount})</span>
+                    </button>` : ''}
+                    ${hasGhosts ? `
                     <button class="btn btn-gold ghost-box-header-btn" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 14px; border-radius: 6px; font-weight: 700; height: 30px; display: inline-flex; align-items: center; gap: 6px;">
                         <span>📥</span> <span>${window.i18n ? window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations' : 'Valider les nouvelles opérations'} (${totalCount})</span>
-                    </button>
+                    </button>` : ''}
+                    ${!hasGhosts ? `
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>📋</span> <span>${window.i18n ? window.i18n.t('bank_sync_pending_review_btn') || 'Ouvrir la revue' : 'Ouvrir la revue'}</span>
+                    </button>` : ''}
                 </div>
             </div>
-            ${balanceBarsHtml}
+            <div id="ghostBoxContent" style="${isCollapsed ? 'display: none;' : 'margin-top: 10px;'}">
+                ${balanceBarsHtml}
+                ${hasGhosts ? `
             <!-- Vue Tableau Desktop -->
             <div class="ghost-desktop-table-wrapper">
                 <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
@@ -439,8 +505,20 @@ Object.assign(window.BankSyncView, {
             <div class="ghost-mobile-cards-wrapper">
                 ${cardsHtml}
             </div>
+                ` : ''}
+            </div>
         </div>
         `;
+    },
+
+    toggleGhostBox() {
+        const content = document.getElementById('ghostBoxContent');
+        const isCurrentlyCollapsed = content ? content.style.display === 'none' : true;
+        this._ghostBoxManualCollapse = !isCurrentlyCollapsed;
+        const box = document.getElementById('ghostRowsBox');
+        if (box && box.parentElement) {
+            this.renderGhostBox(box.parentElement);
+        }
     },
 
 
