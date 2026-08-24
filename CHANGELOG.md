@@ -20,6 +20,8 @@ All notable changes to this project will be documented in this file.
   - **Real-Time Bank Sync Animation Persistence**: Synchronized the "Relever en ligne" button pulsing and progress animation across all views, page navigations, scheduled background tasks, and browser reloads (F5) via backend status polling.
 
 ### Fixed
+- **Desktop Bundle Woob Capabilities & Submodules Packaging**: Bundled all dynamic Woob capability modules (`woob.capabilities.bank`, `woob.browser.*`, `woob.tools.*`, `pycountry`, `html2text`, `yaml`, `unidecode`, `lxml`) into the PyInstaller desktop distribution, fixing `No module named 'woob.capabilities.bank'` when synchronizing bank accounts (e.g. Crédit Agricole `cragr`).
+- **Background Scheduler Re-Matching DLL Contention Fix**: Removed redundant `pandas` runtime import inside `check_reconciliation`, eliminating `[WinError 206]` during recurring background transaction matching.
 - **Bank Sync Vault Unlock via Notification Click**: Clicking a bank sync error notification caused by a locked vault or master password error now directly opens the master password unlock modal (`#masterPasswordModal`), allowing immediate in-place unlocking instead of attempting to open the pending transactions review modal.
 - **Upcoming Ghost Operations Reconciliation Date**: Prevented automatic pre-filling of the reconciliation date when editing/adding an upcoming online transaction (`is_coming`), ensuring it remains unreconciled until posted by the bank.
 - **Two-Pass Reconciliation Matching**: Resolved transaction matching collision between multiple operations with identical amounts and close dates by matching confirmed bank operations first, preventing pending authorizations from stealing reconciled history records.

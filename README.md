@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.88-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.89-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,13 +110,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.88)
+## 🆕 Nouveautés (v1.0.89)
 
-* **⏳ Détection des Opérations en Attente** : Récupération automatique des opérations non encore imputées (autorisations carte, prélèvements à venir) avec badge distinctif `⏳ À venir` et indicateurs de discordance d'état bancaire.
-* **🔗 Liaison Automatique des Virements Orphelins** : Identification et fusion automatique des écritures isolées inter-comptes en virements internes, éliminant les doublons lors de la synchronisation multi-comptes.
-* **⚖️ Indicateur de Conformité des Soldes** : Comparaison automatique du solde pointé local avec le solde bancaire distant, avec guide de validation delta et badges `🎯 Résout l'écart`.
-* **🎨 États de Rapprochement Unifiés** : Centralisation de la logique de rapprochement dans un module unique, distinguant visuellement les opérations à venir (⏳) des opérations confirmées (⚡) à travers toutes les vues.
-* **🏗️ Refactoring Modulaire Bank Sync** : Extraction du monolithe `bank_sync.js` en 5 sous-modules focalisés pour une meilleure maintenabilité.
+* **👻 Boîte de Synchronisation & Opérations Fantômes Rétractable** : Affichage intelligent et pliable (dépliée si nouvelles opérations proposées, bandeau compact si seuls des écarts de solde subsistent, masquée si tout est conforme).
+* **⚡ Ajustement d'Écart de Solde en 1 Clic** : Modale interactive pour corriger facilement les écarts inexpliqués (mise à niveau propre du solde initial ou génération d'une écriture catégorisée / intérêts).
+* **⚡ Optimisation Majeure des Performances & Pipeline Données** : Mode SQLite WAL réactivé pour le build Desktop, index composites sur les transactions, accélération du matching de rapprochement sans goulet SQL, et déduplication des calculs de soldes du tableau de bord.
+* **🔒 Déverrouillage Coffre-Fort Direct via Notification** : Clic direct sur une notification d'erreur pour ouvrir la saisie du mot de passe maître sans friction.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -124,7 +123,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.88-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.89-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -224,13 +223,12 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.88)
+## 🆕 What's New (v1.0.89)
 
-* **⏳ Upcoming Transactions Detection**: Automatically fetches unposted/pending bank operations (card authorizations, upcoming direct debits) with a distinctive `⏳ Upcoming` badge and bank state discrepancy indicators.
-* **🔗 Orphan Internal Transfer Auto-Linking**: Automatically identifies and merges isolated single-leg transactions across accounts into internal transfers, eliminating duplicates when syncing multiple bank accounts.
-* **⚖️ Bank Balance Consistency Indicator**: Automatic comparison of local reconciled balance with remote bank balance, with delta-guided validation and `🎯 Resolves difference` badges.
-* **🎨 Unified Reconciliation States**: Centralized reconciliation logic into a single module, visually distinguishing upcoming (⏳) from confirmed (⚡) operations across all views.
-* **🏗️ Bank Sync Modular Refactoring**: Extracted the monolithic `bank_sync.js` into 5 focused sub-modules for improved maintainability.
+* **👻 Collapsible Bank Sync & Ghost Operations Box**: Smart collapsible display (auto-expands for ghost suggestions, sleek summary header for pure balance discrepancies, hidden when fully in sync).
+* **⚡ 1-Click Balance Gap Adjustment**: Interactive modal to easily bridge unexplained balance gaps (clean starting balance update or categorized interest/regularization entry).
+* **⚡ Major Performance & Data Pipeline Optimization**: Restored SQLite WAL mode for desktop builds, added composite transaction indexes, accelerated bank matching without SQL bottlenecks, and deduplicated dashboard balance calculation passes.
+* **🔒 Direct Master Password Modal via Notification**: Error notifications from locked vault or invalid master password now directly open the unlock modal in-place.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 
