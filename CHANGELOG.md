@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.89] - 2026-08-24
+
+### Added & Improved
+- **Collapsible Bank Sync & Ghost Operations Box 👻**:
+  - Made the ghost box dynamically collapsible across Dashboard and Timeline views: automatically expands when suggested new operations are present, collapses into a sleek summary header when only account balance discrepancies exist, and hides completely when everything is in sync.
+  - Interactive toggle displays account balance breakdowns, delta adjustments, pending matches count, and quick action buttons (`Rapprocher`, `Valider`, `Ouvrir la revue`).
+- **1-Click Quick Balance Gap Adjustment ⚡**:
+  - Added an interactive 1-click modal on balance discrepancy badges (`⚠️ Difference : +X.XX € ⚡ Adjust`) allowing users to easily bridge unexplained balance gaps.
+  - Supports two clean adjustment workflows: **Option A (Initial Balance)** to update starting balance without polluting history/charts, and **Option B (Interest / Regularization Entry)** to create a categorized reconciled transaction (ideal for savings account annual interest).
+
+### Fixed
+- **Upcoming Ghost Operations Reconciliation Date**: Prevented automatic pre-filling of the reconciliation date when editing/adding an upcoming online transaction (`is_coming`), ensuring it remains unreconciled until posted by the bank.
+- **Two-Pass Reconciliation Matching**: Resolved transaction matching collision between multiple operations with identical amounts and close dates by matching confirmed bank operations first, preventing pending authorizations from stealing reconciled history records.
+- **Instant Ghost Reappearance on Database Deletion**: Fixed an `UnboundLocalError` in transfer mirror detection ensuring deleted database transactions immediately revert to ghost suggestions in the dashboard table.
+
+
 ## [1.0.88] - 2026-08-23
 
 ### Added & Improved
@@ -22,9 +38,6 @@ All notable changes to this project will be documented in this file.
   - Automatically fetches live remote bank balances (`acc.balance`) from Woob and compares against OmniBank's local reconciled balance (`calculate_balances(only_reconciled=True)`).
   - Smart 3-state balance indicators: 🟢 `In Sync` (exact match), 🔵 `In Sync after Commit` (difference solved by pending ghosts), and ⚠️ `Difference` with precise delta amount.
   - **Delta-Guided Validation 🎯**: Automatically identifies and visually highlights ghost transactions whose amount exactly matches the balance difference with a `🎯 Resolves difference` (`Résout l'écart`) badge.
-- **1-Click Quick Balance Gap Adjustment ⚡**:
-  - Added an interactive 1-click modal on balance discrepancy badges (`⚠️ Difference : +X.XX € ⚡ Adjust`) allowing users to easily bridge unexplained balance gaps.
-  - Supports two clean adjustment workflows: **Option A (Initial Balance)** to update starting balance without polluting history/charts, and **Option B (Interest / Regularization Entry)** to create a categorized reconciled transaction (ideal for savings account annual interest).
 - **Unified Reconciliation States Across All Views 🎨**:
   - Centralized reconciliation logic into `ReconciliationStates` and `ReconciliationActions` modules, eliminating duplicated implementations across 5 views (Timeline, All Operations, Overview, Recurrence Details, Recurrence Timeline).
   - Overview "Opérations à rapprocher" table now properly distinguishes unposted upcoming authorizations (displaying purple `⏳ À venir` button) from posted bank transactions (displaying emerald `⚡ Trouvé en banque`).
@@ -38,9 +51,6 @@ All notable changes to this project will be documented in this file.
   - Unified journal mode to `DELETE` across all environments (local + Docker) to eliminate `.db-wal`/`.db-shm` lock conflicts on Docker Windows volume mounts.
 
 ### Fixed
-- **Upcoming Ghost Operations Reconciliation Date**: Prevented automatic pre-filling of the reconciliation date when editing/adding an upcoming online transaction (`is_coming`), ensuring it remains unreconciled until posted by the bank.
-- **Two-Pass Reconciliation Matching**: Resolved transaction matching collision between multiple operations with identical amounts and close dates by matching confirmed bank operations first, preventing pending authorizations from stealing reconciled history records.
-- **Instant Ghost Reappearance on Database Deletion**: Fixed an `UnboundLocalError` in transfer mirror detection ensuring deleted database transactions immediately revert to ghost suggestions in the dashboard table.
 - **Reconciliation error toast restored**: Centralized `ReconciliationActions.toggle()` now properly displays an error toast on API failure, restoring the feedback that was lost during the refactoring.
 - **Error message display in Timeline/All Operations**: Added user-visible error fallback when data loading fails, replacing a silent empty table.
 
