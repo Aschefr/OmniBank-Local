@@ -11,8 +11,16 @@ All notable changes to this project will be documented in this file.
 - **1-Click Quick Balance Gap Adjustment ⚡**:
   - Added an interactive 1-click modal on balance discrepancy badges (`⚠️ Difference : +X.XX € ⚡ Adjust`) allowing users to easily bridge unexplained balance gaps.
   - Supports two clean adjustment workflows: **Option A (Initial Balance)** to update starting balance without polluting history/charts, and **Option B (Interest / Regularization Entry)** to create a categorized reconciled transaction (ideal for savings account annual interest).
+- **Performance & Data Pipeline Optimization ⚡**:
+  - **Environment-Aware SQLite Journal Mode**: Restored high-concurrency `WAL` mode for packaged desktop builds while safely keeping `DELETE` mode for Docker/shared mounts, eliminating exclusive lock contention.
+  - **Database Index Acceleration**: Added composite indexes on `transactions` (`date_operation`, `reconciliation_date, date_operation`, and `from_account_id, to_account_id, date_operation`) drastically speeding up transaction lookups and filtering.
+  - **Fast Reconciliation Matching**: Replaced non-indexable SQL `julianday` dynamic ordering with range-indexed queries and in-memory proximity sorting, eliminating query bottlenecks during bank synchronization.
+  - **Dashboard Balance Calculation Deduplication**: Reused precomputed reconciled balances across all dashboard sub-calculators (`net_worth`, `liquid_net_worth`, `rest_to_live`, and `overdraft_warning`), eliminating 4x redundant full transaction scans.
+  - **Frontend Request Deduplication & Query Param Integrity**: Streamlined Overview banner pending sync loading and updated API inflight cache keys to properly separate distinct query parameters.
+  - **Real-Time Bank Sync Animation Persistence**: Synchronized the "Relever en ligne" button pulsing and progress animation across all views, page navigations, scheduled background tasks, and browser reloads (F5) via backend status polling.
 
 ### Fixed
+- **Bank Sync Vault Unlock via Notification Click**: Clicking a bank sync error notification caused by a locked vault or master password error now directly opens the master password unlock modal (`#masterPasswordModal`), allowing immediate in-place unlocking instead of attempting to open the pending transactions review modal.
 - **Upcoming Ghost Operations Reconciliation Date**: Prevented automatic pre-filling of the reconciliation date when editing/adding an upcoming online transaction (`is_coming`), ensuring it remains unreconciled until posted by the bank.
 - **Two-Pass Reconciliation Matching**: Resolved transaction matching collision between multiple operations with identical amounts and close dates by matching confirmed bank operations first, preventing pending authorizations from stealing reconciled history records.
 - **Instant Ghost Reappearance on Database Deletion**: Fixed an `UnboundLocalError` in transfer mirror detection ensuring deleted database transactions immediately revert to ghost suggestions in the dashboard table.

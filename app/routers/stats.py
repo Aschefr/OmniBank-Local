@@ -82,9 +82,12 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
 
     today = date.today()
     
+    # PERF: Calculer les soldes rapprochés une seule fois pour tout le dashboard
+    balances_reconciled = calculate_balances(db, only_reconciled=True)
+
     # User wants net worth to be based only on reconciled transactions
-    net_worth = get_net_worth(db, only_reconciled=True)
-    liquid_net_worth, loan_total = get_liquid_net_worth(db, only_reconciled=True)
+    net_worth = get_net_worth(db, only_reconciled=True, precomputed_balances=balances_reconciled)
+    liquid_net_worth, loan_total = get_liquid_net_worth(db, only_reconciled=True, precomputed_balances=balances_reconciled)
     
     pay_info = predict_next_paycheck(db)
     next_pay_date = pay_info["date"]
@@ -94,11 +97,11 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     validated_pay_date = pay_info.get("validated_pay_date", None)
     pay_history = pay_info.get("history", [])
         
-    rest_to_live = calculate_rest_to_live(db, today, next_pay_date)
+    rest_to_live = calculate_rest_to_live(db, today, next_pay_date, precomputed_balances=balances_reconciled)
     
     # Use dynamic main account
     main_acc = get_main_account(db)
-    warning = get_overdraft_warning(db) if main_acc else None
+    warning = get_overdraft_warning(db, precomputed_balances=balances_reconciled) if main_acc else None
     
     # Calculate unreconciled expenses before next pay
     # Transfers (to_account_id IS NOT NULL) are excluded — they are internal movements,

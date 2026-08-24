@@ -79,7 +79,7 @@ const API = {
     },
     async get(endpoint) {
         // PERF: Déduplication — si un GET identique est déjà en cours, réutiliser la même Promise
-        const cacheKey = endpoint.split('?')[0];
+        const cacheKey = endpoint;
         if (this._inflight[cacheKey]) {
             return this._inflight[cacheKey];
         }

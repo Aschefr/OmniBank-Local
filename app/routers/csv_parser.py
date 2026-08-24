@@ -136,6 +136,13 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
     start_op = tx_date - timedelta(days=15)
     end_op = tx_date + timedelta(days=15)
 
+    target_dt = tx_date.date() if hasattr(tx_date, "date") and callable(tx_date.date) else tx_date
+
+    def _closest_tx(candidates):
+        if not candidates:
+            return None
+        return min(candidates, key=lambda t: abs((t.date_operation - target_dt).days) if t.date_operation else 999999)
+
     # 1. Recherche d'un doublon déjà rapproché / existant
     def _find_already_reconciled():
         if is_coming:
@@ -181,11 +188,7 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
         else:
             recon_query_filtered = recon_query
             
-        recon_query_filtered = recon_query_filtered.order_by(
-            func.abs(func.julianday(Transaction.date_operation) - func.julianday(tx_date_str))
-        )
-        
-        recon_match = recon_query_filtered.first()
+        recon_match = _closest_tx(recon_query_filtered.all())
         if recon_match:
             return {
                 "id": recon_match.id, 
@@ -210,10 +213,7 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
         if matched_ids:
             available_op_query = op_query.filter(Transaction.id.notin_(matched_ids))
             
-        available_op_query = available_op_query.order_by(
-            func.abs(func.julianday(Transaction.date_operation) - func.julianday(tx_date_str))
-        )
-        op_match = available_op_query.first()
+        op_match = _closest_tx(available_op_query.all())
         if op_match:
             return {
                 "id": op_match.id,
@@ -259,10 +259,8 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
                 Transaction.type == "transfer",
                 and_(Transaction.from_account_id.isnot(None), Transaction.to_account_id.isnot(None))
             )
-        ).order_by(
-            func.abs(func.julianday(Transaction.date_operation) - func.julianday(tx_date_str))
         )
-        mirror_match = mirror_query.first()
+        mirror_match = _closest_tx(mirror_query.all())
         if mirror_match:
             return {
                 "id": mirror_match.id,
@@ -306,10 +304,7 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
         if matched_ids:
             orphan_q = orphan_q.filter(Transaction.id.notin_(matched_ids))
 
-        orphan_q = orphan_q.order_by(
-            func.abs(func.julianday(Transaction.date_operation) - func.julianday(tx_date_str))
-        )
-        orphan_match = orphan_q.first()
+        orphan_match = _closest_tx(orphan_q.all())
         if orphan_match:
             other_acc_id = orphan_match.to_account_id if raw_num < 0 else orphan_match.from_account_id
             other_acc = db.query(Account).filter(Account.id == other_acc_id).first()
