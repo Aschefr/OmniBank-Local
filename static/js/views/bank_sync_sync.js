@@ -3,31 +3,101 @@
 
 Object.assign(window.BankSyncView, {
 
+    _syncState: 'idle',
+    _syncStateHtml: null,
+    _syncPollingTimer: null,
+
+    setButtonsState(state, customHtml = null) {
+        this._syncState = state;
+        this._syncStateHtml = customHtml;
+        this.applySyncButtonsState();
+    },
+
+    applySyncButtonsState() {
+        const state = this._syncState || 'idle';
+        const customHtml = this._syncStateHtml;
+        const syncButtons = document.querySelectorAll('.overview-bank-sync-btn, #btnTriggerAutoSync, #btnTimelineBgSync, #btnHeaderBgSync, #btnHistoryBgSync');
+        syncButtons.forEach(btn => {
+            btn.classList.remove('is-syncing', 'is-success', 'is-error');
+            if (state === 'syncing') {
+                btn.classList.add('is-syncing');
+                btn.disabled = true;
+                btn.innerHTML = `<span>⚡</span> <span>${window.i18n ? window.i18n.t('bank_sync_progress_loading') || 'Relevé en cours...' : 'Relevé en cours...'}</span>`;
+            } else if (state === 'success') {
+                btn.classList.add('is-success');
+                btn.disabled = false;
+                btn.innerHTML = `<span>✅</span> <span>${customHtml || (window.i18n ? window.i18n.t('bank_sync_progress_done') || 'Relevé terminé !' : 'Relevé terminé !')}</span>`;
+            } else if (state === 'error') {
+                btn.classList.add('is-error');
+                btn.disabled = false;
+                btn.innerHTML = `<span>⚠️</span> <span>${customHtml || (window.i18n ? window.i18n.t('bank_sync_progress_error') || 'Erreur relevé' : 'Erreur relevé')}</span>`;
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `<span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n ? window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne' : 'Relever en ligne'}</span>`;
+            }
+        });
+    },
+
+    async checkBackgroundSyncStatus() {
+        try {
+            const statusRes = await API.get('/api/bank-sync/status');
+            const isRunning = Boolean(statusRes && statusRes.is_running);
+            
+            if (isRunning) {
+                if (this._syncState !== 'syncing') {
+                    this.setButtonsState('syncing');
+                    this._startSyncPollingTracker();
+                }
+            } else if (this._syncState === 'syncing') {
+                this._stopSyncPollingTracker();
+                this.setButtonsState('success');
+                setTimeout(() => this.setButtonsState('idle'), 3000);
+                await this.refreshActiveViews();
+                if (this.connections && this.connections.length > 0) this.loadConnections();
+                if (window.app && typeof window.app.loadNotifications === 'function') {
+                    window.app.loadNotifications();
+                }
+            }
+        } catch (_) {}
+    },
+
+    _startSyncPollingTracker() {
+        if (this._syncPollingTimer) return;
+        const poll = async () => {
+            try {
+                const statusRes = await API.get('/api/bank-sync/status');
+                const isRunning = Boolean(statusRes && statusRes.is_running);
+                if (!isRunning) {
+                    this._stopSyncPollingTracker();
+                    this.setButtonsState('success');
+                    setTimeout(() => this.setButtonsState('idle'), 3000);
+                    if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+                        window.app.setFastNotificationsPolling(false);
+                    }
+                    await this.refreshActiveViews();
+                    if (this.connections && this.connections.length > 0) this.loadConnections();
+                    if (window.app && typeof window.app.loadNotifications === 'function') {
+                        window.app.loadNotifications();
+                    }
+                    return;
+                }
+            } catch (e) {
+                console.warn('[BankSync] Erreur polling statut sync:', e);
+            }
+            this._syncPollingTimer = setTimeout(poll, 2500);
+        };
+        this._syncPollingTimer = setTimeout(poll, 2500);
+    },
+
+    _stopSyncPollingTracker() {
+        if (this._syncPollingTimer) {
+            clearTimeout(this._syncPollingTimer);
+            this._syncPollingTimer = null;
+        }
+    },
+
     async triggerBackgroundSyncNow() {
         this.ensureModalsExist();
-
-        const setButtonsState = (state, customHtml) => {
-            const syncButtons = document.querySelectorAll('.overview-bank-sync-btn, #btnTriggerAutoSync');
-            syncButtons.forEach(btn => {
-                btn.classList.remove('is-syncing', 'is-success', 'is-error');
-                if (state === 'syncing') {
-                    btn.classList.add('is-syncing');
-                    btn.disabled = true;
-                    btn.innerHTML = `<span>⚡</span> <span>${window.i18n ? window.i18n.t('bank_sync_progress_loading') || 'Relevé en cours...' : 'Relevé en cours...'}</span>`;
-                } else if (state === 'success') {
-                    btn.classList.add('is-success');
-                    btn.disabled = false;
-                    btn.innerHTML = `<span>✅</span> <span>${customHtml || (window.i18n ? window.i18n.t('bank_sync_progress_done') || 'Relevé terminé !' : 'Relevé terminé !')}</span>`;
-                } else if (state === 'error') {
-                    btn.classList.add('is-error');
-                    btn.disabled = false;
-                    btn.innerHTML = `<span>⚠️</span> <span>${customHtml || (window.i18n ? window.i18n.t('bank_sync_progress_error') || 'Erreur relevé' : 'Erreur relevé')}</span>`;
-                } else {
-                    btn.disabled = false;
-                    btn.innerHTML = `<span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n ? window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne' : 'Relever en ligne'}</span>`;
-                }
-            });
-        };
 
         if (!this.vaultStatus || this.vaultStatus.remaining_seconds === undefined) {
             await this.loadVaultStatus();
@@ -44,14 +114,14 @@ Object.assign(window.BankSyncView, {
             );
 
             if (!pw) {
-                setButtonsState('idle');
+                this.setButtonsState('idle');
                 return;
             }
             token = this.getVaultToken();
         }
 
         // Lancer l'animation de progression sur le fond du bouton
-        setButtonsState('syncing');
+        this.setButtonsState('syncing');
 
         const payload = {};
         if (token) payload.vault_token = token;
@@ -65,44 +135,16 @@ Object.assign(window.BankSyncView, {
                 window.app.setFastNotificationsPolling(true);
             }
 
-            // Suivi intelligent et non intrusif du relevé en arrière-plan
-            let pollCount = 0;
-            const checkSyncStatus = async () => {
-                pollCount++;
-                try {
-                    const statusRes = await API.get('/api/bank-sync/status');
-                    const isStillRunning = statusRes && statusRes.running_tasks && statusRes.running_tasks.length > 0;
-                    
-                    if (!isStillRunning || pollCount >= 12) {
-                        // Fin du relevé : mise à jour unique et propre
-                        setButtonsState('success');
-                        setTimeout(() => setButtonsState('idle'), 3000);
-                        if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
-                            window.app.setFastNotificationsPolling(false);
-                        }
-                        await this.refreshActiveViews();
-                        if (this.connections && this.connections.length > 0) this.loadConnections();
-                        if (window.app && typeof window.app.loadNotifications === 'function') {
-                            window.app.loadNotifications();
-                        }
-                        return;
-                    }
-                } catch(e) {
-                    console.warn('[BankSync] Erreur polling statut sync:', e);
-                }
-
-                // Vérifier à nouveau dans 2.5 secondes si le relevé est toujours en cours
-                setTimeout(checkSyncStatus, 2500);
-            };
-
-            setTimeout(checkSyncStatus, 3000);
+            // Démarrer le suivi intelligent du relevé
+            this._startSyncPollingTracker();
         } catch (err) {
             console.error('[BankSync] Erreur trigger-auto-sync:', err);
+            this._stopSyncPollingTracker();
             if (err.status === 401 || (err.detail && err.detail.includes('verrouill'))) {
                 this.clearVaultToken();
                 this.vaultStatus = { is_unlocked: false, remaining_days: 0 };
                 this.renderVaultStatusBar();
-                setButtonsState('idle');
+                this.setButtonsState('idle');
                 this.showToast(err.detail || 'Session expirée. Veuillez ressaisir votre mot de passe maître.', 'info');
                 const retryPw = await this.promptMasterPassword(
                     'Relevé en arrière-plan',
@@ -113,8 +155,8 @@ Object.assign(window.BankSyncView, {
                 }
                 return;
             }
-            setButtonsState('error', err.detail || err.message);
-            setTimeout(() => setButtonsState('idle'), 3500);
+            this.setButtonsState('error', err.detail || err.message);
+            setTimeout(() => this.setButtonsState('idle'), 3500);
             this.showToast('Erreur : ' + (err.detail || err.message), 'error');
         }
     },

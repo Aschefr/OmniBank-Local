@@ -369,14 +369,14 @@ window.OverviewView = {
         const banner = document.getElementById('ovPendingBankSyncBanner');
         if (!banner) return;
 
-        if (window.BankSyncView && window.BankSyncView.loadPendingSync) {
-            await window.BankSyncView.loadPendingSync();
-        }
-
         let pendingData = null;
-        try {
-            pendingData = await API.get('/api/bank-sync/pending');
-        } catch (_) {}
+        if (window.BankSyncView && window.BankSyncView.loadPendingSync) {
+            pendingData = await window.BankSyncView.loadPendingSync();
+        } else {
+            try {
+                pendingData = await API.get('/api/bank-sync/pending');
+            } catch (_) {}
+        }
 
         const totalMatches = pendingData?.total_matches || 0;
         const totalConfirmedMatches = typeof pendingData?.total_confirmed_matches === 'number'

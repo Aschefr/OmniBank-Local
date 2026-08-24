@@ -80,8 +80,8 @@ def calculate_balances(db: Session, end_date: date = None, only_reconciled: bool
     # Return formatted to 2 decimals to avoid float precision issues
     return {k: round(v, 2) for k, v in balances.items()}
 
-def get_net_worth(db: Session, end_date: date = None, only_reconciled: bool = False):
-    balances = calculate_balances(db, end_date, only_reconciled)
+def get_net_worth(db: Session, end_date: date = None, only_reconciled: bool = False, precomputed_balances: dict = None):
+    balances = precomputed_balances if precomputed_balances is not None else calculate_balances(db, end_date, only_reconciled)
     accounts = db.query(Account).all()
     base_curr = get_base_currency(db)
     acc_map = {a.id: a for a in accounts}
@@ -96,8 +96,8 @@ def get_net_worth(db: Session, end_date: date = None, only_reconciled: bool = Fa
             
     return round(total, 2)
 
-def get_liquid_net_worth(db: Session, end_date: date = None, only_reconciled: bool = False):
-    balances = calculate_balances(db, end_date, only_reconciled)
+def get_liquid_net_worth(db: Session, end_date: date = None, only_reconciled: bool = False, precomputed_balances: dict = None):
+    balances = precomputed_balances if precomputed_balances is not None else calculate_balances(db, end_date, only_reconciled)
     accounts = db.query(Account).all()
     base_curr = get_base_currency(db)
     acc_map = {a.id: a for a in accounts}
@@ -141,7 +141,7 @@ def get_main_account(db: Session):
         return db.query(Account).filter(Account.id == result.from_account_id).first()
     return db.query(Account).first()
 
-def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date):
+def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date, precomputed_balances: dict = None):
     """
     Reste à vivre = solde rapproché du compte principal - dépenses futures avant prochaine paie.
     """
@@ -150,7 +150,7 @@ def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date)
         return 0.0
         
     # Current balance (reconciled only)
-    balances_now = calculate_balances(db, only_reconciled=True)
+    balances_now = precomputed_balances if precomputed_balances is not None else calculate_balances(db, only_reconciled=True)
     current_balance = balances_now.get(account.id, 0.0)
     
     # All unreconciled expenses before next pay date (exclude skipped and pending cross-profile)
@@ -200,7 +200,7 @@ def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date)
 
     return round(current_balance - expenses_sum - max(savings_total, 0), 2)
 
-def get_accounts_available_balances(db: Session):
+def get_accounts_available_balances(db: Session, precomputed_balances: dict = None):
     """
     Calculates the real and available (virtual) balance for all accounts.
     Available balance = Real balance (reconciled only) - active savings allocated to that account.
@@ -210,7 +210,7 @@ def get_accounts_available_balances(db: Session):
     main_acc_id = main_account.id if main_account else None
     
     # 1. Real balances (reconciled)
-    real_balances = calculate_balances(db, only_reconciled=True)
+    real_balances = precomputed_balances if precomputed_balances is not None else calculate_balances(db, only_reconciled=True)
     
     # 2. Query all active savings budgets
     savings_budgets = db.query(Budget).filter(
@@ -263,7 +263,7 @@ def get_accounts_available_balances(db: Session):
         }
     return results
 
-def get_overdraft_warning(db: Session, account_id: int = None, current_date: date = None):
+def get_overdraft_warning(db: Session, account_id: int = None, current_date: date = None, precomputed_balances: dict = None):
     """
     Calculate if and when the account will drop below 0 if NO future income is received.
     If account_id is None, uses the main account.
@@ -275,7 +275,7 @@ def get_overdraft_warning(db: Session, account_id: int = None, current_date: dat
     if not account:
         return None
         
-    balances_now = calculate_balances(db, only_reconciled=True)
+    balances_now = precomputed_balances if precomputed_balances is not None else calculate_balances(db, only_reconciled=True)
     simulated_balance = balances_now.get(account.id, 0.0)
     
     # Get all unreconciled expenses sorted by date (exclude skipped and pending cross-profile)

@@ -82,14 +82,23 @@ def _configure_sqlite_pragmas(target_engine: Engine):
         except Exception:
             pass
 
-        # Utiliser DELETE par défaut pour une compatibilité parfaite entre Docker (Linux/WSL2) et l'hôte Windows
-        # sans conflit de verrous POSIX / shared-memory (.db-shm / .db-wal) sur les montages partagés.
+        # Mode journal SQLite adapté à l'environnement :
+        # - En mode Desktop natif packagé (Tauri / PyInstaller dans %APPDATA%) : WAL pour performances maximales et lectures concurrentes.
+        # - Sous Docker (Linux/WSL2 avec montages partagés) et dev partagé : DELETE pour éviter les conflits POSIX / shared-memory (.db-shm).
+        explicit_mode = os.environ.get("OMNIBANK_JOURNAL_MODE")
+        if explicit_mode:
+            target_journal_mode = explicit_mode.upper()
+        elif getattr(sys, 'frozen', False):
+            target_journal_mode = "WAL"
+        else:
+            target_journal_mode = "DELETE"
+
         try:
-            cursor.execute("PRAGMA journal_mode=DELETE")
+            cursor.execute(f"PRAGMA journal_mode={target_journal_mode}")
         except Exception as e:
-            logger.warning(f"[DB] PRAGMA journal_mode=DELETE failed, falling back: {e}")
+            logger.warning(f"[DB] PRAGMA journal_mode={target_journal_mode} failed, falling back: {e}")
             try:
-                cursor.execute("PRAGMA journal_mode=MEMORY")
+                cursor.execute("PRAGMA journal_mode=DELETE" if target_journal_mode == "WAL" else "PRAGMA journal_mode=MEMORY")
             except Exception:
                 pass
 

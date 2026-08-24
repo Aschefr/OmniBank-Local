@@ -404,13 +404,15 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
 
         # Créer une notification in-app d'erreur
         try:
+            err_lower = err_msg.lower()
+            is_vault_err = any(k in err_lower for k in ("mot de passe", "password", "coffre", "vault", "identifiant", "verrouill"))
             notif = Notification(
                 type="bank_sync_error",
                 title=f"⚠️ Échec relevé {conn.label}",
                 content=f"Erreur lors du relevé bancaire de {conn.label} : {err_msg}",
                 link_data=json.dumps({
                     "view": "accounts",
-                    "action": "bank_sync",
+                    "action": "unlock_vault" if is_vault_err else "bank_sync_error",
                     "conn_id": conn.id,
                     "conn_label": conn.label,
                     "error": err_msg
