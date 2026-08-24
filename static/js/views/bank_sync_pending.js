@@ -227,6 +227,7 @@ Object.assign(window.BankSyncView, {
         ghosts.forEach(g => { g._resolves_diff = false; });
 
         const balanceBarsHtml = relevantAccounts.map(acc => {
+            const accName = acc.account_name || acc.name || '';
             const bankBal = (typeof acc.bank_balance === 'number') ? acc.bank_balance : null;
             const localBal = (typeof acc.local_reconciled_balance === 'number') ? acc.local_reconciled_balance : null;
             if (bankBal === null || localBal === null) return '';
@@ -252,10 +253,15 @@ Object.assign(window.BankSyncView, {
                 statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">🔵 ${window.i18n ? window.i18n.t('bank_sync_balance_will_sync') : 'Conforme après validation'}</span>`;
             } else {
                 const diffFormatted = (delta > 0 ? '+' : '') + delta.toFixed(2) + ' €';
-                statusBadge = `<span class="badge" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_diff') : 'Un écart existe entre le relevé bancaire et vos opérations pointées.').replace(/"/g, '&quot;')}">⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') : 'Écart'} : ${diffFormatted}</span>`;
+                const escapedAccName = (window.escapeHtml ? window.escapeHtml(accName) : accName).replace(/'/g, "\\'");
+                statusBadge = `
+                    <button type="button" class="badge" onclick="window.BankSyncView.openBalanceAdjustModal(${acc.account_id}, '${escapedAccName}', ${bankBal}, ${localBal}, ${delta})" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35); font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_adjust_tooltip') : 'Cliquer pour ajuster le solde et combler l\'écart').replace(/"/g, '&quot;')}">
+                        <span>⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') : 'Écart'} : ${diffFormatted}</span>
+                        <span style="background: rgba(239, 68, 68, 0.2); padding: 1px 4px; border-radius: 3px; font-size: 10px;">${window.i18n ? window.i18n.t('bank_sync_balance_adjust_btn') || '⚡ Ajuster' : '⚡ Ajuster'}</span>
+                    </button>
+                `;
             }
 
-            const accName = acc.account_name || acc.name || '';
             const accPrefix = (relevantAccounts.length > 1 && accName) ? `<strong>${window.escapeHtml ? window.escapeHtml(accName) : accName} :</strong> ` : '';
 
             return `
@@ -593,6 +599,121 @@ Object.assign(window.BankSyncView, {
             await this.refreshActiveViews();
         } catch (err) {
             this.showToast('Erreur : ' + (err.detail || err.message), 'error');
+        }
+    },
+
+    // ── AJUSTEMENT DU SOLDE EN 1 CLIC (Gestion des écarts sans opération) ──
+    _adjustTargetAccountId: null,
+    _adjustDelta: 0,
+    _adjustBankBalance: 0,
+    _adjustLocalBalance: 0,
+
+    openBalanceAdjustModal(accountId, accountName, bankBalance, localBalance, delta) {
+        this.ensureModalsExist();
+        this._adjustTargetAccountId = accountId;
+        this._adjustDelta = delta;
+        this._adjustBankBalance = bankBalance;
+        this._adjustLocalBalance = localBalance;
+
+        const modal = document.getElementById('balanceAdjustModal');
+        if (!modal) return;
+
+        // Traduire dynamiquement le DOM de la modale selon la langue courante
+        if (window.i18n && typeof window.i18n.translateDOM === 'function') {
+            window.i18n.translateDOM(modal);
+        }
+
+        const diffFormatted = (delta > 0 ? '+' : '') + delta.toFixed(2) + ' €';
+        const isPositive = delta >= 0;
+
+        const headerEl = document.getElementById('balanceAdjustModalHeader');
+        if (headerEl) {
+            const diffLabel = window.i18n ? window.i18n.t('bank_sync_balance_diff', 'Écart') : 'Écart';
+            const bankLabel = window.i18n ? window.i18n.t('modal_adjust_header_bank_bal', 'Solde banque') : 'Solde banque';
+            const localLabel = window.i18n ? window.i18n.t('modal_adjust_header_local_bal', 'Solde pointé actuel') : 'Solde pointé actuel';
+
+            headerEl.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                    <span style="font-weight: 700; font-size: 14px; color: var(--text-main);">💳 ${window.escapeHtml ? window.escapeHtml(accountName) : accountName}</span>
+                    <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 800; font-size: 12px; padding: 3px 8px; border-radius: 6px;">
+                        ⚠️ ${diffLabel} : ${diffFormatted}
+                    </span>
+                </div>
+                <div style="display: flex; gap: 14px; font-size: 12px; color: var(--text-muted); flex-wrap: wrap;">
+                    <span>🏦 ${bankLabel} : <strong style="color: var(--text-main);">${bankBalance.toFixed(2)} €</strong></span>
+                    <span>•</span>
+                    <span>💻 ${localLabel} : <strong style="color: var(--text-main);">${localBalance.toFixed(2)} €</strong></span>
+                </div>
+            `;
+        }
+
+        const btnInit = document.getElementById('btnAdjustInitialBalance');
+        if (btnInit) {
+            const initBtnPattern = window.i18n ? window.i18n.t('modal_adjust_opt_initial_btn', '🎯 Ajuster le solde initial ({diff})') : '🎯 Ajuster le solde initial ({diff})';
+            btnInit.textContent = initBtnPattern.includes('{diff}') ? initBtnPattern.replace('{diff}', diffFormatted) : `${initBtnPattern} (${diffFormatted})`;
+        }
+
+        const btnTx = document.getElementById('btnAdjustCreateTx');
+        if (btnTx) {
+            const txBtnPattern = window.i18n ? window.i18n.t('modal_adjust_opt_tx_btn', '📝 Créer l\'opération pointée ({diff})') : '📝 Créer l\'opération pointée ({diff})';
+            btnTx.textContent = txBtnPattern.includes('{diff}') ? txBtnPattern.replace('{diff}', diffFormatted) : `${txBtnPattern} (${diffFormatted})`;
+        }
+
+        const descInput = document.getElementById('balanceAdjustTxDesc');
+        if (descInput) {
+            const defaultInterest = window.i18n ? window.i18n.t('modal_adjust_tx_default_interest', 'Intérêts annuels') : 'Intérêts annuels';
+            const defaultFee = window.i18n ? window.i18n.t('modal_adjust_tx_default_fee', 'Régularisation bancaire') : 'Régularisation bancaire';
+            descInput.value = isPositive ? defaultInterest : defaultFee;
+        }
+
+        const catSelect = document.getElementById('balanceAdjustTxCategory');
+        if (catSelect) {
+            const categories = window.app?.categoriesList || ['Intérêts', 'Épargne', 'Frais bancaires', 'Autre'];
+            catSelect.innerHTML = categories.map(cat => `<option value="${window.escapeHtml ? window.escapeHtml(cat) : cat}">${window.escapeHtml ? window.escapeHtml(cat) : cat}</option>`).join('');
+            if (isPositive && categories.includes('Intérêts')) {
+                catSelect.value = 'Intérêts';
+            } else if (isPositive && categories.includes('Épargne')) {
+                catSelect.value = 'Épargne';
+            } else if (!isPositive && categories.includes('Frais bancaires')) {
+                catSelect.value = 'Frais bancaires';
+            }
+        }
+
+        modal.style.display = 'flex';
+    },
+
+    closeBalanceAdjustModal() {
+        const modal = document.getElementById('balanceAdjustModal');
+        if (modal) modal.style.display = 'none';
+        this._adjustTargetAccountId = null;
+    },
+
+    async submitBalanceAdjustment(mode) {
+        if (!this._adjustTargetAccountId) return;
+        const accId = this._adjustTargetAccountId;
+        const delta = this._adjustDelta;
+
+        const payload = {
+            mode: mode,
+            delta: delta,
+            transaction_date: new Date().toISOString().split('T')[0],
+            transaction_description: document.getElementById('balanceAdjustTxDesc')?.value || (delta >= 0 ? 'Intérêts annuels' : 'Régularisation bancaire'),
+            transaction_category: document.getElementById('balanceAdjustTxCategory')?.value || (delta >= 0 ? 'Intérêts' : 'Frais bancaires')
+        };
+
+        try {
+            const res = await API.post(`/api/accounts/${accId}/reconcile-balance-delta`, payload);
+            this.closeBalanceAdjustModal();
+            const successMsg = window.i18n ? window.i18n.t('toast_balance_adjusted_success') || 'Solde du compte ajusté avec succès !' : 'Solde du compte ajusté avec succès !';
+            if (typeof showUndoToast === 'function' && res.action_id) {
+                showUndoToast(successMsg, res.action_id, () => this.refreshActiveViews());
+            } else {
+                this.showToast(successMsg, 'success');
+            }
+            await this.refreshActiveViews();
+        } catch (err) {
+            console.error('[BankSync] Erreur ajustement solde:', err);
+            this.showToast('Erreur lors de l\'ajustement du solde : ' + (err.detail || err.message), 'error');
         }
     },
 
