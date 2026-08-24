@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 ## [1.0.89] - 2026-08-24
 
 ### Added & Improved
+- **Unified Review Cockpit — CSV Import merged into Bank Sync Review 📄↔📥**:
+  - CSV/XLSX file import now opens the same advanced review cockpit used for bank sync, gaining all features: checkboxes, link 🔗 / unlink ⛓️‍💥 buttons, category autocomplete with AI batch, Smart Label suggestions, and status filter bar.
+  - Dynamic title and subtitle adapt to context: "Import de Relevé Bancaire" vs "Revue des opérations synchronisées".
+  - CSV-specific bar with account selector, file balance badge, and import alerts (old file, gaps, duplicates) shown only in import mode.
+  - Commit routing is transparent: import mode calls `save_batch`, sync mode calls bank sync commit endpoint.
+  - Background AI analysis for CSV still supported with dismiss/re-open workflow.
+- **Purge Sync Queue Button 🗑️**:
+  - Added a "Vider le sas" button in the pending sync bar to clear all cached previews, pending ghost operations, and match overrides in a single click (with confirmation prompt).
+  - New backend endpoint `POST /api/bank-sync/purge-pending` clears the server-side sync queue. Frontend also clears all `sessionStorage` cache keys.
+- **Interactive Unlink & Re-Link in Bank Sync Review ⛓️‍💥🔗**:
+  - Added an "Unlink" (`⛓️‍💥`) action button on automatically matched transactions (`⚡ To Reconcile`) inside the Bank Sync Review modal to unbind false-positive matches (e.g. unrelated transactions sharing the same amount and date window).
+  - Added a "Link" (`🔗`) action button on unmatched online operations (`🆕 New Operation` and `⏳ Coming / Pending`) to manually bind them to existing database entries via the interactive search and conflict resolution modal.
+  - Implemented persistent dual-override architecture (`rejected_matches` and `force_matches`) stored in `sessionStorage` and transmitted to the real-time `/re-evaluate-preview` backend engine, ensuring manual unlink and re-link decisions persist across browser reloads (F5), page navigations, and live database recalculations until committed.
+  - Added per-row inclusion checkboxes and a master select-all header checkbox in the review modal, allowing users to uncheck specific operations to skip them during sync commit.
+  - Preserved uncommitted/unchecked operations in the pending sync queue and preview cache upon partial commit, allowing remaining suggestions to stay visible in the ghost box.
+  - Added assisted description input with autocompletion dropdown (`<datalist>`) and instant category auto-fill from transaction history directly within the review modal inline inputs.
+  - Increased desktop review modal maximum width to 1550px for comfortable multi-column transaction inspection, smart label details, and inline edits on wide displays.
+- **Manual Ghost-to-Database Transaction Linking 🔗**:
+  - Added a fast manual linking mechanism for online ghost transactions that failed automatic matching due to user-entered amount discrepancies, distant dates, or ambiguous matches.
+  - Interactive search modal with live search by description, category, or amount, with an optional filter for unreconciled operations.
+  - Ordered search results in chronological ascending order (earliest/closest dates first) so operations from the active period appear right at the top instead of distant future recurrence projections.
+  - Smart field conflict resolution: allows one-click source toggling between OmniBank (DB) and Online bank values for Description, Amount, and Category (defaulting to DB description, online amount, and DB category), with full inline editability before confirmation.
+  - Instantly updates and reconciles the target database transaction and clears the ghost suggestion from the pending sync queue.
 - **Collapsible Bank Sync & Ghost Operations Box 👻**:
   - Made the ghost box dynamically collapsible across Dashboard and Timeline views: automatically expands when suggested new operations are present, collapses into a sleek summary header when only account balance discrepancies exist, and hides completely when everything is in sync.
   - Interactive toggle displays account balance breakdowns, delta adjustments, pending matches count, and quick action buttons (`Rapprocher`, `Valider`, `Ouvrir la revue`).

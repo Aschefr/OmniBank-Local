@@ -468,6 +468,85 @@ def dismiss_single_ghost(csv_id: str, db: Session = Depends(get_db)):
     return {"ok": True, "dismissed": success}
 
 
+@router.post("/purge-pending")
+def purge_all_pending(db: Session = Depends(get_db)):
+    """Purge l'intégralité du sas d'opérations en attente (cache de synchronisation)."""
+    from app.services.bank_sync_scheduler import clear_all_pending_sync
+    clear_all_pending_sync(db)
+    return {"ok": True}
+
+
+@router.post("/link-ghost")
+def link_ghost_to_transaction(data: Dict[str, Any], db: Session = Depends(get_db)):
+    """
+    Lie une opération fantôme (ghost) à une opération existante en base de données.
+    Met à jour les champs de l'opération ciblée, la pointe et retire le fantôme du sas d'attente.
+    """
+    from datetime import date, datetime
+    from app.models import Transaction
+    from app.services.history_service import record_action, snapshot_entity
+    from app.services import stats_cache
+    from app.services.bank_sync_scheduler import remove_committed_from_pending
+
+    csv_id = data.get("csv_id")
+    target_tx_id = data.get("target_tx_id")
+    if not target_tx_id:
+        raise HTTPException(status_code=400, detail="Identifiant de la transaction cible requis")
+
+    tx = db.query(Transaction).filter(Transaction.id == int(target_tx_id)).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction cible introuvable")
+
+    before_snap = snapshot_entity(tx)
+
+    # Mise à jour des champs si spécifiés
+    if "description" in data and data["description"] is not None:
+        tx.description = str(data["description"]).strip()
+
+    if "amount" in data and data["amount"] is not None:
+        try:
+            tx.amount = abs(float(data["amount"]))
+        except (ValueError, TypeError):
+            pass
+
+    if "category" in data:
+        tx.category = data["category"]
+
+    # Date de pointage (par défaut aujourd'hui)
+    recon_date_val = None
+    if data.get("reconciliation_date"):
+        try:
+            recon_date_val = datetime.strptime(str(data["reconciliation_date"])[:10], "%Y-%m-%d").date()
+        except Exception:
+            recon_date_val = date.today()
+    else:
+        recon_date_val = date.today()
+
+    tx.reconciliation_date = recon_date_val
+
+    # Si un csv_id est présent sur le ghost et que la transaction n'en a pas encore, l'assigner
+    if csv_id and not tx.csv_id:
+        existing_with_csv = db.query(Transaction).filter(Transaction.csv_id == csv_id).first()
+        if not existing_with_csv:
+            tx.csv_id = csv_id
+
+    db.commit()
+    db.refresh(tx)
+
+    # Purge du sas d'attente
+    if csv_id:
+        remove_committed_from_pending(db, [csv_id])
+
+    record_action(db, "transaction", tx.id, "UPDATE", before_snap, snapshot_entity(tx), user_name="Banque (Liaison manuelle)")
+    stats_cache.invalidate()
+
+    return {
+        "ok": True,
+        "updated_tx_id": tx.id,
+        "reconciliation_date": tx.reconciliation_date.isoformat() if tx.reconciliation_date else None
+    }
+
+
 
 @router.post("/test-credentials", response_model=List[RemoteAccountOut])
 def test_credentials(data: TestConnectionRequest):
@@ -622,8 +701,12 @@ def commit_reviewed_sync(conn_id: int, data: Dict[str, Any], db: Session = Depen
             connection_id=conn_id,
             transactions_data=txs
         )
-        from app.services.bank_sync_scheduler import clear_pending_sync_for_conn
-        clear_pending_sync_for_conn(db, conn_id)
+        from app.services.bank_sync_scheduler import remove_committed_from_pending, clear_pending_sync_for_conn
+        committed_csv_ids = [t.get("csv_id") for t in txs if t.get("csv_id")]
+        if committed_csv_ids:
+            remove_committed_from_pending(db, committed_csv_ids)
+        else:
+            clear_pending_sync_for_conn(db, conn_id)
         return res
     except Exception as e:
         logger.error(f"[BankSync] Erreur lors du commit des transactions {conn_id} : {e}")

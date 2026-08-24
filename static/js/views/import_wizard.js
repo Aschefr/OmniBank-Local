@@ -45,6 +45,54 @@ window.ImportWizard = {
         document.getElementById('globalCsvFileInput').click();
     },
 
+    // ── Adaptateur CSV → previewData → Cockpit Unifié ──────────────────
+    openReviewFromCSV(result, accountId) {
+        const txs = result.transactions || [];
+        const acc = (window.app?.accounts || []).find(a => a.id == accountId);
+        const accName = acc ? acc.name : 'Compte';
+
+        // Transformer chaque ligne CSV en format cockpit
+        const cockpitTxs = txs.map((tx, i) => {
+            const rawAmt = parseFloat(tx.amount || 0);
+            return {
+                csv_id: `csv_import_${i}`,
+                date_operation: tx.date_operation || tx.date || null,
+                description: tx.description || 'Opération importée',
+                raw_description: tx.raw_description || tx.db_description || tx.description || '',
+                db_description: tx.db_description || null,
+                amount: Math.abs(rawAmt),
+                raw_amount: rawAmt,
+                category: tx.category || null,
+                is_reconciled: !!tx.is_reconciled,
+                already_reconciled: !!tx.already_reconciled,
+                matched_db_id: tx.matched_db_id || null,
+                is_coming: false,
+                attachments: tx.attachments || null,
+                check_slip_number: tx.check_slip_number || null,
+                smart_suggested: false
+            };
+        });
+
+        const previewData = {
+            _source: 'csv_import',
+            _csvAlerts: result.alerts || {},
+            _fileBalance: result.file_balance || null,
+            accounts: [{
+                account_id: accountId ? parseInt(accountId) : null,
+                account_name: accName,
+                transactions: cockpitTxs,
+                bank_balance: null,
+                local_reconciled_balance: null
+            }]
+        };
+
+        // Fermer le pré-wizard d'import
+        document.getElementById('importDataModal').style.display = 'none';
+
+        // Ouvrir le cockpit unifié
+        window.BankSyncView.openReviewModal('csv_import', previewData);
+    },
+
     async onFileSelected(event) {
         this.selectedFile = event.target.files[0];
         if (!this.selectedFile) return;
@@ -179,7 +227,8 @@ window.ImportWizard = {
             const result = await res.json();
             if (res.ok) {
                 this.fileBalance = result.file_balance || null;
-                await this.renderImportTable(result.transactions || [], result.alerts || {});
+                // Déléguer au cockpit unifié
+                this.openReviewFromCSV(result, accountId);
             } else {
                 this.showImportError('direct', result.detail);
             }
@@ -228,12 +277,15 @@ window.ImportWizard = {
             if (res.ok) {
                 if (this._aiDismissed) {
                     this._pendingAIResult = result;
+                    this._pendingAIAccountId = document.getElementById('importAccountSelect')?.value;
                     this._setImportBtnState('ready');
                     showToast(window.i18n.t('msg_ai_ready'), 'success', 8000);
                 } else {
                     this._setImportBtnState('idle');
                     this.fileBalance = result.file_balance || null;
-                    await this.renderImportTable(result.transactions || [], result.alerts || {});
+                    // Déléguer au cockpit unifié
+                    const accountId = document.getElementById('importAccountSelect')?.value;
+                    this.openReviewFromCSV(result, accountId);
                 }
             } else {
                 this._setImportBtnState('idle');
@@ -299,13 +351,14 @@ window.ImportWizard = {
     async _openWithPendingAI() {
         const result = this._pendingAIResult;
         if (!result) return;
+        const accountId = this._pendingAIAccountId || null;
         this._pendingAIResult = null;
+        this._pendingAIAccountId = null;
         this._setImportBtnState('idle');
         
-        // Re-open the modal
-        document.getElementById('importDataModal').style.display = 'flex';
         this.fileBalance = result.file_balance || null;
-        await this.renderImportTable(result.transactions || [], result.alerts || {});
+        // Déléguer au cockpit unifié
+        this.openReviewFromCSV(result, accountId);
     },
 
     async renderImportTable(txs, alerts = {}) {

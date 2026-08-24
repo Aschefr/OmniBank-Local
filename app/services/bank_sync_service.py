@@ -1044,6 +1044,7 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
     Re-calcule dynamiquement en direct le statut de rapprochement (is_reconciled, already_reconciled,
     matched_db_id, solde pointé local, etc.) d'un aperçu bancaire par rapport à l'état actuel de la base SQLite.
     Permet à toute opération supprimée ou ajoutée en local de basculer instantanément dans l'aperçu mis en cache.
+    Prend en compte les listes 'rejected_matches' et 'force_matches' pour préserver les décisions manuelles de l'utilisateur.
     """
     if not preview_data or "accounts" not in preview_data:
         return preview_data
@@ -1052,6 +1053,27 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
     from app.routers.csv_parser import check_reconciliation
     from app.services.finance_engine import calculate_balances
     from app.services.smart_label_service import resolve_smart_labels_batch
+
+    # Extraction des overrides utilisateur
+    rejected_by_csv = {}
+    for rm in (preview_data.get("rejected_matches") or []):
+        csv = rm.get("csv_id")
+        db_id = rm.get("db_id")
+        if csv and db_id:
+            try:
+                rejected_by_csv.setdefault(csv, set()).add(int(db_id))
+            except (ValueError, TypeError):
+                pass
+
+    force_by_csv = {}
+    for fm in (preview_data.get("force_matches") or []):
+        csv = fm.get("csv_id")
+        db_id = fm.get("db_id")
+        if csv and db_id:
+            try:
+                force_by_csv[csv] = int(db_id)
+            except (ValueError, TypeError):
+                pass
 
     balances_reconciled = calculate_balances(db, only_reconciled=True)
     matched_ids_global = set()
@@ -1072,15 +1094,37 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
                 tx_copy["is_coming"] = is_coming_flag
                 tx_date_str = tx.get("date_operation")
                 raw_amount = tx.get("raw_amount")
+                csv_id = tx.get("csv_id")
+
+                # Passe 0 : Forcer le match si spécifié manuellement par l'utilisateur
+                if csv_id and csv_id in force_by_csv:
+                    forced_db_id = force_by_csv[csv_id]
+                    forced_tx = db.query(Transaction).filter(Transaction.id == forced_db_id).first()
+                    if forced_tx:
+                        tx_copy["is_reconciled"] = True
+                        tx_copy["already_reconciled"] = bool(forced_tx.reconciliation_date)
+                        tx_copy["is_mirror_transfer"] = False
+                        tx_copy["is_orphan_transfer_link"] = False
+                        tx_copy["orphan_account_id"] = None
+                        tx_copy["orphan_account_name"] = None
+                        tx_copy["matched_db_id"] = forced_db_id
+                        tx_copy["db_description"] = forced_tx.description
+                        matched_ids_global.add(forced_db_id)
+                        result_list.append(tx_copy)
+                        continue
 
                 if tx_date_str and raw_amount is not None and local_acc_id:
                     try:
                         tx_date = date.fromisoformat(str(tx_date_str)[:10])
+                        local_excluded = set(matched_ids_global)
+                        if csv_id and csv_id in rejected_by_csv:
+                            local_excluded |= rejected_by_csv[csv_id]
+
                         rec_info = check_reconciliation(
                             db,
                             tx_date,
                             float(raw_amount),
-                            matched_ids=matched_ids_global,
+                            matched_ids=local_excluded,
                             account_id=local_acc_id,
                             is_coming=is_coming_flag
                         )

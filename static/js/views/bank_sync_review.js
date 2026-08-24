@@ -13,11 +13,31 @@ Object.assign(window.BankSyncView, {
             }
         }
         this.activeConnId = connId;
+        this._reviewSource = previewData?._source || 'bank_sync';
+        const isCsvImport = this._reviewSource === 'csv_import';
+
+        // Charger les descriptions historiques pour l'autocomplétion / saisie assistée
+        try {
+            this.descriptions = await API.get('/api/transactions/descriptions');
+            const dataList = document.getElementById('bankSyncDescList');
+            if (dataList && this.descriptions) {
+                dataList.innerHTML = Object.keys(this.descriptions).map(d => `<option value="${(window.escapeHtml ? window.escapeHtml(d) : d).replace(/"/g, '&quot;')}">`).join('');
+            }
+        } catch (e) {
+            console.warn('[BankSync] Erreur chargement descriptions:', e);
+            this.descriptions = {};
+        }
 
         // 0. Re-calcule dynamiquement en direct le rapprochement par rapport à l'état actuel de la base SQLite
-        if (previewData && previewData.accounts && previewData.accounts.length > 0) {
+        //    (sauf en mode import CSV — pas de connexion bancaire ni d'overrides à appliquer)
+        if (!isCsvImport && previewData && previewData.accounts && previewData.accounts.length > 0) {
             try {
-                const refreshed = await API.post('/api/bank-sync/re-evaluate-preview', previewData);
+                const payload = {
+                    ...previewData,
+                    rejected_matches: connId ? this.getRejectedMatches(connId) : [],
+                    force_matches: connId ? this.getForceMatches(connId) : []
+                };
+                const refreshed = await API.post('/api/bank-sync/re-evaluate-preview', payload);
                 if (refreshed && refreshed.accounts) {
                     previewData = refreshed;
                     if (connId) {
@@ -68,6 +88,48 @@ Object.assign(window.BankSyncView, {
             console.warn('[BankSync] Erreur smart label resolve dans review modal:', e);
         }
 
+        // ── Adaptation dynamique du cockpit selon le mode d'entrée ──
+        const titleIcon = document.getElementById('reviewModalIcon');
+        const titleText = document.getElementById('reviewModalTitleText');
+        const subtitle = document.getElementById('reviewModalSubtitle');
+        const csvBar = document.getElementById('reviewCsvBar');
+        const comingBtn = document.getElementById('btnSyncFilterComing');
+        const commitBtn = document.getElementById('btnCommitSync');
+
+        if (isCsvImport) {
+            if (titleIcon) titleIcon.textContent = '📄';
+            if (titleText) titleText.textContent = window.i18n ? window.i18n.t('import_review_title') || 'Import de Relevé Bancaire' : 'Import de Relevé Bancaire';
+            if (subtitle) subtitle.textContent = window.i18n ? window.i18n.t('import_review_subtitle') || 'Vérifiez, modifiez les catégories ou ignorez des opérations avant d\'enregistrer.' : 'Vérifiez, modifiez les catégories ou ignorez des opérations avant d\'enregistrer.';
+            if (comingBtn) comingBtn.style.display = 'none';
+            if (commitBtn) commitBtn.textContent = window.i18n ? window.i18n.t('btn_validate_save') || 'Valider et Sauvegarder' : 'Valider et Sauvegarder';
+
+            // Afficher la barre CSV (compte + alertes)
+            if (csvBar) {
+                csvBar.style.display = 'block';
+                // Peupler la liste des comptes
+                const accSelect = document.getElementById('reviewCsvAccountSelect');
+                if (accSelect) {
+                    const currentVal = this.previewData?.accounts?.[0]?.account_id || '';
+                    accSelect.innerHTML = `<option value="">${window.i18n ? window.i18n.t('opt_no_account') || '-- Aucun compte sélectionné --' : '-- Aucun compte sélectionné --'}</option>`;
+                    if (window.app && window.app.accounts) {
+                        window.app.accounts.filter(a => !a.is_closed).forEach(acc => {
+                            const sel = acc.id == currentVal ? 'selected' : '';
+                            accSelect.innerHTML += `<option value="${acc.id}" ${sel}>${window.escapeHtml ? window.escapeHtml(acc.name) : acc.name}</option>`;
+                        });
+                    }
+                }
+                // Afficher les alertes CSV si présentes
+                this._renderCsvAlerts();
+            }
+        } else {
+            if (titleIcon) titleIcon.textContent = '📥';
+            if (titleText) titleText.textContent = window.i18n ? window.i18n.t('bank_sync_review_title') : 'Revue des opérations synchronisées';
+            if (subtitle) subtitle.textContent = window.i18n ? window.i18n.t('bank_sync_review_subtitle') : '';
+            if (comingBtn) comingBtn.style.display = '';
+            if (commitBtn) commitBtn.textContent = window.i18n ? window.i18n.t('bank_sync_btn_commit') : 'Valider la synchronisation';
+            if (csvBar) csvBar.style.display = 'none';
+        }
+
         const modal = document.getElementById('bankSyncReviewModal');
         if (modal) modal.style.display = 'flex';
 
@@ -84,6 +146,51 @@ Object.assign(window.BankSyncView, {
     closeReviewModal() {
         document.getElementById('bankSyncReviewModal').style.display = 'none';
         this.previewData = null;
+        this._reviewSource = 'bank_sync';
+        // Masquer la barre CSV
+        const csvBar = document.getElementById('reviewCsvBar');
+        if (csvBar) csvBar.style.display = 'none';
+    },
+
+    // ── Méthodes spécifiques au mode CSV Import ──────────────────────
+    _renderCsvAlerts() {
+        const alertBox = document.getElementById('reviewCsvAlertBox');
+        if (!alertBox || !this.previewData) return;
+        const alerts = this.previewData._csvAlerts || {};
+        const warningMsgs = [];
+        if (alerts.all_duplicate) {
+            warningMsgs.push(`⚠️ ${window.i18n ? window.i18n.t('import_alert_all_duplicate') || 'Toutes les opérations existent déjà en base.' : 'Toutes les opérations existent déjà en base.'}`);
+        }
+        if (alerts.is_old_file) {
+            let msg = window.i18n ? window.i18n.t('import_alert_old_file') || 'Fichier antérieur à la dernière importation.' : 'Fichier antérieur à la dernière importation.';
+            if (alerts.latest_import_date) msg = msg.replace('{date_import}', alerts.latest_import_date);
+            if (alerts.latest_db_date) msg = msg.replace('{date_db}', alerts.latest_db_date);
+            warningMsgs.push(`⚠️ ${msg}`);
+        }
+        if (alerts.has_gap) {
+            let msg = window.i18n ? window.i18n.t('import_alert_gap') || 'Il y a un écart de dates entre la base et l\'import.' : 'Il y a un écart de dates entre la base et l\'import.';
+            warningMsgs.push(`⚠️ ${msg}`);
+        }
+        if (warningMsgs.length > 0) {
+            alertBox.style.display = 'block';
+            alertBox.innerHTML = warningMsgs.map(m => `<div style="margin-bottom: 3px;">${m}</div>`).join('');
+        } else {
+            alertBox.style.display = 'none';
+        }
+    },
+
+    onCsvAccountChanged() {
+        if (this._reviewSource !== 'csv_import' || !this.previewData) return;
+        const accSelect = document.getElementById('reviewCsvAccountSelect');
+        const newAccId = accSelect ? parseInt(accSelect.value) || null : null;
+        // Mettre à jour le account_id dans le previewData
+        if (this.previewData.accounts && this.previewData.accounts[0]) {
+            this.previewData.accounts[0].account_id = newAccId;
+            const acc = window.app?.accounts?.find(a => a.id == newAccId);
+            if (acc) this.previewData.accounts[0].account_name = acc.name;
+        }
+        this.renderAccountTabs();
+        this.updateReviewSummary();
     },
 
     renderAccountTabs() {
@@ -182,8 +289,9 @@ Object.assign(window.BankSyncView, {
         visibleTxs.sort((a, b) => (b.date_operation || '').localeCompare(a.date_operation || ''));
 
         if (visibleTxs.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--text-muted);">${window.i18n.t('bank_sync_no_transactions_filter')}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 40px; color: var(--text-muted);">${window.i18n.t('bank_sync_no_transactions_filter')}</td></tr>`;
             this.updateReviewSummary();
+            this._updateMasterCheckboxState();
             return;
         }
 
@@ -191,10 +299,14 @@ Object.assign(window.BankSyncView, {
         const lblAutoCat = window.i18n.t('bank_sync_auto_cat') || '(Automatique)';
         const lblSelectCat = window.i18n.t('bank_sync_select_category') || '-- Catégorie --';
         const lblIgnoreRow = window.i18n.t('bank_sync_ignore_row_tooltip') || 'Ignorer cette ligne';
+        const lblUnlink = (window.i18n && window.i18n.t('bank_sync_unlink_tooltip')) || 'Annuler ce rapprochement automatique';
+        const lblRelink = (window.i18n && window.i18n.t('bank_sync_relink_tooltip')) || 'Associer manuellement à une opération en base';
+        const lblRowCheck = (window.i18n && window.i18n.t('bank_sync_row_check_tooltip')) || 'Inclure cette opération dans la synchronisation';
 
         tbody.innerHTML = visibleTxs.map((tx) => {
             const isRec = tx.is_reconciled;
             const alreadyRec = tx.already_reconciled;
+            const isExcluded = !!tx._excluded;
 
             let statusBadge = '';
             let actionText = '';
@@ -266,7 +378,7 @@ Object.assign(window.BankSyncView, {
 
             const descInput = isRec 
                 ? `${dbDesc}<input type="text" class="sync-desc input-styled" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; border: 1px solid transparent; background: transparent; padding: 4px; color: var(--text-muted);" readonly>${rawSubHtml}` 
-                : `${dbDesc}<input type="text" class="sync-desc input-styled" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; padding: 4px;" onchange="window.BankSyncView.updateTxDesc(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">${rawSubHtml}`;
+                : `${dbDesc}<input type="text" class="sync-desc input-styled" list="bankSyncDescList" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; padding: 4px;" oninput="window.BankSyncView.onSyncDescInput(${this.currentAccountIndex}, '${tx.csv_id}', this)" onchange="window.BankSyncView.updateTxDesc(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">${rawSubHtml}`;
 
             const catOptions = `<option value="">${lblSelectCat}</option>` + categories.filter(c => !c.is_closed).map(c => 
                 `<option value="${c.name.replace(/"/g, '&quot;')}" ${tx.category === c.name ? 'selected' : ''}>${c.name}</option>`
@@ -292,8 +404,10 @@ Object.assign(window.BankSyncView, {
                 ? `<span style="font-weight: 700; color: ${amountColor};">${(tx.raw_amount < 0 ? '-' : '+')} ${tx.amount.toFixed(2)} €</span>`
                 : `<input type="number" step="0.01" class="input-styled" value="${tx.amount.toFixed(2)}" style="width: 80px; text-align: right; padding: 4px; font-weight: 700; color: ${amountColor};" onchange="window.BankSyncView.updateTxAmount(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">`;
 
-            let rowStyle = 'border-bottom: 1px solid var(--border-color);';
-            if (tx.is_coming) {
+            let rowStyle = 'border-bottom: 1px solid var(--border-color); transition: opacity 0.2s ease, filter 0.2s ease;';
+            if (isExcluded) {
+                rowStyle += ' opacity: 0.4; filter: grayscale(0.7);';
+            } else if (tx.is_coming) {
                 rowStyle += ' background: rgba(245, 158, 11, 0.05); border-left: 3px solid #f59e0b;';
             } else if (alreadyRec) {
                 rowStyle += ' opacity: 0.6;';
@@ -303,8 +417,18 @@ Object.assign(window.BankSyncView, {
                 ? `<span title="${(window.i18n ? window.i18n.t('bank_sync_coming_badge') : 'Opération à venir / En attente banque').replace(/"/g, '&quot;')}" style="color: #f59e0b; font-weight: 700; margin-right: 4px; cursor: help;">⏳</span>` 
                 : '';
 
+            let linkActionBtn = '';
+            if (isRec && !alreadyRec) {
+                linkActionBtn = `<button class="btn btn-secondary" style="padding: 4px 7px; color: #f59e0b; border: 1px solid var(--border-color); border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 2px;" onclick="window.BankSyncView.unlinkReviewRow('${tx.csv_id}')" title="${lblUnlink}"><span>⛓️‍💥</span></button>`;
+            } else if (!isRec && !alreadyRec) {
+                linkActionBtn = `<button class="btn btn-secondary" style="padding: 4px 7px; color: var(--accent, #6366f1); border: 1px solid var(--border-color); border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 2px;" onclick="window.BankSyncView.openLinkFromReview('${tx.csv_id}')" title="${lblRelink}"><span>🔗</span></button>`;
+            }
+
             return `
             <tr id="syncRow_${tx.csv_id}" style="${rowStyle}">
+                <td style="padding: 10px 14px; text-align: center;">
+                    <input type="checkbox" class="sync-row-check" ${isExcluded ? '' : 'checked'} onchange="window.BankSyncView.toggleTxCheck(${this.currentAccountIndex}, '${tx.csv_id}', this.checked)" title="${lblRowCheck}" style="cursor: pointer; transform: scale(1.15);">
+                </td>
                 <td style="padding: 10px 14px; white-space: nowrap;">
                     ${comingDateIcon}<input type="date" class="input-styled sync-date" value="${tx.date_operation}" style="width: 120px; padding: 4px;" ${isRec ? 'disabled' : ''} onchange="window.BankSyncView.updateTxDate(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">
                 </td>
@@ -315,8 +439,9 @@ Object.assign(window.BankSyncView, {
                 </td>
                 <td style="padding: 10px 14px; text-align: center;">${statusBadge}</td>
                 <td style="padding: 10px 14px;">
-                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
                         <span style="font-size: 11px; ${actionColor}">${actionText}</span>
+                        ${linkActionBtn}
                         <button class="btn btn-secondary" style="padding: 4px 8px; color: #ef4444; border: 1px solid var(--border-color); border-radius: 6px;" onclick="window.BankSyncView.removeTxRow('${tx.csv_id}')" title="${lblIgnoreRow}">✕</button>
                     </div>
                 </td>
@@ -325,6 +450,227 @@ Object.assign(window.BankSyncView, {
         }).join('');
 
         this.updateReviewSummary();
+        this._updateMasterCheckboxState();
+    },
+
+    toggleTxCheck(accIdx, csvId, isChecked) {
+        const acc = this.previewData?.accounts?.[accIdx];
+        const tx = acc?.transactions?.find(t => t.csv_id === csvId);
+        if (!tx) return;
+
+        tx._excluded = !isChecked;
+
+        const row = document.getElementById(`syncRow_${csvId}`);
+        if (row) {
+            if (tx._excluded) {
+                row.style.opacity = '0.4';
+                row.style.filter = 'grayscale(0.7)';
+            } else {
+                row.style.opacity = (tx.already_reconciled) ? '0.6' : '1';
+                row.style.filter = 'none';
+            }
+        }
+
+        this._updateMasterCheckboxState();
+        this.updateReviewSummary();
+    },
+
+    toggleCheckAll(isChecked) {
+        if (!this.previewData || !this.previewData.accounts) return;
+        const currentAcc = this.previewData.accounts[this.currentAccountIndex];
+        if (!currentAcc || !currentAcc.transactions) return;
+
+        const txs = currentAcc.transactions;
+        let visibleTxs = txs.filter(tx => {
+            if (this.currentFilter === 'all') return true;
+            if (this.currentFilter === 'coming') return !!tx.is_coming;
+            if (this.currentFilter === 'ignored') return (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+            if (this.currentFilter === 'reconcile') return (tx.is_reconciled && !tx.already_reconciled && !tx.is_coming);
+            if (this.currentFilter === 'add') return (!tx.is_reconciled && !tx.is_coming);
+            return true;
+        });
+
+        visibleTxs.forEach(tx => {
+            tx._excluded = !isChecked;
+        });
+
+        this.renderReviewTable();
+    },
+
+    _updateMasterCheckboxState() {
+        const masterCheck = document.getElementById('syncCheckAll');
+        if (!masterCheck || !this.previewData?.accounts) return;
+        const currentAcc = this.previewData.accounts[this.currentAccountIndex];
+        if (!currentAcc || !currentAcc.transactions) return;
+
+        let visibleTxs = currentAcc.transactions.filter(tx => {
+            if (this.currentFilter === 'all') return true;
+            if (this.currentFilter === 'coming') return !!tx.is_coming;
+            if (this.currentFilter === 'ignored') return (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+            if (this.currentFilter === 'reconcile') return (tx.is_reconciled && !tx.already_reconciled && !tx.is_coming);
+            if (this.currentFilter === 'add') return (!tx.is_reconciled && !tx.is_coming);
+            return true;
+        });
+
+        if (visibleTxs.length === 0) {
+            masterCheck.checked = false;
+            masterCheck.indeterminate = false;
+            return;
+        }
+
+        const checkedCount = visibleTxs.filter(t => !t._excluded).length;
+        if (checkedCount === visibleTxs.length) {
+            masterCheck.checked = true;
+            masterCheck.indeterminate = false;
+        } else if (checkedCount === 0) {
+            masterCheck.checked = false;
+            masterCheck.indeterminate = false;
+        } else {
+            masterCheck.checked = false;
+            masterCheck.indeterminate = true;
+        }
+    },
+
+    unlinkReviewRow(csvId) {
+        if (!this.previewData || !this.previewData.accounts) return;
+        const currentAcc = this.previewData.accounts[this.currentAccountIndex];
+        const tx = currentAcc?.transactions?.find(t => t.csv_id === csvId);
+        if (!tx) return;
+
+        // Si la transaction était liée à un id en base, enregistrer l'exclusion pour persister au F5 / re-evaluate
+        if (tx.matched_db_id && this.activeConnId) {
+            this.addRejectedMatch(this.activeConnId, csvId, tx.matched_db_id);
+            this.removeForceMatch(this.activeConnId, csvId);
+        }
+
+        // Réinitialiser la transaction en "nouvelle opération" non rapprochée
+        tx.is_reconciled = false;
+        tx.already_reconciled = false;
+        tx.matched_db_id = null;
+        tx.db_description = null;
+        tx.is_mirror_transfer = false;
+        tx.is_orphan_transfer_link = false;
+        tx.orphan_account_id = null;
+        tx.orphan_account_name = null;
+
+        if (this.activeConnId) {
+            this.saveCachedPreview(this.activeConnId, this.previewData);
+        }
+
+        this.renderReviewTable();
+        const msg = window.i18n ? window.i18n.t('bank_sync_unlink_success') || 'Rapprochement annulé — l\'opération est redevenue nouvelle' : 'Rapprochement annulé — l\'opération est redevenue nouvelle';
+        this.showToast(msg, 'info');
+    },
+
+    openLinkFromReview(csvId) {
+        if (!this.previewData || !this.previewData.accounts) return;
+        const currentAcc = this.previewData.accounts[this.currentAccountIndex];
+        const tx = currentAcc?.transactions?.find(t => t.csv_id === csvId);
+        if (!tx) return;
+
+        this._linkFromReviewContext = {
+            csvId: csvId,
+            accountIndex: this.currentAccountIndex
+        };
+
+        // Alimenter un pseudo-ghost avec les données de la ligne de revue
+        const ghostLike = {
+            csv_id: tx.csv_id,
+            description: tx.description,
+            raw_description: tx.raw_description,
+            amount: tx.amount,
+            raw_amount: tx.raw_amount,
+            date_operation: tx.date_operation,
+            account_id: currentAcc.account_id,
+            account_name: currentAcc.account_name,
+            category: tx.category
+        };
+
+        this._linkGhostCurrentGhost = ghostLike;
+        this._linkGhostSelectedTarget = null;
+        this._linkGhostFieldSources = { desc: 'db', amount: 'online', cat: 'db' };
+
+        this.ensureModalsExist();
+        const modal = document.getElementById('linkGhostModal');
+        if (!modal) return;
+
+        if (window.i18n && typeof window.i18n.translateDOM === 'function') {
+            window.i18n.translateDOM(modal);
+        }
+
+        // Peupler la liste des catégories
+        const catSelect = document.getElementById('linkFinalCategory');
+        if (catSelect) {
+            const categories = window.app?.categoriesList || ['Alimentation', 'Loisirs', 'Transport', 'Logement', 'Salaire', 'Autre'];
+            catSelect.innerHTML = `<option value="">-- ${window.i18n ? window.i18n.t('no_category') || 'Sans catégorie' : 'Sans catégorie'} --</option>` + categories.map(cat => `<option value="${window.escapeHtml ? window.escapeHtml(cat) : cat}">${window.escapeHtml ? window.escapeHtml(cat) : cat}</option>`).join('');
+        }
+
+        // Rendu du résumé de l'opération source
+        const summaryEl = document.getElementById('linkGhostSourceSummary');
+        if (summaryEl) {
+            const rawAmt = typeof ghostLike.raw_amount !== 'undefined' ? parseFloat(ghostLike.raw_amount) : (parseFloat(ghostLike.amount) || 0);
+            const isPositive = rawAmt >= 0;
+            const absAmt = Math.abs(parseFloat(ghostLike.amount) || rawAmt || 0);
+            const amtFmt = (isPositive ? '+ ' : '- ') + absAmt.toFixed(2) + ' €';
+            const amtColor = isPositive ? 'var(--accent-success, #10b981)' : 'var(--text-main, #f87171)';
+            const dateStr = ghostLike.date_operation ? String(ghostLike.date_operation).substring(0, 10) : '';
+
+            summaryEl.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="badge ghost-badge" style="background: rgba(99, 102, 241, 0.2); color: #6366f1; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 11px;">📋 ${window.i18n ? window.i18n.t('bank_sync_status_to_add') || 'Revue' : 'Revue'}</span>
+                        <span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${window.escapeHtml ? window.escapeHtml(ghostLike.description) : ghostLike.description}</span>
+                    </div>
+                    <span style="font-weight: 800; font-size: 14px; color: ${amtColor};">${amtFmt}</span>
+                </div>
+                <div style="display: flex; gap: 12px; font-size: 11.5px; color: var(--text-muted); flex-wrap: wrap;">
+                    <span>📅 ${dateStr}</span>
+                    <span>•</span>
+                    <span>💳 ${window.escapeHtml ? window.escapeHtml(ghostLike.account_name || '') : (ghostLike.account_name || '')}</span>
+                    ${ghostLike.raw_description && ghostLike.raw_description !== ghostLike.description ? `<span>•</span><span style="font-style: italic;">🏦 ${window.escapeHtml ? window.escapeHtml(ghostLike.raw_description) : ghostLike.raw_description}</span>` : ''}
+                </div>
+            `;
+        }
+
+        // Réinitialiser le panneau de résolution et le bouton
+        const resPanel = document.getElementById('linkGhostResolutionPanel');
+        if (resPanel) resPanel.style.display = 'none';
+        const btnSubmit = document.getElementById('btnSubmitLinkGhost');
+        if (btnSubmit) btnSubmit.disabled = true;
+
+        const searchInput = document.getElementById('linkGhostSearchInput');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+
+        modal.style.display = 'flex';
+
+        // Lancer la recherche initiale
+        this.searchDbTransactions('', ghostLike.account_id, true);
+    },
+
+    onSyncDescInput(accIdx, csvId, inputEl) {
+        const desc = inputEl.value;
+        this.updateTxDesc(accIdx, csvId, desc);
+
+        // Si la description correspond à un élément connu de l'historique : auto-compléter la catégorie
+        if (this.descriptions && this.descriptions[desc]) {
+            const data = this.descriptions[desc];
+            if (data.category) {
+                this.updateTxCat(accIdx, csvId, data.category);
+                const catSel = document.getElementById(`catSel_${csvId}`);
+                if (catSel) {
+                    catSel.value = data.category;
+                    catSel.style.transition = 'box-shadow 0.2s ease, border-color 0.2s ease';
+                    catSel.style.borderColor = 'var(--accent, #6366f1)';
+                    catSel.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.25)';
+                    setTimeout(() => {
+                        catSel.style.borderColor = '';
+                        catSel.style.boxShadow = '';
+                    }, 800);
+                }
+            }
+        }
     },
 
     updateTxDesc(accIdx, csvId, newDesc) {
@@ -487,7 +833,9 @@ Object.assign(window.BankSyncView, {
 
         this.previewData.accounts.forEach(acc => {
             (acc.transactions || []).forEach(tx => {
-                if (tx.is_coming) {
+                if (tx._excluded) {
+                    totalIgnored++;
+                } else if (tx.is_coming) {
                     totalComing++;
                 } else if (tx.is_reconciled && tx.already_reconciled) {
                     totalIgnored++;
@@ -502,10 +850,19 @@ Object.assign(window.BankSyncView, {
         const toAddStr = window.i18n.tp('bank_sync_summary_to_add', { count: totalNew });
         const toRecStr = window.i18n.tp('bank_sync_summary_to_reconcile', { count: totalReconciled });
         const comingStr = window.i18n.tp ? window.i18n.tp('bank_sync_summary_coming', { count: totalComing }) : `${totalComing} en attente en ligne`;
-        const ignoredStr = (window.i18n.tp ? window.i18n.tp('bank_sync_summary_ignored', { count: totalIgnored }) : `${totalIgnored} déjà en base`).replace(/\(déjà en base\)/i, '(déjà traitées)');
+        const ignoredStr = (window.i18n.tp ? window.i18n.tp('bank_sync_summary_ignored', { count: totalIgnored }) : `${totalIgnored} déjà en base`).replace(/\(déjà en base\)/i, '(déjà traitées ou exclues)');
 
+        // ── Badge solde fichier CSV ou solde bancaire ──
+        const isCsvMode = this._reviewSource === 'csv_import';
         let balanceBadgeHtml = '';
-        if (currentAcc && typeof currentAcc.bank_balance === 'number' && typeof currentAcc.local_reconciled_balance === 'number') {
+
+        if (isCsvMode) {
+            // Mode Import CSV — badge solde fichier
+            const fileBalance = this.previewData?._fileBalance;
+            if (fileBalance != null) {
+                balanceBadgeHtml = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('import_file_balance_tooltip') || 'Solde détecté dans le fichier importé' : 'Solde détecté dans le fichier importé').replace(/"/g, '&quot;')}">📊 ${window.i18n ? window.i18n.t('import_file_balance') || 'Solde fichier' : 'Solde fichier'} : ${parseFloat(fileBalance).toFixed(2)} €</span>`;
+            }
+        } else if (currentAcc && typeof currentAcc.bank_balance === 'number' && typeof currentAcc.local_reconciled_balance === 'number') {
             const delta = Math.round((currentAcc.bank_balance - currentAcc.local_reconciled_balance) * 100) / 100;
             if (Math.abs(delta) < 0.005) {
                 balanceBadgeHtml = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; padding: 2px 8px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_synced') : 'Soldes conformes').replace(/"/g, '&quot;')}">🟢 ${window.i18n ? window.i18n.t('bank_sync_balance_synced') || 'Soldes conformes' : 'Soldes conformes'} (${currentAcc.bank_balance.toFixed(2)} €)</span>`;
@@ -531,44 +888,111 @@ Object.assign(window.BankSyncView, {
         box.innerHTML = `
             <span>🟢 <strong>${toAddStr}</strong></span>
             <span>🔵 <strong>${toRecStr}</strong></span>
-            ${totalComing > 0 ? `<span style="color: #d97706; cursor: pointer;" onclick="window.BankSyncView.setReviewFilter('coming')" title="Filtrer les opérations en attente">⏳ <strong>${comingStr}</strong></span>` : ''}
+            ${!isCsvMode && totalComing > 0 ? `<span style="color: #d97706; cursor: pointer;" onclick="window.BankSyncView.setReviewFilter('coming')" title="Filtrer les opérations en attente">⏳ <strong>${comingStr}</strong></span>` : ''}
             <span style="color: var(--text-muted);">⚪ <strong>${ignoredStr}</strong></span>
             ${balanceBadgeHtml ? `<span style="border-left: 1px solid var(--border-color); padding-left: 12px; margin-left: 4px;">${balanceBadgeHtml}</span>` : ''}
         `;
     },
 
     async commitSync() {
-        if (!this.previewData || !this.activeConnId) return;
+        if (!this.previewData) return;
+        const isCsvImport = this._reviewSource === 'csv_import';
+
+        // En mode CSV, vérifier qu'un compte est sélectionné
+        if (isCsvImport) {
+            const accId = this.previewData.accounts?.[0]?.account_id;
+            if (!accId) {
+                this.showToast(window.i18n ? window.i18n.t('msg_select_account') || 'Veuillez sélectionner un compte avant de valider.' : 'Veuillez sélectionner un compte avant de valider.', 'warning');
+                return;
+            }
+        } else if (!this.activeConnId) {
+            return;
+        }
 
         const allTxs = [];
         this.previewData.accounts.forEach(acc => {
             (acc.transactions || []).forEach(tx => {
+                if (tx._excluded) return; // Ignorer les opérations décochées par l'utilisateur
                 allTxs.push({
                     account_id: acc.account_id,
                     date_operation: tx.date_operation,
                     description: tx.description,
                     raw_description: tx.raw_description || tx.description,
-                    amount: tx.amount,
+                    amount: tx.raw_amount != null ? tx.raw_amount : tx.amount,
                     raw_amount: tx.raw_amount,
                     category: tx.category,
                     csv_id: tx.csv_id,
                     is_reconciled: tx.is_reconciled,
                     already_reconciled: tx.already_reconciled,
-                    matched_db_id: tx.matched_db_id
+                    matched_db_id: tx.matched_db_id,
+                    attachments: tx.attachments || null,
+                    check_slip_number: tx.check_slip_number || null
                 });
             });
         });
 
+        if (allTxs.length === 0) {
+            this.showToast(window.i18n ? window.i18n.t('bank_sync_no_selected_txs') || 'Aucune opération sélectionnée à valider.' : 'Aucune opération sélectionnée à valider.', 'warning');
+            return;
+        }
+
         try {
-            const res = await API.post(`/api/bank-sync/connections/${this.activeConnId}/commit`, {
-                transactions: allTxs
-            });
+            let res;
+            if (isCsvImport) {
+                // ── Mode Import CSV : appeler save_batch ──
+                const accountId = this.previewData.accounts[0]?.account_id;
+                const csvTxs = allTxs.map(t => ({
+                    date_operation: t.date_operation,
+                    description: t.description,
+                    raw_description: t.raw_description,
+                    amount: t.amount,
+                    category: t.category || null,
+                    is_reconciled: t.is_reconciled,
+                    matched_db_id: t.matched_db_id,
+                    attachments: t.attachments,
+                    check_slip_number: t.check_slip_number
+                }));
+                res = await API.post('/api/csv/save_batch', { transactions: csvTxs, account_id: accountId });
+            } else {
+                // ── Mode Synchro Bancaire : appeler le commit classique ──
+                res = await API.post(`/api/bank-sync/connections/${this.activeConnId}/commit`, {
+                    transactions: allTxs
+                });
+            }
+
+            // Mettre à jour le preview en conservant les opérations non traitées (décochées)
+            const committedCsvSet = new Set(allTxs.map(t => t.csv_id).filter(Boolean));
+            let hasRemaining = false;
+            if (this.previewData && this.previewData.accounts) {
+                this.previewData.accounts.forEach(acc => {
+                    if (acc.transactions) {
+                        acc.transactions = acc.transactions.filter(t => !committedCsvSet.has(t.csv_id));
+                        if (acc.transactions.length > 0) hasRemaining = true;
+                    }
+                });
+            }
 
             this.closeReviewModal();
-            this.showToast(`Synchronisation validée : +${res.imported} ajoutée(s), ✔ ${res.reconciled} pointée(s)`, 'success');
-            await this.loadConnections();
-            await this.loadPendingSync();
 
+            if (isCsvImport) {
+                const count = res.imported || allTxs.length;
+                const msg = window.i18n ? window.i18n.tp('msg_import_done', { count }) || `${count} opération(s) importée(s).` : `${count} opération(s) importée(s).`;
+                this.showToast(msg, 'success');
+            } else {
+                if (this.activeConnId) {
+                    if (hasRemaining) {
+                        this.saveCachedPreview(this.activeConnId, this.previewData);
+                    } else {
+                        this.clearCachedPreview(this.activeConnId);
+                        this.clearMatchOverrides(this.activeConnId);
+                    }
+                }
+                this.showToast(`Synchronisation validée : +${res.imported} ajoutée(s), ✔ ${res.reconciled} pointée(s)`, 'success');
+                await this.loadConnections();
+                await this.loadPendingSync();
+            }
+
+            // Rafraîchir toutes les vues
             if (window.OverviewView && window.OverviewView.init) {
                 window.OverviewView.init();
             }
@@ -583,6 +1007,9 @@ Object.assign(window.BankSyncView, {
             }
             if (window.app && window.app.refreshSidebar) {
                 window.app.refreshSidebar();
+            }
+            if (isCsvImport) {
+                window.location.reload();
             }
         } catch (err) {
             this.showToast('Erreur lors de la validation : ' + (err.detail || err.message), 'error');

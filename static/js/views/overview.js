@@ -805,6 +805,9 @@ window.OverviewView = {
                             <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700; height: 28px; display: inline-flex; align-items: center; gap: 3px;">
                                 ✔ ${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}
                             </button>
+                            <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.openLinkGhostModal('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_link_single') || 'Lier à une opération existante' : 'Lier à une opération existante'}" style="font-size: 11px; padding: 3px 7px; border-radius: 6px; height: 28px;">
+                                🔗
+                            </button>
                             <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.editGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_edit_single') || 'Modifier' : 'Modifier'}" style="font-size: 11px; padding: 3px 7px; border-radius: 6px; height: 28px;">
                                 ✏️
                             </button>

@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import or_, and_
+from typing import List, Optional
 from datetime import date, datetime
 
 from app.database import get_db
@@ -12,11 +13,51 @@ from app.services import stats_cache
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 @router.get("/", response_model=List[TransactionOut])
-def get_transactions(skip: int = 0, limit: int = 1000, db: Session = Depends(get_db)):
-    # Exclude pending cross-profile transactions until accepted
-    return db.query(Transaction).filter(
+def get_transactions(
+    skip: int = 0,
+    limit: int = 1000,
+    search: Optional[str] = Query(None),
+    account_id: Optional[int] = Query(None),
+    unreconciled_only: bool = Query(False),
+    order: str = Query("desc"),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Transaction).filter(
         (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
-    ).order_by(Transaction.date_operation.desc()).offset(skip).limit(limit).all()
+    )
+    if account_id is not None:
+        query = query.filter(
+            or_(
+                Transaction.from_account_id == account_id,
+                Transaction.to_account_id == account_id
+            )
+        )
+    if unreconciled_only:
+        query = query.filter(Transaction.reconciliation_date == None)
+    if search:
+        search_str = search.strip()
+        search_pattern = f"%{search_str}%"
+        # Support searching description, category, or amount if search is numeric
+        try:
+            val = float(search_str.replace(',', '.'))
+            amount_filter = and_(Transaction.amount >= val - 0.05, Transaction.amount <= val + 0.05)
+            query = query.filter(
+                or_(
+                    Transaction.description.ilike(search_pattern),
+                    Transaction.category.ilike(search_pattern),
+                    amount_filter
+                )
+            )
+        except ValueError:
+            query = query.filter(
+                or_(
+                    Transaction.description.ilike(search_pattern),
+                    Transaction.category.ilike(search_pattern)
+                )
+            )
+    if order and order.lower() == "asc":
+        return query.order_by(Transaction.date_operation.asc(), Transaction.id.asc()).offset(skip).limit(limit).all()
+    return query.order_by(Transaction.date_operation.desc(), Transaction.id.desc()).offset(skip).limit(limit).all()
 
 @router.get("/descriptions")
 def get_unique_descriptions(db: Session = Depends(get_db)):
