@@ -500,7 +500,8 @@ window.FormView = {
 
         const opDate = ghostTx.date_operation ? String(ghostTx.date_operation).substring(0, 10) : new Date().toISOString().split('T')[0];
         document.getElementById('op_date').value = opDate;
-        document.getElementById('op_recon_date').value = new Date().toISOString().split('T')[0];
+        this._ghostIsComing = ghostTx.is_coming === true;
+        document.getElementById('op_recon_date').value = this._ghostIsComing ? '' : new Date().toISOString().split('T')[0];
         const alertEl = document.getElementById('op_recon_discrepancy_alert');
         if (alertEl) {
             alertEl.style.display = 'none';
@@ -556,6 +557,7 @@ window.FormView = {
         this._ghostCsvId = null;
         this._ghostConnId = null;
         this._ghostRawDesc = null;
+        this._ghostIsComing = false;
 
         const rawHintEl = document.getElementById('op_raw_desc_hint');
         if (rawHintEl) {
@@ -1320,7 +1322,9 @@ window.FormView = {
                         date_operation: this.pendingSaveData.date_operation,
                         category: this.pendingSaveData.category || null,
                         account_id: ghostAccId,
-                        is_reconciled: false
+                        is_reconciled: false,
+                        is_coming: this._ghostIsComing || false,
+                        reconciliation_date: this.pendingSaveData.reconciliation_date || null
                     }
                 };
                 await API.post('/api/bank-sync/commit-ghost', ghostPayload);

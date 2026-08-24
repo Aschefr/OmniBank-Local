@@ -925,6 +925,334 @@ def test_re_evaluate_preview_endpoint_live_db_changes():
     assert t2["is_coming"] is True
 
 
+def test_ghost_commit_coming_preserves_unreconciled_state():
+    """
+    Cas 1 : Vérifie qu'une opération fantôme en attente en ligne (is_coming = True)
+    ajoutée en base via /commit-ghost n'a PAS de date de rapprochement d'office
+    (reconciliation_date doit rester None).
+    """
+    from datetime import date
+    from fastapi.testclient import TestClient
+
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    conn = BankConnection(backend="cragr", label="Test Ghost Coming", is_active=True)
+    acc = Account(name="Compte Test Ghost Coming", initial_balance=1000.0)
+    test_db.add(conn)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(conn)
+    test_db.refresh(acc)
+
+    # 1. Envoi d'un commit-ghost pour une opération coming
+    payload = {
+        "connection_id": conn.id,
+        "transaction": {
+            "csv_id": "woob_coming_ghost_test_123",
+            "description": "Abonnement Service X",
+            "raw_description": "X1208 ABONNEMENT SERVICE X",
+            "amount": 15.99,
+            "raw_amount": -15.99,
+            "date_operation": "2026-08-23",
+            "category": "Abonnements",
+            "account_id": acc.id,
+            "is_reconciled": False,
+            "is_coming": True,
+            "reconciliation_date": None
+        }
+    }
+
+    res = client.post("/api/bank-sync/commit-ghost", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["ok"] is True
+
+    # 2. Vérification en base : l'opération a bien été créée SANS date de rapprochement
+    saved_tx = test_db.query(Transaction).filter(Transaction.csv_id == "woob_coming_ghost_test_123").first()
+    assert saved_tx is not None
+    assert saved_tx.amount == 15.99
+    assert saved_tx.description == "Abonnement Service X"
+    assert saved_tx.reconciliation_date is None, "Une opération en attente en ligne ajoutée en base ne doit pas avoir de date de rapprochement !"
+
+
+def test_two_pass_matching_same_amount_confirmed_and_coming():
+    """
+    Cas 2 : Si plusieurs opérations de même montant sont présentes (ex: 25.99 € Google One),
+    l'une passée et déjà pointée (date_op=10/08, recon=20/08), l'autre future/non pointée (date_op=23/08).
+    Vérifie que :
+    - La transaction bancaire confirmée du 10/08 matche l'opération déjà pointée du 10/08 (already_reconciled=True).
+    - La transaction bancaire en attente (coming) du 23/08 matche la prédiction du 23/08 (already_reconciled=False, À pointer).
+    - Aucune inversion ni fausse discordance d'état ne se produit.
+    """
+    from datetime import date
+    from fastapi.testclient import TestClient
+
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    conn = BankConnection(backend="cragr", label="Test Matching Same Amount", is_active=True)
+    acc = Account(name="Compte Test Multi Amount", initial_balance=2000.0)
+    test_db.add(conn)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(conn)
+    test_db.refresh(acc)
+
+    # 1. En base locale :
+    # Opération 1 : passée le 10/08, pointée le 20/08
+    tx_past = Transaction(
+        description="Google One Crédits IA",
+        amount=25.99,
+        type="expense_var",
+        category="IA",
+        date_operation=date(2026, 8, 10),
+        reconciliation_date=date(2026, 8, 20),
+        from_account_id=acc.id
+    )
+    # Opération 2 : prévue le 23/08, non pointée (prédiction)
+    tx_planned = Transaction(
+        description="Google One Crédits IA",
+        amount=25.99,
+        type="expense_var",
+        category="IA",
+        date_operation=date(2026, 8, 23),
+        reconciliation_date=None,
+        from_account_id=acc.id
+    )
+    test_db.add(tx_past)
+    test_db.add(tx_planned)
+    test_db.commit()
+    test_db.refresh(tx_past)
+    test_db.refresh(tx_planned)
+
+    # 2. Données bancaires en cache/relevé :
+    # - Transaction bancaire confirmée du 10/08 (-25.99 €)
+    # - Transaction bancaire en attente du 23/08 (-25.99 €)
+    preview_data = {
+        "accounts": [
+            {
+                "account_id": acc.id,
+                "account_name": acc.name,
+                "bank_balance": 1948.02,
+                "transactions": [
+                    # L'ordre par date décroissante met le 23/08 en premier dans la liste brute
+                    {
+                        "csv_id": "woob_coming_23aug",
+                        "date_operation": "2026-08-23",
+                        "description": "X1208 Google One Dublin",
+                        "raw_description": "X1208 Google One Dublin",
+                        "amount": 25.99,
+                        "raw_amount": -25.99,
+                        "is_coming": True,
+                        "account_id": acc.id
+                    },
+                    {
+                        "csv_id": "woob_hist_10aug",
+                        "date_operation": "2026-08-10",
+                        "description": "GOOGLE ONE DUBLIN",
+                        "raw_description": "GOOGLE ONE DUBLIN",
+                        "amount": 25.99,
+                        "raw_amount": -25.99,
+                        "is_coming": False,
+                        "account_id": acc.id
+                    }
+                ]
+            }
+        ]
+    }
+
+    # 3. Réévaluation dynamique en direct
+    res = client.post("/api/bank-sync/re-evaluate-preview", json=preview_data)
+    assert res.status_code == 200
+    data = res.json()
+
+    txs = data["accounts"][0]["transactions"]
+    tx_coming = next(t for t in txs if t["csv_id"] == "woob_coming_23aug")
+    tx_hist = next(t for t in txs if t["csv_id"] == "woob_hist_10aug")
+
+    # 4. Assertions strictes :
+    # La transaction d'historique (10/08) doit matcher tx_past et être DÉJÀ RAPPROCHÉE (doublon ignoré)
+    assert tx_hist["is_reconciled"] is True
+    assert tx_hist["already_reconciled"] is True
+    assert tx_hist["matched_db_id"] == tx_past.id
+
+    # La transaction en attente (23/08) doit matcher tx_planned et être À POINTER (non encore rapprochée)
+    assert tx_coming["is_reconciled"] is True
+    assert tx_coming["already_reconciled"] is False
+    assert tx_coming["matched_db_id"] == tx_planned.id
+
+
+def test_delete_db_transaction_instantly_turns_coming_into_ghost_suggestion():
+    """
+    Vérifie qu'après suppression d'une opération en DB qui était matchée avec une transaction
+    en attente de la banque (is_coming = True), l'appel à /api/bank-sync/pending rebascule
+    instantanément l'opération en is_reconciled = False (nouvelle opération / ghost à ajouter).
+    """
+    from datetime import date
+    from fastapi.testclient import TestClient
+    from app.services.bank_sync_scheduler import save_pending_sync_data
+
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    conn = BankConnection(backend="cragr", label="Test Delete Reappear Ghost", is_active=True)
+    acc = Account(name="Compte Test Reappear", initial_balance=1500.0)
+    test_db.add(conn)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(conn)
+    test_db.refresh(acc)
+
+    # 1. Opération en DB
+    db_tx = Transaction(
+        description="Restaurant Le Gourmet",
+        amount=42.50,
+        type="expense_var",
+        category="Restaurants",
+        date_operation=date(2026, 8, 23),
+        reconciliation_date=None,
+        from_account_id=acc.id
+    )
+    test_db.add(db_tx)
+    test_db.commit()
+    test_db.refresh(db_tx)
+
+    # 2. Relevé bancaire dans le sas d'attente (initialement matché)
+    pending_payload = {
+        "accounts": [
+            {
+                "account_id": acc.id,
+                "account_name": acc.name,
+                "bank_balance": 1457.50,
+                "transactions": [
+                    {
+                        "csv_id": "woob_coming_resto_4250",
+                        "date_operation": "2026-08-23",
+                        "description": "LE GOURMET RESTAURANT",
+                        "raw_description": "LE GOURMET RESTAURANT",
+                        "amount": 42.50,
+                        "raw_amount": -42.50,
+                        "is_coming": True,
+                        "is_reconciled": True,
+                        "already_reconciled": False,
+                        "matched_db_id": db_tx.id,
+                        "account_id": acc.id
+                    }
+                ]
+            }
+        ]
+    }
+    save_pending_sync_data(test_db, conn.id, pending_payload)
+
+    # Vérification initiale : pending indique 1 match, 0 new
+    res1 = client.get("/api/bank-sync/pending")
+    assert res1.status_code == 200
+    data1 = res1.json()
+    assert data1["total_matches"] == 1
+    assert data1["total_new"] == 0
+    t1 = data1["accounts"][0]["transactions"][0]
+    assert t1["is_reconciled"] is True
+    assert t1["matched_db_id"] == db_tx.id
+
+    # 3. L'utilisateur supprime la transaction de la DB
+    res_del = client.delete(f"/api/transactions/{db_tx.id}")
+    assert res_del.status_code == 200
+
+    # 4. Immédiatement après, l'appel à /api/bank-sync/pending doit re-calculer et montrer 1 nouvelle opération
+    res2 = client.get("/api/bank-sync/pending")
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert data2["total_matches"] == 0
+    assert data2["total_new"] == 1, "L'opération doit immédiatement redevenir une nouvelle opération (ghost) à ajouter !"
+    t2 = data2["accounts"][0]["transactions"][0]
+    assert t2["is_reconciled"] is False, "L'opération ne doit plus être marquée comme rapprochée !"
+    assert t2["matched_db_id"] is None
+    assert t2["is_coming"] is True
+
+
+def test_reconcile_balance_delta_initial_balance_mode():
+    """
+    Vérifie l'ajustement rapide d'un écart de solde via mise à jour du solde initial (sans écriture).
+    """
+    from fastapi.testclient import TestClient
+    from app.services.finance_engine import calculate_balances
+
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Livret A Test Delta", initial_balance=5592.78, type="Livret")
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    # Écart de +125.98 € constaté avec la banque
+    delta = 125.98
+    res = client.post(f"/api/accounts/{acc.id}/reconcile-balance-delta", json={
+        "mode": "initial_balance",
+        "delta": delta
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["ok"] is True
+    assert data["mode"] == "initial_balance"
+    assert data["new_initial_balance"] == 5718.76
+
+    test_db.refresh(acc)
+    # Vérification que le solde calculé est exactement conforme et qu'aucune fausse transaction n'a été créée
+    balances = calculate_balances(test_db, only_reconciled=True)
+    assert round(balances.get(acc.id, 0.0), 2) == 5718.76
+
+    tx_count = test_db.query(Transaction).filter((Transaction.from_account_id == acc.id) | (Transaction.to_account_id == acc.id)).count()
+    assert tx_count == 0
+
+
+def test_reconcile_balance_delta_transaction_mode():
+    """
+    Vérifie l'ajustement rapide d'un écart de solde via création d'une opération d'intérêts pointée.
+    """
+    from fastapi.testclient import TestClient
+    from app.services.finance_engine import calculate_balances
+
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Livret LDD Test Delta", initial_balance=45.79, type="Livret")
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    # Écart de +0.54 € correspondant aux intérêts annuels
+    delta = 0.54
+    res = client.post(f"/api/accounts/{acc.id}/reconcile-balance-delta", json={
+        "mode": "transaction",
+        "delta": delta,
+        "transaction_description": "Intérêts annuels 2026",
+        "transaction_category": "Intérêts"
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["ok"] is True
+    assert data["mode"] == "transaction"
+    assert data["transaction_id"] is not None
+
+    # Vérification de la transaction créée
+    created_tx = test_db.query(Transaction).filter(Transaction.id == data["transaction_id"]).first()
+    assert created_tx is not None
+    assert created_tx.amount == 0.54
+    assert created_tx.type == "income"
+    assert created_tx.to_account_id == acc.id
+    assert created_tx.reconciliation_date is not None
+    assert created_tx.description == "Intérêts annuels 2026"
+
+    # Vérification du solde pointé calculé
+    balances = calculate_balances(test_db, only_reconciled=True)
+    assert round(balances.get(acc.id, 0.0), 2) == 46.33
+
+
+
+
+
 
 
 

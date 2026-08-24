@@ -522,6 +522,76 @@ window.BankSyncView = {
         </div>
 
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
+        <!-- Modale : Ajustement du solde du compte (1-clic) -->
+        <!-- ════════════════════════════════════════════════════════════════════════════ -->
+        <div id="balanceAdjustModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1200; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 580px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column;">
+                <div style="padding: 18px 22px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                        <span>⚖️</span> <span id="balanceAdjustModalTitle" data-i18n="modal_adjust_balance_title">${window.i18n ? window.i18n.t('modal_adjust_balance_title', 'Ajustement du solde du compte') : 'Ajustement du solde du compte'}</span>
+                    </h3>
+                    <button onclick="window.BankSyncView.closeBalanceAdjustModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted);">&times;</button>
+                </div>
+
+                <div style="padding: 20px 22px; display: flex; flex-direction: column; gap: 16px;">
+                    <div id="balanceAdjustModalHeader" style="background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: var(--text-muted); line-height: 1.4;">
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Option 1: Ajuster solde initial -->
+                        <div style="background: var(--bg-surface, var(--bg-base)); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.2s;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="font-weight: 700; font-size: 14px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                    <span>🎯</span> <span data-i18n="modal_adjust_opt_initial_title">${window.i18n ? window.i18n.t('modal_adjust_opt_initial_title', 'Ajuster le solde initial (Recommandé)') : 'Ajuster le solde initial (Recommandé)'}</span>
+                                </div>
+                                <span class="badge" data-i18n="modal_adjust_badge_no_entry" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 4px;">${window.i18n ? window.i18n.t('modal_adjust_badge_no_entry', 'Sans écriture') : 'Sans écriture'}</span>
+                            </div>
+                            <p data-i18n="modal_adjust_opt_initial_desc" style="margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+                                ${window.i18n ? window.i18n.t('modal_adjust_opt_initial_desc', 'Ajuste le solde de départ du compte sans créer d\'opération fictive ni fausser vos graphiques de dépenses et budgets.') : 'Ajuste le solde de départ du compte sans créer d\'opération fictive ni fausser vos graphiques de dépenses et budgets.'}
+                            </p>
+                            <button id="btnAdjustInitialBalance" class="btn btn-primary" onclick="window.BankSyncView.submitBalanceAdjustment('initial_balance')" style="align-self: flex-start; margin-top: 4px; font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 6px;">
+                                🎯 Ajuster le solde initial
+                            </button>
+                        </div>
+
+                        <!-- Option 2: Créer opération d'intérêts / régularisation -->
+                        <div style="background: var(--bg-surface, var(--bg-base)); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="font-weight: 700; font-size: 14px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                    <span>📝</span> <span data-i18n="modal_adjust_opt_tx_title">${window.i18n ? window.i18n.t('modal_adjust_opt_tx_title', 'Créer une écriture d\'intérêts ou régularisation') : 'Créer une écriture d\'intérêts ou régularisation'}</span>
+                                </div>
+                                <span class="badge" data-i18n="modal_adjust_badge_recorded" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 4px;">${window.i18n ? window.i18n.t('modal_adjust_badge_recorded', 'Comptabilisé') : 'Comptabilisé'}</span>
+                            </div>
+                            <p data-i18n="modal_adjust_opt_tx_desc" style="margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+                                ${window.i18n ? window.i18n.t('modal_adjust_opt_tx_desc', 'Enregistre une opération pointée du montant exact (idéal pour les intérêts annuels de livrets d\'épargne ou frais bancaires).') : 'Enregistre une opération pointée du montant exact (idéal pour les intérêts annuels de livrets d\'épargne ou frais bancaires).'}
+                            </p>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 2px;">
+                                <div>
+                                    <label data-i18n="modal_adjust_tx_label" style="display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">
+                                        ${window.i18n ? window.i18n.t('modal_adjust_tx_label', 'Libellé de l\'opération') : 'Libellé de l\'opération'}
+                                    </label>
+                                    <input type="text" id="balanceAdjustTxDesc" class="input-styled" style="width: 100%; font-size: 12px; padding: 5px 8px; border-radius: 6px;" />
+                                </div>
+                                <div>
+                                    <label data-i18n="modal_adjust_tx_cat" style="display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">
+                                        ${window.i18n ? window.i18n.t('modal_adjust_tx_cat', 'Catégorie') : 'Catégorie'}
+                                    </label>
+                                    <select id="balanceAdjustTxCategory" class="input-styled" style="width: 100%; font-size: 12px; padding: 5px 8px; border-radius: 6px;">
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button id="btnAdjustCreateTx" class="btn btn-secondary" onclick="window.BankSyncView.submitBalanceAdjustment('transaction')" style="align-self: flex-start; margin-top: 4px; font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 6px;">
+                                📝 Créer l'opération pointée
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <!-- Modale In-App : Confirmation de Suppression -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <div id="confirmDeleteModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1200; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
