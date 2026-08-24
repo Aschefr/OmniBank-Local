@@ -187,6 +187,9 @@ Object.assign(window.BankSyncView, {
                     <span>📋</span> <span>${window.i18n.t('bank_sync_pending_review_btn') || 'Ouvrir la revue'}</span>
                 </button>
                 ` : ''}
+                <button class="btn btn-secondary" onclick="if(confirm('${(window.i18n ? window.i18n.t('bank_sync_purge_confirm') || 'Vider tout le sas de synchronisation ? Cette action est irréversible.' : 'Vider tout le sas de synchronisation ? Cette action est irréversible.').replace(/'/g, "\\'")}')) window.BankSyncView.clearAllCaches()" style="font-size: 11px; padding: 4px 10px; border-radius: 6px; height: 28px; display: inline-flex; align-items: center; gap: 4px; opacity: 0.7; border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444;" title="${window.i18n ? window.i18n.t('bank_sync_purge_tooltip') || 'Vider le sas et supprimer toutes les suggestions en attente' : 'Vider le sas et supprimer toutes les suggestions en attente'}">
+                    <span>🗑️</span> <span>${window.i18n ? window.i18n.t('bank_sync_purge_btn') || 'Vider le sas' : 'Vider le sas'}</span>
+                </button>
             </div>
         </div>
         `;
@@ -340,6 +343,9 @@ Object.assign(window.BankSyncView, {
                         <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11px; padding: 3px 8px; border-radius: 4px; height: 24px; font-weight: 700;">
                             ✔ ${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}
                         </button>
+                        <button class="btn btn-secondary" onclick="window.BankSyncView.openLinkGhostModal('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_link_single') || 'Lier à une opération existante' : 'Lier à une opération existante'}" style="font-size: 11px; padding: 3px 7px; border-radius: 4px; height: 24px;">
+                            🔗
+                        </button>
                         <button class="btn btn-secondary" onclick="window.BankSyncView.editGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_edit_single') || 'Modifier' : 'Modifier'}" style="font-size: 11px; padding: 3px 8px; border-radius: 4px; height: 24px;">
                             ✏️
                         </button>
@@ -398,11 +404,14 @@ Object.assign(window.BankSyncView, {
                     ${g.category ? `<span style="background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">🏷️ ${window.escapeHtml ? window.escapeHtml(g.category) : g.category}</span>` : `<span style="color: var(--text-muted); font-size: 11px; font-style: italic;">Sans catégorie</span>`}
                 </div>
                 <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--border-color);">
-                    <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" style="flex: 1; font-size: 12px; padding: 6px 10px; border-radius: 6px; font-weight: 700; height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                    <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" style="flex: 1; font-size: 12px; padding: 6px 8px; border-radius: 6px; font-weight: 700; height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
                         ✔ ${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}
                     </button>
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.editGhostRow('${g.csv_id}')" style="font-size: 12px; padding: 6px 12px; border-radius: 6px; height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
-                        ✏️ ${window.i18n ? window.i18n.t('ghost_edit_single') || 'Modifier' : 'Modifier'}
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.openLinkGhostModal('${g.csv_id}')" style="font-size: 12px; padding: 6px 10px; border-radius: 6px; height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" title="${window.i18n ? window.i18n.t('ghost_link_single') || 'Lier' : 'Lier'}">
+                        🔗 ${window.i18n ? window.i18n.t('ghost_link_single_short') || 'Lier' : 'Lier'}
+                    </button>
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.editGhostRow('${g.csv_id}')" style="font-size: 12px; padding: 6px 10px; border-radius: 6px; height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" title="${window.i18n ? window.i18n.t('ghost_edit_single') || 'Modifier' : 'Modifier'}">
+                        ✏️
                     </button>
                     <button class="btn btn-secondary" onclick="window.BankSyncView.dismissGhostRow('${g.csv_id}')" style="font-size: 12px; padding: 6px 10px; border-radius: 6px; height: 32px; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center;" title="${window.i18n ? window.i18n.t('ghost_dismiss_single') || 'Ignorer' : 'Ignorer'}">
                         ✕
@@ -473,10 +482,9 @@ Object.assign(window.BankSyncView, {
                     <button class="btn btn-gold ghost-box-header-btn" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 14px; border-radius: 6px; font-weight: 700; height: 30px; display: inline-flex; align-items: center; gap: 6px;">
                         <span>📥</span> <span>${window.i18n ? window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations' : 'Valider les nouvelles opérations'} (${totalCount})</span>
                     </button>` : ''}
-                    ${!hasGhosts ? `
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 30px; display: inline-flex; align-items: center; gap: 4px;" title="${window.i18n ? window.i18n.t('bank_sync_pending_review_tooltip') || 'Ouvrir la vue détaillée de revue et rapprochement' : 'Ouvrir la vue détaillée de revue et rapprochement'}">
                         <span>📋</span> <span>${window.i18n ? window.i18n.t('bank_sync_pending_review_btn') || 'Ouvrir la revue' : 'Ouvrir la revue'}</span>
-                    </button>` : ''}
+                    </button>
                 </div>
             </div>
             <div id="ghostBoxContent" style="${isCollapsed ? 'display: none;' : 'margin-top: 10px;'}">
@@ -620,16 +628,28 @@ Object.assign(window.BankSyncView, {
     async openPendingReviewModal() {
         try {
             this.ensureModalsExist();
-            const data = await API.get('/api/bank-sync/pending');
+            let data = await API.get('/api/bank-sync/pending');
             if (data && data.accounts && data.accounts.length > 0) {
                 const firstConnId = data.accounts[0]?.connection_id || (this.connections?.[0]?.id || 1);
                 await this.openReviewModal(firstConnId, {
                     connection_id: firstConnId,
                     accounts: data.accounts
                 });
-            } else {
-                this.showToast('Aucune opération en attente.', 'info');
+                return;
             }
+
+            // Fallback : vérifier le cache local des connexions actives
+            if (this.connections && this.connections.length > 0) {
+                for (const conn of this.connections) {
+                    const cached = this.getCachedPreview(conn.id);
+                    if (cached && cached.data && cached.data.accounts && cached.data.accounts.length > 0) {
+                        await this.openReviewModal(conn.id, cached.data);
+                        return;
+                    }
+                }
+            }
+
+            this.showToast('Aucune opération en attente de revue.', 'info');
         } catch (e) {
             console.error('[BankSync] Erreur ouverture des opérations en attente:', e);
             this.showToast('Erreur ouverture des opérations en attente : ' + (e.message || e), 'error');
@@ -796,5 +816,317 @@ Object.assign(window.BankSyncView, {
     },
 
 
-    // ── PROMPT MASTER PASSWORD (Custom in-app modal) ────────────────
+    // ── LIAISON MANUELLE GHOST -> TRANSACTION DB ─────────────────────
+    _linkGhostCurrentGhost: null,
+    _linkGhostSelectedTarget: null,
+    _linkGhostFieldSources: { desc: 'db', amount: 'online', cat: 'db' },
+    _linkGhostDebounceTimer: null,
+
+    openLinkGhostModal(csvId) {
+        this.ensureModalsExist();
+        const ghost = this.ghostTransactions.find(g => g.csv_id === csvId);
+        if (!ghost) return;
+
+        this._linkGhostCurrentGhost = ghost;
+        this._linkGhostSelectedTarget = null;
+        this._linkGhostFieldSources = { desc: 'db', amount: 'online', cat: 'db' };
+
+        const modal = document.getElementById('linkGhostModal');
+        if (!modal) return;
+
+        if (window.i18n && typeof window.i18n.translateDOM === 'function') {
+            window.i18n.translateDOM(modal);
+        }
+
+        // Peupler la liste des catégories
+        const catSelect = document.getElementById('linkFinalCategory');
+        if (catSelect) {
+            const categories = window.app?.categoriesList || ['Alimentation', 'Loisirs', 'Transport', 'Logement', 'Salaire', 'Autre'];
+            catSelect.innerHTML = `<option value="">-- ${window.i18n ? window.i18n.t('no_category') || 'Sans catégorie' : 'Sans catégorie'} --</option>` + categories.map(cat => `<option value="${window.escapeHtml ? window.escapeHtml(cat) : cat}">${window.escapeHtml ? window.escapeHtml(cat) : cat}</option>`).join('');
+        }
+
+        // Rendu du résumé de l'opération fantôme source
+        const summaryEl = document.getElementById('linkGhostSourceSummary');
+        if (summaryEl) {
+            const rawAmt = typeof ghost.raw_amount !== 'undefined' ? parseFloat(ghost.raw_amount) : (parseFloat(ghost.amount) || 0);
+            const isPositive = rawAmt >= 0;
+            const absAmt = Math.abs(parseFloat(ghost.amount) || rawAmt || 0);
+            const amtFmt = (isPositive ? '+ ' : '- ') + absAmt.toFixed(2) + ' €';
+            const amtColor = isPositive ? 'var(--accent-success, #10b981)' : 'var(--text-main, #f87171)';
+            const dateStr = ghost.date_operation ? String(ghost.date_operation).substring(0, 10) : '';
+
+            summaryEl.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 11px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
+                        <span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${window.escapeHtml ? window.escapeHtml(ghost.description) : ghost.description}</span>
+                    </div>
+                    <span style="font-weight: 800; font-size: 14px; color: ${amtColor};">${amtFmt}</span>
+                </div>
+                <div style="display: flex; gap: 12px; font-size: 11.5px; color: var(--text-muted); flex-wrap: wrap;">
+                    <span>📅 ${dateStr}</span>
+                    <span>•</span>
+                    <span>💳 ${window.escapeHtml ? window.escapeHtml(ghost.account_name || '') : (ghost.account_name || '')}</span>
+                    ${ghost.raw_description && ghost.raw_description !== ghost.description ? `<span>•</span><span style="font-style: italic;">🏦 ${window.escapeHtml ? window.escapeHtml(ghost.raw_description) : ghost.raw_description}</span>` : ''}
+                </div>
+            `;
+        }
+
+        // Réinitialiser le panneau de résolution et le bouton
+        const resPanel = document.getElementById('linkGhostResolutionPanel');
+        if (resPanel) resPanel.style.display = 'none';
+        const btnSubmit = document.getElementById('btnSubmitLinkGhost');
+        if (btnSubmit) btnSubmit.disabled = true;
+
+        const searchInput = document.getElementById('linkGhostSearchInput');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+
+        modal.style.display = 'flex';
+
+        // Lancer la recherche initiale (non pointées en priorité sur le compte)
+        this.searchDbTransactions('', ghost.account_id, true);
+    },
+
+    closeLinkGhostModal() {
+        const modal = document.getElementById('linkGhostModal');
+        if (modal) modal.style.display = 'none';
+        this._linkGhostCurrentGhost = null;
+        this._linkGhostSelectedTarget = null;
+        this._linkFromReviewContext = null;
+    },
+
+    onLinkGhostSearchInput() {
+        if (this._linkGhostDebounceTimer) clearTimeout(this._linkGhostDebounceTimer);
+        this._linkGhostDebounceTimer = setTimeout(() => {
+            const searchInput = document.getElementById('linkGhostSearchInput');
+            const query = searchInput ? searchInput.value.trim() : '';
+            const unrecCheck = document.getElementById('linkGhostUnrecOnly');
+            const unrecOnly = unrecCheck ? unrecCheck.checked : false;
+            const accId = this._linkGhostCurrentGhost ? this._linkGhostCurrentGhost.account_id : null;
+            this.searchDbTransactions(query, accId, unrecOnly);
+        }, 200);
+    },
+
+    async searchDbTransactions(query, accountId, unrecOnly = true) {
+        const listEl = document.getElementById('linkGhostResultsList');
+        if (!listEl) return;
+        listEl.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 12px;">Chargement...</div>`;
+
+        try {
+            let url = `/api/transactions/?limit=40&order=asc`;
+            if (accountId) url += `&account_id=${accountId}`;
+            if (unrecOnly) url += `&unreconciled_only=true`;
+            if (query) url += `&search=${encodeURIComponent(query)}`;
+
+            const results = await API.get(url);
+            // Tri chronologique croissant (les dates les plus proches / anciennes en premier)
+            const sortedResults = (results || []).slice().sort((a, b) => {
+                const cmp = (a.date_operation || '').localeCompare(b.date_operation || '');
+                if (cmp !== 0) return cmp;
+                return (a.id || 0) - (b.id || 0);
+            });
+            this.renderLinkGhostResults(sortedResults);
+        } catch (err) {
+            console.error('[BankSync] Erreur recherche transactions pour liaison:', err);
+            listEl.innerHTML = `<div style="padding: 12px; text-align: center; color: #ef4444; font-size: 12px;">Erreur lors de la recherche</div>`;
+        }
+    },
+
+    renderLinkGhostResults(transactions) {
+        const listEl = document.getElementById('linkGhostResultsList');
+        if (!listEl) return;
+
+        if (!transactions || transactions.length === 0) {
+            const noResTxt = window.i18n ? window.i18n.t('ghost_link_no_results') || 'Aucune opération trouvée dans la base de données.' : 'Aucune opération trouvée dans la base de données.';
+            listEl.innerHTML = `<div style="padding: 14px; text-align: center; color: var(--text-muted); font-size: 12px;">${noResTxt}</div>`;
+            return;
+        }
+
+        const selectedId = this._linkGhostSelectedTarget ? this._linkGhostSelectedTarget.id : null;
+
+        listEl.innerHTML = transactions.map(tx => {
+            const isSel = selectedId === tx.id;
+            const isRec = !!tx.reconciliation_date;
+            const dateStr = tx.date_operation ? String(tx.date_operation).substring(0, 10) : '';
+            const amtFmt = (tx.amount || 0).toFixed(2) + ' €';
+            const bgStyle = isSel
+                ? 'background: rgba(99, 102, 241, 0.18); border: 1px solid var(--accent, #6366f1);'
+                : 'background: var(--bg-surface, var(--bg-base)); border: 1px solid var(--border-color);';
+
+            const recBadge = isRec
+                ? `<span style="font-size: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 1px 5px; border-radius: 4px; font-weight: 700;">🟢 ${window.i18n ? window.i18n.t('ghost_link_status_reconciled') || 'Pointée' : 'Pointée'}</span>`
+                : `<span style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 1px 5px; border-radius: 4px; font-weight: 700;">⚪ ${window.i18n ? window.i18n.t('ghost_link_status_unreconciled') || 'Non pointée' : 'Non pointée'}</span>`;
+
+            return `
+                <div onclick="window.BankSyncView.selectLinkTarget(${tx.id})" style="${bgStyle} border-radius: 8px; padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; transition: all 0.15s ease;" onmouseenter="if(!this.dataset.selected) this.style.borderColor='var(--accent, #6366f1)';" onmouseleave="if(!this.dataset.selected) this.style.borderColor='${isSel ? 'var(--accent, #6366f1)' : 'var(--border-color)'}';" ${isSel ? 'data-selected="true"' : ''}>
+                    <div style="display: flex; flex-direction: column; gap: 2px; overflow: hidden;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-weight: 700; font-size: 12.5px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${window.escapeHtml ? window.escapeHtml(tx.description) : tx.description}</span>
+                            ${recBadge}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-muted); display: flex; gap: 8px;">
+                            <span>📅 ${dateStr}</span>
+                            ${tx.category ? `<span>• 🏷️ ${window.escapeHtml ? window.escapeHtml(tx.category) : tx.category}</span>` : ''}
+                        </div>
+                    </div>
+                    <div style="font-weight: 800; font-size: 13px; color: var(--text-main); white-space: nowrap;">
+                        ${amtFmt}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    async selectLinkTarget(txId) {
+        try {
+            const tx = await API.get(`/api/transactions/${txId}`);
+            if (!tx) return;
+            this._linkGhostSelectedTarget = tx;
+
+            // Re-render pour mettre à jour la sélection visuelle
+            const searchInput = document.getElementById('linkGhostSearchInput');
+            const query = searchInput ? searchInput.value.trim() : '';
+            const unrecCheck = document.getElementById('linkGhostUnrecOnly');
+            const unrecOnly = unrecCheck ? unrecCheck.checked : false;
+            const accId = this._linkGhostCurrentGhost ? this._linkGhostCurrentGhost.account_id : null;
+            await this.searchDbTransactions(query, accId, unrecOnly);
+
+            const resPanel = document.getElementById('linkGhostResolutionPanel');
+            if (resPanel) resPanel.style.display = 'flex';
+
+            const btnSubmit = document.getElementById('btnSubmitLinkGhost');
+            if (btnSubmit) btnSubmit.disabled = false;
+
+            // Sens par défaut :
+            // - Libellé : DB
+            // - Montant : En ligne (Ghost)
+            // - Catégorie : DB (ou Ghost si DB n'en a pas)
+            this._linkGhostFieldSources = {
+                desc: 'db',
+                amount: 'online',
+                cat: tx.category ? 'db' : (this._linkGhostCurrentGhost?.category ? 'online' : 'db')
+            };
+
+            this.setLinkFieldSource('desc', this._linkGhostFieldSources.desc);
+            this.setLinkFieldSource('amount', this._linkGhostFieldSources.amount);
+            this.setLinkFieldSource('cat', this._linkGhostFieldSources.cat);
+
+            const dateInput = document.getElementById('linkFinalReconDate');
+            if (dateInput) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+        } catch (e) {
+            console.error('[BankSync] Erreur sélection transaction cible:', e);
+        }
+    },
+
+    setLinkFieldSource(field, source) {
+        this._linkGhostFieldSources[field] = source;
+        const ghost = this._linkGhostCurrentGhost;
+        const target = this._linkGhostSelectedTarget;
+        if (!ghost || !target) return;
+
+        if (field === 'desc') {
+            const val = source === 'db' ? target.description : (ghost.description || ghost.raw_description || '');
+            const input = document.getElementById('linkFinalDesc');
+            if (input) input.value = val;
+        } else if (field === 'amount') {
+            const ghostRawAmt = typeof ghost.raw_amount !== 'undefined' ? parseFloat(ghost.raw_amount) : (parseFloat(ghost.amount) || 0);
+            const ghostAbsAmt = Math.abs(parseFloat(ghost.amount) || ghostRawAmt || 0);
+            const val = source === 'db' ? (parseFloat(target.amount) || 0) : ghostAbsAmt;
+            const input = document.getElementById('linkFinalAmount');
+            if (input) input.value = val ? val.toFixed(2) : '';
+        } else if (field === 'cat') {
+            const val = source === 'db' ? (target.category || '') : (ghost.category || '');
+            const select = document.getElementById('linkFinalCategory');
+            if (select) select.value = val;
+        }
+
+        this.updateLinkPillStyles(field, source);
+    },
+
+    updateLinkPillStyles(field, source) {
+        const activeStyle = 'background: var(--accent, #6366f1); color: #ffffff; border: 1px solid var(--accent, #6366f1); font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;';
+        const inactiveStyle = 'background: var(--bg-base); color: var(--text-muted); border: 1px solid var(--border-color); font-weight: 500; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;';
+
+        const capField = field.charAt(0).toUpperCase() + field.slice(1);
+        const pillDb = document.getElementById(`linkPill${capField}Db`);
+        const pillOnline = document.getElementById(`linkPill${capField}Online`);
+
+        if (pillDb) pillDb.style.cssText = source === 'db' ? activeStyle : inactiveStyle;
+        if (pillOnline) pillOnline.style.cssText = source === 'online' ? activeStyle : inactiveStyle;
+    },
+
+    async submitGhostLink() {
+        const ghost = this._linkGhostCurrentGhost;
+        const target = this._linkGhostSelectedTarget;
+        if (!ghost || !target) return;
+
+        const btnSubmit = document.getElementById('btnSubmitLinkGhost');
+        if (btnSubmit) btnSubmit.disabled = true;
+
+        const finalDesc = document.getElementById('linkFinalDesc')?.value || target.description;
+        const finalAmount = parseFloat(document.getElementById('linkFinalAmount')?.value) || target.amount;
+        const finalCat = document.getElementById('linkFinalCategory')?.value || null;
+
+        // ── MODE REVIEW : modification en RAM uniquement ──
+        if (this._linkFromReviewContext) {
+            const ctx = this._linkFromReviewContext;
+            const acc = this.previewData?.accounts?.[ctx.accountIndex];
+            const tx = acc?.transactions?.find(t => t.csv_id === ctx.csvId);
+
+            if (tx) {
+                tx.is_reconciled = true;
+                tx.already_reconciled = false;
+                tx.matched_db_id = target.id;
+                tx.db_description = target.description;
+                tx.description = finalDesc;
+                tx.amount = finalAmount;
+                tx.category = finalCat;
+                tx.is_mirror_transfer = false;
+                tx.is_orphan_transfer_link = false;
+
+                // Persister le lien forcé (survit au F5 et au re-evaluate)
+                if (this.activeConnId) {
+                    this.addForceMatch(this.activeConnId, ctx.csvId, target.id);
+                    this.saveCachedPreview(this.activeConnId, this.previewData);
+                }
+            }
+
+            this._linkFromReviewContext = null;
+            this.closeLinkGhostModal();
+            this.renderReviewTable();
+            const successMsg = window.i18n ? window.i18n.t('bank_sync_relink_review_success') || 'Opération liée avec succès !' : 'Opération liée avec succès !';
+            this.showToast(successMsg, 'success');
+            return;
+        }
+
+        const finalReconDate = document.getElementById('linkFinalReconDate')?.value || new Date().toISOString().split('T')[0];
+
+        try {
+            const res = await API.post('/api/bank-sync/link-ghost', {
+                csv_id: ghost.csv_id,
+                target_tx_id: target.id,
+                description: finalDesc,
+                amount: finalAmount,
+                category: finalCat,
+                reconciliation_date: finalReconDate
+            });
+
+            this.closeLinkGhostModal();
+            this.ghostTransactions = this.ghostTransactions.filter(g => g.csv_id !== ghost.csv_id);
+
+            const successMsg = window.i18n ? window.i18n.t('ghost_link_success') || 'Opération liée et pointée avec succès !' : 'Opération liée et pointée avec succès !';
+            this.showToast(successMsg, 'success');
+
+            await this.refreshActiveViews();
+        } catch (err) {
+            console.error('[BankSync] Erreur liaison ghost:', err);
+            if (btnSubmit) btnSubmit.disabled = false;
+            this.showToast('Erreur lors de la liaison : ' + (err.detail || err.message), 'error');
+        }
+    }
 });
+

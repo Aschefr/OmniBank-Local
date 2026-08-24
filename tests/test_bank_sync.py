@@ -3,6 +3,7 @@ Tests pour le module de synchronisation bancaire (Woob & CredentialVault)
 """
 
 import pytest
+from datetime import date
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -1248,6 +1249,336 @@ def test_reconcile_balance_delta_transaction_mode():
     # Vérification du solde pointé calculé
     balances = calculate_balances(test_db, only_reconciled=True)
     assert round(balances.get(acc.id, 0.0), 2) == 46.33
+
+
+def test_link_ghost_to_transaction():
+    """
+    Vérifie la liaison manuelle d'une opération fantôme vers une transaction existante en base.
+    """
+    from datetime import date
+    from fastapi.testclient import TestClient
+
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Compte Courant Test Link", initial_balance=500.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    # 1. Création d'une transaction existante en base avec un montant erroné saisi par l'utilisateur
+    db_tx = Transaction(
+        description="Courses Intermarché",
+        amount=54.20,
+        type="expense_var",
+        category="Alimentation",
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        from_account_id=acc.id,
+        reconciliation_date=None
+    )
+    test_db.add(db_tx)
+    test_db.commit()
+    test_db.refresh(db_tx)
+
+    # 2. Appel de l'endpoint link-ghost avec le montant réel en ligne (56.80 €) et le libellé conservé
+    link_payload = {
+        "csv_id": "woob_ghost_link_test_999",
+        "target_tx_id": db_tx.id,
+        "description": "Courses Intermarché",
+        "amount": 56.80,
+        "category": "Alimentation",
+        "reconciliation_date": date.today().isoformat()
+    }
+
+    res = client.post("/api/bank-sync/link-ghost", json=link_payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["ok"] is True
+    assert data["updated_tx_id"] == db_tx.id
+
+    # 3. Vérification de la mise à jour en base
+    test_db.refresh(db_tx)
+    assert db_tx.amount == 56.80
+    assert db_tx.description == "Courses Intermarché"
+    assert db_tx.reconciliation_date == date.today()
+    assert db_tx.csv_id == "woob_ghost_link_test_999"
+
+
+def test_transactions_search_and_filter():
+    """
+    Vérifie le filtre de recherche de GET /api/transactions/ (recherche par libellé, montant, compte et statut non pointé).
+    """
+    from datetime import date
+    from fastapi.testclient import TestClient
+
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc1 = Account(name="Compte Search 1", initial_balance=100.0)
+    acc2 = Account(name="Compte Search 2", initial_balance=100.0)
+    test_db.add(acc1)
+    test_db.add(acc2)
+    test_db.commit()
+    test_db.refresh(acc1)
+    test_db.refresh(acc2)
+
+    tx1 = Transaction(
+        description="Paiement Restaurant Le Gourmet",
+        amount=42.50,
+        type="expense_var",
+        category="Restaurants",
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        from_account_id=acc1.id,
+        reconciliation_date=None
+    )
+    tx2 = Transaction(
+        description="Abonnement Fibre Internet",
+        amount=29.99,
+        type="expense_fixed",
+        category="Internet",
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        from_account_id=acc1.id,
+        reconciliation_date=date.today()
+    )
+    tx3 = Transaction(
+        description="Paiement Restaurant Pizzeria",
+        amount=18.00,
+        type="expense_var",
+        category="Restaurants",
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        from_account_id=acc2.id,
+        reconciliation_date=None
+    )
+    test_db.add_all([tx1, tx2, tx3])
+    test_db.commit()
+
+    # Recherche par texte
+    res = client.get("/api/transactions/?search=Restaurant")
+    assert res.status_code == 200
+    items = res.json()
+    assert len(items) >= 2
+
+    # Recherche par compte + non pointé uniquement
+    res = client.get(f"/api/transactions/?account_id={acc1.id}&unreconciled_only=true")
+    assert res.status_code == 200
+    items = res.json()
+    descs = [t["description"] for t in items]
+    assert "Paiement Restaurant Le Gourmet" in descs
+    assert "Abonnement Fibre Internet" not in descs
+
+    # Recherche par montant numérique
+    res = client.get("/api/transactions/?search=42.50")
+    assert res.status_code == 200
+    items = res.json()
+    assert any(t["description"] == "Paiement Restaurant Le Gourmet" for t in items)
+
+
+def test_re_evaluate_preview_with_rejected_matches():
+    """Vérifie que les paires csv_id <-> db_id rejetées sont bien exclues du matching automatique."""
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Compte Test Rejet", initial_balance=500.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    tx_wrong = Transaction(
+        description="Floatplane Sub",
+        amount=2.67,
+        type="expense_var",
+        category="Abonnements",
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        from_account_id=acc.id,
+        reconciliation_date=None
+    )
+    test_db.add(tx_wrong)
+    test_db.commit()
+    test_db.refresh(tx_wrong)
+
+    preview_payload = {
+        "accounts": [
+            {
+                "account_id": acc.id,
+                "account_name": acc.name,
+                "transactions": [
+                    {
+                        "csv_id": "woob_goulinou_001",
+                        "description": "Goulinou Intermarche",
+                        "amount": 2.67,
+                        "raw_amount": -2.67,
+                        "date_operation": date.today().isoformat(),
+                        "is_coming": False
+                    }
+                ]
+            }
+        ]
+    }
+
+    # 1. Sans rejet : le moteur fait un match automatique
+    res_normal = client.post("/api/bank-sync/re-evaluate-preview", json=preview_payload)
+    assert res_normal.status_code == 200
+    tx_res = res_normal.json()["accounts"][0]["transactions"][0]
+    assert tx_res["is_reconciled"] is True
+    assert tx_res["matched_db_id"] == tx_wrong.id
+
+    # 2. Avec rejet explicite de cette paire : le moteur refuse le match
+    preview_with_rejected = {
+        **preview_payload,
+        "rejected_matches": [
+            {"csv_id": "woob_goulinou_001", "db_id": tx_wrong.id}
+        ]
+    }
+    res_rejected = client.post("/api/bank-sync/re-evaluate-preview", json=preview_with_rejected)
+    assert res_rejected.status_code == 200
+    tx_res_rej = res_rejected.json()["accounts"][0]["transactions"][0]
+    assert tx_res_rej["is_reconciled"] is False
+    assert tx_res_rej["matched_db_id"] is None
+
+
+def test_re_evaluate_preview_with_force_matches():
+    """Vérifie que les paires forcées manuellement court-circuitent le matching automatique."""
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Compte Test Force", initial_balance=500.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    tx_target = Transaction(
+        description="Floatplane DB Record",
+        amount=2.67,
+        type="expense_var",
+        category="Loisirs",
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        from_account_id=acc.id,
+        reconciliation_date=None
+    )
+    test_db.add(tx_target)
+    test_db.commit()
+    test_db.refresh(tx_target)
+
+    # Montant en ligne légèrement différent (2.68 != 2.67), normalement non matché automatiquement
+    preview_payload = {
+        "accounts": [
+            {
+                "account_id": acc.id,
+                "account_name": acc.name,
+                "transactions": [
+                    {
+                        "csv_id": "woob_paypal_fp_002",
+                        "description": "Paypal Floatplane",
+                        "amount": 2.68,
+                        "raw_amount": -2.68,
+                        "date_operation": date.today().isoformat(),
+                        "is_coming": False
+                    }
+                ]
+            }
+        ],
+        "force_matches": [
+            {"csv_id": "woob_paypal_fp_002", "db_id": tx_target.id}
+        ]
+    }
+
+    res = client.post("/api/bank-sync/re-evaluate-preview", json=preview_payload)
+    assert res.status_code == 200
+    tx_res = res.json()["accounts"][0]["transactions"][0]
+    assert tx_res["is_reconciled"] is True
+    assert tx_res["matched_db_id"] == tx_target.id
+    assert tx_res["db_description"] == "Floatplane DB Record"
+
+
+def test_re_evaluate_preview_unlink_and_relink_user_story():
+    """Scénario complet : Délier Goulinou de Floatplane, lier Goulinou à Intermarché et Paypal à Floatplane."""
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Compte Story", initial_balance=1000.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    tx_fp = Transaction(
+        description="Floatplane",
+        amount=2.67,
+        type="expense_var",
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        from_account_id=acc.id,
+        reconciliation_date=None
+    )
+    tx_inter = Transaction(
+        description="Courses Intermarche",
+        amount=2.67,
+        type="expense_var",
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        from_account_id=acc.id,
+        reconciliation_date=None
+    )
+    test_db.add_all([tx_fp, tx_inter])
+    test_db.commit()
+    test_db.refresh(tx_fp)
+    test_db.refresh(tx_inter)
+
+    # Relevé avec Goulinou (2.67) et Paypal Floatplane (2.68)
+    preview_payload = {
+        "accounts": [
+            {
+                "account_id": acc.id,
+                "account_name": acc.name,
+                "transactions": [
+                    {
+                        "csv_id": "tx_goulinou",
+                        "description": "Goulinou",
+                        "amount": 2.67,
+                        "raw_amount": -2.67,
+                        "date_operation": date.today().isoformat(),
+                        "is_coming": False
+                    },
+                    {
+                        "csv_id": "tx_paypal_fp",
+                        "description": "Paypal Floatplane",
+                        "amount": 2.68,
+                        "raw_amount": -2.68,
+                        "date_operation": date.today().isoformat(),
+                        "is_coming": False
+                    }
+                ]
+            }
+        ],
+        "rejected_matches": [
+            {"csv_id": "tx_goulinou", "db_id": tx_fp.id}
+        ],
+        "force_matches": [
+            {"csv_id": "tx_goulinou", "db_id": tx_inter.id},
+            {"csv_id": "tx_paypal_fp", "db_id": tx_fp.id}
+        ]
+    }
+
+    res = client.post("/api/bank-sync/re-evaluate-preview", json=preview_payload)
+    assert res.status_code == 200
+    txs = res.json()["accounts"][0]["transactions"]
+    
+    goulinou = next(t for t in txs if t["csv_id"] == "tx_goulinou")
+    paypal = next(t for t in txs if t["csv_id"] == "tx_paypal_fp")
+
+    assert goulinou["is_reconciled"] is True
+    assert goulinou["matched_db_id"] == tx_inter.id
+    assert goulinou["db_description"] == "Courses Intermarche"
+
+    assert paypal["is_reconciled"] is True
+    assert paypal["matched_db_id"] == tx_fp.id
+    assert paypal["db_description"] == "Floatplane"
+
 
 
 
