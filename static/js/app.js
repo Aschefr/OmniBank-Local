@@ -228,6 +228,11 @@ class App {
         
         this.updateMobileLangUI();
         this.updateDesktopLangUI();
+
+        // Check running bank sync tasks on app load / F5
+        if (window.BankSyncView && typeof window.BankSyncView.checkBackgroundSyncStatus === 'function') {
+            window.BankSyncView.checkBackgroundSyncStatus();
+        }
         this.populateLangDropdown();
 
         if (langToggleBtn && langMenu) {
@@ -535,6 +540,11 @@ class App {
                 window.BankSyncView.refreshActiveViews();
             }
 
+            // Sync background bank status during notification polling
+            if (window.BankSyncView && typeof window.BankSyncView.checkBackgroundSyncStatus === 'function') {
+                window.BankSyncView.checkBackgroundSyncStatus();
+            }
+
             const pendingCount = (pendingTransfers && Array.isArray(pendingTransfers)) ? pendingTransfers.length : 0;
             const unreadCount = notifs.filter(n => !n.is_read).length + pendingCount;
             const badge = document.getElementById('notifCountBadge');
@@ -665,24 +675,38 @@ class App {
         // 2. Process link redirection if present (close menu only when navigating)
         if (n.link_data) {
             try {
-                const linkObj = JSON.parse(n.link_data);
+                const linkObj = typeof n.link_data === 'string' ? JSON.parse(n.link_data) : n.link_data;
+                const notifMenu = document.getElementById('notifMenu');
+
+                const errStr = String(linkObj.error || n.content || '').toLowerCase();
+                const isVaultOrPasswordIssue = linkObj.action === 'unlock_vault' || 
+                    (n.type === 'bank_sync_error' && (
+                        errStr.includes('mot de passe') || 
+                        errStr.includes('password') || 
+                        errStr.includes('coffre') || 
+                        errStr.includes('vault') || 
+                        errStr.includes('verrouill') ||
+                        errStr.includes('identifiant')
+                    ));
+
                 if (linkObj.session_id) {
                     sessionStorage.setItem('chatActiveSessionId', linkObj.session_id);
                     if (window.ChatView) {
                         window.ChatView.activeSessionId = linkObj.session_id;
                     }
-                    // Close notification menu only when navigating away
-                    const notifMenu = document.getElementById('notifMenu');
                     if (notifMenu) notifMenu.style.display = 'none';
                     this.loadView('chat');
-                } else if (linkObj.action === 'open_pending' || linkObj.action === 'bank_sync') {
-                    const notifMenu = document.getElementById('notifMenu');
+                } else if (isVaultOrPasswordIssue) {
+                    if (notifMenu) notifMenu.style.display = 'none';
+                    if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') {
+                        window.BankSyncView.unlockVaultManually();
+                    }
+                } else if (linkObj.action === 'open_pending') {
                     if (notifMenu) notifMenu.style.display = 'none';
                     if (window.BankSyncView && window.BankSyncView.openPendingReviewModal) {
                         window.BankSyncView.openPendingReviewModal();
                     }
-                } else if (linkObj.view === 'accounts' || linkObj.view === 'accounts_manager') {
-                    const notifMenu = document.getElementById('notifMenu');
+                } else if (linkObj.view === 'accounts' || linkObj.view === 'accounts_manager' || linkObj.action === 'bank_sync' || n.type === 'bank_sync_error') {
                     if (notifMenu) notifMenu.style.display = 'none';
                     if (this.currentView !== 'accounts') {
                         this.loadView('accounts');
@@ -1896,6 +1920,11 @@ class App {
             } else if (window.ImportWizard._aiAbortController && !window.ImportWizard._aiAborted) {
                 window.ImportWizard._setImportBtnState('working');
             }
+        }
+
+        // Re-apply bank sync button animation state across views
+        if (window.BankSyncView && typeof window.BankSyncView.applySyncButtonsState === 'function') {
+            window.BankSyncView.applySyncButtonsState();
         }
     }
 

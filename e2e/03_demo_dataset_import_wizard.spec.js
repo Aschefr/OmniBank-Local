@@ -22,6 +22,7 @@ test.describe('Module B : Assistant d\'importation du Dataset de Démonstration 
     await page.selectOption('#importAccountSelect', { label: 'Compte Courant Test' });
 
     // 4. Cliquer sur l'analyse directe / rapide
+    await dismissOverlays(page);
     const analyzeBtn = page.locator('#btnAnalyzeDirect');
     await expect(analyzeBtn).toBeVisible();
     await analyzeBtn.click();

@@ -41,6 +41,8 @@ async function dismissOverlays(page) {
       if (window.app && typeof window.app.closeChangelog === 'function') {
         window.app.closeChangelog();
       }
+      const cl = document.getElementById('changelogModal');
+      if (cl) cl.style.display = 'none';
       const inline = document.getElementById('inlineConfirm');
       if (inline) inline.style.display = 'none';
     });
@@ -54,7 +56,10 @@ async function openApp(page, { autoDismiss = true } = {}) {
   // Pré-enregistrer la version vue pour éviter le popup du changelog
   await page.addInitScript(() => {
     try {
-      localStorage.setItem('omni_last_seen_version', '1.0.87');
+      localStorage.setItem('omni_last_seen_version', '1.0.89');
+      localStorage.setItem('default_omni_last_seen_version', '1.0.89');
+      localStorage.setItem('omni_last_seen_version', '1.0.88');
+      localStorage.setItem('default_omni_last_seen_version', '1.0.88');
     } catch (e) {}
   });
 

@@ -13,6 +13,9 @@ def init_db(target_engine=None):
         try:
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_budget_id ON transactions (budget_id)"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_category_date ON transactions (category, date_operation)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_date_op ON transactions (date_operation)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_recon_date ON transactions (reconciliation_date, date_operation)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_from_to_date ON transactions (from_account_id, to_account_id, date_operation)"))
             conn.commit()
         except Exception:
             pass
