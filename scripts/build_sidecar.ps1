@@ -89,10 +89,20 @@ if (-not $SkipBuild) {
         --hidden-import "app.routers.budgets" `
         --hidden-import "app.routers.backup" `
         --hidden-import "app.routers.profiles" `
+        --hidden-import "app.routers.bank_sync" `
+        --hidden-import "app.services.bank_sync_service" `
+        --hidden-import "app.services.bank_sync_scheduler" `
+        --hidden-import "app.services.credential_vault" `
         --hidden-import "app._license_secret" `
         --collect-submodules "uvicorn" `
         --collect-submodules "fastapi" `
         --collect-submodules "starlette" `
+        --collect-all "woob" `
+        --collect-all "pycountry" `
+        --collect-all "html2text" `
+        --collect-all "yaml" `
+        --collect-all "unidecode" `
+        --collect-all "lxml" `
         --clean `
         --noconfirm `
         run_server.py
@@ -172,10 +182,20 @@ if (-not $SkipBuild) {
         --hidden-import "app.routers.budgets" `
         --hidden-import "app.routers.backup" `
         --hidden-import "app.routers.profiles" `
+        --hidden-import "app.routers.bank_sync" `
+        --hidden-import "app.services.bank_sync_service" `
+        --hidden-import "app.services.bank_sync_scheduler" `
+        --hidden-import "app.services.credential_vault" `
         --hidden-import "app._license_secret" `
         --collect-submodules "uvicorn" `
         --collect-submodules "fastapi" `
         --collect-submodules "starlette" `
+        --collect-all "woob" `
+        --collect-all "pycountry" `
+        --collect-all "html2text" `
+        --collect-all "yaml" `
+        --collect-all "unidecode" `
+        --collect-all "lxml" `
         --clean `
         --noconfirm `
         run_server.py

@@ -114,14 +114,16 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
       Then looks for an unreconciled planned transaction with a close operation date (+/- 15 days).
     Handles internal transfers across accounts (from_account_id / to_account_id).
     """
-    import pandas as pd
-    from datetime import timedelta
-    if pd.isna(tx_date) or pd.isna(tx_amount):
+    if tx_date is None or tx_amount is None:
+        return None
+    try:
+        abs_amount = abs(float(tx_amount))
+    except (ValueError, TypeError):
         return None
         
-    abs_amount = abs(float(tx_amount))
     epsilon = 0.01
     
+    from datetime import timedelta
     from sqlalchemy import or_, and_, func
     tx_date_str = tx_date.strftime("%Y-%m-%d")
 

@@ -55,7 +55,9 @@ test-results/
 # PyInstaller
 dist/
 build/
+!build/omnibank-api.spec
 *.spec
+!build/*.spec
 !e2e/*.spec.js
 
 # Tauri
