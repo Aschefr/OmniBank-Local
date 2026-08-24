@@ -579,7 +579,7 @@ class BankSyncService:
                     "message": f"Récupération des opérations de [{acc_label}]..."
                 })
 
-            parsed_txs = []
+            history_raw = []
             try:
                 for tx in backend.iter_history(acc):
                     tx_date = getattr(tx, "date", None)
@@ -600,47 +600,16 @@ class BankSyncService:
                     amount = abs(raw_amount)
                     tx_label = (getattr(tx, "label", "") or "Opération bancaire").strip()
 
-                    # Matching de rapprochement contextualisé au compte et aux virements internes
-                    rec_info = check_reconciliation(db, tx_date, raw_amount, matched_ids=matched_ids_global, account_id=local_acc.id)
-                    is_reconciled = False
-                    already_reconciled = False
-                    is_mirror = False
-                    is_orphan_link = False
-                    orphan_acc_id = None
-                    orphan_acc_name = None
-                    matched_id = None
-                    db_desc = None
-
-                    if rec_info:
-                        is_reconciled = True
-                        already_reconciled = rec_info.get("already_reconciled", False)
-                        is_mirror = rec_info.get("is_mirror_transfer", False)
-                        is_orphan_link = rec_info.get("is_orphan_transfer_link", False)
-                        orphan_acc_id = rec_info.get("orphan_account_id")
-                        orphan_acc_name = rec_info.get("orphan_account_name")
-                        matched_id = rec_info.get("id")
-                        db_desc = rec_info.get("description")
-                        if matched_id:
-                            matched_ids_global.add(matched_id)
-
                     raw_hash = hashlib.sha256(f"{connection.backend}_{remote_id}_{tx_date}_{raw_amount}_{tx_label}".encode("utf-8")).hexdigest()[:12]
                     csv_id = f"woob_{connection.backend}_{remote_id}_{raw_hash}"
 
-                    parsed_txs.append({
+                    history_raw.append({
                         "date_operation": tx_date.isoformat(),
+                        "tx_date_obj": tx_date,
                         "description": tx_label,
                         "raw_description": tx_label,
                         "amount": amount,
                         "raw_amount": raw_amount,
-                        "is_reconciled": is_reconciled,
-                        "already_reconciled": already_reconciled,
-                        "is_mirror_transfer": is_mirror,
-                        "is_orphan_transfer_link": is_orphan_link,
-                        "orphan_account_id": orphan_acc_id,
-                        "orphan_account_name": orphan_acc_name,
-                        "matched_db_id": matched_id,
-                        "db_description": db_desc,
-                        "category": None,
                         "csv_id": csv_id,
                         "account_id": local_acc.id,
                         "account_name": local_acc.name,
@@ -650,6 +619,7 @@ class BankSyncService:
             except Exception as hist_err:
                 logger.warning(f"[BankSync] Erreur lecture historique de {acc_label}: {hist_err}")
 
+            coming_raw = []
             # Récupération des opérations à venir (cartes à débit immédiat en attente, prélèvements programmés)
             try:
                 for tx in backend.iter_coming(acc):
@@ -674,44 +644,13 @@ class BankSyncService:
                     raw_hash = hashlib.sha256(f"{connection.backend}_{remote_id}_{tx_date}_{raw_amount}_{tx_label}".encode("utf-8")).hexdigest()[:12]
                     csv_id = f"woob_coming_{connection.backend}_{remote_id}_{raw_hash}"
 
-                    # Matching de rapprochement (même pipeline que iter_history)
-                    rec_info = check_reconciliation(db, tx_date, raw_amount, matched_ids=matched_ids_global, account_id=local_acc.id)
-                    is_reconciled = False
-                    already_reconciled = False
-                    is_mirror = False
-                    is_orphan_link = False
-                    orphan_acc_id = None
-                    orphan_acc_name = None
-                    matched_id = None
-                    db_desc = None
-
-                    if rec_info:
-                        is_reconciled = True
-                        already_reconciled = rec_info.get("already_reconciled", False)
-                        is_mirror = rec_info.get("is_mirror_transfer", False)
-                        is_orphan_link = rec_info.get("is_orphan_transfer_link", False)
-                        orphan_acc_id = rec_info.get("orphan_account_id")
-                        orphan_acc_name = rec_info.get("orphan_account_name")
-                        matched_id = rec_info.get("id")
-                        db_desc = rec_info.get("description")
-                        if matched_id:
-                            matched_ids_global.add(matched_id)
-
-                    parsed_txs.append({
+                    coming_raw.append({
                         "date_operation": tx_date.isoformat(),
+                        "tx_date_obj": tx_date,
                         "description": tx_label,
                         "raw_description": tx_label,
                         "amount": amount,
                         "raw_amount": raw_amount,
-                        "is_reconciled": is_reconciled,
-                        "already_reconciled": already_reconciled,
-                        "is_mirror_transfer": is_mirror,
-                        "is_orphan_transfer_link": is_orphan_link,
-                        "orphan_account_id": orphan_acc_id,
-                        "orphan_account_name": orphan_acc_name,
-                        "matched_db_id": matched_id,
-                        "db_description": db_desc,
-                        "category": None,
                         "csv_id": csv_id,
                         "account_id": local_acc.id,
                         "account_name": local_acc.name,
@@ -720,6 +659,118 @@ class BankSyncService:
                     })
             except Exception as coming_err:
                 logger.debug(f"[BankSync] iter_coming non supporté ou ignoré pour {acc_label}: {coming_err}")
+
+            parsed_txs = []
+
+            # ── PASSE 1 : Matching des opérations confirmées (historique) en priorité ──
+            for item in history_raw:
+                tx_date = item["tx_date_obj"]
+                raw_amount = item["raw_amount"]
+                rec_info = check_reconciliation(
+                    db,
+                    tx_date,
+                    raw_amount,
+                    matched_ids=matched_ids_global,
+                    account_id=local_acc.id,
+                    is_coming=False
+                )
+                is_reconciled = False
+                already_reconciled = False
+                is_mirror = False
+                is_orphan_link = False
+                orphan_acc_id = None
+                orphan_acc_name = None
+                matched_id = None
+                db_desc = None
+
+                if rec_info:
+                    is_reconciled = True
+                    already_reconciled = rec_info.get("already_reconciled", False)
+                    is_mirror = rec_info.get("is_mirror_transfer", False)
+                    is_orphan_link = rec_info.get("is_orphan_transfer_link", False)
+                    orphan_acc_id = rec_info.get("orphan_account_id")
+                    orphan_acc_name = rec_info.get("orphan_account_name")
+                    matched_id = rec_info.get("id")
+                    db_desc = rec_info.get("description")
+                    if matched_id:
+                        matched_ids_global.add(matched_id)
+
+                parsed_txs.append({
+                    "date_operation": item["date_operation"],
+                    "description": item["description"],
+                    "raw_description": item["raw_description"],
+                    "amount": item["amount"],
+                    "raw_amount": raw_amount,
+                    "is_reconciled": is_reconciled,
+                    "already_reconciled": already_reconciled,
+                    "is_mirror_transfer": is_mirror,
+                    "is_orphan_transfer_link": is_orphan_link,
+                    "orphan_account_id": orphan_acc_id,
+                    "orphan_account_name": orphan_acc_name,
+                    "matched_db_id": matched_id,
+                    "db_description": db_desc,
+                    "category": None,
+                    "csv_id": item["csv_id"],
+                    "account_id": local_acc.id,
+                    "account_name": local_acc.name,
+                    "remote_id": remote_id,
+                    "is_coming": False
+                })
+
+            # ── PASSE 2 : Matching des opérations à venir (en attente bancaire) ──
+            for item in coming_raw:
+                tx_date = item["tx_date_obj"]
+                raw_amount = item["raw_amount"]
+                rec_info = check_reconciliation(
+                    db,
+                    tx_date,
+                    raw_amount,
+                    matched_ids=matched_ids_global,
+                    account_id=local_acc.id,
+                    is_coming=True
+                )
+                is_reconciled = False
+                already_reconciled = False
+                is_mirror = False
+                is_orphan_link = False
+                orphan_acc_id = None
+                orphan_acc_name = None
+                matched_id = None
+                db_desc = None
+
+                if rec_info:
+                    is_reconciled = True
+                    already_reconciled = rec_info.get("already_reconciled", False)
+                    is_mirror = rec_info.get("is_mirror_transfer", False)
+                    is_orphan_link = rec_info.get("is_orphan_transfer_link", False)
+                    orphan_acc_id = rec_info.get("orphan_account_id")
+                    orphan_acc_name = rec_info.get("orphan_account_name")
+                    matched_id = rec_info.get("id")
+                    db_desc = rec_info.get("description")
+                    if matched_id:
+                        matched_ids_global.add(matched_id)
+
+                parsed_txs.append({
+                    "date_operation": item["date_operation"],
+                    "description": item["description"],
+                    "raw_description": item["raw_description"],
+                    "amount": item["amount"],
+                    "raw_amount": raw_amount,
+                    "is_reconciled": is_reconciled,
+                    "already_reconciled": already_reconciled,
+                    "is_mirror_transfer": is_mirror,
+                    "is_orphan_transfer_link": is_orphan_link,
+                    "orphan_account_id": orphan_acc_id,
+                    "orphan_account_name": orphan_acc_name,
+                    "matched_db_id": matched_id,
+                    "db_description": db_desc,
+                    "category": None,
+                    "csv_id": item["csv_id"],
+                    "account_id": local_acc.id,
+                    "account_name": local_acc.name,
+                    "remote_id": remote_id,
+                    "is_coming": True
+                })
 
             # Tri chronologique décroissant des opérations (les plus récentes en premier)
             parsed_txs.sort(key=lambda x: str(x.get("date_operation") or ""), reverse=True)
@@ -881,6 +932,14 @@ class BankSyncService:
                 op_date = date.today()
 
             is_coming = bool(item.get("is_coming", False))
+            recon_date_val = None
+            if item.get("reconciliation_date"):
+                try:
+                    recon_date_val = datetime.strptime(str(item["reconciliation_date"])[:10], "%Y-%m-%d").date()
+                except Exception:
+                    recon_date_val = None
+            elif not is_coming:
+                recon_date_val = date.today()
 
             new_tx = Transaction(
                 csv_id=csv_id,
@@ -890,7 +949,7 @@ class BankSyncService:
                 amount=amt,
                 type=t_type,
                 category=item.get("category"),
-                reconciliation_date=None if is_coming else date.today(),
+                reconciliation_date=recon_date_val,
                 from_account_id=from_acc,
                 to_account_id=to_acc,
                 created_by="Banque (Sync)"
@@ -902,7 +961,7 @@ class BankSyncService:
 
             record_action(db, "transaction", new_tx.id, "CREATE", None, snapshot_entity(new_tx), user_name="Banque (Sync)")
             imported += 1
-            if not is_coming:
+            if not is_coming and recon_date_val is not None:
                 account_net_flows[account_id] += raw_amt
 
             # Auto-apprentissage transparent dans la base de connaissances Smart Label
@@ -918,15 +977,23 @@ class BankSyncService:
         # Rétro-calcul automatique du solde initial pour les comptes nouvellement alimentés :
         # Pour que Solde Initial + Somme(opérations_importées) == Solde Réel de la banque au départ.
         for acc_id, initial_tx_count in account_initial_tx_counts.items():
-            if initial_tx_count == 0 and account_net_flows.get(acc_id, 0.0) != 0.0:
+            if initial_tx_count == 0 and account_net_flows[acc_id] != 0.0:
                 acc = db.query(Account).filter(Account.id == acc_id).first()
-                if acc and acc.initial_balance is not None:
-                    original_init = acc.initial_balance
-                    acc.initial_balance = round(acc.initial_balance - account_net_flows[acc_id], 2)
-                    logger.info(
-                        f"[BankSync] Rétro-calcul solde initial pour compte #{acc.id} '{acc.name}' : "
-                        f"{original_init:.2f} -> {acc.initial_balance:.2f} (flux net importé : {account_net_flows[acc_id]:+.2f} €)"
-                    )
+                if acc:
+                    # Trouver le solde bancaire distant associé à ce compte s'il existe dans le preview
+                    # Le solde initial devient : Solde_banque_actuel - Net_des_opérations_importées
+                    matching_preview_acc = None
+                    # Recherche dans le résumé en mémoire
+                    for prev_acc in summary.get("accounts", []) if 'summary' in locals() else []:
+                        if prev_acc.get("account_id") == acc_id and prev_acc.get("bank_balance") is not None:
+                            matching_preview_acc = prev_acc
+                            break
+
+                    if matching_preview_acc and matching_preview_acc.get("bank_balance") is not None:
+                        bank_bal = float(matching_preview_acc["bank_balance"])
+                        computed_init_bal = round(bank_bal - account_net_flows[acc_id], 2)
+                        acc.initial_balance = computed_init_bal
+                        logger.info(f"[BankSync] Ajustement rétroactif automatique du solde initial pour le compte '{acc.name}' (id={acc.id}) : {computed_init_bal} €")
 
         if conn:
             conn.last_sync_at = datetime.now(timezone.utc)
@@ -935,7 +1002,13 @@ class BankSyncService:
             conn.last_error = None
 
         db.commit()
-        stats_cache.invalidate()
+        
+        # Invalider le cache et recalculer
+        try:
+            from app.services.finance_engine import invalidate_cache
+            invalidate_cache()
+        except Exception:
+            pass
 
         return {
             "imported": imported,
@@ -988,36 +1061,51 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
         if local_acc_id:
             acc["local_reconciled_balance"] = round(balances_reconciled.get(local_acc_id, 0.0), 2)
 
-        re_evaluated_txs = []
-        for tx in acc.get("transactions", []):
-            tx_copy = dict(tx)
-            is_coming = bool(tx.get("is_coming", False))
-            tx_copy["is_coming"] = is_coming
-            tx_date_str = tx.get("date_operation")
-            raw_amount = tx.get("raw_amount")
+        txs = acc.get("transactions", [])
+        confirmed_txs = [tx for tx in txs if not tx.get("is_coming", False)]
+        coming_txs = [tx for tx in txs if tx.get("is_coming", False)]
 
-            if tx_date_str and raw_amount is not None and local_acc_id:
-                try:
-                    tx_date = date.fromisoformat(str(tx_date_str)[:10])
-                    rec_info = check_reconciliation(
-                        db,
-                        tx_date,
-                        float(raw_amount),
-                        matched_ids=matched_ids_global,
-                        account_id=local_acc_id
-                    )
-                    if rec_info:
-                        tx_copy["is_reconciled"] = True
-                        tx_copy["already_reconciled"] = rec_info.get("already_reconciled", False)
-                        tx_copy["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
-                        tx_copy["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
-                        tx_copy["orphan_account_id"] = rec_info.get("orphan_account_id")
-                        tx_copy["orphan_account_name"] = rec_info.get("orphan_account_name")
-                        tx_copy["matched_db_id"] = rec_info.get("id")
-                        tx_copy["db_description"] = rec_info.get("description")
-                        if rec_info.get("id"):
-                            matched_ids_global.add(rec_info.get("id"))
-                    else:
+        def _evaluate_tx_list(tx_list, is_coming_flag):
+            result_list = []
+            for tx in tx_list:
+                tx_copy = dict(tx)
+                tx_copy["is_coming"] = is_coming_flag
+                tx_date_str = tx.get("date_operation")
+                raw_amount = tx.get("raw_amount")
+
+                if tx_date_str and raw_amount is not None and local_acc_id:
+                    try:
+                        tx_date = date.fromisoformat(str(tx_date_str)[:10])
+                        rec_info = check_reconciliation(
+                            db,
+                            tx_date,
+                            float(raw_amount),
+                            matched_ids=matched_ids_global,
+                            account_id=local_acc_id,
+                            is_coming=is_coming_flag
+                        )
+                        if rec_info:
+                            tx_copy["is_reconciled"] = True
+                            tx_copy["already_reconciled"] = rec_info.get("already_reconciled", False)
+                            tx_copy["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
+                            tx_copy["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
+                            tx_copy["orphan_account_id"] = rec_info.get("orphan_account_id")
+                            tx_copy["orphan_account_name"] = rec_info.get("orphan_account_name")
+                            tx_copy["matched_db_id"] = rec_info.get("id")
+                            tx_copy["db_description"] = rec_info.get("description")
+                            if rec_info.get("id"):
+                                matched_ids_global.add(rec_info.get("id"))
+                        else:
+                            tx_copy["is_reconciled"] = False
+                            tx_copy["already_reconciled"] = False
+                            tx_copy["is_mirror_transfer"] = False
+                            tx_copy["is_orphan_transfer_link"] = False
+                            tx_copy["orphan_account_id"] = None
+                            tx_copy["orphan_account_name"] = None
+                            tx_copy["matched_db_id"] = None
+                            tx_copy["db_description"] = None
+                    except Exception as err:
+                        logger.warning(f"[BankSync] Erreur re-matching preview tx: {err}")
                         tx_copy["is_reconciled"] = False
                         tx_copy["already_reconciled"] = False
                         tx_copy["is_mirror_transfer"] = False
@@ -1026,14 +1114,19 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
                         tx_copy["orphan_account_name"] = None
                         tx_copy["matched_db_id"] = None
                         tx_copy["db_description"] = None
-                except Exception as err:
-                    logger.warning(f"[BankSync] Erreur re-matching preview tx: {err}")
 
-            re_evaluated_txs.append(tx_copy)
+                result_list.append(tx_copy)
+            return result_list
 
+        # Passe 1: Transactions confirmées (historique) en priorité
+        re_evaluated_confirmed = _evaluate_tx_list(confirmed_txs, is_coming_flag=False)
+        # Passe 2: Transactions à venir (en attente en ligne) ensuite
+        re_evaluated_coming = _evaluate_tx_list(coming_txs, is_coming_flag=True)
+
+        all_re_evaluated = re_evaluated_confirmed + re_evaluated_coming
         # Tri chronologique décroissant (plus récentes en premier)
-        re_evaluated_txs.sort(key=lambda x: str(x.get("date_operation") or ""), reverse=True)
-        acc["transactions"] = re_evaluated_txs
+        all_re_evaluated.sort(key=lambda x: str(x.get("date_operation") or ""), reverse=True)
+        acc["transactions"] = all_re_evaluated
 
     # Résolution des libellés intelligents pour toutes les opérations qui ne sont plus rapprochées
     raw_labels = []

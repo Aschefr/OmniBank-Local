@@ -92,6 +92,14 @@ class ApplyInterestRequest(BaseModel):
     category: Optional[str] = "Intérêts"
 
 
+class BalanceDeltaAdjustRequest(BaseModel):
+    mode: str  # "initial_balance" ou "transaction"
+    delta: float  # Montant de l'écart à combler (ex: +125.98 ou -50.00)
+    transaction_date: Optional[date] = None
+    transaction_description: Optional[str] = "Régularisation / Intérêts bancaires"
+    transaction_category: Optional[str] = "Intérêts"
+
+
 @router.get("/{acc_id}/financial-info")
 def get_account_financial_info(acc_id: int, db: Session = Depends(get_db)):
     acc = db.query(Account).filter(Account.id == acc_id).first()
@@ -168,3 +176,78 @@ def apply_savings_interest(acc_id: int, req: ApplyInterestRequest, db: Session =
     db.commit()
     stats_cache.invalidate()
     return {"ok": True, "transaction_id": new_tx.id, "action_id": action_id}
+
+
+@router.post("/{acc_id}/reconcile-balance-delta")
+def reconcile_account_balance_delta(acc_id: int, req: BalanceDeltaAdjustRequest, db: Session = Depends(get_db)):
+    """
+    Ajuste instantanément l'écart de solde entre la banque et OmniBank pour le compte spécifié.
+    - mode == 'initial_balance' : ajuste le solde de départ du compte sans créer de transaction.
+    - mode == 'transaction' : crée une écriture pointée du montant exact (idéal intérêts de livret).
+    """
+    acc = db.query(Account).filter(Account.id == acc_id).first()
+    if not acc:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    if abs(req.delta) < 0.005:
+        return {"ok": True, "message": "Aucun écart à ajuster"}
+
+    if req.mode == "initial_balance":
+        old_snapshot = snapshot_entity(acc)
+        new_init = round((acc.initial_balance or 0.0) + req.delta, 2)
+        acc.initial_balance = new_init
+        db.flush()
+        action_id = record_action(db, "account", acc.id, "UPDATE", old_snapshot, snapshot_entity(acc))
+        db.commit()
+        stats_cache.invalidate()
+        try:
+            from app.services.finance_engine import invalidate_cache
+            invalidate_cache()
+        except Exception:
+            pass
+        return {
+            "ok": True,
+            "mode": "initial_balance",
+            "account_id": acc.id,
+            "new_initial_balance": new_init,
+            "action_id": action_id
+        }
+
+    elif req.mode == "transaction":
+        op_date = req.transaction_date or date.today()
+        is_income = req.delta >= 0
+        amt = abs(round(req.delta, 2))
+        desc = req.transaction_description or ("Intérêts annuels" if is_income else "Régularisation bancaire")
+        cat = req.transaction_category or ("Intérêts" if is_income else "Frais bancaires")
+
+        new_tx = Transaction(
+            date_saisie=date.today(),
+            date_operation=op_date,
+            description=desc,
+            amount=amt,
+            type="income" if is_income else "expense_var",
+            category=cat,
+            reconciliation_date=date.today(),
+            from_account_id=None if is_income else acc.id,
+            to_account_id=acc.id if is_income else None,
+            created_by="Ajustement Solde (1-clic)"
+        )
+        db.add(new_tx)
+        db.flush()
+        action_id = record_action(db, "transaction", new_tx.id, "CREATE", None, snapshot_entity(new_tx), user_name="Ajustement Solde (1-clic)")
+        db.commit()
+        stats_cache.invalidate()
+        try:
+            from app.services.finance_engine import invalidate_cache
+            invalidate_cache()
+        except Exception:
+            pass
+        return {
+            "ok": True,
+            "mode": "transaction",
+            "account_id": acc.id,
+            "transaction_id": new_tx.id,
+            "action_id": action_id
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Mode d'ajustement invalide (attendu: 'initial_balance' ou 'transaction')")
