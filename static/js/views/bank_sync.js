@@ -68,6 +68,80 @@ window.BankSyncView = {
         }
     },
 
+    // ── GESTION DES DÉROGATIONS DE RAPPROCHEMENT (REJECTED & FORCED MATCHES) ──
+    getRejectedMatches(connId) {
+        try {
+            return JSON.parse(sessionStorage.getItem(`omnibank_sync_rejected_${connId}`) || '[]');
+        } catch { return []; }
+    },
+
+    addRejectedMatch(connId, csvId, dbId) {
+        if (!connId || !csvId || !dbId) return;
+        const list = this.getRejectedMatches(connId);
+        if (!list.some(r => r.csv_id === csvId && r.db_id === dbId)) {
+            list.push({ csv_id: csvId, db_id: dbId });
+        }
+        sessionStorage.setItem(`omnibank_sync_rejected_${connId}`, JSON.stringify(list));
+    },
+
+    getForceMatches(connId) {
+        try {
+            return JSON.parse(sessionStorage.getItem(`omnibank_sync_forced_${connId}`) || '[]');
+        } catch { return []; }
+    },
+
+    addForceMatch(connId, csvId, dbId) {
+        if (!connId || !csvId || !dbId) return;
+        let list = this.getForceMatches(connId);
+        list = list.filter(f => f.csv_id !== csvId);
+        list.push({ csv_id: csvId, db_id: dbId });
+        sessionStorage.setItem(`omnibank_sync_forced_${connId}`, JSON.stringify(list));
+    },
+
+    removeForceMatch(connId, csvId) {
+        if (!connId || !csvId) return;
+        let list = this.getForceMatches(connId);
+        list = list.filter(f => f.csv_id !== csvId);
+        sessionStorage.setItem(`omnibank_sync_forced_${connId}`, JSON.stringify(list));
+    },
+
+    clearMatchOverrides(connId) {
+        if (!connId) return;
+        sessionStorage.removeItem(`omnibank_sync_rejected_${connId}`);
+        sessionStorage.removeItem(`omnibank_sync_forced_${connId}`);
+    },
+
+    clearCachedPreview(connId) {
+        if (!connId) return;
+        sessionStorage.removeItem(`omnibank_sync_preview_${connId}`);
+    },
+
+    async clearAllCaches() {
+        // 1. Vider tous les caches sessionStorage (previews + overrides)
+        const keysToRemove = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const k = sessionStorage.key(i);
+            if (k && (k.startsWith('omnibank_sync_preview_') ||
+                      k.startsWith('omnibank_sync_rejected_') ||
+                      k.startsWith('omnibank_sync_forced_'))) {
+                keysToRemove.push(k);
+            }
+        }
+        keysToRemove.forEach(k => sessionStorage.removeItem(k));
+
+        // 2. Purger le sas d'attente côté serveur
+        try {
+            await API.post('/api/bank-sync/purge-pending');
+        } catch (e) {
+            console.warn('[BankSync] Erreur purge sas backend:', e);
+        }
+
+        // 3. Rafraîchir l'UI
+        this.showToast(window.i18n ? window.i18n.t('bank_sync_cache_purged') || 'Sas de synchronisation vidé.' : 'Sas de synchronisation vidé.', 'success');
+        await this.loadPendingSync();
+        if (window.OverviewView && window.OverviewView.init) window.OverviewView.init();
+    },
+
     // ── CACHE DES COMPTES DISTANTS À ASSOCIER (MAPPING INSTANTANÉ) ────
     _getRemoteAccountsCacheKey(conn) {
         if (!conn) return null;
@@ -384,20 +458,36 @@ window.BankSyncView = {
         </div>
 
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <!-- Modale : Revue & Validation des Opérations (Style Import Relevé) -->
+        <!-- Modale : Cockpit Unifié — Revue & Validation des Opérations              -->
+        <!-- Sert à la fois pour la synchro bancaire ET l'import de relevé CSV/XLSX    -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <div id="bankSyncReviewModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1060; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 96%; max-width: 1100px; height: 92vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px rgba(0,0,0,0.5); overflow: hidden;">
+            <datalist id="bankSyncDescList"></datalist>
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 96%; max-width: 1550px; height: 92vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px rgba(0,0,0,0.5); overflow: hidden;">
                 <div style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card);">
                     <div>
                         <h3 id="reviewModalTitle" style="margin: 0 0 4px 0; font-size: 18px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                            <span>📥</span> <span data-i18n="bank_sync_review_title">${window.i18n.t('bank_sync_review_title')}</span>
+                            <span id="reviewModalIcon">📥</span> <span id="reviewModalTitleText" data-i18n="bank_sync_review_title">${window.i18n.t('bank_sync_review_title')}</span>
                         </h3>
                         <p id="reviewModalSubtitle" style="margin: 0; font-size: 13px; color: var(--text-muted);" data-i18n="bank_sync_review_subtitle">
                             ${window.i18n.t('bank_sync_review_subtitle')}
                         </p>
                     </div>
                     <button onclick="window.BankSyncView.closeReviewModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted);">&times;</button>
+                </div>
+
+                <!-- Barre CSV Import : Sélection de compte + Alertes (masqué en mode synchro) -->
+                <div id="reviewCsvBar" style="display: none; padding: 10px 24px; background: var(--bg-base); border-bottom: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap;" data-i18n="label_link_account">Lier au compte :</label>
+                            <select id="reviewCsvAccountSelect" class="inline-input" style="padding: 6px 10px; border-radius: 8px; font-size: 13px; min-width: 220px; border: 1px solid var(--border-color); background: var(--bg-card);" onchange="window.BankSyncView.onCsvAccountChanged()">
+                                <option value="" data-i18n="opt_no_account">-- Aucun compte sélectionné --</option>
+                            </select>
+                        </div>
+                        <div id="reviewCsvAlertBox" style="display: none; flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 12px; border: 1px solid rgba(230, 126, 34, 0.5); background-color: rgba(230, 126, 34, 0.1); color: var(--text-color); line-height: 1.4;"></div>
+                        <div id="reviewCsvBalanceBadge" style="display: none; font-size: 12px;"></div>
+                    </div>
                 </div>
 
                 <div style="padding: 12px 24px; background: var(--bg-base); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
@@ -421,6 +511,9 @@ window.BankSyncView = {
                     <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
                         <thead style="position: sticky; top: 0; background: var(--bg-card); z-index: 10; box-shadow: 0 1px 0 var(--border-color);">
                             <tr>
+                                <th style="padding: 10px 14px; width: 44px; text-align: center;">
+                                    <input type="checkbox" id="syncCheckAll" onchange="window.BankSyncView.toggleCheckAll(this.checked)" checked title="${window.i18n ? window.i18n.t('bank_sync_check_all_tooltip') || 'Tout cocher / Tout décocher' : 'Tout cocher / Tout décocher'}" style="cursor: pointer; transform: scale(1.15);">
+                                </th>
                                 <th style="padding: 10px 14px; width: 130px; color: var(--text-muted);" data-i18n="bank_sync_th_date">${window.i18n.t('bank_sync_th_date')}</th>
                                 <th style="padding: 10px 14px; color: var(--text-muted);" data-i18n="bank_sync_th_description">${window.i18n.t('bank_sync_th_description')}</th>
                                 <th style="padding: 10px 14px; width: 230px; color: var(--text-muted);" data-i18n="bank_sync_th_category">${window.i18n.t('bank_sync_th_category')}</th>
@@ -434,7 +527,7 @@ window.BankSyncView = {
                 </div>
 
                 <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); background: var(--bg-card); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                    <div id="reviewSummaryBox" style="font-size: 13px; color: var(--text-main); display: flex; gap: 16px;"></div>
+                    <div id="reviewSummaryBox" style="font-size: 13px; color: var(--text-main); display: flex; gap: 16px; flex-wrap: wrap; align-items: center;"></div>
                     <div style="display: flex; gap: 10px;">
                         <button class="btn btn-secondary" onclick="window.BankSyncView.closeReviewModal()" data-i18n="bank_sync_btn_cancel">
                             ${window.i18n.t('bank_sync_btn_cancel')}
@@ -587,6 +680,124 @@ window.BankSyncView = {
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════════════════════════ -->
+        <!-- Modale : Liaison Manuelle Ghost -> Opération DB -->
+        <!-- ════════════════════════════════════════════════════════════════════════════ -->
+        <div id="linkGhostModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1250; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 680px; max-height: 90vh; box-shadow: 0 25px 50px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column;">
+                
+                <!-- En-tête -->
+                <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card);">
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                        <span>🔗</span> <span data-i18n="ghost_link_modal_title">${window.i18n ? window.i18n.t('ghost_link_modal_title', 'Lier l\'opération en ligne à la base de données') : 'Lier l\'opération en ligne à la base de données'}</span>
+                    </h3>
+                    <button onclick="window.BankSyncView.closeLinkGhostModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); line-height: 1;">&times;</button>
+                </div>
+
+                <!-- Corps scrollable -->
+                <div style="padding: 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+                    
+                    <!-- Carte résumé de l'opération en ligne (Ghost) -->
+                    <div id="linkGhostSourceSummary" style="background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 12px 16px;">
+                    </div>
+
+                    <!-- Barre de recherche DB -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label style="font-size: 12px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_search_label">
+                                ${window.i18n ? window.i18n.t('ghost_link_search_label', 'Rechercher une opération existante') : 'Rechercher une opération existante'}
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); cursor: pointer;">
+                                <input type="checkbox" id="linkGhostUnrecOnly" checked onchange="window.BankSyncView.onLinkGhostSearchInput()" />
+                                <span data-i18n="ghost_link_search_unrec_only">${window.i18n ? window.i18n.t('ghost_link_search_unrec_only', 'Non pointées uniquement') : 'Non pointées uniquement'}</span>
+                            </label>
+                        </div>
+                        <div style="position: relative;">
+                            <input type="text" id="linkGhostSearchInput" class="input-styled" style="width: 100%; font-size: 13px; padding: 8px 12px 8px 34px; border-radius: 8px;" placeholder="${window.i18n ? window.i18n.t('ghost_link_search_placeholder', 'Rechercher par libellé, catégorie ou montant (ex: 45.50)...') : 'Rechercher par libellé, catégorie ou montant (ex: 45.50)...'}" oninput="window.BankSyncView.onLinkGhostSearchInput()" />
+                            <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.5;">🔍</span>
+                        </div>
+                    </div>
+
+                    <!-- Liste des résultats de recherche -->
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="ghost_link_select_hint">
+                            ${window.i18n ? window.i18n.t('ghost_link_select_hint', 'Sélectionnez une opération ci-dessous pour la lier :') : 'Sélectionnez une opération ci-dessous pour la lier :'}
+                        </span>
+                        <div id="linkGhostResultsList" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-base); padding: 6px; display: flex; flex-direction: column; gap: 4px;">
+                        </div>
+                    </div>
+
+                    <!-- Panneau de résolution des conflits de champs -->
+                    <div id="linkGhostResolutionPanel" style="display: none; background: var(--bg-surface, var(--bg-base)); border: 1px solid var(--accent, #6366f1); border-radius: 12px; padding: 14px 16px; flex-direction: column; gap: 14px;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                <span>⚖️</span> <span data-i18n="ghost_link_resolution_title">${window.i18n ? window.i18n.t('ghost_link_resolution_title', 'Résolution des champs avant liaison') : 'Résolution des champs avant liaison'}</span>
+                            </div>
+                            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;" data-i18n="ghost_link_resolution_subtitle">
+                                ${window.i18n ? window.i18n.t('ghost_link_resolution_subtitle', 'Choisissez quelle valeur conserver pour chaque champ ou modifiez-la manuellement :') : 'Choisissez quelle valeur conserver pour chaque champ ou modifiez-la manuellement :'}
+                            </div>
+                        </div>
+
+                        <!-- Ligne Libellé -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label style="font-size: 11.5px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_desc">${window.i18n ? window.i18n.t('ghost_link_field_desc', 'Libellé') : 'Libellé'}</label>
+                                <div style="display: flex; gap: 4px;">
+                                    <button type="button" class="btn btn-xs" id="linkPillDescDb" onclick="window.BankSyncView.setLinkFieldSource('desc', 'db')">${window.i18n ? window.i18n.t('ghost_link_source_db', 'OmniBank') : 'OmniBank'}</button>
+                                    <button type="button" class="btn btn-xs" id="linkPillDescOnline" onclick="window.BankSyncView.setLinkFieldSource('desc', 'online')">${window.i18n ? window.i18n.t('ghost_link_source_online', 'En ligne') : 'En ligne'}</button>
+                                </div>
+                            </div>
+                            <input type="text" id="linkFinalDesc" class="input-styled" style="width: 100%; font-size: 12px; padding: 6px 10px; border-radius: 6px;" />
+                        </div>
+
+                        <!-- Ligne Montant -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label style="font-size: 11.5px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_amount">${window.i18n ? window.i18n.t('ghost_link_field_amount', 'Montant') : 'Montant'}</label>
+                                <div style="display: flex; gap: 4px;">
+                                    <button type="button" class="btn btn-xs" id="linkPillAmountDb" onclick="window.BankSyncView.setLinkFieldSource('amount', 'db')">${window.i18n ? window.i18n.t('ghost_link_source_db', 'OmniBank') : 'OmniBank'}</button>
+                                    <button type="button" class="btn btn-xs" id="linkPillAmountOnline" onclick="window.BankSyncView.setLinkFieldSource('amount', 'online')">${window.i18n ? window.i18n.t('ghost_link_source_online', 'En ligne') : 'En ligne'}</button>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <input type="number" step="0.01" id="linkFinalAmount" class="input-styled" style="flex: 1; font-size: 12px; padding: 6px 10px; border-radius: 6px;" />
+                                <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">€</span>
+                            </div>
+                        </div>
+
+                        <!-- Ligne Catégorie -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label style="font-size: 11.5px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_category">${window.i18n ? window.i18n.t('ghost_link_field_category', 'Catégorie') : 'Catégorie'}</label>
+                                <div style="display: flex; gap: 4px;">
+                                    <button type="button" class="btn btn-xs" id="linkPillCatDb" onclick="window.BankSyncView.setLinkFieldSource('cat', 'db')">${window.i18n ? window.i18n.t('ghost_link_source_db', 'OmniBank') : 'OmniBank'}</button>
+                                    <button type="button" class="btn btn-xs" id="linkPillCatOnline" onclick="window.BankSyncView.setLinkFieldSource('cat', 'online')">${window.i18n ? window.i18n.t('ghost_link_source_online', 'En ligne') : 'En ligne'}</button>
+                                </div>
+                            </div>
+                            <select id="linkFinalCategory" class="input-styled" style="width: 100%; font-size: 12px; padding: 6px 10px; border-radius: 6px;">
+                            </select>
+                        </div>
+
+                        <!-- Ligne Date de Pointage -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label style="font-size: 11.5px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_recon_date">${window.i18n ? window.i18n.t('ghost_link_field_recon_date', 'Date de pointage') : 'Date de pointage'}</label>
+                            <input type="date" id="linkFinalReconDate" class="input-styled" style="width: 100%; font-size: 12px; padding: 6px 10px; border-radius: 6px;" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pied de modale avec boutons d'actions -->
+                <div style="padding: 12px 20px; border-top: 1px solid var(--border-color); background: var(--bg-card); display: flex; justify-content: flex-end; gap: 10px; align-items: center;">
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.closeLinkGhostModal()" data-i18n="bank_sync_btn_cancel">
+                        ${window.i18n ? window.i18n.t('bank_sync_btn_cancel', 'Annuler') : 'Annuler'}
+                    </button>
+                    <button id="btnSubmitLinkGhost" class="btn btn-primary" onclick="window.BankSyncView.submitGhostLink()" style="font-weight: 700; padding: 8px 16px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;" disabled>
+                        <span data-i18n="ghost_link_submit_btn">${window.i18n ? window.i18n.t('ghost_link_submit_btn', '🔗 Lier et pointer l\'opération') : '🔗 Lier et pointer l\'opération'}</span>
+                    </button>
                 </div>
             </div>
         </div>
