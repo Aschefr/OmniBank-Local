@@ -1580,6 +1580,94 @@ def test_re_evaluate_preview_unlink_and_relink_user_story():
     assert paypal["db_description"] == "Floatplane"
 
 
+def test_csv_multi_account_import_to_pending():
+    """Vérifie l'extraction multi-comptes depuis un relevé fichier et son injection dans le sas d'attente (opérations fantômes)."""
+    client = TestClient(fastapi_app)
+    db = next(fastapi_app.dependency_overrides[get_db]())
+
+    # 1. Créer 2 comptes en base : Courant et Livret A
+    acc_courant = Account(name="CA Centre-Est Courant", type="Compte courant", initial_balance=1000.0)
+    acc_livret = Account(name="Livret A", type="Épargne", initial_balance=5000.0)
+    db.add_all([acc_courant, acc_livret])
+    db.commit()
+
+    # 2. Préparer un CSV multi-comptes typique (Crédit Agricole)
+    csv_content = (
+        "Compte de dépôt N° 123456789\n"
+        "Solde au 24/08/2026 : 1 250,50 €\n"
+        "Date;Libellé;Débit;Crédit\n"
+        "24/08/2026;PRLV EDF;-85,00;\n"
+        "23/08/2026;VIR SALAIRE;;2500,00\n"
+        "\n"
+        "Livret A N° 987654321\n"
+        "Solde au 24/08/2026 : 5 100,00 €\n"
+        "Date;Libellé;Débit;Crédit\n"
+        "20/08/2026;INTERETS LIVRET;;100,00\n"
+    )
+
+    import io
+    file_payload = {"file": ("releve_ca.csv", io.BytesIO(csv_content.encode("utf-8-sig")), "text/csv")}
+
+    # 3. Appeler le endpoint /api/csv/import_to_pending
+    res = client.post("/api/csv/import_to_pending", files=file_payload)
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["_source"] == "csv_import"
+    assert len(data["accounts"]) == 2
+
+    # Vérifier le mapping automatique des comptes
+    sec_courant = next((a for a in data["accounts"] if "dépôt" in a["section_title"].lower() or "courant" in a["account_name"].lower()), None)
+    sec_livret = next((a for a in data["accounts"] if "livret" in a["section_title"].lower() or "livret" in a["account_name"].lower()), None)
+
+    assert sec_courant is not None
+    assert sec_courant["account_id"] == acc_courant.id
+    assert len(sec_courant["transactions"]) == 2
+    assert sec_courant["bank_balance"] == 1250.50
+
+    assert sec_livret is not None
+    assert sec_livret["account_id"] == acc_livret.id
+    assert len(sec_livret["transactions"]) == 1
+    assert sec_livret["bank_balance"] == 5100.00
+
+    # 4. Vérifier que les opérations sont désormais dans le sas d'attente (/api/bank-sync/pending)
+    pending_res = client.get("/api/bank-sync/pending")
+    assert pending_res.status_code == 200
+    pending_data = pending_res.json()
+
+    # Doit contenir les 3 opérations fantômes au total
+    total_txs = sum(len(a.get("transactions", [])) for a in pending_data.get("accounts", []))
+    assert total_txs >= 3
+
+    # 5. Valider une opération fantôme individuelle via /commit-ghost
+    tx_to_commit = sec_courant["transactions"][0]
+    commit_res = client.post("/api/bank-sync/commit-ghost", json={
+        "connection_id": -1,
+        "transaction": {
+            **tx_to_commit,
+            "account_id": acc_courant.id
+        }
+    })
+    assert commit_res.status_code == 200
+    assert commit_res.json()["ok"] is True
+
+    # Vérifier en DB que la transaction a bien été insérée avec created_by "Import Relevé"
+    db_tx = db.query(Transaction).filter(Transaction.csv_id == tx_to_commit["csv_id"]).first()
+    assert db_tx is not None
+    assert db_tx.description == "PRLV EDF"
+    assert db_tx.amount == 85.00
+    assert db_tx.created_by == "Import Relevé"
+
+    # 6. Valider le reste via /commit-all-ghosts
+    commit_all_res = client.post("/api/bank-sync/commit-all-ghosts")
+    assert commit_all_res.status_code == 200
+    assert commit_all_res.json()["ok"] is True
+
+    # Vérifier que le sas est maintenant vide pour ces opérations
+    pending_after = client.get("/api/bank-sync/pending").json()
+    assert sum(len(a.get("transactions", [])) for a in pending_after.get("accounts", [])) == 0
+
+
+
 
 
 

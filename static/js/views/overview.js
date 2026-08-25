@@ -771,7 +771,10 @@ window.OverviewView = {
             const amtColor = isPositive ? 'var(--accent-success, #10b981)' : 'var(--text-main, #f87171)';
             const dateStr = g.date_operation ? String(g.date_operation).substring(0, 10) : '';
             const accName = g.account_name || (g.account_id && this._accountsMap[g.account_id]?.name) || '—';
-            const catLabel = g.category ? `🏷️ ${escapeHtml(g.category)}` : `<span style="color:var(--text-muted); font-size:11px; font-style:italic;">Sans catégorie</span>`;
+            const gAccObj = (window.app?.accounts || []).find(x => x.id === g.account_id || x.name === accName) || (g.account_id && this._accountsMap[g.account_id]);
+            const gAccColor = gAccObj?.color || '#3366ff';
+            const accBadgeHtml = accName !== '—' ? `<span class="account-badge" style="border-color:${gAccColor}40; background:${gAccColor}18; color:${gAccColor};"><span class="acc-badge-dot" style="background:${gAccColor};"></span>${escapeHtml(accName)}</span>` : '—';
+            const catLabel = g.category ? `<span class="overview-cat-badge">🏷️ ${escapeHtml(g.category)}</span>` : `<span style="color:var(--text-muted); font-size:11px; font-style:italic;">Sans catégorie</span>`;
             const authorHtml = isOrgMode 
                 ? `<td class="ov-td-author"><span style="color:var(--text-muted); font-size: 11px;">🤖 Woob</span></td>`
                 : '';
@@ -789,7 +792,7 @@ window.OverviewView = {
                         <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>${comingBadge}
                         <span>${dateStr ? formatDate(dateStr) : '—'}</span>
                     </td>
-                    <td class="ov-td-acc"><span class="overview-acc-badge" style="border-color: rgba(245, 158, 11, 0.3);">${escapeHtml(accName)}</span></td>
+                    <td class="ov-td-acc">${accBadgeHtml}</td>
                     <td class="ov-td-desc" title="${escapeHtml(g.description || '')}">
                         <div style="display: inline-flex; align-items: center; gap: 4px;">
                             <span>${escapeHtml(g.description || '—')}</span>
@@ -797,21 +800,21 @@ window.OverviewView = {
                         </div>
                         ${rawSubHtml}
                     </td>
-                    <td class="ov-td-cat"><span class="overview-cat-badge">${catLabel}</span></td>
+                    <td class="ov-td-cat">${catLabel}</td>
                     ${authorHtml}
                     <td class="ov-td-amt privacy-blur" style="color: ${amtColor}; font-weight: 700;">${amtFormatted}</td>
                     <td class="ov-td-action" style="text-align: right; white-space: nowrap;">
                         <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end;">
-                            <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700; height: 28px; display: inline-flex; align-items: center; gap: 3px;">
+                            <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11.5px; padding: 0 10px; border-radius: 6px; height: 26px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
                                 ✔ ${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}
                             </button>
-                            <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.openLinkGhostModal('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_link_single') || 'Lier à une opération existante' : 'Lier à une opération existante'}" style="font-size: 11px; padding: 3px 7px; border-radius: 6px; height: 28px;">
+                            <button class="btn-action-icon" onclick="window.BankSyncView.openLinkGhostModal('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_link_single') || 'Lier à une opération existante' : 'Lier à une opération existante'}">
                                 🔗
                             </button>
-                            <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.editGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_edit_single') || 'Modifier' : 'Modifier'}" style="font-size: 11px; padding: 3px 7px; border-radius: 6px; height: 28px;">
+                            <button class="btn-action-icon" onclick="window.BankSyncView.editGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_edit_single') || 'Modifier' : 'Modifier'}">
                                 ✏️
                             </button>
-                            <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.dismissGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_dismiss_single') || 'Ignorer' : 'Ignorer'}" style="font-size: 11px; padding: 3px 7px; border-radius: 6px; height: 28px; color: var(--text-muted);">
+                            <button class="btn-action-del" onclick="window.BankSyncView.dismissGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_dismiss_single') || 'Ignorer' : 'Ignorer'}">
                                 ✕
                             </button>
                         </div>
@@ -843,11 +846,17 @@ window.OverviewView = {
             const catLabel = tx.category || window.i18n.t('no_category') || 'Sans catégorie';
             
             let accName = '—';
+            let accColor = '#3366ff';
             if (tx.from_account_id && this._accountsMap[tx.from_account_id]) {
                 accName = this._accountsMap[tx.from_account_id].name;
+                accColor = this._accountsMap[tx.from_account_id].color || accColor;
             } else if (tx.to_account_id && this._accountsMap[tx.to_account_id]) {
                 accName = this._accountsMap[tx.to_account_id].name;
+                accColor = this._accountsMap[tx.to_account_id].color || accColor;
             }
+            const accBadgeHtml = accName !== '—' 
+                ? `<span class="account-badge" style="border-color:${accColor}40; background:${accColor}18; color:${accColor};"><span class="acc-badge-dot" style="background:${accColor};"></span>${escapeHtml(accName)}</span>`
+                : '<span style="color:var(--text-muted);">—</span>';
 
             const authorHtml = isOrgMode 
                 ? `<td class="ov-td-author">${tx.created_by ? `<span class="overview-author-badge">👤 ${escapeHtml(tx.created_by)}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>`
@@ -858,7 +867,7 @@ window.OverviewView = {
             html += `
                 <tr id="ovRow_${tx.id}" class="overview-op-tr" data-id="${tx.id}">
                     <td class="ov-td-date">${renderDateWithStatus(tx)}</td>
-                    <td class="ov-td-acc"><span class="overview-acc-badge">${escapeHtml(accName)}</span></td>
+                    <td class="ov-td-acc">${accBadgeHtml}</td>
                     <td class="ov-td-desc" title="${escapeHtml(tx.description || '')}">${escapeHtml(tx.description || '—')}</td>
                     <td class="ov-td-cat"><span class="overview-cat-badge">${escapeHtml(catLabel)}</span></td>
                     ${authorHtml}

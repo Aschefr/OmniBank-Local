@@ -179,9 +179,9 @@ def test_simulation_engine_baseline():
     assert result["horizon_months"] == 6
     assert result["initial_balance"] == 4700.0
     assert len(result["monthly_data"]) == 6
-    # Each month should have 600€ baseline expenses from recurrence
+    # Each month should have 600€ baseline expenses from recurrence, plus predicted salary across future months
     assert result["monthly_data"][0]["baseline_expense"] == 600.0
-    assert result["baseline_final_balance"] == round(4700.0 - (6 * 600.0), 2)
+    assert result["baseline_final_balance"] == round(4700.0 + (5 * 2200.0) - (6 * 600.0), 2)
     assert result["is_overdraft_risk"] is False
 
 

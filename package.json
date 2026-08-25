@@ -1,6 +1,6 @@
 {
   "name": "omnibank-local",
-  "version": "1.0.89",
+  "version": "1.0.90",
   "private": true,
   "scripts": {
     "tauri": "tauri",

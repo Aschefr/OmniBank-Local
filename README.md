@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.89-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.90-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,12 +110,13 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.89)
+## 🆕 Nouveautés (v1.0.90)
 
-* **👻 Boîte de Synchronisation & Opérations Fantômes Rétractable** : Affichage intelligent et pliable (dépliée si nouvelles opérations proposées, bandeau compact si seuls des écarts de solde subsistent, masquée si tout est conforme).
-* **⚡ Ajustement d'Écart de Solde en 1 Clic** : Modale interactive pour corriger facilement les écarts inexpliqués (mise à niveau propre du solde initial ou génération d'une écriture catégorisée / intérêts).
-* **⚡ Optimisation Majeure des Performances & Pipeline Données** : Mode SQLite WAL réactivé pour le build Desktop, index composites sur les transactions, accélération du matching de rapprochement sans goulet SQL, et déduplication des calculs de soldes du tableau de bord.
-* **🔒 Déverrouillage Coffre-Fort Direct via Notification** : Clic direct sur une notification d'erreur pour ouvrir la saisie du mot de passe maître sans friction.
+* **📄 Import de Fichier Multi-Comptes Unifié (CSV/Excel)** : Détection automatique de toutes les sections de comptes et livrets d'un relevé et injection directe dans le sas d'attente / opérations fantômes avec navigation multi-onglets et commit sans rechargement.
+* **🏷️ Catégorisation Intelligente Instantanée (Smart Labels)** : Résolution synchrone des règles et de l'historique garantissant l'affichage immédiat des suggestions sans nécessiter de rafraîchissement (F5).
+* **🔗 Modale de Liaison Enrichie** : Affichage dynamique des libellés d'origine (banque et base) et synchronisation automatique de la catégorie correspondante.
+* **✨ Animation & Surbrillance Visuelle Globale** : Animation de surbrillance fluide (`highlightRow`) sur les lignes créées/modifiées à travers le Tableau de bord, la Vue d'ensemble et Toutes les opérations.
+* **🛡️ Fiabilisation des Alertes de Relevé** : Exclusion des récurrences futures planifiées pour éliminer les faux avertissements d'ancienneté du fichier.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -123,7 +124,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.89-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.90-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -223,12 +224,13 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.89)
+## 🆕 What's New (v1.0.90)
 
-* **👻 Collapsible Bank Sync & Ghost Operations Box**: Smart collapsible display (auto-expands for ghost suggestions, sleek summary header for pure balance discrepancies, hidden when fully in sync).
-* **⚡ 1-Click Balance Gap Adjustment**: Interactive modal to easily bridge unexplained balance gaps (clean starting balance update or categorized interest/regularization entry).
-* **⚡ Major Performance & Data Pipeline Optimization**: Restored SQLite WAL mode for desktop builds, added composite transaction indexes, accelerated bank matching without SQL bottlenecks, and deduplicated dashboard balance calculation passes.
-* **🔒 Direct Master Password Modal via Notification**: Error notifications from locked vault or invalid master password now directly open the unlock modal in-place.
+* **📄 Unified Multi-Account File Import (CSV/Excel)**: Automatic detection of all account and savings sections in a single statement file, depositing transactions directly into the pending sync holding queue with multi-tab review and zero-reload commit.
+* **🏷️ Instant Smart Label Auto-Categorization**: Synchronous resolution of local rules and history ensuring categories and cleaned descriptions appear immediately without requiring a manual refresh (F5).
+* **🔗 Enhanced Manual Link Modal**: Dynamic context hints showing original bank vs database labels, with automatic category synchronization from existing database matches.
+* **✨ Global Row Highlight Animation**: Smooth scroll and visual highlight animation (`highlightRow`) across Dashboard, Overview, and All Operations views after validating or linking ghost transactions.
+* **🛡️ Statement Freshness Alert Precision**: Filtered out future planned recurring transactions to prevent false-positive "old statement" warnings.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

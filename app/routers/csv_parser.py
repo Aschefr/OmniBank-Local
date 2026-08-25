@@ -42,6 +42,9 @@ def heuristic_parse(df):
                         .str.replace(',', '.', regex=False) \
                         .str.strip()
         
+        non_empty = cleaned[cleaned != '']
+        if len(non_empty) == 0: continue
+
         def is_float(x):
             try:
                 float(x)
@@ -49,7 +52,10 @@ def heuristic_parse(df):
             except Exception:
                 return False
                 
-        if cleaned.apply(is_float).sum() >= len(sample) * 0.8:
+        col_lower = str(col).strip().lower()
+        is_named_amount = any(k in col_lower for k in ['montant', 'debit', 'débit', 'credit', 'crédit', 'solde'])
+
+        if (non_empty.apply(is_float).sum() >= len(non_empty) * 0.8) or (is_named_amount and non_empty.apply(is_float).sum() >= 1):
             amount_cols.append(col)
 
     # If multiple amount cols (e.g. Debit / Credit), we merge them
@@ -68,23 +74,14 @@ def heuristic_parse(df):
             except Exception:
                 return 0.0
                 
-        # We assume if there are two columns, one is positive, one is negative, or they just need to be summed/coalesced
-        # Usually it's Debit and Credit. We just take whichever is non-zero.
-        # But wait, we need to preserve signs. Debit is usually positive in the CSV (as an absolute value) and Credit too.
-        # Wait, if we just sum them, they might both be absolute.
-        # Let's coalesce them: take the first valid non-zero, or just sum them. If one is named 'Débit' it should be negative.
-        # Actually, simpler: in analyze_heuristic we already apply abs(), so we can just sum them here or take the max abs value.
-        df['_merged_amount'] = 0.0
-        for col in amount_cols:
-            df['_merged_amount'] += df[col].apply(parse_amt).fillna(0.0)
-        
-        # We need to correctly handle signs if they are all absolute. 
-        # Actually, if one column is 'Débit' or 'Debit', we should negate it!
         df['_merged_amount'] = 0.0
         for col in amount_cols:
             series = df[col].apply(parse_amt).fillna(0.0)
-            if 'debit' in str(col).lower() or 'débit' in str(col).lower():
-                series = -series
+            col_l = str(col).lower()
+            if 'debit' in col_l or 'débit' in col_l:
+                series = -series.abs()
+            elif 'credit' in col_l or 'crédit' in col_l:
+                series = series.abs()
             df['_merged_amount'] += series
             
         amount_col = '_merged_amount'
@@ -375,9 +372,12 @@ def check_import_alerts(db, account_id: int, parsed_txs: list):
     alerts["latest_import_date"] = latest_import_date.strftime("%Y-%m-%d")
     alerts["oldest_import_date"] = oldest_import_date.strftime("%Y-%m-%d")
     
-    # Get the latest transaction date in DB for this account
+    # Get the latest RECONCILED or PAST transaction date in DB for this account
+    # Ignore future planned recurrences (which can extend into 2027+)
+    today = date.today()
     db_tx_query = db.query(Transaction).filter(
-        (Transaction.from_account_id == account_id) | (Transaction.to_account_id == account_id)
+        (Transaction.from_account_id == account_id) | (Transaction.to_account_id == account_id),
+        (Transaction.reconciliation_date != None) | (Transaction.date_operation <= today)
     ).order_by(Transaction.date_operation.desc())
     
     latest_db_tx = db_tx_query.first()
@@ -386,8 +386,9 @@ def check_import_alerts(db, account_id: int, parsed_txs: list):
         latest_db_date = latest_db_tx.date_operation
         alerts["latest_db_date"] = latest_db_date.strftime("%Y-%m-%d")
         
-        # Case A: The latest transaction in the file is older than the latest transaction in the DB.
-        if latest_import_date < latest_db_date:
+        # Case A: The latest transaction in the file is older than the latest past/reconciled transaction in DB
+        # AND the file is noticeably older than today (> 7 days).
+        if latest_import_date < latest_db_date and (today - latest_import_date).days > 7:
             alerts["is_old_file"] = True
             
         # Case B: Potential gap. If the oldest transaction in the file is more recent than the latest in the DB
@@ -396,8 +397,7 @@ def check_import_alerts(db, account_id: int, parsed_txs: list):
             alerts["has_gap"] = True
             
     # Check if the latest import date is significantly older than today
-    today = date.today()
-    if (today - latest_import_date).days > 7:
+    if (today - latest_import_date).days > 30:
         alerts["is_old_compared_to_today"] = True
         
     return alerts
@@ -567,5 +567,303 @@ def detect_multi_account_sections(raw_data: list, account_name: str, account_typ
         "recommended_section": recommended,
         "confidence": top_confidence
     }
+
+
+def extract_all_sections_parsed(
+    raw_data: list,
+    db,
+    db_accounts: list = None,
+    explicit_account_id: int = None
+) -> list:
+    """
+    Parses an entire bank export file (CSV/Excel/TSV) by discovering all account sections,
+    extracting transactions, balances, reconciling against the DB, and mapping to OmniBank accounts.
+    Returns a list of accounts ready for the pending sync sas and cockpit.
+    """
+    import pandas as pd
+    import uuid
+    import math
+    from app.models import Account, Transaction
+
+    if db_accounts is None and db is not None:
+        db_accounts = db.query(Account).filter(Account.is_closed == False).all()
+    elif db_accounts is None:
+        db_accounts = []
+
+    # 1. Identify all section boundaries
+    sections = []
+    current_title = None
+    current_title_idx = -1
+
+    for i, row in enumerate(raw_data):
+        non_empty = [x for x in row if pd.notna(x) and str(x).strip() != '']
+        if len(non_empty) == 1:
+            val = str(non_empty[0]).lower()
+            if any(k in val for k in ['compte de dépôt', 'compte de depot', 'compte courant', 'livret', 'ldd', 'compte n°', 'compte nu', 'carte n°', 'carte nu']):
+                current_title = str(non_empty[0]).strip()
+                current_title_idx = i
+
+        valid_cols = sum(1 for x in row if pd.notna(x) and not str(x).startswith('Unnamed:') and str(x).strip() != '')
+        if valid_cols >= 3 and any(str(x).strip().lower() in ['date', 'date operation', "date d'opération"] for x in row):
+            sections.append({
+                "title": current_title or f"Section {len(sections)+1}",
+                "title_idx": current_title_idx,
+                "header_idx": i
+            })
+            current_title = None
+            current_title_idx = -1
+
+    # If no multi-sections detected, treat entire raw_data as single section
+    if not sections:
+        sections = [{
+            "title": "Relevé",
+            "title_idx": -1,
+            "header_idx": -1
+        }]
+
+    # Compute start_idx and end_idx for each section
+    section_blocks = []
+    if len(sections) == 1 and sections[0]["title_idx"] == -1 and sections[0]["header_idx"] == -1:
+        section_blocks.append({
+            "title": "Relevé",
+            "rows": raw_data
+        })
+    else:
+        for idx, sec in enumerate(sections):
+            start_idx = sec["title_idx"] if sec["title_idx"] != -1 else sec["header_idx"]
+            if idx + 1 < len(sections):
+                next_sec = sections[idx + 1]
+                end_idx = next_sec["title_idx"] if next_sec["title_idx"] != -1 else next_sec["header_idx"]
+            else:
+                end_idx = len(raw_data)
+            section_blocks.append({
+                "title": sec["title"],
+                "rows": raw_data[start_idx:end_idx]
+            })
+
+    unique_batch_id = uuid.uuid4().hex[:6]
+    accounts_out = []
+    used_account_ids = set()
+    matched_ids_global = set()
+
+    for sec_i, block in enumerate(section_blocks):
+        sec_rows = block["rows"]
+        sec_title = block["title"]
+        if not sec_rows:
+            continue
+
+        # Find header index in sec_rows
+        header_idx = -1
+        for i, row in enumerate(sec_rows):
+            valid_cols = sum(1 for x in row if pd.notna(x) and not str(x).startswith('Unnamed:') and str(x).strip() != '')
+            if valid_cols >= 3:
+                header_idx = i
+                break
+
+        # Extract balance (Solde) from rows before header
+        file_balance = None
+        import re
+        for row in sec_rows[:max(0, header_idx)]:
+            for cell in row:
+                cell_str = str(cell).strip()
+                if 'solde' in cell_str.lower():
+                    # Check regex in cell_str itself (e.g. "Solde au 24/08/2026 : 1 250,50 €")
+                    matches = re.findall(r'[-+]?\d[\d\s\u202f\xa0]*[,\.]\d{2}', cell_str)
+                    if matches:
+                        try:
+                            clean_m = matches[-1].replace('\u202f', '').replace('\xa0', '').replace(' ', '').replace(',', '.')
+                            pot_amt = float(clean_m)
+                            if not math.isnan(pot_amt):
+                                file_balance = pot_amt
+                                break
+                        except Exception:
+                            pass
+                    if file_balance is None:
+                        for val in row:
+                            try:
+                                val_str = str(val).replace('€', '').replace('\u202f', '').replace('\xa0', '').replace(' ', '').replace(',', '.').strip()
+                                if val_str.lower() != 'nan':
+                                    pot_amt = float(val_str)
+                                    if pot_amt != 0 and not math.isnan(pot_amt):
+                                        file_balance = pot_amt
+                                        break
+                            except Exception:
+                                pass
+                if file_balance is not None:
+                    break
+            if file_balance is not None:
+                break
+
+        is_data_row = False
+        if header_idx >= 0:
+            for col in sec_rows[header_idx]:
+                try:
+                    pd.to_datetime(str(col), format='%d/%m/%Y', errors='raise')
+                    is_data_row = True
+                    break
+                except Exception:
+                    pass
+
+        if is_data_row:
+            header_cols = [f"Col{i}" for i in range(len(sec_rows[header_idx]))]
+            raw_data_slice = sec_rows[header_idx:]
+        elif header_idx >= 0:
+            header_cols = [str(c).strip() for c in sec_rows[header_idx]]
+            raw_data_slice = sec_rows[header_idx + 1:]
+        else:
+            continue
+
+        num_cols = len(header_cols)
+        norm_rows = []
+        for r in raw_data_slice:
+            if not any(str(c).strip() for c in r):
+                continue
+            if len(r) < num_cols:
+                r = list(r) + [''] * (num_cols - len(r))
+            elif len(r) > num_cols:
+                r = list(r[:num_cols])
+            norm_rows.append(r)
+
+        if not norm_rows:
+            continue
+
+        df = pd.DataFrame(norm_rows, columns=header_cols)
+
+        date_col, amount_col, desc_col = heuristic_parse(df)
+        if not date_col or not amount_col:
+            continue
+
+        parsed_date = pd.to_datetime(df[date_col], format='ISO8601', errors='coerce')
+        if parsed_date.notna().sum() < len(df) * 0.8:
+            parsed_date = pd.to_datetime(df[date_col], dayfirst=True, errors='coerce')
+        df['_parsed_date'] = parsed_date
+
+        def _clean_amount_val(x):
+            try:
+                v = float(str(x).replace('€','').replace(' ','').replace('\u202f','').replace('\xa0','').replace(',','.').strip())
+                if math.isnan(v) or math.isinf(v):
+                    return 0.0
+                return v
+            except Exception:
+                return 0.0
+
+        df['_parsed_amount'] = df[amount_col].apply(_clean_amount_val)
+
+        # Match best account for this section
+        target_account = None
+        if explicit_account_id and len(section_blocks) == 1:
+            target_account = next((a for a in db_accounts if a.id == explicit_account_id), None)
+
+        if not target_account and db_accounts:
+            best_acc = None
+            best_score = -1
+            title_lower = sec_title.lower()
+            for acc in db_accounts:
+                if acc.id in used_account_ids and len(db_accounts) >= len(section_blocks):
+                    continue
+                score = 0
+                acc_name_lower = acc.name.lower()
+                acc_type_lower = (acc.type or "").lower()
+                name_words = [w for w in acc_name_lower.split() if len(w) > 2]
+
+                if acc_name_lower in title_lower:
+                    score += 60
+                for w in name_words:
+                    if w in title_lower:
+                        score += 20
+                if 'livret a' in title_lower and 'livret a' in acc_name_lower:
+                    score += 90
+                elif 'ldd' in title_lower and 'ldd' in acc_name_lower:
+                    score += 90
+                elif any(k in title_lower for k in ['dépôt', 'depot', 'courant']):
+                    if acc_type_lower == 'compte courant' or any(k in acc_name_lower for k in ['courant', 'centre-est', 'ile-de-france', 'bnp', 'sg']):
+                        score += 50
+
+                if score > best_score:
+                    best_score = score
+                    best_acc = acc
+
+            if best_acc and (best_score >= 20 or len(db_accounts) == 1):
+                target_account = best_acc
+                used_account_ids.add(best_acc.id)
+
+        target_acc_id = target_account.id if target_account else (explicit_account_id if len(section_blocks) == 1 else None)
+        target_acc_name = target_account.name if target_account else sec_title
+
+        # Build transactions
+        tx_results = []
+        for row_idx, row in df.iterrows():
+            amt = row['_parsed_amount']
+            if pd.isna(row['_parsed_date']) and amt == 0.0:
+                continue
+
+            desc = str(row[desc_col]).strip() if desc_col and pd.notna(row[desc_col]) else "Opération importée"
+            parsed_date_val = row['_parsed_date']
+            date_str = parsed_date_val.strftime("%Y-%m-%d") if not pd.isna(parsed_date_val) else None
+
+            match_info = None
+            if not pd.isna(parsed_date_val) and db is not None:
+                match_info = check_reconciliation(
+                    db,
+                    parsed_date_val,
+                    amt,
+                    matched_ids=matched_ids_global,
+                    account_id=target_acc_id
+                )
+                if match_info and match_info.get("id"):
+                    matched_ids_global.add(match_info["id"])
+
+            attachments = None
+            if 'Documents joints' in df.columns and not pd.isna(row['Documents joints']):
+                v = str(row['Documents joints']).strip()
+                if v and v != 'nan': attachments = v
+            elif 'Fichier' in df.columns and not pd.isna(row['Fichier']):
+                v = str(row['Fichier']).strip()
+                if v and v != 'nan': attachments = v
+
+            check_slip_number = None
+            if 'Bordereau de chèque' in df.columns and not pd.isna(row['Bordereau de chèque']):
+                v = str(row['Bordereau de chèque']).strip()
+                if v and v != 'nan': check_slip_number = v
+            elif 'Chèque' in df.columns and not pd.isna(row['Chèque']):
+                v = str(row['Chèque']).strip()
+                if v and v != 'nan': check_slip_number = v
+
+            tx_results.append({
+                "csv_id": f"csv_import_{unique_batch_id}_{sec_i}_{row_idx}",
+                "date_operation": date_str,
+                "description": desc,
+                "raw_description": desc,
+                "db_description": match_info["description"] if match_info else None,
+                "amount": abs(amt),
+                "raw_amount": amt,
+                "is_reconciled": match_info is not None,
+                "already_reconciled": match_info["already_reconciled"] if match_info else False,
+                "is_mirror_transfer": match_info.get("is_mirror_transfer", False) if match_info else False,
+                "is_orphan_transfer_link": match_info.get("is_orphan_transfer_link", False) if match_info else False,
+                "orphan_account_id": match_info.get("orphan_account_id") if match_info else None,
+                "orphan_account_name": match_info.get("orphan_account_name") if match_info else None,
+                "matched_db_id": match_info["id"] if match_info else None,
+                "category": None,
+                "is_coming": False,
+                "attachments": attachments,
+                "check_slip_number": check_slip_number,
+                "smart_suggested": False
+            })
+
+        alerts = check_import_alerts(db, target_acc_id, tx_results) if (db and target_acc_id) else {}
+
+        accounts_out.append({
+            "account_id": target_acc_id,
+            "account_name": target_acc_name,
+            "section_title": sec_title,
+            "bank_balance": file_balance,
+            "local_reconciled_balance": None,
+            "alerts": alerts,
+            "transactions": tx_results
+        })
+
+    return accounts_out
+
 
 

@@ -432,6 +432,7 @@ def commit_all_ghost_transactions(db: Session = Depends(get_db)):
     committed_total = 0
     csv_ids_to_purge = []
 
+    all_created_ids = []
     # Parcourir chaque compte et récupérer les transactions non rapprochées
     for acc in pending.get("accounts", []):
         conn_id = acc.get("connection_id", 0)
@@ -453,11 +454,12 @@ def commit_all_ghost_transactions(db: Session = Depends(get_db)):
                 transactions_data=unreconciled_txs
             )
             committed_total += res.get("imported", 0)
+            all_created_ids.extend(res.get("created_ids", []))
 
     if csv_ids_to_purge:
         remove_committed_from_pending(db, csv_ids_to_purge)
 
-    return {"ok": True, "committed_count": committed_total}
+    return {"ok": True, "committed_count": committed_total, "created_ids": all_created_ids}
 
 
 @router.post("/dismiss-ghost/{csv_id}")
