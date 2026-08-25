@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.91] - 2026-08-25
+
+### Added & Improved
+- **Time Horizon Selector in Overview 📅🔮**:
+  - Added a responsive time horizon toggle (`📅 Current cycle / paycheck` vs `🔮 All forecasts`) to the "Operations to Reconcile" section in Overview, filtering actionable operations up to the next pay date vs all distant future recurrence projections.
+  - Automatically persisted choice via `ProfileStorage` and `GlobalConfig` (`overview_horizon`).
+  - Seamless adaptation for Organisation Mode (automatically hides the horizon selector and displays all forecasts without date filtering).
+  - High-contrast active button styling with solid indigo accent theme and cache invalidation.
+- **E2E Playwright Test Suite Stabilization 🧪**:
+  - Stabilized all 18 Playwright end-to-end scenarios covering onboarding, CRUD, Unified Review Cockpit CSV import, multi-year trends, budget envelopes, simulator, category management, multi-profile PIN security, and reactive reconciliation.
+  - Neutralized popup interference during automated test runs.
+
+### Fixed
+- **Tauri Desktop Black Screen After Changelog Popup 🖥️**:
+  - Fixed a critical issue where the desktop app (Tauri WebView) would display a black screen after the changelog popup, caused by the restrictive Content Security Policy blocking CDN resources (Chart.js, fonts, etc.) in the WebView2 context.
+  - Relaxed CSP to permissive mode since all traffic is strictly local.
+  - Added `try/finally` safety net in `_initUI()` guaranteeing the UI container is always revealed even if initialization encounters an error.
+  - Injected a fallback timer in `main.rs` that force-reveals the UI after 5 seconds as a last-resort recovery.
+  - Increased WebView navigation wait from 200ms to 2000ms for reliable CDN script loading.
+
 ## [1.0.90] - 2026-08-25
 
 ### Added & Improved

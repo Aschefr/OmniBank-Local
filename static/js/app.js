@@ -153,12 +153,19 @@ class App {
             this.currentUser = savedUser;
         }
         
-        await this._initUI();
+        try {
+            await this._initUI();
+        } catch (e) {
+            console.error('[App] init() fatal error — forcing UI reveal:', e);
+            const container = document.querySelector('.app-container');
+            if (container) container.style.opacity = '1';
+        }
     }
 
     async _initUI() {
         if (this._uiInitialized) return;
         this._uiInitialized = true;
+        try {
         // Theme toggle
         const savedTheme = ProfileStorage.get('omni_theme');
         if (savedTheme === 'dark') {
@@ -322,15 +329,35 @@ class App {
         }
         await this.loadView(savedView);
 
-        // Reveal UI after init is complete (prevents FOUC)
-        const container = document.querySelector('.app-container');
-        if (container) container.style.opacity = '1';
+        } catch (uiError) {
+            console.error('[App] _initUI error:', uiError);
+        } finally {
+            // Reveal UI after init is complete (prevents FOUC)
+            const container = document.querySelector('.app-container');
+            if (container) container.style.opacity = '1';
+        }
         
         // Phase 9: Init user switcher if org mode
         this._initUserSwitcher();
 
         // Init Notification Center
         this._initNotifications();
+
+        // Reactive EventBus Data Sync (Automatic sidebar refresh on mutations)
+        if (window.EventBus) {
+            let _sidebarDebounceTimer = null;
+            window.EventBus.on('data:mutated', (detail) => {
+                const ep = detail?.endpoint || '';
+                // Ignorer les endpoints non financiers (ex: chat, logs, feedback)
+                if (ep.includes('/chat/') || ep.includes('/feedback') || ep.includes('/log_action') || ep.includes('/diagnostics')) {
+                    return;
+                }
+                clearTimeout(_sidebarDebounceTimer);
+                _sidebarDebounceTimer = setTimeout(() => {
+                    this.refreshSidebar().catch(e => console.warn('[App] EventBus refreshSidebar error:', e));
+                }, 50);
+            });
+        }
 
         // Setup Undo / Redo Header Buttons
         const undoBtn = document.getElementById('headerUndoBtn');

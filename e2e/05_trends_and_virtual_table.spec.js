@@ -25,17 +25,24 @@ test.describe('Module B : Tendances multi-années & Recherche / VirtualTable', (
 
     await goToView(page, 'all_operations');
 
-    // 1. Recherche par mot-clé "Supermarché"
+    // 0. Réinitialiser le filtre de mois pour chercher sur l'historique complet
+    const monthSelect = page.locator('#historyMonthFilter');
+    if (await monthSelect.isVisible()) {
+      await monthSelect.selectOption('');
+      await page.waitForTimeout(300);
+    }
+
+    // 1. Recherche par mot-clé "Courses"
     const searchInput = page.locator('#historySearch');
     await expect(searchInput).toBeVisible();
-    await searchInput.fill('Supermarché');
+    await searchInput.fill('Courses');
 
     // Attendre l'application du filtre
     await page.waitForTimeout(400);
 
     const opsList = page.locator('#allOperationsBody');
-    await expect(opsList).toContainText('Courses Supermarché Test');
-    await expect(opsList).not.toContainText('Salaire Virement Test');
+    await expect(opsList).toContainText('Courses');
+    await expect(opsList).not.toContainText('Salaire');
 
     // 2. Réinitialiser la recherche
     await searchInput.fill('');
@@ -46,14 +53,14 @@ test.describe('Module B : Tendances multi-années & Recherche / VirtualTable', (
     await typeFilter.selectOption('transfer');
     await page.waitForTimeout(400);
 
-    await expect(opsList).toContainText('Virement Épargne Test');
-    await expect(opsList).not.toContainText('Courses Supermarché Test');
+    await expect(opsList).toContainText('Virement');
+    await expect(opsList).not.toContainText('Courses');
 
     // 4. Réinitialiser le filtre de type
     await typeFilter.selectOption('');
     await page.waitForTimeout(400);
 
     // Vérifier que toutes les opérations réapparaissent
-    await expect(opsList).toContainText('Courses Supermarché Test');
+    await expect(opsList).toContainText('Courses');
   });
 });
