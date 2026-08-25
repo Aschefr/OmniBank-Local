@@ -1327,7 +1327,13 @@ window.FormView = {
                         reconciliation_date: this.pendingSaveData.reconciliation_date || null
                     }
                 };
-                await API.post('/api/bank-sync/commit-ghost', ghostPayload);
+                const res = await API.post('/api/bank-sync/commit-ghost', ghostPayload);
+                const createdTxId = res?.result?.created_ids?.[0] || res?.result?.transactions?.[0]?.id;
+                if (createdTxId) {
+                    if (window.TimelineView) window.TimelineView._pendingHighlightTxId = createdTxId;
+                    if (window.AllOperationsView) window.AllOperationsView._pendingHighlightTxId = createdTxId;
+                    if (window.OverviewView) window.OverviewView._pendingHighlightTxId = createdTxId;
+                }
                 if (window.BankSyncView && window.BankSyncView.ghostTransactions) {
                     window.BankSyncView.ghostTransactions = window.BankSyncView.ghostTransactions.filter(g => g.csv_id !== this._ghostCsvId);
                 }

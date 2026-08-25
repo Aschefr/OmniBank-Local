@@ -557,11 +557,11 @@ window.AllOperationsView = {
             const depuisTitle = fromAcc ? fromAcc.name : (tx.cross_profile_label || '');
             const versTitle = toAcc ? toAcc.name : (tx.cross_profile_label || '');
             
-            let depuisBadge = fromAcc ? `<span class="account-badge" style="background:${fromAcc.color || '#3366ff'}20;color:${fromAcc.color || '#3366ff'};border-color:${fromAcc.color || '#3366ff'}40;">${fromAcc.name}</span>` : '-';
-            let versBadge = toAcc ? `<span class="account-badge" style="background:${toAcc.color || '#3366ff'}20;color:${toAcc.color || '#3366ff'};border-color:${toAcc.color || '#3366ff'}40;">${toAcc.name}</span>` : '-';
+            let depuisBadge = fromAcc ? `<span class="account-badge" style="background:${fromAcc.color || '#3366ff'}18;color:${fromAcc.color || '#3366ff'};border-color:${fromAcc.color || '#3366ff'}40;"><span class="acc-badge-dot" style="background:${fromAcc.color || '#3366ff'};"></span>${fromAcc.name}</span>` : '-';
+            let versBadge = toAcc ? `<span class="account-badge" style="background:${toAcc.color || '#3366ff'}18;color:${toAcc.color || '#3366ff'};border-color:${toAcc.color || '#3366ff'}40;"><span class="acc-badge-dot" style="background:${toAcc.color || '#3366ff'};"></span>${toAcc.name}</span>` : '-';
 
             if (tx.cross_profile_label) {
-                const cpBadge = `<span class="account-badge" style="background:rgba(99,102,241,0.15);color:#818cf8;border-color:rgba(99,102,241,0.3);" title="${tx.cross_profile_label}">${tx.cross_profile_label}</span>`;
+                const cpBadge = `<span class="account-badge" style="background:rgba(99,102,241,0.15);color:#818cf8;border-color:rgba(99,102,241,0.3);" title="${tx.cross_profile_label}"><span class="acc-badge-dot" style="background:#818cf8;"></span>${tx.cross_profile_label}</span>`;
                 if (!fromAcc) depuisBadge = cpBadge;
                 if (!toAcc) versBadge = cpBadge;
             }
@@ -605,20 +605,20 @@ window.AllOperationsView = {
                 <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by ? `${tx.created_by}${tx.created_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.created_at}</span>` : ''}` : '-'}</td>
                 <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${tx.modified_by}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.modified_at}</span>` : ''}` : '-'}</td>
                 <td class="col-actions mobile-card-actions">
-                    <div style="display:flex;gap:4px;align-items:center;justify-content:flex-end;">
+                    <div class="row-actions-group">
                         ${(() => {
                             if (tx.recurrence_id) {
                                 if (tx.is_skipped) {
-                                    return `<button class="btn btn-secondary" style="padding: 4px 6px; font-size: 11px; display: flex; align-items: center;" onclick="window.AllOperationsView.toggleSkip(${tx.id})" title="${window.i18n.t('tooltip_unskip') || 'Rétablir'}">↩️</button>`;
+                                    return `<button class="btn-action-icon btn-action-skip" onclick="window.AllOperationsView.toggleSkip(${tx.id})" title="${window.i18n.t('tooltip_unskip') || 'Rétablir'}">↩️</button>`;
                                 } else if (!isReconciled) {
-                                    return `<button class="btn btn-secondary" style="padding: 4px 6px; font-size: 11px; display: flex; align-items: center;" onclick="window.AllOperationsView.toggleSkip(${tx.id})" title="${window.i18n.t('tooltip_skip') || 'Ignorer'}">⏭️</button>`;
+                                    return `<button class="btn-action-icon btn-action-skip" onclick="window.AllOperationsView.toggleSkip(${tx.id})" title="${window.i18n.t('tooltip_skip') || 'Ignorer'}">⏭️</button>`;
                                 }
                             }
-                            return '';
+                            return '<span class="btn-action-placeholder"></span>';
                         })()}
-                        <button class="btn btn-secondary" style="padding: 4px 6px; font-size: 11px; display: flex; align-items: center;" onclick="window.AllOperationsView.duplicate(${tx.id})" title="${window.i18n.t('tooltip_duplicate') || 'Dupliquer'}">📋</button>
-                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;white-space:nowrap;" onclick="window.AllOperationsView.edit(${tx.id})">${window.i18n.t('tooltip_edit')}</button>
-                        <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.AllOperationsView.delete(${tx.id})">✕</button>
+                        <button class="btn-action-icon btn-action-dup" onclick="window.AllOperationsView.duplicate(${tx.id})" title="${window.i18n.t('tooltip_duplicate') || 'Dupliquer'}">📋</button>
+                        <button class="btn-action-edit" onclick="window.AllOperationsView.edit(${tx.id})">${window.i18n.t('tooltip_edit') || 'Modifier'}</button>
+                        <button class="btn-action-del" onclick="window.AllOperationsView.delete(${tx.id})" title="${window.i18n.t('btn_delete') || 'Supprimer'}">✕</button>
                     </div>
                 </td>
             </tr>

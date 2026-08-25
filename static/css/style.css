@@ -535,18 +535,30 @@ h3 {
 
 /* Account color badge (Depuis/Vers columns) */
 .account-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     max-width: 100%;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 11px;
+    padding: 2px 10px;
+    height: 24px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    font-size: 11.5px;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.4;
+    line-height: 1;
     border: 1px solid transparent;
     vertical-align: middle;
+}
+
+.acc-badge-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-right: 6px;
+    flex-shrink: 0;
 }
 
 /* Color picker dots (Accounts Manager) */
@@ -4840,25 +4852,25 @@ input[type="range"]::-moz-range-thumb:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 28px;
-    padding: 0 14px;
-    font-size: 12px;
+    height: 26px;
+    padding: 0 12px;
+    font-size: 11.5px;
     font-weight: 700;
-    border-radius: 8px;
-    background: transparent;
-    border: 1.5px solid var(--accent);
-    color: var(--accent);
+    border-radius: 6px;
+    background: var(--accent, #6366f1);
+    border: none;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     white-space: nowrap;
     box-sizing: border-box;
 }
 
 .overview-recon-action-btn:hover {
-    background: var(--accent);
-    color: #ffffff;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-    transform: scale(1.03);
+    filter: brightness(1.12);
+    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.35);
+    transform: translateY(-1px);
 }
 
 .overview-matched-action-btn {
@@ -4866,25 +4878,24 @@ input[type="range"]::-moz-range-thumb:hover {
     align-items: center;
     justify-content: center;
     gap: 5px;
-    height: 28px;
-    padding: 0 14px;
-    font-size: 12px;
+    height: 26px;
+    padding: 0 10px;
+    font-size: 11.5px;
     font-weight: 700;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: #ffffff;
-    border: none;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    border-radius: 6px;
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.35);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     white-space: nowrap;
     box-sizing: border-box;
 }
 
 .overview-matched-action-btn:hover {
-    background: linear-gradient(135deg, #059669, #047857);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45);
-    transform: scale(1.03);
+    background: rgba(16, 185, 129, 0.25);
+    border-color: rgba(16, 185, 129, 0.5);
+    transform: translateY(-1px);
 }
 
 .overview-coming-action-btn {
@@ -4892,25 +4903,24 @@ input[type="range"]::-moz-range-thumb:hover {
     align-items: center;
     justify-content: center;
     gap: 5px;
-    height: 28px;
-    padding: 0 14px;
-    font-size: 12px;
+    height: 26px;
+    padding: 0 10px;
+    font-size: 11.5px;
     font-weight: 700;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    color: #ffffff;
-    border: none;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.35);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     white-space: nowrap;
     box-sizing: border-box;
 }
 
 .overview-coming-action-btn:hover {
-    background: linear-gradient(135deg, #4f46e5, #4338ca);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.45);
-    transform: scale(1.03);
+    background: rgba(99, 102, 241, 0.25);
+    border-color: rgba(99, 102, 241, 0.5);
+    transform: translateY(-1px);
 }
 
 .ov-action-menu-item {
@@ -5868,7 +5878,25 @@ body.overview-fullscreen .app-body {
 
 .recon-date-link {
     font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.recon-date-link:hover {
+    color: var(--text-main);
+    background: var(--bg-surface, rgba(255, 255, 255, 0.06));
+    text-decoration: underline;
 }
 
 .recon-cell-stack {
@@ -5890,40 +5918,162 @@ body.overview-fullscreen .app-body {
 }
 
 .recon-btn {
-    border: none;
-    font-size: 11px;
-    padding: 4px 10px;
+    border: 1px solid transparent;
+    font-size: 11.5px;
+    padding: 0 10px;
+    height: 26px;
+    box-sizing: border-box;
     border-radius: 6px;
-    font-weight: 700;
+    font-weight: 600;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 4px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
+    white-space: nowrap;
 }
 
 .recon-btn-coming {
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    color: white;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border-color: rgba(99, 102, 241, 0.35);
+    font-weight: 700;
 }
 
 .recon-btn-coming:hover {
-    background: linear-gradient(135deg, #4f46e5, #4338ca);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.45);
-    transform: scale(1.03);
+    background: rgba(99, 102, 241, 0.25);
+    border-color: rgba(99, 102, 241, 0.5);
+    color: #818cf8;
+    transform: translateY(-1px);
 }
 
 .recon-btn-matched {
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: white;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.35);
+    font-weight: 700;
 }
 
 .recon-btn-matched:hover {
-    background: linear-gradient(135deg, #059669, #047857);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45);
-    transform: scale(1.03);
+    background: rgba(16, 185, 129, 0.25);
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #10b981;
+    transform: translateY(-1px);
+}
+
+.recon-btn-unmatched {
+    background: var(--accent, #6366f1);
+    color: #ffffff;
+    border: none;
+    font-weight: 700;
+    padding: 0 12px;
+    box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
+}
+
+.recon-btn-unmatched:hover {
+    filter: brightness(1.12);
+    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.35);
+    transform: translateY(-1px);
+}
+
+/* ── Table Row Actions (Aligned & Solid) ── */
+.row-actions-group {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    justify-content: flex-end;
+    vertical-align: middle;
+}
+
+.btn-action-placeholder {
+    display: inline-block;
+    width: 26px;
+    min-width: 26px;
+    height: 26px;
+    visibility: hidden;
+    flex-shrink: 0;
+}
+
+.btn-action-edit {
+    height: 26px;
+    width: 68px;
+    min-width: 68px;
+    padding: 0;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(145, 158, 171, 0.05);
+    color: var(--text-main);
+    border: 1px solid rgba(145, 158, 171, 0.12);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.btn-action-edit:hover {
+    background: rgba(145, 158, 171, 0.16);
+    border-color: rgba(145, 158, 171, 0.3);
+    color: var(--text-main);
+    transform: translateY(-1px);
+}
+
+.btn-action-icon {
+    height: 26px;
+    width: 26px;
+    min-width: 26px;
+    padding: 0;
+    font-size: 12px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid rgba(145, 158, 171, 0.12);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.btn-action-icon:hover {
+    background: rgba(145, 158, 171, 0.1);
+    color: var(--text-main);
+    border-color: rgba(145, 158, 171, 0.25);
+    transform: translateY(-1px);
+}
+
+.btn-action-del {
+    height: 26px;
+    width: 26px;
+    min-width: 26px;
+    padding: 0;
+    font-size: 12px;
+    font-weight: bold;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(239, 68, 68, 0.04);
+    color: rgba(239, 68, 68, 0.7);
+    border: 1px solid rgba(239, 68, 68, 0.12);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.btn-action-del:hover {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+    transform: translateY(-1px);
 }
 
 

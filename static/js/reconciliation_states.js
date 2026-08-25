@@ -64,7 +64,7 @@ window.ReconciliationStates = {
             const toggleFn = this._getToggleFn(tx.id, view);
             return {
                 state: 'reconciled',
-                html: `<span class="recon-date-link" onclick="${toggleFn}" title="${i18n.t('tooltip_cancel_reconciliation') || 'Cliquer pour annuler le pointage'}">${dateStr}</span>`
+                html: `<span class="recon-date-link" onclick="${toggleFn}" title="${i18n.t('tooltip_cancel_reconciliation') || 'Cliquer pour annuler le pointage'}"><span style="color:#10b981; font-weight:700; margin-right:4px; font-size:11px;">✔</span>${dateStr}</span>`
             };
         }
 
@@ -115,7 +115,7 @@ window.ReconciliationStates = {
         }
         return {
             state: 'unmatched',
-            html: `<button class="btn btn-primary" style="padding: 4px 10px; font-size: 11px; border-radius: 6px;" onclick="${toggleFn}">${reconLabel}</button>`
+            html: `<button class="recon-btn recon-btn-unmatched" onclick="${toggleFn}" title="${reconLabel}">${reconLabel}</button>`
         };
     },
 

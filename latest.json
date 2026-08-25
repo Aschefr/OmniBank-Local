@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBGNVdIeFEvVEF3TzlYSEcxTjhqK002cTBQUnZrd0ZQdmRqUnliVE5OaDVyV3VJK0cvSTdXYlZZOWxnNVpzKzd3OEk0L2QzYXNPTEtJWU5qZnQxTXd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NTA3OTY5CWZpbGU6T21uaUJhbmtfMS4wLjg4X3g2NF9mci1GUi5tc2kKNGRCd0dROW5seTB0aXY0alJmSGtUWkxXbWYzTFhuTjdNOEhJU3YwN3ZJSmhkR3EzdnFDdHlWYUV6TXNHcTdUOXZOdlFDVGFEallUTW44UTU0TjI1QXc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.88/OmniBank_1.0.88_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDEwaHg1dkxqYUpsTWNoVFNEVXRLb2tkZjJvbDNrMmZGSEs3ZVk2cXVEL09FNzhkMkhtc2h2dXBtZzA4VC8xTW5KWmVxOU5razMvTFBMV2R5amM2V2dzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NjQzNjEwCWZpbGU6T21uaUJhbmtfMS4wLjkwX3g2NF9mci1GUi5tc2kKMGlZY3lmRnJjN1kydi91ZVJIeGpXTGFmL21YbGdZQWlPN1FpY0lBd0ZGUEVKRk1NcW1WaGZxOWpBb0ZmRWVRcm9ROGJkd1dLaE8wUm05Yk45bnQvRHc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.90/OmniBank_1.0.90_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-23T17:59:29Z",
-    "version":  "1.0.88",
-    "notes":  "Upcoming transactions detection, orphan transfer auto-linking, bank balance consistency indicator, unified reconciliation states, bank sync modular refactoring"
+    "pub_date":  "2026-08-25T07:40:10Z",
+    "version":  "1.0.90",
+    "notes":  "v1.0.90 — Import de Fichier Multi-Comptes Unifié \u0026 Améliorations de Rapprochement"
 }

@@ -47,49 +47,66 @@ window.ImportWizard = {
 
     // ── Adaptateur CSV → previewData → Cockpit Unifié ──────────────────
     openReviewFromCSV(result, accountId) {
-        const txs = result.transactions || [];
-        const acc = (window.app?.accounts || []).find(a => a.id == accountId);
-        const accName = acc ? acc.name : 'Compte';
-
-        // Transformer chaque ligne CSV en format cockpit
-        const cockpitTxs = txs.map((tx, i) => {
-            const rawAmt = parseFloat(tx.amount || 0);
-            return {
-                csv_id: `csv_import_${i}`,
-                date_operation: tx.date_operation || tx.date || null,
-                description: tx.description || 'Opération importée',
-                raw_description: tx.raw_description || tx.db_description || tx.description || '',
-                db_description: tx.db_description || null,
-                amount: Math.abs(rawAmt),
-                raw_amount: rawAmt,
-                category: tx.category || null,
-                is_reconciled: !!tx.is_reconciled,
-                already_reconciled: !!tx.already_reconciled,
-                matched_db_id: tx.matched_db_id || null,
-                is_coming: false,
-                attachments: tx.attachments || null,
-                check_slip_number: tx.check_slip_number || null,
-                smart_suggested: false
+        let previewData;
+        if (result.accounts && Array.isArray(result.accounts)) {
+            // Nouveau format multi-comptes direct depuis /import_to_pending
+            previewData = {
+                _source: 'csv_import',
+                _csvAlerts: result._csvAlerts || {},
+                _fileBalance: result._fileBalance || null,
+                accounts: result.accounts
             };
-        });
+        } else {
+            // Ancien format mono-compte (fallback / AI import)
+            const txs = result.transactions || [];
+            const acc = (window.app?.accounts || []).find(a => a.id == accountId);
+            const accName = acc ? acc.name : 'Compte';
 
-        const previewData = {
-            _source: 'csv_import',
-            _csvAlerts: result.alerts || {},
-            _fileBalance: result.file_balance || null,
-            accounts: [{
-                account_id: accountId ? parseInt(accountId) : null,
-                account_name: accName,
-                transactions: cockpitTxs,
-                bank_balance: null,
-                local_reconciled_balance: null
-            }]
-        };
+            // Transformer chaque ligne CSV en format cockpit
+            const cockpitTxs = txs.map((tx, i) => {
+                const rawAmt = parseFloat(tx.amount || 0);
+                return {
+                    csv_id: tx.csv_id || `csv_import_${i}`,
+                    date_operation: tx.date_operation || tx.date || null,
+                    description: tx.description || 'Opération importée',
+                    raw_description: tx.raw_description || tx.db_description || tx.description || '',
+                    db_description: tx.db_description || null,
+                    amount: Math.abs(rawAmt),
+                    raw_amount: rawAmt,
+                    category: tx.category || null,
+                    is_reconciled: !!tx.is_reconciled,
+                    already_reconciled: !!tx.already_reconciled,
+                    matched_db_id: tx.matched_db_id || null,
+                    is_coming: false,
+                    attachments: tx.attachments || null,
+                    check_slip_number: tx.check_slip_number || null,
+                    smart_suggested: false
+                };
+            });
+
+            previewData = {
+                _source: 'csv_import',
+                _csvAlerts: result.alerts || {},
+                _fileBalance: result.file_balance || null,
+                accounts: [{
+                    account_id: accountId ? parseInt(accountId) : null,
+                    account_name: accName,
+                    transactions: cockpitTxs,
+                    bank_balance: null,
+                    local_reconciled_balance: null
+                }]
+            };
+        }
 
         // Fermer le pré-wizard d'import
         document.getElementById('importDataModal').style.display = 'none';
 
-        // Ouvrir le cockpit unifié
+        // Rafraîchir immédiatement le sas d'attente pour que les opérations fantômes s'affichent
+        if (window.BankSyncView && window.BankSyncView.loadPendingSync) {
+            window.BankSyncView.loadPendingSync();
+        }
+
+        // Ouvrir le cockpit unifié avec le preview multi-comptes
         window.BankSyncView.openReviewModal('csv_import', previewData);
     },
 
@@ -220,13 +237,13 @@ window.ImportWizard = {
         this.showImportLoading('direct');
         
         try {
-            const res = await fetch('/api/csv/analyze_heuristic', {
+            const res = await fetch('/api/csv/import_to_pending', {
                 method: 'POST',
                 body: formData
             });
             const result = await res.json();
             if (res.ok) {
-                this.fileBalance = result.file_balance || null;
+                this.fileBalance = result._fileBalance || result.file_balance || null;
                 // Déléguer au cockpit unifié
                 this.openReviewFromCSV(result, accountId);
             } else {

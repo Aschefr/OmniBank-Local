@@ -735,7 +735,7 @@ window.TimelineView = {
                 const a = getAcc(id);
                 if (!a) return '-';
                 const c = a.color || '#3366ff';
-                return `<span class="account-badge" style="background:${c}20;color:${c};border-color:${c}40;">${a.name}</span>`;
+                return `<span class="account-badge" style="background:${c}18;color:${c};border-color:${c}40;"><span class="acc-badge-dot" style="background:${c};"></span>${a.name}</span>`;
             };
             const depuis = tx.from_account_id ? getAccBadge(tx.from_account_id) : '-';
             const vers = tx.to_account_id ? getAccBadge(tx.to_account_id) : '-';
@@ -775,20 +775,20 @@ window.TimelineView = {
                 <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by ? `${tx.created_by}${tx.created_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.created_at}</span>` : ''}` : '-'}</td>
                 <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${tx.modified_by}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.modified_at}</span>` : ''}` : '-'}</td>
                 <td class="col-actions mobile-card-actions">
-                    <div style="display:flex;gap:4px;align-items:center;justify-content:flex-end;">
+                    <div class="row-actions-group">
                         ${(() => {
                             if (tx.recurrence_id) {
                                 if (tx.is_skipped) {
-                                    return `<button class="btn btn-secondary" style="padding: 4px 6px; font-size: 11px; display: flex; align-items: center;" onclick="window.TimelineView.toggleSkip(${tx.id})" title="${window.i18n.t('tooltip_unskip') || 'Rétablir'}">↩️</button>`;
+                                    return `<button class="btn-action-icon btn-action-skip" onclick="window.TimelineView.toggleSkip(${tx.id})" title="${window.i18n.t('tooltip_unskip') || 'Rétablir'}">↩️</button>`;
                                 } else if (!isReconciled) {
-                                    return `<button class="btn btn-secondary" style="padding: 4px 6px; font-size: 11px; display: flex; align-items: center;" onclick="window.TimelineView.toggleSkip(${tx.id})" title="${window.i18n.t('tooltip_skip') || 'Ignorer'}">⏭️</button>`;
+                                    return `<button class="btn-action-icon btn-action-skip" onclick="window.TimelineView.toggleSkip(${tx.id})" title="${window.i18n.t('tooltip_skip') || 'Ignorer'}">⏭️</button>`;
                                 }
                             }
-                            return '';
+                            return '<span class="btn-action-placeholder"></span>';
                         })()}
-                        <button class="btn btn-secondary" style="padding: 4px 6px; font-size: 11px; display: flex; align-items: center;" onclick="window.TimelineView.duplicate(${tx.id})" title="${window.i18n.t('tooltip_duplicate') || 'Dupliquer'}">📋</button>
-                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;white-space:nowrap;" onclick="window.TimelineView.edit(${tx.id})">${window.i18n.t('tooltip_edit')}</button>
-                        <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.TimelineView.delete(${tx.id})">✕</button>
+                        <button class="btn-action-icon btn-action-dup" onclick="window.TimelineView.duplicate(${tx.id})" title="${window.i18n.t('tooltip_duplicate') || 'Dupliquer'}">📋</button>
+                        <button class="btn-action-edit" onclick="window.TimelineView.edit(${tx.id})">${window.i18n.t('tooltip_edit') || 'Modifier'}</button>
+                        <button class="btn-action-del" onclick="window.TimelineView.delete(${tx.id})" title="${window.i18n.t('btn_delete') || 'Supprimer'}">✕</button>
                     </div>
                 </td>
             </tr>

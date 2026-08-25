@@ -2,9 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.90] - 2026-08-25
+
+### Added & Improved
+- **Unified Multi-Account File Import (CSV/Excel) into Bank Sync Queue 📄↔📥**:
+  - Automatically detects all distinct account and savings sections (Compte Courant, Livret A, LDD, etc.) within a single bank export file.
+  - Deposits extracted transactions directly into the pending synchronization holding queue (`_PENDING_SYNC_DATA`, `conn_id = -1`, `📄 Relevé importé`), allowing immediate ghost operation management on the Dashboard and Overview.
+  - Multi-tab review cockpit allows seamless account switching, individual exclusion, and zero-reload commit with full audit log tracking (`created_by: "Import Relevé"`).
+- **Instant Smart Label Auto-Categorization without F5 🏷️**:
+  - Made category auto-suggestion and description cleaning synchronous in `loadPendingSync()`, ensuring smart categories appear immediately when opening the Dashboard or Overview without requiring a manual page refresh.
+- **Enhanced Manual Link Modal 🔗**:
+  - Added live context hints displaying the original bank label (`🏦`) and matching database transaction label (`💾`) based on the selected resolution source.
+  - Automatically resolves and populates the matching database category in the dropdown.
+- **Global Row Highlight Animation ✨**:
+  - Automatically highlights and scrolls to modified/created rows (`highlightRow`) across Timeline, Overview, and All Operations views after linking, validating, or editing ghost transactions.
+  - Softened action icon button styling (`.btn-action-icon`) for a clean, unobtrusive look.
+
+### Fixed
+- **Statement Import Age Alert Precision**: Fixed false-positive "old statement" warnings by excluding planned future recurring transactions beyond today's date when checking statement freshness.
+- **Ghost Transaction Dismiss Endpoint**: Fixed path parameter routing for single ghost transaction dismissals (`/api/bank-sync/dismiss-ghost/{csv_id}`).
+
+
 ## [1.0.89] - 2026-08-24
 
 ### Added & Improved
+- **Visual Hierarchy & Color Harmonization 🎨**:
+  - **Calmed Reconciliation Badges**: Replaced heavy neon green/purple solid gradients on matched transactions with subtle, premium tinted pills (`rgba(16, 185, 129, 0.12)`), preventing the table from feeling like a wall of bright green buttons.
+  - **Reconciled Date Status**: Conformed reconciled operations now show a clean, discreet checkmark (`✔`) with neutral muted date text.
+  - **Master Account Highlight & Pastille Visibility**: Added vivid account color pastille dots (`●`) inside all account badges across Dashboard, Timeline, All Operations, and the Bank Sync ghost balance bars, ensuring the master account's custom color stands out cleanly without competing against saturated neighbor elements.
+  - **Discreet Table Row Actions**: Replaced permanent red `✕` delete buttons on every row with subtle ghost icon buttons revealed smoothly on row hover (`.row-actions-group`), eliminating the noisy vertical red strip on desktop.
+  - **Strict Vertical Alignment on Action Buttons**: Reserved a dedicated invisible 26px placeholder for non-recurrent rows and standardized widths so duplicate, edit (`Modifier`), and delete buttons align strictly column-by-column across every row.
+  - **Review Cockpit Column Balancing**: Expanded the Action column to 250px so helper descriptions stay on a single line and balanced the description column width.
+  - **Ghost Row Smart Category Persistence 🧠**: Added in-memory session cache (`_ghostCategoryCache`) and unblocked Smart Label resolution so suggested categories (`Amazon`, etc.) remain visible even when navigating between tabs and reloading Dashboard data without requiring a full browser refresh (F5).
+  - **Manual Link Modal Improvements 🔗**: Displayed original bank label (`🏦`) and custom account badge for DB candidates, and fixed category dropdown population and selection when linking operations.
+  - **Unified Sync Banner Hierarchy**: Standardized primary vs secondary action buttons in the bank sync queue banner, softened `Soldes conformes` badges into elegant status indicators, and embedded account color pastilles directly in front of each account balance row.
 - **Unified Review Cockpit — CSV Import merged into Bank Sync Review 📄↔📥**:
   - CSV/XLSX file import now opens the same advanced review cockpit used for bank sync, gaining all features: checkboxes, link 🔗 / unlink ⛓️‍💥 buttons, category autocomplete with AI batch, Smart Label suggestions, and status filter bar.
   - Dynamic title and subtitle adapt to context: "Import de Relevé Bancaire" vs "Revue des opérations synchronisées".
