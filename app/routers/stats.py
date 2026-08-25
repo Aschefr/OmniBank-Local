@@ -109,7 +109,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     unreconciled_expenses = 0.0
     if next_pay_date and main_acc:
         unrec_txs = db.query(Transaction).filter(
-            Transaction.date_operation <= next_pay_date,
+            Transaction.date_operation < next_pay_date,
             Transaction.reconciliation_date.is_(None),
             Transaction.from_account_id == main_acc.id,
             Transaction.to_account_id.is_(None),  # Exclude transfers

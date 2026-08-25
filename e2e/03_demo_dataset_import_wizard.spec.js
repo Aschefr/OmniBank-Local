@@ -27,17 +27,13 @@ test.describe('Module B : Assistant d\'importation du Dataset de Démonstration 
     await expect(analyzeBtn).toBeVisible();
     await analyzeBtn.click();
 
-    // 5. Attendre que le tableau de prévisualisation et le bouton de sauvegarde apparaissent
-    const saveBtn = page.locator('#btnSaveImport');
+    // 5. Attendre que le cockpit unifié de prévisualisation et le bouton de validation apparaissent
+    const saveBtn = page.locator('#btnCommitSync');
     await expect(saveBtn).toBeVisible({ timeout: 15000 });
 
-    // 6. Valider l'importation et attendre le rechargement de l'application
-    await Promise.all([
-      page.waitForNavigation({ timeout: 20000 }).catch(() => {}),
-      saveBtn.click()
-    ]);
-
-    await page.waitForLoadState('domcontentloaded');
+    // 6. Valider l'importation
+    await saveBtn.click();
+    await page.waitForTimeout(1500);
     await dismissOverlays(page);
 
     // 7. Vérifier dans la vue Historique que les opérations importées sont présentes

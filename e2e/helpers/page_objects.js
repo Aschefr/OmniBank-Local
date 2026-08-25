@@ -38,8 +38,8 @@ async function dismissOverlays(page) {
 
   try {
     await page.evaluate(() => {
-      if (window.app && typeof window.app.closeChangelog === 'function') {
-        window.app.closeChangelog();
+      if (window.app) {
+        window.app.showChangelog = () => {};
       }
       const cl = document.getElementById('changelogModal');
       if (cl) cl.style.display = 'none';
@@ -54,14 +54,26 @@ async function dismissOverlays(page) {
  */
 async function openApp(page, { autoDismiss = true } = {}) {
   // Pré-enregistrer la version vue pour éviter le popup du changelog
-  await page.addInitScript(() => {
+  let appVersion = '1.0.90';
+  try {
+    const pkg = require('../../package.json');
+    if (pkg && pkg.version) appVersion = pkg.version;
+  } catch (e) {}
+
+  await page.addInitScript((v) => {
     try {
-      localStorage.setItem('omni_last_seen_version', '1.0.89');
-      localStorage.setItem('default_omni_last_seen_version', '1.0.89');
-      localStorage.setItem('omni_last_seen_version', '1.0.88');
-      localStorage.setItem('default_omni_last_seen_version', '1.0.88');
+      localStorage.setItem('omni_last_seen_version', v);
+      localStorage.setItem('default_omni_last_seen_version', v);
+      localStorage.setItem('demo_omni_last_seen_version', v);
+      localStorage.setItem('admin_omni_last_seen_version', v);
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.endsWith('omni_last_seen_version')) {
+          localStorage.setItem(key, v);
+        }
+      }
     } catch (e) {}
-  });
+  }, appVersion);
 
   await page.goto('/');
   await page.waitForLoadState('domcontentloaded');

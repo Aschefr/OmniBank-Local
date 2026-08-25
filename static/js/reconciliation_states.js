@@ -188,22 +188,21 @@ window.ReconciliationActions = {
             }
 
             // Rafraîchir le sas de synchronisation puis la vue
-            const syncPromise = (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function')
-                ? window.BankSyncView.loadPendingSync()
-                : Promise.resolve();
-
-            syncPromise
-                .then(() => {
-                    const promises = [];
-                    if (window.app && typeof window.app.refreshSidebar === 'function') {
-                        promises.push(window.app.refreshSidebar());
-                    }
-                    if (typeof refreshView === 'function') {
-                        promises.push(refreshView());
-                    }
-                    return Promise.all(promises);
-                })
-                .catch(e => console.error('[ReconciliationActions] Erreur refresh arrière-plan:', e));
+            try {
+                if (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') {
+                    await window.BankSyncView.loadPendingSync();
+                }
+                const promises = [];
+                if (window.app && typeof window.app.refreshSidebar === 'function') {
+                    promises.push(window.app.refreshSidebar());
+                }
+                if (typeof refreshView === 'function') {
+                    promises.push(refreshView());
+                }
+                await Promise.all(promises);
+            } catch (e) {
+                console.error('[ReconciliationActions] Erreur refresh arrière-plan:', e);
+            }
 
             return res;
         } catch (e) {

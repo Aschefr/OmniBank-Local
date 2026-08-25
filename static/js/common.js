@@ -30,6 +30,37 @@ window.escapeHtml = function(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 };
 
+/**
+ * EventBus réactif et universel pour la synchronisation automatique des vues et de la sidebar.
+ */
+const EventBus = {
+    _listeners: {},
+    on(event, callback) {
+        if (!this._listeners[event]) this._listeners[event] = [];
+        this._listeners[event].push(callback);
+        return () => this.off(event, callback);
+    },
+    off(event, callback) {
+        if (!this._listeners[event]) return;
+        this._listeners[event] = this._listeners[event].filter(cb => cb !== callback);
+    },
+    emit(event, data) {
+        if (this._listeners[event]) {
+            this._listeners[event].forEach(cb => {
+                try {
+                    cb(data);
+                } catch (err) {
+                    console.error(`[EventBus] Erreur dans le handler '${event}':`, err);
+                }
+            });
+        }
+        try {
+            window.dispatchEvent(new CustomEvent(`omnibank:${event}`, { detail: data }));
+        } catch (e) {}
+    }
+};
+window.EventBus = EventBus;
+
 async function _handleApiError(res) {
     const text = await res.text();
     let errMsg = text;
@@ -114,6 +145,9 @@ const API = {
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
             window.app.updateHeaderHistoryState();
         }
+        if (window.EventBus) {
+            window.EventBus.emit('data:mutated', { endpoint, method: 'POST', data: json });
+        }
         return json;
     },
     async put(endpoint, data) {
@@ -128,6 +162,9 @@ const API = {
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
             window.app.updateHeaderHistoryState();
+        }
+        if (window.EventBus) {
+            window.EventBus.emit('data:mutated', { endpoint, method: 'PUT', data: json });
         }
         return json;
     },
@@ -145,11 +182,17 @@ const API = {
             if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
                 window.app.updateHeaderHistoryState();
             }
+            if (window.EventBus) {
+                window.EventBus.emit('data:mutated', { endpoint, method: 'DELETE', data: null });
+            }
             return { ok: true };
         }
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
             window.app.updateHeaderHistoryState();
+        }
+        if (window.EventBus) {
+            window.EventBus.emit('data:mutated', { endpoint, method: 'DELETE', data: json });
         }
         return json;
     },
@@ -169,15 +212,22 @@ const API = {
             if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
                 window.app.updateHeaderHistoryState();
             }
+            if (window.EventBus) {
+                window.EventBus.emit('data:mutated', { endpoint, method: 'PATCH', data: null });
+            }
             return { ok: true };
         }
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
             window.app.updateHeaderHistoryState();
         }
+        if (window.EventBus) {
+            window.EventBus.emit('data:mutated', { endpoint, method: 'PATCH', data: json });
+        }
         return json;
     }
 };
+window.API = API;
 
 
 // Global fetch interceptor for remote server URL support

@@ -232,8 +232,23 @@ fn main() {
                             // Server is ready — reload page (clears the ERR_CONNECTION_REFUSED) then show
                             if let Some(window) = app_handle.get_webview_window("main") {
                                 let _ = window.navigate("http://127.0.0.1:8434".parse().unwrap());
-                                // Wait for WebView to fully load the page (window is still hidden)
-                                std::thread::sleep(Duration::from_millis(200));
+                                // Wait for WebView to fully load the page (including CDN scripts)
+                                std::thread::sleep(Duration::from_millis(2000));
+                                // Inject error logger & force UI reveal as safety net
+                                let _ = window.eval(r#"
+                                    window.addEventListener('error', function(e) {
+                                        console.error('[Tauri:error]', e.message, e.filename, e.lineno);
+                                        var c = document.querySelector('.app-container');
+                                        if (c) c.style.opacity = '1';
+                                    });
+                                    setTimeout(function() {
+                                        var c = document.querySelector('.app-container');
+                                        if (c && c.style.opacity !== '1') {
+                                            console.warn('[Tauri:safety] Force-revealing UI after 5s');
+                                            c.style.opacity = '1';
+                                        }
+                                    }, 5000);
+                                "#);
                                 let _ = window.show();
                             }
                             // Check for updates after a short delay
