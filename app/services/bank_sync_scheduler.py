@@ -28,6 +28,10 @@ _PENDING_SYNC_DATA: Dict[str, Dict[int, Dict[str, Any]]] = {}
 _SCHEDULER_RUNNING = False
 
 
+CSV_IMPORT_CONN_ID = -1
+CSV_IMPORT_CONN_LABEL = "📄 Relevé importé"
+
+
 def _resolve_profile_id(profile_id: Optional[str] = None) -> str:
     if profile_id:
         return profile_id
@@ -87,6 +91,9 @@ def dismiss_pending_transaction(db: Session, csv_id: str, profile_id: Optional[s
             acc["transactions"] = [tx for tx in acc.get("transactions", []) if tx.get("csv_id") != csv_id]
             if len(acc.get("transactions", [])) < initial_len:
                 found = True
+        total_left = sum(len(a.get("transactions", [])) for a in data.get("accounts", []))
+        if total_left == 0 and conn_id == CSV_IMPORT_CONN_ID:
+            prof_data.pop(conn_id, None)
     if found:
         serializable = {str(k): v for k, v in prof_data.items()}
         _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if prof_data else "")
@@ -109,6 +116,9 @@ def remove_committed_from_pending(db: Session, csv_ids: List[str], profile_id: O
             acc["transactions"] = [tx for tx in acc.get("transactions", []) if tx.get("csv_id") not in csv_set]
             if len(acc.get("transactions", [])) < initial_len:
                 changed = True
+        total_left = sum(len(a.get("transactions", [])) for a in data.get("accounts", []))
+        if total_left == 0 and conn_id == CSV_IMPORT_CONN_ID:
+            prof_data.pop(conn_id, None)
     if changed:
         serializable = {str(k): v for k, v in prof_data.items()}
         _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if prof_data else "")
@@ -139,6 +149,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
     # Vérifier l'existence de connexions valides
     valid_conns = db.query(BankConnection).all()
     valid_conn_map = {c.id: c.label for c in valid_conns}
+    valid_conn_map[CSV_IMPORT_CONN_ID] = CSV_IMPORT_CONN_LABEL
     pid = _resolve_profile_id(profile_id)
 
     if pid not in _PENDING_SYNC_DATA:
@@ -146,8 +157,19 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
 
     prof_data = _PENDING_SYNC_DATA[pid]
 
-    if not valid_conn_map:
-        # Aucune connexion bancaire configurée -> Purge absolue
+    # Récupérer aussi depuis global_config au démarrage si le cache RAM de ce profil est vide
+    if not prof_data:
+        raw = _get_config_value(db, "bank_pending_sync_cache", "")
+        if raw:
+            try:
+                cached = json.loads(raw)
+                for k, v in cached.items():
+                    prof_data[int(k)] = v
+            except Exception:
+                pass
+
+    if not valid_conns and CSV_IMPORT_CONN_ID not in prof_data:
+        # Aucune connexion bancaire configurée et pas d'import fichier en cours -> Purge absolue
         prof_data.clear()
         _set_config_value(db, "bank_pending_sync_cache", "")
         return {
@@ -162,19 +184,8 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
             "vault_unlocked": VaultSessionManager.get_status(profile_id=pid).get("is_unlocked", False)
         }
 
-    # Récupérer aussi depuis global_config au démarrage si le cache RAM de ce profil est vide
-    if not prof_data:
-        raw = _get_config_value(db, "bank_pending_sync_cache", "")
-        if raw:
-            try:
-                cached = json.loads(raw)
-                for k, v in cached.items():
-                    prof_data[int(k)] = v
-            except Exception:
-                pass
-
-    # Purger immédiatement les conn_id orphelines qui n'existent plus
-    orphan_ids = [cid for cid in list(prof_data.keys()) if cid not in valid_conn_map]
+    # Purger immédiatement les conn_id orphelines qui n'existent plus (en épargnant CSV_IMPORT_CONN_ID)
+    orphan_ids = [cid for cid in list(prof_data.keys()) if cid not in valid_conn_map and cid != CSV_IMPORT_CONN_ID]
     if orphan_ids:
         for oid in orphan_ids:
             prof_data.pop(oid, None)

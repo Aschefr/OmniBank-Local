@@ -6,7 +6,14 @@ from fastapi.responses import StreamingResponse
 from app.database import get_db
 from app.models import Transaction, Account, Category, RecurrenceTemplate
 from app.services import stats_cache
-from app.routers.csv_parser import heuristic_parse, check_reconciliation, check_import_alerts, extract_account_block, detect_multi_account_sections
+from app.routers.csv_parser import (
+    heuristic_parse,
+    check_reconciliation,
+    check_import_alerts,
+    extract_account_block,
+    detect_multi_account_sections,
+    extract_all_sections_parsed
+)
 
 router = APIRouter(prefix="/api/csv", tags=["csv"])
 
@@ -324,27 +331,43 @@ def export_csv(db: Session = Depends(get_db), cols: str = Query(None, descriptio
     response.headers["Content-Disposition"] = "attachment; filename=export_omnibank.csv"
     return response
 
+def parse_file_to_raw_data(filename: str, content: bytes) -> list:
+    import pandas as pd
+    import csv
+
+    if filename.lower().endswith(('.xlsx', '.xls')):
+        df = pd.read_excel(BytesIO(content), dtype=str, header=None)
+        return [[str(x) if pd.notna(x) else '' for x in row] for row in df.values.tolist()]
+
+    try:
+        decoded = content.decode('utf-8-sig')
+    except Exception:
+        decoded = content.decode('latin-1')
+
+    # Detect delimiter
+    lines = [line for line in decoded.splitlines() if line.strip()]
+    delim = ';'
+    if lines:
+        semi_count = sum(l.count(';') for l in lines[:10])
+        comma_count = sum(l.count(',') for l in lines[:10])
+        tab_count = sum(l.count('\t') for l in lines[:10])
+        if tab_count > semi_count and tab_count > comma_count:
+            delim = '\t'
+        elif comma_count > semi_count:
+            delim = ','
+
+    reader = csv.reader(StringIO(decoded), delimiter=delim)
+    return [[str(x).strip() for x in row] for row in reader]
+
+
 @router.post("/inspect_file")
 async def inspect_file(
     file: UploadFile = File(...),
     account_id: int = Form(None),
     db: Session = Depends(get_db)
 ):
-    import pandas as pd
     content = await file.read()
-    
-    if file.filename.endswith('.xlsx'):
-        df = pd.read_excel(BytesIO(content), dtype=str)
-    else:
-        try:
-            decoded = content.decode('utf-8-sig')
-        except Exception:
-            decoded = content.decode('latin-1')
-        df = pd.read_csv(StringIO(decoded), sep=';', dtype=str)
-        if len(df.columns) == 1:
-            df = pd.read_csv(StringIO(decoded), sep=',', dtype=str)
-            
-    raw_data = [df.columns.tolist()] + df.values.tolist()
+    raw_data = parse_file_to_raw_data(file.filename, content)
     
     account_name = ""
     account_type = ""
@@ -357,6 +380,51 @@ async def inspect_file(
     res = detect_multi_account_sections(raw_data, account_name, account_type)
     return res
 
+
+@router.post("/import_to_pending")
+async def import_to_pending(
+    file: UploadFile = File(...),
+    account_id: int = Form(None),
+    section_title: str = Form(None),
+    db: Session = Depends(get_db)
+):
+    from app.services.bank_sync_scheduler import save_pending_sync_data, CSV_IMPORT_CONN_ID
+
+    content = await file.read()
+    raw_data = parse_file_to_raw_data(file.filename, content)
+
+    if section_title:
+        raw_data = extract_account_block(raw_data, "", "", explicit_section_title=section_title)
+
+    accounts_out = extract_all_sections_parsed(
+        raw_data=raw_data,
+        db=db,
+        explicit_account_id=account_id
+    )
+
+    if not accounts_out or not any(len(a.get("transactions", [])) > 0 for a in accounts_out):
+        raise HTTPException(status_code=400, detail="Aucune opération bancaire valide n'a pu être extraite du fichier.")
+
+    # Calculate overall file balance or per-account alerts
+    first_balance = next((a.get("bank_balance") for a in accounts_out if a.get("bank_balance") is not None), None)
+    merged_alerts = {}
+    for a in accounts_out:
+        if a.get("alerts"):
+            merged_alerts.update(a["alerts"])
+
+    preview_data = {
+        "_source": "csv_import",
+        "_csvAlerts": merged_alerts,
+        "_fileBalance": first_balance,
+        "accounts": accounts_out
+    }
+
+    # Inject into pending sync sas
+    save_pending_sync_data(db, CSV_IMPORT_CONN_ID, preview_data)
+
+    return preview_data
+
+
 @router.post("/analyze_heuristic")
 async def analyze_heuristic(
     file: UploadFile = File(...),
@@ -366,20 +434,7 @@ async def analyze_heuristic(
 ):
     import pandas as pd
     content = await file.read()
-    
-    if file.filename.endswith('.xlsx'):
-        df = pd.read_excel(BytesIO(content), dtype=str)
-    else:
-        try:
-            decoded = content.decode('utf-8-sig')
-        except Exception:
-            decoded = content.decode('latin-1')
-        df = pd.read_csv(StringIO(decoded), sep=';', dtype=str)
-        if len(df.columns) == 1:
-            df = pd.read_csv(StringIO(decoded), sep=',', dtype=str)
-            
-    # Pre-process DF to find the real header (Skip metadata rows)
-    raw_data = [df.columns.tolist()] + df.values.tolist()
+    raw_data = parse_file_to_raw_data(file.filename, content)
     
     # Extract only the block matching selected account (if multi-account export)
     if account_id or section_title:

@@ -839,6 +839,7 @@ class BankSyncService:
         conn = db.query(BankConnection).filter(BankConnection.id == connection_id).first()
         imported = 0
         reconciled_count = 0
+        created_ids = []
 
         # Indexer les csv_id existants en base pour éviter tout doublon
         existing_csv_ids = set(
@@ -870,6 +871,7 @@ class BankSyncService:
                 continue
 
             is_orphan_link = item.get("is_orphan_transfer_link", False)
+            creator_name = "Import Relevé" if (not conn or connection_id == -1) else "Banque (Sync)"
 
             # 2. Si liaison de virement orphelin (Auto-linking multi-comptes) :
             if is_rec and matched_id and is_orphan_link:
@@ -891,7 +893,7 @@ class BankSyncService:
                         existing.reconciliation_date = date.today()
                     if item.get("category"):
                         existing.category = item["category"]
-                    record_action(db, "transaction", existing.id, "UPDATE", before_snap, snapshot_entity(existing), user_name="Banque (Liaison Virement)")
+                    record_action(db, "transaction", existing.id, "UPDATE", before_snap, snapshot_entity(existing), user_name=f"{creator_name} (Liaison Virement)")
                     reconciled_count += 1
                 continue
 
@@ -904,7 +906,7 @@ class BankSyncService:
                         existing.reconciliation_date = date.today()
                     if item.get("category"):
                         existing.category = item["category"]
-                    record_action(db, "transaction", existing.id, "UPDATE", before_snap, snapshot_entity(existing), user_name="Banque (Sync)")
+                    record_action(db, "transaction", existing.id, "UPDATE", before_snap, snapshot_entity(existing), user_name=creator_name)
                     reconciled_count += 1
                 continue
 
@@ -952,14 +954,17 @@ class BankSyncService:
                 reconciliation_date=recon_date_val,
                 from_account_id=from_acc,
                 to_account_id=to_acc,
-                created_by="Banque (Sync)"
+                attachments=item.get("attachments"),
+                check_slip_number=item.get("check_slip_number"),
+                created_by=creator_name
             )
             db.add(new_tx)
             db.flush()
+            created_ids.append(new_tx.id)
             if csv_id:
                 existing_csv_ids.add(csv_id)
 
-            record_action(db, "transaction", new_tx.id, "CREATE", None, snapshot_entity(new_tx), user_name="Banque (Sync)")
+            record_action(db, "transaction", new_tx.id, "CREATE", None, snapshot_entity(new_tx), user_name=creator_name)
             imported += 1
             if not is_coming and recon_date_val is not None:
                 account_net_flows[account_id] += raw_amt
@@ -971,6 +976,8 @@ class BankSyncService:
                 try:
                     from app.services.smart_label_service import learn_label_mapping
                     learn_label_mapping(db, raw_label=raw_lbl, clean_description=clean_lbl, category=item.get("category"))
+                except Exception as ex_learn:
+                    logger.debug(f"[BankSync] Ignoré échec apprentissage smart label: {ex_learn}")
                 except Exception as ex_learn:
                     logger.debug(f"[BankSync] Ignoré échec apprentissage smart label: {ex_learn}")
 
@@ -1013,7 +1020,8 @@ class BankSyncService:
         return {
             "imported": imported,
             "reconciled": reconciled_count,
-            "total": imported + reconciled_count
+            "total": imported + reconciled_count,
+            "created_ids": created_ids
         }
 
     @staticmethod

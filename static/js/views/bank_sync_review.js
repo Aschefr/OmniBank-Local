@@ -109,7 +109,7 @@ Object.assign(window.BankSyncView, {
                 // Peupler la liste des comptes
                 const accSelect = document.getElementById('reviewCsvAccountSelect');
                 if (accSelect) {
-                    const currentVal = this.previewData?.accounts?.[0]?.account_id || '';
+                    const currentVal = this.previewData?.accounts?.[this.currentAccountIndex || 0]?.account_id || '';
                     accSelect.innerHTML = `<option value="">${window.i18n ? window.i18n.t('opt_no_account') || '-- Aucun compte sélectionné --' : '-- Aucun compte sélectionné --'}</option>`;
                     if (window.app && window.app.accounts) {
                         window.app.accounts.filter(a => !a.is_closed).forEach(acc => {
@@ -156,7 +156,8 @@ Object.assign(window.BankSyncView, {
     _renderCsvAlerts() {
         const alertBox = document.getElementById('reviewCsvAlertBox');
         if (!alertBox || !this.previewData) return;
-        const alerts = this.previewData._csvAlerts || {};
+        const currentAcc = this.previewData.accounts?.[this.currentAccountIndex || 0];
+        const alerts = currentAcc?.alerts || this.previewData._csvAlerts || {};
         const warningMsgs = [];
         if (alerts.all_duplicate) {
             warningMsgs.push(`⚠️ ${window.i18n ? window.i18n.t('import_alert_all_duplicate') || 'Toutes les opérations existent déjà en base.' : 'Toutes les opérations existent déjà en base.'}`);
@@ -183,13 +184,14 @@ Object.assign(window.BankSyncView, {
         if (this._reviewSource !== 'csv_import' || !this.previewData) return;
         const accSelect = document.getElementById('reviewCsvAccountSelect');
         const newAccId = accSelect ? parseInt(accSelect.value) || null : null;
-        // Mettre à jour le account_id dans le previewData
-        if (this.previewData.accounts && this.previewData.accounts[0]) {
-            this.previewData.accounts[0].account_id = newAccId;
+        const currentAcc = this.previewData.accounts?.[this.currentAccountIndex || 0];
+        if (currentAcc) {
+            currentAcc.account_id = newAccId;
             const acc = window.app?.accounts?.find(a => a.id == newAccId);
-            if (acc) this.previewData.accounts[0].account_name = acc.name;
+            if (acc) currentAcc.account_name = acc.name;
         }
         this.renderAccountTabs();
+        this.renderReviewTable();
         this.updateReviewSummary();
     },
 
@@ -207,13 +209,20 @@ Object.assign(window.BankSyncView, {
             <button class="btn btn-sm ${idx === this.currentAccountIndex ? 'btn-primary' : 'btn-secondary'}" 
                     onclick="window.BankSyncView.switchAccountTab(${idx})" 
                     style="padding: 4px 12px; font-size: 12px; border-radius: 8px;">
-                ${acc.account_name} (${acc.transactions?.length || 0})
+                ${acc.account_name || 'Compte'} (${acc.transactions?.length || 0})
             </button>
         `).join('');
     },
 
     switchAccountTab(idx) {
         this.currentAccountIndex = idx;
+        const accSelect = document.getElementById('reviewCsvAccountSelect');
+        if (accSelect && this.previewData?.accounts?.[idx]) {
+            accSelect.value = this.previewData.accounts[idx].account_id || '';
+        }
+        if (this._reviewSource === 'csv_import') {
+            this._renderCsvAlerts();
+        }
         this.renderAccountTabs();
         this.renderReviewTable();
     },
@@ -419,9 +428,9 @@ Object.assign(window.BankSyncView, {
 
             let linkActionBtn = '';
             if (isRec && !alreadyRec) {
-                linkActionBtn = `<button class="btn btn-secondary" style="padding: 4px 7px; color: #f59e0b; border: 1px solid var(--border-color); border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 2px;" onclick="window.BankSyncView.unlinkReviewRow('${tx.csv_id}')" title="${lblUnlink}"><span>⛓️‍💥</span></button>`;
+                linkActionBtn = `<button class="btn-action-icon" style="color: #f59e0b;" onclick="window.BankSyncView.unlinkReviewRow('${tx.csv_id}')" title="${lblUnlink}"><span>⛓️‍💥</span></button>`;
             } else if (!isRec && !alreadyRec) {
-                linkActionBtn = `<button class="btn btn-secondary" style="padding: 4px 7px; color: var(--accent, #6366f1); border: 1px solid var(--border-color); border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 2px;" onclick="window.BankSyncView.openLinkFromReview('${tx.csv_id}')" title="${lblRelink}"><span>🔗</span></button>`;
+                linkActionBtn = `<button class="btn-action-icon" style="color: var(--accent, #6366f1);" onclick="window.BankSyncView.openLinkFromReview('${tx.csv_id}')" title="${lblRelink}"><span>🔗</span></button>`;
             }
 
             return `
@@ -438,11 +447,13 @@ Object.assign(window.BankSyncView, {
                     ${amountInput}
                 </td>
                 <td style="padding: 10px 14px; text-align: center;">${statusBadge}</td>
-                <td style="padding: 10px 14px;">
-                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
-                        <span style="font-size: 11px; ${actionColor}">${actionText}</span>
-                        ${linkActionBtn}
-                        <button class="btn btn-secondary" style="padding: 4px 8px; color: #ef4444; border: 1px solid var(--border-color); border-radius: 6px;" onclick="window.BankSyncView.removeTxRow('${tx.csv_id}')" title="${lblIgnoreRow}">✕</button>
+                <td style="padding: 10px 14px; text-align: right;">
+                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; white-space: nowrap;">
+                        <span style="font-size: 11.5px; ${actionColor} white-space: nowrap;">${actionText}</span>
+                        <div style="display: inline-flex; gap: 4px; align-items: center;">
+                            ${linkActionBtn}
+                            <button class="btn-action-del" onclick="window.BankSyncView.removeTxRow('${tx.csv_id}')" title="${lblIgnoreRow}">✕</button>
+                        </div>
                     </div>
                 </td>
             </tr>
@@ -562,7 +573,7 @@ Object.assign(window.BankSyncView, {
         this.showToast(msg, 'info');
     },
 
-    openLinkFromReview(csvId) {
+    async openLinkFromReview(csvId) {
         if (!this.previewData || !this.previewData.accounts) return;
         const currentAcc = this.previewData.accounts[this.currentAccountIndex];
         const tx = currentAcc?.transactions?.find(t => t.csv_id === csvId);
@@ -601,8 +612,19 @@ Object.assign(window.BankSyncView, {
         // Peupler la liste des catégories
         const catSelect = document.getElementById('linkFinalCategory');
         if (catSelect) {
-            const categories = window.app?.categoriesList || ['Alimentation', 'Loisirs', 'Transport', 'Logement', 'Salaire', 'Autre'];
-            catSelect.innerHTML = `<option value="">-- ${window.i18n ? window.i18n.t('no_category') || 'Sans catégorie' : 'Sans catégorie'} --</option>` + categories.map(cat => `<option value="${window.escapeHtml ? window.escapeHtml(cat) : cat}">${window.escapeHtml ? window.escapeHtml(cat) : cat}</option>`).join('');
+            let catNames = [];
+            try {
+                if (!window.app?.categoriesList || !window.app.categoriesList.length) {
+                    window.app = window.app || {};
+                    window.app.categoriesList = await API.get('/api/categories/');
+                }
+                catNames = (window.app?.categoriesList || []).map(c => typeof c === 'string' ? c : c?.name).filter(Boolean);
+            } catch (_) {}
+            if (!catNames.length) {
+                catNames = ['Alimentation', 'Loisirs', 'Transport', 'Logement', 'Salaire', 'Autre'];
+            }
+            catNames = Array.from(new Set(catNames)).sort((a, b) => a.localeCompare(b));
+            catSelect.innerHTML = `<option value="">-- ${window.i18n ? window.i18n.t('no_category') || 'Sans catégorie' : 'Sans catégorie'} --</option>` + catNames.map(cat => `<option value="${window.escapeHtml ? window.escapeHtml(cat) : cat}">${window.escapeHtml ? window.escapeHtml(cat) : cat}</option>`).join('');
         }
 
         // Rendu du résumé de l'opération source
@@ -898,11 +920,11 @@ Object.assign(window.BankSyncView, {
         if (!this.previewData) return;
         const isCsvImport = this._reviewSource === 'csv_import';
 
-        // En mode CSV, vérifier qu'un compte est sélectionné
+        // En mode CSV, vérifier que tous les comptes concernés sont assignés
         if (isCsvImport) {
-            const accId = this.previewData.accounts?.[0]?.account_id;
-            if (!accId) {
-                this.showToast(window.i18n ? window.i18n.t('msg_select_account') || 'Veuillez sélectionner un compte avant de valider.' : 'Veuillez sélectionner un compte avant de valider.', 'warning');
+            const unassignedAcc = this.previewData.accounts?.find(a => !a.account_id && a.transactions && a.transactions.some(t => !t._excluded));
+            if (unassignedAcc) {
+                this.showToast(window.i18n ? window.i18n.t('msg_select_account') || 'Veuillez sélectionner un compte pour chaque onglet avant de valider.' : 'Veuillez sélectionner un compte pour chaque onglet avant de valider.', 'warning');
                 return;
             }
         } else if (!this.activeConnId) {
@@ -937,28 +959,10 @@ Object.assign(window.BankSyncView, {
         }
 
         try {
-            let res;
-            if (isCsvImport) {
-                // ── Mode Import CSV : appeler save_batch ──
-                const accountId = this.previewData.accounts[0]?.account_id;
-                const csvTxs = allTxs.map(t => ({
-                    date_operation: t.date_operation,
-                    description: t.description,
-                    raw_description: t.raw_description,
-                    amount: t.amount,
-                    category: t.category || null,
-                    is_reconciled: t.is_reconciled,
-                    matched_db_id: t.matched_db_id,
-                    attachments: t.attachments,
-                    check_slip_number: t.check_slip_number
-                }));
-                res = await API.post('/api/csv/save_batch', { transactions: csvTxs, account_id: accountId });
-            } else {
-                // ── Mode Synchro Bancaire : appeler le commit classique ──
-                res = await API.post(`/api/bank-sync/connections/${this.activeConnId}/commit`, {
-                    transactions: allTxs
-                });
-            }
+            const targetConnId = isCsvImport ? -1 : this.activeConnId;
+            const res = await API.post(`/api/bank-sync/connections/${targetConnId}/commit`, {
+                transactions: allTxs
+            });
 
             // Mettre à jour le preview en conservant les opérations non traitées (décochées)
             const committedCsvSet = new Set(allTxs.map(t => t.csv_id).filter(Boolean));
@@ -976,8 +980,13 @@ Object.assign(window.BankSyncView, {
 
             if (isCsvImport) {
                 const count = res.imported || allTxs.length;
-                const msg = window.i18n ? window.i18n.tp('msg_import_done', { count }) || `${count} opération(s) importée(s).` : `${count} opération(s) importée(s).`;
+                const recCount = res.reconciled || 0;
+                let msg = window.i18n ? window.i18n.tp('msg_import_done', { count }) || `${count} opération(s) importée(s).` : `${count} opération(s) importée(s).`;
+                if (recCount > 0) {
+                    msg += ` (✔ ${recCount} pointée(s))`;
+                }
                 this.showToast(msg, 'success');
+                await this.loadPendingSync();
             } else {
                 if (this.activeConnId) {
                     if (hasRemaining) {
@@ -1007,9 +1016,6 @@ Object.assign(window.BankSyncView, {
             }
             if (window.app && window.app.refreshSidebar) {
                 window.app.refreshSidebar();
-            }
-            if (isCsvImport) {
-                window.location.reload();
             }
         } catch (err) {
             this.showToast('Erreur lors de la validation : ' + (err.detail || err.message), 'error');

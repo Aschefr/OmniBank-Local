@@ -137,6 +137,8 @@ window.BankSyncView = {
         }
 
         // 3. Rafraîchir l'UI
+        this._ghostCategoryCache = {};
+        this._ghostCategorizing = false;
         this.showToast(window.i18n ? window.i18n.t('bank_sync_cache_purged') || 'Sas de synchronisation vidé.' : 'Sas de synchronisation vidé.', 'success');
         await this.loadPendingSync();
         if (window.OverviewView && window.OverviewView.init) window.OverviewView.init();
@@ -514,12 +516,12 @@ window.BankSyncView = {
                                 <th style="padding: 10px 14px; width: 44px; text-align: center;">
                                     <input type="checkbox" id="syncCheckAll" onchange="window.BankSyncView.toggleCheckAll(this.checked)" checked title="${window.i18n ? window.i18n.t('bank_sync_check_all_tooltip') || 'Tout cocher / Tout décocher' : 'Tout cocher / Tout décocher'}" style="cursor: pointer; transform: scale(1.15);">
                                 </th>
-                                <th style="padding: 10px 14px; width: 130px; color: var(--text-muted);" data-i18n="bank_sync_th_date">${window.i18n.t('bank_sync_th_date')}</th>
-                                <th style="padding: 10px 14px; color: var(--text-muted);" data-i18n="bank_sync_th_description">${window.i18n.t('bank_sync_th_description')}</th>
-                                <th style="padding: 10px 14px; width: 230px; color: var(--text-muted);" data-i18n="bank_sync_th_category">${window.i18n.t('bank_sync_th_category')}</th>
-                                <th style="padding: 10px 14px; width: 120px; text-align: right; color: var(--text-muted);" data-i18n="bank_sync_th_amount">${window.i18n.t('bank_sync_th_amount')}</th>
-                                <th style="padding: 10px 14px; width: 130px; text-align: center; color: var(--text-muted);" data-i18n="bank_sync_th_status">${window.i18n.t('bank_sync_th_status')}</th>
-                                <th style="padding: 10px 14px; width: 140px; text-align: right; color: var(--text-muted);" data-i18n="bank_sync_th_action">${window.i18n.t('bank_sync_th_action')}</th>
+                                <th style="padding: 10px 14px; width: 140px; color: var(--text-muted);" data-i18n="bank_sync_th_date">${window.i18n.t('bank_sync_th_date')}</th>
+                                <th style="padding: 10px 14px; min-width: 220px; color: var(--text-muted);" data-i18n="bank_sync_th_description">${window.i18n.t('bank_sync_th_description')}</th>
+                                <th style="padding: 10px 14px; width: 200px; color: var(--text-muted);" data-i18n="bank_sync_th_category">${window.i18n.t('bank_sync_th_category')}</th>
+                                <th style="padding: 10px 14px; width: 110px; text-align: right; color: var(--text-muted);" data-i18n="bank_sync_th_amount">${window.i18n.t('bank_sync_th_amount')}</th>
+                                <th style="padding: 10px 14px; width: 150px; text-align: center; color: var(--text-muted);" data-i18n="bank_sync_th_status">${window.i18n.t('bank_sync_th_status')}</th>
+                                <th style="padding: 10px 14px; width: 250px; text-align: right; color: var(--text-muted);" data-i18n="bank_sync_th_action">${window.i18n.t('bank_sync_th_action')}</th>
                             </tr>
                         </thead>
                         <tbody id="bankSyncReviewBody"></tbody>
@@ -752,6 +754,7 @@ window.BankSyncView = {
                                 </div>
                             </div>
                             <input type="text" id="linkFinalDesc" class="input-styled" style="width: 100%; font-size: 12px; padding: 6px 10px; border-radius: 6px;" />
+                            <div id="linkDescOriginalHint" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;"></div>
                         </div>
 
                         <!-- Ligne Montant -->
