@@ -154,7 +154,7 @@ Object.assign(window.BankSyncView, {
             await window.AccountsView.loadData();
         }
         if (window.app && typeof window.app.refreshSidebar === 'function') {
-            window.app.refreshSidebar();
+            await window.app.refreshSidebar();
         }
     },
 

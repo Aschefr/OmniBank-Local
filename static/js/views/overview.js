@@ -5,6 +5,7 @@ window.OverviewView = {
     _searchQuery: '',
     _selectedAccountId: '',
     _activeTab: 'all', // 'all', 'overdue', 'expenses', 'income'
+    _horizon: 'cycle', // 'cycle' (jusqu'à la paye / fin de mois) ou 'all' (toutes les futures)
     _trendMode: 'expenses', // 'expenses', 'compare', 'balance'
     _top6Filter: 'all', // 'all', 'fixed', 'var'
     _stats: null,
@@ -122,24 +123,34 @@ window.OverviewView = {
                         </div>
                     </div>
 
-                    <!-- Filter Tabs -->
+                    <!-- Filter Tabs & Horizon Selector -->
                     <div class="overview-tabs-bar">
-                        <button class="overview-tab ${this._activeTab === 'all' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('all')">
-                            <span data-i18n="overview_filter_all">${window.i18n.t('overview_filter_all') || 'Toutes'}</span>
-                            <span id="ovTabCount_all" class="overview-tab-count">(0)</span>
-                        </button>
-                        <button class="overview-tab ${this._activeTab === 'overdue' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('overdue')">
-                            <span data-i18n="overview_filter_overdue">${window.i18n.t('overview_filter_overdue') || 'Passées ⏳'}</span>
-                            <span id="ovTabCount_overdue" class="overview-tab-count">(0)</span>
-                        </button>
-                        <button class="overview-tab ${this._activeTab === 'expenses' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('expenses')">
-                            <span data-i18n="overview_filter_expenses">${window.i18n.t('overview_filter_expenses') || 'Dépenses 💸'}</span>
-                            <span id="ovTabCount_expenses" class="overview-tab-count">(0)</span>
-                        </button>
-                        <button class="overview-tab ${this._activeTab === 'income' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('income')">
-                            <span data-i18n="overview_filter_income">${window.i18n.t('overview_filter_income') || 'Recettes 🟢'}</span>
-                            <span id="ovTabCount_income" class="overview-tab-count">(0)</span>
-                        </button>
+                        <div class="overview-tabs-left">
+                            <button class="overview-tab ${this._activeTab === 'all' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('all')">
+                                <span data-i18n="overview_filter_all">${window.i18n.t('overview_filter_all') || 'Toutes'}</span>
+                                <span id="ovTabCount_all" class="overview-tab-count">(0)</span>
+                            </button>
+                            <button class="overview-tab ${this._activeTab === 'overdue' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('overdue')">
+                                <span data-i18n="overview_filter_overdue">${window.i18n.t('overview_filter_overdue') || 'Passées ⏳'}</span>
+                                <span id="ovTabCount_overdue" class="overview-tab-count">(0)</span>
+                            </button>
+                            <button class="overview-tab ${this._activeTab === 'expenses' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('expenses')">
+                                <span data-i18n="overview_filter_expenses">${window.i18n.t('overview_filter_expenses') || 'Dépenses 💸'}</span>
+                                <span id="ovTabCount_expenses" class="overview-tab-count">(0)</span>
+                            </button>
+                            <button class="overview-tab ${this._activeTab === 'income' ? 'active' : ''}" onclick="window.OverviewView.setFilterTab('income')">
+                                <span data-i18n="overview_filter_income">${window.i18n.t('overview_filter_income') || 'Recettes 🟢'}</span>
+                                <span id="ovTabCount_income" class="overview-tab-count">(0)</span>
+                            </button>
+                        </div>
+                        <div class="overview-horizon-selector" id="ovHorizonSelector">
+                            <button class="ov-horizon-btn ${this._horizon === 'cycle' ? 'active' : ''}" onclick="window.OverviewView.setHorizon('cycle')" data-i18n-title="overview_horizon_cycle_tooltip" title="${window.i18n.t('overview_horizon_cycle_tooltip') || 'Opérations échues et à venir jusqu\'à la prochaine paye'}">
+                                📅 <span data-i18n="overview_horizon_cycle">${window.i18n.t('overview_horizon_cycle') || 'Cycle en cours (paye)'}</span>
+                            </button>
+                            <button class="ov-horizon-btn ${this._horizon === 'all' ? 'active' : ''}" onclick="window.OverviewView.setHorizon('all')" data-i18n-title="overview_horizon_all_tooltip" title="${window.i18n.t('overview_horizon_all_tooltip') || 'Toutes les opérations prévues sans limite de date'}">
+                                🔮 <span data-i18n="overview_horizon_all">${window.i18n.t('overview_horizon_all') || 'Toutes les prévisions'}</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div id="ovUnreconciledList" class="overview-ops-table-container">
@@ -233,6 +244,9 @@ window.OverviewView = {
                 if (config.overview_active_tab !== undefined) {
                     this._activeTab = config.overview_active_tab;
                 }
+                if (config.overview_horizon !== undefined) {
+                    this._horizon = config.overview_horizon;
+                }
                 if (config.overview_trend_mode !== undefined) {
                     this._trendMode = config.overview_trend_mode;
                 }
@@ -243,6 +257,8 @@ window.OverviewView = {
             if (window.ProfileStorage) {
                 const savedTop6 = window.ProfileStorage.get('overview_top6_filter');
                 if (savedTop6) this._top6Filter = savedTop6;
+                const savedHorizon = window.ProfileStorage.get('overview_horizon');
+                if (savedHorizon) this._horizon = savedHorizon;
             }
 
             this._stats = stats;
@@ -253,9 +269,13 @@ window.OverviewView = {
 
             this._populateAccountSelect();
             this._updateActiveTabUI();
+            this._updateHorizonUI();
             this._updateTrendModeUI();
             this._renderHealthBadge(stats);
             this._renderHero(stats);
+            const isOrgMode = window.app?.config?.enable_org_mode === 'true' || window.app?.config?.enable_org_mode === true;
+            const horizonSelector = document.getElementById('ovHorizonSelector');
+            if (horizonSelector) horizonSelector.style.display = isOrgMode ? 'none' : 'inline-flex';
             await this._checkBankConnections();
             await this._renderPendingBankSyncBanner();
             this._renderUnreconciled(transactions);
@@ -612,6 +632,10 @@ window.OverviewView = {
         if (!container) return;
 
         const todayISO = new Date().toISOString().split('T')[0];
+        const nextPayDate = this._stats?.next_pay_date;
+        const now = new Date();
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        const cutoffDate = nextPayDate || endOfMonth;
 
         // 1. Filtrer les opérations bancaires fantômes (en attente de validation)
         let ghosts = (window.BankSyncView && window.BankSyncView.ghostTransactions) || [];
@@ -632,6 +656,15 @@ window.OverviewView = {
             allUnreconciled = allUnreconciled.filter(tx =>
                 String(tx.from_account_id) === accIdStr || String(tx.to_account_id) === accIdStr
             );
+        }
+
+        const isOrgMode = window.app?.config?.enable_org_mode === 'true' || window.app?.config?.enable_org_mode === true;
+        const horizonSelector = document.getElementById('ovHorizonSelector');
+        if (horizonSelector) horizonSelector.style.display = isOrgMode ? 'none' : 'inline-flex';
+
+        // Horizon temporel (En mode organisation : toujours toutes les prévisions. En mode personnel : Cycle en cours vs Toutes)
+        if (!isOrgMode && this._horizon === 'cycle') {
+            allUnreconciled = allUnreconciled.filter(tx => tx.date_operation <= cutoffDate);
         }
 
         allUnreconciled.sort((a, b) => new Date(a.date_operation) - new Date(b.date_operation));
@@ -751,7 +784,6 @@ window.OverviewView = {
         const display = filtered.slice(0, 20);
         const remaining = filtered.length - display.length;
 
-        const isOrgMode = window.app?.config?.enable_org_mode === 'true';
         const dateTh = window.i18n.t('th_date') || 'Date';
         const accTh = window.i18n.t('th_account') || 'Compte';
         const descTh = window.i18n.t('th_description') || 'Description';
@@ -913,6 +945,22 @@ window.OverviewView = {
         });
     },
 
+    setHorizon(mode) {
+        this._horizon = mode;
+        if (window.ProfileStorage) {
+            window.ProfileStorage.set('overview_horizon', mode);
+        }
+        this.saveConfig({ overview_horizon: this._horizon });
+        this._updateHorizonUI();
+        this._renderUnreconciled(this._transactions);
+    },
+
+    _updateHorizonUI() {
+        document.querySelectorAll('.ov-horizon-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${this._horizon}'`));
+        });
+    },
+
     async toggleBulkReconciliation() {
         const pastTxs = this._pastOverdueTxs || [];
         if (pastTxs.length === 0) return;
@@ -937,7 +985,7 @@ window.OverviewView = {
 
     onSearch(query) {
         this._searchQuery = query || '';
-        this._renderUnreconciled(this._unreconciledTxs);
+        this._renderUnreconciled(this._transactions);
     },
 
     _renderTop3(transactions) {

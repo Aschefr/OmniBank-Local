@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.90-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.91-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,13 +110,11 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.90)
+## 🆕 Nouveautés (v1.0.91)
 
-* **📄 Import de Fichier Multi-Comptes Unifié (CSV/Excel)** : Détection automatique de toutes les sections de comptes et livrets d'un relevé et injection directe dans le sas d'attente / opérations fantômes avec navigation multi-onglets et commit sans rechargement.
-* **🏷️ Catégorisation Intelligente Instantanée (Smart Labels)** : Résolution synchrone des règles et de l'historique garantissant l'affichage immédiat des suggestions sans nécessiter de rafraîchissement (F5).
-* **🔗 Modale de Liaison Enrichie** : Affichage dynamique des libellés d'origine (banque et base) et synchronisation automatique de la catégorie correspondante.
-* **✨ Animation & Surbrillance Visuelle Globale** : Animation de surbrillance fluide (`highlightRow`) sur les lignes créées/modifiées à travers le Tableau de bord, la Vue d'ensemble et Toutes les opérations.
-* **🛡️ Fiabilisation des Alertes de Relevé** : Exclusion des récurrences futures planifiées pour éliminer les faux avertissements d'ancienneté du fichier.
+* **📅🔮 Sélecteur d'Horizon Temporel dans la Vue d'ensemble** : Bascule instantanée entre le cycle en cours (jusqu'à la prochaine paie / fin de mois) et la totalité des prévisions futures dans la liste des opérations à rapprocher.
+* **🏢 Adaptation Transparente en Mode Organisation** : Masquage automatique du sélecteur d'horizon et affichage exhaustif de tous les engagements et prévisions budgétaires de l'organisation.
+* **🧪 Suite de Tests E2E Playwright Stabilisée** : Validation automatisée de bout en bout des 18 scénarios applicatifs clés (onboarding, import de relevé unifié, analyse multi-années, simulateur, sécurité PIN et rapprochement réactif).
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -124,7 +122,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.90-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.91-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -224,13 +222,11 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.90)
+## 🆕 What's New (v1.0.91)
 
-* **📄 Unified Multi-Account File Import (CSV/Excel)**: Automatic detection of all account and savings sections in a single statement file, depositing transactions directly into the pending sync holding queue with multi-tab review and zero-reload commit.
-* **🏷️ Instant Smart Label Auto-Categorization**: Synchronous resolution of local rules and history ensuring categories and cleaned descriptions appear immediately without requiring a manual refresh (F5).
-* **🔗 Enhanced Manual Link Modal**: Dynamic context hints showing original bank vs database labels, with automatic category synchronization from existing database matches.
-* **✨ Global Row Highlight Animation**: Smooth scroll and visual highlight animation (`highlightRow`) across Dashboard, Overview, and All Operations views after validating or linking ghost transactions.
-* **🛡️ Statement Freshness Alert Precision**: Filtered out future planned recurring transactions to prevent false-positive "old statement" warnings.
+* **📅🔮 Time Horizon Selector in Overview**: Instant toggle between current cycle (up to next paycheck / end of month) and all future forecasts in the reconcile list.
+* **🏢 Seamless Organisation Mode Adaptation**: Automatically hides the horizon selector and displays all forecasts and commitments unconditionally.
+* **🧪 Playwright E2E Test Suite Stabilized**: End-to-end automated coverage across all 18 application scenarios (onboarding, unified CSV cockpit import, multi-year analysis, sandbox simulator, PIN security, and reactive reconciliation).
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 
