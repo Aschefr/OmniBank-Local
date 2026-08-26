@@ -49,6 +49,17 @@ Object.assign(window.BankSyncView, {
             }
         }
 
+        // Dédupliquer les comptes dans previewData.accounts si besoin
+        if (previewData && previewData.accounts && previewData.accounts.length > 1) {
+            const seenRevAccs = new Set();
+            previewData.accounts = previewData.accounts.filter(a => {
+                const k = a.account_id ? `id_${a.account_id}` : `name_${(a.account_name || a.name || a.section_title || '').trim().toLowerCase()}`;
+                if (seenRevAccs.has(k)) return false;
+                seenRevAccs.add(k);
+                return true;
+            });
+        }
+
         this.previewData = previewData;
         this.currentAccountIndex = 0;
         this.currentFilter = 'all';

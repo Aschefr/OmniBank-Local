@@ -91,9 +91,6 @@ def dismiss_pending_transaction(db: Session, csv_id: str, profile_id: Optional[s
             acc["transactions"] = [tx for tx in acc.get("transactions", []) if tx.get("csv_id") != csv_id]
             if len(acc.get("transactions", [])) < initial_len:
                 found = True
-        total_left = sum(len(a.get("transactions", [])) for a in data.get("accounts", []))
-        if total_left == 0 and conn_id == CSV_IMPORT_CONN_ID:
-            prof_data.pop(conn_id, None)
     if found:
         serializable = {str(k): v for k, v in prof_data.items()}
         _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if prof_data else "")
@@ -102,7 +99,7 @@ def dismiss_pending_transaction(db: Session, csv_id: str, profile_id: Optional[s
 
 
 def remove_committed_from_pending(db: Session, csv_ids: List[str], profile_id: Optional[str] = None):
-    """Purge une liste de transactions (par csv_id) du sas d'attente."""
+    """Purge une liste de transactions (par csv_id) du sas d'attente tout en conservant les comptes et leurs soldes."""
     global _PENDING_SYNC_DATA
     if not csv_ids:
         return
@@ -116,14 +113,25 @@ def remove_committed_from_pending(db: Session, csv_ids: List[str], profile_id: O
             acc["transactions"] = [tx for tx in acc.get("transactions", []) if tx.get("csv_id") not in csv_set]
             if len(acc.get("transactions", [])) < initial_len:
                 changed = True
-        total_left = sum(len(a.get("transactions", [])) for a in data.get("accounts", []))
-        if total_left == 0 and conn_id == CSV_IMPORT_CONN_ID:
-            prof_data.pop(conn_id, None)
     if changed:
         serializable = {str(k): v for k, v in prof_data.items()}
         _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if prof_data else "")
         logger.info(f"[BankSyncScheduler] {len(csv_ids)} opération(s) purgée(s) du sas d'attente (profil={pid}).")
 
+
+
+def _matches_account(acc_a: Dict[str, Any], acc_b: Dict[str, Any]) -> bool:
+    """Détermine si deux dictionnaires de comptes représentent le même compte OmniBank."""
+    id_a = acc_a.get("account_id")
+    id_b = acc_b.get("account_id")
+    if id_a is not None and id_b is not None:
+        try:
+            return int(id_a) == int(id_b)
+        except (ValueError, TypeError):
+            pass
+    name_a = (acc_a.get("account_name") or acc_a.get("name") or acc_a.get("section_title") or "").strip().lower()
+    name_b = (acc_b.get("account_name") or acc_b.get("name") or acc_b.get("section_title") or "").strip().lower()
+    return bool(name_a and name_b and name_a == name_b)
 
 
 def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[str, Any]:
@@ -132,6 +140,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
     Ré-évalue dynamiquement les rapprochements contre la base de données actuelle pour garantir
     l'exactitude (ex: détection des virements internes miroirs, opérations pointées manuellement).
     Purgera automatiquement toute donnée résiduelle si la connexion n'existe plus dans la base.
+    Garantit l'unicité stricte par compte en conservant systématiquement la version la plus récente.
     """
     global _PENDING_SYNC_DATA
     from app.routers.csv_parser import check_reconciliation
@@ -194,70 +203,92 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
     from app.services.finance_engine import calculate_balances
     balances_reconciled = calculate_balances(db, only_reconciled=True)
 
-    for conn_id, data in list(prof_data.items()):
+    # Trier les connexions par updated_at décroissant pour privilégier les données les plus récentes
+    sorted_conn_items = sorted(
+        prof_data.items(),
+        key=lambda item: item[1].get("updated_at", 0) if isinstance(item[1], dict) else 0,
+        reverse=True
+    )
+
+    seen_account_keys = set()
+    unique_accounts_to_process = []
+    has_pruned_duplicates = False
+
+    for conn_id, data in sorted_conn_items:
         conn_label = valid_conn_map.get(conn_id, f"Banque #{conn_id}")
+        kept_accs_for_conn = []
 
         for acc in data.get("accounts", []):
-            acc_copy = dict(acc)
-            acc_copy["connection_id"] = conn_id
-            acc_copy["connection_label"] = conn_label
-            acc_copy["bank_balance"] = acc.get("bank_balance")
-            local_acc_id = acc.get("account_id")
-            if local_acc_id:
-                acc_copy["local_reconciled_balance"] = round(balances_reconciled.get(local_acc_id, 0.0), 2)
-            else:
-                acc_copy["local_reconciled_balance"] = None
+            acc_id = acc.get("account_id")
+            acc_name = (acc.get("account_name") or acc.get("name") or acc.get("section_title") or "").strip().lower()
+            acc_key = f"id_{acc_id}" if acc_id is not None else f"name_{acc_name}"
 
-            txs = acc.get("transactions", [])
-            confirmed_txs = [tx for tx in txs if not tx.get("is_coming", False)]
-            coming_txs = [tx for tx in txs if tx.get("is_coming", False)]
+            if acc_key in seen_account_keys:
+                # Doublon détecté provenant d'une source antérieure : on ignore l'ancienne entrée
+                has_pruned_duplicates = True
+                continue
+            seen_account_keys.add(acc_key)
+            kept_accs_for_conn.append(acc)
+            unique_accounts_to_process.append((conn_id, conn_label, acc))
 
-            def _evaluate_scheduler_tx_list(tx_list, is_coming_flag):
-                nonlocal total_matches, total_confirmed_matches, total_coming_matches, total_discrepancies, total_new
-                result_list = []
-                for tx in tx_list:
-                    tx_copy = dict(tx)
-                    tx_copy["is_coming"] = is_coming_flag
-                    tx_date_str = tx.get("date_operation")
-                    raw_amount = tx.get("raw_amount")
-                    if tx_date_str and raw_amount is not None and local_acc_id:
-                        try:
-                            tx_date = date.fromisoformat(tx_date_str[:10])
-                            rec_info = check_reconciliation(
-                                db,
-                                tx_date,
-                                raw_amount,
-                                matched_ids=matched_ids_global,
-                                account_id=local_acc_id,
-                                is_coming=is_coming_flag,
-                                bank_label=tx.get("raw_description") or tx.get("description"),
-                                csv_id=tx.get("csv_id")
-                            )
-                            if rec_info:
-                                tx_copy["is_reconciled"] = True
-                                tx_copy["already_reconciled"] = rec_info.get("already_reconciled", False)
-                                tx_copy["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
-                                tx_copy["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
-                                tx_copy["orphan_account_id"] = rec_info.get("orphan_account_id")
-                                tx_copy["orphan_account_name"] = rec_info.get("orphan_account_name")
-                                tx_copy["matched_db_id"] = rec_info.get("id")
-                                tx_copy["db_description"] = rec_info.get("description")
-                                tx_copy["match_score"] = rec_info.get("match_score", 0)
-                                if rec_info.get("id"):
-                                    matched_ids_global.add(rec_info.get("id"))
-                            else:
-                                tx_copy["is_reconciled"] = False
-                                tx_copy["already_reconciled"] = False
-                                tx_copy["is_mirror_transfer"] = False
-                                tx_copy["is_orphan_transfer_link"] = False
-                                tx_copy["orphan_account_id"] = None
-                                tx_copy["orphan_account_name"] = None
-                                tx_copy["matched_db_id"] = None
-                                tx_copy["db_description"] = None
-                                tx_copy["match_score"] = 0
-                        except Exception as err:
-                            tx_kind = "coming" if is_coming_flag else "pending"
-                            logger.warning(f"[BankScheduler] Erreur re-matching {tx_kind} tx: {err}")
+        data["accounts"] = kept_accs_for_conn
+
+    if has_pruned_duplicates:
+        # Nettoyer les connexions CSV vides après élimination des doublons
+        if CSV_IMPORT_CONN_ID in prof_data and not prof_data[CSV_IMPORT_CONN_ID].get("accounts"):
+            prof_data.pop(CSV_IMPORT_CONN_ID, None)
+        serializable = {str(k): v for k, v in prof_data.items()}
+        _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if prof_data else "")
+
+    for conn_id, conn_label, acc in unique_accounts_to_process:
+        acc_copy = dict(acc)
+        acc_copy["connection_id"] = conn_id
+        acc_copy["connection_label"] = conn_label
+        acc_copy["bank_balance"] = acc.get("bank_balance")
+        local_acc_id = acc.get("account_id")
+        if local_acc_id:
+            acc_copy["local_reconciled_balance"] = round(balances_reconciled.get(local_acc_id, 0.0), 2)
+        else:
+            acc_copy["local_reconciled_balance"] = None
+
+        txs = acc.get("transactions", [])
+        confirmed_txs = [tx for tx in txs if not tx.get("is_coming", False)]
+        coming_txs = [tx for tx in txs if tx.get("is_coming", False)]
+
+        def _evaluate_scheduler_tx_list(tx_list, is_coming_flag):
+            nonlocal total_matches, total_confirmed_matches, total_coming_matches, total_discrepancies, total_new
+            result_list = []
+            for tx in tx_list:
+                tx_copy = dict(tx)
+                tx_copy["is_coming"] = is_coming_flag
+                tx_date_str = tx.get("date_operation")
+                raw_amount = tx.get("raw_amount")
+                if tx_date_str and raw_amount is not None and local_acc_id:
+                    try:
+                        tx_date = date.fromisoformat(tx_date_str[:10])
+                        rec_info = check_reconciliation(
+                            db,
+                            tx_date,
+                            raw_amount,
+                            matched_ids=matched_ids_global,
+                            account_id=local_acc_id,
+                            is_coming=is_coming_flag,
+                            bank_label=tx.get("raw_description") or tx.get("description"),
+                            csv_id=tx.get("csv_id")
+                        )
+                        if rec_info:
+                            tx_copy["is_reconciled"] = True
+                            tx_copy["already_reconciled"] = rec_info.get("already_reconciled", False)
+                            tx_copy["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
+                            tx_copy["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
+                            tx_copy["orphan_account_id"] = rec_info.get("orphan_account_id")
+                            tx_copy["orphan_account_name"] = rec_info.get("orphan_account_name")
+                            tx_copy["matched_db_id"] = rec_info.get("id")
+                            tx_copy["db_description"] = rec_info.get("description")
+                            tx_copy["match_score"] = rec_info.get("match_score", 0)
+                            if rec_info.get("id"):
+                                matched_ids_global.add(rec_info.get("id"))
+                        else:
                             tx_copy["is_reconciled"] = False
                             tx_copy["already_reconciled"] = False
                             tx_copy["is_mirror_transfer"] = False
@@ -267,40 +298,52 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                             tx_copy["matched_db_id"] = None
                             tx_copy["db_description"] = None
                             tx_copy["match_score"] = 0
+                    except Exception as err:
+                        tx_kind = "coming" if is_coming_flag else "pending"
+                        logger.warning(f"[BankScheduler] Erreur re-matching {tx_kind} tx: {err}")
+                        tx_copy["is_reconciled"] = False
+                        tx_copy["already_reconciled"] = False
+                        tx_copy["is_mirror_transfer"] = False
+                        tx_copy["is_orphan_transfer_link"] = False
+                        tx_copy["orphan_account_id"] = None
+                        tx_copy["orphan_account_name"] = None
+                        tx_copy["matched_db_id"] = None
+                        tx_copy["db_description"] = None
+                        tx_copy["match_score"] = 0
 
-                    result_list.append(tx_copy)
-                    if tx_copy.get("is_reconciled") and not tx_copy.get("already_reconciled") and tx_copy.get("matched_db_id"):
-                        total_matches += 1
-                        if tx_copy.get("is_coming"):
-                            total_coming_matches += 1
-                        else:
-                            total_confirmed_matches += 1
-                        matches_by_tx_id[tx_copy["matched_db_id"]] = {
-                            **tx_copy,
-                            "connection_id": conn_id,
-                            "connection_label": conn_label
-                        }
-                    elif tx_copy.get("is_coming") and tx_copy.get("is_reconciled") and tx_copy.get("already_reconciled") and tx_copy.get("matched_db_id"):
-                        total_discrepancies += 1
-                        discrepancies_by_tx_id[tx_copy["matched_db_id"]] = {
-                            **tx_copy,
-                            "connection_id": conn_id,
-                            "connection_label": conn_label
-                        }
-                    elif not tx_copy.get("is_reconciled"):
-                        total_new += 1
+                result_list.append(tx_copy)
+                if tx_copy.get("is_reconciled") and not tx_copy.get("already_reconciled") and tx_copy.get("matched_db_id"):
+                    total_matches += 1
+                    if tx_copy.get("is_coming"):
+                        total_coming_matches += 1
+                    else:
+                        total_confirmed_matches += 1
+                    matches_by_tx_id[tx_copy["matched_db_id"]] = {
+                        **tx_copy,
+                        "connection_id": conn_id,
+                        "connection_label": conn_label
+                    }
+                elif tx_copy.get("is_coming") and tx_copy.get("is_reconciled") and tx_copy.get("already_reconciled") and tx_copy.get("matched_db_id"):
+                    total_discrepancies += 1
+                    discrepancies_by_tx_id[tx_copy["matched_db_id"]] = {
+                        **tx_copy,
+                        "connection_id": conn_id,
+                        "connection_label": conn_label
+                    }
+                elif not tx_copy.get("is_reconciled"):
+                    total_new += 1
 
-                return result_list
+            return result_list
 
-            # Passe 1: Transactions confirmées en premier
-            re_evaluated_confirmed = _evaluate_scheduler_tx_list(confirmed_txs, is_coming_flag=False)
-            # Passe 2: Transactions à venir en attente ensuite
-            re_evaluated_coming = _evaluate_scheduler_tx_list(coming_txs, is_coming_flag=True)
+        # Passe 1: Transactions confirmées en premier
+        re_evaluated_confirmed = _evaluate_scheduler_tx_list(confirmed_txs, is_coming_flag=False)
+        # Passe 2: Transactions à venir en attente ensuite
+        re_evaluated_coming = _evaluate_scheduler_tx_list(coming_txs, is_coming_flag=True)
 
-            re_evaluated_txs = re_evaluated_confirmed + re_evaluated_coming
-            re_evaluated_txs.sort(key=lambda x: str(x.get("date_operation") or ""), reverse=True)
-            acc_copy["transactions"] = re_evaluated_txs
-            accounts_list.append(acc_copy)
+        re_evaluated_txs = re_evaluated_confirmed + re_evaluated_coming
+        re_evaluated_txs.sort(key=lambda x: str(x.get("date_operation") or ""), reverse=True)
+        acc_copy["transactions"] = re_evaluated_txs
+        accounts_list.append(acc_copy)
 
     return {
         "total_matches": total_matches,
@@ -316,16 +359,58 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
 
 
 def save_pending_sync_data(db: Session, conn_id: int, preview_data: Dict[str, Any], profile_id: Optional[str] = None):
-    """Enregistre le résultat de preview dans le sas d'attente (RAM + GlobalConfig) pour le profil."""
+    """
+    Enregistre le résultat de preview dans le sas d'attente (RAM + GlobalConfig) pour le profil.
+    Remplace systématiquement les données antérieures pour les comptes concernés,
+    quelle que soit leur provenance (connexion en ligne ou import de relevé).
+    """
     global _PENDING_SYNC_DATA
     pid = _resolve_profile_id(profile_id)
     if pid not in _PENDING_SYNC_DATA:
         _PENDING_SYNC_DATA[pid] = {}
 
-    _PENDING_SYNC_DATA[pid][conn_id] = {
-        "updated_at": time.time(),
-        "accounts": preview_data.get("accounts", [])
-    }
+    new_accounts = preview_data.get("accounts", []) or []
+    current_time = time.time()
+
+    # 1. Purger/retirer ces comptes de toutes les AUTRES connexions existantes dans le sas
+    for other_cid in list(_PENDING_SYNC_DATA[pid].keys()):
+        if other_cid == conn_id:
+            continue
+        other_conn_entry = _PENDING_SYNC_DATA[pid].get(other_cid)
+        if not other_conn_entry:
+            continue
+        existing_other_accs = other_conn_entry.get("accounts", [])
+        filtered_other_accs = [
+            o_acc for o_acc in existing_other_accs
+            if not any(_matches_account(o_acc, n_acc) for n_acc in new_accounts)
+        ]
+        if len(filtered_other_accs) != len(existing_other_accs):
+            other_conn_entry["accounts"] = filtered_other_accs
+            # Si plus aucun compte dans un import CSV, on supprime la connexion du sas
+            if other_cid == CSV_IMPORT_CONN_ID and len(filtered_other_accs) == 0:
+                _PENDING_SYNC_DATA[pid].pop(other_cid, None)
+
+    # 2. Mettre à jour la connexion cible
+    if conn_id == CSV_IMPORT_CONN_ID:
+        # Pour les imports fichiers successifs (ex: fichier A pour compte 1 puis fichier B pour compte 2),
+        # fusionner avec les comptes existants du sas fichier en remplaçant ceux qui correspondent.
+        existing_csv_accs = _PENDING_SYNC_DATA[pid].get(CSV_IMPORT_CONN_ID, {}).get("accounts", [])
+        merged_csv_accs = [
+            e_acc for e_acc in existing_csv_accs
+            if not any(_matches_account(e_acc, n_acc) for n_acc in new_accounts)
+        ]
+        merged_csv_accs.extend(new_accounts)
+        _PENDING_SYNC_DATA[pid][CSV_IMPORT_CONN_ID] = {
+            "updated_at": current_time,
+            "accounts": merged_csv_accs
+        }
+    else:
+        # Pour une connexion bancaire en ligne, remplacer intégralement ses comptes par le nouveau relevé
+        _PENDING_SYNC_DATA[pid][conn_id] = {
+            "updated_at": current_time,
+            "accounts": new_accounts
+        }
+
     try:
         serializable = {str(k): v for k, v in _PENDING_SYNC_DATA[pid].items()}
         _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable))
