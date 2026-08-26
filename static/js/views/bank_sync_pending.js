@@ -33,7 +33,7 @@ Object.assign(window.BankSyncView, {
                     const accId = acc.account_id;
                     const accName = acc.account_name || acc.name || `Compte #${accId}`;
                     (acc.transactions || []).forEach(tx => {
-                        if (!tx.is_reconciled) {
+                        if (!tx.is_reconciled && !tx.is_dismissed && !tx.is_auto_dismissed && !tx._excluded) {
                             const ghostKey = tx.csv_id || `${accId}_${tx.date_operation}_${tx.raw_amount}_${tx.description}`;
                             if (seenGhostKeys.has(ghostKey)) return;
                             seenGhostKeys.add(ghostKey);

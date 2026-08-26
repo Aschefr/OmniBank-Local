@@ -127,3 +127,61 @@ def test_generate_ai_report_task_frequency():
     # Calling generate_ai_report_task with force=False should check the frequency and skip safely
     generate_ai_report_task(TestingSessionLocal, force=False)
 
+
+def test_bank_sync_and_file_import_notifications_formatting():
+    """Vérifie la création et la structure des métadonnées pour les notifications bancaires et d'import."""
+    import json
+    client = TestClient(app)
+    from app.database import get_db
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+    app.dependency_overrides[get_db] = override_get_db
+
+    db = TestingSessionLocal()
+    notif_bank = Notification(
+        type="bank_sync",
+        title="🏦 Synchronisation Crédit Agricole",
+        content="Crédit Agricole : 1 opération prête à pointer, 2 nouvelles opérations.",
+        link_data=json.dumps({
+            "view": "accounts",
+            "action": "open_pending",
+            "conn_id": 1,
+            "conn_label": "Crédit Agricole",
+            "matches": 1,
+            "new_txs": 2
+        }),
+        is_read=False
+    )
+    notif_file = Notification(
+        type="file_import",
+        title="📊 Import Relevé Fichier",
+        content="Fichier releve_aout.csv : 5 opérations prêtes à pointer.",
+        link_data=json.dumps({
+            "view": "accounts",
+            "action": "open_pending",
+            "filename": "releve_aout.csv",
+            "matches": 5,
+            "new_txs": 0,
+            "total": 5
+        }),
+        is_read=False
+    )
+    db.add_all([notif_bank, notif_file])
+    db.commit()
+    db.close()
+
+    resp = client.get("/api/notifications")
+    assert resp.status_code == 200
+    items = resp.json()
+    assert len(items) >= 2
+    types = [it["type"] for it in items]
+    assert "bank_sync" in types
+    assert "file_import" in types
+
+    app.dependency_overrides.pop(get_db, None)
+
+

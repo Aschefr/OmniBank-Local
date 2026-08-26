@@ -319,11 +319,12 @@ Object.assign(window.BankSyncView, {
         });
 
         let visibleTxs = txs.filter(tx => {
+            const isIgnoredOrExcluded = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
             if (this.currentFilter === 'all') return true;
             if (this.currentFilter === 'coming') return !!tx.is_coming;
-            if (this.currentFilter === 'ignored') return (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
-            if (this.currentFilter === 'reconcile') return (tx.is_reconciled && !tx.already_reconciled && !tx.is_coming);
-            if (this.currentFilter === 'add') return (!tx.is_reconciled && !tx.is_coming);
+            if (this.currentFilter === 'ignored') return isIgnoredOrExcluded;
+            if (this.currentFilter === 'reconcile') return (tx.is_reconciled && !tx.already_reconciled && !tx.is_coming && !tx._excluded && !tx.is_dismissed);
+            if (this.currentFilter === 'add') return (!tx.is_reconciled && !tx.is_coming && !tx._excluded && !tx.is_dismissed && !tx.is_auto_dismissed);
             return true;
         });
 
@@ -358,7 +359,19 @@ Object.assign(window.BankSyncView, {
                 ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}">🎯 ${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span>`
                 : '';
 
-            if (isRec && tx.is_orphan_transfer_link) {
+            if (tx.is_dismissed) {
+                const badgeLabel = (window.i18n && window.i18n.t('bank_sync_status_dismissed')) || '🚫 Ignorée';
+                const badgeTip = (window.i18n ? window.i18n.t('bank_sync_dismissed_tooltip') || 'Opération ignorée manuellement.' : 'Opération ignorée manuellement.').replace(/"/g, '&quot;');
+                statusBadge = `<span class="badge" style="background:var(--bg-surface); color:var(--text-muted); border:1px solid var(--border-color); cursor:help;" title="${badgeTip}">${badgeLabel}</span>`;
+                actionText = (window.i18n && window.i18n.t('bank_sync_action_dismissed')) || 'Ignorée (manuelle)';
+                actionColor = `color: var(--text-muted);`;
+            } else if (tx.is_auto_dismissed) {
+                const badgeLabel = (window.i18n && window.i18n.t('bank_sync_status_conformed_ignored')) || '🛡️ Solde conforme';
+                const badgeTip = (window.i18n ? window.i18n.t('bank_sync_conformed_balance_tip') || 'Compte déjà conforme : ancienne opération ignorée automatiquement.' : 'Compte déjà conforme : ancienne opération ignorée automatiquement.').replace(/"/g, '&quot;');
+                statusBadge = `<span class="badge" style="background:rgba(16, 185, 129, 0.12); color:#10b981; border:1px solid rgba(16, 185, 129, 0.35); font-weight:600; cursor:help;" title="${badgeTip}">${badgeLabel}</span>`;
+                actionText = (window.i18n && window.i18n.t('bank_sync_action_conformed_ignored')) || 'Ignorée (solde conforme)';
+                actionColor = `color: #10b981;`;
+            } else if (isRec && tx.is_orphan_transfer_link) {
                 const targetName = tx.orphan_account_name || 'autre compte';
                 const badgeLabel = window.i18n.t('bank_sync_orphan_transfer_badge') || 'Liaison virement';
                 const badgeTip = (window.i18n.t('bank_sync_orphan_transfer_tooltip') || 'Une écriture isolée du même montant existe déjà sur un autre compte. La validation fusionnera ces écritures en un virement interne sans créer de doublon.').replace(/"/g, '&quot;');
@@ -447,7 +460,7 @@ Object.assign(window.BankSyncView, {
                 : `<input type="number" step="0.01" class="input-styled" value="${tx.amount.toFixed(2)}" style="width: 80px; text-align: right; padding: 4px; font-weight: 700; color: ${amountColor};" onchange="window.BankSyncView.updateTxAmount(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">`;
 
             let rowStyle = 'border-bottom: 1px solid var(--border-color); transition: opacity 0.2s ease, filter 0.2s ease;';
-            if (isExcluded) {
+            if (isExcluded || tx.is_dismissed || tx.is_auto_dismissed) {
                 rowStyle += ' opacity: 0.4; filter: grayscale(0.7);';
             } else if (tx.is_coming) {
                 rowStyle += ' background: rgba(245, 158, 11, 0.05); border-left: 3px solid #f59e0b;';
@@ -462,7 +475,7 @@ Object.assign(window.BankSyncView, {
             let linkActionBtn = '';
             if (isRec && !alreadyRec) {
                 linkActionBtn = `<button class="btn-action-icon" style="color: #f59e0b;" onclick="window.BankSyncView.unlinkReviewRow('${tx.csv_id}')" title="${lblUnlink}"><span>⛓️‍💥</span></button>`;
-            } else if (!isRec && !alreadyRec) {
+            } else if (!isRec && !alreadyRec && !tx.is_dismissed && !tx.is_auto_dismissed) {
                 linkActionBtn = `<button class="btn-action-icon" style="color: var(--accent, #6366f1);" onclick="window.BankSyncView.openLinkFromReview('${tx.csv_id}')" title="${lblRelink}"><span>🔗</span></button>`;
             }
 
@@ -485,6 +498,14 @@ Object.assign(window.BankSyncView, {
                 scoreBadge = `<span class="badge" style="background:${sBg}; color:${sColor}; border:1px solid ${sColor}40; font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:2px; margin-left:4px; padding:2px 5px; border-radius:4px;" title="${scoreTip}"><span>${sIcon}</span> <span>${s}</span></span>`;
             }
 
+            let deleteOrRestoreBtn = '';
+            if (tx.is_dismissed || tx.is_auto_dismissed || isExcluded) {
+                const lblRestore = (window.i18n && window.i18n.t('bank_sync_btn_restore')) || 'Rétablir';
+                deleteOrRestoreBtn = `<button class="btn btn-secondary" style="font-size: 11px; padding: 2px 8px; border-radius: 6px; height: 24px; display: inline-flex; align-items: center; gap: 4px; color: var(--accent);" onclick="window.BankSyncView.restoreReviewRow('${tx.csv_id}')" title="${lblRestore}"><span>↩️</span> <span>${lblRestore}</span></button>`;
+            } else {
+                deleteOrRestoreBtn = `<button class="btn-action-del" onclick="window.BankSyncView.removeTxRow('${tx.csv_id}')" title="${lblIgnoreRow}">✕</button>`;
+            }
+
             return `
             <tr id="syncRow_${tx.csv_id}" style="${rowStyle}">
                 <td style="padding: 10px 14px; text-align: center;">
@@ -504,7 +525,7 @@ Object.assign(window.BankSyncView, {
                         <span style="font-size: 11.5px; ${actionColor} white-space: nowrap;">${actionText}</span>
                         <div style="display: inline-flex; gap: 4px; align-items: center;">
                             ${linkActionBtn}
-                            <button class="btn-action-del" onclick="window.BankSyncView.removeTxRow('${tx.csv_id}')" title="${lblIgnoreRow}">✕</button>
+                            ${deleteOrRestoreBtn}
                         </div>
                     </div>
                 </td>
@@ -545,11 +566,12 @@ Object.assign(window.BankSyncView, {
 
         const txs = currentAcc.transactions;
         let visibleTxs = txs.filter(tx => {
+            const isIgnoredOrExcluded = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
             if (this.currentFilter === 'all') return true;
             if (this.currentFilter === 'coming') return !!tx.is_coming;
-            if (this.currentFilter === 'ignored') return (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
-            if (this.currentFilter === 'reconcile') return (tx.is_reconciled && !tx.already_reconciled && !tx.is_coming);
-            if (this.currentFilter === 'add') return (!tx.is_reconciled && !tx.is_coming);
+            if (this.currentFilter === 'ignored') return isIgnoredOrExcluded;
+            if (this.currentFilter === 'reconcile') return (tx.is_reconciled && !tx.already_reconciled && !tx.is_coming && !tx._excluded && !tx.is_dismissed);
+            if (this.currentFilter === 'add') return (!tx.is_reconciled && !tx.is_coming && !tx._excluded && !tx.is_dismissed && !tx.is_auto_dismissed);
             return true;
         });
 
@@ -771,12 +793,38 @@ Object.assign(window.BankSyncView, {
         }
     },
 
-    removeTxRow(csvId) {
+    async removeTxRow(csvId) {
         if (!this.previewData) return;
         const currentAcc = this.previewData.accounts[this.currentAccountIndex];
         if (currentAcc) {
-            currentAcc.transactions = currentAcc.transactions.filter(t => t.csv_id !== csvId);
+            const tx = currentAcc.transactions.find(t => t.csv_id === csvId);
+            if (tx) {
+                tx._excluded = true;
+                tx.is_dismissed = true;
+            }
+            try {
+                await API.post(`/api/bank-sync/dismiss-ghost/${encodeURIComponent(csvId)}`);
+            } catch (_) {}
             this.renderReviewTable();
+            this.showToast(window.i18n ? window.i18n.t('ghost_dismissed') || 'Opération ignorée' : 'Opération ignorée', 'info');
+        }
+    },
+
+    async restoreReviewRow(csvId) {
+        if (!this.previewData) return;
+        const currentAcc = this.previewData.accounts[this.currentAccountIndex];
+        if (currentAcc) {
+            const tx = currentAcc.transactions.find(t => t.csv_id === csvId);
+            if (tx) {
+                tx._excluded = false;
+                tx.is_dismissed = false;
+                tx.is_auto_dismissed = false;
+            }
+            try {
+                await API.post(`/api/bank-sync/restore-ghost/${encodeURIComponent(csvId)}`);
+            } catch (_) {}
+            this.renderReviewTable();
+            this.showToast(window.i18n ? window.i18n.t('bank_sync_restored_success') || 'Opération réintégrée dans la synchronisation' : 'Opération réintégrée dans la synchronisation', 'success');
         }
     },
 
@@ -864,12 +912,13 @@ Object.assign(window.BankSyncView, {
         let accComingAmount = 0.0;
 
         currentTxs.forEach(tx => {
-            if (tx.is_coming) {
+            const isIgnored = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+            if (isIgnored) {
+                accIgnored++;
+            } else if (tx.is_coming) {
                 accComing++;
                 const rawAmt = typeof tx.raw_amount !== 'undefined' ? parseFloat(tx.raw_amount) : (parseFloat(tx.amount) || 0);
                 accComingAmount += rawAmt;
-            } else if (tx.is_reconciled && tx.already_reconciled) {
-                accIgnored++;
             } else if (tx.is_reconciled) {
                 accReconciled++;
             } else {
@@ -907,12 +956,11 @@ Object.assign(window.BankSyncView, {
 
         this.previewData.accounts.forEach(acc => {
             (acc.transactions || []).forEach(tx => {
-                if (tx._excluded) {
+                const isIgnored = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+                if (isIgnored) {
                     totalIgnored++;
                 } else if (tx.is_coming) {
                     totalComing++;
-                } else if (tx.is_reconciled && tx.already_reconciled) {
-                    totalIgnored++;
                 } else if (tx.is_reconciled) {
                     totalReconciled++;
                 } else {
