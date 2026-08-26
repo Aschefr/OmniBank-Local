@@ -2148,6 +2148,160 @@ def test_multi_file_import_different_accounts_merges_properly():
     assert acc_map[acc2.id]["bank_balance"] == 220.0
 
 
+def test_check_reconciliation_30_days_window_for_reconciled_transactions():
+    """
+    Vérifie qu'une opération déjà pointée en base avec 22 jours de décalage de date
+    est bien détectée et matchée grâce à l'élargissement de la fenêtre à 30 jours.
+    """
+    from datetime import date
+    from app.routers.csv_parser import check_reconciliation
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Compte Test 30j", initial_balance=1000.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    # Opération locale saisie et pointée au 02/07/2026
+    tx = Transaction(
+        description="DELKO MORESTEL VILLE",
+        amount=179.28,
+        type="expense_var",
+        category="Divers",
+        date_saisie=date(2026, 7, 2),
+        date_operation=date(2026, 7, 2),
+        reconciliation_date=date(2026, 7, 2),
+        from_account_id=acc.id
+    )
+    test_db.add(tx)
+    test_db.commit()
+
+    # Relevé distant arrivant avec date bancaire au 24/07/2026 (22 jours après)
+    rec = check_reconciliation(
+        test_db,
+        tx_date=date(2026, 7, 24),
+        tx_amount=-179.28,
+        account_id=acc.id,
+        is_coming=False,
+        bank_label="X1208 DELKO MORESTEL VILLE"
+    )
+
+    assert rec is not None
+    assert rec["id"] == tx.id
+    assert rec["already_reconciled"] is True
+    assert rec["match_score"] >= 40
+
+
+def test_auto_exclusion_on_conformed_balance():
+    """
+    Vérifie que lorsque les soldes sont conformes (banque == local),
+    une ancienne opération inconnue (>15j) est auto-exclue du sas (is_auto_dismissed=True, total_new non incrémenté).
+    """
+    from datetime import date
+    from app.services.bank_sync_scheduler import save_pending_sync_data, get_all_pending_sync, CSV_IMPORT_CONN_ID, clear_all_pending_sync
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+    clear_all_pending_sync(test_db)
+
+    acc = Account(name="Compte Solde Conforme", initial_balance=480.10)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    # Import d'un lot avec solde banque identique (480.10) et une vieille opération non matchée du 23/06/2026
+    save_pending_sync_data(test_db, CSV_IMPORT_CONN_ID, {
+        "accounts": [{
+            "account_id": acc.id,
+            "account_name": "Compte Solde Conforme",
+            "bank_balance": 480.10,
+            "transactions": [{
+                "csv_id": "old_tx_conformed",
+                "date_operation": "2026-06-23",
+                "amount": 25.99,
+                "raw_amount": -25.99,
+                "description": "Google One Credits IA"
+            }]
+        }]
+    })
+
+    pending = get_all_pending_sync(test_db)
+    assert len(pending["accounts"]) == 1
+    # total_new ne doit PAS compter cette vieille opération car solde conforme
+    assert pending["total_new"] == 0
+
+    tx_item = pending["accounts"][0]["transactions"][0]
+    assert tx_item["is_auto_dismissed"] is True
+    assert tx_item["_excluded"] is True
+
+
+def test_persistent_dismiss_and_restore_cycle():
+    """
+    Vérifie le cycle complet :
+    1. Dismiss d'une opération via POST /api/bank-sync/dismiss-ghost/{csv_id} -> stocké en base
+    2. Re-évaluation -> l'opération reste marquée is_dismissed=True et _excluded=True
+    3. Restauration via POST /api/bank-sync/restore-ghost/{csv_id} -> l'opération est réintégrée
+    """
+    from app.services.bank_sync_scheduler import (
+        save_pending_sync_data, get_all_pending_sync,
+        CSV_IMPORT_CONN_ID, clear_all_pending_sync,
+        get_dismissed_transactions
+    )
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+    clear_all_pending_sync(test_db)
+    client = TestClient(fastapi_app)
+
+    acc = Account(name="Compte Dismiss Persist", initial_balance=100.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    csv_id = "test_persist_ghost_99"
+    save_pending_sync_data(test_db, CSV_IMPORT_CONN_ID, {
+        "accounts": [{
+            "account_id": acc.id,
+            "account_name": "Compte Dismiss Persist",
+            "bank_balance": 150.0,
+            "transactions": [{
+                "csv_id": csv_id,
+                "date_operation": "2026-08-20",
+                "amount": 50.0,
+                "raw_amount": -50.0,
+                "description": "Achat Test"
+            }]
+        }]
+    })
+
+    # Avant dismiss : 1 nouvelle opération
+    pending_before = get_all_pending_sync(test_db)
+    assert pending_before["total_new"] == 1
+
+    # 1. Dismiss via API
+    res_dismiss = client.post(f"/api/bank-sync/dismiss-ghost/{csv_id}")
+    assert res_dismiss.status_code == 200
+    assert res_dismiss.json()["dismissed"] is True
+
+    # Vérifier persistance
+    dismissed_map = get_dismissed_transactions(test_db)
+    assert csv_id in dismissed_map
+
+    # 2. Re-évaluation
+    pending_after_dismiss = get_all_pending_sync(test_db)
+    assert pending_after_dismiss["total_new"] == 0
+
+    # 3. Restauration via API
+    res_restore = client.post(f"/api/bank-sync/restore-ghost/{csv_id}")
+    assert res_restore.status_code == 200
+    assert res_restore.json()["restored"] is True
+
+    # Vérifier retrait de la persistance
+    dismissed_map_after = get_dismissed_transactions(test_db)
+    assert csv_id not in dismissed_map_after
+
+    # 4. Vérifier réintégration
+    pending_after_restore = get_all_pending_sync(test_db)
+    assert pending_after_restore["total_new"] == 1
+
+
+
 
 
 

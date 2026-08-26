@@ -1055,6 +1055,36 @@ class BankSyncService:
             event_callback=event_callback,
             session_id=session_id
         )
+        
+        # Détection des exclusions persistantes et auto-exclusion sur solde conforme
+        from app.services.bank_sync_scheduler import get_dismissed_transactions
+        dismissed_tx_map = get_dismissed_transactions(db)
+        
+        for acc in preview.get("accounts", []):
+            bank_balance = acc.get("bank_balance")
+            local_reconciled_bal = acc.get("local_reconciled_balance")
+            is_balance_conformed = False
+            if bank_balance is not None and local_reconciled_bal is not None:
+                is_balance_conformed = abs(bank_balance - local_reconciled_bal) < 0.005
+
+            for tx_item in acc.get("transactions", []):
+                csv_id = tx_item.get("csv_id")
+                is_dismissed = bool(csv_id and csv_id in dismissed_tx_map)
+                tx_item["is_dismissed"] = is_dismissed
+                tx_item["is_auto_dismissed"] = False
+
+                if is_dismissed:
+                    tx_item["_excluded"] = True
+                elif is_balance_conformed and not tx_item.get("is_reconciled") and not tx_item.get("is_coming"):
+                    tx_date_str = tx_item.get("date_operation")
+                    if tx_date_str:
+                        try:
+                            tx_dt = date.fromisoformat(str(tx_date_str)[:10])
+                            if tx_dt < date.today() - timedelta(days=15):
+                                tx_item["is_auto_dismissed"] = True
+                                tx_item["_excluded"] = True
+                        except Exception:
+                            pass
         return preview
 
 
@@ -1068,10 +1098,13 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
     if not preview_data or "accounts" not in preview_data:
         return preview_data
 
-    from datetime import date
+    from datetime import date, timedelta
     from app.routers.csv_parser import check_reconciliation
     from app.services.finance_engine import calculate_balances
     from app.services.smart_label_service import resolve_smart_labels_batch
+    from app.services.bank_sync_scheduler import get_dismissed_transactions
+
+    dismissed_tx_map = get_dismissed_transactions(db)
 
     # Extraction des overrides utilisateur
     rejected_by_csv = {}
@@ -1102,6 +1135,12 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
         if local_acc_id:
             acc["local_reconciled_balance"] = round(balances_reconciled.get(local_acc_id, 0.0), 2)
 
+        bank_bal = acc.get("bank_balance")
+        local_bal = acc.get("local_reconciled_balance")
+        is_balance_conformed = False
+        if bank_bal is not None and local_bal is not None:
+            is_balance_conformed = abs(bank_bal - local_bal) < 0.005
+
         txs = acc.get("transactions", [])
         confirmed_txs = [tx for tx in txs if not tx.get("is_coming", False)]
         coming_txs = [tx for tx in txs if tx.get("is_coming", False)]
@@ -1114,6 +1153,10 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
                 tx_date_str = tx.get("date_operation")
                 raw_amount = tx.get("raw_amount")
                 csv_id = tx.get("csv_id")
+
+                is_dismissed = bool(csv_id and csv_id in dismissed_tx_map)
+                tx_copy["is_dismissed"] = is_dismissed
+                tx_copy["is_auto_dismissed"] = False
 
                 # Passe 0 : Forcer le match si spécifié manuellement par l'utilisateur
                 if csv_id and csv_id in force_by_csv:
@@ -1129,6 +1172,8 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
                         tx_copy["matched_db_id"] = forced_db_id
                         tx_copy["db_description"] = forced_tx.description
                         matched_ids_global.add(forced_db_id)
+                        if is_dismissed:
+                            tx_copy["_excluded"] = True
                         result_list.append(tx_copy)
                         continue
 
@@ -1182,6 +1227,20 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
                         tx_copy["matched_db_id"] = None
                         tx_copy["db_description"] = None
                         tx_copy["match_score"] = 0
+
+                # Auto-exclusion intelligente si solde conforme et ancienne opération non reconnue
+                if not tx_copy.get("is_reconciled") and not is_coming_flag and not is_dismissed:
+                    if is_balance_conformed and tx_date_str:
+                        try:
+                            tx_dt = date.fromisoformat(str(tx_date_str)[:10])
+                            if tx_dt < date.today() - timedelta(days=15):
+                                tx_copy["is_auto_dismissed"] = True
+                                tx_copy["_excluded"] = True
+                        except Exception:
+                            pass
+
+                if is_dismissed:
+                    tx_copy["_excluded"] = True
 
                 result_list.append(tx_copy)
             return result_list

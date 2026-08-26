@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.92-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.93-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,11 +110,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.92)
+## 🆕 Nouveautés (v1.0.93)
 
-* **🎯 Moteur de Rapprochement Intelligent par Score Multi-Critères** : Évaluation composite (0-100 pts) combinant montant exact, proximité temporelle asymétrique et similarité textuelle des libellés (Smart Label). Verrouillage prioritaire absolu par empreinte bancaire (`csv_id`) et fenêtre resserrée pour éliminer tout faux rapprochement anachronique.
-* **🎯 Toggle de Confiance des Scores On-Demand** : Bouton `🎯 Scores` discret dans la modale de revue bancaire affichant à la demande les scores de confiance colorés (`🟢 85`, `🟡 55`, `🔴 42`) avec info-bulle d'aide.
-* **⏳ Gestion Pérenne des Opérations en Attente (`is_coming`)** : Préservation des autorisations bancaires non débitées dans le sas lors des validations de relevé.
+* **🎯 Fenêtre de Rapprochement Élargie à 30 Jours** : Détection et appariement fiables des opérations pointées ou à venir avec un écart de date allant jusqu'à 30 jours dans le passé.
+* **🛡️ Exclusion Automatique sur Solde Conforme** : Masquage automatique des anciennes opérations non rapprochées (>15 jours) lorsque le solde bancaire et le solde pointé local sont déjà strictement équilibrés.
+* **↩️ Mémorisation et Rétablissement des Opérations Ignorées** : Conservation persistante des transactions ignorées (`✕`) et ajout du bouton d'annulation `↩️ Rétablir` dans l'onglet Exclues du Cockpit.
+* **🔔 Notifications Enrichies & Accès Direct "Examiner"** : Formulations naturelles dynamiques (singulier / pluriel), bouton direct `🔍 Examiner` pour ouvrir le sas de revue en 1 clic et prise en charge des imports de relevés fichiers.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -122,7 +123,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.92-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.93-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -222,11 +223,12 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.92)
+## 🆕 What's New (v1.0.93)
 
-* **🎯 Multi-Criteria Reconciliation Matching Engine**: Composite scoring evaluation (0-100 pts) combining exact amount, asymmetric temporal proximity, and normalized merchant/text similarity (Smart Label). Absolute priority matching on bank unique hash (`csv_id`) and tightened matching window completely prevents anachronistic false matches.
-* **🎯 On-Demand Confidence Score Toggle**: Unobtrusive `🎯 Scores` button in the bank review modal displaying color-coded trust levels (`🟢 85`, `🟡 55`, `🔴 42`) with informative tooltip on demand.
-* **⏳ Coming Operations Persistence (`is_coming`)**: Preserves un-debited pending bank authorizations in the holding queue across bulk statement validations.
+* **🎯 30-Day Extended Reconciliation Window**: Accurate detection and matching for past reconciled and planned transactions with a temporal discrepancy up to 30 days.
+* **🛡️ Conformant Balance Auto-Exclusion**: Automatic exclusion of old unmatched transactions (>15 days) when bank and local reconciled balances are strictly equal.
+* **↩️ Persistent Transaction Dismissal & Instant Restore**: Persisted dismissed operations (`✕`) and instant `↩️ Restore` action in the Review Cockpit excluded tab.
+* **🔔 Polished In-App Notifications & Direct Review Action**: Dynamic natural singular/plural phrasing, 1-click `🔍 Review` action button on sync/import cards, and statement file import notifications.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

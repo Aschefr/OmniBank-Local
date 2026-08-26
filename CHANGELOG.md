@@ -4,7 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.93] - 2026-08-26
 
-### Fixed & Improved
+### Added & Improved
+- **30-Day Extended Reconciliation Window & Temporal Matching 🎯**:
+  - Expanded reconciliation search window up to 30 days in the past for both already reconciled and planned transactions, allowing accurate matching when bank statement dates deviate significantly from manual entries.
+  - Fine-tuned temporal scoring metrics (16-30d interval) guaranteeing that exact amount matches within the 30-day range automatically reach the reconciliation threshold.
+- **Conformant Balance Auto-Exclusion 🛡️**:
+  - Automatically identifies and excludes old unmatched transactions (>15 days) when the bank and local reconciled balances are already strictly balanced, preventing holding queue clutter.
+- **Persistent Transaction Dismissal & Instant Restore ↩️**:
+  - Operations dismissed with `✕` are now persistently saved in profile configuration.
+  - Added an instant `↩️ Rétablir` (Restore) button in the Review Cockpit's "Ignored / Excluded" tab to restore accidentally dismissed transactions directly to active sync.
+- **Polished In-App Notifications & Direct Review Action 🔔**:
+  - Replaced technical `(s)` formatting with dynamic, natural singular and plural grammatical phrasing in French and English.
+  - Added a direct `🔍 Examiner` action button on sync and import notifications to jump straight to the review cockpit in one click.
+  - Added in-app notification support for manual statement file imports (CSV/TSV/OFX).
+  - Fixed notification list container and badge rendering in the header menu.
 - **Dynamic Account Replacement in Bank Synchronization Queue 🔄**:
   - Implemented automatic deduplication and dynamic replacement in the pending holding queue (`_PENDING_SYNC_DATA`): when importing a statement file (XLSX/CSV) or synchronizing online, the freshest account data replaces older records across all sources without duplicating account cards or balance bars.
   - Preserved bank balance records and discrepancy tracking bars in the Dashboard after committing reviewed imports, ensuring balance differences remain actionable until adjusted.

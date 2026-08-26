@@ -422,6 +422,55 @@ async def import_to_pending(
     # Inject into pending sync sas
     save_pending_sync_data(db, CSV_IMPORT_CONN_ID, preview_data)
 
+    # Créer une notification in-app d'import de fichier
+    try:
+        from app.models import Notification
+        from datetime import datetime, timezone
+        import json
+
+        total_txs = sum(len(a.get("transactions", [])) for a in accounts_out)
+        matches = 0
+        new_txs = 0
+        for a in accounts_out:
+            for tx in a.get("transactions", []):
+                if tx.get("is_reconciled") and not tx.get("already_reconciled"):
+                    matches += 1
+                elif not tx.get("is_reconciled") and not tx.get("_excluded"):
+                    new_txs += 1
+
+        details_list = []
+        if matches == 1:
+            details_list.append("1 opération prête à pointer")
+        elif matches > 1:
+            details_list.append(f"{matches} opérations prêtes à pointer")
+        if new_txs == 1:
+            details_list.append("1 nouvelle opération")
+        elif new_txs > 1:
+            details_list.append(f"{new_txs} nouvelles opérations")
+        if not details_list:
+            details_list.append(f"{total_txs} opération(s) lue(s)")
+
+        fname = file.filename or "relevé.csv"
+        notif = Notification(
+            type="file_import",
+            title="📊 Import Relevé Fichier",
+            content=f"Fichier {fname} : " + ", ".join(details_list) + ".",
+            link_data=json.dumps({
+                "view": "accounts",
+                "action": "open_pending",
+                "filename": fname,
+                "matches": matches,
+                "new_txs": new_txs,
+                "total": total_txs
+            }),
+            is_read=False,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.add(notif)
+        db.commit()
+    except Exception as notif_err:
+        logger.warning(f"[CSVManager] Notification import non créée : {notif_err}")
+
     return preview_data
 
 
