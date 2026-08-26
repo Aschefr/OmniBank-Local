@@ -706,13 +706,11 @@ def commit_reviewed_sync(conn_id: int, data: Dict[str, Any], db: Session = Depen
             connection_id=conn_id,
             transactions_data=txs
         )
-        from app.services.bank_sync_scheduler import remove_committed_from_pending, clear_pending_sync_for_conn
+        from app.services.bank_sync_scheduler import remove_committed_from_pending
         # Ne purger du sas que les opérations confirmées (les opérations en attente/à venir restent dans le sas)
         committed_csv_ids = [t.get("csv_id") for t in txs if t.get("csv_id") and not t.get("is_coming")]
         if committed_csv_ids:
             remove_committed_from_pending(db, committed_csv_ids)
-        elif not any(t.get("is_coming") for t in txs):
-            clear_pending_sync_for_conn(db, conn_id)
         return res
     except Exception as e:
         logger.error(f"[BankSync] Erreur lors du commit des transactions {conn_id} : {e}")

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.93] - 2026-08-26
+
+### Fixed & Improved
+- **Dynamic Account Replacement in Bank Synchronization Queue 🔄**:
+  - Implemented automatic deduplication and dynamic replacement in the pending holding queue (`_PENDING_SYNC_DATA`): when importing a statement file (XLSX/CSV) or synchronizing online, the freshest account data replaces older records across all sources without duplicating account cards or balance bars.
+  - Preserved bank balance records and discrepancy tracking bars in the Dashboard after committing reviewed imports, ensuring balance differences remain actionable until adjusted.
+  - Fixed direct file import review flow (`⚡ Analyse Directe`), ensuring immediate opening of the Unified Review Cockpit for multi-account files.
+
 ## [1.0.92] - 2026-08-26
 
 ### Added & Improved

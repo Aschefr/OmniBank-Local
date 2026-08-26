@@ -1812,9 +1812,67 @@ def test_csv_multi_account_import_to_pending():
     assert commit_all_res.status_code == 200
     assert commit_all_res.json()["ok"] is True
 
-    # Vérifier que le sas est maintenant vide pour ces opérations
+    # Vérifier que le sas est maintenant vide d'opérations fantômes mais conserve les comptes et soldes
     pending_after = client.get("/api/bank-sync/pending").json()
     assert sum(len(a.get("transactions", [])) for a in pending_after.get("accounts", [])) == 0
+    assert len(pending_after.get("accounts", [])) >= 2
+    livret_acc = next((a for a in pending_after["accounts"] if a["account_id"] == acc_livret.id), None)
+    assert livret_acc is not None
+    assert livret_acc["bank_balance"] == 5100.00
+
+
+def test_csv_import_commit_preserves_bank_balance_and_discrepancy():
+    """
+    Vérifie qu'après validation et sauvegarde d'un import de relevé dans le cockpit,
+    le compte et son solde bancaire sont conservés dans le sas afin que l'écart de solde
+    continue d'être visible et ajustable dans le Dashboard.
+    """
+    from app.services.bank_sync_scheduler import save_pending_sync_data, get_all_pending_sync, CSV_IMPORT_CONN_ID, clear_all_pending_sync
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+    clear_all_pending_sync(test_db)
+
+    acc = Account(name="Livret A Test", type="Épargne", initial_balance=5592.78)
+    test_db.add(acc)
+    test_db.commit()
+
+    # 1. Sauvegarder le relevé dans le sas avec solde banque = 5718.76 € et 1 opération
+    save_pending_sync_data(test_db, CSV_IMPORT_CONN_ID, {
+        "_source": "csv_import",
+        "accounts": [{
+            "account_id": acc.id,
+            "account_name": "Livret A Test",
+            "bank_balance": 5718.76,
+            "transactions": [
+                {"csv_id": "tx_comm_1", "date_operation": "2026-08-20", "amount": 50.0, "raw_amount": 50.0, "description": "Intérêts"}
+            ]
+        }]
+    })
+
+    client = TestClient(fastapi_app)
+
+    # 2. Commiter la transaction via /api/bank-sync/connections/-1/commit
+    commit_res = client.post("/api/bank-sync/connections/-1/commit", json={
+        "transactions": [{
+            "account_id": acc.id,
+            "csv_id": "tx_comm_1",
+            "date_operation": "2026-08-20",
+            "amount": 50.0,
+            "raw_amount": 50.0,
+            "description": "Intérêts"
+        }]
+    })
+    assert commit_res.status_code == 200
+
+    # 3. Vérifier que /api/bank-sync/pending conserve le compte, son solde banque et le calcul d'écart
+    pending = client.get("/api/bank-sync/pending").json()
+    assert len(pending["accounts"]) == 1
+    p_acc = pending["accounts"][0]
+    assert p_acc["account_id"] == acc.id
+    assert p_acc["bank_balance"] == 5718.76
+    assert len(p_acc["transactions"]) == 0
+    # Le solde pointé est recalculé en direct
+    assert p_acc["local_reconciled_balance"] is not None
+
 
 
 def test_check_reconciliation_prevents_anachronistic_far_match():
@@ -1914,6 +1972,181 @@ def test_check_reconciliation_composite_scoring_and_confidence():
     assert res_close is not None
     assert res_close["id"] == local_tx.id
     assert res_close["match_score"] >= 70
+
+
+def test_sync_online_then_xlsx_import_replaces_account_data():
+    """
+    Vérifie qu'après une synchronisation en ligne sur 3 comptes, un import de fichier (XLSX/CSV)
+    sur l'un de ces comptes (ex: Livret A) remplace fidèlement les anciennes données du Livret A
+    dans le sas sans créer de doublon de compte ni de barre de solde redondante.
+    """
+    from app.services.bank_sync_scheduler import save_pending_sync_data, get_all_pending_sync, CSV_IMPORT_CONN_ID, clear_all_pending_sync
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+    clear_all_pending_sync(test_db)
+
+    # 1. Créer les comptes en base
+    acc_courant = Account(name="CA Centre-Est", type="Compte courant", initial_balance=480.10)
+    acc_livret_a = Account(name="Livret A", type="Épargne", initial_balance=5592.78)
+    acc_ldd = Account(name="Livret LDD", type="Épargne", initial_balance=45.79)
+    test_db.add_all([acc_courant, acc_livret_a, acc_ldd])
+    test_db.commit()
+
+    conn = BankConnection(label="Crédit Agricole", backend="cragr", last_sync_status="success", account_mapping="{}")
+    test_db.add(conn)
+    test_db.commit()
+
+    # 2. Synchronisation en ligne (conn.id)
+    online_preview = {
+        "accounts": [
+            {
+                "account_id": acc_courant.id,
+                "account_name": "CA Centre-Est",
+                "bank_balance": 480.10,
+                "transactions": [
+                    {"csv_id": "woob_tx_1", "date_operation": "2026-08-25", "amount": 26.99, "raw_amount": -26.99, "description": "Amazon"}
+                ]
+            },
+            {
+                "account_id": acc_livret_a.id,
+                "account_name": "Livret A",
+                "bank_balance": 5700.00,  # Ancien solde en ligne
+                "transactions": [
+                    {"csv_id": "woob_tx_old_livret", "date_operation": "2026-08-01", "amount": 10.00, "raw_amount": 10.00, "description": "Virement Ancien"}
+                ]
+            },
+            {
+                "account_id": acc_ldd.id,
+                "account_name": "Livret LDD",
+                "bank_balance": 46.33,
+                "transactions": []
+            }
+        ]
+    }
+    save_pending_sync_data(test_db, conn.id, online_preview)
+
+    pending_step1 = get_all_pending_sync(test_db)
+    assert len(pending_step1["accounts"]) == 3
+
+    # 3. Import d'un relevé XLSX / CSV de 12 mois pour le Livret A (CSV_IMPORT_CONN_ID = -1)
+    file_import_preview = {
+        "_source": "csv_import",
+        "accounts": [
+            {
+                "account_id": acc_livret_a.id,
+                "account_name": "Livret A",
+                "bank_balance": 5718.76,  # Nouveau solde plus récent issu du fichier 12 mois
+                "transactions": [
+                    {"csv_id": "csv_tx_livret_1", "date_operation": "2026-08-20", "amount": 50.00, "raw_amount": 50.00, "description": "Intérêts 12M"},
+                    {"csv_id": "csv_tx_livret_2", "date_operation": "2026-07-15", "amount": 100.00, "raw_amount": 100.00, "description": "Versement été"}
+                ]
+            }
+        ]
+    }
+    save_pending_sync_data(test_db, CSV_IMPORT_CONN_ID, file_import_preview)
+
+    # 4. Vérifier que get_all_pending_sync ne contient AUCUN doublon de compte
+    pending_step2 = get_all_pending_sync(test_db)
+    accounts = pending_step2["accounts"]
+    assert len(accounts) == 3, f"Attendu 3 comptes uniques, obtenu {len(accounts)} comptes: {[a['account_name'] for a in accounts]}"
+
+    acc_names = [a["account_name"] for a in accounts]
+    assert acc_names.count("Livret A") == 1
+    assert acc_names.count("CA Centre-Est") == 1
+    assert acc_names.count("Livret LDD") == 1
+
+    livret_entry = next(a for a in accounts if a["account_id"] == acc_livret_a.id)
+    # Les données les plus récentes doivent avoir remplacé les anciennes
+    assert livret_entry["bank_balance"] == 5718.76
+    assert livret_entry["connection_id"] == CSV_IMPORT_CONN_ID
+    assert len(livret_entry["transactions"]) == 2
+    assert {t["csv_id"] for t in livret_entry["transactions"]} == {"csv_tx_livret_1", "csv_tx_livret_2"}
+
+
+def test_xlsx_import_then_sync_online_replaces_account_data():
+    """
+    Vérifie qu'un import de relevé fichier suivi d'une synchronisation en ligne
+    remplace l'ancienne entrée de fichier sans laisser de résidu orphelin.
+    """
+    from app.services.bank_sync_scheduler import save_pending_sync_data, get_all_pending_sync, CSV_IMPORT_CONN_ID, clear_all_pending_sync
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+    clear_all_pending_sync(test_db)
+
+    acc = Account(name="Livret A", type="Épargne", initial_balance=5000.0)
+    test_db.add(acc)
+    test_db.commit()
+
+    conn = BankConnection(label="Boursorama", backend="boursorama", last_sync_status="success", account_mapping="{}")
+    test_db.add(conn)
+    test_db.commit()
+
+    # 1. Import fichier d'abord
+    save_pending_sync_data(test_db, CSV_IMPORT_CONN_ID, {
+        "accounts": [{
+            "account_id": acc.id,
+            "account_name": "Livret A",
+            "bank_balance": 5200.0,
+            "transactions": [{"csv_id": "file_1", "date_operation": "2026-08-01", "amount": 200.0, "raw_amount": 200.0, "description": "File tx"}]
+        }]
+    })
+
+    # 2. Sync en ligne ensuite
+    save_pending_sync_data(test_db, conn.id, {
+        "accounts": [{
+            "account_id": acc.id,
+            "account_name": "Livret A",
+            "bank_balance": 5250.0,
+            "transactions": [{"csv_id": "online_1", "date_operation": "2026-08-26", "amount": 250.0, "raw_amount": 250.0, "description": "Online tx"}]
+        }]
+    })
+
+    pending = get_all_pending_sync(test_db)
+    assert len(pending["accounts"]) == 1
+    assert pending["accounts"][0]["bank_balance"] == 5250.0
+    assert pending["accounts"][0]["connection_id"] == conn.id
+    assert len(pending["accounts"][0]["transactions"]) == 1
+    assert pending["accounts"][0]["transactions"][0]["csv_id"] == "online_1"
+
+
+def test_multi_file_import_different_accounts_merges_properly():
+    """
+    Vérifie que l'import successif de fichiers pour des comptes distincts
+    conserve bien l'ensemble des comptes importés dans le sas.
+    """
+    from app.services.bank_sync_scheduler import save_pending_sync_data, get_all_pending_sync, CSV_IMPORT_CONN_ID, clear_all_pending_sync
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+    clear_all_pending_sync(test_db)
+
+    acc1 = Account(name="Compte Courant", type="Compte courant", initial_balance=100.0)
+    acc2 = Account(name="Livret LDD", type="Épargne", initial_balance=200.0)
+    test_db.add_all([acc1, acc2])
+    test_db.commit()
+
+    # Import fichier 1 (Compte Courant)
+    save_pending_sync_data(test_db, CSV_IMPORT_CONN_ID, {
+        "accounts": [{
+            "account_id": acc1.id,
+            "account_name": "Compte Courant",
+            "bank_balance": 150.0,
+            "transactions": [{"csv_id": "c1_tx", "date_operation": "2026-08-10", "amount": 50.0, "raw_amount": 50.0, "description": "Tx Courant"}]
+        }]
+    })
+
+    # Import fichier 2 (Livret LDD)
+    save_pending_sync_data(test_db, CSV_IMPORT_CONN_ID, {
+        "accounts": [{
+            "account_id": acc2.id,
+            "account_name": "Livret LDD",
+            "bank_balance": 220.0,
+            "transactions": [{"csv_id": "c2_tx", "date_operation": "2026-08-12", "amount": 20.0, "raw_amount": 20.0, "description": "Tx LDD"}]
+        }]
+    })
+
+    pending = get_all_pending_sync(test_db)
+    assert len(pending["accounts"]) == 2
+    acc_map = {a["account_id"]: a for a in pending["accounts"]}
+    assert acc_map[acc1.id]["bank_balance"] == 150.0
+    assert acc_map[acc2.id]["bank_balance"] == 220.0
+
 
 
 
