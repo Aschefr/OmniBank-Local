@@ -185,7 +185,11 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
         elif delta in (-5, -6, -7):
             return 10
         elif delta in (5, 6, 7):
+            return 8
+        elif 8 <= abs_delta <= 15:
             return 5
+        elif 16 <= abs_delta <= 30:
+            return 2
         else:
             return 0
 
@@ -231,8 +235,8 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
     # 1. Recherche d'un doublon déjà rapproché / existant
     def _find_already_reconciled():
         if is_coming:
-            start_op_limit_c = tx_date - timedelta(days=5)
-            end_op_limit_c = tx_date + timedelta(days=5)
+            start_op_limit_c = tx_date - timedelta(days=15)
+            end_op_limit_c = tx_date + timedelta(days=15)
             recon_query = db.query(Transaction).filter(
                 Transaction.reconciliation_date != None,
                 Transaction.amount >= abs_amount - epsilon,
@@ -241,10 +245,10 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
                 Transaction.date_operation <= end_op_limit_c
             )
         else:
-            start_recon = tx_date - timedelta(days=4)
-            end_recon = tx_date + timedelta(days=4)
-            start_op_limit = tx_date - timedelta(days=10)
-            end_op_limit = tx_date + timedelta(days=10)
+            start_recon = tx_date - timedelta(days=30)
+            end_recon = tx_date + timedelta(days=30)
+            start_op_limit = tx_date - timedelta(days=30)
+            end_op_limit = tx_date + timedelta(days=30)
             recon_query = db.query(Transaction).filter(
                 Transaction.reconciliation_date != None,
                 Transaction.amount >= abs_amount - epsilon,
@@ -287,11 +291,11 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
     def _find_unreconciled_prediction():
         if is_coming:
             # Opération à venir : la prévision peut être planifiée aujourd'hui ou dans les jours suivants
-            start_op = tx_date - timedelta(days=3)
-            end_op = tx_date + timedelta(days=10)
+            start_op = tx_date - timedelta(days=10)
+            end_op = tx_date + timedelta(days=30)
         else:
-            # Opération confirmée : débit passé, la prévision ne peut pas être à +15j dans le futur
-            start_op = tx_date - timedelta(days=7)
+            # Opération confirmée : débit passé, la prévision peut avoir été saisie en amont jusqu'à 30 jours (mais pas > 3j dans le futur)
+            start_op = tx_date - timedelta(days=30)
             end_op = tx_date + timedelta(days=3)
 
         op_query = db.query(Transaction).filter(
@@ -339,8 +343,8 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
     # 2.B : Si aucun match libre, vérifier si c'est le pendant miroir d'un virement interne
     # déjà apparié dans ce même lot (dans matched_ids)
     if matched_ids:
-        start_mirror = tx_date - timedelta(days=7)
-        end_mirror = tx_date + timedelta(days=7)
+        start_mirror = tx_date - timedelta(days=15)
+        end_mirror = tx_date + timedelta(days=15)
         base_mirror_query = db.query(Transaction).filter(
             Transaction.reconciliation_date == None,
             Transaction.date_operation >= start_mirror,
@@ -373,8 +377,8 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
     # sur un AUTRE compte actif qui correspond à l'autre patte du virement
     if account_id:
         from app.models import Account
-        start_orphan = tx_date - timedelta(days=5)
-        end_orphan = tx_date + timedelta(days=5)
+        start_orphan = tx_date - timedelta(days=15)
+        end_orphan = tx_date + timedelta(days=15)
 
         raw_num = float(tx_amount)
         if raw_num < 0:

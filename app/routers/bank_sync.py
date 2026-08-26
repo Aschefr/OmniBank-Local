@@ -439,7 +439,7 @@ def commit_all_ghost_transactions(db: Session = Depends(get_db)):
         account_id = acc.get("account_id")
         unreconciled_txs = []
         for tx in acc.get("transactions", []):
-            if not tx.get("is_reconciled"):
+            if not tx.get("is_reconciled") and not tx.get("is_dismissed") and not tx.get("is_auto_dismissed") and not tx.get("_excluded"):
                 tx_copy = dict(tx)
                 if not tx_copy.get("account_id"):
                     tx_copy["account_id"] = account_id
@@ -464,10 +464,18 @@ def commit_all_ghost_transactions(db: Session = Depends(get_db)):
 
 @router.post("/dismiss-ghost/{csv_id}")
 def dismiss_single_ghost(csv_id: str, db: Session = Depends(get_db)):
-    """Ignore et retire du sas d'attente une ligne fantôme."""
+    """Ignore et retire du sas d'attente une ligne fantôme de façon persistante."""
     from app.services.bank_sync_scheduler import dismiss_pending_transaction
     success = dismiss_pending_transaction(db, csv_id)
     return {"ok": True, "dismissed": success}
+
+
+@router.post("/restore-ghost/{csv_id}")
+def restore_single_ghost(csv_id: str, db: Session = Depends(get_db)):
+    """Rétablit une opération précédemment ignorée pour la réintégrer dans la synchronisation."""
+    from app.services.bank_sync_scheduler import remove_dismissed_transaction
+    success = remove_dismissed_transaction(db, csv_id)
+    return {"ok": True, "restored": success}
 
 
 @router.post("/purge-pending")

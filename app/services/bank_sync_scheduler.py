@@ -79,23 +79,96 @@ def clear_all_pending_sync(db: Session, profile_id: Optional[str] = None):
     logger.info(f"[BankSyncScheduler] Intégralité du sas de synchronisation purgé pour profil={pid}.")
 
 
-def dismiss_pending_transaction(db: Session, csv_id: str, profile_id: Optional[str] = None) -> bool:
-    """Retire une opération spécifique du sas d'attente à partir de son csv_id."""
-    global _PENDING_SYNC_DATA
+def get_dismissed_transactions(db: Session, profile_id: Optional[str] = None) -> Dict[str, Any]:
+    """Retourne le dictionnaire des opérations bancaires ignorées/persistées."""
     pid = _resolve_profile_id(profile_id)
-    found = False
+    key = f"bank_dismissed_transactions_{pid}" if pid != "default" else "bank_dismissed_transactions"
+    raw = _get_config_value(db, key, "")
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def add_dismissed_transaction(db: Session, csv_id: str, metadata: Optional[Dict[str, Any]] = None, profile_id: Optional[str] = None) -> bool:
+    """Ajoute de façon persistante une opération aux opérations ignorées."""
+    if not csv_id:
+        return False
+    pid = _resolve_profile_id(profile_id)
+    key = f"bank_dismissed_transactions_{pid}" if pid != "default" else "bank_dismissed_transactions"
+    dismissed = get_dismissed_transactions(db, profile_id)
+    dismissed[csv_id] = {
+        **(metadata or {}),
+        "dismissed_at": datetime.now(timezone.utc).isoformat()
+    }
+    _set_config_value(db, key, json.dumps(dismissed))
+    logger.info(f"[BankSyncScheduler] csv_id={csv_id} ajouté aux exclusions persistantes (profil={pid}).")
+    return True
+
+
+def remove_dismissed_transaction(db: Session, csv_id: str, profile_id: Optional[str] = None) -> bool:
+    """Retire une opération de la liste des exclusions persistantes (restauration)."""
+    if not csv_id:
+        return False
+    pid = _resolve_profile_id(profile_id)
+    key = f"bank_dismissed_transactions_{pid}" if pid != "default" else "bank_dismissed_transactions"
+    dismissed = get_dismissed_transactions(db, profile_id)
+    removed = False
+    if csv_id in dismissed:
+        del dismissed[csv_id]
+        _set_config_value(db, key, json.dumps(dismissed))
+        logger.info(f"[BankSyncScheduler] csv_id={csv_id} retiré des exclusions persistantes / restauré (profil={pid}).")
+        removed = True
+
+    # Réactiver dans le cache mémoire si présent
     prof_data = _PENDING_SYNC_DATA.get(pid, {})
     for conn_id, data in list(prof_data.items()):
         for acc in data.get("accounts", []):
-            initial_len = len(acc.get("transactions", []))
-            acc["transactions"] = [tx for tx in acc.get("transactions", []) if tx.get("csv_id") != csv_id]
-            if len(acc.get("transactions", [])) < initial_len:
-                found = True
+            for tx in acc.get("transactions", []):
+                if tx.get("csv_id") == csv_id:
+                    tx["is_dismissed"] = False
+                    tx["is_auto_dismissed"] = False
+                    tx["_excluded"] = False
+                    removed = True
+    if prof_data:
+        serializable = {str(k): v for k, v in prof_data.items()}
+        _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if prof_data else "")
+
+    return removed
+
+
+def dismiss_pending_transaction(db: Session, csv_id: str, profile_id: Optional[str] = None) -> bool:
+    """Marque une opération spécifique du sas comme ignorée de façon persistante."""
+    global _PENDING_SYNC_DATA
+    pid = _resolve_profile_id(profile_id)
+    found = False
+    meta = {}
+    prof_data = _PENDING_SYNC_DATA.get(pid, {})
+    for conn_id, data in list(prof_data.items()):
+        for acc in data.get("accounts", []):
+            for tx in acc.get("transactions", []):
+                if tx.get("csv_id") == csv_id:
+                    tx["is_dismissed"] = True
+                    tx["_excluded"] = True
+                    meta = {
+                        "date_operation": tx.get("date_operation"),
+                        "raw_amount": tx.get("raw_amount"),
+                        "description": tx.get("description"),
+                        "account_id": acc.get("account_id")
+                    }
+                    found = True
+
+    # Enregistrer de façon persistante
+    add_dismissed_transaction(db, csv_id, metadata=meta, profile_id=pid)
+
     if found:
         serializable = {str(k): v for k, v in prof_data.items()}
         _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if prof_data else "")
-        logger.info(f"[BankSyncScheduler] Opération en attente #{csv_id} ignorée et retirée du sas (profil={pid}).")
-    return found
+        logger.info(f"[BankSyncScheduler] Opération en attente #{csv_id} marquée ignorée (profil={pid}).")
+    return True
 
 
 def remove_committed_from_pending(db: Session, csv_ids: List[str], profile_id: Optional[str] = None):
@@ -144,7 +217,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
     """
     global _PENDING_SYNC_DATA
     from app.routers.csv_parser import check_reconciliation
-    from datetime import date
+    from datetime import date, timedelta
     total_matches = 0
     total_confirmed_matches = 0
     total_coming_matches = 0
@@ -160,6 +233,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
     valid_conn_map = {c.id: c.label for c in valid_conns}
     valid_conn_map[CSV_IMPORT_CONN_ID] = CSV_IMPORT_CONN_LABEL
     pid = _resolve_profile_id(profile_id)
+    dismissed_tx_map = get_dismissed_transactions(db, profile_id=pid)
 
     if pid not in _PENDING_SYNC_DATA:
         _PENDING_SYNC_DATA[pid] = {}
@@ -251,6 +325,11 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
         else:
             acc_copy["local_reconciled_balance"] = None
 
+        # Vérifier si les soldes sont conformes au centime près
+        is_balance_conformed = False
+        if acc_copy.get("bank_balance") is not None and acc_copy.get("local_reconciled_balance") is not None:
+            is_balance_conformed = abs(acc_copy["bank_balance"] - acc_copy["local_reconciled_balance"]) < 0.005
+
         txs = acc.get("transactions", [])
         confirmed_txs = [tx for tx in txs if not tx.get("is_coming", False)]
         coming_txs = [tx for tx in txs if tx.get("is_coming", False)]
@@ -263,9 +342,15 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                 tx_copy["is_coming"] = is_coming_flag
                 tx_date_str = tx.get("date_operation")
                 raw_amount = tx.get("raw_amount")
+                csv_id = tx.get("csv_id")
+
+                is_dismissed = bool(csv_id and csv_id in dismissed_tx_map)
+                tx_copy["is_dismissed"] = is_dismissed
+                tx_copy["is_auto_dismissed"] = False
+
                 if tx_date_str and raw_amount is not None and local_acc_id:
                     try:
-                        tx_date = date.fromisoformat(tx_date_str[:10])
+                        tx_date = date.fromisoformat(str(tx_date_str)[:10])
                         rec_info = check_reconciliation(
                             db,
                             tx_date,
@@ -274,7 +359,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                             account_id=local_acc_id,
                             is_coming=is_coming_flag,
                             bank_label=tx.get("raw_description") or tx.get("description"),
-                            csv_id=tx.get("csv_id")
+                            csv_id=csv_id
                         )
                         if rec_info:
                             tx_copy["is_reconciled"] = True
@@ -311,6 +396,20 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                         tx_copy["db_description"] = None
                         tx_copy["match_score"] = 0
 
+                # Auto-exclusion intelligente si solde conforme et ancienne opération non reconnue
+                if not tx_copy.get("is_reconciled") and not is_coming_flag and not is_dismissed:
+                    if is_balance_conformed and tx_date_str:
+                        try:
+                            tx_dt = date.fromisoformat(str(tx_date_str)[:10])
+                            if tx_dt < date.today() - timedelta(days=15):
+                                tx_copy["is_auto_dismissed"] = True
+                                tx_copy["_excluded"] = True
+                        except Exception:
+                            pass
+
+                if is_dismissed:
+                    tx_copy["_excluded"] = True
+
                 result_list.append(tx_copy)
                 if tx_copy.get("is_reconciled") and not tx_copy.get("already_reconciled") and tx_copy.get("matched_db_id"):
                     total_matches += 1
@@ -331,7 +430,8 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                         "connection_label": conn_label
                     }
                 elif not tx_copy.get("is_reconciled"):
-                    total_new += 1
+                    if not tx_copy.get("is_dismissed") and not tx_copy.get("is_auto_dismissed") and not tx_copy.get("_excluded"):
+                        total_new += 1
 
             return result_list
 
@@ -443,18 +543,22 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
             for tx in acc.get("transactions", []):
                 if tx.get("is_reconciled") and not tx.get("already_reconciled") and tx.get("matched_db_id"):
                     matches += 1
-                elif not tx.get("is_reconciled"):
+                elif not tx.get("is_reconciled") and not tx.get("is_dismissed") and not tx.get("is_auto_dismissed") and not tx.get("_excluded"):
                     new_txs += 1
 
         # Créer une notification in-app pour informer l'utilisateur du résultat
         if matches > 0 or new_txs > 0:
             notif_msg = []
-            if matches > 0:
-                notif_msg.append(f"{matches} opération(s) prête(s) à pointer")
-            if new_txs > 0:
-                notif_msg.append(f"{new_txs} nouvelle(s) opération(s)")
+            if matches == 1:
+                notif_msg.append("1 opération prête à pointer")
+            elif matches > 1:
+                notif_msg.append(f"{matches} opérations prêtes à pointer")
+            if new_txs == 1:
+                notif_msg.append("1 nouvelle opération")
+            elif new_txs > 1:
+                notif_msg.append(f"{new_txs} nouvelles opérations")
 
-            full_content = f"Relevé pour {conn.label} terminé : " + ", ".join(notif_msg) + "."
+            full_content = f"{conn.label} : " + ", ".join(notif_msg) + "."
             notif = Notification(
                 type="bank_sync",
                 title=f"🏦 Synchronisation {conn.label}",
@@ -475,7 +579,7 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
             notif = Notification(
                 type="bank_sync",
                 title=f"🏦 Relevé {conn.label} : À jour",
-                content=f"Relevé terminé pour {conn.label} : aucun nouveau mouvement bancaire détecté.",
+                content=f"Relevé terminé pour {conn.label} : vos comptes sont à jour (aucun nouveau mouvement).",
                 link_data=json.dumps({
                     "view": "accounts",
                     "action": "bank_sync",
