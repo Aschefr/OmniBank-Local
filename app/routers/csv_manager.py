@@ -542,7 +542,13 @@ async def analyze_heuristic(
         parsed_date_val = row['_parsed_date']
         date_str = parsed_date_val.strftime("%Y-%m-%d") if not pd.isna(parsed_date_val) else None
         
-        match_info = check_reconciliation(db, parsed_date_val, amt, matched_ids) if not pd.isna(parsed_date_val) else None
+        match_info = check_reconciliation(
+            db,
+            parsed_date_val,
+            amt,
+            matched_ids,
+            bank_label=desc
+        ) if not pd.isna(parsed_date_val) else None
         if match_info:
             matched_ids.append(match_info["id"])
 
@@ -574,6 +580,7 @@ async def analyze_heuristic(
             "is_reconciled": match_info is not None,
             "already_reconciled": match_info["already_reconciled"] if match_info else False,
             "matched_db_id": match_info["id"] if match_info else None,
+            "match_score": match_info.get("match_score", 0) if match_info else 0,
             "attachments": attachments,
             "check_slip_number": check_slip_number
         })

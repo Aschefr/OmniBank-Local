@@ -832,13 +832,16 @@ Object.assign(window.BankSyncView, {
 
         const catSelect = document.getElementById('balanceAdjustTxCategory');
         if (catSelect) {
-            const categories = window.app?.categoriesList || ['Intérêts', 'Épargne', 'Frais bancaires', 'Autre'];
-            catSelect.innerHTML = categories.map(cat => `<option value="${window.escapeHtml ? window.escapeHtml(cat) : cat}">${window.escapeHtml ? window.escapeHtml(cat) : cat}</option>`).join('');
-            if (isPositive && categories.includes('Intérêts')) {
+            const rawCategories = window.app?.categoriesList || [];
+            const catNames = rawCategories.length > 0
+                ? rawCategories.map(c => typeof c === 'string' ? c : c?.name).filter(Boolean)
+                : ['Intérêts', 'Épargne', 'Frais bancaires', 'Autre'];
+            catSelect.innerHTML = catNames.map(cat => `<option value="${window.escapeHtml ? window.escapeHtml(cat) : cat}">${window.escapeHtml ? window.escapeHtml(cat) : cat}</option>`).join('');
+            if (isPositive && catNames.includes('Intérêts')) {
                 catSelect.value = 'Intérêts';
-            } else if (isPositive && categories.includes('Épargne')) {
+            } else if (isPositive && catNames.includes('Épargne')) {
                 catSelect.value = 'Épargne';
-            } else if (!isPositive && categories.includes('Frais bancaires')) {
+            } else if (!isPositive && catNames.includes('Frais bancaires')) {
                 catSelect.value = 'Frais bancaires';
             }
         }
@@ -1224,7 +1227,8 @@ Object.assign(window.BankSyncView, {
             return;
         }
 
-        const finalReconDate = document.getElementById('linkFinalReconDate')?.value || new Date().toISOString().split('T')[0];
+        const isComing = !!ghost.is_coming;
+        const finalReconDate = document.getElementById('linkFinalReconDate')?.value || (isComing ? '' : new Date().toISOString().split('T')[0]);
 
         try {
             const res = await API.post('/api/bank-sync/link-ghost', {
@@ -1233,7 +1237,8 @@ Object.assign(window.BankSyncView, {
                 description: finalDesc,
                 amount: finalAmount,
                 category: finalCat,
-                reconciliation_date: finalReconDate
+                is_coming: isComing,
+                reconciliation_date: finalReconDate || null
             });
 
             this.closeLinkGhostModal();
@@ -1244,7 +1249,9 @@ Object.assign(window.BankSyncView, {
             if (window.AllOperationsView) window.AllOperationsView._pendingHighlightTxId = target.id;
             if (window.OverviewView) window.OverviewView._pendingHighlightTxId = target.id;
 
-            const successMsg = window.i18n ? window.i18n.t('ghost_link_success') || 'Opération liée et pointée avec succès !' : 'Opération liée et pointée avec succès !';
+            const successMsg = isComing
+                ? (window.i18n ? window.i18n.t('ghost_link_coming_success') || 'Opération liée avec succès (en attente banque)' : 'Opération liée avec succès (en attente banque)')
+                : (window.i18n ? window.i18n.t('ghost_link_success') || 'Opération liée et pointée avec succès !' : 'Opération liée et pointée avec succès !');
             this.showToast(successMsg, 'success');
 
             await this.refreshActiveViews(target.id);

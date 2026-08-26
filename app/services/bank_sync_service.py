@@ -672,7 +672,9 @@ class BankSyncService:
                     raw_amount,
                     matched_ids=matched_ids_global,
                     account_id=local_acc.id,
-                    is_coming=False
+                    is_coming=False,
+                    bank_label=item.get("raw_description") or item.get("description"),
+                    csv_id=item.get("csv_id")
                 )
                 is_reconciled = False
                 already_reconciled = False
@@ -682,6 +684,7 @@ class BankSyncService:
                 orphan_acc_name = None
                 matched_id = None
                 db_desc = None
+                match_score = 0
 
                 if rec_info:
                     is_reconciled = True
@@ -692,6 +695,7 @@ class BankSyncService:
                     orphan_acc_name = rec_info.get("orphan_account_name")
                     matched_id = rec_info.get("id")
                     db_desc = rec_info.get("description")
+                    match_score = rec_info.get("match_score", 0)
                     if matched_id:
                         matched_ids_global.add(matched_id)
 
@@ -709,6 +713,7 @@ class BankSyncService:
                     "orphan_account_name": orphan_acc_name,
                     "matched_db_id": matched_id,
                     "db_description": db_desc,
+                    "match_score": match_score,
                     "category": None,
                     "csv_id": item["csv_id"],
                     "account_id": local_acc.id,
@@ -727,7 +732,9 @@ class BankSyncService:
                     raw_amount,
                     matched_ids=matched_ids_global,
                     account_id=local_acc.id,
-                    is_coming=True
+                    is_coming=True,
+                    bank_label=item.get("raw_description") or item.get("description"),
+                    csv_id=item.get("csv_id")
                 )
                 is_reconciled = False
                 already_reconciled = False
@@ -737,6 +744,7 @@ class BankSyncService:
                 orphan_acc_name = None
                 matched_id = None
                 db_desc = None
+                match_score = 0
 
                 if rec_info:
                     is_reconciled = True
@@ -747,6 +755,7 @@ class BankSyncService:
                     orphan_acc_name = rec_info.get("orphan_account_name")
                     matched_id = rec_info.get("id")
                     db_desc = rec_info.get("description")
+                    match_score = rec_info.get("match_score", 0)
                     if matched_id:
                         matched_ids_global.add(matched_id)
 
@@ -764,6 +773,7 @@ class BankSyncService:
                     "orphan_account_name": orphan_acc_name,
                     "matched_db_id": matched_id,
                     "db_description": db_desc,
+                    "match_score": match_score,
                     "category": None,
                     "csv_id": item["csv_id"],
                     "account_id": local_acc.id,
@@ -865,6 +875,7 @@ class BankSyncService:
             is_rec = item.get("is_reconciled", False)
             already_rec = item.get("already_rec", False) or item.get("already_reconciled", False)
             matched_id = item.get("matched_db_id")
+            is_coming = bool(item.get("is_coming", False))
 
             # 1. Si déjà rapproché : on ignore (doublon)
             if is_rec and already_rec:
@@ -889,12 +900,12 @@ class BankSyncService:
                         existing.to_account_id = account_id
 
                     existing.type = "transfer"
-                    if not item.get("is_coming", False):
+                    if not is_coming:
                         existing.reconciliation_date = date.today()
+                        reconciled_count += 1
                     if item.get("category"):
                         existing.category = item["category"]
                     record_action(db, "transaction", existing.id, "UPDATE", before_snap, snapshot_entity(existing), user_name=f"{creator_name} (Liaison Virement)")
-                    reconciled_count += 1
                 continue
 
             # 2.B Si prédiction existante en attente de pointage classique :
@@ -902,12 +913,12 @@ class BankSyncService:
                 existing = db.query(Transaction).filter(Transaction.id == matched_id).first()
                 if existing:
                     before_snap = snapshot_entity(existing)
-                    if not item.get("is_coming", False):
+                    if not is_coming:
                         existing.reconciliation_date = date.today()
+                        reconciled_count += 1
                     if item.get("category"):
                         existing.category = item["category"]
                     record_action(db, "transaction", existing.id, "UPDATE", before_snap, snapshot_entity(existing), user_name=creator_name)
-                    reconciled_count += 1
                 continue
 
             # 3. Nouvelle transaction à ajouter :
@@ -1134,7 +1145,9 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
                             float(raw_amount),
                             matched_ids=local_excluded,
                             account_id=local_acc_id,
-                            is_coming=is_coming_flag
+                            is_coming=is_coming_flag,
+                            bank_label=tx.get("raw_description") or tx.get("description"),
+                            csv_id=csv_id
                         )
                         if rec_info:
                             tx_copy["is_reconciled"] = True
@@ -1145,6 +1158,7 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
                             tx_copy["orphan_account_name"] = rec_info.get("orphan_account_name")
                             tx_copy["matched_db_id"] = rec_info.get("id")
                             tx_copy["db_description"] = rec_info.get("description")
+                            tx_copy["match_score"] = rec_info.get("match_score", 0)
                             if rec_info.get("id"):
                                 matched_ids_global.add(rec_info.get("id"))
                         else:
@@ -1156,6 +1170,7 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
                             tx_copy["orphan_account_name"] = None
                             tx_copy["matched_db_id"] = None
                             tx_copy["db_description"] = None
+                            tx_copy["match_score"] = 0
                     except Exception as err:
                         logger.warning(f"[BankSync] Erreur re-matching preview tx: {err}")
                         tx_copy["is_reconciled"] = False
@@ -1166,6 +1181,7 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
                         tx_copy["orphan_account_name"] = None
                         tx_copy["matched_db_id"] = None
                         tx_copy["db_description"] = None
+                        tx_copy["match_score"] = 0
 
                 result_list.append(tx_copy)
             return result_list

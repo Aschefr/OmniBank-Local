@@ -52,6 +52,15 @@ Object.assign(window.BankSyncView, {
         this.previewData = previewData;
         this.currentAccountIndex = 0;
         this.currentFilter = 'all';
+        this.showMatchScores = localStorage.getItem('omnibank_review_show_scores') === 'true';
+
+        const scoreBtn = document.getElementById('btnSyncToggleScores');
+        if (scoreBtn) {
+            scoreBtn.style.background = this.showMatchScores ? 'rgba(99, 102, 241, 0.15)' : 'transparent';
+            scoreBtn.style.borderColor = this.showMatchScores ? 'var(--accent)' : 'var(--border-color)';
+            scoreBtn.style.color = this.showMatchScores ? 'var(--accent)' : 'var(--text-muted)';
+            scoreBtn.style.fontWeight = this.showMatchScores ? '700' : 'normal';
+        }
 
         // 1. Résolution proactive Smart Label pour garantir l'application des règles et la conservation du nom brut
         try {
@@ -256,6 +265,19 @@ Object.assign(window.BankSyncView, {
         this.renderReviewTable();
     },
 
+    toggleReviewScores() {
+        this.showMatchScores = !this.showMatchScores;
+        localStorage.setItem('omnibank_review_show_scores', this.showMatchScores ? 'true' : 'false');
+        const btn = document.getElementById('btnSyncToggleScores');
+        if (btn) {
+            btn.style.background = this.showMatchScores ? 'rgba(99, 102, 241, 0.15)' : 'transparent';
+            btn.style.borderColor = this.showMatchScores ? 'var(--accent)' : 'var(--border-color)';
+            btn.style.color = this.showMatchScores ? 'var(--accent)' : 'var(--text-muted)';
+            btn.style.fontWeight = this.showMatchScores ? '700' : 'normal';
+        }
+        this.renderReviewTable();
+    },
+
     renderReviewTable() {
         const tbody = document.getElementById('bankSyncReviewBody');
         if (!tbody || !this.previewData || !this.previewData.accounts) return;
@@ -353,11 +375,11 @@ Object.assign(window.BankSyncView, {
                 }
             } else if (isRec && !alreadyRec) {
                 if (tx.is_coming) {
-                    const badgeLabel = window.i18n.t('bank_sync_coming_to_reconcile') || '⏳ En attente (À pointer)';
-                    const badgeTip = (window.i18n.t('bank_sync_coming_to_reconcile_tooltip') || 'Opération en attente banque correspondant à une opération locale non encore pointée.').replace(/"/g, '&quot;');
-                    statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; cursor: help; display:inline-flex; align-items:center; gap:4px;" title="${badgeTip}"><span>${badgeLabel}</span></span>${resolvesBadge}`;
-                    actionText = window.i18n.t('bank_sync_action_will_reconcile') || 'Sera pointée';
-                    actionColor = `color: var(--color-income, #10b981);`;
+                    const badgeLabel = window.i18n.t('bank_sync_coming_to_reconcile') || '⏳ En attente banque';
+                    const badgeTip = (window.i18n.t('bank_sync_coming_to_reconcile_tooltip') || 'Opération en attente banque correspondant à une opération locale non encore pointée. Elle reste non pointée jusqu\'à son débit effectif.').replace(/"/g, '&quot;');
+                    statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; cursor: help; display:inline-flex; align-items:center; gap:4px;" title="${badgeTip}"><span>${badgeLabel}</span></span>${resolvesBadge}`;
+                    actionText = window.i18n.t('bank_sync_action_coming_matched') || 'En attente banque (non pointée)';
+                    actionColor = `color: #d97706; font-weight: 500;`;
                 } else {
                     const reconLabel = window.i18n.t('bank_sync_status_to_reconcile') || '⚡ À pointer';
                     statusBadge = `<span class="badge" style="background:var(--color-income, #10b981); color:white;">${reconLabel}</span>${resolvesBadge}`;
@@ -367,7 +389,7 @@ Object.assign(window.BankSyncView, {
             } else if (!isRec && tx.is_coming) {
                 const badgeLabel = window.i18n.t('bank_sync_coming_new') || '⏳ En attente (Nouvelle)';
                 statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700; display:inline-flex; align-items:center; gap:4px;"><span>${badgeLabel}</span></span>${resolvesBadge}`;
-                actionText = window.i18n.t('bank_sync_coming_action') || 'Nouvelle (non encore débitée)';
+                actionText = window.i18n.t('bank_sync_action_coming_new') || window.i18n.t('bank_sync_coming_action') || 'Nouvelle (en attente banque)';
                 actionColor = `color: #6366f1;`;
             } else {
                 const newLabel = window.i18n.t('bank_sync_status_to_add') || '🆕 Nouvelle opération';
@@ -433,6 +455,25 @@ Object.assign(window.BankSyncView, {
                 linkActionBtn = `<button class="btn-action-icon" style="color: var(--accent, #6366f1);" onclick="window.BankSyncView.openLinkFromReview('${tx.csv_id}')" title="${lblRelink}"><span>🔗</span></button>`;
             }
 
+            let scoreBadge = '';
+            if (this.showMatchScores && isRec && typeof tx.match_score === 'number' && tx.match_score > 0) {
+                const s = tx.match_score;
+                let sColor = '#10b981';
+                let sBg = 'rgba(16, 185, 129, 0.15)';
+                let sIcon = '🟢';
+                if (s < 50) {
+                    sColor = '#ef4444';
+                    sBg = 'rgba(239, 68, 68, 0.15)';
+                    sIcon = '🔴';
+                } else if (s < 65) {
+                    sColor = '#d97706';
+                    sBg = 'rgba(245, 158, 11, 0.15)';
+                    sIcon = '🟡';
+                }
+                const scoreTip = (window.i18n && window.i18n.tp) ? window.i18n.tp('bank_sync_score_tooltip', { score: s }) : `Score de confiance : ${s}/100`;
+                scoreBadge = `<span class="badge" style="background:${sBg}; color:${sColor}; border:1px solid ${sColor}40; font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:2px; margin-left:4px; padding:2px 5px; border-radius:4px;" title="${scoreTip}"><span>${sIcon}</span> <span>${s}</span></span>`;
+            }
+
             return `
             <tr id="syncRow_${tx.csv_id}" style="${rowStyle}">
                 <td style="padding: 10px 14px; text-align: center;">
@@ -446,7 +487,7 @@ Object.assign(window.BankSyncView, {
                 <td style="padding: 10px 14px; text-align: right;">
                     ${amountInput}
                 </td>
-                <td style="padding: 10px 14px; text-align: center;">${statusBadge}</td>
+                <td style="padding: 10px 14px; text-align: center;">${statusBadge}${scoreBadge}</td>
                 <td style="padding: 10px 14px; text-align: right;">
                     <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; white-space: nowrap;">
                         <span style="font-size: 11.5px; ${actionColor} white-space: nowrap;">${actionText}</span>
@@ -947,6 +988,7 @@ Object.assign(window.BankSyncView, {
                     is_reconciled: tx.is_reconciled,
                     already_reconciled: tx.already_reconciled,
                     matched_db_id: tx.matched_db_id,
+                    is_coming: !!tx.is_coming,
                     attachments: tx.attachments || null,
                     check_slip_number: tx.check_slip_number || null
                 });
@@ -964,8 +1006,8 @@ Object.assign(window.BankSyncView, {
                 transactions: allTxs
             });
 
-            // Mettre à jour le preview en conservant les opérations non traitées (décochées)
-            const committedCsvSet = new Set(allTxs.map(t => t.csv_id).filter(Boolean));
+            // Mettre à jour le preview en conservant les opérations non traitées (décochées) et les opérations en attente banque
+            const committedCsvSet = new Set(allTxs.filter(t => !t.is_coming).map(t => t.csv_id).filter(Boolean));
             let hasRemaining = false;
             if (this.previewData && this.previewData.accounts) {
                 this.previewData.accounts.forEach(acc => {
@@ -996,7 +1038,17 @@ Object.assign(window.BankSyncView, {
                         this.clearMatchOverrides(this.activeConnId);
                     }
                 }
-                this.showToast(`Synchronisation validée : +${res.imported} ajoutée(s), ✔ ${res.reconciled} pointée(s)`, 'success');
+                const comingCount = allTxs.filter(t => t.is_coming).length;
+                let toastMsg = (window.i18n && window.i18n.tp)
+                    ? window.i18n.tp('bank_sync_commit_toast', { imported: res.imported, reconciled: res.reconciled }) || `Synchronisation validée : +${res.imported} ajoutée(s), ✔ ${res.reconciled} pointée(s)`
+                    : `Synchronisation validée : +${res.imported} ajoutée(s), ✔ ${res.reconciled} pointée(s)`;
+                if (comingCount > 0) {
+                    const comingSuffix = (window.i18n && window.i18n.tp)
+                        ? window.i18n.tp('bank_sync_commit_toast_coming', { count: comingCount }) || `, ⏳ ${comingCount} en attente banque`
+                        : `, ⏳ ${comingCount} en attente banque`;
+                    toastMsg += comingSuffix;
+                }
+                this.showToast(toastMsg, 'success');
                 await this.loadConnections();
                 await this.loadPendingSync();
             }
