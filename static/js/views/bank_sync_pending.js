@@ -9,19 +9,35 @@ Object.assign(window.BankSyncView, {
             this.pendingMatches = data?.matches_by_tx_id || {};
             this.pendingDiscrepancies = data?.discrepancies_by_tx_id || {};
             this.totalDiscrepancies = data?.total_discrepancies || 0;
-            this.pendingAccounts = data?.accounts || [];
+
+            // Dédupliquer les comptes défensivement
+            const seenAccKeys = new Set();
+            const uniquePendingAccs = [];
+            (data?.accounts || []).forEach(acc => {
+                const k = acc.account_id ? `id_${acc.account_id}` : `name_${(acc.account_name || acc.name || '').trim().toLowerCase()}`;
+                if (!seenAccKeys.has(k)) {
+                    seenAccKeys.add(k);
+                    uniquePendingAccs.push(acc);
+                }
+            });
+            this.pendingAccounts = uniquePendingAccs;
 
             // Extraire toutes les opérations fantômes (non encore rapprochées)
             this.ghostTransactions = [];
             this._ghostCategoryCache = this._ghostCategoryCache || {};
-            if (data && data.accounts) {
-                data.accounts.forEach(acc => {
+            const seenGhostKeys = new Set();
+            if (this.pendingAccounts && this.pendingAccounts.length > 0) {
+                this.pendingAccounts.forEach(acc => {
                     const connId = acc.connection_id || 0;
                     const connLabel = acc.connection_label || '';
                     const accId = acc.account_id;
                     const accName = acc.account_name || acc.name || `Compte #${accId}`;
                     (acc.transactions || []).forEach(tx => {
                         if (!tx.is_reconciled) {
+                            const ghostKey = tx.csv_id || `${accId}_${tx.date_operation}_${tx.raw_amount}_${tx.description}`;
+                            if (seenGhostKeys.has(ghostKey)) return;
+                            seenGhostKeys.add(ghostKey);
+
                             const key = tx.raw_description || tx.description;
                             const cached = this._ghostCategoryCache[key];
                             const ghost = {
@@ -252,12 +268,23 @@ Object.assign(window.BankSyncView, {
         const totalCount = ghosts.length;
 
         // ── 1. Cohérence des soldes & Guide par Delta ─────────────────────
-        let relevantAccounts = (this.pendingAccounts && this.pendingAccounts.length > 0)
+        let rawRelevantAccounts = (this.pendingAccounts && this.pendingAccounts.length > 0)
             ? this.pendingAccounts
             : (this.previewData?.accounts || []);
         if (accountFilter) {
-            relevantAccounts = relevantAccounts.filter(a => String(a.account_id) === String(accountFilter));
+            rawRelevantAccounts = rawRelevantAccounts.filter(a => String(a.account_id) === String(accountFilter));
         }
+
+        // Dédupliquer les comptes par account_id ou nom pour ne jamais afficher de barre en double
+        const seenBarAccKeys = new Set();
+        const relevantAccounts = [];
+        rawRelevantAccounts.forEach(acc => {
+            const k = acc.account_id ? `id_${acc.account_id}` : `name_${(acc.account_name || acc.name || acc.section_title || '').trim().toLowerCase()}`;
+            if (!seenBarAccKeys.has(k)) {
+                seenBarAccKeys.add(k);
+                relevantAccounts.push(acc);
+            }
+        });
 
         const accsWithBalance = relevantAccounts.filter(a =>
             typeof a.bank_balance === 'number' && typeof a.local_reconciled_balance === 'number'
