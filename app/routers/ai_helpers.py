@@ -231,7 +231,14 @@ async def import_csv_ai(
                 else:
                     tx_date = None
                     
-                matched_info = check_reconciliation(db, tx_date, amt, matched_ids)
+                bank_lbl = tx.get('description', '') or tx.get('raw_description', '')
+                matched_info = check_reconciliation(
+                    db,
+                    tx_date,
+                    amt,
+                    matched_ids,
+                    bank_label=bank_lbl
+                )
                 if matched_info:
                     matched_ids.append(matched_info["id"])
                 
@@ -239,11 +246,13 @@ async def import_csv_ai(
                 tx['already_reconciled'] = matched_info["already_reconciled"] if matched_info else False
                 tx['matched_db_id'] = matched_info["id"] if matched_info else None
                 tx['db_description'] = matched_info["description"] if matched_info else None
+                tx['match_score'] = matched_info.get("match_score", 0) if matched_info else 0
             except Exception:
                 tx['is_reconciled'] = False
                 tx['already_reconciled'] = False
                 tx['matched_db_id'] = None
                 tx['db_description'] = None
+                tx['match_score'] = 0
             results.append(tx)
             
         alerts = check_import_alerts(db, account_id, results) if account_id else {}

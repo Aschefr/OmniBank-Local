@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.91-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.92-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,11 +110,11 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.91)
+## 🆕 Nouveautés (v1.0.92)
 
-* **📅🔮 Sélecteur d'Horizon Temporel dans la Vue d'ensemble** : Bascule instantanée entre le cycle en cours (jusqu'à la prochaine paie / fin de mois) et la totalité des prévisions futures dans la liste des opérations à rapprocher.
-* **🏢 Adaptation Transparente en Mode Organisation** : Masquage automatique du sélecteur d'horizon et affichage exhaustif de tous les engagements et prévisions budgétaires de l'organisation.
-* **🧪 Suite de Tests E2E Playwright Stabilisée** : Validation automatisée de bout en bout des 18 scénarios applicatifs clés (onboarding, import de relevé unifié, analyse multi-années, simulateur, sécurité PIN et rapprochement réactif).
+* **🎯 Moteur de Rapprochement Intelligent par Score Multi-Critères** : Évaluation composite (0-100 pts) combinant montant exact, proximité temporelle asymétrique et similarité textuelle des libellés (Smart Label). Verrouillage prioritaire absolu par empreinte bancaire (`csv_id`) et fenêtre resserrée pour éliminer tout faux rapprochement anachronique.
+* **🎯 Toggle de Confiance des Scores On-Demand** : Bouton `🎯 Scores` discret dans la modale de revue bancaire affichant à la demande les scores de confiance colorés (`🟢 85`, `🟡 55`, `🔴 42`) avec info-bulle d'aide.
+* **⏳ Gestion Pérenne des Opérations en Attente (`is_coming`)** : Préservation des autorisations bancaires non débitées dans le sas lors des validations de relevé.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -122,7 +122,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.91-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.92-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -222,11 +222,11 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.91)
+## 🆕 What's New (v1.0.92)
 
-* **📅🔮 Time Horizon Selector in Overview**: Instant toggle between current cycle (up to next paycheck / end of month) and all future forecasts in the reconcile list.
-* **🏢 Seamless Organisation Mode Adaptation**: Automatically hides the horizon selector and displays all forecasts and commitments unconditionally.
-* **🧪 Playwright E2E Test Suite Stabilized**: End-to-end automated coverage across all 18 application scenarios (onboarding, unified CSV cockpit import, multi-year analysis, sandbox simulator, PIN security, and reactive reconciliation).
+* **🎯 Multi-Criteria Reconciliation Matching Engine**: Composite scoring evaluation (0-100 pts) combining exact amount, asymmetric temporal proximity, and normalized merchant/text similarity (Smart Label). Absolute priority matching on bank unique hash (`csv_id`) and tightened matching window completely prevents anachronistic false matches.
+* **🎯 On-Demand Confidence Score Toggle**: Unobtrusive `🎯 Scores` button in the bank review modal displaying color-coded trust levels (`🟢 85`, `🟡 55`, `🔴 42`) with informative tooltip on demand.
+* **⏳ Coming Operations Persistence (`is_coming`)**: Preserves un-debited pending bank authorizations in the holding queue across bulk statement validations.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

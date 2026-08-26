@@ -849,6 +849,156 @@ def test_reconcile_all_pending_skips_coming_operations():
     assert tx_coming.reconciliation_date is None
 
 
+def test_commit_reviewed_sync_preserves_coming_operations_unreconciled():
+    """
+    Vérifie que la validation dans la modale de revue (POST /api/bank-sync/connections/{conn_id}/commit)
+    ne pointe PAS les opérations 'en attente' (is_coming = True), même si elles matchent une opération en base.
+    """
+    from datetime import date
+    from fastapi.testclient import TestClient
+
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    conn = BankConnection(backend="cragr", label="Test Commit Coming", is_active=True)
+    acc = Account(name="Compte Test Commit Coming", initial_balance=1000.0)
+    test_db.add_all([conn, acc])
+    test_db.commit()
+    test_db.refresh(conn)
+    test_db.refresh(acc)
+
+    # 1. Opération existante locale prévue / non pointée
+    local_tx = Transaction(
+        description="Google One Abonnement IA+ 5To",
+        amount=21.99,
+        type="expense_fix",
+        category="Abonnements",
+        date_saisie=date(2026, 8, 24),
+        date_operation=date(2026, 8, 26),
+        reconciliation_date=None,
+        from_account_id=acc.id,
+        created_by="Manuel"
+    )
+    test_db.add(local_tx)
+    test_db.commit()
+    test_db.refresh(local_tx)
+
+    # 2. Payload envoyé par la modale de revue avec is_coming = True
+    commit_payload = {
+        "transactions": [
+            {
+                "account_id": acc.id,
+                "date_operation": "2026-08-24",
+                "description": "X1208 Google One Dublin",
+                "raw_description": "X1208 Google One Dublin",
+                "amount": 21.99,
+                "raw_amount": -21.99,
+                "category": "Abonnements",
+                "csv_id": "google_coming_001",
+                "is_reconciled": True,
+                "already_reconciled": False,
+                "matched_db_id": local_tx.id,
+                "is_coming": True
+            }
+        ]
+    }
+
+    from app.services.bank_sync_scheduler import save_pending_sync_data, get_all_pending_sync
+
+    preview_data = {
+        "accounts": [
+            {
+                "account_id": acc.id,
+                "account_name": acc.name,
+                "connection_id": conn.id,
+                "transactions": [
+                    {
+                        "csv_id": "google_coming_001",
+                        "description": "X1208 Google One Dublin",
+                        "amount": 21.99,
+                        "raw_amount": -21.99,
+                        "date_operation": "2026-08-24",
+                        "category": "Abonnements",
+                        "account_id": acc.id,
+                        "is_reconciled": True,
+                        "already_reconciled": False,
+                        "matched_db_id": local_tx.id,
+                        "is_coming": True
+                    }
+                ]
+            }
+        ]
+    }
+    save_pending_sync_data(test_db, conn.id, preview_data)
+
+    res = client.post(f"/api/bank-sync/connections/{conn.id}/commit", json=commit_payload)
+    assert res.status_code == 200
+    res_data = res.json()
+    assert res_data["reconciled"] == 0
+
+    test_db.refresh(local_tx)
+    # L'opération locale ne doit PAS avoir de date de pointage
+    assert local_tx.reconciliation_date is None
+    # La catégorie peut être mise à jour
+    assert local_tx.category == "Abonnements"
+
+    # Vérifier que l'opération à venir reste mémorisée dans le sas
+    pending_after = get_all_pending_sync(test_db)
+    assert pending_after["total_coming_matches"] == 1
+    assert local_tx.id in pending_after["matches_by_tx_id"]
+    assert pending_after["matches_by_tx_id"][local_tx.id]["is_coming"] is True
+
+
+def test_link_ghost_preserves_coming_unreconciled():
+    """
+    Vérifie que la liaison d'un fantôme 'à venir' (is_coming = True) ne force pas la date de pointage.
+    """
+    from datetime import date
+    from fastapi.testclient import TestClient
+
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Compte Test Link Coming", initial_balance=500.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    local_tx = Transaction(
+        description="Achat Futur en attente",
+        amount=45.00,
+        type="expense_var",
+        category="Divers",
+        date_saisie=date(2026, 8, 25),
+        date_operation=date(2026, 8, 28),
+        reconciliation_date=None,
+        from_account_id=acc.id,
+        created_by="Manuel"
+    )
+    test_db.add(local_tx)
+    test_db.commit()
+    test_db.refresh(local_tx)
+
+    link_payload = {
+        "csv_id": "ghost_coming_link_123",
+        "target_tx_id": local_tx.id,
+        "description": "Achat Futur en attente (Banque)",
+        "amount": 45.00,
+        "category": "Divers",
+        "is_coming": True,
+        "reconciliation_date": None
+    }
+
+    res = client.post("/api/bank-sync/link-ghost", json=link_payload)
+    assert res.status_code == 200
+    assert res.json()["reconciliation_date"] is None
+
+    test_db.refresh(local_tx)
+    assert local_tx.reconciliation_date is None
+    assert local_tx.description == "Achat Futur en attente (Banque)"
+    assert local_tx.csv_id == "ghost_coming_link_123"
+
+
 def test_re_evaluate_preview_endpoint_live_db_changes():
     """
     Vérifie que l'endpoint POST /api/bank-sync/re-evaluate-preview re-calcule
@@ -1665,6 +1815,105 @@ def test_csv_multi_account_import_to_pending():
     # Vérifier que le sas est maintenant vide pour ces opérations
     pending_after = client.get("/api/bank-sync/pending").json()
     assert sum(len(a.get("transactions", [])) for a in pending_after.get("accounts", [])) == 0
+
+
+def test_check_reconciliation_prevents_anachronistic_far_match():
+    """
+    Vérifie qu'un débit passé en banque (ex: 19/08) ne matche PAS une prévision future (ex: 24/08)
+    même si le montant est exactement identique (25.99 €).
+    """
+    from datetime import date
+    from app.routers.csv_parser import check_reconciliation
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Compte Test Scoring", initial_balance=500.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    # Prévision future en DB au 24/08
+    future_tx = Transaction(
+        description="Google One Crédits IA",
+        amount=25.99,
+        type="expense_var",
+        category="IA",
+        date_saisie=date(2026, 8, 24),
+        date_operation=date(2026, 8, 24),
+        reconciliation_date=None,
+        from_account_id=acc.id
+    )
+    test_db.add(future_tx)
+    test_db.commit()
+    test_db.refresh(future_tx)
+
+    # Débit bancaire passé du 19/08 (5 jours avant la prévision)
+    bank_date = date(2026, 8, 19)
+    res = check_reconciliation(
+        test_db,
+        tx_date=bank_date,
+        tx_amount=-25.99,
+        account_id=acc.id,
+        is_coming=False,
+        bank_label="X1208 Google One Dublin"
+    )
+
+    # Ne doit PAS matcher la prévision future du 24/08
+    assert res is None
+
+
+def test_check_reconciliation_composite_scoring_and_confidence():
+    """
+    Vérifie le calcul du score composite (montant + proximité temporelle + similarité textuelle).
+    """
+    from datetime import date
+    from app.routers.csv_parser import check_reconciliation
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Compte Test Score Exact", initial_balance=500.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    # Transaction locale au 24/08
+    local_tx = Transaction(
+        description="Abonnement Netflix",
+        amount=19.99,
+        type="expense_fix",
+        category="Loisirs",
+        date_saisie=date(2026, 8, 24),
+        date_operation=date(2026, 8, 24),
+        reconciliation_date=None,
+        from_account_id=acc.id
+    )
+    test_db.add(local_tx)
+    test_db.commit()
+    test_db.refresh(local_tx)
+
+    # Match parfait même jour J=0 et libellé concordant
+    res_perfect = check_reconciliation(
+        test_db,
+        tx_date=date(2026, 8, 24),
+        tx_amount=-19.99,
+        account_id=acc.id,
+        is_coming=False,
+        bank_label="PRLV SEPA NETFLIX SERVICES 1234"
+    )
+    assert res_perfect is not None
+    assert res_perfect["id"] == local_tx.id
+    assert res_perfect["match_score"] >= 80
+
+    # Match à J+1 avec libellé concordant
+    res_close = check_reconciliation(
+        test_db,
+        tx_date=date(2026, 8, 25),
+        tx_amount=-19.99,
+        account_id=acc.id,
+        is_coming=False,
+        bank_label="PRLV SEPA NETFLIX SERVICES 1234"
+    )
+    assert res_close is not None
+    assert res_close["id"] == local_tx.id
+    assert res_close["match_score"] >= 70
 
 
 
