@@ -514,13 +514,16 @@ def link_ghost_to_transaction(data: Dict[str, Any], db: Session = Depends(get_db
     if "category" in data:
         tx.category = data["category"]
 
-    # Date de pointage (par défaut aujourd'hui)
+    # Date de pointage (par défaut aujourd'hui sauf si opération à venir ou date explicitement vide)
+    is_coming = bool(data.get("is_coming", False))
     recon_date_val = None
     if data.get("reconciliation_date"):
         try:
             recon_date_val = datetime.strptime(str(data["reconciliation_date"])[:10], "%Y-%m-%d").date()
         except Exception:
-            recon_date_val = date.today()
+            recon_date_val = None if is_coming else date.today()
+    elif is_coming:
+        recon_date_val = None
     else:
         recon_date_val = date.today()
 
@@ -535,8 +538,8 @@ def link_ghost_to_transaction(data: Dict[str, Any], db: Session = Depends(get_db
     db.commit()
     db.refresh(tx)
 
-    # Purge du sas d'attente
-    if csv_id:
+    # Purge du sas d'attente (uniquement si ce n'est pas une opération à venir)
+    if csv_id and not is_coming:
         remove_committed_from_pending(db, [csv_id])
 
     record_action(db, "transaction", tx.id, "UPDATE", before_snap, snapshot_entity(tx), user_name="Banque (Liaison manuelle)")
@@ -704,10 +707,11 @@ def commit_reviewed_sync(conn_id: int, data: Dict[str, Any], db: Session = Depen
             transactions_data=txs
         )
         from app.services.bank_sync_scheduler import remove_committed_from_pending, clear_pending_sync_for_conn
-        committed_csv_ids = [t.get("csv_id") for t in txs if t.get("csv_id")]
+        # Ne purger du sas que les opérations confirmées (les opérations en attente/à venir restent dans le sas)
+        committed_csv_ids = [t.get("csv_id") for t in txs if t.get("csv_id") and not t.get("is_coming")]
         if committed_csv_ids:
             remove_committed_from_pending(db, committed_csv_ids)
-        else:
+        elif not any(t.get("is_coming") for t in txs):
             clear_pending_sync_for_conn(db, conn_id)
         return res
     except Exception as e:

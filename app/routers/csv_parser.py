@@ -102,14 +102,14 @@ def heuristic_parse(df):
 
     return date_col, amount_col, desc_col
 
-def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=None, is_coming=False):
+def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=None, is_coming=False, bank_label=None, csv_id=None):
     """
-    Checks if a transaction with the exact amount exists in the database.
-    - If is_coming is True: Prioritizes searching for an unreconciled planned transaction (+/- 15 days),
-      and only looks for an already-reconciled transaction (+/- 5 days) if none found.
-    - If is_coming is False: First looks for an already-reconciled transaction (+/- 4 days recon date with op date limit).
-      Then looks for an unreconciled planned transaction with a close operation date (+/- 15 days).
-    Handles internal transfers across accounts (from_account_id / to_account_id).
+    Checks if a matching transaction exists in the database using a composite score (0-100 pts):
+      - Priority 0: Exact bank unique identifier / hash match (csv_id) : 100 pts
+      - Exact amount (+/- 0.01 €) : 40 pts
+      - Temporal proximity (asymmetric delta) : 0 to 35 pts
+      - Text/merchant similarity (smart_label_service) : 0 to 25 pts
+    Handles internal transfers across accounts and duplicate prevention.
     """
     if tx_date is None or tx_amount is None:
         return None
@@ -122,7 +122,6 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
     
     from datetime import timedelta
     from sqlalchemy import or_, and_, func
-    tx_date_str = tx_date.strftime("%Y-%m-%d")
 
     # Clause de filtre par compte si fourni
     acc_filter = None
@@ -132,15 +131,102 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
             Transaction.to_account_id == account_id
         )
 
-    start_op = tx_date - timedelta(days=15)
-    end_op = tx_date + timedelta(days=15)
+    # ── PASSE 0 : Correspondance exacte et prioritaire par empreinte bancaire (csv_id) ──
+    if csv_id:
+        target_csv_ids = [csv_id]
+        if csv_id.startswith("woob_") and not csv_id.startswith("woob_coming_"):
+            target_csv_ids.append(csv_id.replace("woob_", "woob_coming_"))
+        elif csv_id.startswith("woob_coming_"):
+            target_csv_ids.append(csv_id.replace("woob_coming_", "woob_"))
+
+        csv_query = db.query(Transaction).filter(
+            Transaction.csv_id.in_(target_csv_ids),
+            Transaction.amount >= abs_amount - epsilon,
+            Transaction.amount <= abs_amount + epsilon
+        )
+        if acc_filter is not None:
+            csv_query = csv_query.filter(acc_filter)
+        if matched_ids:
+            csv_query = csv_query.filter(
+                or_(
+                    Transaction.id.notin_(matched_ids),
+                    Transaction.type == "transfer",
+                    and_(Transaction.from_account_id.isnot(None), Transaction.to_account_id.isnot(None))
+                )
+            )
+        exact_csv_match = csv_query.first()
+        if exact_csv_match:
+            return {
+                "id": exact_csv_match.id,
+                "description": exact_csv_match.description,
+                "already_reconciled": bool(exact_csv_match.reconciliation_date),
+                "match_score": 100
+            }
 
     target_dt = tx_date.date() if hasattr(tx_date, "date") and callable(tx_date.date) else tx_date
 
-    def _closest_tx(candidates):
+    def _compute_temporal_score(candidate_dt, bank_dt):
+        if not candidate_dt or not bank_dt:
+            return 0
+        delta = (candidate_dt - bank_dt).days
+        # delta < 0 : DB date is before bank date (e.g. bought on 20th, debited on 22nd -> delta = -2)
+        # delta > 0 : DB date is after bank date (e.g. planned for 24th, debited on 23rd -> delta = +1)
+        abs_delta = abs(delta)
+        if abs_delta == 0:
+            return 35
+        elif delta in (-1, -2):
+            return 30
+        elif delta in (1, 2):
+            return 28
+        elif delta in (-3, -4):
+            return 20
+        elif delta in (3, 4):
+            return 15
+        elif delta in (-5, -6, -7):
+            return 10
+        elif delta in (5, 6, 7):
+            return 5
+        else:
+            return 0
+
+    def _compute_text_score(candidate_desc, raw_bank_label):
+        if not candidate_desc or not raw_bank_label:
+            return 0
+        try:
+            from app.services.smart_label_service import _compute_match_score
+            ratio = _compute_match_score(raw_bank_label, candidate_desc)
+            return round(ratio * 25)
+        except Exception:
+            return 0
+
+    def _evaluate_candidate(t):
+        amt_score = 40
+        t_dt = t.date_operation if hasattr(t.date_operation, "strftime") else (t.date_operation if t.date_operation else None)
+        temp_score = _compute_temporal_score(t_dt, target_dt)
+        text_score = _compute_text_score(t.description, bank_label)
+        total = amt_score + temp_score + text_score
+        return total
+
+    def _best_scored_tx(candidates):
         if not candidates:
-            return None
-        return min(candidates, key=lambda t: abs((t.date_operation - target_dt).days) if t.date_operation else 999999)
+            return None, 0
+        scored = []
+        for c in candidates:
+            s = _evaluate_candidate(c)
+            if s >= 40:
+                scored.append((s, c))
+        if not scored:
+            return None, 0
+        # Trier par score décroissant, puis par proximité de date la plus faible
+        scored.sort(
+            key=lambda item: (
+                item[0],
+                -abs((item[1].date_operation - target_dt).days) if item[1].date_operation else -9999
+            ),
+            reverse=True
+        )
+        best_score, best_candidate = scored[0]
+        return best_candidate, best_score
 
     # 1. Recherche d'un doublon déjà rapproché / existant
     def _find_already_reconciled():
@@ -187,17 +273,27 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
         else:
             recon_query_filtered = recon_query
             
-        recon_match = _closest_tx(recon_query_filtered.all())
+        recon_match, recon_score = _best_scored_tx(recon_query_filtered.all())
         if recon_match:
             return {
                 "id": recon_match.id, 
                 "description": recon_match.description,
-                "already_reconciled": True
+                "already_reconciled": True,
+                "match_score": recon_score
             }
         return None
 
     # 2. Recherche d'une prédiction non pointée / transaction planifiée
     def _find_unreconciled_prediction():
+        if is_coming:
+            # Opération à venir : la prévision peut être planifiée aujourd'hui ou dans les jours suivants
+            start_op = tx_date - timedelta(days=3)
+            end_op = tx_date + timedelta(days=10)
+        else:
+            # Opération confirmée : débit passé, la prévision ne peut pas être à +15j dans le futur
+            start_op = tx_date - timedelta(days=7)
+            end_op = tx_date + timedelta(days=3)
+
         op_query = db.query(Transaction).filter(
             Transaction.reconciliation_date == None,
             Transaction.date_operation >= start_op,
@@ -212,12 +308,13 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
         if matched_ids:
             available_op_query = op_query.filter(Transaction.id.notin_(matched_ids))
             
-        op_match = _closest_tx(available_op_query.all())
+        op_match, op_score = _best_scored_tx(available_op_query.all())
         if op_match:
             return {
                 "id": op_match.id,
                 "description": op_match.description,
-                "already_reconciled": False
+                "already_reconciled": False,
+                "match_score": op_score
             }
         return None
 
@@ -242,10 +339,12 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
     # 2.B : Si aucun match libre, vérifier si c'est le pendant miroir d'un virement interne
     # déjà apparié dans ce même lot (dans matched_ids)
     if matched_ids:
+        start_mirror = tx_date - timedelta(days=7)
+        end_mirror = tx_date + timedelta(days=7)
         base_mirror_query = db.query(Transaction).filter(
             Transaction.reconciliation_date == None,
-            Transaction.date_operation >= start_op,
-            Transaction.date_operation <= end_op,
+            Transaction.date_operation >= start_mirror,
+            Transaction.date_operation <= end_mirror,
             Transaction.amount >= abs_amount - epsilon,
             Transaction.amount <= abs_amount + epsilon
         )
@@ -259,13 +358,14 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
                 and_(Transaction.from_account_id.isnot(None), Transaction.to_account_id.isnot(None))
             )
         )
-        mirror_match = _closest_tx(mirror_query.all())
+        mirror_match, mirror_score = _best_scored_tx(mirror_query.all())
         if mirror_match:
             return {
                 "id": mirror_match.id,
                 "description": mirror_match.description,
                 "already_reconciled": True,
-                "is_mirror_transfer": True
+                "is_mirror_transfer": True,
+                "match_score": mirror_score
             }
 
     # 3. Recherche d'un virement orphelin inter-comptes (Auto-linking)
@@ -303,7 +403,7 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
         if matched_ids:
             orphan_q = orphan_q.filter(Transaction.id.notin_(matched_ids))
 
-        orphan_match = _closest_tx(orphan_q.all())
+        orphan_match, orphan_score = _best_scored_tx(orphan_q.all())
         if orphan_match:
             other_acc_id = orphan_match.to_account_id if raw_num < 0 else orphan_match.from_account_id
             other_acc = db.query(Account).filter(Account.id == other_acc_id).first()
@@ -315,7 +415,8 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
                 "already_reconciled": False,
                 "is_orphan_transfer_link": True,
                 "orphan_account_id": other_acc_id,
-                "orphan_account_name": other_acc_name
+                "orphan_account_name": other_acc_name,
+                "match_score": orphan_score
             }
         
     return None
@@ -808,7 +909,8 @@ def extract_all_sections_parsed(
                     parsed_date_val,
                     amt,
                     matched_ids=matched_ids_global,
-                    account_id=target_acc_id
+                    account_id=target_acc_id,
+                    bank_label=desc
                 )
                 if match_info and match_info.get("id"):
                     matched_ids_global.add(match_info["id"])
@@ -844,6 +946,7 @@ def extract_all_sections_parsed(
                 "orphan_account_id": match_info.get("orphan_account_id") if match_info else None,
                 "orphan_account_name": match_info.get("orphan_account_name") if match_info else None,
                 "matched_db_id": match_info["id"] if match_info else None,
+                "match_score": match_info.get("match_score", 0) if match_info else 0,
                 "category": None,
                 "is_coming": False,
                 "attachments": attachments,

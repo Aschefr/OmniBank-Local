@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC9vS3NEbER0dHV2VHF2aDVuR0l3VEpoUVZ3SEJ4R1VZU05GVm1CbHpISVlMYW43NkE0azNDbm02bytpVE1hYkExa2dpWFRpUGVYRUZIRGlQY2hRTWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3Njc1Njc4CWZpbGU6T21uaUJhbmtfMS4wLjkxX3g2NF9mci1GUi5tc2kKQStrZjJZd3pJdTJBVjBXOXE2TEsycHBtN3MzZksxZ1dqQjVRQ2RnY20vdi9YRjBPSDVxSzYrVkk1M3REcEpEdGM5K05EakFjaC8rSU9Eb0p3ZmFqRFE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.91/OmniBank_1.0.91_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDh0Z2ZCU0ZCaFJEQ25uYlBVL3BCNHZJSHFwekJyOHBaTGEyaEc5aTg2b2N5dm13cXkzY0FNaXlWT2Z0TGVWOWloTzFwT092b1Y1SFZPSC8wZDRhY0FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NzMyMTI1CWZpbGU6T21uaUJhbmtfMS4wLjkyX3g2NF9mci1GUi5tc2kKenVRbDVBcEk5MEhyYS9OOUpwUmdBbWczMnpiOWpjMnlrS1BoNThOcnkycFUxTGFpakNVRjcvMWttdFNSbjVJbXdTZkxDY3FlcFdiUUVmMWlIU0JYQmc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.92/OmniBank_1.0.92_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-25T16:34:38Z",
-    "version":  "1.0.91",
-    "notes":  "v1.0.91 — Time Horizon Selector + Fix Tauri Black Screen"
+    "pub_date":  "2026-08-26T08:15:25Z",
+    "version":  "1.0.92",
+    "notes":  "Multi-Criteria Reconciliation Matching Engine with Smart Scoring and csv_id Priority"
 }

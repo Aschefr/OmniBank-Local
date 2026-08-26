@@ -229,7 +229,9 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                                 raw_amount,
                                 matched_ids=matched_ids_global,
                                 account_id=local_acc_id,
-                                is_coming=is_coming_flag
+                                is_coming=is_coming_flag,
+                                bank_label=tx.get("raw_description") or tx.get("description"),
+                                csv_id=tx.get("csv_id")
                             )
                             if rec_info:
                                 tx_copy["is_reconciled"] = True
@@ -240,6 +242,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                                 tx_copy["orphan_account_name"] = rec_info.get("orphan_account_name")
                                 tx_copy["matched_db_id"] = rec_info.get("id")
                                 tx_copy["db_description"] = rec_info.get("description")
+                                tx_copy["match_score"] = rec_info.get("match_score", 0)
                                 if rec_info.get("id"):
                                     matched_ids_global.add(rec_info.get("id"))
                             else:
@@ -251,6 +254,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                                 tx_copy["orphan_account_name"] = None
                                 tx_copy["matched_db_id"] = None
                                 tx_copy["db_description"] = None
+                                tx_copy["match_score"] = 0
                         except Exception as err:
                             tx_kind = "coming" if is_coming_flag else "pending"
                             logger.warning(f"[BankScheduler] Erreur re-matching {tx_kind} tx: {err}")
@@ -262,6 +266,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                             tx_copy["orphan_account_name"] = None
                             tx_copy["matched_db_id"] = None
                             tx_copy["db_description"] = None
+                            tx_copy["match_score"] = 0
 
                     result_list.append(tx_copy)
                     if tx_copy.get("is_reconciled") and not tx_copy.get("already_reconciled") and tx_copy.get("matched_db_id"):

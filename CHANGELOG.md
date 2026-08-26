@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.92] - 2026-08-26
+
+### Added & Improved
+- **Multi-Criteria Reconciliation Matching Engine 🎯**:
+  - Replaced the greedy first-come-first-served matching algorithm with a composite scoring system (0-100 pts) evaluating exact amount, asymmetric temporal proximity (0-35 pts), and normalized merchant/text similarity (0-25 pts).
+  - Absolute priority matching on bank unique transaction identifier/hash (`csv_id`) prevents false match stealing across identical recurring amounts.
+  - Tightened asymmetric matching window (-7d to +3d for confirmed debits) completely eliminates anachronistic matching where past bank debits would claim future planned forecasts.
+  - Added an on-demand confidence score toggle badge (`🎯 Scores`) in the Bank Review Cockpit with explanatory tooltip, displaying color-coded trust levels (`🟢 85`, `🟡 55`, `🔴 42`) without visual clutter.
+- **Improved Coming Operations Lifecycle ⏳**:
+  - Preserved un-reconciled pending online operations (`is_coming`) across bulk commits, ensuring pending authorizations remain cleanly in the review queue until effectively debited.
+
 ## [1.0.91] - 2026-08-25
 
 ### Added & Improved
