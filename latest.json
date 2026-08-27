@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHhaSGpkWGVQL1JQSHNSWStoVU5KeDZLWStsaXRhZlR4Wno2MENmOGJMckFMbHE4ZGU4Q3lCQy9aR0ZiWktXRGFlL2hIMnNvL0J1T0hpaHBDWjQ3RGdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NzYwMjM2CWZpbGU6T21uaUJhbmtfMS4wLjkzX3g2NF9mci1GUi5tc2kKVERzUy82aGhsOGJteW5jZHpoMnRMeWlBUDVBczZ5cTgycDRvRHFJVVJESk5rL2k3aTcxckh2L2hxZk1qSlF5Y1J1a3ZnOEhpS0tncUJ4TnF1SG83QXc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.93/OmniBank_1.0.93_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHlJSXQwNEM3cEJrR0tybEtjUURpUGlqaVN1NWNOeUxaQ3EzL0cyVUxKU2UwR0hBb2JYblZVT0hiaWJtYXpTZkVCVy9HVjVablhNY2hhZEMvS2JLendzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3ODQyODk1CWZpbGU6T21uaUJhbmtfMS4wLjk0X3g2NF9mci1GUi5tc2kKV0xuMFJoNjBiSFg2Q0hlMnUxVjZERmFJS0ZZR1FFY2Nmd3lGcU9Hb3A5MTF5TS9peXBaandCQTZvaXBOZEJnNTJBTW5MWVB4VUwxMXl6U2xVSFJvQVE9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.94/OmniBank_1.0.94_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-26T16:03:57Z",
-    "version":  "1.0.93",
-    "notes":  "Rapprochement 30 jours, solde conforme auto, retablissement operations ignorees et notifications enrichies"
+    "pub_date":  "2026-08-27T15:01:35Z",
+    "version":  "1.0.94",
+    "notes":  "Correction de la priorite de rapprochement des operations recurrentes et memorisation de l\u0027empreinte bancaire csv_id"
 }

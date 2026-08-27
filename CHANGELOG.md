@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.94] - 2026-08-27
+
+### Fixed
+- **Recurring Operations Reconciliation Matching Priority 🎯**:
+  - Fixed a bug where recurring transactions (e.g. monthly subscriptions like Google One, Netflix, rent) debited in the bank were falsely matched with the *previous month's* already reconciled transaction instead of the *current month's* pending forecast.
+  - The reconciliation engine now simultaneously evaluates both pending predictions and already reconciled entries and compares their confidence scores, ensuring that close un-reconciled forecasts take precedence over distant past duplicates.
+  - Automatically persists the unique bank hash (`csv_id`) on matched database records upon review confirmation for instant, 100% exact matching on subsequent synchronizations.
+
 ## [1.0.93] - 2026-08-26
 
 ### Added & Improved
