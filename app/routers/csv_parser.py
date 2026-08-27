@@ -322,23 +322,22 @@ def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=No
             }
         return None
 
-    # Ordre de recherche selon la nature de la transaction :
-    if is_coming:
-        # Pour une transaction en attente / à venir : chercher EN PRIORITÉ une prédiction non pointée
-        res = _find_unreconciled_prediction()
-        if res:
-            return res
-        res = _find_already_reconciled()
-        if res:
-            return res
-    else:
-        # Pour une transaction confirmée / relevé : chercher EN PRIORITÉ un doublon déjà pointé
-        res = _find_already_reconciled()
-        if res:
-            return res
-        res = _find_unreconciled_prediction()
-        if res:
-            return res
+    # Recherche des candidats parmi les prédictions non pointées et les opérations déjà pointées
+    unrec_match = _find_unreconciled_prediction()
+    recon_match = _find_already_reconciled()
+
+    if unrec_match and recon_match:
+        # Si les deux existent, comparer leurs scores de confiance respectifs.
+        # En cas d'égalité ou de score supérieur pour l'opération non pointée (ex: récurrence mensuelle
+        # où la prévision du mois courant est bien plus proche que le doublon du mois passé), privilégier le pointage.
+        if unrec_match.get("match_score", 0) >= recon_match.get("match_score", 0):
+            return unrec_match
+        else:
+            return recon_match
+    elif unrec_match:
+        return unrec_match
+    elif recon_match:
+        return recon_match
 
     # 2.B : Si aucun match libre, vérifier si c'est le pendant miroir d'un virement interne
     # déjà apparié dans ce même lot (dans matched_ids)
