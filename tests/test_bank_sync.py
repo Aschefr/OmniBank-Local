@@ -2301,6 +2301,112 @@ def test_persistent_dismiss_and_restore_cycle():
     assert pending_after_restore["total_new"] == 1
 
 
+def test_check_reconciliation_prefers_close_unreconciled_over_far_reconciled_recurrence():
+    """
+    Vérifie qu'en présence d'une récurrence mensuelle (ex: Google One à 21.99 €) :
+      - Mois N-1 (26/07/2026) : Déjà pointée en base (reconciliation_date != None)
+      - Mois N   (26/08/2026) : En attente de pointage (reconciliation_date == None)
+      - Débit bancaire réel au 24/08/2026 (-21.99 €)
+    La fonction check_reconciliation DOIT privilégier la prévision du mois N (score ~93)
+    au lieu de classer le débit en doublon du mois N-1 (score ~67).
+    """
+    from datetime import date
+    from app.routers.csv_parser import check_reconciliation
+    from app.services.bank_sync_service import BankSyncService
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="CA Centre-Est Test Recurrence", initial_balance=500.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    # 1. Écriture du mois passé (juillet) - déjà rapprochée
+    tx_july = Transaction(
+        description="Google One Abonnement IA+ 5To",
+        amount=21.99,
+        type="expense_fix",
+        category="Google",
+        date_saisie=date(2026, 7, 26),
+        date_operation=date(2026, 7, 26),
+        reconciliation_date=date(2026, 7, 26),
+        from_account_id=acc.id
+    )
+    # 2. Prévision du mois en cours (août) - non pointée
+    tx_august = Transaction(
+        description="Google One Abonnement IA+ 5To",
+        amount=21.99,
+        type="expense_fix",
+        category="Google",
+        date_saisie=date(2026, 8, 26),
+        date_operation=date(2026, 8, 26),
+        reconciliation_date=None,
+        from_account_id=acc.id
+    )
+    test_db.add_all([tx_july, tx_august])
+    test_db.commit()
+    test_db.refresh(tx_july)
+    test_db.refresh(tx_august)
+
+    # 3. Arrivée du débit bancaire au 24/08/2026
+    bank_date = date(2026, 8, 24)
+    bank_csv_id = "woob_cragr_12345_googleone_aug"
+
+    rec = check_reconciliation(
+        test_db,
+        tx_date=bank_date,
+        tx_amount=-21.99,
+        account_id=acc.id,
+        is_coming=False,
+        bank_label="X1208 Google One Dublin",
+        csv_id=bank_csv_id
+    )
+
+    # Doit matcher la prévision d'août (non pointée) et NON le doublon de juillet
+    assert rec is not None
+    assert rec["id"] == tx_august.id
+    assert rec["already_reconciled"] is False
+    assert rec["match_score"] >= 80
+
+    # 4. Enregistrement / Validation du pointage via BankSyncService
+    commit_res = BankSyncService.commit_reviewed_transactions(
+        db=test_db,
+        connection_id=1,
+        transactions_data=[{
+            "account_id": acc.id,
+            "is_reconciled": True,
+            "already_reconciled": False,
+            "matched_db_id": tx_august.id,
+            "csv_id": bank_csv_id,
+            "is_coming": False,
+            "amount": 21.99,
+            "raw_amount": -21.99,
+            "date_operation": "2026-08-24"
+        }]
+    )
+    assert commit_res["reconciled"] == 1
+
+    # 5. Vérifier que tx_august est désormais pointée et a hérité du csv_id
+    test_db.refresh(tx_august)
+    assert tx_august.reconciliation_date is not None
+    assert tx_august.csv_id == bank_csv_id
+
+    # 6. Deuxième passage de synchronisation : doit maintenant reconnaître le match exact (Passe 0) déjà pointé
+    rec_second_pass = check_reconciliation(
+        test_db,
+        tx_date=bank_date,
+        tx_amount=-21.99,
+        account_id=acc.id,
+        is_coming=False,
+        bank_label="X1208 Google One Dublin",
+        csv_id=bank_csv_id
+    )
+    assert rec_second_pass is not None
+    assert rec_second_pass["id"] == tx_august.id
+    assert rec_second_pass["already_reconciled"] is True
+    assert rec_second_pass["match_score"] == 100
+
+
+
 
 
 

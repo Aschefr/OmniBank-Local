@@ -918,6 +918,10 @@ class BankSyncService:
                         reconciled_count += 1
                     if item.get("category"):
                         existing.category = item["category"]
+                    csv_id = item.get("csv_id")
+                    if csv_id:
+                        existing.csv_id = csv_id
+                        existing_csv_ids.add(csv_id)
                     record_action(db, "transaction", existing.id, "UPDATE", before_snap, snapshot_entity(existing), user_name=creator_name)
                 continue
 

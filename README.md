@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.93-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.94-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -68,13 +68,13 @@ Visualisez l'évolution de votre patrimoine et générez des **rapports PDF haut
 | ![Synthèse mensuelle](screenshots/04_synthèse.png) | ![Tendances long terme](screenshots/06_tendances.png) | ![Export PDF](screenshots/04_synthèse_export_pdf.png) |
 
 ### 🛠️ Administration & Personnalisation
-Prenez le contrôle total de votre structure financière avec des outils de gestion flexibles.
+Prenez le contrôle total de votre structure financière grâce à des outils de gestion flexibles.
 
 | Comptes | Catégories | Récurrences | Configuration |
 | :---: | :---: | :---: | :---: |
 | ![Gestion des comptes](screenshots/10_comptes.png) | ![Gestion des catégories](screenshots/09_catégories.png) | ![Opérations récurrentes](screenshots/08_recurrences.png) | ![Configuration globale](screenshots/11_configuration.png) |
 
-![Propagation des changements](screenshots/08_recurrences_modification_propagé.png)
+![Propagation des modifications](screenshots/08_recurrences_modification_propagé.png)
 
 ---
 
@@ -110,12 +110,10 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.93)
+## 🆕 Nouveautés (v1.0.94)
 
-* **🎯 Fenêtre de Rapprochement Élargie à 30 Jours** : Détection et appariement fiables des opérations pointées ou à venir avec un écart de date allant jusqu'à 30 jours dans le passé.
-* **🛡️ Exclusion Automatique sur Solde Conforme** : Masquage automatique des anciennes opérations non rapprochées (>15 jours) lorsque le solde bancaire et le solde pointé local sont déjà strictement équilibrés.
-* **↩️ Mémorisation et Rétablissement des Opérations Ignorées** : Conservation persistante des transactions ignorées (`✕`) et ajout du bouton d'annulation `↩️ Rétablir` dans l'onglet Exclues du Cockpit.
-* **🔔 Notifications Enrichies & Accès Direct "Examiner"** : Formulations naturelles dynamiques (singulier / pluriel), bouton direct `🔍 Examiner` pour ouvrir le sas de revue en 1 clic et prise en charge des imports de relevés fichiers.
+* **🎯 Priorité de Rapprochement des Opérations Récurrentes** : Correction de l'arbitrage de rapprochement bancaire. Les opérations récurrentes débitées (ex. abonnements mensuels) sont désormais correctement associées à la prévision du mois en cours plutôt que d'être faussement classées en doublon du mois précédent.
+* **🔒 Mémorisation de l'Empreinte Bancaire (`csv_id`)** : L'empreinte unique est désormais enregistrée lors du pointage d'une prévision, garantissant un appariement instantané à 100% lors des synchronisations futures.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -123,7 +121,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.93-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.94-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -223,12 +221,10 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.93)
+## 🆕 What's New (v1.0.94)
 
-* **🎯 30-Day Extended Reconciliation Window**: Accurate detection and matching for past reconciled and planned transactions with a temporal discrepancy up to 30 days.
-* **🛡️ Conformant Balance Auto-Exclusion**: Automatic exclusion of old unmatched transactions (>15 days) when bank and local reconciled balances are strictly equal.
-* **↩️ Persistent Transaction Dismissal & Instant Restore**: Persisted dismissed operations (`✕`) and instant `↩️ Restore` action in the Review Cockpit excluded tab.
-* **🔔 Polished In-App Notifications & Direct Review Action**: Dynamic natural singular/plural phrasing, 1-click `🔍 Review` action button on sync/import cards, and statement file import notifications.
+* **🎯 Recurring Operations Reconciliation Priority**: Fixed reconciliation matching priority. Debited recurring transactions (e.g. monthly subscriptions) now correctly match the current month's pending forecast rather than being falsely classified as duplicates of the previous month.
+* **🔒 Bank Identifier Persistence (`csv_id`)**: Unique transaction hash is now saved when confirming an existing forecast, guaranteeing instant 100% exact matching on future synchronizations.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 
