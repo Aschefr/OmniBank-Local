@@ -92,12 +92,12 @@ def apply_fix(
     if not tx_ids:
         return {"tx_fixed": 0, "cat_fixed": 0, "message": "Aucune correction nécessaire."}
 
-    # Fix transactions
-    placeholders = ','.join(str(i) for i in tx_ids)
-    db.execute(text(f"""
-        UPDATE transactions SET type = 'expense_fixed'
-        WHERE id IN ({placeholders})
-    """))
+    # Fix transactions via parameterized ORM update
+    from app.models import Transaction
+    db.query(Transaction).filter(Transaction.id.in_(tx_ids)).update(
+        {Transaction.type: 'expense_fixed'},
+        synchronize_session=False
+    )
     tx_fixed = len(tx_ids)
 
     # Fix categories

@@ -104,6 +104,16 @@ async def upload_backup(file: UploadFile = File(...)):
                     except Exception:
                         pass
 
+            # Validation anti-path-traversal (Zip Slip protection)
+            abs_target_dir = os.path.realpath(target_dir)
+            for member in zip_ref.namelist():
+                member_path = os.path.realpath(os.path.join(target_dir, member))
+                if not member_path.startswith(abs_target_dir + os.sep) and member_path != abs_target_dir:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Archive ZIP suspecte : chemin interdit détecté ({member})"
+                    )
+
             # Extraire omnibank.db et uploads dans le dossier du profil
             for member in zip_ref.namelist():
                 if member == "omnibank.db" or member.startswith("uploads/"):
@@ -115,6 +125,8 @@ async def upload_backup(file: UploadFile = File(...)):
         sync_profile_metadata_from_db()
 
         return {"ok": True, "message": f"Backup restauré avec succès dans le profil '{active['name']}'."}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur de restauration: {str(e)}")
     finally:

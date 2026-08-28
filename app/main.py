@@ -118,7 +118,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=500)
@@ -247,7 +247,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     record_backend_exception(exc, context=f"{request.method} {request.url.path}")
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Erreur interne du serveur: {str(exc)}"}
+        content={"detail": "Erreur interne du serveur."}
     )
 
 
@@ -439,6 +439,8 @@ def _safe_filename(raw_name: str) -> str:
     return safe
 
 
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 Mo limit (SEC-06)
+
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
     target_dir = get_current_uploads_dir()
@@ -448,8 +450,23 @@ async def upload_file(file: UploadFile = File(...)):
     # Double vérification : le chemin résolu doit rester dans target_dir (SEC-02)
     if not os.path.realpath(file_location).startswith(os.path.realpath(target_dir)):
         raise HTTPException(status_code=400, detail="Nom de fichier invalide.")
+    
+    total_size = 0
     with open(file_location, "wb+") as file_object:
-        file_object.write(file.file.read())
+        while True:
+            chunk = await file.read(64 * 1024)
+            if not chunk:
+                break
+            total_size += len(chunk)
+            if total_size > MAX_UPLOAD_SIZE:
+                file_object.close()
+                if os.path.exists(file_location):
+                    try:
+                        os.remove(file_location)
+                    except Exception:
+                        pass
+                raise HTTPException(status_code=413, detail="Le fichier dépasse la taille maximale autorisée (50 Mo).")
+            file_object.write(chunk)
     return {"path": f"/uploads/{safe_name}"}
 
 
