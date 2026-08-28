@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 from typing import List, Optional
@@ -238,8 +238,16 @@ def toggle_skip(tx_id: int, db: Session = Depends(get_db)):
     }
 
 @router.delete("/all/clear", status_code=200)
-def clear_all_transactions(db: Session = Depends(get_db)):
-    """Deletes all user data from the database (Danger Zone)."""
+def clear_all_transactions(
+    x_confirm_danger: Optional[str] = Header(None, alias="X-Confirm-Danger"),
+    db: Session = Depends(get_db)
+):
+    """Deletes all user data from the database (Danger Zone) - requires explicit confirmation header."""
+    if x_confirm_danger != "clear":
+        raise HTTPException(
+            status_code=400,
+            detail="En-tête de confirmation obligatoire manquant (X-Confirm-Danger: clear)."
+        )
     from app.models import BudgetCategory, Budget, RecurrenceTemplate, Account, Category
     db.query(Transaction).delete()
     db.query(BudgetCategory).delete()

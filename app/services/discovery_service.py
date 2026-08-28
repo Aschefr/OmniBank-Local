@@ -26,9 +26,21 @@ def start_discovery_listener(http_port: int = DEFAULT_HTTP_PORT):
             pass
 
         try:
-            sock.bind(('0.0.0.0', UDP_PORT))
+            import os
+            from app.database import IS_DOCKER
+            # Écouter sur 0.0.0.0 uniquement si explicitement activé, en conteneur Docker, ou en mode partagé
+            enable_discovery = os.environ.get('OMNIBANK_ENABLE_DISCOVERY', '').lower() == 'true'
+            is_shared = False
+            try:
+                from app.routers.shared_mode import _get_shared_status
+                is_shared = _get_shared_status().get("active", False)
+            except Exception:
+                pass
+
+            bind_ip = '0.0.0.0' if (IS_DOCKER or is_shared or enable_discovery) else '127.0.0.1'
+            sock.bind((bind_ip, UDP_PORT))
             sock.settimeout(1.0)
-            logger.info(f"[Discovery] Service de détection réseau actif sur le port UDP {UDP_PORT}")
+            logger.info(f"[Discovery] Service de détection réseau actif sur {bind_ip}:{UDP_PORT}")
             while not _stop_event.is_set():
                 try:
                     data, addr = sock.recvfrom(1024)

@@ -22,6 +22,9 @@ All notable changes to this project will be documented in this file.
   - Smart balance discrepancy banner that automatically hides the manual adjust button when selected transactions already balance your account.
 - **Clearer Accounting Statuses 🏷️**:
   - Harmonized transaction and balance labels throughout the app (*"Rapproché"*, *"En attente"*, *"À ajouter"*).
+- **Security & Data Robustness 🛡️**:
+  - Hardened database operations and backup restore safeguards for seamless data protection.
+  - Reinforced network and file upload safety checks across all views.
 
 ### Fixed
 - **Overview Row Highlight 🎨**:

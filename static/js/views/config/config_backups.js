@@ -210,7 +210,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         const i18nMsg = (window.i18n && window.i18n.t) ? window.i18n.t('alert_clear_db') : window.i18n.t('alert_clear_db');
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), i18nMsg)) {
             try {
-                await API.del('/api/transactions/all/clear');
+                await API.del('/api/transactions/all/clear', null, { 'X-Confirm-Danger': 'clear' });
                 showToast(window.i18n.t('msg_db_cleared'), 'success');
                 // Trigger setup wizard instead of full reload
                 if (window.SetupWizard) {
