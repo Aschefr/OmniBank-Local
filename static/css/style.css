@@ -4720,6 +4720,206 @@ input[type="range"]::-moz-range-thumb:hover {
     border-color: rgba(167, 139, 250, 0.35);
 }
 
+/* ── Section Rhythm & Averages: Badges de statistiques sobres & discrets ── */
+.overview-rhythm-strip {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 12px 18px;
+    margin-bottom: 22px;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.overview-rhythm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.overview-rhythm-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+}
+
+.overview-rhythm-icon {
+    font-size: 13px;
+    line-height: 1;
+}
+
+.overview-rhythm-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.overview-rhythm-control-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.overview-control-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.overview-rhythm-segmented {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+    padding: 2px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    gap: 2px;
+}
+
+.theme-dark .overview-rhythm-segmented {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.ov-seg-btn {
+    border: none;
+    background: transparent;
+    padding: 2.5px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.ov-seg-btn:hover {
+    color: var(--text-main);
+    background: rgba(128, 128, 128, 0.08);
+}
+
+.ov-seg-btn.active {
+    background: var(--accent);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 1px 4px rgba(99, 102, 241, 0.25);
+}
+
+.overview-rhythm-badges {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.overview-rhythm-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 13px;
+    border-radius: 12px;
+    background: var(--bg-hover, rgba(128, 128, 128, 0.04));
+    border: 1px solid var(--border-color);
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.overview-rhythm-badge:hover {
+    border-color: var(--accent-border, rgba(99, 102, 241, 0.3));
+    transform: translateY(-1px);
+}
+
+.overview-badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.badge-income .overview-badge-dot {
+    background: #10b981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+.badge-fixed .overview-badge-dot {
+    background: #6366f1;
+    box-shadow: 0 0 6px rgba(99, 102, 241, 0.4);
+}
+
+.badge-var .overview-badge-dot {
+    background: #f59e0b;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+.badge-net .overview-badge-dot {
+    background: #8b5cf6;
+    box-shadow: 0 0 6px rgba(139, 92, 246, 0.4);
+}
+
+.overview-badge-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.overview-badge-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.overview-badge-value-wrapper {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-top: 1px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+}
+
+.overview-badge-value {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.2px;
+    white-space: nowrap;
+}
+
+.overview-badge-unit {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .overview-rhythm-badges {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .overview-rhythm-badges {
+        grid-template-columns: 1fr;
+    }
+}
 
 /* ── Section 2: Central Main Card (Opérations non rapprochées - Pleine Largeur) */
 .overview-main-card {

@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [1.0.95] - 2026-08-28
 
 ### Added & Improved
+- **Financial Rhythm & Averages Badges ⏱️**:
+  - Discreet real-time statistics strip in the Overview view displaying your average **Income**, **Fixed Expenses**, **Variable Expenses**, and **Net Flow**.
+  - Dual segmented selectors to instantly customize the **analyzed timeframe** (*All, 1 year, 6 months, 3 months, 1 month, 1 week*) and **display cadence** (*Month, Week, Day, Hour*).
+  - Instant in-memory recalculation with account filtering and privacy blur support.
 - **Notification Archiving & Search 🔔**:
   - Keep notifications organized with separate **Active** and **Archived** tabs.
   - Search notifications in real time and group them by date or category with collapsible sections.
