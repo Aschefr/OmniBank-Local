@@ -168,13 +168,16 @@ const API = {
         }
         return json;
     },
-    async del(endpoint, data = null) {
+    async del(endpoint, data = null, customHeaders = null) {
         this._invalidateInflight();
         const targetUrl = this.fullUrl(endpoint);
-        const options = { method: 'DELETE' };
+        const options = { method: 'DELETE', headers: {} };
         if (data !== null && data !== undefined) {
-            options.headers = { 'Content-Type': 'application/json' };
+            options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(data);
+        }
+        if (customHeaders && typeof customHeaders === 'object') {
+            Object.assign(options.headers, customHeaders);
         }
         const res = await fetch(targetUrl, options);
         if (!res.ok) await _handleApiError(res);
