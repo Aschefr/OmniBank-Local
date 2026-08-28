@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.95] - 2026-08-28
+
+### Added & Improved
+- **Notification Archiving & Search 🔔**:
+  - Keep notifications organized with separate **Active** and **Archived** tabs.
+  - Search notifications in real time and group them by date or category with collapsible sections.
+  - Easily archive, restore, or bulk clear notifications.
+- **Multi-Device & Remote Access 🌐**:
+  - Clear server vault status indicators and streamlined device authorization when accessing OmniBank from a secondary device or Docker instance.
+- **Real-Time Sync Feedback ⏱️**:
+  - Smoother bank sync progress indicator that accurately reflects background scraping and delivers notifications instantly upon completion.
+- **Refined Review Cockpit 📥**:
+  - Cleaner table layout with non-breaking status badges.
+  - Smart balance discrepancy banner that automatically hides the manual adjust button when selected transactions already balance your account.
+- **Clearer Accounting Statuses 🏷️**:
+  - Harmonized transaction and balance labels throughout the app (*"Rapproché"*, *"En attente"*, *"À ajouter"*).
+
+### Fixed
+- **Overview Row Highlight 🎨**:
+  - Fixed a visual box glitch when highlighting newly added or edited transactions in the overview table.
+
 ## [1.0.94] - 2026-08-27
 
 ### Fixed

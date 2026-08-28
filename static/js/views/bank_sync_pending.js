@@ -331,7 +331,7 @@ Object.assign(window.BankSyncView, {
 
             let statusBadge = '';
             if (Math.abs(delta) < 0.005) {
-                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_synced') : 'Le solde de votre banque correspond au centime près à votre solde pointé dans OmniBank.').replace(/"/g, '&quot;')}">✓ ${window.i18n ? window.i18n.t('bank_sync_balance_synced') : 'Soldes conformes'}</span>`;
+                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_synced') : 'Le solde de votre banque correspond au centime près à votre solde rapproché dans OmniBank.').replace(/"/g, '&quot;')}">✓ ${window.i18n ? window.i18n.t('bank_sync_balance_synced') : 'Soldes conformes'}</span>`;
             } else if (accGhosts.length > 0 && Math.abs(delta - netGhostSum) < 0.005) {
                 statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box;">🔵 ${window.i18n ? window.i18n.t('bank_sync_balance_will_sync') : 'Conforme après validation'}</span>`;
             } else {
@@ -355,7 +355,7 @@ Object.assign(window.BankSyncView, {
                     ${accPrefix}
                     <span>🏦 ${window.i18n ? window.i18n.t('bank_sync_balance_bank') : 'Solde banque'} : <strong style="color: var(--text-main);">${bankBal.toFixed(2)} €</strong></span>
                     <span style="color: var(--text-muted); opacity: 0.5;">•</span>
-                    <span>💻 ${window.i18n ? window.i18n.t('bank_sync_balance_local') : 'Solde pointé'} : <strong style="color: var(--text-main);">${localBal.toFixed(2)} €</strong></span>
+                    <span>💻 ${window.i18n ? window.i18n.t('bank_sync_balance_local') : 'Solde rapproché'} : <strong style="color: var(--text-main);">${localBal.toFixed(2)} €</strong></span>
                 </div>
                 <div>${statusBadge}</div>
             </div>
@@ -757,7 +757,7 @@ Object.assign(window.BankSyncView, {
             }
 
             const res = await API.post(`/api/bank-sync/reconcile-fast/${txId}`);
-            this.showToast(window.i18n ? window.i18n.t('bank_sync_reconciled_success') || 'Opération pointée avec succès !' : 'Opération pointée avec succès !', 'success');
+            this.showToast(window.i18n ? window.i18n.t('bank_sync_reconciled_success') || 'Opération rapprochée avec succès !' : 'Opération rapprochée avec succès !', 'success');
 
             // Retirer de pendingMatches localement
             if (this.pendingMatches && this.pendingMatches[txId]) {
@@ -776,7 +776,7 @@ Object.assign(window.BankSyncView, {
                 ovRow.style.transform = '';
                 ovRow.style.pointerEvents = '';
             }
-            this.showToast('Erreur pointage : ' + (err.detail || err.message), 'error');
+            this.showToast('Erreur rapprochement : ' + (err.detail || err.message), 'error');
         }
     },
 
@@ -784,7 +784,7 @@ Object.assign(window.BankSyncView, {
         try {
             const res = await API.post('/api/bank-sync/reconcile-all-pending');
             const count = res?.reconciled_count || 0;
-            this.showToast(`${count} opération(s) pointée(s) avec succès !`, 'success');
+            this.showToast(`${count} opération(s) rapprochée(s) avec succès !`, 'success');
             this.pendingMatches = {};
 
             await this.refreshActiveViews();
@@ -821,7 +821,7 @@ Object.assign(window.BankSyncView, {
         if (headerEl) {
             const diffLabel = window.i18n ? window.i18n.t('bank_sync_balance_diff', 'Écart') : 'Écart';
             const bankLabel = window.i18n ? window.i18n.t('modal_adjust_header_bank_bal', 'Solde banque') : 'Solde banque';
-            const localLabel = window.i18n ? window.i18n.t('modal_adjust_header_local_bal', 'Solde pointé actuel') : 'Solde pointé actuel';
+            const localLabel = window.i18n ? window.i18n.t('modal_adjust_header_local_bal', 'Solde rapproché actuel') : 'Solde rapproché actuel';
 
             headerEl.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
@@ -846,7 +846,7 @@ Object.assign(window.BankSyncView, {
 
         const btnTx = document.getElementById('btnAdjustCreateTx');
         if (btnTx) {
-            const txBtnPattern = window.i18n ? window.i18n.t('modal_adjust_opt_tx_btn', '📝 Créer l\'opération pointée ({diff})') : '📝 Créer l\'opération pointée ({diff})';
+            const txBtnPattern = window.i18n ? window.i18n.t('modal_adjust_opt_tx_btn', '📝 Créer l\'opération rapprochée ({diff})') : '📝 Créer l\'opération rapprochée ({diff})';
             btnTx.textContent = txBtnPattern.includes('{diff}') ? txBtnPattern.replace('{diff}', diffFormatted) : `${txBtnPattern} (${diffFormatted})`;
         }
 
@@ -992,7 +992,7 @@ Object.assign(window.BankSyncView, {
 
         modal.style.display = 'flex';
 
-        // Lancer la recherche initiale (non pointées en priorité sur le compte)
+        // Lancer la recherche initiale (non rapprochées en priorité sur le compte)
         this.searchDbTransactions('', ghost.account_id, true);
     },
 
@@ -1063,8 +1063,8 @@ Object.assign(window.BankSyncView, {
                 : 'background: var(--bg-surface, var(--bg-base)); border: 1px solid var(--border-color);';
 
             const recBadge = isRec
-                ? `<span style="font-size: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 1px 5px; border-radius: 4px; font-weight: 700;">🟢 ${window.i18n ? window.i18n.t('ghost_link_status_reconciled') || 'Pointée' : 'Pointée'}</span>`
-                : `<span style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 1px 5px; border-radius: 4px; font-weight: 700;">⚪ ${window.i18n ? window.i18n.t('ghost_link_status_unreconciled') || 'Non pointée' : 'Non pointée'}</span>`;
+                ? `<span style="font-size: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 1px 5px; border-radius: 4px; font-weight: 700;">🟢 ${window.i18n ? window.i18n.t('ghost_link_status_reconciled') || 'Rapprochée' : 'Rapprochée'}</span>`
+                : `<span style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 1px 5px; border-radius: 4px; font-weight: 700;">⚪ ${window.i18n ? window.i18n.t('ghost_link_status_unreconciled') || 'Non rapprochée' : 'Non rapprochée'}</span>`;
 
             // Compte associé à la transaction en base
             const txAccId = tx.from_account_id || tx.to_account_id;
@@ -1271,14 +1271,14 @@ Object.assign(window.BankSyncView, {
             this.closeLinkGhostModal();
             this.ghostTransactions = this.ghostTransactions.filter(g => g.csv_id !== ghost.csv_id);
 
-            // Propager le highlight pour la ligne ciblée modifiée/pointée
+            // Propager le highlight pour la ligne ciblée modifiée/rapprochée
             if (window.TimelineView) window.TimelineView._pendingHighlightTxId = target.id;
             if (window.AllOperationsView) window.AllOperationsView._pendingHighlightTxId = target.id;
             if (window.OverviewView) window.OverviewView._pendingHighlightTxId = target.id;
 
             const successMsg = isComing
                 ? (window.i18n ? window.i18n.t('ghost_link_coming_success') || 'Opération liée avec succès (en attente banque)' : 'Opération liée avec succès (en attente banque)')
-                : (window.i18n ? window.i18n.t('ghost_link_success') || 'Opération liée et pointée avec succès !' : 'Opération liée et pointée avec succès !');
+                : (window.i18n ? window.i18n.t('ghost_link_success') || 'Opération liée et rapprochée avec succès !' : 'Opération liée et rapprochée avec succès !');
             this.showToast(successMsg, 'success');
 
             await this.refreshActiveViews(target.id);

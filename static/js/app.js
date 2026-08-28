@@ -417,6 +417,14 @@ class App {
         const notifMenu = document.getElementById('notifMenu');
         if (!bellBtn || !notifMenu) return;
 
+        this._notifTab = 'active'; // 'active' | 'archived'
+        this._notifGroupBy = 'date'; // 'date' | 'type'
+        this._notifSearchQuery = '';
+        this._collapsedNotifGroups = new Set();
+        this._cachedActiveNotifs = [];
+        this._cachedArchivedNotifs = [];
+        this._cachedPendingTransfers = [];
+
         bellBtn.onclick = (e) => {
             e.stopPropagation();
             if (notifMenu.style.display === 'none') {
@@ -453,7 +461,7 @@ class App {
     }
 
     setFastNotificationsPolling(active) {
-        const newInterval = active ? 15000 : 60000;
+        const newInterval = active ? 3000 : 60000;
         if (this._notifInterval !== newInterval) {
             this._notifInterval = newInterval;
             this._startNotifPolling();
@@ -472,110 +480,75 @@ class App {
         }
     }
 
+    switchNotifTab(tab) {
+        this._notifTab = tab;
+        const activeTabBtn = document.getElementById('notifTabActive');
+        const archivedTabBtn = document.getElementById('notifTabArchived');
+        const activeActions = document.getElementById('notifActiveActions');
+        const archivedActions = document.getElementById('notifArchivedActions');
+
+        if (activeTabBtn) activeTabBtn.classList.toggle('active', tab === 'active');
+        if (archivedTabBtn) archivedTabBtn.classList.toggle('active', tab === 'archived');
+        if (activeActions) activeActions.style.display = tab === 'active' ? 'flex' : 'none';
+        if (archivedActions) archivedActions.style.display = tab === 'archived' ? 'flex' : 'none';
+
+        this._renderNotificationList();
+    }
+
+    toggleNotifGroupBy() {
+        this._notifGroupBy = this._notifGroupBy === 'date' ? 'type' : 'date';
+        const icon = document.getElementById('notifGroupIcon');
+        const label = document.getElementById('notifGroupLabel');
+        if (icon) icon.textContent = this._notifGroupBy === 'date' ? '📅' : '🏷️';
+        if (label && window.i18n) {
+            label.textContent = this._notifGroupBy === 'date' 
+                ? (window.i18n.t('notif_group_date') || 'Période') 
+                : (window.i18n.t('notif_group_type') || 'Thème');
+        }
+        this._renderNotificationList();
+    }
+
+    onNotifSearchInput(query) {
+        this._notifSearchQuery = (query || '').toLowerCase().trim();
+        this._renderNotificationList();
+    }
+
+    toggleNotifGroup(groupKey) {
+        if (this._collapsedNotifGroups.has(groupKey)) {
+            this._collapsedNotifGroups.delete(groupKey);
+        } else {
+            this._collapsedNotifGroups.add(groupKey);
+        }
+        const container = document.getElementById(`notif-group-items-${groupKey}`);
+        const chevron = document.getElementById(`notif-chevron-${groupKey}`);
+        if (container && chevron) {
+            const isCollapsed = this._collapsedNotifGroups.has(groupKey);
+            container.style.display = isCollapsed ? 'none' : 'flex';
+            chevron.classList.toggle('collapsed', isCollapsed);
+        }
+    }
+
     async loadNotifications() {
         try {
-            const notifs = await API.get('/api/notifications');
+            const [activeNotifs, archivedNotifs] = await Promise.all([
+                API.get('/api/notifications?archived=false'),
+                API.get('/api/notifications?archived=true')
+            ]);
+
             let pendingTransfers = [];
             try {
                 pendingTransfers = await API.get('/api/cross-profile/pending');
             } catch (err) { /* silent catch if endpoint fails or cross profile not active */ }
-            
-            // Helper de traduction dynamique pour les notifications (Banque, Système, etc.)
-            const translateNotification = (n) => {
-                let title = n.title || '';
-                let content = n.content || '';
 
-                let linkMeta = {};
-                if (n.link_data) {
-                    try {
-                        linkMeta = typeof n.link_data === 'string' ? JSON.parse(n.link_data) : n.link_data;
-                    } catch (_) {}
-                }
-
-                // 1. Notification d'échec de relevé bancaire
-                if (n.type === 'bank_sync_error' || title.includes('Échec relevé') || title.includes('Sync failed')) {
-                    const connLabel = linkMeta.conn_label || title.replace(/^⚠️\s*(?:Échec relevé|Sync failed for|Sync failed)\s*/i, '').trim();
-                    title = `⚠️ ${window.i18n ? window.i18n.tp('notif_bank_sync_failed_title', { label: connLabel }) : title}`;
-                    
-                    let err = linkMeta.error || '';
-                    if (!err && content.includes(':')) {
-                        err = content.substring(content.indexOf(':') + 1).trim();
-                    }
-                    content = window.i18n ? window.i18n.tp('notif_bank_sync_failed_content', { label: connLabel, error: err || content }) : content;
-                }
-                // 2. Notification de synchronisation réussie
-                else if (n.type === 'bank_sync' && (title.includes('Synchronisation') || title.includes('Sync ') || title.includes('Sync:'))) {
-                    const connLabel = linkMeta.conn_label || title.replace(/^🏦\s*(?:Synchronisation|Sync)\s*/i, '').trim();
-                    title = `🏦 ${window.i18n ? window.i18n.tp('notif_bank_sync_success_title', { label: connLabel }) : title}`;
-                    
-                    let detailsList = [];
-                    const matchesCount = typeof linkMeta.matches === 'number' ? linkMeta.matches : 0;
-                    const newCount = typeof linkMeta.new_txs === 'number' ? linkMeta.new_txs : 0;
-
-                    if (matchesCount === 1) {
-                        detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_matches_1') : '1 opération prête à pointer');
-                    } else if (matchesCount > 1) {
-                        detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_matches_n', { count: matchesCount }) : `${matchesCount} opérations prêtes à pointer`);
-                    }
-
-                    if (newCount === 1) {
-                        detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_new_1') : '1 nouvelle opération');
-                    } else if (newCount > 1) {
-                        detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new_n', { count: newCount }) : `${newCount} nouvelles opérations`);
-                    }
-
-                    if (detailsList.length === 0) {
-                        const matchMatches = content.match(/(\d+)\s+rapprochement|(\d+)\s+opération/i);
-                        const matchNew = content.match(/(\d+)\s+nouvelle/i);
-                        const mVal = matchMatches ? parseInt(matchMatches[1] || matchMatches[2]) : 0;
-                        const nVal = matchNew ? parseInt(matchNew[1]) : 0;
-                        if (mVal === 1) detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_matches_1') : '1 opération prête à pointer');
-                        else if (mVal > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_matches_n', { count: mVal }) : `${mVal} opérations prêtes à pointer`);
-                        if (nVal === 1) detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_new_1') : '1 nouvelle opération');
-                        else if (nVal > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new_n', { count: nVal }) : `${nVal} nouvelles opérations`);
-                    }
-
-                    if (detailsList.length > 0 && window.i18n) {
-                        content = window.i18n.tp('notif_bank_sync_success_content', { label: connLabel, details: detailsList.join(', ') });
-                    }
-                }
-                // 3. Notification relevé à jour (0 nouvelle opération)
-                else if (n.type === 'bank_sync' && (title.includes('À jour') || title.includes('Up to date'))) {
-                    const connLabel = linkMeta.conn_label || title.replace(/^🏦\s*(?:Relevé|Sync)\s*/i, '').replace(/:\s*(?:À jour|Up to date)\s*$/i, '').trim();
-                    title = `🏦 ${window.i18n ? window.i18n.tp('notif_bank_sync_uptodate_title', { label: connLabel }) : title}`;
-                    content = window.i18n ? window.i18n.tp('notif_bank_sync_uptodate_content', { label: connLabel }) : content;
-                }
-                // 4. Notification d'import de fichier
-                else if (n.type === 'file_import' || title.includes('Import Relevé') || title.includes('File Statement')) {
-                    const fname = linkMeta.filename || 'relevé.csv';
-                    title = `📊 ${window.i18n ? window.i18n.t('notif_file_import_title') : 'Import Relevé Fichier'}`;
-                    let detailsList = [];
-                    const matchesCount = typeof linkMeta.matches === 'number' ? linkMeta.matches : 0;
-                    const newCount = typeof linkMeta.new_txs === 'number' ? linkMeta.new_txs : 0;
-                    const impCount = typeof linkMeta.imported === 'number' ? linkMeta.imported : 0;
-
-                    if (matchesCount === 1) detailsList.push(window.i18n ? window.i18n.t('notif_file_import_details_reconciled_1') : '1 opération pointée');
-                    else if (matchesCount > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_file_import_details_reconciled_n', { count: matchesCount }) : `${matchesCount} opérations pointées`);
-
-                    if (newCount === 1) detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_new_1') : '1 nouvelle opération');
-                    else if (newCount > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new_n', { count: newCount }) : `${newCount} nouvelles opérations`);
-
-                    if (impCount === 1) detailsList.push(window.i18n ? window.i18n.t('notif_file_import_details_imported_1') : '1 opération enregistrée');
-                    else if (impCount > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_file_import_details_imported_n', { count: impCount }) : `${impCount} opérations enregistrées`);
-
-                    if (detailsList.length > 0 && window.i18n) {
-                        content = window.i18n.tp('notif_file_import_content', { filename: fname, details: detailsList.join(', ') });
-                    }
-                }
-
-                return { title, content };
-            };
+            this._cachedActiveNotifs = Array.isArray(activeNotifs) ? activeNotifs : [];
+            this._cachedArchivedNotifs = Array.isArray(archivedNotifs) ? archivedNotifs : [];
+            this._cachedPendingTransfers = Array.isArray(pendingTransfers) ? pendingTransfers : [];
 
             // Check for new unread notifications to display toast
             let hasBankSyncNotif = false;
             if (this._knownNotifIds) {
                 let foundNew = false;
-                notifs.forEach(n => {
+                this._cachedActiveNotifs.forEach(n => {
                     if (!n.is_read && !this._knownNotifIds.has(n.id)) {
                         this._knownNotifIds.add(n.id);
                         foundNew = true;
@@ -592,146 +565,447 @@ class App {
                     this.setFastNotificationsPolling(false);
                 }
             } else {
-                this._knownNotifIds = new Set(notifs.map(n => n.id));
+                this._knownNotifIds = new Set(this._cachedActiveNotifs.map(n => n.id));
             }
 
-            // Update Badge Count (combinaison des notifications non lues + virements inter-profils en attente)
-            const standardUnread = notifs.filter(n => !n.is_read).length;
-            const crossProfileUnread = pendingTransfers.length;
-            const unreadCount = standardUnread + crossProfileUnread;
+            // Update Badge Counts
+            const activeUnread = this._cachedActiveNotifs.filter(n => !n.is_read).length;
+            const crossProfileUnread = this._cachedPendingTransfers.length;
+            const totalUnreadBadge = activeUnread + crossProfileUnread;
 
-            const badge = document.getElementById('notifCountBadge');
-            const headerCount = document.getElementById('notifTotalLabel');
-            if (badge) {
-                badge.innerText = unreadCount > 99 ? '99+' : unreadCount;
-                badge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
-            }
-            if (headerCount) {
-                headerCount.innerText = `${unreadCount}`;
+            const bellBadge = document.getElementById('notifCountBadge');
+            if (bellBadge) {
+                bellBadge.innerText = totalUnreadBadge > 99 ? '99+' : totalUnreadBadge;
+                bellBadge.style.display = totalUnreadBadge > 0 ? 'inline-block' : 'none';
             }
 
-            const deleteAllBtn = document.getElementById('deleteAllNotifsBtn');
+            const activeTabBadge = document.getElementById('notifActiveUnreadBadge');
+            if (activeTabBadge) {
+                activeTabBadge.innerText = `${activeUnread + crossProfileUnread}`;
+                activeTabBadge.style.display = (activeUnread + crossProfileUnread) > 0 ? 'inline-block' : 'none';
+            }
+
+            const archivedBadge = document.getElementById('notifArchivedBadge');
+            if (archivedBadge) {
+                archivedBadge.innerText = `${this._cachedArchivedNotifs.length}`;
+                archivedBadge.style.display = this._cachedArchivedNotifs.length > 0 ? 'inline-block' : 'none';
+            }
+
             const markAllBtn = document.getElementById('markAllNotifsReadBtn');
+            const archiveAllBtn = document.getElementById('archiveAllNotifsBtn');
+            const clearArchivesBtn = document.getElementById('clearArchivesBtn');
 
-            if (deleteAllBtn) {
-                deleteAllBtn.style.display = notifs.length > 0 ? 'inline' : 'none';
-            }
             if (markAllBtn) {
-                markAllBtn.style.display = notifs.some(n => !n.is_read) ? 'inline' : 'none';
+                markAllBtn.style.display = this._cachedActiveNotifs.some(n => !n.is_read) ? 'inline' : 'none';
+            }
+            if (archiveAllBtn) {
+                archiveAllBtn.style.display = this._cachedActiveNotifs.length > 0 ? 'inline' : 'none';
+            }
+            if (clearArchivesBtn) {
+                clearArchivesBtn.style.display = this._cachedArchivedNotifs.length > 0 ? 'inline' : 'none';
             }
 
-            // Render Notifications List
-            const container = document.getElementById('notifListContainer');
-            if (!container) return;
-
-            this._notifDataMap = {};
-            notifs.forEach(n => { this._notifDataMap[n.id] = n; });
-
-            if (notifs.length === 0 && pendingTransfers.length === 0) {
-                container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-style: italic;" data-i18n="notif_no_notifications">${window.i18n.t('notif_no_notifications')}</div>`;
-                return;
-            }
-
-            let html = '';
-
-            // 1. Render cross-profile pending transfer requests
-            if (pendingTransfers.length > 0) {
-                const acceptTxt = window.i18n ? window.i18n.t('cross_profile_btn_accept') || 'Accepter' : 'Accepter';
-                const rejectTxt = window.i18n ? window.i18n.t('cross_profile_btn_reject') || 'Refuser' : 'Refuser';
-                const detailsTxt = window.i18n ? window.i18n.t('cross_profile_btn_details') || 'Détails' : 'Détails';
-
-                html += pendingTransfers.map(tx => {
-                    const dateStr = tx.date_operation || '';
-                    const fromAcc = tx.from_account_name || 'Autre compte';
-                    const toAcc = tx.to_account_name || 'Ce compte';
-                    const amt = Math.abs(tx.amount || 0);
-                    const fmtAmt = amt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-                    const origSub = tx.origin_subject ? `<div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px; font-style: italic;">« ${window.escapeHtml ? window.escapeHtml(tx.origin_subject) : tx.origin_subject} »</div>` : '';
-
-                    return `
-                    <div style="padding: 14px 18px; border-bottom: 1px solid var(--border-color); border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.04);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                            <span style="font-weight: 700; font-size: 13px; color: #10b981; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>🔀</span> <span>${window.i18n ? window.i18n.t('cross_profile_notif_title') || 'Virement inter-profils en attente' : 'Virement inter-profils en attente'}</span>
-                            </span>
-                            <span style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">${dateStr}</span>
-                        </div>
-                        <div style="font-size: 12.5px; margin-top: 6px; line-height: 1.4; color: var(--text-main);">
-                            <div><strong>${window.escapeHtml ? window.escapeHtml(fromAcc) : fromAcc}</strong> ➔ <strong>${window.escapeHtml ? window.escapeHtml(toAcc) : toAcc}</strong></div>
-                            <div style="font-size: 14px; font-weight: 800; color: #10b981; margin-top: 4px;">
-                                +${fmtAmt}
-                            </div>
-                            ${origSub}
-                        </div>
-                        <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 10px;">
-                            <button class="btn btn-secondary btn-sm" style="font-size:11px; padding:4px 10px; border-radius:6px;" onclick="event.stopPropagation(); window.FormView.openPendingModal()">${detailsTxt}</button>
-                            <button class="btn btn-primary btn-sm" style="font-size:11px; padding:4px 12px; border-radius:6px; background:#10b981;" onclick="event.stopPropagation(); window.FormView.validatePendingTransfer('${tx.cross_profile_link_id}', 'accept')">${acceptTxt}</button>
-                            <button class="btn btn-secondary btn-sm" style="font-size:11px; padding:4px 12px; border-radius:6px; color:#ef4444;" onclick="event.stopPropagation(); window.FormView.validatePendingTransfer('${tx.cross_profile_link_id}', 'reject')">${rejectTxt}</button>
-                        </div>
-                    </div>`;
-                }).join('');
-            }
-
-            // 2. Render standard notifications
-            html += notifs.map(n => {
-                const dateStr = new Date(n.created_at).toLocaleString(window.i18n.lang || 'fr', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
-                const styleUnread = n.is_read ? 'opacity: 0.85; cursor: default; user-select: text;' : 'border-left: 4px solid var(--accent); background: rgba(99,102,241,0.02); font-weight: 500; cursor: pointer;';
-                const isReport = n.type === 'ai_report';
-                const clickCallback = `onclick="window.app.handleNotifClick(${n.id})"`;
-                
-                const translated = translateNotification(n);
-                let displayTitle = translated.title;
-                let displayContent = translated.content || '';
-
-                if (displayContent.includes('"summary"') || displayContent.trim().startsWith('{') || displayContent.trim().startsWith('```')) {
-                    try {
-                        const cleaned = displayContent.replace(/```(?:json)?/g, '').trim();
-                        const parsed = JSON.parse(cleaned);
-                        if (parsed.summary) displayContent = parsed.summary;
-                    } catch (e) {
-                        const match = displayContent.match(/"summary"\s*:\s*"([^"]+)"/);
-                        if (match && match[1]) displayContent = match[1];
-                    }
-                }
-                displayContent = displayContent.replace(/\\n/g, '\n').trim();
-
-                let actionBtnHtml = '';
-                if (isReport) {
-                    actionBtnHtml = `<button class="btn btn-primary btn-sm notif-action-btn" style="font-size:11px; padding:6px 12px; border-radius:8px; height:30px; width:auto; background:var(--accent); color:white; border:none; cursor:pointer; font-weight:600; transition: all 0.2s; box-shadow:0 2px 4px rgba(32,101,209,0.24);" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); window.app.deepenAIReportById(${n.id})" data-i18n="notif_btn_deepen">${window.i18n.t('notif_btn_deepen')}</button>`;
-                } else if (n.type === 'bank_sync' || n.type === 'file_import') {
-                    let hasPending = false;
-                    if (n.link_data) {
-                        try {
-                            const meta = typeof n.link_data === 'string' ? JSON.parse(n.link_data) : n.link_data;
-                            if (meta.action === 'open_pending' || (meta.matches > 0 || meta.new_txs > 0)) {
-                                hasPending = true;
-                            }
-                        } catch (_) {}
-                    }
-                    if (hasPending) {
-                        const lblExamine = window.i18n ? window.i18n.t('notif_btn_examine') || 'Examiner' : 'Examiner';
-                        actionBtnHtml = `<button class="btn btn-primary btn-sm notif-action-btn" style="font-size:11px; padding:6px 12px; border-radius:8px; height:30px; width:auto; background:var(--accent); color:white; border:none; cursor:pointer; font-weight:600; transition: all 0.2s; box-shadow:0 2px 4px rgba(99,102,241,0.24); display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); window.app.handleNotifClick(${n.id})"><span>🔍</span> <span>${lblExamine}</span></button>`;
-                    }
-                }
-
-                return `
-                <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); ${styleUnread} transition: background 0.2s;" ${clickCallback}>
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                        <span style="font-weight: 700; font-size:13px; color: ${n.is_read ? 'var(--text-color)' : 'var(--accent)'}">${displayTitle}</span>
-                        <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">${dateStr}</span>
-                    </div>
-                    <div style="font-size:12.5px; margin-top:6px; line-height:1.5; color:var(--text-main); white-space: pre-wrap;">${displayContent}</div>
-                    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
-                        ${actionBtnHtml}
-                        <button id="delete-notif-btn-${n.id}" class="btn btn-secondary btn-sm notif-action-btn" style="font-size:11px; padding:6px 12px; border-radius:8px; height:30px; width:auto; border:1px solid rgba(239,68,68,0.2); color:#ff5630; background:rgba(255,86,48,0.05); cursor:pointer; font-weight:600; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,86,48,0.15)'" onmouseout="this.style.background='rgba(255,86,48,0.05)'" onclick="event.stopPropagation(); window.app.deleteNotif(${n.id}, event)" data-i18n="notif_btn_delete">${window.i18n.t('notif_btn_delete')}</button>
-                    </div>
-                </div>`;
-            }).join('');
-
-            container.innerHTML = html;
+            this._renderNotificationList();
         } catch (e) {
             console.error("Failed to load notifications", e);
         }
+    }
+
+    _translateNotification(n) {
+        let title = n.title || '';
+        let content = n.content || '';
+
+        let linkMeta = {};
+        if (n.link_data) {
+            try {
+                linkMeta = typeof n.link_data === 'string' ? JSON.parse(n.link_data) : n.link_data;
+            } catch (_) {}
+        }
+
+        // 1. Notification d'échec de relevé bancaire
+        if (n.type === 'bank_sync_error' || title.includes('Échec relevé') || title.includes('Sync failed')) {
+            const connLabel = linkMeta.conn_label || title.replace(/^⚠️\s*(?:Échec relevé|Sync failed for|Sync failed)\s*/i, '').trim();
+            title = `⚠️ ${window.i18n ? window.i18n.tp('notif_bank_sync_failed_title', { label: connLabel }) : title}`;
+            
+            let err = linkMeta.error || '';
+            if (!err && content.includes(':')) {
+                err = content.substring(content.indexOf(':') + 1).trim();
+            }
+            content = window.i18n ? window.i18n.tp('notif_bank_sync_failed_content', { label: connLabel, error: err || content }) : content;
+        }
+        // 2. Notification de synchronisation réussie
+        else if (n.type === 'bank_sync' && (title.includes('Synchronisation') || title.includes('Sync ') || title.includes('Sync:'))) {
+            const connLabel = linkMeta.conn_label || title.replace(/^🏦\s*(?:Synchronisation|Sync)\s*/i, '').trim();
+            title = `🏦 ${window.i18n ? window.i18n.tp('notif_bank_sync_success_title', { label: connLabel }) : title}`;
+            
+            let detailsList = [];
+            const matchesCount = typeof linkMeta.matches === 'number' ? linkMeta.matches : 0;
+            const comingCount = typeof linkMeta.coming === 'number' ? linkMeta.coming : 0;
+            const newCount = typeof linkMeta.new_txs === 'number' ? linkMeta.new_txs : 0;
+
+            if (matchesCount === 1) {
+                detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_matches_1') : '1 opération à rapprocher');
+            } else if (matchesCount > 1) {
+                detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_matches_n', { count: matchesCount }) : `${matchesCount} opérations à rapprocher`);
+            }
+
+            if (comingCount === 1) {
+                detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_coming_1') : '1 opération en attente');
+            } else if (comingCount > 1) {
+                detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_coming_n', { count: comingCount }) : `${comingCount} opérations en attente`);
+            }
+
+            if (newCount === 1) {
+                detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_new_1') : '1 nouvelle opération');
+            } else if (newCount > 1) {
+                detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new_n', { count: newCount }) : `${newCount} nouvelles opérations`);
+            }
+
+            if (detailsList.length === 0) {
+                const matchMatches = content.match(/(\d+)\s+(?:opération[s]?\s+prête[s]?\s+à\s+pointer|opération[s]?\s+à\s+rapprocher|rapprochement)/i);
+                const matchComing = content.match(/(\d+)\s+(?:en\s+attente|opération[s]?\s+en\s+attente)/i);
+                const matchNew = content.match(/(\d+)\s+(?:nouvelle|opération[s]?\s+à\s+ajouter)/i);
+                const mVal = matchMatches ? parseInt(matchMatches[1]) : 0;
+                const cVal = matchComing ? parseInt(matchComing[1]) : 0;
+                const nVal = matchNew ? parseInt(matchNew[1]) : 0;
+                if (mVal === 1) detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_matches_1') : '1 opération à rapprocher');
+                else if (mVal > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_matches_n', { count: mVal }) : `${mVal} opérations à rapprocher`);
+                if (cVal === 1) detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_coming_1') : '1 opération en attente');
+                else if (cVal > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_coming_n', { count: cVal }) : `${cVal} opérations en attente`);
+                if (nVal === 1) detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_new_1') : '1 nouvelle opération');
+                else if (nVal > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new_n', { count: nVal }) : `${nVal} nouvelles opérations`);
+            }
+
+            if (detailsList.length > 0 && window.i18n) {
+                content = window.i18n.tp('notif_bank_sync_success_content', { label: connLabel, details: detailsList.join(', ') });
+            }
+        }
+        // 3. Notification relevé à jour (0 nouvelle opération)
+        else if (n.type === 'bank_sync' && (title.includes('À jour') || title.includes('Up to date'))) {
+            const connLabel = linkMeta.conn_label || title.replace(/^🏦\s*(?:Relevé|Sync)\s*/i, '').replace(/:\s*(?:À jour|Up to date)\s*$/i, '').trim();
+            title = `🏦 ${window.i18n ? window.i18n.tp('notif_bank_sync_uptodate_title', { label: connLabel }) : title}`;
+            content = window.i18n ? window.i18n.tp('notif_bank_sync_uptodate_content', { label: connLabel }) : content;
+        }
+        // 4. Notification d'import de fichier
+        else if (n.type === 'file_import' || title.includes('Import Relevé') || title.includes('File Statement')) {
+            const fname = linkMeta.filename || 'relevé.csv';
+            title = `📊 ${window.i18n ? window.i18n.t('notif_file_import_title') : 'Import Relevé Fichier'}`;
+            let detailsList = [];
+            const matchesCount = typeof linkMeta.matches === 'number' ? linkMeta.matches : 0;
+            const newCount = typeof linkMeta.new_txs === 'number' ? linkMeta.new_txs : 0;
+            const impCount = typeof linkMeta.imported === 'number' ? linkMeta.imported : 0;
+
+            if (matchesCount === 1) detailsList.push(window.i18n ? window.i18n.t('notif_file_import_details_reconciled_1') : '1 opération rapprochée');
+            else if (matchesCount > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_file_import_details_reconciled_n', { count: matchesCount }) : `${matchesCount} opérations rapprochées`);
+
+            if (newCount === 1) detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_new_1') : '1 nouvelle opération');
+            else if (newCount > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new_n', { count: newCount }) : `${newCount} nouvelles opérations`);
+
+            if (impCount === 1) detailsList.push(window.i18n ? window.i18n.t('notif_file_import_details_imported_1') : '1 opération enregistrée');
+            else if (impCount > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_file_import_details_imported_n', { count: impCount }) : `${impCount} opérations enregistrées`);
+
+            if (detailsList.length === 0) {
+                const matchMatches = content.match(/(\d+)\s+(?:opération[s]?\s+pointée[s]?|opération[s]?\s+rapprochée[s]?|opération[s]?\s+prête[s]?\s+à\s+pointer|opération[s]?\s+à\s+rapprocher|rapprochement)/i);
+                const matchNew = content.match(/(\d+)\s+nouvelle/i);
+                const matchImp = content.match(/(\d+)\s+opération[s]?\s+enregistrée/i);
+                const mVal = matchMatches ? parseInt(matchMatches[1]) : 0;
+                const nVal = matchNew ? parseInt(matchNew[1]) : 0;
+                const iVal = matchImp ? parseInt(matchImp[1]) : 0;
+                if (mVal === 1) detailsList.push(window.i18n ? window.i18n.t('notif_file_import_details_reconciled_1') : '1 opération rapprochée');
+                else if (mVal > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_file_import_details_reconciled_n', { count: mVal }) : `${mVal} opérations rapprochées`);
+                if (nVal === 1) detailsList.push(window.i18n ? window.i18n.t('notif_bank_sync_details_new_1') : '1 nouvelle opération');
+                else if (nVal > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_bank_sync_details_new_n', { count: nVal }) : `${nVal} nouvelles opérations`);
+                if (iVal === 1) detailsList.push(window.i18n ? window.i18n.t('notif_file_import_details_imported_1') : '1 opération enregistrée');
+                else if (iVal > 1) detailsList.push(window.i18n ? window.i18n.tp('notif_file_import_details_imported_n', { count: iVal }) : `${iVal} opérations enregistrées`);
+            }
+
+            if (detailsList.length > 0 && window.i18n) {
+                content = window.i18n.tp('notif_file_import_content', { filename: fname, details: detailsList.join(', ') });
+            }
+        }
+
+        return { title, content };
+    }
+
+    _renderNotificationList() {
+        const container = document.getElementById('notifListContainer');
+        if (!container) return;
+
+        const isArchivedTab = this._notifTab === 'archived';
+        let rawNotifs = isArchivedTab ? [...this._cachedArchivedNotifs] : [...this._cachedActiveNotifs];
+        const pendingTransfers = isArchivedTab ? [] : [...this._cachedPendingTransfers];
+
+        this._notifDataMap = {};
+        [...this._cachedActiveNotifs, ...this._cachedArchivedNotifs].forEach(n => {
+            this._notifDataMap[n.id] = n;
+        });
+
+        // Search Filter
+        const query = this._notifSearchQuery;
+        if (query) {
+            rawNotifs = rawNotifs.filter(n => {
+                const translated = this._translateNotification(n);
+                const titleMatch = (translated.title || '').toLowerCase().includes(query);
+                const contentMatch = (translated.content || '').toLowerCase().includes(query);
+                return titleMatch || contentMatch;
+            });
+        }
+
+        if (rawNotifs.length === 0 && pendingTransfers.length === 0) {
+            const emptyMsg = isArchivedTab
+                ? (window.i18n ? window.i18n.t('notif_no_archived') || "Aucune notification archivée dans l'historique." : "Aucune notification archivée dans l'historique.")
+                : (window.i18n ? window.i18n.t('notif_no_active') || "Aucune notification active. Tout est à jour !" : "Aucune notification active. Tout est à jour !");
+            const emptyIcon = isArchivedTab ? '🗄️' : '📥';
+            container.innerHTML = `
+                <div style="padding: 30px 20px; text-align: center; color: var(--text-muted);">
+                    <div style="font-size: 28px; margin-bottom: 8px; opacity: 0.7;">${emptyIcon}</div>
+                    <div style="font-size: 12.5px; font-weight: 500;">${emptyMsg}</div>
+                </div>`;
+            return;
+        }
+
+        // Render Cross-profile pending transfers at top of active tab if no search query or matches query
+        let crossProfileHtml = '';
+        if (pendingTransfers.length > 0 && (!query || 'virement inter-profils transfer'.includes(query))) {
+            const acceptTxt = window.i18n ? window.i18n.t('cross_profile_btn_accept') || 'Accepter' : 'Accepter';
+            const rejectTxt = window.i18n ? window.i18n.t('cross_profile_btn_reject') || 'Refuser' : 'Refuser';
+            const detailsTxt = window.i18n ? window.i18n.t('cross_profile_btn_details') || 'Détails' : 'Détails';
+
+            crossProfileHtml = pendingTransfers.map(tx => {
+                const dateStr = tx.date_operation || '';
+                const fromAcc = tx.from_account_name || 'Autre compte';
+                const toAcc = tx.to_account_name || 'Ce compte';
+                const amt = Math.abs(tx.amount || 0);
+                const fmtAmt = amt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+                const origSub = tx.origin_subject ? `<div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px; font-style: italic;">« ${window.escapeHtml ? window.escapeHtml(tx.origin_subject) : tx.origin_subject} »</div>` : '';
+
+                return `
+                <div class="notif-card" style="border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.04);">
+                    <div class="notif-card-header">
+                        <span style="font-weight: 700; font-size: 13px; color: #10b981; display: inline-flex; align-items: center; gap: 4px;">
+                            <span>🔀</span> <span>${window.i18n ? window.i18n.t('cross_profile_notif_title') || 'Virement inter-profils en attente' : 'Virement inter-profils en attente'}</span>
+                        </span>
+                        <span class="notif-card-date">${dateStr}</span>
+                    </div>
+                    <div style="font-size: 12.5px; margin-top: 6px; line-height: 1.4; color: var(--text-main);">
+                        <div><strong>${window.escapeHtml ? window.escapeHtml(fromAcc) : fromAcc}</strong> ➔ <strong>${window.escapeHtml ? window.escapeHtml(toAcc) : toAcc}</strong></div>
+                        <div style="font-size: 13.5px; font-weight: 800; color: #10b981; margin-top: 4px;">+${fmtAmt}</div>
+                        ${origSub}
+                    </div>
+                    <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 10px;">
+                        <button class="btn btn-secondary btn-sm" style="font-size:12px; padding:0 12px; border-radius:8px; height:32px;" onclick="event.stopPropagation(); window.FormView.openPendingModal()">${detailsTxt}</button>
+                        <button class="btn btn-primary btn-sm" style="font-size:12px; padding:0 14px; border-radius:8px; height:32px; background:#10b981;" onclick="event.stopPropagation(); window.FormView.validatePendingTransfer('${tx.cross_profile_link_id}', 'accept')">${acceptTxt}</button>
+                        <button class="btn btn-secondary btn-sm" style="font-size:12px; padding:0 12px; border-radius:8px; height:32px; color:#ef4444;" onclick="event.stopPropagation(); window.FormView.validatePendingTransfer('${tx.cross_profile_link_id}', 'reject')">${rejectTxt}</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // Grouping Engine
+        const groups = this._groupNotifications(rawNotifs, this._notifGroupBy);
+
+        let html = crossProfileHtml;
+
+        groups.forEach(group => {
+            if (group.items.length === 0) return;
+            const isCollapsed = this._collapsedNotifGroups.has(group.key);
+            const chevronClass = isCollapsed ? 'notif-group-chevron collapsed' : 'notif-group-chevron';
+            const itemsDisplay = isCollapsed ? 'none' : 'flex';
+
+            html += `
+            <div style="display: flex; flex-direction: column;">
+                <div class="notif-group-header" onclick="window.app.toggleNotifGroup('${group.key}')">
+                    <div class="notif-group-title">
+                        <span>${group.icon}</span>
+                        <span>${group.title}</span>
+                        <span class="notif-group-badge">${group.items.length}</span>
+                    </div>
+                    <span id="notif-chevron-${group.key}" class="${chevronClass}">▼</span>
+                </div>
+                <div id="notif-group-items-${group.key}" style="display: ${itemsDisplay}; flex-direction: column;">
+                    ${group.items.map(n => this._renderSingleNotificationCard(n, isArchivedTab)).join('')}
+                </div>
+            </div>`;
+        });
+
+        container.innerHTML = html;
+    }
+
+    _groupNotifications(notifs, groupBy) {
+        if (groupBy === 'type') {
+            const groupMap = {
+                bank: {
+                    key: 'bank',
+                    icon: '🏦',
+                    title: window.i18n ? window.i18n.t('notif_group_bank') || 'Banque & Imports' : 'Banque & Imports',
+                    items: []
+                },
+                ai: {
+                    key: 'ai',
+                    icon: '🤖',
+                    title: window.i18n ? window.i18n.t('notif_group_ai') || 'Analyses & Bilans IA' : 'Analyses & Bilans IA',
+                    items: []
+                },
+                system: {
+                    key: 'system',
+                    icon: '⚙️',
+                    title: window.i18n ? window.i18n.t('notif_group_system') || 'Système & Alertes' : 'Système & Alertes',
+                    items: []
+                }
+            };
+
+            notifs.forEach(n => {
+                const t = n.type || '';
+                if (t === 'bank_sync' || t === 'bank_sync_error' || t === 'file_import') {
+                    groupMap.bank.items.push(n);
+                } else if (t === 'ai_report' || t === 'ai_chat' || t.includes('ai') || t.includes('chat')) {
+                    groupMap.ai.items.push(n);
+                } else {
+                    groupMap.system.items.push(n);
+                }
+            });
+
+            return Object.values(groupMap).filter(g => g.items.length > 0);
+        }
+
+        // Default: Group by Date
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const startOfYesterday = startOfToday - 86400000;
+        const startOfThisWeek = startOfToday - ((now.getDay() === 0 ? 6 : now.getDay() - 1) * 86400000);
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+        const dateGroups = {
+            today: {
+                key: 'today',
+                icon: '📅',
+                title: window.i18n ? window.i18n.t('notif_group_today') || "Aujourd'hui" : "Aujourd'hui",
+                items: []
+            },
+            yesterday: {
+                key: 'yesterday',
+                icon: '📅',
+                title: window.i18n ? window.i18n.t('notif_group_yesterday') || "Hier" : "Hier",
+                items: []
+            },
+            this_week: {
+                key: 'this_week',
+                icon: '📅',
+                title: window.i18n ? window.i18n.t('notif_group_this_week') || "Cette semaine" : "Cette semaine",
+                items: []
+            },
+            this_month: {
+                key: 'this_month',
+                icon: '📅',
+                title: window.i18n ? window.i18n.t('notif_group_this_month') || "Ce mois-ci" : "Ce mois-ci",
+                items: []
+            },
+            older: {
+                key: 'older',
+                icon: '📦',
+                title: window.i18n ? window.i18n.t('notif_group_older') || "Plus ancien" : "Plus ancien",
+                items: []
+            }
+        };
+
+        notifs.forEach(n => {
+            const itemDate = new Date(n.created_at || Date.now()).getTime();
+            if (itemDate >= startOfToday) {
+                dateGroups.today.items.push(n);
+            } else if (itemDate >= startOfYesterday) {
+                dateGroups.yesterday.items.push(n);
+            } else if (itemDate >= startOfThisWeek) {
+                dateGroups.this_week.items.push(n);
+            } else if (itemDate >= startOfThisMonth) {
+                dateGroups.this_month.items.push(n);
+            } else {
+                dateGroups.older.items.push(n);
+            }
+        });
+
+        return Object.values(dateGroups).filter(g => g.items.length > 0);
+    }
+
+    _renderSingleNotificationCard(n, isArchived) {
+        const lang = (window.i18n && window.i18n.lang) || 'fr';
+        const dateStr = new Date(n.created_at).toLocaleString(lang, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const unreadClass = (!n.is_read && !isArchived) ? 'unread' : '';
+        const isReport = n.type === 'ai_report';
+        const clickCallback = `onclick="window.app.handleNotifClick(${n.id})"`;
+
+        const translated = this._translateNotification(n);
+        let displayTitle = translated.title;
+        let displayContent = translated.content || '';
+
+        if (displayContent.includes('"summary"') || displayContent.trim().startsWith('{') || displayContent.trim().startsWith('```')) {
+            try {
+                const cleaned = displayContent.replace(/```(?:json)?/g, '').trim();
+                const parsed = JSON.parse(cleaned);
+                if (parsed.summary) displayContent = parsed.summary;
+            } catch (e) {
+                const match = displayContent.match(/"summary"\s*:\s*"([^"]+)"/);
+                if (match && match[1]) displayContent = match[1];
+            }
+        }
+        displayContent = displayContent.replace(/\\n/g, '\n').trim();
+
+        // Context Action Button (e.g. Deepen AI report, Examine pending)
+        let contextActionBtn = '';
+        if (isReport) {
+            contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.deepenAIReportById(${n.id})">${window.i18n ? window.i18n.t('notif_btn_deepen') || "Approfondir avec l'IA" : "Approfondir avec l'IA"}</button>`;
+        } else if (n.type === 'bank_sync' || n.type === 'file_import') {
+            let hasPending = false;
+            if (n.link_data) {
+                try {
+                    const meta = typeof n.link_data === 'string' ? JSON.parse(n.link_data) : n.link_data;
+                    if (meta.action === 'open_pending' || (meta.matches > 0 || meta.new_txs > 0)) {
+                        hasPending = true;
+                    }
+                } catch (_) {}
+            }
+            if (hasPending) {
+                const lblExamine = window.i18n ? window.i18n.t('notif_btn_examine') || 'Examiner' : 'Examiner';
+                contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifClick(${n.id})">🔍 ${lblExamine}</button>`;
+            }
+        }
+
+        // Archive / Unarchive / Delete buttons
+        let managementBtns = '';
+        let archivedMeta = '';
+
+        if (isArchived) {
+            const unarchiveLabel = window.i18n ? window.i18n.t('notif_btn_unarchive') || 'Désarchiver' : 'Désarchiver';
+            const deleteLabel = window.i18n ? window.i18n.t('notif_btn_delete_perm') || 'Supprimer' : 'Supprimer';
+            
+            if (n.archived_at) {
+                const archDateStr = new Date(n.archived_at).toLocaleDateString(lang, { month: 'short', day: 'numeric' });
+                archivedMeta = `<span class="notif-card-archived-meta">${window.i18n ? window.i18n.tp('notif_archived_on', { date: archDateStr }) : `Archivé le ${archDateStr}`}</span>`;
+            }
+
+            managementBtns = `
+                <button class="btn-notif-unarchive notif-action-btn" onclick="event.stopPropagation(); window.app.unarchiveNotif(${n.id})" title="${unarchiveLabel}">${unarchiveLabel}</button>
+                <button id="delete-notif-btn-${n.id}" class="btn-notif-del-perm notif-action-btn" onclick="event.stopPropagation(); window.app.deleteNotif(${n.id}, event)" title="${deleteLabel}">🗑️</button>`;
+        } else {
+            const archiveLabel = window.i18n ? window.i18n.t('notif_btn_archive') || 'Archiver' : 'Archiver';
+            managementBtns = `
+                <button class="btn-notif-archive notif-action-btn" onclick="event.stopPropagation(); window.app.archiveNotif(${n.id})" title="${archiveLabel}">${archiveLabel}</button>`;
+        }
+
+        return `
+        <div class="notif-card ${unreadClass} ${isArchived ? 'archived' : ''}" ${clickCallback}>
+            <div class="notif-card-header">
+                <span class="notif-card-title" style="color: ${(!n.is_read && !isArchived) ? 'var(--accent)' : 'var(--text-main)'};">${displayTitle}</span>
+                <span class="notif-card-date">${dateStr}</span>
+            </div>
+            <div class="notif-card-content">${displayContent}</div>
+            <div class="notif-card-footer">
+                ${archivedMeta}
+                <div class="notif-card-actions">
+                    ${contextActionBtn}
+                    ${managementBtns}
+                </div>
+            </div>
+        </div>`;
     }
 
     async handleNotifClick(id) {
@@ -807,42 +1081,79 @@ class App {
         }
     }
 
-    async deleteAllNotifs(event) {
-        const btn = event ? event.currentTarget : document.getElementById('deleteAllNotifsBtn');
+    async archiveNotif(id) {
+        try {
+            await API.put(`/api/notifications/${id}/archive`);
+            await this.loadNotifications();
+            if (typeof showToast === 'function') {
+                const toastMsg = window.i18n ? window.i18n.t('notif_archived_toast') || 'Notification archivée' : 'Notification archivée';
+                showToast(toastMsg, 'success', 2500);
+            }
+        } catch (e) {
+            console.error("Failed to archive notification", e);
+        }
+    }
+
+    async unarchiveNotif(id) {
+        try {
+            await API.put(`/api/notifications/${id}/unarchive`);
+            await this.loadNotifications();
+            if (typeof showToast === 'function') {
+                const toastMsg = window.i18n ? window.i18n.t('notif_unarchived_toast') || 'Notification restaurée' : 'Notification restaurée';
+                showToast(toastMsg, 'success', 2500);
+            }
+        } catch (e) {
+            console.error("Failed to unarchive notification", e);
+        }
+    }
+
+    async archiveAllNotifs(event) {
+        try {
+            await API.put('/api/notifications/archive-all');
+            await this.loadNotifications();
+            if (typeof showToast === 'function') {
+                const toastMsg = window.i18n ? window.i18n.t('notif_all_archived_toast') || 'Toutes les notifications ont été archivées' : 'Toutes les notifications ont été archivées';
+                showToast(toastMsg, 'success', 3000);
+            }
+        } catch (e) {
+            console.error("Failed to archive all notifications", e);
+        }
+    }
+
+    async clearArchives(event) {
+        const btn = event ? event.currentTarget : document.getElementById('clearArchivesBtn');
         if (!btn) return;
 
-        // If the button is already in confirmation state, execute deletion
+        // 2-step confirmation per Rule G-08
         if (btn.dataset.confirmState === "true") {
             try {
-                await API.del('/api/notifications');
+                await API.del('/api/notifications/archives/clear');
                 await this.loadNotifications();
                 if (typeof showToast === 'function') {
-                    const isEn = window.i18n && window.i18n.lang === 'en';
-                    showToast(isEn ? "All notifications deleted" : "Toutes les notifications ont été supprimées", "success");
+                    const toastMsg = window.i18n ? window.i18n.t('notif_archives_cleared_toast') || 'Archives vidées avec succès' : 'Archives vidées avec succès';
+                    showToast(toastMsg, 'success', 3000);
                 }
             } catch (e) {
-                console.error(e);
+                console.error("Failed to clear archives", e);
             }
         } else {
-            // Put button in confirmation state
             btn.dataset.confirmState = "true";
             const originalText = btn.textContent;
-            const confirmTxt = (window.i18n && window.i18n.t('notif_btn_delete_all_confirm')) || (window.i18n && window.i18n.lang === 'en' ? "Confirm?" : "Confirmer ?");
+            const confirmTxt = (window.i18n && window.i18n.t('notif_btn_clear_archives_confirm')) || (window.i18n && window.i18n.lang === 'en' ? "Confirm purge?" : "Confirmer la purge ?");
             btn.textContent = confirmTxt;
             btn.style.color = "#ef4444";
             btn.style.fontWeight = "700";
 
-            // Cancel confirmation state after 3 seconds
             const resetBtn = () => {
                 if (btn && btn.dataset.confirmState === "true") {
                     btn.dataset.confirmState = "false";
                     btn.textContent = originalText;
                     btn.style.color = "#ff5630";
-                    btn.style.fontWeight = "500";
+                    btn.style.fontWeight = "600";
                 }
             };
             if (btn._resetTimeout) clearTimeout(btn._resetTimeout);
-            btn._resetTimeout = setTimeout(resetBtn, 3000);
+            btn._resetTimeout = setTimeout(resetBtn, 3500);
         }
     }
 
@@ -850,7 +1161,7 @@ class App {
         const btn = event ? event.currentTarget : document.getElementById(`delete-notif-btn-${id}`);
         if (!btn) return;
 
-        // If the button is already in confirmation state, execute deletion
+        // 2-step confirmation per Rule G-08
         if (btn.dataset.confirmState === "true") {
             try {
                 await API.del(`/api/notifications/${id}`);
@@ -859,21 +1170,19 @@ class App {
                 console.error(e);
             }
         } else {
-            // Put button in confirmation state
             btn.dataset.confirmState = "true";
             const originalText = btn.textContent;
-            btn.textContent = window.i18n.lang === 'en' ? "Confirm?" : "Confirmer ?";
+            btn.textContent = window.i18n && window.i18n.lang === 'en' ? "Confirm?" : "Confirmer ?";
             btn.style.background = "#ff5630";
             btn.style.color = "white";
             btn.style.border = "1px solid #ff5630";
 
-            // Cancel confirmation state if clicked outside or after 3 seconds
             const resetBtn = () => {
                 if (btn && btn.dataset.confirmState === "true") {
                     btn.dataset.confirmState = "false";
                     btn.textContent = originalText;
-                    btn.style.background = "rgba(255,86,48,0.05)";
-                    btn.style.color = "#ff5630";
+                    btn.style.background = "rgba(239,68,68,0.05)";
+                    btn.style.color = "#ef4444";
                     btn.style.border = "1px solid rgba(239,68,68,0.2)";
                 }
             };

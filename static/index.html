@@ -93,20 +93,47 @@
                             🔔
                             <span id="notifCountBadge" style="display: none; position: absolute; top: -4px; right: -4px; background: var(--accent); color: white; font-size: 8.5px; font-weight: 700; padding: 2px 4.5px; border-radius: 50%; line-height: 1;">0</span>
                         </button>
-                        <div id="notifMenu" style="display:none; position:absolute; top:100%; right:0; margin-top:8px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; box-shadow:var(--shadow-lg); z-index:10000; width: min(450px, calc(100vw - 24px)); overflow:hidden; font-size:13px; color:var(--text-main);">
-                        <div style="padding:12px 16px; border-bottom:1px solid var(--border-color); font-weight:600; display:flex; justify-content:space-between; align-items:center; background:var(--bg-base);">
-                            <span data-i18n="notif_title_notifications">Notifications</span>
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <a id="markAllNotifsReadBtn" href="#" onclick="event.preventDefault(); window.app.markAllNotifsRead();" class="notif-action-btn" style="font-size:11px; color:var(--accent); text-decoration:none; font-weight:500; cursor:pointer; white-space:nowrap;" data-i18n="notif_btn_mark_all_read">Tout marquer comme lu</a>
-                                <a id="deleteAllNotifsBtn" href="#" onclick="event.preventDefault(); window.app.deleteAllNotifs(event);" class="notif-action-btn" style="font-size:11px; color:#ff5630; text-decoration:none; font-weight:500; cursor:pointer; white-space:nowrap;" data-i18n="notif_btn_delete_all">Tout supprimer</a>
-                                <span id="notifTotalLabel" style="font-size:11px; color:var(--text-muted); font-weight:normal;">0</span>
+                        <div id="notifMenu" style="display:none; position:absolute; top:100%; right:0; margin-top:8px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; box-shadow:var(--shadow-lg); z-index:10000; width: min(480px, calc(100vw - 24px)); overflow:hidden; font-size:13px; color:var(--text-main);">
+                            <!-- Header with Tabs and Actions -->
+                            <div class="notif-menu-header">
+                                <div class="notif-header-top">
+                                    <!-- Tabs: Actives / Archives -->
+                                    <div class="notif-tabs">
+                                        <button id="notifTabActive" class="notif-tab-btn active" onclick="window.app.switchNotifTab('active')">
+                                            📥 <span data-i18n="notif_tab_active">Actives</span>
+                                            <span id="notifActiveUnreadBadge" class="notif-tab-badge" style="display:none;">0</span>
+                                        </button>
+                                        <button id="notifTabArchived" class="notif-tab-btn" onclick="window.app.switchNotifTab('archived')">
+                                            🗄️ <span data-i18n="notif_tab_archived">Archives</span>
+                                            <span id="notifArchivedBadge" class="notif-tab-badge" style="display:none;">0</span>
+                                        </button>
+                                    </div>
+                                    <!-- Header Action Buttons -->
+                                    <div id="notifActiveActions" style="display:flex; align-items:center; gap:8px;">
+                                        <a id="markAllNotifsReadBtn" href="#" onclick="event.preventDefault(); window.app.markAllNotifsRead();" class="notif-action-btn" style="font-size:11px; color:var(--accent); text-decoration:none; font-weight:500; cursor:pointer; white-space:nowrap;" data-i18n="notif_btn_mark_all_read">Tout marquer comme lu</a>
+                                        <a id="archiveAllNotifsBtn" href="#" onclick="event.preventDefault(); window.app.archiveAllNotifs(event);" class="notif-action-btn" style="font-size:11px; color:var(--accent); text-decoration:none; font-weight:600; cursor:pointer; white-space:nowrap;" data-i18n="notif_btn_archive_all">Tout archiver</a>
+                                    </div>
+                                    <div id="notifArchivedActions" style="display:none; align-items:center; gap:8px;">
+                                        <a id="clearArchivesBtn" href="#" onclick="event.preventDefault(); window.app.clearArchives(event);" class="notif-action-btn" style="font-size:11px; color:#ff5630; text-decoration:none; font-weight:600; cursor:pointer; white-space:nowrap;" data-i18n="notif_btn_clear_archives">Vider les archives</a>
+                                    </div>
+                                </div>
+                                <!-- Toolbar: Grouping selector & quick filter -->
+                                <div class="notif-toolbar">
+                                    <div class="notif-search-box">
+                                        <span class="notif-search-icon">🔍</span>
+                                        <input type="text" id="notifSearchInput" class="notif-search-input" placeholder="Filtrer les notifications..." data-i18n-placeholder="notif_search_placeholder" oninput="window.app.onNotifSearchInput(this.value)">
+                                    </div>
+                                    <button id="notifGroupToggleBtn" class="notif-group-toggle" onclick="window.app.toggleNotifGroupBy()" title="Changer le mode de regroupement">
+                                        <span id="notifGroupIcon">📅</span>
+                                        <span id="notifGroupLabel" data-i18n="notif_group_date">Période</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="notifListContainer" style="max-height:420px; overflow-y:auto; display:flex; flex-direction:column;">
+                                <!-- Injected dynamically -->
                             </div>
                         </div>
-                        <div id="notifListContainer" style="max-height:400px; overflow-y:auto; display:flex; flex-direction:column;">
-                            <!-- Injected dynamically -->
-                        </div>
                     </div>
-                </div>
                 <button id="compactToggle" data-i18n-title="tooltip_compact_mode" title="Affichage compact" style="font-size:15px; line-height:1;"><svg id="compactIcon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect y="2" width="16" height="2.5" rx="1"/><rect y="7" width="16" height="2.5" rx="1"/><rect y="12" width="16" height="2.5" rx="1"/></svg></button>
                 <button id="privacyToggle" data-i18n-title="tooltip_hide_amounts" title="Masquer les montants">👁️</button>
                 <button id="themeToggle" data-i18n-title="tooltip_change_theme" title="Changer le thème">🌓</button>

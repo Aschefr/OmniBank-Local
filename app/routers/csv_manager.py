@@ -440,9 +440,9 @@ async def import_to_pending(
 
         details_list = []
         if matches == 1:
-            details_list.append("1 opération prête à pointer")
+            details_list.append("1 opération à rapprocher")
         elif matches > 1:
-            details_list.append(f"{matches} opérations prêtes à pointer")
+            details_list.append(f"{matches} opérations à rapprocher")
         if new_txs == 1:
             details_list.append("1 nouvelle opération")
         elif new_txs > 1:

@@ -536,23 +536,33 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
         )
         save_pending_sync_data(db, conn.id, preview, profile_id=pid)
 
-        # Calculer le nombre de correspondances et nouvelles lignes
+        # Calculer le nombre de correspondances (confirmées / en attente) et nouvelles lignes
         matches = 0
+        coming_matches = 0
         new_txs = 0
         for acc in preview.get("accounts", []):
             for tx in acc.get("transactions", []):
                 if tx.get("is_reconciled") and not tx.get("already_reconciled") and tx.get("matched_db_id"):
-                    matches += 1
+                    if tx.get("is_coming"):
+                        coming_matches += 1
+                    else:
+                        matches += 1
+                elif tx.get("is_coming") and not tx.get("is_reconciled") and not tx.get("is_dismissed") and not tx.get("is_auto_dismissed") and not tx.get("_excluded"):
+                    coming_matches += 1
                 elif not tx.get("is_reconciled") and not tx.get("is_dismissed") and not tx.get("is_auto_dismissed") and not tx.get("_excluded"):
                     new_txs += 1
 
         # Créer une notification in-app pour informer l'utilisateur du résultat
-        if matches > 0 or new_txs > 0:
+        if matches > 0 or coming_matches > 0 or new_txs > 0:
             notif_msg = []
             if matches == 1:
-                notif_msg.append("1 opération prête à pointer")
+                notif_msg.append("1 opération à rapprocher")
             elif matches > 1:
-                notif_msg.append(f"{matches} opérations prêtes à pointer")
+                notif_msg.append(f"{matches} opérations à rapprocher")
+            if coming_matches == 1:
+                notif_msg.append("1 opération en attente")
+            elif coming_matches > 1:
+                notif_msg.append(f"{coming_matches} opérations en attente")
             if new_txs == 1:
                 notif_msg.append("1 nouvelle opération")
             elif new_txs > 1:
@@ -569,6 +579,7 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
                     "conn_id": conn.id,
                     "conn_label": conn.label,
                     "matches": matches,
+                    "coming": coming_matches,
                     "new_txs": new_txs
                 }),
                 is_read=False,

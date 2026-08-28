@@ -52,11 +52,11 @@ Object.assign(window.BankSyncView, {
                 this._stopSyncPollingTracker();
                 this.setButtonsState('success');
                 setTimeout(() => this.setButtonsState('idle'), 3000);
-                await this.refreshActiveViews();
-                if (this.connections && this.connections.length > 0) this.loadConnections();
-                if (window.app && typeof window.app.loadNotifications === 'function') {
-                    window.app.loadNotifications();
-                }
+                Promise.all([
+                    (window.app && typeof window.app.loadNotifications === 'function') ? window.app.loadNotifications() : Promise.resolve(),
+                    this.refreshActiveViews(),
+                    (this.connections && this.connections.length > 0) ? this.loadConnections() : Promise.resolve()
+                ]);
             }
         } catch (_) {}
     },
@@ -74,11 +74,11 @@ Object.assign(window.BankSyncView, {
                     if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
                         window.app.setFastNotificationsPolling(false);
                     }
-                    await this.refreshActiveViews();
-                    if (this.connections && this.connections.length > 0) this.loadConnections();
-                    if (window.app && typeof window.app.loadNotifications === 'function') {
-                        window.app.loadNotifications();
-                    }
+                    Promise.all([
+                        (window.app && typeof window.app.loadNotifications === 'function') ? window.app.loadNotifications() : Promise.resolve(),
+                        this.refreshActiveViews(),
+                        (this.connections && this.connections.length > 0) ? this.loadConnections() : Promise.resolve()
+                    ]);
                     return;
                 }
             } catch (e) {
