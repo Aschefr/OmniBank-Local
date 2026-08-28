@@ -15,11 +15,11 @@ window.ReconciliationStates = {
     /**
      * États possibles retournés dans `state` :
      * - 'skipped'           : Opération ignorée (is_skipped)
-     * - 'reconciled'        : Pointée, conforme (pas de discordance)
-     * - 'reconciled_discrepancy' : Pointée, mais en attente en ligne (discordance)
-     * - 'match_coming'      : Non pointée, matchée avec opération à venir
-     * - 'match_confirmed'   : Non pointée, matchée avec opération confirmée
-     * - 'unmatched'         : Non pointée, aucun match bancaire
+     * - 'reconciled'        : Rapprochée, conforme (pas de discordance)
+     * - 'reconciled_discrepancy' : Rapprochée, mais en attente en ligne (discordance)
+     * - 'match_coming'      : Non rapprochée, matchée avec opération à venir
+     * - 'match_confirmed'   : Non rapprochée, matchée avec opération confirmée
+     * - 'unmatched'         : Non rapprochée, aucun match bancaire
      */
 
     resolve(tx, options = {}) {
@@ -41,38 +41,38 @@ window.ReconciliationStates = {
             };
         }
 
-        // ── 2. Pointée ──
+        // ── 2. Rapprochée ──
         if (isReconciled) {
             const dateStr = formatDate(tx.reconciliation_date);
 
-            // 2a. Pointée avec discordance d'état (en attente en ligne)
+            // 2a. Rapprochée avec discordance d'état (en attente en ligne)
             if (hasDiscrepancy) {
-                const badgeTip = (i18n.t('bank_badge_discrepancy_tooltip') || "Discordance d'état : cette opération est pointée dans OmniBank, mais apparaît encore dans les opérations en attente (non imputées) de votre banque en ligne.").replace(/"/g, '&quot;');
+                const badgeTip = (i18n.t('bank_badge_discrepancy_tooltip') || "Discordance d'état : cette opération est rapprochée dans OmniBank, mais apparaît encore dans les opérations en attente (non imputées) de votre banque en ligne.").replace(/"/g, '&quot;');
                 const badgeLbl = i18n.t('bank_badge_discrepancy') || 'En attente en ligne';
                 const toggleFn = this._getToggleFn(tx.id, view);
 
                 return {
                     state: 'reconciled_discrepancy',
                     html: `<div class="recon-cell-stack">
-                        <span class="recon-date-link" onclick="${toggleFn}" title="${i18n.t('tooltip_cancel_reconciliation') || 'Cliquer pour annuler le pointage'}">${dateStr}</span>
+                        <span class="recon-date-link" onclick="${toggleFn}" title="${i18n.t('tooltip_cancel_reconciliation') || 'Cliquer pour annuler le rapprochement'}">${dateStr}</span>
                         <span class="recon-badge recon-discrepancy" title="${badgeTip}">⏳ <span>${badgeLbl}</span></span>
                     </div>`
                 };
             }
 
-            // 2b. Pointée, conforme
+            // 2b. Rapprochée, conforme
             const toggleFn = this._getToggleFn(tx.id, view);
             return {
                 state: 'reconciled',
-                html: `<span class="recon-date-link" onclick="${toggleFn}" title="${i18n.t('tooltip_cancel_reconciliation') || 'Cliquer pour annuler le pointage'}"><span style="color:#10b981; font-weight:700; margin-right:4px; font-size:11px;">✔</span>${dateStr}</span>`
+                html: `<span class="recon-date-link" onclick="${toggleFn}" title="${i18n.t('tooltip_cancel_reconciliation') || 'Cliquer pour annuler le rapprochement'}"><span style="color:#10b981; font-weight:700; margin-right:4px; font-size:11px;">✔</span>${dateStr}</span>`
             };
         }
 
-        // ── 3. Non pointée, match bancaire détecté ──
+        // ── 3. Non rapprochée, match bancaire détecté ──
         if (matchInfo) {
             // 3a. Match avec opération à venir (non encore imputée)
             if (matchInfo.is_coming) {
-                const comingTip = (i18n.t('bank_sync_coming_tooltip') || 'Opération détectée dans les opérations à venir de votre banque.').replace(/"/g, '&quot;');
+                const comingTip = (i18n.t('bank_sync_coming_tooltip') || 'Opération détectée dans les opérations à venir de votre banque. Elle sera rapprochée dès son débit effectif.').replace(/"/g, '&quot;');
                 const comingBadge = i18n.t('bank_sync_coming_badge') || 'À venir';
 
                 if (view === 'overview') {
@@ -88,7 +88,7 @@ window.ReconciliationStates = {
             }
 
             // 3b. Match avec opération confirmée (imputée en banque)
-            const onlineTip = (i18n.t('bank_badge_found_online_tooltip') || 'Opération trouvée sur votre relevé bancaire. Cliquez pour pointer en 1 clic !').replace(/"/g, '&quot;');
+            const onlineTip = (i18n.t('bank_badge_found_online_tooltip') || 'Opération trouvée sur votre relevé bancaire. Cliquez pour rapprocher en 1 clic !').replace(/"/g, '&quot;');
             const onlineBadge = i18n.t('bank_badge_found_online') || 'Trouvé en banque';
 
             if (view === 'overview') {
@@ -103,7 +103,7 @@ window.ReconciliationStates = {
             };
         }
 
-        // ── 4. Non pointée, aucun match ──
+        // ── 4. Non rapprochée, aucun match ──
         const reconLabel = i18n.t('btn_reconcile') || '✓ Rapprocher';
         const toggleFn = this._getToggleFn(tx.id, view);
 

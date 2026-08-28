@@ -336,7 +336,7 @@ window.FormView = {
         const alertEl = document.getElementById('op_recon_discrepancy_alert');
         if (alertEl) {
             if (tx && tx.id && window.BankSyncView?.pendingDiscrepancies?.[tx.id]) {
-                const infoMsg = window.i18n ? window.i18n.t('form_reconciled_pending_discrepancy_info') || 'Cette opération est pointée dans OmniBank, mais apparaît encore dans les opérations en attente sur votre compte bancaire en ligne.' : 'Cette opération est pointée dans OmniBank, mais apparaît encore dans les opérations en attente sur votre compte bancaire en ligne.';
+                const infoMsg = window.i18n ? window.i18n.t('form_reconciled_pending_discrepancy_info') || 'Cette opération est rapprochée dans OmniBank, mais apparaît encore dans les opérations en attente sur votre compte bancaire en ligne.' : 'Cette opération est rapprochée dans OmniBank, mais apparaît encore dans les opérations en attente sur votre compte bancaire en ligne.';
                 const badgeLbl = window.i18n ? window.i18n.t('bank_badge_discrepancy') || 'En attente en ligne' : 'En attente en ligne';
                 alertEl.innerHTML = `⚠️ <strong>${badgeLbl} :</strong> ${infoMsg}`;
                 alertEl.style.display = 'block';

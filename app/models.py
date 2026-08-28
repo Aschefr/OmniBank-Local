@@ -216,12 +216,14 @@ class ChatMessage(Base):
 class Notification(Base):
     __tablename__ = "notifications"
     id = Column(Integer, primary_key=True, index=True)
-    type = Column(String)  # 'system' or 'ai_report'
+    type = Column(String)  # 'system', 'ai_report', 'bank_sync', 'bank_sync_error', 'file_import', etc.
     title = Column(String)
     content = Column(Text)
     detailed_content = Column(Text, nullable=True)
     link_data = Column(Text, nullable=True)  # JSON field containing click action metadata (e.g. {"session_id": 123})
     is_read = Column(Boolean, default=False)
+    is_archived = Column(Boolean, default=False, nullable=False, index=True)
+    archived_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=_utcnow)
 
 

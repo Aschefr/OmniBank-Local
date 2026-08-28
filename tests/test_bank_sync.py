@@ -212,6 +212,79 @@ def test_auto_sync_settings_and_pending():
     assert "Échec relevé" in notifs[0].title
 
 
+def test_auto_sync_notification_coming_distinction(monkeypatch):
+    """Vérifie qu'une synchronisation automatique distinguant 1 op à rapprocher et 1 op en attente génère le bon libellé."""
+    import json
+    from app.services.bank_sync_scheduler import execute_auto_sync_for_connection
+    from app.services.bank_sync_service import BankSyncService
+    from app.models import Notification
+
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+    conn = BankConnection(backend="cragr", label="Crédit Agricole Test", is_active=True)
+    test_db.add(conn)
+    test_db.commit()
+    test_db.refresh(conn)
+
+    mock_preview = {
+        "accounts": [
+            {
+                "account_id": 1,
+                "transactions": [
+                    {
+                        "date_operation": "2026-08-28",
+                        "description": "Opération Confirmée",
+                        "amount": 50.0,
+                        "raw_amount": -50.0,
+                        "is_reconciled": True,
+                        "already_reconciled": False,
+                        "matched_db_id": 101,
+                        "is_coming": False
+                    },
+                    {
+                        "date_operation": "2026-08-29",
+                        "description": "Paiement Carte En Attente",
+                        "amount": 25.0,
+                        "raw_amount": -25.0,
+                        "is_reconciled": True,
+                        "already_reconciled": False,
+                        "matched_db_id": 102,
+                        "is_coming": True
+                    },
+                    {
+                        "date_operation": "2026-08-30",
+                        "description": "Nouvelle transaction",
+                        "amount": 10.0,
+                        "raw_amount": -10.0,
+                        "is_reconciled": False,
+                        "is_coming": False
+                    }
+                ]
+            }
+        ]
+    }
+
+    monkeypatch.setattr(BankSyncService, "fetch_preview_transactions", lambda **kwargs: mock_preview)
+
+    execute_auto_sync_for_connection(test_db, conn, "dummy_pw")
+
+    notif = test_db.query(Notification).filter(
+        Notification.type == "bank_sync",
+        Notification.title.contains("Crédit Agricole Test")
+    ).order_by(Notification.id.desc()).first()
+
+    assert notif is not None
+    assert "1 opération à rapprocher" in notif.content
+    assert "1 opération en attente" in notif.content
+    assert "1 nouvelle opération" in notif.content
+    assert "pointer" not in notif.content.lower()
+
+    link_data = json.loads(notif.link_data)
+    assert link_data["matches"] == 1
+    assert link_data["coming"] == 1
+    assert link_data["new_txs"] == 1
+
+
+
 def test_ghost_rows_endpoints_lifecycle():
     from app.services.bank_sync_scheduler import _PENDING_SYNC_DATA, save_pending_sync_data
     client = TestClient(fastapi_app)

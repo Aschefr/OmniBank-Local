@@ -33,7 +33,7 @@ window.OverviewView = {
                                 <option value="">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</option>
                             </select>
                         </div>
-                        <button class="overview-bank-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à pointer et actualiser vos soldes sans bloquer l\'interface.'}">
+                        <button class="overview-bank-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}">
                             <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
                         </button>
                         <button class="btn btn-primary overview-add-btn" onclick="window.OverviewView.showAddModal()" data-i18n="btn_add_operation">
@@ -428,8 +428,8 @@ window.OverviewView = {
 
         let discrepancyHtml = '';
         if (totalDiscrepancies > 0) {
-            const discMsg = window.i18n && window.i18n.tp ? window.i18n.tp('bank_sync_banner_discrepancies', { count: totalDiscrepancies }) : `${totalDiscrepancies} pointée(s) en attente banque`;
-            discrepancyHtml = ` • <span style="color: #d97706; font-weight: 600; cursor: help;" title="${(window.i18n ? window.i18n.t('bank_sync_discrepancy_tooltip') : 'Opérations pointées dans OmniBank mais encore en attente à la banque.').replace(/"/g, '&quot;')}">⏳ ${discMsg}</span>`;
+            const discMsg = window.i18n && window.i18n.tp ? window.i18n.tp('bank_sync_banner_discrepancies', { count: totalDiscrepancies }) : `${totalDiscrepancies} rapprochée(s) en attente banque`;
+            discrepancyHtml = ` • <span style="color: #d97706; font-weight: 600; cursor: help;" title="${(window.i18n ? window.i18n.t('bank_sync_discrepancy_tooltip') : 'Opérations rapprochées dans OmniBank mais encore en attente à la banque.').replace(/"/g, '&quot;')}">⏳ ${discMsg}</span>`;
         }
 
         let balanceStatusHtml = '';
@@ -834,7 +834,7 @@ window.OverviewView = {
                     </td>
                     <td class="ov-td-cat">${catLabel}</td>
                     ${authorHtml}
-                    <td class="ov-td-amt privacy-blur" style="color: ${amtColor}; font-weight: 700;">${amtFormatted}</td>
+                    <td class="ov-td-amt" style="text-align: right;"><span class="privacy-blur" style="color: ${amtColor}; font-weight: 700;">${amtFormatted}</span></td>
                     <td class="ov-td-action" style="text-align: right; white-space: nowrap;">
                         <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end;">
                             <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11.5px; padding: 0 10px; border-radius: 6px; height: 26px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
@@ -903,7 +903,7 @@ window.OverviewView = {
                     <td class="ov-td-desc" title="${escapeHtml(tx.description || '')}">${escapeHtml(tx.description || '—')}</td>
                     <td class="ov-td-cat"><span class="overview-cat-badge">${escapeHtml(catLabel)}</span></td>
                     ${authorHtml}
-                    <td class="ov-td-amt privacy-blur" style="color: ${amountColor}; font-weight: 700;">${formatCurrency(tx.amount)}</td>
+                    <td class="ov-td-amt" style="text-align: right;"><span class="privacy-blur" style="color: ${amountColor}; font-weight: 700;">${formatCurrency(tx.amount)}</span></td>
                     <td class="ov-td-action" style="text-align: right; white-space: nowrap;">
                         <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
                             ${reconBtnHtml}

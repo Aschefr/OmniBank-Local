@@ -550,6 +550,26 @@ def init_db(target_engine=None):
                 pass
             conn.commit()
 
+        if schema_version < 22:
+            # Schema v22: Notification archiving support
+            try:
+                conn.execute(text("ALTER TABLE notifications ADD COLUMN is_archived BOOLEAN DEFAULT 0"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE notifications ADD COLUMN archived_at TIMESTAMP"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_archived_created ON notifications (is_archived, created_at)"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '22')"))
+            except Exception:
+                pass
+            conn.commit()
+
 
 
 
