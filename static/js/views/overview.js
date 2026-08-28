@@ -8,6 +8,9 @@ window.OverviewView = {
     _horizon: 'cycle', // 'cycle' (jusqu'à la paye / fin de mois) ou 'all' (toutes les futures)
     _trendMode: 'expenses', // 'expenses', 'compare', 'balance'
     _top6Filter: 'all', // 'all', 'fixed', 'var'
+    _statsGranularity: 'month', // 'month', 'week', 'day', 'hour'
+    _statsLookback: '6m', // 'all', '12m', '6m', '3m', '1m', '1w'
+    _cachedMonthlyAverages: { income: 0, fixed: 0, variable: 0 },
     _stats: null,
     _accounts: [],
     _transactions: [],
@@ -91,6 +94,86 @@ window.OverviewView = {
                             <div class="overview-hero-label" data-i18n="overview_overdraft_risk">${window.i18n.t('overview_overdraft_risk')}</div>
                             <div class="overview-hero-value privacy-blur text-red" id="ovOverdraftAmount">—</div>
                             <div class="overview-hero-sub" id="ovOverdraftDate"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Sober & Discreet Real-Time Financial Rhythm Badges -->
+                <div class="overview-rhythm-strip" id="ovRhythmStrip">
+                    <div class="overview-rhythm-header">
+                        <div class="overview-rhythm-title">
+                            <span class="overview-rhythm-icon">⏱️</span>
+                            <span class="overview-rhythm-label" data-i18n="overview_rhythm_title">${window.i18n.t('overview_rhythm_title') || 'Moyennes & Rythme'}</span>
+                        </div>
+                        <div class="overview-rhythm-controls">
+                            <!-- Sélecteur de période analysée (lookback) -->
+                            <div class="overview-rhythm-control-group">
+                                <span class="overview-control-label" data-i18n="overview_lookback_label">${window.i18n.t('overview_lookback_label') || 'Période :'}</span>
+                                <div class="overview-rhythm-segmented" id="ovLookbackGroup">
+                                    <button class="ov-seg-btn ${this._statsLookback === 'all' ? 'active' : ''}" onclick="window.OverviewView.setStatsLookback('all')" data-i18n="overview_lookback_all">${window.i18n.t('overview_lookback_all') || 'Tout'}</button>
+                                    <button class="ov-seg-btn ${this._statsLookback === '12m' ? 'active' : ''}" onclick="window.OverviewView.setStatsLookback('12m')" data-i18n="overview_lookback_12m">${window.i18n.t('overview_lookback_12m') || '1 an'}</button>
+                                    <button class="ov-seg-btn ${this._statsLookback === '6m' ? 'active' : ''}" onclick="window.OverviewView.setStatsLookback('6m')" data-i18n="overview_lookback_6m">${window.i18n.t('overview_lookback_6m') || '6m'}</button>
+                                    <button class="ov-seg-btn ${this._statsLookback === '3m' ? 'active' : ''}" onclick="window.OverviewView.setStatsLookback('3m')" data-i18n="overview_lookback_3m">${window.i18n.t('overview_lookback_3m') || '3m'}</button>
+                                    <button class="ov-seg-btn ${this._statsLookback === '1m' ? 'active' : ''}" onclick="window.OverviewView.setStatsLookback('1m')" data-i18n="overview_lookback_1m">${window.i18n.t('overview_lookback_1m') || '1m'}</button>
+                                    <button class="ov-seg-btn ${this._statsLookback === '1w' ? 'active' : ''}" onclick="window.OverviewView.setStatsLookback('1w')" data-i18n="overview_lookback_1w">${window.i18n.t('overview_lookback_1w') || '1 sem.'}</button>
+                                </div>
+                            </div>
+                            <!-- Sélecteur d'unité d'affichage (granularity) -->
+                            <div class="overview-rhythm-control-group">
+                                <span class="overview-control-label" data-i18n="overview_granularity_label">${window.i18n.t('overview_granularity_label') || 'Affichage :'}</span>
+                                <div class="overview-rhythm-segmented" id="ovGranularityGroup">
+                                    <button class="ov-seg-btn ${this._statsGranularity === 'month' ? 'active' : ''}" onclick="window.OverviewView.setStatsGranularity('month')" data-i18n="overview_granularity_month">${window.i18n.t('overview_granularity_month') || 'Mois'}</button>
+                                    <button class="ov-seg-btn ${this._statsGranularity === 'week' ? 'active' : ''}" onclick="window.OverviewView.setStatsGranularity('week')" data-i18n="overview_granularity_week">${window.i18n.t('overview_granularity_week') || 'Semaine'}</button>
+                                    <button class="ov-seg-btn ${this._statsGranularity === 'day' ? 'active' : ''}" onclick="window.OverviewView.setStatsGranularity('day')" data-i18n="overview_granularity_day">${window.i18n.t('overview_granularity_day') || 'Jour'}</button>
+                                    <button class="ov-seg-btn ${this._statsGranularity === 'hour' ? 'active' : ''}" onclick="window.OverviewView.setStatsGranularity('hour')" data-i18n="overview_granularity_hour">${window.i18n.t('overview_granularity_hour') || 'Heure'}</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overview-rhythm-badges">
+                        <!-- Badge 1: Revenus -->
+                        <div class="overview-rhythm-badge badge-income" data-i18n-title="overview_rhythm_income_tooltip" title="${window.i18n.t('overview_rhythm_income_tooltip') || 'Revenu moyen calculé sur les 6 derniers mois'}">
+                            <div class="overview-badge-dot"></div>
+                            <div class="overview-badge-info">
+                                <span class="overview-badge-label" data-i18n="overview_rhythm_income">${window.i18n.t('overview_rhythm_income') || 'Revenus'}</span>
+                                <div class="overview-badge-value-wrapper">
+                                    <span class="overview-badge-value privacy-blur" id="ovRhythmIncome">—</span>
+                                    <span class="overview-badge-unit" id="ovRhythmUnitIncome">/ mois</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Badge 2: Dépenses Fixes -->
+                        <div class="overview-rhythm-badge badge-fixed" data-i18n-title="overview_rhythm_fixed_tooltip" title="${window.i18n.t('overview_rhythm_fixed_tooltip') || 'Dépenses fixes moyennes (loyer, abonnements, crédits...)'}">
+                            <div class="overview-badge-dot"></div>
+                            <div class="overview-badge-info">
+                                <span class="overview-badge-label" data-i18n="overview_rhythm_fixed">${window.i18n.t('overview_rhythm_fixed') || 'Dépenses Fixes'}</span>
+                                <div class="overview-badge-value-wrapper">
+                                    <span class="overview-badge-value privacy-blur" id="ovRhythmFixed">—</span>
+                                    <span class="overview-badge-unit" id="ovRhythmUnitFixed">/ mois</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Badge 3: Dépenses Variables -->
+                        <div class="overview-rhythm-badge badge-var" data-i18n-title="overview_rhythm_var_tooltip" title="${window.i18n.t('overview_rhythm_var_tooltip') || 'Dépenses variables moyennes (courses, loisirs, imprévus...)'}">
+                            <div class="overview-badge-dot"></div>
+                            <div class="overview-badge-info">
+                                <span class="overview-badge-label" data-i18n="overview_rhythm_var">${window.i18n.t('overview_rhythm_var') || 'Dépenses Variables'}</span>
+                                <div class="overview-badge-value-wrapper">
+                                    <span class="overview-badge-value privacy-blur" id="ovRhythmVar">—</span>
+                                    <span class="overview-badge-unit" id="ovRhythmUnitVar">/ mois</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Badge 4: Solde Net / Flux Net -->
+                        <div class="overview-rhythm-badge badge-net" data-i18n-title="overview_rhythm_net_tooltip" title="${window.i18n.t('overview_rhythm_net_tooltip') || 'Flux net moyen restant (Revenus − Total Dépenses)'}">
+                            <div class="overview-badge-dot"></div>
+                            <div class="overview-badge-info">
+                                <span class="overview-badge-label" data-i18n="overview_rhythm_net">${window.i18n.t('overview_rhythm_net') || 'Solde Net'}</span>
+                                <div class="overview-badge-value-wrapper">
+                                    <span class="overview-badge-value privacy-blur" id="ovRhythmNet">—</span>
+                                    <span class="overview-badge-unit" id="ovRhythmUnitNet">/ mois</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -234,7 +317,7 @@ window.OverviewView = {
                 API.get('/api/config/'),
                 API.get('/api/stats/dashboard'),
                 API.get('/api/stats/accounts'),
-                API.get('/api/transactions/?limit=1000')
+                API.get('/api/transactions/?limit=10000')
             ]);
 
             if (config) {
@@ -253,12 +336,22 @@ window.OverviewView = {
                 if (config.overview_top6_filter !== undefined) {
                     this._top6Filter = config.overview_top6_filter;
                 }
+                if (config.overview_stats_granularity !== undefined) {
+                    this._statsGranularity = config.overview_stats_granularity;
+                }
+                if (config.overview_stats_lookback !== undefined) {
+                    this._statsLookback = config.overview_stats_lookback;
+                }
             }
             if (window.ProfileStorage) {
                 const savedTop6 = window.ProfileStorage.get('overview_top6_filter');
                 if (savedTop6) this._top6Filter = savedTop6;
                 const savedHorizon = window.ProfileStorage.get('overview_horizon');
                 if (savedHorizon) this._horizon = savedHorizon;
+                const savedGranularity = window.ProfileStorage.get('overview_stats_granularity');
+                if (savedGranularity) this._statsGranularity = savedGranularity;
+                const savedLookback = window.ProfileStorage.get('overview_stats_lookback');
+                if (savedLookback) this._statsLookback = savedLookback;
             }
 
             this._stats = stats;
@@ -271,8 +364,11 @@ window.OverviewView = {
             this._updateActiveTabUI();
             this._updateHorizonUI();
             this._updateTrendModeUI();
+            this._updateStatsGranularityUI();
+            this._updateStatsLookbackUI();
             this._renderHealthBadge(stats);
             this._renderHero(stats);
+            this._calculateAverages();
             const isOrgMode = window.app?.config?.enable_org_mode === 'true' || window.app?.config?.enable_org_mode === true;
             const horizonSelector = document.getElementById('ovHorizonSelector');
             if (horizonSelector) horizonSelector.style.display = isOrgMode ? 'none' : 'inline-flex';
@@ -364,6 +460,7 @@ window.OverviewView = {
         this._renderTop3(this._transactions);
         this._renderBudgets(this._stats);
         this._renderSavings(this._stats);
+        this._calculateAverages();
         this._renderTrend();
     },
 
@@ -1213,6 +1310,210 @@ window.OverviewView = {
         container.innerHTML = html;
     },
 
+    setStatsGranularity(granularity) {
+        this._statsGranularity = granularity || 'month';
+        if (window.ProfileStorage) {
+            window.ProfileStorage.set('overview_stats_granularity', this._statsGranularity);
+        }
+        this.saveConfig({ overview_stats_granularity: this._statsGranularity });
+        this._updateStatsGranularityUI();
+        this._renderRhythmBadges();
+    },
+
+    _updateStatsGranularityUI() {
+        const group = document.getElementById('ovGranularityGroup');
+        if (!group) return;
+        group.querySelectorAll('.ov-seg-btn').forEach(btn => {
+            const onclickStr = btn.getAttribute('onclick') || '';
+            btn.classList.toggle('active', onclickStr.includes(`'${this._statsGranularity}'`));
+        });
+    },
+
+    setStatsLookback(lookback) {
+        this._statsLookback = lookback || '6m';
+        if (window.ProfileStorage) {
+            window.ProfileStorage.set('overview_stats_lookback', this._statsLookback);
+        }
+        this.saveConfig({ overview_stats_lookback: this._statsLookback });
+        this._updateStatsLookbackUI();
+        this._calculateAverages();
+    },
+
+    _updateStatsLookbackUI() {
+        const group = document.getElementById('ovLookbackGroup');
+        if (!group) return;
+        group.querySelectorAll('.ov-seg-btn').forEach(btn => {
+            const onclickStr = btn.getAttribute('onclick') || '';
+            btn.classList.toggle('active', onclickStr.includes(`'${this._statsLookback}'`));
+        });
+    },
+
+    _calculateAverages() {
+        const transactions = this._transactions || [];
+        const lookback = this._statsLookback || '6m';
+        const accIdStr = this._selectedAccountId ? String(this._selectedAccountId) : null;
+
+        const today = new Date();
+        const todayISO = today.toISOString().split('T')[0];
+
+        // Calcul de la date de début selon le lookback
+        let startDateISO = null;
+        let nbDays = 180; // défaut 6 mois
+
+        if (lookback === '1w') {
+            const d = new Date(today);
+            d.setDate(d.getDate() - 7);
+            startDateISO = d.toISOString().split('T')[0];
+            nbDays = 7;
+        } else if (lookback === '1m') {
+            const d = new Date(today);
+            d.setDate(d.getDate() - 30);
+            startDateISO = d.toISOString().split('T')[0];
+            nbDays = 30;
+        } else if (lookback === '3m') {
+            const d = new Date(today);
+            d.setDate(d.getDate() - 90);
+            startDateISO = d.toISOString().split('T')[0];
+            nbDays = 90;
+        } else if (lookback === '6m') {
+            const d = new Date(today);
+            d.setDate(d.getDate() - 180);
+            startDateISO = d.toISOString().split('T')[0];
+            nbDays = 180;
+        } else if (lookback === '12m') {
+            const d = new Date(today);
+            d.setDate(d.getDate() - 365);
+            startDateISO = d.toISOString().split('T')[0];
+            nbDays = 365;
+        } else if (lookback === 'all') {
+            startDateISO = '1900-01-01';
+        }
+
+        // Filtrer les transactions
+        let totalIncome = 0;
+        let totalFixed = 0;
+        let totalVar = 0;
+        let earliestDate = null;
+
+        for (const tx of transactions) {
+            if (tx.is_skipped) continue;
+            const txDate = (tx.date_operation || '').substring(0, 10);
+            if (!txDate) continue;
+            if (txDate > todayISO) continue; // Uniquement le passé / réalisé jusqu'à aujourd'hui
+            if (startDateISO && txDate < startDateISO) continue;
+
+            const fromMatch = accIdStr ? String(tx.from_account_id) === accIdStr : false;
+            const toMatch = accIdStr ? String(tx.to_account_id) === accIdStr : false;
+            if (accIdStr && !fromMatch && !toMatch) continue;
+
+            const isInternalTransfer = tx.from_account_id && tx.to_account_id;
+            if (!accIdStr && isInternalTransfer) continue;
+
+            if (!earliestDate || txDate < earliestDate) {
+                earliestDate = txDate;
+            }
+
+            const amt = Math.abs(tx.amount || 0);
+
+            if (accIdStr) {
+                if (fromMatch && toMatch) {
+                    continue;
+                } else if (toMatch) {
+                    totalIncome += amt;
+                } else if (fromMatch) {
+                    if (tx.type === 'expense_fixed') {
+                        totalFixed += amt;
+                    } else {
+                        totalVar += amt;
+                    }
+                }
+            } else {
+                if (tx.type === 'income') {
+                    totalIncome += amt;
+                } else if (tx.type === 'expense_fixed') {
+                    totalFixed += amt;
+                } else if (tx.type === 'expense_var') {
+                    totalVar += amt;
+                } else if (tx.type !== 'transfer') {
+                    totalVar += amt;
+                }
+            }
+        }
+
+        if (lookback === 'all') {
+            if (earliestDate) {
+                const earliest = new Date(earliestDate);
+                const diffTime = Math.abs(today - earliest);
+                nbDays = Math.max(Math.ceil(diffTime / (1000 * 60 * 60 * 24)), 1);
+            } else {
+                nbDays = 30;
+            }
+        }
+
+        const dailyIncome = totalIncome / nbDays;
+        const dailyFixed = totalFixed / nbDays;
+        const dailyVar = totalVar / nbDays;
+
+        const daysInMonth = 365.25 / 12;
+        this._cachedMonthlyAverages = {
+            income: dailyIncome * daysInMonth,
+            fixed: dailyFixed * daysInMonth,
+            variable: dailyVar * daysInMonth
+        };
+
+        this._renderRhythmBadges();
+    },
+
+    _renderRhythmBadges() {
+        const incEl = document.getElementById('ovRhythmIncome');
+        const fixEl = document.getElementById('ovRhythmFixed');
+        const varEl = document.getElementById('ovRhythmVar');
+        const netEl = document.getElementById('ovRhythmNet');
+        if (!incEl || !fixEl || !varEl || !netEl) return;
+
+        const averages = this._cachedMonthlyAverages || { income: 0, fixed: 0, variable: 0 };
+        const granularity = this._statsGranularity || 'month';
+
+        let divisor = 1;
+        let unitKey = 'unit_per_month';
+        let defaultUnit = '/ mois';
+
+        if (granularity === 'week') {
+            divisor = 52 / 12; // ~4.3333 semaines par mois
+            unitKey = 'unit_per_week';
+            defaultUnit = '/ sem.';
+        } else if (granularity === 'day') {
+            divisor = 365.25 / 12; // ~30.4375 jours par mois
+            unitKey = 'unit_per_day';
+            defaultUnit = '/ jour';
+        } else if (granularity === 'hour') {
+            divisor = (365.25 * 24) / 12; // ~730.5 heures par mois
+            unitKey = 'unit_per_hour';
+            defaultUnit = '/ heure';
+        }
+
+        const unitLabel = window.i18n.t(unitKey) || defaultUnit;
+
+        // Mise à jour des suffixes d'unité
+        ['Income', 'Fixed', 'Var', 'Net'].forEach(k => {
+            const uEl = document.getElementById(`ovRhythmUnit${k}`);
+            if (uEl) uEl.textContent = unitLabel;
+        });
+
+        const incVal = averages.income / divisor;
+        const fixVal = averages.fixed / divisor;
+        const varVal = averages.variable / divisor;
+        const netVal = (averages.income - averages.fixed - averages.variable) / divisor;
+
+        incEl.textContent = formatCurrency(incVal);
+        fixEl.textContent = formatCurrency(fixVal);
+        varEl.textContent = formatCurrency(varVal);
+
+        const sign = netVal > 0 ? '+' : '';
+        netEl.textContent = `${sign}${formatCurrency(netVal)}`;
+        netEl.style.color = netVal >= 0 ? '#10b981' : '#ef4444';
+    },
+
     async _renderTrend() {
         const canvas = document.getElementById('ovTrendChart');
         const legendContainer = document.getElementById('ovTrendLegend');
@@ -1237,6 +1538,9 @@ window.OverviewView = {
                 monthKeys.push(mk);
                 monthLabels.push(`${monthNames[d.getMonth()]} ${d.getFullYear() % 100}`);
             }
+
+            // Calculer et afficher les moyennes & rythme financier
+            this._calculateAverages();
 
             const expenseTotals = monthKeys.map(mk => {
                 let total = 0;
