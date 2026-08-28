@@ -76,11 +76,21 @@ Object.assign(window.BankSyncView, {
         if (!pillText || !this.vaultStatus?.is_unlocked) return;
 
         const timeStr = this.formatVaultRemaining(this.vaultStatus.remaining_seconds);
-        const unlockedLabel = window.i18n ? window.i18n.t('bank_sync_vault_unlocked') : 'Déverrouillé';
-        pillText.textContent = `${unlockedLabel} (${timeStr})`;
-        if (pillSpan) {
-            const tooltipTpl = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_tooltip') : 'Coffre-fort déverrouillé en mémoire (reverrouillage automatique dans {time}). Cliquez pour verrouiller immédiatement.';
-            pillSpan.title = tooltipTpl.replace('{time}', timeStr);
+        const hasToken = !!this.getVaultToken();
+        if (hasToken) {
+            const unlockedLabel = window.i18n ? window.i18n.t('bank_sync_vault_unlocked') : 'Déverrouillé';
+            pillText.textContent = `${unlockedLabel} (${timeStr})`;
+            if (pillSpan) {
+                const tooltipTpl = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_tooltip') : 'Coffre-fort déverrouillé en mémoire (reverrouillage automatique dans {time}). Cliquez pour verrouiller immédiatement.';
+                pillSpan.title = tooltipTpl.replace('{time}', timeStr);
+            }
+        } else {
+            const remoteLabel = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_remote') || 'Actif sur serveur' : 'Actif sur serveur';
+            pillText.textContent = `${remoteLabel} (${timeStr})`;
+            if (pillSpan) {
+                const remoteTooltip = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_remote_tooltip') || 'Le coffre-fort est déverrouillé sur le serveur (relevés automatiques opérationnels). Cliquez pour autoriser ce navigateur avec votre mot de passe maître.' : 'Le coffre-fort est déverrouillé sur le serveur (relevés automatiques opérationnels). Cliquez pour autoriser ce navigateur avec votre mot de passe maître.';
+                pillSpan.title = remoteTooltip;
+            }
         }
     },
 
@@ -115,6 +125,7 @@ Object.assign(window.BankSyncView, {
         }
 
         const isUnlocked = !!this.vaultStatus?.is_unlocked;
+        const hasToken = !!this.getVaultToken();
         const isAutoSyncEnabled = !!this.autoSyncSettings?.enabled;
         const interval = this.autoSyncSettings?.interval_hours || 24;
 
@@ -126,7 +137,7 @@ Object.assign(window.BankSyncView, {
                 this.stopVaultCountdown();
             } else {
                 pill.style.display = 'inline-flex';
-                if (isUnlocked) {
+                if (isUnlocked && hasToken) {
                     const timeStr = this.formatVaultRemaining(this.vaultStatus?.remaining_seconds || 0);
                     const unlockedLabel = window.i18n ? window.i18n.t('bank_sync_vault_unlocked') : 'Déverrouillé';
                     const tooltipTpl = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_tooltip') : 'Coffre-fort déverrouillé en mémoire (reverrouillage automatique dans {time}). Cliquez pour verrouiller immédiatement.';
@@ -134,6 +145,18 @@ Object.assign(window.BankSyncView, {
                     pill.innerHTML = `
                         <span id="bankSyncVaultPillBtn" style="font-size: 11.5px; font-weight: 600; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.lockVault()" title="${tooltipTpl.replace('{time}', timeStr)}">
                             <span>🔓</span> <span id="bankSyncVaultPillText">${unlockedLabel} (${timeStr})</span> <span style="font-size: 11px; opacity: 0.75;" title="${lockNowTooltip}">🔒</span>
+                        </span>
+                    `;
+                    this.startVaultCountdown();
+                } else if (isUnlocked && !hasToken) {
+                    // Session active en RAM sur le serveur Docker, mais non encore authentifiée sur ce navigateur
+                    const timeStr = this.formatVaultRemaining(this.vaultStatus?.remaining_seconds || 0);
+                    const remoteLabel = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_remote') || 'Actif sur serveur' : 'Actif sur serveur';
+                    const remoteAction = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_remote_action') || '(Autoriser ce poste)' : '(Autoriser ce poste)';
+                    const remoteTooltip = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_remote_tooltip') || 'Le coffre-fort est déverrouillé sur le serveur (relevés automatiques opérationnels). Cliquez pour autoriser ce navigateur avec votre mot de passe maître.' : 'Le coffre-fort est déverrouillé sur le serveur (relevés automatiques opérationnels). Cliquez pour autoriser ce navigateur avec votre mot de passe maître.';
+                    pill.innerHTML = `
+                        <span id="bankSyncVaultPillBtn" style="font-size: 11.5px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.unlockVaultManually()" title="${remoteTooltip}">
+                            <span>🌐 🔓</span> <span id="bankSyncVaultPillText">${remoteLabel} (${timeStr})</span> <span style="font-size: 11px; text-decoration: underline; font-weight: 700;">${remoteAction}</span>
                         </span>
                     `;
                     this.startVaultCountdown();

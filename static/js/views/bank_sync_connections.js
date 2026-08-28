@@ -5,12 +5,17 @@ Object.assign(window.BankSyncView, {
 
     promptMasterPassword(title = null, message = null) {
         this.ensureModalsExist();
-        const effectiveTitle = title || (window.i18n ? window.i18n.t('bank_sync_master_pw_modal_title') : 'Déverrouillage sécurisé');
-        const effectiveMessage = message || (window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître :');
         const token = this.getVaultToken();
         if (token && this.vaultStatus?.is_unlocked) {
             return Promise.resolve("__USE_VAULT_TOKEN__");
         }
+
+        const isServerUnlockedWithoutToken = !!(this.vaultStatus?.is_unlocked && !token);
+        const defaultTitle = isServerUnlockedWithoutToken
+            ? (window.i18n ? window.i18n.t('bank_sync_auth_device_title') || 'Autoriser cet appareil' : 'Autoriser cet appareil')
+            : (window.i18n ? window.i18n.t('bank_sync_master_pw_modal_title') || 'Déverrouillage sécurisé' : 'Déverrouillage sécurisé');
+        const effectiveTitle = title || defaultTitle;
+        const effectiveMessage = message || (window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître :');
 
         return new Promise((resolve) => {
             this._pwResolve = resolve;
@@ -19,11 +24,13 @@ Object.assign(window.BankSyncView, {
             const msgEl = document.getElementById('masterPwModalMsg');
             const input = document.getElementById('masterPwModalInput');
             const errEl = document.getElementById('masterPwModalError');
+            const noticeEl = document.getElementById('masterPwModalNotice');
 
             if (titleEl) titleEl.innerText = effectiveTitle;
             if (msgEl) msgEl.innerText = effectiveMessage;
             if (input) input.value = '';
             if (errEl) errEl.style.display = 'none';
+            if (noticeEl) noticeEl.style.display = isServerUnlockedWithoutToken ? 'block' : 'none';
 
             if (modal) {
                 modal.style.display = 'flex';

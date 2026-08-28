@@ -100,7 +100,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
 
             let statusHTML = '';
             if (isReconciled) {
-                statusHTML = `<span class="badge" style="background: rgba(54, 179, 126, 0.15); color: var(--success); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">✅ ${window.i18n.t('rec_gantt_status_reconciled') || 'Pointé'}</span>`;
+                statusHTML = `<span class="badge" style="background: rgba(54, 179, 126, 0.15); color: var(--success); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">✅ ${window.i18n.t('rec_gantt_status_reconciled') || 'Rapprochée'}</span>`;
             } else if (isSkipped) {
                 statusHTML = `<span class="badge" style="background: rgba(145, 158, 171, 0.15); color: var(--text-muted); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; text-decoration: line-through; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏭️ ${window.i18n.t('rec_gantt_status_skipped') || 'Ignoré'}</span>`;
             } else {

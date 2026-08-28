@@ -18,9 +18,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
 @router.get("")
-def list_notifications(db: Session = Depends(get_db)):
-    """List all notifications sorted by newest first."""
-    return db.query(Notification).order_by(Notification.created_at.desc()).all()
+def list_notifications(archived: bool = False, db: Session = Depends(get_db)):
+    """List notifications (active by default, or archived) sorted by newest first."""
+    query = db.query(Notification).filter(Notification.is_archived == archived)
+    if archived:
+        return query.order_by(Notification.archived_at.desc(), Notification.created_at.desc()).all()
+    return query.order_by(Notification.created_at.desc()).all()
+
+@router.get("/counts")
+def get_notification_counts(db: Session = Depends(get_db)):
+    """Return count summary for active unread, active total, and archived total."""
+    active_unread = db.query(Notification).filter(Notification.is_archived == False, Notification.is_read == False).count()
+    active_total = db.query(Notification).filter(Notification.is_archived == False).count()
+    archived_total = db.query(Notification).filter(Notification.is_archived == True).count()
+    return {
+        "active_unread": active_unread,
+        "active_total": active_total,
+        "archived_total": archived_total
+    }
 
 @router.put("/{notification_id}/read")
 def mark_notification_as_read(notification_id: int, db: Session = Depends(get_db)):
@@ -34,23 +49,65 @@ def mark_notification_as_read(notification_id: int, db: Session = Depends(get_db
 
 @router.put("/read-all")
 def mark_all_notifications_as_read(db: Session = Depends(get_db)):
-    """Mark all notifications as read."""
-    db.query(Notification).filter(Notification.is_read == False).update({"is_read": True})
+    """Mark all active notifications as read."""
+    db.query(Notification).filter(Notification.is_archived == False, Notification.is_read == False).update({"is_read": True})
     db.commit()
     return {"ok": True}
+
+@router.put("/{notification_id}/archive")
+def archive_notification(notification_id: int, db: Session = Depends(get_db)):
+    """Archive a specific notification."""
+    notif = db.query(Notification).filter(Notification.id == notification_id).first()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notification non trouvée")
+    notif.is_archived = True
+    notif.archived_at = datetime.now(timezone.utc)
+    notif.is_read = True
+    db.commit()
+    return {"ok": True}
+
+@router.put("/{notification_id}/unarchive")
+def unarchive_notification(notification_id: int, db: Session = Depends(get_db)):
+    """Unarchive a specific notification, moving it back to active."""
+    notif = db.query(Notification).filter(Notification.id == notification_id).first()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notification non trouvée")
+    notif.is_archived = False
+    notif.archived_at = None
+    db.commit()
+    return {"ok": True}
+
+@router.put("/archive-all")
+def archive_all_notifications(db: Session = Depends(get_db)):
+    """Archive all active notifications."""
+    now = datetime.now(timezone.utc)
+    count = db.query(Notification).filter(Notification.is_archived == False).update({
+        "is_archived": True,
+        "archived_at": now,
+        "is_read": True
+    })
+    db.commit()
+    return {"ok": True, "archived_count": count}
+
+@router.delete("/archives/clear")
+def clear_archived_notifications(db: Session = Depends(get_db)):
+    """Permanently delete all archived notifications."""
+    deleted_count = db.query(Notification).filter(Notification.is_archived == True).delete(synchronize_session=False)
+    db.commit()
+    return {"ok": True, "deleted_count": deleted_count}
 
 @router.delete("")
 @router.delete("/")
 @router.delete("/clear-all")
 def delete_all_notifications(db: Session = Depends(get_db)):
-    """Delete all notifications for the active profile."""
-    deleted_count = db.query(Notification).delete(synchronize_session=False)
+    """Delete all active notifications for the active profile."""
+    deleted_count = db.query(Notification).filter(Notification.is_archived == False).delete(synchronize_session=False)
     db.commit()
     return {"ok": True, "deleted_count": deleted_count}
 
 @router.delete("/{notification_id}")
 def delete_notification(notification_id: int, db: Session = Depends(get_db)):
-    """Delete a specific notification."""
+    """Permanently delete a specific notification."""
     notif = db.query(Notification).filter(Notification.id == notification_id).first()
     if not notif:
         raise HTTPException(status_code=404, detail="Notification non trouvée")
@@ -66,7 +123,8 @@ def create_notification(data: dict, db: Session = Depends(get_db)):
         title=data.get("title", "Notification"),
         content=data.get("content", ""),
         link_data=data.get("link_data"),
-        is_read=False
+        is_read=False,
+        is_archived=False
     )
     db.add(notif)
     db.commit()

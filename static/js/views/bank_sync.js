@@ -220,7 +220,7 @@ window.BankSyncView = {
                     <div id="bankSyncAutoSyncCompact" class="bank-sync-auto-sync-widget" style="display: ${this.connections.length > 0 ? 'inline-flex' : 'none'};"></div>
 
 
-                    <button id="btnHeaderBgSync" class="btn btn-secondary overview-bank-sync-btn" onclick="window.BankSyncView.triggerBackgroundSyncNow()" style="display: ${this.connections.length > 0 ? 'inline-flex' : 'none'}; height: 36px; padding: 0 14px; font-size: 13px; border-radius: 9px; align-items: center; gap: 6px; font-weight: 600; box-sizing: border-box; white-space: nowrap;" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à pointer et actualiser vos soldes sans bloquer l\'interface.'}">
+                    <button id="btnHeaderBgSync" class="btn btn-secondary overview-bank-sync-btn" onclick="window.BankSyncView.triggerBackgroundSyncNow()" style="display: ${this.connections.length > 0 ? 'inline-flex' : 'none'}; height: 36px; padding: 0 14px; font-size: 13px; border-radius: 9px; align-items: center; gap: 6px; font-weight: 600; box-sizing: border-box; white-space: nowrap;" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}">
                         <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
                     </button>
 
@@ -523,7 +523,7 @@ window.BankSyncView = {
                                 <th style="padding: 10px 14px; min-width: 220px; color: var(--text-muted);" data-i18n="bank_sync_th_description">${window.i18n.t('bank_sync_th_description')}</th>
                                 <th style="padding: 10px 14px; width: 200px; color: var(--text-muted);" data-i18n="bank_sync_th_category">${window.i18n.t('bank_sync_th_category')}</th>
                                 <th style="padding: 10px 14px; width: 110px; text-align: right; color: var(--text-muted);" data-i18n="bank_sync_th_amount">${window.i18n.t('bank_sync_th_amount')}</th>
-                                <th style="padding: 10px 14px; width: 150px; text-align: center; color: var(--text-muted);" data-i18n="bank_sync_th_status">${window.i18n.t('bank_sync_th_status')}</th>
+                                <th style="padding: 10px 14px; width: 200px; text-align: center; color: var(--text-muted);" data-i18n="bank_sync_th_status">${window.i18n.t('bank_sync_th_status')}</th>
                                 <th style="padding: 10px 14px; width: 250px; text-align: right; color: var(--text-muted);" data-i18n="bank_sync_th_action">${window.i18n.t('bank_sync_th_action')}</th>
                             </tr>
                         </thead>
@@ -584,6 +584,16 @@ window.BankSyncView = {
                 <p id="masterPwModalMsg" style="font-size: 13px; color: var(--text-muted); line-height: 1.4; margin: 0 0 16px 0;" data-i18n="bank_sync_master_pw_modal_msg">
                     ${window.i18n.t('bank_sync_master_pw_modal_msg')}
                 </p>
+
+                <!-- Information contextuelle si le coffre est déjà actif sur le serveur (autre PC / Docker) -->
+                <div id="masterPwModalNotice" style="display: none; margin-bottom: 14px; padding: 10px 14px; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 10px; font-size: 12px; line-height: 1.45; color: var(--text-main); text-align: left;">
+                    <div style="font-weight: 700; color: var(--accent, #6366f1); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                        <span>🌐</span> <span id="masterPwModalNoticeTitle" data-i18n="bank_sync_vault_server_active_title">${window.i18n ? window.i18n.t('bank_sync_vault_server_active_title') || 'Coffre-fort actif sur le serveur' : 'Coffre-fort actif sur le serveur'}</span>
+                    </div>
+                    <div id="masterPwModalNoticeDesc" style="color: var(--text-muted);" data-i18n="bank_sync_vault_server_active_desc">
+                        ${window.i18n ? window.i18n.t('bank_sync_vault_server_active_desc') || 'Votre coffre est déjà déverrouillé sur le serveur (les relevés automatiques fonctionnent). Veuillez vous authentifier sur cet appareil avec votre mot de passe maître pour autoriser les actions manuelles depuis ce poste.' : 'Votre coffre est déjà déverrouillé sur le serveur (les relevés automatiques fonctionnent). Veuillez vous authentifier sur cet appareil avec votre mot de passe maître pour autoriser les actions manuelles depuis ce poste.'}
+                    </div>
+                </div>
                 <div style="margin-bottom: 14px;">
                     <input type="password" id="masterPwModalInput" class="input-styled" style="width: 100%; text-align: center; font-size: 16px; padding: 10px;" placeholder="${window.i18n.t('bank_sync_master_pw_modal_placeholder')}" onkeydown="if(event.key==='Enter') window.BankSyncView._submitMasterPw()" autocomplete="current-password" />
                 </div>
@@ -661,7 +671,7 @@ window.BankSyncView = {
                                 <span class="badge" data-i18n="modal_adjust_badge_recorded" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 4px;">${window.i18n ? window.i18n.t('modal_adjust_badge_recorded', 'Comptabilisé') : 'Comptabilisé'}</span>
                             </div>
                             <p data-i18n="modal_adjust_opt_tx_desc" style="margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
-                                ${window.i18n ? window.i18n.t('modal_adjust_opt_tx_desc', 'Enregistre une opération pointée du montant exact (idéal pour les intérêts annuels de livrets d\'épargne ou frais bancaires).') : 'Enregistre une opération pointée du montant exact (idéal pour les intérêts annuels de livrets d\'épargne ou frais bancaires).'}
+                                ${window.i18n ? window.i18n.t('modal_adjust_opt_tx_desc', 'Enregistre une opération rapprochée du montant exact (idéal pour les intérêts annuels de livrets d\'épargne ou frais bancaires).') : 'Enregistre une opération rapprochée du montant exact (idéal pour les intérêts annuels de livrets d\'épargne ou frais bancaires).'}
                             </p>
                             
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 2px;">
@@ -681,7 +691,7 @@ window.BankSyncView = {
                             </div>
 
                             <button id="btnAdjustCreateTx" class="btn btn-secondary" onclick="window.BankSyncView.submitBalanceAdjustment('transaction')" style="align-self: flex-start; margin-top: 4px; font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 6px;">
-                                📝 Créer l'opération pointée
+                                📝 Créer l'opération rapprochée
                             </button>
                         </div>
                     </div>
@@ -718,7 +728,7 @@ window.BankSyncView = {
                             </label>
                             <label style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); cursor: pointer;">
                                 <input type="checkbox" id="linkGhostUnrecOnly" checked onchange="window.BankSyncView.onLinkGhostSearchInput()" />
-                                <span data-i18n="ghost_link_search_unrec_only">${window.i18n ? window.i18n.t('ghost_link_search_unrec_only', 'Non pointées uniquement') : 'Non pointées uniquement'}</span>
+                                <span data-i18n="ghost_link_search_unrec_only">${window.i18n ? window.i18n.t('ghost_link_search_unrec_only', 'Non rapprochées uniquement') : 'Non rapprochées uniquement'}</span>
                             </label>
                         </div>
                         <div style="position: relative;">

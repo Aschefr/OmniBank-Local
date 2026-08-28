@@ -356,68 +356,68 @@ Object.assign(window.BankSyncView, {
             let actionColor = '';
 
             const resolvesBadge = tx._resolves_diff
-                ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}">🎯 ${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span>`
+                ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}"><span>🎯</span> <span>${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span></span>`
                 : '';
 
             if (tx.is_dismissed) {
                 const badgeLabel = (window.i18n && window.i18n.t('bank_sync_status_dismissed')) || '🚫 Ignorée';
                 const badgeTip = (window.i18n ? window.i18n.t('bank_sync_dismissed_tooltip') || 'Opération ignorée manuellement.' : 'Opération ignorée manuellement.').replace(/"/g, '&quot;');
-                statusBadge = `<span class="badge" style="background:var(--bg-surface); color:var(--text-muted); border:1px solid var(--border-color); cursor:help;" title="${badgeTip}">${badgeLabel}</span>`;
+                statusBadge = `<span class="badge" style="background:var(--bg-surface); color:var(--text-muted); border:1px solid var(--border-color); cursor:help; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${badgeTip}">${badgeLabel}</span>`;
                 actionText = (window.i18n && window.i18n.t('bank_sync_action_dismissed')) || 'Ignorée (manuelle)';
                 actionColor = `color: var(--text-muted);`;
             } else if (tx.is_auto_dismissed) {
                 const badgeLabel = (window.i18n && window.i18n.t('bank_sync_status_conformed_ignored')) || '🛡️ Solde conforme';
                 const badgeTip = (window.i18n ? window.i18n.t('bank_sync_conformed_balance_tip') || 'Compte déjà conforme : ancienne opération ignorée automatiquement.' : 'Compte déjà conforme : ancienne opération ignorée automatiquement.').replace(/"/g, '&quot;');
-                statusBadge = `<span class="badge" style="background:rgba(16, 185, 129, 0.12); color:#10b981; border:1px solid rgba(16, 185, 129, 0.35); font-weight:600; cursor:help;" title="${badgeTip}">${badgeLabel}</span>`;
+                statusBadge = `<span class="badge" style="background:rgba(16, 185, 129, 0.12); color:#10b981; border:1px solid rgba(16, 185, 129, 0.35); font-weight:600; cursor:help; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${badgeTip}">${badgeLabel}</span>`;
                 actionText = (window.i18n && window.i18n.t('bank_sync_action_conformed_ignored')) || 'Ignorée (solde conforme)';
                 actionColor = `color: #10b981;`;
             } else if (isRec && tx.is_orphan_transfer_link) {
                 const targetName = tx.orphan_account_name || 'autre compte';
                 const badgeLabel = window.i18n.t('bank_sync_orphan_transfer_badge') || 'Liaison virement';
                 const badgeTip = (window.i18n.t('bank_sync_orphan_transfer_tooltip') || 'Une écriture isolée du même montant existe déjà sur un autre compte. La validation fusionnera ces écritures en un virement interne sans créer de doublon.').replace(/"/g, '&quot;');
-                statusBadge = `<span class="badge" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.3); font-weight: 700; cursor: help;" title="${badgeTip}">🔗 ${badgeLabel}</span>${resolvesBadge}`;
+                statusBadge = `<span class="badge" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.3); font-weight: 700; cursor: help; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${badgeTip}"><span>🔗</span> <span>${badgeLabel}</span></span>`;
                 actionText = (window.i18n.tp ? window.i18n.tp('bank_sync_orphan_transfer_action', { account: targetName }) : `Lier au compte ${targetName}`);
                 actionColor = `color: #8b5cf6; font-weight: 600;`;
             } else if (isRec && alreadyRec) {
                 if (tx.is_mirror_transfer) {
                     const badgeLabel = window.i18n.t('bank_sync_mirror_transfer_badge') || 'Virement miroir';
                     const badgeTip = (window.i18n.t('bank_sync_mirror_transfer_tooltip') || 'Écriture miroir d\'un virement interne déjà enregistré.').replace(/"/g, '&quot;');
-                    statusBadge = `<span class="badge" style="background:rgba(99,102,241,0.12); color:var(--accent); border:1px solid rgba(99,102,241,0.3); cursor:help; display:inline-flex; align-items:center; gap:4px;" title="${badgeTip}"><span>🔗 ${badgeLabel}</span> <span style="font-size:11px; opacity:0.8;">ℹ️</span></span>`;
+                    statusBadge = `<span class="badge" style="background:rgba(99,102,241,0.12); color:var(--accent); border:1px solid rgba(99,102,241,0.3); cursor:help; white-space: nowrap; display:inline-flex; align-items:center; gap:4px;" title="${badgeTip}"><span>🔗 ${badgeLabel}</span> <span style="font-size:11px; opacity:0.8;">ℹ️</span></span>`;
                     actionText = window.i18n.t('bank_sync_mirror_transfer_action') || 'Ignorée (miroir de virement)';
                     actionColor = `color: var(--text-muted);`;
                 } else if (tx.is_coming) {
-                    const badgeLabel = window.i18n.t('bank_sync_discrepancy_badge') || 'Pointée / En attente banque';
-                    const badgeTip = (window.i18n.t('bank_sync_discrepancy_tooltip') || 'Cette opération a déjà été pointée dans OmniBank, mais la banque l\'affiche encore dans ses opérations en attente / autorisations.').replace(/"/g, '&quot;');
-                    statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; cursor: help; display:inline-flex; align-items:center; gap:4px;" title="${badgeTip}"><span>⏳ ${badgeLabel}</span></span>`;
-                    actionText = window.i18n.t('bank_sync_discrepancy_action') || 'Ignorée (déjà pointée en local)';
+                    const badgeLabel = window.i18n.t('bank_sync_discrepancy_badge') || 'Rapprochée / En attente banque';
+                    const badgeTip = (window.i18n.t('bank_sync_discrepancy_tooltip') || 'Cette opération a déjà été rapprochée dans OmniBank, mais la banque l\'affiche encore dans ses opérations en attente / autorisations.').replace(/"/g, '&quot;');
+                    statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; cursor: help; white-space: nowrap; display:inline-flex; align-items:center; gap:4px;" title="${badgeTip}"><span>⏳ ${badgeLabel}</span></span>`;
+                    actionText = window.i18n.t('bank_sync_discrepancy_action') || 'Ignorée (déjà rapprochée en local)';
                     actionColor = `color: #d97706; font-weight: 500;`;
                 } else {
-                    const alreadyLabel = window.i18n.t('bank_sync_status_already_reconciled') || '✅ Déjà pointée';
-                    statusBadge = `<span class="badge" style="background:var(--bg-surface); color:var(--text-muted); border:1px solid var(--border-color);">${alreadyLabel}</span>`;
+                    const alreadyLabel = window.i18n.t('bank_sync_status_already_reconciled') || '✅ Déjà rapprochée';
+                    statusBadge = `<span class="badge" style="background:var(--bg-surface); color:var(--text-muted); border:1px solid var(--border-color); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">${alreadyLabel}</span>`;
                     actionText = window.i18n.t('bank_sync_action_ignored_duplicate') || 'Ignorée (doublon)';
                     actionColor = `color: var(--text-muted);`;
                 }
             } else if (isRec && !alreadyRec) {
                 if (tx.is_coming) {
                     const badgeLabel = window.i18n.t('bank_sync_coming_to_reconcile') || '⏳ En attente banque';
-                    const badgeTip = (window.i18n.t('bank_sync_coming_to_reconcile_tooltip') || 'Opération en attente banque correspondant à une opération locale non encore pointée. Elle reste non pointée jusqu\'à son débit effectif.').replace(/"/g, '&quot;');
-                    statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; cursor: help; display:inline-flex; align-items:center; gap:4px;" title="${badgeTip}"><span>${badgeLabel}</span></span>${resolvesBadge}`;
-                    actionText = window.i18n.t('bank_sync_action_coming_matched') || 'En attente banque (non pointée)';
+                    const badgeTip = (window.i18n.t('bank_sync_coming_to_reconcile_tooltip') || 'Opération en attente banque correspondant à une opération locale non encore rapprochée. Elle reste non rapprochée jusqu\'à son débit effectif.').replace(/"/g, '&quot;');
+                    statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; cursor: help; white-space: nowrap; display:inline-flex; align-items:center; gap:4px;" title="${badgeTip}"><span>${badgeLabel}</span></span>`;
+                    actionText = window.i18n.t('bank_sync_action_coming_matched') || 'En attente banque (non rapprochée)';
                     actionColor = `color: #d97706; font-weight: 500;`;
                 } else {
-                    const reconLabel = window.i18n.t('bank_sync_status_to_reconcile') || '⚡ À pointer';
-                    statusBadge = `<span class="badge" style="background:var(--color-income, #10b981); color:white;">${reconLabel}</span>${resolvesBadge}`;
-                    actionText = window.i18n.t('bank_sync_action_will_reconcile') || 'Sera pointée';
+                    const reconLabel = window.i18n.t('bank_sync_status_to_reconcile') || '⚡ À rapprocher';
+                    statusBadge = `<span class="badge" style="background:var(--color-income, #10b981); color:white; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">${reconLabel}</span>`;
+                    actionText = window.i18n.t('bank_sync_action_will_reconcile') || 'Sera rapprochée';
                     actionColor = `color: var(--color-income, #10b981);`;
                 }
             } else if (!isRec && tx.is_coming) {
                 const badgeLabel = window.i18n.t('bank_sync_coming_new') || '⏳ En attente (Nouvelle)';
-                statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700; display:inline-flex; align-items:center; gap:4px;"><span>${badgeLabel}</span></span>${resolvesBadge}`;
+                statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700; white-space: nowrap; display:inline-flex; align-items:center; gap:4px;"><span>${badgeLabel}</span></span>`;
                 actionText = window.i18n.t('bank_sync_action_coming_new') || window.i18n.t('bank_sync_coming_action') || 'Nouvelle (en attente banque)';
                 actionColor = `color: #6366f1;`;
             } else {
                 const newLabel = window.i18n.t('bank_sync_status_to_add') || '🆕 Nouvelle opération';
-                statusBadge = `<span class="badge" style="background:var(--color-expense, #6366f1); color:white;">${newLabel}</span>${resolvesBadge}`;
+                statusBadge = `<span class="badge" style="background:var(--color-expense, #6366f1); color:white; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">${newLabel}</span>`;
                 actionText = window.i18n.t('bank_sync_action_new_operation') || 'Nouvelle opération';
                 actionColor = `color: var(--color-expense, #6366f1);`;
             }
@@ -519,7 +519,15 @@ Object.assign(window.BankSyncView, {
                 <td style="padding: 10px 14px; text-align: right;">
                     ${amountInput}
                 </td>
-                <td style="padding: 10px 14px; text-align: center;">${statusBadge}${scoreBadge}</td>
+                <td style="padding: 10px 14px; text-align: center;">
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%;">
+                        <div style="display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex-wrap: wrap;">
+                            ${statusBadge}
+                            ${resolvesBadge}
+                        </div>
+                        ${scoreBadge ? `<div style="margin-top: 2px;">${scoreBadge}</div>` : ''}
+                    </div>
+                </td>
                 <td style="padding: 10px 14px; text-align: right;">
                     <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; white-space: nowrap;">
                         <span style="font-size: 11.5px; ${actionColor} white-space: nowrap;">${actionText}</span>
@@ -990,20 +998,51 @@ Object.assign(window.BankSyncView, {
                 balanceBadgeHtml = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; padding: 2px 8px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_synced') : 'Soldes conformes').replace(/"/g, '&quot;')}">🟢 ${window.i18n ? window.i18n.t('bank_sync_balance_synced') || 'Soldes conformes' : 'Soldes conformes'} (${currentAcc.bank_balance.toFixed(2)} €)</span>`;
             } else {
                 const diffFormatted = (delta > 0 ? '+' : '') + delta.toFixed(2) + ' €';
-                const isExplainedByComing = accComing > 0 && Math.abs(Math.abs(accComingAmount) - Math.abs(delta)) < 0.01;
 
-                const explanationText = isExplainedByComing
-                    ? ` • 💡 ${window.i18n ? window.i18n.tp('bank_sync_delta_explained_by_coming', { count: accComing }) : `Correspond aux ${accComing} opération(s) en attente en ligne.`}`
-                    : '';
+                // Calculer l'impact net des opérations actives (non exclues) qui vont modifier le solde rapproché
+                let netSyncImpact = 0.0;
+                let hasResolvingTx = false;
+                currentTxs.forEach(tx => {
+                    const isIgnored = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled);
+                    if (!isIgnored) {
+                        const rawAmt = typeof tx.raw_amount !== 'undefined' ? parseFloat(tx.raw_amount) : (parseFloat(tx.amount) || 0);
+                        if (!tx.is_coming) {
+                            netSyncImpact += rawAmt;
+                        }
+                        if (tx._resolves_diff) {
+                            hasResolvingTx = true;
+                        }
+                    }
+                });
 
-                const deltaTip = isExplainedByComing
-                    ? (window.i18n ? window.i18n.tp('bank_sync_delta_explained_by_coming', { count: accComing }) : `L'écart de ${diffFormatted} s'explique par les opérations en attente de débit par la banque.`).replace(/"/g, '&quot;')
-                    : (window.i18n ? window.i18n.t('bank_sync_balance_tooltip_diff') : 'Écart de solde').replace(/"/g, '&quot;');
+                const isResolvedBySync = hasResolvingTx || Math.abs(Math.round(netSyncImpact * 100) / 100 - delta) < 0.01;
+                const isExplainedByComing = !isResolvedBySync && accComing > 0 && Math.abs(Math.abs(accComingAmount) - Math.abs(delta)) < 0.01;
+
+                let explanationText = '';
+                if (isResolvedBySync) {
+                    explanationText = ` • 💡 ${window.i18n ? window.i18n.t('bank_sync_delta_resolved_by_sync') || 'Sera résolu par la validation des opérations.' : 'Sera résolu par la validation des opérations.'}`;
+                } else if (isExplainedByComing) {
+                    explanationText = ` • 💡 ${window.i18n ? window.i18n.tp('bank_sync_delta_explained_by_coming', { count: accComing }) : `Correspond aux ${accComing} opération(s) en attente en ligne.`}`;
+                }
+
+                const deltaTip = isResolvedBySync
+                    ? (window.i18n ? window.i18n.t('bank_sync_delta_resolved_by_sync_tip') || "L'écart sera automatiquement comblé lors de l'enregistrement de vos opérations sélectionnées." : "L'écart sera automatiquement comblé lors de l'enregistrement de vos opérations sélectionnées.").replace(/"/g, '&quot;')
+                    : (isExplainedByComing
+                        ? (window.i18n ? window.i18n.tp('bank_sync_delta_explained_by_coming', { count: accComing }) : `L'écart de ${diffFormatted} s'explique par les opérations en attente de débit par la banque.`).replace(/"/g, '&quot;')
+                        : (window.i18n ? window.i18n.t('bank_sync_balance_tooltip_diff') : 'Écart de solde').replace(/"/g, '&quot;'));
+
+                const shouldShowAdjustBtn = !isResolvedBySync && !isExplainedByComing;
 
                 const escapedAccName = (window.escapeHtml ? window.escapeHtml(currentAcc.account_name || 'Compte') : (currentAcc.account_name || 'Compte')).replace(/'/g, "\\'");
                 const adjustBtnHtml = `<span onclick="window.BankSyncView.openBalanceAdjustModal(${currentAcc.account_id}, '${escapedAccName}', ${currentAcc.bank_balance}, ${currentAcc.local_reconciled_balance}, ${delta})" style="cursor: pointer; background: rgba(239, 68, 68, 0.2); padding: 1px 5px; border-radius: 3px; font-size: 10px; margin-left: 6px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_adjust_tooltip') : 'Cliquer pour ajuster le solde').replace(/"/g, '&quot;')}">${window.i18n ? window.i18n.t('bank_sync_balance_adjust_btn') || '⚡ Ajuster' : '⚡ Ajuster'}</span>`;
 
-                balanceBadgeHtml = `<span class="badge" style="background: ${isExplainedByComing ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)'}; color: ${isExplainedByComing ? '#d97706' : '#ef4444'}; border: 1px solid ${isExplainedByComing ? 'rgba(245, 158, 11, 0.35)' : 'rgba(239, 68, 68, 0.3)'}; font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;" title="${deltaTip}"><span>⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart'} : ${diffFormatted} (Banque: ${currentAcc.bank_balance.toFixed(2)} € • Pointé: ${currentAcc.local_reconciled_balance.toFixed(2)} €)${explanationText}</span>${!isExplainedByComing ? adjustBtnHtml : ''}</span>`;
+                const badgeBg = isResolvedBySync ? 'rgba(16, 185, 129, 0.12)' : (isExplainedByComing ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)');
+                const badgeColor = isResolvedBySync ? '#10b981' : (isExplainedByComing ? '#d97706' : '#ef4444');
+                const badgeBorder = isResolvedBySync ? 'rgba(16, 185, 129, 0.35)' : (isExplainedByComing ? 'rgba(245, 158, 11, 0.35)' : 'rgba(239, 68, 68, 0.3)');
+
+                const rawReconciled = window.i18n ? window.i18n.t('bank_sync_reconciled_word') : '';
+                const lblReconciled = (rawReconciled && rawReconciled !== 'bank_sync_reconciled_word') ? rawReconciled : 'Rapproché';
+                balanceBadgeHtml = `<span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;" title="${deltaTip}"><span>⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart'} : ${diffFormatted} (Banque: ${currentAcc.bank_balance.toFixed(2)} € • ${lblReconciled}: ${currentAcc.local_reconciled_balance.toFixed(2)} €)${explanationText}</span>${shouldShowAdjustBtn ? adjustBtnHtml : ''}</span>`;
             }
         }
 
@@ -1084,7 +1123,7 @@ Object.assign(window.BankSyncView, {
                 const recCount = res.reconciled || 0;
                 let msg = window.i18n ? window.i18n.tp('msg_import_done', { count }) || `${count} opération(s) importée(s).` : `${count} opération(s) importée(s).`;
                 if (recCount > 0) {
-                    msg += ` (✔ ${recCount} pointée(s))`;
+                    msg += ` (✔ ${recCount} rapprochée(s))`;
                 }
                 this.showToast(msg, 'success');
                 await this.loadPendingSync();
@@ -1099,8 +1138,8 @@ Object.assign(window.BankSyncView, {
                 }
                 const comingCount = allTxs.filter(t => t.is_coming).length;
                 let toastMsg = (window.i18n && window.i18n.tp)
-                    ? window.i18n.tp('bank_sync_commit_toast', { imported: res.imported, reconciled: res.reconciled }) || `Synchronisation validée : +${res.imported} ajoutée(s), ✔ ${res.reconciled} pointée(s)`
-                    : `Synchronisation validée : +${res.imported} ajoutée(s), ✔ ${res.reconciled} pointée(s)`;
+                    ? window.i18n.tp('bank_sync_commit_toast', { imported: res.imported, reconciled: res.reconciled }) || `Synchronisation validée : +${res.imported} ajoutée(s), ✔ ${res.reconciled} rapprochée(s)`
+                    : `Synchronisation validée : +${res.imported} ajoutée(s), ✔ ${res.reconciled} rapprochée(s)`;
                 if (comingCount > 0) {
                     const comingSuffix = (window.i18n && window.i18n.tp)
                         ? window.i18n.tp('bank_sync_commit_toast_coming', { count: comingCount }) || `, ⏳ ${comingCount} en attente banque`

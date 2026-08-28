@@ -26,7 +26,7 @@ window.ConfigDiagnostics = {
                     <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;" data-i18n="config_diag_note_label">
                         ${window.i18n?.t('config_diag_note_label') || 'Description du problème constaté (Optionnel) :'}
                     </label>
-                    <textarea id="diag_user_note" class="inline-input" rows="2" style="width: 100%; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; font-size: 13px; resize: vertical; box-sizing: border-box;" placeholder="${window.i18n?.t('config_diag_note_placeholder') || 'Ex: Le solde prévisionnel ne s\'actualise pas après pointage...'}"></textarea>
+                    <textarea id="diag_user_note" class="inline-input" rows="2" style="width: 100%; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; font-size: 13px; resize: vertical; box-sizing: border-box;" placeholder="${window.i18n?.t('config_diag_note_placeholder') || 'Ex: Le solde prévisionnel ne s\'actualise pas après rapprochement...'}"></textarea>
                 </div>
 
                 <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px;">
