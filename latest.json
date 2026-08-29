@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHlJSXQwNEM3cEJrR0tybEtjUURpUGlqaVN1NWNOeUxaQ3EzL0cyVUxKU2UwR0hBb2JYblZVT0hiaWJtYXpTZkVCVy9HVjVablhNY2hhZEMvS2JLendzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3ODQyODk1CWZpbGU6T21uaUJhbmtfMS4wLjk0X3g2NF9mci1GUi5tc2kKV0xuMFJoNjBiSFg2Q0hlMnUxVjZERmFJS0ZZR1FFY2Nmd3lGcU9Hb3A5MTF5TS9peXBaandCQTZvaXBOZEJnNTJBTW5MWVB4VUwxMXl6U2xVSFJvQVE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.94/OmniBank_1.0.94_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHpOazlGYjdwTkVSYkxqZjBldDAzZTh4WDRvZDhGcVdvQ1k3QWdENEs4RzB2ZDVUempTM0E0dzZlMlQ2OThGOHFFdW9vbHNpMmNqakp1UXh5N1dNWmd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3OTk5NTE5CWZpbGU6T21uaUJhbmtfMS4wLjk1X3g2NF9mci1GUi5tc2kKTWVKSFFLQjR4T3ZZcldCNlpnOThZMzJaY1IwK21QbEVreVpoemh3b3o1V1RpRG02L09PY1VJU1FFTHdhYno5TXVDMnh3ZTVQcFczQUZXdEdZc0VnQnc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.95/OmniBank_1.0.95_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-27T15:01:35Z",
-    "version":  "1.0.94",
-    "notes":  "Correction de la priorite de rapprochement des operations recurrentes et memorisation de l\u0027empreinte bancaire csv_id"
+    "pub_date":  "2026-08-29T10:31:59Z",
+    "version":  "1.0.95",
+    "notes":  "UI harmonization (2-row toolbars \u0026 filter grids), standard mobile ergonomics (13-14px, 36px touch targets, horizontal chip scrolling), real-time financial rhythm badges, notification archiving/actions, and complete i18n audit."
 }
