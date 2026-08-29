@@ -13,10 +13,12 @@ window.AccountsView = {
         const bankSyncHtml = window.BankSyncView ? window.BankSyncView.render() : '';
 
         return `
-            <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-                <h2 style="margin:0; font-size:24px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:10px;">
-                    🏦 <span data-i18n="acc_header_title">${window.i18n.t('acc_header_title')}</span>
-                </h2>
+            <div class="view-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;margin-bottom:24px;">
+                <div class="view-header-title-group">
+                    <h2 class="view-header-title">
+                        🏦 <span data-i18n="acc_header_title">${window.i18n.t('acc_header_title')}</span>
+                    </h2>
+                </div>
             </div>
             
             <!-- Section 1 : Synchronisation Bancaire -->

@@ -4,20 +4,21 @@
 window.ConfigView = Object.assign(window.ConfigView || {}, {
     render() {
         return `
-            <div class="view-header" style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                <h2>⚙️ <span data-i18n="nav_configuration">Configuration</span></h2>
+            <div class="view-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;margin-bottom:18px;">
+                <div class="view-header-title-group">
+                    <h2 class="view-header-title">⚙️ <span data-i18n="nav_configuration">${window.i18n.t('nav_configuration')}</span></h2>
+                </div>
             </div>
             
             <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
                     <h3 style="display:flex; align-items:center; gap:8px; margin:0;" data-i18n="config_ai_title">🤖 Configuration Ollama (Assistant IA)</h3>
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                        <div style="position: relative; width: 40px; height: 24px;">
-                            <input type="checkbox" id="conf_enable_ai" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.toggleAI(this.checked); window.ConfigView.save();">
-                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                            <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                        </div>
-                        <span data-i18n="config_ai_enable">Activer l'IA</span>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                        <span class="toggle-switch">
+                            <input type="checkbox" id="conf_enable_ai" onchange="window.ConfigView.toggleAI(this.checked); window.ConfigView.save();">
+                            <span class="slider"></span>
+                        </span>
+                        <span data-i18n="config_ai_enable">${window.i18n.t('config_ai_enable')}</span>
                     </label>
                 </div>
                 

@@ -2,9 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.95] - 2026-08-28
+## [1.0.95] - 2026-08-29
 
 ### Added & Improved
+- **Harmonized Header Toolbars & Filter Grids 📐**:
+  - Clean 2-row layout across Dashboard and History separating top action buttons (*Columns, Import Statement, Online Sync, New Operation*) from search and filter pills.
+  - Sticky header container keeping search and filters readily accessible at any scroll depth without blocking table headers.
+- **Mobile Viewport Ergonomics & Horizontal Filter Chips 📱**:
+  - Modern mobile UX complying with Apple HIG & Material 3 standards (comfortable 13–14px typography and 36px touch targets).
+  - Smooth horizontal swipeable filter chips bar, reclaiming over 120px of vertical space for transaction lists on smartphones.
+- **Unified Select Dropdowns & Complete Localization 🌐**:
+  - Cohesive modern pill-styled dropdowns across Overview, Trends, Dashboard, and History views.
+  - Full internationalization audit resolving missing translation keys across all modules (FR/EN).
 - **Financial Rhythm & Averages Badges ⏱️**:
   - Discreet real-time statistics strip in the Overview view displaying your average **Income**, **Fixed Expenses**, **Variable Expenses**, and **Net Flow**.
   - Dual segmented selectors to instantly customize the **analyzed timeframe** (*All, 1 year, 6 months, 3 months, 1 month, 1 week*) and **display cadence** (*Month, Week, Day, Hour*).

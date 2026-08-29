@@ -20,39 +20,50 @@ window.AnalyticsView = {
     render() {
         return `
         <div style="padding:0;">
-            <div class="view-header" style="position:sticky;top:-32px;z-index:50;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                <h2 style="margin:0;" data-i18n="analytics_title">${window.i18n.t('analytics_title')}</h2>
-                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <div style="position:relative; display:inline-block;">
-                        <button id="analyticsYearsBtn" class="btn btn-secondary" onclick="window.AnalyticsView.toggleYearsPopover(event)" style="padding: 6px 12px; font-size: 13px;" data-i18n="analytics_btn_years">⚙️ Années</button>
-                        <div id="analyticsYearsPopover" class="years-popover print-hide" style="display:none; position:absolute; right:0; top:calc(100% + 5px); background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; box-shadow:var(--shadow-md); padding:12px; min-width:180px; z-index:100; flex-direction:column; gap:8px;"></div>
+            <div class="view-header-bar">
+                <div class="view-header-title-group">
+                    <h2 class="view-header-title">📊 <span data-i18n="analytics_title">${window.i18n.t('analytics_title')}</span></h2>
+                </div>
+                <div class="view-header-toolbar">
+                    <div class="filter-pill">
+                        <span class="filter-pill-label">📅 <span data-i18n="budget_label_period">${window.i18n.t('budget_label_period')}</span></span>
+                        <select id="analyticsPeriod" class="filter-pill-select" style="min-width:140px;" onchange="window.AnalyticsView.changeFilter('period', this.value)">
+                            <option value="m3" data-i18n="analytics_rolling_3m">${window.i18n.t('analytics_rolling_3m')}</option>
+                            <option value="m6" data-i18n="analytics_rolling_6m">${window.i18n.t('analytics_rolling_6m')}</option>
+                            <option value="m12" data-i18n="analytics_rolling_12m">${window.i18n.t('analytics_rolling_12m')}</option>
+                            <option value="m24" data-i18n="analytics_rolling_24m">${window.i18n.t('analytics_rolling_24m')}</option>
+                            <option disabled data-i18n="analytics_years_separator">${window.i18n.t('analytics_years_separator')}</option>
+                        </select>
                     </div>
-                    <button class="btn btn-secondary" onclick="window.AnalyticsView.showExportModal()" style="padding: 6px 12px; font-size: 13px;" data-i18n-title="tooltip_export_pdf" title="Générer un PDF du rapport" data-i18n="btn_export_pdf">📥 Exporter en PDF</button>
-                    <select id="analyticsReconciled" class="inline-input" style="width:210px;" onchange="window.AnalyticsView.changeFilter('reconciled', this.value)">
-                        <option value="all" data-i18n="analytics_all_amounts">${window.i18n.t('analytics_all_amounts')}</option>
-                        <option value="reconciled" data-i18n="analytics_reconciled_only">${window.i18n.t('analytics_reconciled_only')}</option>
-                        <option value="unreconciled" data-i18n="analytics_unreconciled_only">${window.i18n.t('analytics_unreconciled_only')}</option>
-                    </select>
-                    <select id="analyticsPeriod" class="inline-input" style="width:190px;" onchange="window.AnalyticsView.changeFilter('period', this.value)">
-                        <option value="m3" data-i18n="analytics_rolling_3m">${window.i18n.t('analytics_rolling_3m')}</option>
-                        <option value="m6" data-i18n="analytics_rolling_6m">${window.i18n.t('analytics_rolling_6m')}</option>
-                        <option value="m12" data-i18n="analytics_rolling_12m">${window.i18n.t('analytics_rolling_12m')}</option>
-                        <option value="m24" data-i18n="analytics_rolling_24m">${window.i18n.t('analytics_rolling_24m')}</option>
-                        <option disabled data-i18n="analytics_years_separator">${window.i18n.t('analytics_years_separator')}</option>
-                    </select>
-                    <div id="analyticsCustomRangeWrapper" style="display:none;align-items:center;gap:6px;">
-                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
-                            <div style="position:relative;width:36px;height:20px;">
-                                <input type="checkbox" id="analyticsCustomRangeToggle" class="global-toggle" style="opacity:0;width:0;height:0;position:absolute;" onchange="window.AnalyticsView.onCustomRangeToggle(this.checked)">
-                                <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--border-color);transition:.4s;border-radius:34px;"></span>
-                                <span class="slider-knob" style="position:absolute;height:14px;width:14px;left:3px;bottom:3px;background-color:white;transition:.4s;border-radius:50%;"></span>
-                            </div>
-                            <span data-i18n="analytics_custom_range_toggle">${window.i18n.t('analytics_custom_range_toggle') || 'Period'}</span>
+
+                    <div class="filter-pill">
+                        <span class="filter-pill-label">🔒 <span data-i18n="col_status">${window.i18n.t('col_status')}</span></span>
+                        <select id="analyticsReconciled" class="filter-pill-select" style="min-width:140px;" onchange="window.AnalyticsView.changeFilter('reconciled', this.value)">
+                            <option value="all" data-i18n="analytics_all_amounts">${window.i18n.t('analytics_all_amounts')}</option>
+                            <option value="reconciled" data-i18n="analytics_reconciled_only">${window.i18n.t('analytics_reconciled_only')}</option>
+                            <option value="unreconciled" data-i18n="analytics_unreconciled_only">${window.i18n.t('analytics_unreconciled_only')}</option>
+                        </select>
+                    </div>
+
+                    <div style="position:relative; display:inline-block;">
+                        <button id="analyticsYearsBtn" class="btn btn-secondary toolbar-btn" onclick="window.AnalyticsView.toggleYearsPopover(event)" data-i18n="analytics_btn_years">⚙️ Années</button>
+                        <div id="analyticsYearsPopover" class="years-popover print-hide" style="display:none; position:absolute; right:0; top:calc(100% + 5px); background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; box-shadow:var(--shadow-md); padding:12px; min-width:180px; z-index:100; flex-direction:column; gap:8px; backdrop-filter:blur(12px);"></div>
+                    </div>
+
+                    <button class="btn btn-secondary toolbar-btn" onclick="window.AnalyticsView.showExportModal()" data-i18n-title="tooltip_export_pdf" title="Générer un PDF du rapport" data-i18n="btn_export_pdf">📥 Exporter en PDF</button>
+
+                    <div id="analyticsCustomRangeWrapper" class="filter-pill" style="display:none;">
+                        <label class="filter-pill-toggle">
+                            <span data-i18n="analytics_custom_range_toggle">${window.i18n.t('analytics_custom_range_toggle') || 'Période'}</span>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="analyticsCustomRangeToggle" onchange="window.AnalyticsView.onCustomRangeToggle(this.checked)">
+                                <span class="slider"></span>
+                            </span>
                         </label>
-                        <div id="analyticsCustomRangeInputs" style="display:none;align-items:center;gap:4px;">
-                            <input type="date" id="analyticsCustomStart" class="inline-input" style="width:145px;" onchange="window.AnalyticsView.onCustomRangeChange()">
+                        <div id="analyticsCustomRangeInputs" style="display:none;align-items:center;gap:4px;margin-left:6px;">
+                            <input type="date" id="analyticsCustomStart" class="inline-input" style="width:130px;height:28px;font-size:11px;padding:2px 6px;" onchange="window.AnalyticsView.onCustomRangeChange()">
                             <span style="color:var(--text-muted);font-size:11px;">→</span>
-                            <input type="date" id="analyticsCustomEnd" class="inline-input" style="width:145px;" onchange="window.AnalyticsView.onCustomRangeChange()">
+                            <input type="date" id="analyticsCustomEnd" class="inline-input" style="width:130px;height:28px;font-size:11px;padding:2px 6px;" onchange="window.AnalyticsView.onCustomRangeChange()">
                         </div>
                     </div>
                 </div>

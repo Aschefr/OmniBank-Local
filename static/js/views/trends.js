@@ -46,40 +46,48 @@ window.TrendsView = {
                 }
             </style>
 
-            <div class="view-header" style="position:sticky;top:-32px;z-index:10;background:var(--bg-base);padding:32px 0 15px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                <h2 style="margin:0;">📉 <span data-i18n="nav_trends">Tendances</span></h2>
-                <div style="display:flex;gap:10px;align-items:center; flex-wrap: wrap;">
-                    <label style="font-size:13px;color:var(--text-muted);" data-i18n="trends_label_account">${window.i18n.t('trends_label_account')}</label>
-                    <select id="trendsAccountSelect" class="inline-input" style="width:160px;" onchange="window.TrendsView.onAccountChange(this.value)">
-                        <option value="" data-i18n="trends_opt_loading">${window.i18n.t('trends_opt_loading')}</option>
-                    </select>
+            <div class="view-header-bar">
+                <div class="view-header-title-group">
+                    <h2 class="view-header-title">📉 <span data-i18n="nav_trends">${window.i18n.t('nav_trends')}</span></h2>
+                </div>
+                <div class="view-header-toolbar">
+                    <div class="filter-pill">
+                        <span class="filter-pill-label">🏦 <span data-i18n="trends_label_account">${window.i18n.t('trends_label_account')}</span></span>
+                        <select id="trendsAccountSelect" class="filter-pill-select" style="min-width:140px;" onchange="window.TrendsView.onAccountChange(this.value)">
+                            <option value="" data-i18n="trends_opt_loading">${window.i18n.t('trends_opt_loading')}</option>
+                        </select>
+                    </div>
                     
-                    <label style="font-size:13px;color:var(--text-muted);margin-left:10px;" data-i18n="trends_label_period">${window.i18n.t('trends_label_period')}</label>
-                    <select id="trendsTimeframeSelect" class="inline-input" style="width:100px;" onchange="window.TrendsView.onTimeframeChange(this.value)">
-                        <option value="1" data-i18n="trends_1m">${window.i18n.t('trends_1m')}</option>
-                        <option value="3" data-i18n="trends_3m">${window.i18n.t('trends_3m')}</option>
-                        <option value="6" data-i18n="trends_6m">${window.i18n.t('trends_6m')}</option>
-                        <option value="9" data-i18n="trends_9m">${window.i18n.t('trends_9m')}</option>
-                        <option value="12" selected data-i18n="trends_1y">${window.i18n.t('trends_1y')}</option>
-                        <option value="24" data-i18n="trends_2y">${window.i18n.t('trends_2y')}</option>
-                        <option value="60" data-i18n="trends_5y">${window.i18n.t('trends_5y')}</option>
-                        <option value="all" data-i18n="trends_all">${window.i18n.t('trends_all')}</option>
-                    </select>
+                    <div class="filter-pill">
+                        <span class="filter-pill-label">📅 <span data-i18n="trends_label_period">${window.i18n.t('trends_label_period')}</span></span>
+                        <select id="trendsTimeframeSelect" class="filter-pill-select" style="min-width:80px;" onchange="window.TrendsView.onTimeframeChange(this.value)">
+                            <option value="1" data-i18n="trends_1m">${window.i18n.t('trends_1m')}</option>
+                            <option value="3" data-i18n="trends_3m">${window.i18n.t('trends_3m')}</option>
+                            <option value="6" data-i18n="trends_6m">${window.i18n.t('trends_6m')}</option>
+                            <option value="9" data-i18n="trends_9m">${window.i18n.t('trends_9m')}</option>
+                            <option value="12" selected data-i18n="trends_1y">${window.i18n.t('trends_1y')}</option>
+                            <option value="24" data-i18n="trends_2y">${window.i18n.t('trends_2y')}</option>
+                            <option value="60" data-i18n="trends_5y">${window.i18n.t('trends_5y')}</option>
+                            <option value="all" data-i18n="trends_all">${window.i18n.t('trends_all')}</option>
+                        </select>
+                    </div>
                     
-                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);margin-left:10px;cursor:pointer;user-select:none;">
-                        <span data-i18n="trends_superimpose">${window.i18n.t('trends_superimpose')}</span>
-                        <div class="trends-switch" style="position:relative;width:34px;height:18px;background:${switchBg};border:1px solid ${switchBorder};border-radius:9px;transition:all 0.2s;">
-                            <input type="checkbox" id="trendsOtherYearsCheck" onchange="window.TrendsView.onOtherYearsChange(this.checked)" ${superimposeActive ? 'checked' : ''} style="display:none;">
-                            <div class="trends-switch-slider" style="position:absolute;top:1px;left:1px;width:14px;height:14px;background:${sliderBg};border-radius:50%;transform:${sliderTransform};transition:transform 0.2s, background 0.2s;"></div>
-                        </div>
-                    </label>
-
-                    <div style="display:flex;align-items:center;gap:6px;margin-left:10px;">
-                        <label style="font-size:13px;color:var(--text-muted);" data-i18n="trends_align_type">${window.i18n.t('trends_align_type')}</label>
-                        <select id="trendsAlignmentSelect" class="inline-input" style="width:120px;padding:4px 8px;font-size:12px;" onchange="window.TrendsView.onAlignmentChange(this.value)">
+                    <div class="filter-pill">
+                        <span class="filter-pill-label">📊 <span data-i18n="trends_align_type">${window.i18n.t('trends_align_type')}</span></span>
+                        <select id="trendsAlignmentSelect" class="filter-pill-select" style="min-width:90px;" onchange="window.TrendsView.onAlignmentChange(this.value)">
                             <option value="rolling" ${this.alignmentType === 'rolling' ? 'selected' : ''} data-i18n="trends_align_rolling">${window.i18n.t('trends_align_rolling')}</option>
                             <option value="calendar" ${this.alignmentType === 'calendar' ? 'selected' : ''} data-i18n="trends_align_calendar">${window.i18n.t('trends_align_calendar')}</option>
                         </select>
+                    </div>
+
+                    <div class="filter-pill">
+                        <label class="filter-pill-toggle">
+                            <span data-i18n="trends_superimpose">${window.i18n.t('trends_superimpose')}</span>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="trendsOtherYearsCheck" onchange="window.TrendsView.onOtherYearsChange(this.checked)" ${superimposeActive ? 'checked' : ''}>
+                                <span class="slider"></span>
+                            </span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -342,30 +350,6 @@ window.TrendsView = {
         this.showOtherYears = checked;
         this.focusedOffset = null;
         this.saveConfig({ trends_superimpose: checked ? 'true' : 'false' });
-        
-        const checkbox = document.getElementById('trendsOtherYearsCheck');
-        if (checkbox) {
-            const switchEl = checkbox.closest('.trends-switch');
-            if (switchEl) {
-                const sliderEl = switchEl.querySelector('.trends-switch-slider');
-                if (checked) {
-                    switchEl.style.background = 'var(--accent, #6366f1)';
-                    switchEl.style.borderColor = 'var(--accent, #6366f1)';
-                    if (sliderEl) {
-                        sliderEl.style.transform = 'translateX(16px)';
-                        sliderEl.style.background = '#ffffff';
-                    }
-                } else {
-                    switchEl.style.background = 'var(--bg-base)';
-                    switchEl.style.borderColor = 'var(--border-color)';
-                    if (sliderEl) {
-                        sliderEl.style.transform = 'translateX(0)';
-                        sliderEl.style.background = 'var(--text-muted)';
-                    }
-                }
-            }
-        }
-        
         this.updateAlignmentVisibility();
         this.renderChart();
     },

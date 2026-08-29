@@ -539,15 +539,16 @@ window.SimulatorView = {
             </style>
 
             <!-- ═══ Unified Header: Title + Scenario + Account + Horizon ═══ -->
-            <div class="view-header" style="position:sticky;top:-32px;z-index:10;background:var(--bg-base);padding:24px 0 14px;margin-top:-32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                    <h2 style="margin:0;display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700;">
+            <div class="view-header-bar">
+                <div class="view-header-title-group">
+                    <h2 class="view-header-title">
                         <span>🔮</span>
                         <span data-i18n="sim_title">${window.i18n.t('sim_title')}</span>
                     </h2>
-                    <!-- Inline Scenario Selector -->
-                    <div style="display:flex;align-items:center;gap:6px;">
-                        <select id="simActiveScenarioSelect" class="inline-input" style="padding:4px 10px;font-size:12px;font-weight:600;min-width:200px;border-radius:6px;border-color:${activeScenario ? activeScenario.color : 'var(--border-color)'};" onchange="window.SimulatorView.onScenarioChange(this.value)">
+                    <!-- Scenario Selector Pill -->
+                    <div class="filter-pill" style="border-color:${activeScenario ? activeScenario.color : 'var(--border-color)'};">
+                        <span class="filter-pill-label">🎬</span>
+                        <select id="simActiveScenarioSelect" class="filter-pill-select" style="min-width:180px; font-weight:700;" onchange="window.SimulatorView.onScenarioChange(this.value)">
                             ${this.scenarios.length === 0 ? `<option value="">${window.i18n.t('sim_no_scenario_created') || '(Aucun scénario créé)'}</option>` : ''}
                             ${this.scenarios.map(s => {
                                 const activeEvCount = s.events ? s.events.filter(e => e.is_active).length : 0;
@@ -568,17 +569,18 @@ window.SimulatorView = {
                     </div>
                 </div>
 
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                    <div style="display:flex;align-items:center;gap:5px;white-space:nowrap;">
-                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);white-space:nowrap;flex-shrink:0;" data-i18n="sim_account_label">${window.i18n.t('sim_account_label')}</label>
-                        <select id="simAccountSelect" class="inline-input" style="padding:4px 8px;font-size:12px;max-width:180px;border-radius:6px;" onchange="window.SimulatorView.onAccountChange(this.value)">
+                <div class="view-header-toolbar">
+                    <div class="filter-pill">
+                        <span class="filter-pill-label">🏦 <span data-i18n="sim_account_label">${window.i18n.t('sim_account_label')}</span></span>
+                        <select id="simAccountSelect" class="filter-pill-select" style="min-width:140px;" onchange="window.SimulatorView.onAccountChange(this.value)">
                             <option value="" ${this.accountId === null ? 'selected' : ''} data-i18n="sim_all_liquid_accounts">${window.i18n.t('sim_all_liquid_accounts')}</option>
                             ${this.accounts.map(a => `<option value="${a.id}" ${this.accountId === a.id ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('')}
                         </select>
                     </div>
-                    <div style="display:flex;align-items:center;gap:5px;white-space:nowrap;">
-                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);white-space:nowrap;flex-shrink:0;" data-i18n="sim_horizon_label">${window.i18n.t('sim_horizon_label')}</label>
-                        <select id="simHorizonSelect" class="inline-input" style="padding:4px 8px;font-size:12px;border-radius:6px;" onchange="window.SimulatorView.onHorizonChange(this.value)">
+
+                    <div class="filter-pill">
+                        <span class="filter-pill-label">⏳ <span data-i18n="sim_horizon_label">${window.i18n.t('sim_horizon_label')}</span></span>
+                        <select id="simHorizonSelect" class="filter-pill-select" style="min-width:85px;" onchange="window.SimulatorView.onHorizonChange(this.value)">
                             <option value="6" ${this.horizonMonths === 6 ? 'selected' : ''}>${window.i18n.t('sim_horizon_6m')}</option>
                             <option value="12" ${this.horizonMonths === 12 ? 'selected' : ''}>${window.i18n.t('sim_horizon_12m')}</option>
                             <option value="18" ${this.horizonMonths === 18 ? 'selected' : ''}>${window.i18n.t('sim_horizon_18m')}</option>
@@ -591,10 +593,11 @@ window.SimulatorView = {
                             <option value="300" ${this.horizonMonths === 300 ? 'selected' : ''}>${window.i18n.t('sim_horizon_25y')}</option>
                         </select>
                     </div>
-                    <button class="btn btn-secondary btn-sm" onclick="window.SimulatorView.openPresetsModal()" style="display:flex;align-items:center;gap:5px;">
+
+                    <button class="btn btn-secondary toolbar-btn" onclick="window.SimulatorView.openPresetsModal()">
                         <span>✨</span> <span data-i18n="sim_btn_presets">${window.i18n.t('sim_btn_presets')}</span>
                     </button>
-                    <button class="btn btn-primary btn-sm" onclick="window.SimulatorView.openNewScenarioModal()" style="display:flex;align-items:center;gap:5px;">
+                    <button class="btn btn-primary toolbar-btn" onclick="window.SimulatorView.openNewScenarioModal()">
                         <span>➕</span> <span data-i18n="sim_btn_new_scenario">${window.i18n.t('sim_btn_new_scenario')}</span>
                     </button>
                 </div>

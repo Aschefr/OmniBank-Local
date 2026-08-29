@@ -2273,5 +2273,21 @@
     "overview_lookback_6m": "6m",
     "overview_lookback_3m": "3m",
     "overview_lookback_1m": "1m",
-    "overview_lookback_1w": "1 sem."
+    "overview_lookback_1w": "1 sem.",
+    "notif_new_received": "Nouvelle notification reçue",
+    "cross_profile_btn_accept": "Accepter",
+    "cross_profile_btn_reject": "Refuser",
+    "cross_profile_btn_details": "Détails",
+    "cross_profile_notif_title": "Virement inter-profils en attente",
+    "bank_sync_conn_label_placeholder": "Ex: Mon Crédit Agricole",
+    "bank_sync_refresh_mapping_tooltip": "Actualiser la liste depuis votre banque",
+    "label_period": "Période",
+    "filter_period_label": "Période",
+    "label_type": "Type",
+    "filter_type_label": "Type",
+    "filter_reconciled_status": "Statut",
+    "label_status": "Statut",
+    "label_account": "Compte",
+    "label_actions": "Actions",
+    "label_date": "Date"
 }

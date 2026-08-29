@@ -2273,5 +2273,21 @@
     "overview_lookback_6m": "6 mo",
     "overview_lookback_3m": "3 mo",
     "overview_lookback_1m": "1 mo",
-    "overview_lookback_1w": "1 wk"
+    "overview_lookback_1w": "1 wk",
+    "notif_new_received": "New notification received",
+    "cross_profile_btn_accept": "Accept",
+    "cross_profile_btn_reject": "Reject",
+    "cross_profile_btn_details": "Details",
+    "cross_profile_notif_title": "Pending cross-profile transfer",
+    "bank_sync_conn_label_placeholder": "e.g.: My Bank Account",
+    "bank_sync_refresh_mapping_tooltip": "Refresh list from your bank",
+    "label_period": "Period",
+    "filter_period_label": "Period",
+    "label_type": "Type",
+    "filter_type_label": "Type",
+    "filter_reconciled_status": "Status",
+    "label_status": "Status",
+    "label_account": "Account",
+    "label_actions": "Actions",
+    "label_date": "Date"
 }

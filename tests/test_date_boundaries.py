@@ -57,48 +57,54 @@ client = TestClient(app)
 def test_date_boundary_j_minus_1_vs_j_vs_j_plus_1():
     """
     Vérifie la frontière exacte < next_pay_date :
-    - next_pay_date = 2026-08-29
-    - Tx A (2026-08-28, J-1, 50€) : Doit être incluse dans RTL et unreconciled_expenses
-    - Tx B (2026-08-29, Jour J, 30€) : Doit être EXCLUE de RTL et unreconciled_expenses (< strict)
-    - Tx C (2026-08-30, J+1, 20€) : Doit être EXCLUE de RTL et unreconciled_expenses
+    - next_pay_date = future date (today + 15 days)
+    - Tx A (J-1, 50€) : Doit être incluse dans RTL et unreconciled_expenses
+    - Tx B (Jour J, 30€) : Doit être EXCLUE de RTL et unreconciled_expenses (< strict)
+    - Tx C (J+1, 20€) : Doit être EXCLUE de RTL et unreconciled_expenses
     """
-    # 1. Configurer une paie manuelle au 2026-08-29
+    target_pay_date = date.today() + timedelta(days=15)
+    pay_str = target_pay_date.strftime("%Y-%m-%d")
+    j_minus_1 = (target_pay_date - timedelta(days=1)).strftime("%Y-%m-%d")
+    j_day = pay_str
+    j_plus_1 = (target_pay_date + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # 1. Configurer une paie manuelle
     res = client.post("/api/stats/override_paycheck", json={
-        "date": "2026-08-29",
+        "date": pay_str,
         "amount": 2500.0
     })
     assert res.status_code == 200
 
-    # 2. Récupérer le compte principal (Compte Courant id=1, solde initial = 1500€ dans la DB de test)
+    # 2. Récupérer le compte principal
     accounts_res = client.get("/api/accounts/")
     assert accounts_res.status_code == 200
     main_account_id = accounts_res.json()[0]["id"]
 
     # 3. Créer les 3 transactions non rapprochées
-    # Tx A : J-1 (2026-08-28) -> 50.00 €
+    # Tx A : J-1 -> 50.00 €
     client.post("/api/transactions/", json={
-        "date_saisie": "2026-08-20",
-        "date_operation": "2026-08-28",
+        "date_saisie": (date.today() - timedelta(days=2)).strftime("%Y-%m-%d"),
+        "date_operation": j_minus_1,
         "description": "Dépense J-1 avant paie",
         "amount": 50.0,
         "type": "expense",
         "from_account_id": main_account_id
     })
 
-    # Tx B : Jour J paie (2026-08-29) -> 30.00 €
+    # Tx B : Jour J paie -> 30.00 €
     client.post("/api/transactions/", json={
-        "date_saisie": "2026-08-20",
-        "date_operation": "2026-08-29",
+        "date_saisie": (date.today() - timedelta(days=2)).strftime("%Y-%m-%d"),
+        "date_operation": j_day,
         "description": "Dépense Jour J paie",
         "amount": 30.0,
         "type": "expense",
         "from_account_id": main_account_id
     })
 
-    # Tx C : J+1 après paie (2026-08-30) -> 20.00 €
+    # Tx C : J+1 après paie -> 20.00 €
     client.post("/api/transactions/", json={
-        "date_saisie": "2026-08-20",
-        "date_operation": "2026-08-30",
+        "date_saisie": (date.today() - timedelta(days=2)).strftime("%Y-%m-%d"),
+        "date_operation": j_plus_1,
         "description": "Dépense J+1 après paie",
         "amount": 20.0,
         "type": "expense",
@@ -107,7 +113,7 @@ def test_date_boundary_j_minus_1_vs_j_vs_j_plus_1():
 
     # 4. Vérifier le dashboard
     dash = client.get("/api/stats/dashboard").json()
-    assert dash["next_pay_date"] == "2026-08-29"
+    assert dash["next_pay_date"] == pay_str
 
     # unreconciled_expenses ne doit contenir QUE la dépense J-1 (50€), ni J (30€) ni J+1 (20€)
     assert dash["unreconciled_expenses"] == 50.0
@@ -119,17 +125,21 @@ def test_date_boundary_j_minus_1_vs_j_vs_j_plus_1():
 
 def test_reconciliation_toggle_updates_rtl_immediately():
     """Vérifie que pointer une dépense met à jour instantanément RTL et dépenses non rapprochées."""
+    target_pay_date = date.today() + timedelta(days=15)
+    pay_str = target_pay_date.strftime("%Y-%m-%d")
+    op_str = (date.today() + timedelta(days=2)).strftime("%Y-%m-%d")
+
     client.post("/api/stats/override_paycheck", json={
-        "date": "2026-08-29",
+        "date": pay_str,
         "amount": 2000.0
     })
     accounts_res = client.get("/api/accounts/")
     main_acc_id = accounts_res.json()[0]["id"]
 
-    # Créer une dépense de 100€ au 2026-08-20 (avant la paie)
+    # Créer une dépense de 100€ avant la paie
     tx_res = client.post("/api/transactions/", json={
-        "date_saisie": "2026-08-20",
-        "date_operation": "2026-08-20",
+        "date_saisie": date.today().strftime("%Y-%m-%d"),
+        "date_operation": op_str,
         "description": "Achat Test",
         "amount": 100.0,
         "type": "expense",
@@ -157,16 +167,20 @@ def test_reconciliation_toggle_updates_rtl_immediately():
 
 def test_skipped_transaction_excluded_from_rtl():
     """Vérifie qu'une opération ignorée (skip) n'impacte pas le reste à vivre."""
+    target_pay_date = date.today() + timedelta(days=15)
+    pay_str = target_pay_date.strftime("%Y-%m-%d")
+    op_str = (date.today() + timedelta(days=3)).strftime("%Y-%m-%d")
+
     client.post("/api/stats/override_paycheck", json={
-        "date": "2026-08-29",
+        "date": pay_str,
         "amount": 2000.0
     })
     accounts_res = client.get("/api/accounts/")
     main_acc_id = accounts_res.json()[0]["id"]
 
     tx_res = client.post("/api/transactions/", json={
-        "date_saisie": "2026-08-20",
-        "date_operation": "2026-08-22",
+        "date_saisie": date.today().strftime("%Y-%m-%d"),
+        "date_operation": op_str,
         "description": "Abonnement Annulé",
         "amount": 80.0,
         "type": "expense",
