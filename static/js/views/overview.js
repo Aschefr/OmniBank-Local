@@ -30,11 +30,13 @@ window.OverviewView = {
                         </div>
                     </div>
                     <div class="overview-controls-bar">
-                        <div class="overview-acc-select-wrapper">
-                            <span class="overview-acc-select-icon">🏦</span>
-                            <select id="ovAccountSelect" class="overview-account-select" onchange="window.OverviewView.onAccountChange(this.value)">
-                                <option value="">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</option>
-                            </select>
+                        <div id="ovAccountSelect" class="overview-acc-dropdown">
+                            <button type="button" class="overview-acc-trigger" onclick="window.OverviewView.toggleAccountDropdown(event)" aria-haspopup="listbox" aria-expanded="false">
+                                <span class="overview-acc-icon" id="ovAccountTriggerIcon">🏦</span>
+                                <span class="overview-acc-label" id="ovAccountTriggerLabel">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</span>
+                                <span class="overview-acc-chevron">▼</span>
+                            </button>
+                            <div class="overview-acc-menu" id="ovAccountMenu" role="listbox" style="display:none;"></div>
                         </div>
                         <button class="overview-bank-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}">
                             <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
@@ -415,18 +417,64 @@ window.OverviewView = {
         window.app.loadView('trends');
     },
 
+    toggleAccountDropdown(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('ovAccountMenu');
+        const trigger = document.querySelector('.overview-acc-trigger');
+        const container = document.getElementById('ovAccountSelect');
+        if (!menu) return;
+        const isOpen = menu.style.display !== 'none';
+        if (isOpen) {
+            this.closeAccountDropdown();
+        } else {
+            menu.style.display = 'block';
+            if (trigger) trigger.setAttribute('aria-expanded', 'true');
+            if (container) container.classList.add('open');
+
+            const onOutsideClick = (evt) => {
+                if (container && !container.contains(evt.target)) {
+                    this.closeAccountDropdown();
+                    document.removeEventListener('click', onOutsideClick);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', onOutsideClick), 10);
+        }
+    },
+
+    closeAccountDropdown() {
+        const menu = document.getElementById('ovAccountMenu');
+        const trigger = document.querySelector('.overview-acc-trigger');
+        const container = document.getElementById('ovAccountSelect');
+        if (menu) menu.style.display = 'none';
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        if (container) container.classList.remove('open');
+    },
+
+    selectAccount(accId) {
+        this.closeAccountDropdown();
+        this.onAccountChange(accId);
+        this._populateAccountSelect();
+    },
+
     _populateAccountSelect() {
-        const select = document.getElementById('ovAccountSelect');
-        if (!select) return;
+        const container = document.getElementById('ovAccountSelect');
+        const menu = document.getElementById('ovAccountMenu');
+        const triggerLabel = document.getElementById('ovAccountTriggerLabel');
+        const triggerIcon = document.getElementById('ovAccountTriggerIcon');
+        if (!container || !menu) return;
 
         const groups = {
-            checking: { label: window.i18n.t('acc_section_checking') || 'Comptes Courants & Cartes', accounts: [] },
-            savings: { label: window.i18n.t('acc_section_savings') || 'Épargne & Placements', accounts: [] },
-            loans: { label: window.i18n.t('acc_section_loans') || 'Crédits & Emprunts', accounts: [] }
+            checking: { label: window.i18n.t('acc_section_checking') || 'Comptes Courants & Cartes', icon: '💳', accounts: [] },
+            savings: { label: window.i18n.t('acc_section_savings') || 'Épargne & Placements', icon: '📈', accounts: [] },
+            loans: { label: window.i18n.t('acc_section_loans') || 'Crédits & Emprunts', icon: '🏷️', accounts: [] }
         };
 
+        let selectedAccount = null;
         for (const a of this._accounts) {
             if (a.is_closed) continue;
+            if (String(a.id) === String(this._selectedAccountId)) {
+                selectedAccount = a;
+            }
             const t = (a.type || '').toLowerCase();
             let cat = 'checking';
             if (t.includes('prêt') || t.includes('pret') || t.includes('emprunt') || t.includes('loan') || t.includes('crédit') || t.includes('credit')) {
@@ -437,19 +485,71 @@ window.OverviewView = {
             groups[cat].accounts.push(a);
         }
 
-        let html = `<option value="">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</option>`;
+        // Update trigger display
+        if (selectedAccount) {
+            if (triggerIcon) {
+                const dotColor = selectedAccount.color || '#6366f1';
+                triggerIcon.innerHTML = `<span class="overview-acc-color-dot" style="background-color: ${dotColor}"></span>`;
+            }
+            if (triggerLabel) {
+                triggerLabel.textContent = `${selectedAccount.name} (${formatCurrency(selectedAccount.balance)})`;
+            }
+        } else {
+            if (triggerIcon) triggerIcon.textContent = '🏦';
+            if (triggerLabel) triggerLabel.textContent = window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes';
+        }
+
+        // Build dropdown menu items
+        const allLabel = window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes';
+        const isAllSelected = !this._selectedAccountId;
+
+        let html = `
+            <div class="overview-acc-item ${isAllSelected ? 'selected' : ''}" onclick="window.OverviewView.selectAccount('')">
+                <div class="overview-acc-item-left">
+                    <span class="overview-acc-item-icon">🏦</span>
+                    <span class="overview-acc-item-name">${allLabel}</span>
+                </div>
+                <div class="overview-acc-item-right">
+                    ${isAllSelected ? '<span class="overview-acc-item-check">✓</span>' : ''}
+                </div>
+            </div>
+            <div class="overview-acc-divider"></div>
+        `;
+
         ['checking', 'savings', 'loans'].forEach(k => {
             const grp = groups[k];
             if (grp.accounts.length === 0) return;
-            html += `<optgroup label="${grp.label}">`;
+            html += `
+                <div class="overview-acc-group">
+                    <div class="overview-acc-group-header">
+                        <span class="overview-acc-group-icon">${grp.icon}</span>
+                        <span>${grp.label}</span>
+                    </div>
+                    <div class="overview-acc-group-items">
+            `;
             for (const a of grp.accounts) {
-                const selected = String(a.id) === String(this._selectedAccountId) ? 'selected' : '';
-                html += `<option value="${a.id}" ${selected}>${escapeHtml(a.name)} (${formatCurrency(a.balance)})</option>`;
+                const isSel = String(a.id) === String(this._selectedAccountId);
+                const dotColor = a.color || '#6366f1';
+                html += `
+                    <div class="overview-acc-item ${isSel ? 'selected' : ''}" onclick="window.OverviewView.selectAccount('${a.id}')">
+                        <div class="overview-acc-item-left">
+                            <span class="overview-acc-color-dot" style="background-color: ${dotColor}"></span>
+                            <span class="overview-acc-item-name">${escapeHtml(a.name)}</span>
+                        </div>
+                        <div class="overview-acc-item-right">
+                            <span class="overview-acc-item-balance">${formatCurrency(a.balance)}</span>
+                            ${isSel ? '<span class="overview-acc-item-check">✓</span>' : ''}
+                        </div>
+                    </div>
+                `;
             }
-            html += `</optgroup>`;
+            html += `
+                    </div>
+                </div>
+            `;
         });
 
-        select.innerHTML = html;
+        menu.innerHTML = html;
     },
 
     onAccountChange(accId) {

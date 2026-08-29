@@ -38,56 +38,78 @@ window.TimelineView = {
                     </div>
                 </div>
             </div>
-            <div id="timelineHeader" class="view-header responsive-header" style="position: sticky; top: -32px; z-index: 10; background-color: var(--bg-base); padding: 32px 0 15px 0; margin-top: -32px;">
-                <h2 style="margin:0; white-space: nowrap;">🏠 <span data-i18n="nav_timeline">Dashboard</span></h2>
-                <div class="responsive-header-controls" style="display:flex; align-items:center; gap:6px; flex:1; justify-content:flex-end;">
-                    <div class="history-filters" style="display:flex; gap:6px; flex:1; max-width:860px; justify-content:flex-end; flex-wrap:wrap; align-items: center;">
-                    <select id="timelineReconciledPeriod" class="inline-input" style="min-width:130px; flex:1; max-width: 170px; height:32px; font-size:12px; padding: 2px 8px;" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()">
-                        <option value="current" data-i18n="filter_period_current">${window.i18n.t('filter_period_current')}</option>
-                        <option value="plus_5" data-i18n="filter_period_plus_5">${window.i18n.t('filter_period_plus_5')}</option>
-                        <option value="plus_15" data-i18n="filter_period_plus_15">${window.i18n.t('filter_period_plus_15')}</option>
-                        <option value="plus_30" data-i18n="filter_period_plus_30">${window.i18n.t('filter_period_plus_30')}</option>
-                        <option value="all" data-i18n="filter_period_all">${window.i18n.t('filter_period_all')}</option>
-                    </select>
-                    <div id="timelineDateRange" style="display:none; align-items:center; gap: 4px; flex:1; min-width: 220px; max-width: 280px;">
-                        <input type="date" id="timelineStartDate" class="inline-input" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()" style="flex:1; min-width: 100px; height:32px; font-size:12px; padding: 2px 6px;">
-                        <span style="color:var(--text-muted); font-size:11px; font-weight: 500;">${window.i18n.t('filter_range_to')}</span>
-                        <input type="date" id="timelineEndDate" class="inline-input" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()" style="flex:1; min-width: 100px; height:32px; font-size:12px; padding: 2px 6px;">
+            <div id="timelineHeader" class="view-header-sticky-container">
+                <div class="view-header-bar" style="position:static; margin:0; padding:0 0 10px 0;">
+                    <div class="view-header-title-group">
+                        <h2 class="view-header-title">🏠 <span data-i18n="nav_timeline">${window.i18n.t('nav_timeline')}</span></h2>
                     </div>
-                    <input type="text" id="timelineSearch" class="inline-input" data-i18n-placeholder="ph_search" placeholder="Rechercher..." style="min-width:100px; flex:1; max-width: 140px; height:32px; font-size:12px; padding: 2px 8px;" oninput="window.TimelineView.applyFilters()">
-                    <select id="timelineTypeFilter" class="inline-input" style="min-width:100px; flex:1; max-width: 130px; height:32px; font-size:12px; padding: 2px 8px;" onchange="window.TimelineView.applyFilters()">
-                        <option value="" data-i18n="filter_all_types">${window.i18n.t('filter_all_types')}</option>
-                        <option value="expense_fixed" data-i18n="type_expense_fixed">${window.i18n.t('type_expense_fixed')}</option>
-                        <option value="expense_var" data-i18n="type_expense_var">${window.i18n.t('type_expense_var')}</option>
-                        <option value="income" data-i18n="type_income">${window.i18n.t('type_income')}</option>
-                        <option value="transfer" data-i18n="type_transfer">${window.i18n.t('type_transfer')}</option>
-                    </select>
-                    <div id="timelineCategoryFilter" style="min-width:110px; flex:1; max-width:170px;"></div>
-                    <button class="btn btn-secondary" style="padding:0 6px; font-size:13px; border-radius:6px; height:30px; line-height:30px; min-height:30px;" onclick="window.MultiSelect.reset('timelineCategoryFilter')" title="${window.i18n.t('filter_reset_categories') || 'Reset categories'}">&#x21BA;</button>
-                    <div style="display:flex; align-items:center; gap:6px; ${unreconciledDisp}">
-                        <span style="font-size:11px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_unreconciled_before_pay">${window.i18n.t('filter_unreconciled_before_pay')}</span>
-                        <label class="toggle-switch" style="flex-shrink: 0; transform: scale(0.9);" data-i18n-title="tooltip_filter_unreconciled" title="Filtre les dépenses non-rapprochées prévues avant la prochaine paie">
-                            <input type="checkbox" id="timelineUnreconciledFilter" onchange="window.TimelineView.applyFilters()">
-                            <span class="slider"></span>
-                        </label>
+                    <div class="view-header-toolbar">
+                        <button class="btn btn-secondary toolbar-btn" onclick="document.getElementById('timelineColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
+                        <button id="btnImportStatement" class="btn btn-secondary toolbar-btn" onclick="window.ImportWizard.open()" data-i18n="btn_import_statement">${window.i18n.t('btn_import_statement') || '📥 Importer un relevé'}</button>
+                        <button id="btnTimelineBgSync" class="btn btn-secondary toolbar-btn overview-bank-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}">
+                            <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
+                        </button>
+                        <button class="btn btn-primary toolbar-btn" onclick="window.TimelineView.showAddRow()" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation')}</button>
                     </div>
-                    <div style="display:flex; align-items:center; gap:6px; ${attachDisp}">
-                        <span style="font-size:11px; font-weight:600; color:var(--text-muted); white-space:nowrap;" data-i18n="filter_attachments">Pièces jointes</span>
-                        <label class="toggle-switch" style="flex-shrink: 0; transform: scale(0.9);" data-i18n-title="tooltip_filter_attachments" title="Uniquement avec pièces jointes">
-                            <input type="checkbox" id="timelineAttachmentFilter" onchange="window.TimelineView.applyFilters()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    </div>
-                <div class="header-buttons" style="display:flex; gap:6px; flex-wrap:nowrap; justify-content:flex-end; align-items:center; flex-shrink:0;">
-                    <button class="btn btn-secondary" onclick="document.getElementById('timelineColsModal').style.display='flex'" data-i18n="btn_columns" style="height:32px; padding:0 10px; font-size:12px; border-radius:8px; white-space:nowrap;">${window.i18n.t('btn_columns')}</button>
-                    <button id="btnImportStatement" class="btn btn-secondary" onclick="window.ImportWizard.open()" data-i18n="btn_import_statement" style="height:32px; padding:0 10px; font-size:12px; border-radius:8px; white-space:nowrap;">${window.i18n.t('btn_import_statement') || '📥 Importer un relevé'}</button>
-                    <button id="btnTimelineBgSync" class="btn btn-secondary overview-bank-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}" style="height:32px; padding:0 10px; font-size:12px; border-radius:8px; font-weight:600; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;">
-                        <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
-                    </button>
-                    <button class="btn btn-primary" onclick="window.TimelineView.showAddRow()" data-i18n="btn_add_operation" style="height:32px; padding:0 12px; font-size:12px; border-radius:8px; font-weight:700; white-space:nowrap;">${window.i18n.t('btn_add_operation')}</button>
-
                 </div>
+
+                <!-- Dedicated Structured Filter Bar -->
+                <div class="view-filter-bar" style="margin-bottom: 0;">
+                    <div class="view-filter-group">
+                        <input type="text" id="timelineSearch" class="inline-input" data-i18n-placeholder="ph_search" placeholder="🔍 Rechercher..." style="min-width:140px; max-width:200px; height:36px; font-size:12.5px; padding: 0 10px; border-radius:10px;" oninput="window.TimelineView.applyFilters()">
+                        
+                        <div class="filter-pill">
+                            <span class="filter-pill-label">📅 <span data-i18n="budget_label_period">${window.i18n.t('budget_label_period')}</span></span>
+                            <select id="timelineReconciledPeriod" class="filter-pill-select" style="min-width:120px;" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()">
+                                <option value="current" data-i18n="filter_period_current">${window.i18n.t('filter_period_current')}</option>
+                                <option value="plus_5" data-i18n="filter_period_plus_5">${window.i18n.t('filter_period_plus_5')}</option>
+                                <option value="plus_15" data-i18n="filter_period_plus_15">${window.i18n.t('filter_period_plus_15')}</option>
+                                <option value="plus_30" data-i18n="filter_period_plus_30">${window.i18n.t('filter_period_plus_30')}</option>
+                                <option value="all" data-i18n="filter_period_all">${window.i18n.t('filter_period_all')}</option>
+                            </select>
+                        </div>
+                        
+                        <div id="timelineDateRange" style="display:none; align-items:center; gap: 4px;">
+                            <input type="date" id="timelineStartDate" class="inline-input" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()" style="min-width: 110px; height:36px; font-size:12px; padding: 2px 6px; border-radius:10px;">
+                            <span style="color:var(--text-muted); font-size:11px; font-weight: 500;">${window.i18n.t('filter_range_to')}</span>
+                            <input type="date" id="timelineEndDate" class="inline-input" onchange="window.TimelineView.savePeriod(); window.TimelineView.applyFilters()" style="min-width: 110px; height:36px; font-size:12px; padding: 2px 6px; border-radius:10px;">
+                        </div>
+
+                        <div class="filter-pill">
+                            <span class="filter-pill-label">🏷️ <span data-i18n="col_type">${window.i18n.t('col_type')}</span></span>
+                            <select id="timelineTypeFilter" class="filter-pill-select" style="min-width:100px;" onchange="window.TimelineView.applyFilters()">
+                                <option value="" data-i18n="filter_all_types">${window.i18n.t('filter_all_types')}</option>
+                                <option value="expense_fixed" data-i18n="type_expense_fixed">${window.i18n.t('type_expense_fixed')}</option>
+                                <option value="expense_var" data-i18n="type_expense_var">${window.i18n.t('type_expense_var')}</option>
+                                <option value="income" data-i18n="type_income">${window.i18n.t('type_income')}</option>
+                                <option value="transfer" data-i18n="type_transfer">${window.i18n.t('type_transfer')}</option>
+                            </select>
+                        </div>
+
+                        <div id="timelineCategoryFilter" style="min-width:130px; max-width:180px;"></div>
+                        <button class="btn btn-secondary" style="padding:0 8px; font-size:13px; border-radius:8px; height:36px; line-height:36px; min-height:36px;" onclick="window.MultiSelect.reset('timelineCategoryFilter')" title="${window.i18n.t('filter_reset_categories') || 'Reset categories'}">&#x21BA;</button>
+                    </div>
+
+                    <div class="view-filter-toggles">
+                        <div class="filter-pill" style="${unreconciledDisp}">
+                            <label class="filter-pill-toggle">
+                                <span data-i18n="filter_unreconciled_before_pay">${window.i18n.t('filter_unreconciled_before_pay')}</span>
+                                <span class="toggle-switch" data-i18n-title="tooltip_filter_unreconciled" title="Filtre les dépenses non-rapprochées prévues avant la prochaine paie">
+                                    <input type="checkbox" id="timelineUnreconciledFilter" onchange="window.TimelineView.applyFilters()">
+                                    <span class="slider"></span>
+                                </span>
+                            </label>
+                        </div>
+                        <div class="filter-pill" style="${attachDisp}">
+                            <label class="filter-pill-toggle">
+                                <span data-i18n="filter_attachments">📎 ${window.i18n.t('filter_attachments')}</span>
+                                <span class="toggle-switch" data-i18n-title="tooltip_filter_attachments" title="Uniquement avec pièces jointes">
+                                    <input type="checkbox" id="timelineAttachmentFilter" onchange="window.TimelineView.applyFilters()">
+                                    <span class="slider"></span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div style="padding-bottom: 20px;">

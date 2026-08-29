@@ -6,9 +6,13 @@ window.HistoryView = {
 
     render() {
         return `
-            <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                <h2 style="font-size: 1.25rem;">🕓 <span data-i18n="history_title">Historique de l'Activité & Annulations</span></h2>
-                <button class="btn btn-secondary" onclick="window.HistoryView.purge()" data-i18n="history_purge_btn" style="font-size: 12px; padding: 6px 12px;">Purger l'historique</button>
+            <div class="view-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;margin-bottom:18px;">
+                <div class="view-header-title-group">
+                    <h2 class="view-header-title">🕓 <span data-i18n="history_title">${window.i18n.t('history_title')}</span></h2>
+                </div>
+                <div class="view-header-toolbar">
+                    <button class="btn btn-secondary toolbar-btn" onclick="window.HistoryView.purge()" data-i18n="history_purge_btn">${window.i18n.t('history_purge_btn') || "Purger l'historique"}</button>
+                </div>
             </div>
 
             <div class="table-responsive" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; margin-bottom: 20px;">

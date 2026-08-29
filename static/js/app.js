@@ -2244,6 +2244,11 @@ class App {
             document.body.classList.remove('overview-fullscreen');
         }
         
+        if (main) {
+            main.scrollTop = 0;
+        }
+        window.scrollTo(0, 0);
+
         if (viewName === 'overview' && window.OverviewView) {
             main.innerHTML = window.OverviewView.render();
             window.OverviewView.init();

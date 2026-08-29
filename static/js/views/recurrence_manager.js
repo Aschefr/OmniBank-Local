@@ -268,8 +268,10 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     cursor: not-allowed;
                 }
             </style>
-            <div class="view-header" style="margin-bottom:20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                <h2>🔄 <span data-i18n="nav_recurrences">Récurrences</span></h2>
+            <div class="view-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;">
+                <div class="view-header-title-group">
+                    <h2 class="view-header-title">🔄 <span data-i18n="nav_recurrences">${window.i18n.t('nav_recurrences')}</span></h2>
+                </div>
             </div>
             
             <div class="rec-filter-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; background: var(--bg-surface); padding: 12px 20px; border-radius: 12px; border: 1px solid var(--border-color);">
