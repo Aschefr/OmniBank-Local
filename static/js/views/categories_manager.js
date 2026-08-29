@@ -21,22 +21,26 @@ window.CategoriesView = {
         `).join('');
 
         return `
-            <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                <h2>🏷️ <span data-i18n="nav_categories">Categories</span></h2>
-                <input type="text" id="categoryViewSearch" class="inline-input" placeholder="Search a category..." data-i18n-placeholder="cat_search_ph" style="min-width: 180px; max-width: 300px; padding: 8px 12px; border-radius: 8px;" oninput="window.CategoriesView.applyFilter()">
+            <div class="view-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;">
+                <div class="view-header-title-group">
+                    <h2 class="view-header-title">🏷️ <span data-i18n="nav_categories">${window.i18n.t('nav_categories')}</span></h2>
+                </div>
+                <div class="view-header-toolbar">
+                    <input type="text" id="categoryViewSearch" class="inline-input" placeholder="🔍 ${window.i18n.t('cat_search_ph') || 'Rechercher...'}" data-i18n-placeholder="cat_search_ph" style="min-width: 200px; max-width: 320px; height: 36px; padding: 0 12px; border-radius: 10px;" oninput="window.CategoriesView.applyFilter()">
+                </div>
             </div>
             
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
-                    <h3 style="margin: 0;" data-i18n="cat_custom_types">Type Customization</h3>
-                    <button class="btn btn-secondary" onclick="window.CategoriesView.saveTypeLabels()" data-i18n="btn_save_names">Save names</button>
+            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                    <h3 style="margin: 0;" data-i18n="cat_custom_types">${window.i18n.t('cat_custom_types')}</h3>
+                    <button class="btn btn-secondary toolbar-btn" onclick="window.CategoriesView.saveTypeLabels()" data-i18n="btn_save_names">${window.i18n.t('btn_save_names')}</button>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
                     ${typeSettingsHtml}
                 </div>
             </div>
 
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <h3 style="margin-top: 0;" data-i18n="cat_new">New Category</h3>
                 <div class="categories-add-form" style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
                     <input type="text" id="cat_name" class="inline-input" placeholder="${window.i18n.t('cat_name_ph') || 'Category name'}" style="flex: 1; min-width: 200px;">
