@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.94-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.95-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,10 +110,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.94)
+## 🆕 Nouveautés (v1.0.95)
 
-* **🎯 Priorité de Rapprochement des Opérations Récurrentes** : Correction de l'arbitrage de rapprochement bancaire. Les opérations récurrentes débitées (ex. abonnements mensuels) sont désormais correctement associées à la prévision du mois en cours plutôt que d'être faussement classées en doublon du mois précédent.
-* **🔒 Mémorisation de l'Empreinte Bancaire (`csv_id`)** : L'empreinte unique est désormais enregistrée lors du pointage d'une prévision, garantissant un appariement instantané à 100% lors des synchronisations futures.
+* **📐 Harmonisation des Barres d'Outils & Filtres Dédiés** : Organisation claire sur 2 lignes pour le Dashboard et l'Historique, séparant les boutons d'action des filtres et de la recherche avec maintien sticky au défilement.
+* **📱 Expérience Mobile Conforme aux Standards** : Typographie lisible (13-14px), cibles tactiles de 36px (normes Apple HIG & Material 3) et barre de filtres défilable horizontalement au doigt (*chips scroll*).
+* **⏱️ Rythme Financier & Moyennes en Temps Réel** : Bandeau discret dans la Vue d'ensemble affichant revenus, dépenses fixes, variables et solde net avec sélecteurs de période et de cadence.
+* **🔔 Gestion Avancée des Notifications** : Onglets Actives/Archives, recherche en direct et actions contextuelles déclenchées exclusivement via boutons dédiés (le clic carte marquant comme lu uniquement).
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -121,7 +123,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.94-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.95-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -160,42 +162,42 @@ From the very first launch, an **Initialization Assistant** guides you through c
 | ![Transaction entry](screenshots/02_dashboard_saisie_operation.png) | ![Transaction history](screenshots/03_historique.png) | ![Dashboard with reconciliation](screenshots/02_dashboard_après_rapprochement.png) |
 
 ### 🎯 Budget & Envelopes
-Track your spending by categories or projects with a visual envelope system. The AI can even suggest budgets based on your habits.
+Suivez vos dépenses par catégories ou par projets avec un système d'enveloppes visuel. L'IA peut même vous suggérer des budgets basés sur vos habitudes.
 
-| Budget View | Budget Detail | AI Suggestions |
+| Vue Budget | Détail Budget | Suggestions IA |
 | :---: | :---: | :---: |
-| ![Budget View](screenshots/05_budgets.png) | ![Budget Detail](screenshots/05_budgets_detail.png) | ![AI Budget Suggestions](screenshots/05_budgets_suggestion_ia.png) |
+| ![Vue Budget](screenshots/05_budgets.png) | ![Détail d'un budget](screenshots/05_budgets_detail.png) | ![Suggestions IA pour budgets](screenshots/05_budgets_suggestion_ia.png) |
 
 ### 🤖 Local AI Assistant
-Interact with your personal financial assistant via Ollama. Using RAG (Retrieval-Augmented Generation), the AI accesses your data to provide precise answers. It can even submit **interactive action proposals** directly in the chat.
+Interact with your personal financial assistant via Ollama. Thanks to RAG (Retrieval-Augmented Generation), the AI accesses your data to answer accurately. It can even propose **interactive action cards** directly in the chat.
 
-![AI Chat](screenshots/07_chat_ia.png)
+![Chat IA](screenshots/07_chat_ia.png)
 
-### 📊 Synthesis & Trends
-Visualize the evolution of your wealth and generate **high-fidelity PDF reports**, perfect for rigorous accounting tracking or secure sharing.
+### 📊 Analytics & Trends
+Visualize your financial trajectory and export **high-fidelity PDF reports**, perfect for strict accounting follow-up or secure sharing.
 
-| Synthesis | Trends | PDF Export |
+| Monthly Analytics | Long-Term Trends | PDF Export |
 | :---: | :---: | :---: |
-| ![Monthly synthesis](screenshots/04_synthèse.png) | ![Long term trends](screenshots/06_tendances.png) | ![PDF Export](screenshots/04_synthèse_export_pdf.png) |
+| ![Monthly Summary](screenshots/04_synthèse.png) | ![Long-term trends](screenshots/06_tendances.png) | ![PDF Export](screenshots/04_synthèse_export_pdf.png) |
 
 ### 🛠️ Administration & Customization
-Take full control of your financial structure with flexible management tools.
+Take full control over your financial structure with flexible management tools.
 
-| Accounts | Categories | Recurrences | Configuration |
+| Accounts | Categories | Recurrences | Settings |
 | :---: | :---: | :---: | :---: |
-| ![Account management](screenshots/10_comptes.png) | ![Category management](screenshots/09_catégories.png) | ![Recurring operations](screenshots/08_recurrences.png) | ![Global configuration](screenshots/11_configuration.png) |
+| ![Account Management](screenshots/10_comptes.png) | ![Category Management](screenshots/09_catégories.png) | ![Recurring operations](screenshots/08_recurrences.png) | ![Global Settings](screenshots/11_configuration.png) |
 
-![Propagation of changes](screenshots/08_recurrences_modification_propagé.png)
+![Change Propagation](screenshots/08_recurrences_modification_propagé.png)
 
 ---
 
-## 🏢 Organisation Mode (Nonprofits / Work Councils)
+## 🏢 Organisation Mode (Associations / Works Councils)
 
-OmniBank offers an **organisation mode** designed for nonprofits, work councils, and small organizations needing multi-user tracking.
+OmniBank includes an **organization mode** designed for non-profits, sports clubs, works councils (CSE), and small organizations requiring multi-user access.
 
-*   **👥 Password-free multi-user**: Each member (treasurer, deputy, secretary…) selects their profile at launch.
-*   **📋 Built-in audit trail**: Every transaction automatically records who created it and who last modified it.
-*   **🔑 License required**: Activating organisation mode requires a license key.
+*   **👥 Multi-user without passwords**: Every member (treasurer, deputy, secretary…) selects their profile at launch.
+*   **📋 Built-in audit trail**: Every transaction automatically logs who created it and who modified it last.
+*   **🔑 License required**: Activating Organization Mode requires a valid license key.
 
 > To obtain a license, open an **[Issue on GitHub](https://github.com/Aschefr/OmniBank-Local/issues)**.
 
@@ -221,10 +223,12 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.94)
+## 🆕 What's New (v1.0.95)
 
-* **🎯 Recurring Operations Reconciliation Priority**: Fixed reconciliation matching priority. Debited recurring transactions (e.g. monthly subscriptions) now correctly match the current month's pending forecast rather than being falsely classified as duplicates of the previous month.
-* **🔒 Bank Identifier Persistence (`csv_id`)**: Unique transaction hash is now saved when confirming an existing forecast, guaranteeing instant 100% exact matching on future synchronizations.
+* **📐 Harmonized Toolbars & Dedicated Filter Grids**: Clean 2-row layout across Dashboard and History separating action buttons from search and filter pills with sticky scroll positioning.
+* **📱 Mobile Viewport Standards**: Legible 13-14px typography, 36px touch targets (Apple HIG & Material 3), and swipeable horizontal filter chips.
+* **⏱️ Real-Time Financial Rhythm & Averages**: Discreet overview strip displaying Income, Fixed/Variable expenses, and Net flow with period and cadence selectors.
+* **🔔 Enhanced Notification Management**: Active/Archived tabs, real-time search, and dedicated action buttons (card click only marks as read).
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

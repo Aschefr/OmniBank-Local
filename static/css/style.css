@@ -7034,6 +7034,11 @@ body.overview-fullscreen .app-body {
 .notif-card.unread {
     border-left: 4px solid var(--accent);
     background: rgba(99, 102, 241, 0.03);
+    cursor: pointer;
+}
+
+.notif-card.unread:hover {
+    background: rgba(99, 102, 241, 0.06);
 }
 
 .notif-card.archived {

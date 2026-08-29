@@ -931,7 +931,9 @@ class App {
         const dateStr = new Date(n.created_at).toLocaleString(lang, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         const unreadClass = (!n.is_read && !isArchived) ? 'unread' : '';
         const isReport = n.type === 'ai_report';
-        const clickCallback = `onclick="window.app.handleNotifClick(${n.id})"`;
+        const clickCallback = (!n.is_read && !isArchived) 
+            ? `onclick="window.app.handleNotifClick(${n.id})" title="${window.i18n ? window.i18n.t('notif_btn_mark_read_tooltip') || 'Cliquer pour marquer comme lu' : 'Cliquer pour marquer comme lu'}" style="cursor: pointer;"` 
+            : '';
 
         const translated = this._translateNotification(n);
         let displayTitle = translated.title;
@@ -949,23 +951,43 @@ class App {
         }
         displayContent = displayContent.replace(/\\n/g, '\n').trim();
 
-        // Context Action Button (e.g. Deepen AI report, Examine pending)
+        // Context Action Button (e.g. Deepen AI report, Examine pending, Unlock vault, View accounts, Open Chat)
         let contextActionBtn = '';
         if (isReport) {
-            contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.deepenAIReportById(${n.id})">${window.i18n ? window.i18n.t('notif_btn_deepen') || "Approfondir avec l'IA" : "Approfondir avec l'IA"}</button>`;
-        } else if (n.type === 'bank_sync' || n.type === 'file_import') {
-            let hasPending = false;
-            if (n.link_data) {
-                try {
-                    const meta = typeof n.link_data === 'string' ? JSON.parse(n.link_data) : n.link_data;
-                    if (meta.action === 'open_pending' || (meta.matches > 0 || meta.new_txs > 0)) {
-                        hasPending = true;
-                    }
-                } catch (_) {}
-            }
-            if (hasPending) {
-                const lblExamine = window.i18n ? window.i18n.t('notif_btn_examine') || 'Examiner' : 'Examiner';
-                contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifClick(${n.id})">🔍 ${lblExamine}</button>`;
+            const lblDeepen = window.i18n ? window.i18n.t('notif_btn_deepen') || "Approfondir avec l'IA" : "Approfondir avec l'IA";
+            contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifAction(${n.id})">🤖 ${lblDeepen}</button>`;
+        } else if (n.link_data) {
+            try {
+                const linkObj = typeof n.link_data === 'string' ? JSON.parse(n.link_data) : n.link_data;
+                const errStr = String(linkObj.error || n.content || '').toLowerCase();
+                const isVaultOrPasswordIssue = linkObj.action === 'unlock_vault' || 
+                    (n.type === 'bank_sync_error' && (
+                        errStr.includes('mot de passe') || 
+                        errStr.includes('password') || 
+                        errStr.includes('coffre') || 
+                        errStr.includes('vault') || 
+                        errStr.includes('verrouill') ||
+                        errStr.includes('identifiant')
+                    ));
+
+                if (linkObj.session_id) {
+                    const lblChat = window.i18n ? window.i18n.t('notif_btn_open_chat') || 'Ouvrir la discussion' : 'Ouvrir la discussion';
+                    contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifAction(${n.id})">💬 ${lblChat}</button>`;
+                } else if (isVaultOrPasswordIssue) {
+                    const lblVault = window.i18n ? window.i18n.t('notif_btn_unlock_vault') || 'Déverrouiller le coffre' : 'Déverrouiller le coffre';
+                    contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifAction(${n.id})">🔐 ${lblVault}</button>`;
+                } else if (linkObj.action === 'open_pending' || (linkObj.matches > 0 || linkObj.new_txs > 0)) {
+                    const lblExamine = window.i18n ? window.i18n.t('notif_btn_examine') || 'Examiner' : 'Examiner';
+                    contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifAction(${n.id})">🔍 ${lblExamine}</button>`;
+                } else if (linkObj.view === 'accounts' || linkObj.view === 'accounts_manager' || linkObj.action === 'bank_sync' || n.type === 'bank_sync_error') {
+                    const lblAcc = (n.type === 'bank_sync_error') 
+                        ? (window.i18n ? window.i18n.t('notif_btn_manage_connections') || 'Gérer les connexions' : 'Gérer les connexions')
+                        : (window.i18n ? window.i18n.t('notif_btn_view_accounts') || 'Voir les comptes' : 'Voir les comptes');
+                    const icon = (n.type === 'bank_sync_error') ? '⚙️' : '🏦';
+                    contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifAction(${n.id})">${icon} ${lblAcc}</button>`;
+                }
+            } catch (e) {
+                console.error("Error parsing link_data for notif action button", e);
             }
         }
 
@@ -1009,15 +1031,25 @@ class App {
     }
 
     async handleNotifClick(id) {
+        // Clicking the notification card only marks it as read
+        await this.markNotifRead(id);
+    }
+
+    async handleNotifAction(id) {
         const n = this._notifDataMap && this._notifDataMap[id];
         if (!n) return;
 
-        // 1. Mark as read if it is unread
+        // 1. Mark as read
         if (!n.is_read) {
             await this.markNotifRead(id);
         }
 
-        // 2. Process link redirection if present (close menu only when navigating)
+        // 2. Perform the action
+        if (n.type === 'ai_report') {
+            await this.deepenAIReportById(id);
+            return;
+        }
+
         if (n.link_data) {
             try {
                 const linkObj = typeof n.link_data === 'string' ? JSON.parse(n.link_data) : n.link_data;
@@ -1046,7 +1078,7 @@ class App {
                     if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') {
                         window.BankSyncView.unlockVaultManually();
                     }
-                } else if (linkObj.action === 'open_pending') {
+                } else if (linkObj.action === 'open_pending' || (linkObj.matches > 0 || linkObj.new_txs > 0)) {
                     if (notifMenu) notifMenu.style.display = 'none';
                     if (window.BankSyncView && window.BankSyncView.openPendingReviewModal) {
                         window.BankSyncView.openPendingReviewModal();
@@ -1058,7 +1090,7 @@ class App {
                     }
                 }
             } catch (e) {
-                console.error("Failed to parse link_data", e);
+                console.error("Failed to execute notif action", e);
             }
         }
     }
