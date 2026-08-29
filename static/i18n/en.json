@@ -2289,5 +2289,10 @@
     "label_status": "Status",
     "label_account": "Account",
     "label_actions": "Actions",
-    "label_date": "Date"
+    "label_date": "Date",
+    "notif_btn_unlock_vault": "Unlock vault",
+    "notif_btn_open_chat": "Open chat",
+    "notif_btn_manage_connections": "Manage connections",
+    "notif_btn_view_accounts": "View accounts",
+    "notif_btn_mark_read_tooltip": "Click to mark as read"
 }

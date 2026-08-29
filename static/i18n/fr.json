@@ -2289,5 +2289,10 @@
     "label_status": "Statut",
     "label_account": "Compte",
     "label_actions": "Actions",
-    "label_date": "Date"
+    "label_date": "Date",
+    "notif_btn_unlock_vault": "Déverrouiller le coffre",
+    "notif_btn_open_chat": "Ouvrir la discussion",
+    "notif_btn_manage_connections": "Gérer les connexions",
+    "notif_btn_view_accounts": "Voir les comptes",
+    "notif_btn_mark_read_tooltip": "Cliquer pour marquer comme lu"
 }
