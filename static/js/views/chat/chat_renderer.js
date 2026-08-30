@@ -28,7 +28,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             }
 
             // Clean up any stray backtick wrappers
-            rawContent = rawContent.replace(/```(?:json)?\s*\n?/g, '').replace(/\n?\s*```/g, '');
+            rawContent = rawContent.replace(/```(?:action|json)?\s*\n?/g, '').replace(/\n?\s*```/g, '');
 
             // Strip literal \n if present in raw string
             rawContent = rawContent.replace(/\\n/g, '\n');
@@ -36,11 +36,17 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             // Strip TOOLS_USED comment (badges are rendered in renderHistory meta-row)
             rawContent = rawContent.replace(/<!--\s*TOOLS_USED:\s*[^>]+?\s*-->\n?/, '');
             
-            // Match signature {"id": 123, "updates": {...}}
-            const actionRegex = /\{\s*"id"\s*:\s*\d+\s*,\s*"updates"\s*:\s*\{[^}]+\}\s*\}/g;
+            // Match signature {"id": 123, "updates": {...}} or {"id": 123, "updates": {}}
+            const actionRegex = /\{\s*"id"\s*:\s*\d+\s*,\s*"updates"\s*:\s*\{[^}]*\}\s*\}/g;
             rawContent = rawContent.replace(actionRegex, (match) => {
                 try {
-                    const actionObj = JSON.parse(match);
+                    let actionObj = JSON.parse(match);
+                    if (!actionObj.updates || Object.keys(actionObj.updates).length === 0) {
+                        actionObj = {
+                            action: 'delete_transaction',
+                            params: { transaction_id: actionObj.id }
+                        };
+                    }
                     actions.push(actionObj);
                     return '';
                 } catch (e) {
@@ -49,7 +55,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             });
             
             // Match signature {"action": "...", "params": {...}}
-            const genericActionRegex = /\{\s*"action"\s*:\s*"[^"]+"\s*,\s*"params"\s*:\s*\{[^}]+\}\s*\}/g;
+            const genericActionRegex = /\{\s*"action"\s*:\s*"[^"]+"\s*,\s*"params"\s*:\s*\{[^}]*\}\s*\}/g;
             rawContent = rawContent.replace(genericActionRegex, (match) => {
                 try {
                     const actionObj = JSON.parse(match);
@@ -161,7 +167,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
 
         if (!isUser) {
-            displayContent = this.enrichWithEntityBadges(displayContent);
+            displayContent = this.enrichWithEntityBadges(displayContent, msg.entity_snapshots);
         }
 
         // Append status indicator if present AFTER entity enrichment to prevent badges inside status text
@@ -651,7 +657,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
     },
 
-    enrichWithEntityBadges(html) {
+    enrichWithEntityBadges(html, entitySnapshots = null) {
         if (!html || typeof html !== 'string') return html;
 
         // Try getting entities from cache or fallback to globals
@@ -761,6 +767,17 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                             badgeSpan.setAttribute('data-entity-name', ent.name);
                             badgeSpan.setAttribute('tabindex', '0');
                             badgeSpan.setAttribute('role', 'button');
+
+                            // Attach historical snapshot data if available for this entity
+                            if (entitySnapshots) {
+                                const key = `${ent.type}:${ent.name}`;
+                                const snap = entitySnapshots[key] || 
+                                    Object.entries(entitySnapshots).find(([k]) => k.toLowerCase() === key.toLowerCase())?.[1];
+                                if (snap) {
+                                    badgeSpan.setAttribute('data-entity-snapshot', JSON.stringify(snap));
+                                }
+                            }
+
                             badgeSpan.innerHTML = `<span class="ai-entity-icon">${ent.icon}</span><span class="ai-entity-label">${matchStr}</span>`;
 
                             const parent = node.parentNode;
@@ -805,6 +822,11 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             const entType = badge.getAttribute('data-entity-type');
             const entId = parseInt(badge.getAttribute('data-entity-id') || 0);
             const entName = badge.getAttribute('data-entity-name');
+            const snapshotRaw = badge.getAttribute('data-entity-snapshot');
+            let snapshot = null;
+            if (snapshotRaw) {
+                try { snapshot = JSON.parse(snapshotRaw); } catch(e) {}
+            }
 
             popover.innerHTML = `
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
@@ -855,11 +877,11 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             adjustPosition();
 
             if (entType === 'budget') {
-                await this._renderBudgetPopoverContent(popover, entId, entName);
+                await this._renderBudgetPopoverContent(popover, entId, entName, snapshot);
             } else if (entType === 'account') {
-                await this._renderAccountPopoverContent(popover, entId, entName);
+                await this._renderAccountPopoverContent(popover, entId, entName, snapshot);
             } else {
-                await this._renderCategoryPopoverContent(popover, entName);
+                await this._renderCategoryPopoverContent(popover, entName, snapshot);
             }
 
             // Re-adjust position with final rendered height
@@ -913,64 +935,87 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         });
     },
 
-    async _renderBudgetPopoverContent(popover, budgetId, budgetName) {
+    async _renderBudgetPopoverContent(popover, budgetId, budgetName, snapshot = null) {
         const now = new Date();
-        const y = now.getFullYear();
-        const m = now.getMonth() + 1;
+        const y = snapshot?.snapshot_year || now.getFullYear();
+        const m = snapshot?.snapshot_month || (now.getMonth() + 1);
         const fmt = window.formatCurrency || ((v) => `${Number(v).toFixed(2)} €`);
 
         try {
-            // 1. Get budget info
-            let budget = (this._entityCache?.budgets || []).find(b => b.id === budgetId || b.name === budgetName);
-            if (!budget) {
-                const statusRes = await API.get('/api/budgets/status');
-                budget = (statusRes?.budgets || []).find(b => b.id === budgetId || b.name === budgetName);
-            }
+            let spent = 0.0, limit = 0.0, pct = 0.0, remaining = 0.0, recent3 = [];
+            let isHistorical = false;
 
-            const spent = budget?.expenses || 0.0;
-            const limit = budget?.budget_amount || 0.0;
-            const pct = budget?.percent || (limit > 0 ? (spent / limit * 100) : 0);
-            const remaining = budget?.balance !== undefined ? budget.balance : (limit - spent);
+            if (snapshot) {
+                isHistorical = true;
+                spent = snapshot.spent || 0.0;
+                limit = snapshot.limit || 0.0;
+                pct = snapshot.percent !== undefined ? snapshot.percent : (limit > 0 ? (spent / limit * 100) : 0);
+                remaining = snapshot.balance !== undefined ? snapshot.balance : (limit - spent);
+                recent3 = snapshot.recent_txs || [];
+            } else {
+                // Live fallback (Option A)
+                let budget = (this._entityCache?.budgets || []).find(b => b.id === budgetId || b.name === budgetName);
+                if (!budget) {
+                    const statusRes = await API.get('/api/budgets/status');
+                    budget = (statusRes?.budgets || []).find(b => b.id === budgetId || b.name === budgetName);
+                }
+
+                spent = budget?.expenses || 0.0;
+                limit = budget?.budget_amount || 0.0;
+                pct = budget?.percent || (limit > 0 ? (spent / limit * 100) : 0);
+                remaining = budget?.balance !== undefined ? budget.balance : (limit - spent);
+
+                try {
+                    const txs = await API.get(`/api/budgets/${budgetId || budget?.id}/transactions?year=${y}&month=${m}`);
+                    if (txs && txs.length > 0) {
+                        recent3 = txs.slice(0, 3);
+                    }
+                } catch (e) {}
+            }
 
             let barColor = '#10b981';
             if (pct >= 100) barColor = '#ef4444';
             else if (pct >= 80) barColor = '#f59e0b';
 
-            // 2. Fetch recent transactions for this budget
             let txHtml = '';
-            try {
-                const txs = await API.get(`/api/budgets/${budgetId || budget?.id}/transactions?year=${y}&month=${m}`);
-                if (txs && txs.length > 0) {
-                    const recent3 = txs.slice(0, 3);
-                    txHtml = `
-                        <div style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:8px;">
-                            <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">
-                                ${window.i18n.t('chat_entity_recent_txs') || 'Dernières opérations'} :
-                            </div>
-                            <div style="display:flex; flex-direction:column; gap:4px;">
-                                ${recent3.map(t => `
-                                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-                                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;" title="${window.escapeHtml(t.description)}">${window.escapeHtml(t.description)}</span>
-                                        <span style="font-weight:600; color:${t.is_income ? '#10b981' : '#ef4444'};">${t.is_income ? '+' : '-'}${fmt(Math.abs(t.amount))}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
+            if (recent3.length > 0) {
+                txHtml = `
+                    <div style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:8px;">
+                        <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">
+                            ${window.i18n.t('chat_entity_recent_txs') || 'Dernières opérations'} :
                         </div>
-                    `;
-                }
-            } catch (e) {}
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            ${recent3.map(t => `
+                                <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;" title="${window.escapeHtml(t.description)}">${window.escapeHtml(t.description)}</span>
+                                    <span style="font-weight:600; color:${t.is_income ? '#10b981' : '#ef4444'};">${t.is_income ? '+' : '-'}${fmt(Math.abs(t.amount))}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            const snapshotBadge = isHistorical ? `
+                <span title="Données enregistrées lors de cette réponse" style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--text-muted); font-weight:500; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0;">
+                    <span>📸</span><span>${m}/${y}</span>
+                </span>
+            ` : '';
+
+            const snapshotContextJson = isHistorical ? JSON.stringify({ snapshot_year: y, snapshot_month: m }).replace(/"/g, '&quot;') : 'null';
 
             popover.innerHTML = `
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-                    <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                        <span>🏷️</span>
-                        <span title="${window.escapeHtml(budgetName)}">${window.escapeHtml(budgetName)}</span>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; color:var(--text-main); min-width:0; flex:1; overflow:hidden;">
+                        <span style="flex-shrink:0;">🏷️</span>
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${window.escapeHtml(budgetName)}">${window.escapeHtml(budgetName)}</span>
                     </div>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:11px; font-weight:700; color:${barColor};">
+                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                        ${snapshotBadge}
+                        <span style="font-size:11px; font-weight:700; color:${barColor}; white-space:nowrap;">
                             ${pct.toFixed(1)}%
                         </span>
-                        <button onclick="document.getElementById('aiEntityPopover').classList.remove('visible'); document.getElementById('aiEntityPopover').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:0 4px; line-height:1;" title="Fermer">✕</button>
+                        <button onclick="document.getElementById('aiEntityPopover').classList.remove('visible'); document.getElementById('aiEntityPopover').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:0 4px; line-height:1; display:flex; align-items:center;" title="Fermer">✕</button>
                     </div>
                 </div>
 
@@ -992,10 +1037,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 ${txHtml}
 
                 <div style="display:flex; gap:8px; margin-top:12px;">
-                    <button class="btn btn-primary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToBudget(${budgetId || budget?.id || 0}, '${window.escapeHtml(budgetName)}', ${y}, ${m})">
+                    <button class="btn btn-primary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToBudget(${budgetId || snapshot?.id || 0}, '${window.escapeHtml(budgetName)}', ${y}, ${m})">
                         📊 ${window.i18n.t('chat_entity_open_budget') || 'Ouvrir dans Budgets'}
                     </button>
-                    <button class="btn btn-secondary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(budgetName)}')">
+                    <button class="btn btn-secondary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(budgetName)}', ${snapshotContextJson})">
                         🔍 ${window.i18n.t('chat_entity_filter_ops') || 'Voir opérations'}
                     </button>
                 </div>
@@ -1005,30 +1050,56 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
     },
 
-    async _renderAccountPopoverContent(popover, accountId, accountName) {
+    async _renderAccountPopoverContent(popover, accountId, accountName, snapshot = null) {
         const fmt = window.formatCurrency || ((v) => `${Number(v).toFixed(2)} €`);
         try {
-            const accounts = this._entityCache?.accounts || (await API.get('/api/accounts/').catch(() => []));
-            const acc = accounts.find(a => a.id === accountId || a.name === accountName);
+            let balanceReconciled = 0, balanceProjected = 0, accountType = 'Compte', isHistorical = false;
+            let snapshotDate = '';
+
+            if (snapshot) {
+                isHistorical = true;
+                balanceReconciled = snapshot.balance_reconciled || 0;
+                balanceProjected = snapshot.balance_projected || 0;
+                accountType = snapshot.account_type || 'Compte';
+                snapshotDate = snapshot.snapshot_date || '';
+            } else {
+                const accounts = this._entityCache?.accounts || (await API.get('/api/accounts/').catch(() => []));
+                const acc = accounts.find(a => a.id === accountId || a.name === accountName);
+                accountType = acc?.type || 'Compte';
+                balanceReconciled = acc?.initial_balance || 0;
+            }
+
+            const snapshotBadge = isHistorical ? `
+                <span title="Données enregistrées lors de cette réponse" style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--text-muted); font-weight:500; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0;">
+                    <span>📸</span><span>${snapshotDate}</span>
+                </span>
+            ` : '';
 
             popover.innerHTML = `
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-                    <div style="font-weight:700; font-size:13px; color:var(--text-main);">
-                        🏦 ${window.escapeHtml(accountName)}
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; color:var(--text-main); min-width:0; flex:1; overflow:hidden;">
+                        <span style="flex-shrink:0;">🏦</span>
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${window.escapeHtml(accountName)}">${window.escapeHtml(accountName)}</span>
                     </div>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(59,130,246,0.15); color:#3b82f6; text-transform:uppercase; font-weight:600;">
-                            ${acc?.type || 'Compte'}
+                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                        ${snapshotBadge}
+                        <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(59,130,246,0.15); color:#3b82f6; text-transform:uppercase; font-weight:600; white-space:nowrap;">
+                            ${accountType}
                         </span>
-                        <button onclick="document.getElementById('aiEntityPopover').classList.remove('visible'); document.getElementById('aiEntityPopover').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:0 4px; line-height:1;" title="Fermer">✕</button>
+                        <button onclick="document.getElementById('aiEntityPopover').classList.remove('visible'); document.getElementById('aiEntityPopover').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:0 4px; line-height:1; display:flex; align-items:center;" title="Fermer">✕</button>
                     </div>
                 </div>
 
                 <div style="background:rgba(0,0,0,0.15); padding:10px; border-radius:8px; margin-bottom:12px;">
                     <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
                         <span style="color:var(--text-muted);">${window.i18n.t('chat_entity_reconciled_bal') || 'Solde rapproché'} :</span>
-                        <span style="font-weight:700; color:var(--text-main);">${fmt(acc?.initial_balance || 0)}</span>
+                        <span style="font-weight:700; color:var(--text-main);">${fmt(balanceReconciled)}</span>
                     </div>
+                    ${balanceProjected ? `
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span style="color:var(--text-muted);">Solde projeté :</span>
+                        <span style="font-weight:700; color:var(--text-main);">${fmt(balanceProjected)}</span>
+                    </div>` : ''}
                 </div>
 
                 <div style="display:flex; gap:8px;">
@@ -1042,14 +1113,22 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
     },
 
-    async _renderCategoryPopoverContent(popover, categoryName) {
+    async _renderCategoryPopoverContent(popover, categoryName, snapshot = null) {
         const fmt = window.formatCurrency || ((v) => `${Number(v).toFixed(2)} €`);
         try {
-            const txs = await API.get(`/api/transactions/?search=${encodeURIComponent(categoryName)}&limit=15`);
-            const matchingTxs = (txs || []).filter(t => 
-                (t.category && t.category.toLowerCase() === categoryName.toLowerCase()) ||
-                (t.description && t.description.toLowerCase().includes(categoryName.toLowerCase()))
-            );
+            let matchingTxs = [], isHistorical = false, snapshotDate = '';
+
+            if (snapshot) {
+                isHistorical = true;
+                matchingTxs = snapshot.recent_txs || [];
+                snapshotDate = snapshot.snapshot_date || '';
+            } else {
+                const txs = await API.get(`/api/transactions/?search=${encodeURIComponent(categoryName)}&limit=15`);
+                matchingTxs = (txs || []).filter(t => 
+                    (t.category && t.category.toLowerCase() === categoryName.toLowerCase()) ||
+                    (t.description && t.description.toLowerCase().includes(categoryName.toLowerCase()))
+                );
+            }
 
             let txListHtml = '';
             if (matchingTxs.length > 0) {
@@ -1082,23 +1161,33 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 `;
             }
 
+            const snapshotBadge = isHistorical ? `
+                <span title="Données enregistrées lors de cette réponse" style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--text-muted); font-weight:500; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0;">
+                    <span>📸</span><span>${snapshotDate}</span>
+                </span>
+            ` : '';
+
+            const snapshotContextJson = isHistorical && snapshotDate ? JSON.stringify({ snapshot_date: snapshotDate }).replace(/"/g, '&quot;') : 'null';
+
             popover.innerHTML = `
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-                    <div style="font-weight:700; font-size:13px; color:var(--text-main);">
-                        🛒 ${window.escapeHtml(categoryName)}
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; color:var(--text-main); min-width:0; flex:1; overflow:hidden;">
+                        <span style="flex-shrink:0;">🛒</span>
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${window.escapeHtml(categoryName)}">${window.escapeHtml(categoryName)}</span>
                     </div>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(245,158,11,0.15); color:#f59e0b; font-weight:600;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                        ${snapshotBadge}
+                        <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(245,158,11,0.15); color:#f59e0b; font-weight:600; white-space:nowrap;">
                             Catégorie
                         </span>
-                        <button onclick="document.getElementById('aiEntityPopover').classList.remove('visible'); document.getElementById('aiEntityPopover').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:0 4px; line-height:1;" title="Fermer">✕</button>
+                        <button onclick="document.getElementById('aiEntityPopover').classList.remove('visible'); document.getElementById('aiEntityPopover').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:0 4px; line-height:1; display:flex; align-items:center;" title="Fermer">✕</button>
                     </div>
                 </div>
 
                 ${txListHtml}
 
                 <div style="display:flex; gap:8px; margin-top:12px;">
-                    <button class="btn btn-primary" style="width:100%; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(categoryName)}')">
+                    <button class="btn btn-primary" style="width:100%; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(categoryName)}', ${snapshotContextJson})">
                         🔍 ${window.i18n.t('chat_entity_filter_ops') || 'Voir toutes les opérations'}
                     </button>
                 </div>
@@ -1117,8 +1206,13 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         const popover = document.getElementById('aiEntityPopover');
         if (popover) { popover.style.display = 'none'; popover.classList.remove('visible'); }
         if (window.app) {
+            if (window.BudgetsView) {
+                window.BudgetsView.backToView = 'chat';
+            }
             window.app.loadView('budgets');
             setTimeout(() => {
+                const backBtn = document.getElementById('btnBudgetsBackToSource');
+                if (backBtn) backBtn.style.display = 'inline-flex';
                 if (window.BudgetsView && typeof window.BudgetsView.showDetail === 'function') {
                     window.BudgetsView.showDetail(budgetId, budgetName, year, month);
                 }
@@ -1126,21 +1220,30 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
     },
 
-    navigateToHistory(searchTerm) {
+    navigateToHistory(searchTerm, snapshotContext = null) {
         const popover = document.getElementById('aiEntityPopover');
         if (popover) { popover.style.display = 'none'; popover.classList.remove('visible'); }
         if (window.app) {
             if (window.AllOperationsView) {
                 const isBudget = this._entityCache?.budgets?.some(b => b.name.toLowerCase() === searchTerm.toLowerCase());
-                if (isBudget) {
-                    window.AllOperationsView.pendingFilter = { budgetEnvelopeName: searchTerm, backToView: 'chat' };
-                } else {
-                    window.AllOperationsView.pendingFilter = { search: searchTerm, category: searchTerm, backToView: 'chat' };
+                const pending = isBudget
+                    ? { budgetEnvelopeName: searchTerm, backToView: 'chat' }
+                    : { search: searchTerm, category: searchTerm, backToView: 'chat' };
+
+                if (snapshotContext?.snapshot_year && snapshotContext?.snapshot_month) {
+                    const y = snapshotContext.snapshot_year;
+                    const m = String(snapshotContext.snapshot_month).padStart(2, '0');
+                    pending.monthKey = `${y}-${m}`;
+                } else if (snapshotContext?.snapshot_date) {
+                    pending.monthKey = snapshotContext.snapshot_date.substring(0, 7);
                 }
+
+                window.AllOperationsView.pendingFilter = pending;
             }
             window.app.loadView('all_operations');
         }
     }
 
 });
+
 

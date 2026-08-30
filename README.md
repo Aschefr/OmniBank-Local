@@ -112,9 +112,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ## 🆕 Nouveautés (v1.0.98)
 
-* **🎛️ Empilement des Menus Déroulants de Filtres** : Correction de l'ordre d'affichage des listes déroulantes de catégories pour qu'elles s'affichent toujours au-dessus de la bannière de période sticky du Dashboard.
-* **📋 Invalidation Dynamique du Changelog** : Détection automatique des modifications de versions par horodatage de fichier pour afficher immédiatement les dernières notes dans l'application sans redémarrage.
-* **🎨 Élimination du Doublon d'Icône** : Nettoyage du titre de la vue Synthèse financière pour n'afficher qu'une seule icône.
+* **📸 Snapshots Historiques pour Badges IA** : Les badges d'entités financières (budgets, comptes, catégories) générés par l'IA capturent l'état exact des finances au moment de la réponse pour une fidélité temporelle parfaite lors de la relecture.
+* **📱 Expérience Assistant IA Mobile-First** : Modales responsives (mémoire et catalogue d'outils), popovers à positionnement dynamique avec inversion verticale, et prise en charge du redimensionnement par le clavier virtuel mobile.
+* **🏦 Ancrage Comptable & Détection Réaliste des Doublons** : Audit IA intelligent distinguant les vrais doublons des débits bancaires rapprochés légitimes, avec évaluation chiffrée obligatoire des conséquences financières (solde, enveloppe, reste à vivre).
+* **🔙 Navigation Retour Contextuelle Unifiée** : Ajout d'un bouton Retour harmonisé dans l'en-tête des Budgets et de l'Historique pour revenir d'un clic à la conversation ou à la vue d'origine.
+* **🧠 Mémoire Financière de l'IA** : Intégration d'outils d'apprentissage et d'oubli de faits financiers durables (`store_financial_fact`, `forget_financial_fact`).
+* **📋 Épuration de la Vue Historique** : Recentrage exclusif de l'Historique sur les opérations enregistrées en base et l'audit, avec conservation des flux de synchronisation quotidienne sur le Journal/Dashboard.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -138,9 +141,9 @@ Accédez à l'interface sur `http://localhost:8434`.
 ## 🌟 Why OmniBank?
 
 *   **🔒 Absolute Privacy (Zero Cloud)**: Your financial data never leaves your machine. Everything is stored locally in a SQLite database.
-*   **🤖 Local AI Assistant (Ollama)**: Interact with your finances using natural language. Intelligent categorization, trend analysis, and personalized advice without compromising your privacy.
-*   **⚡ Extreme Performance**: Thanks to virtualized rendering, manage thousands of transactions without any slowdown.
-*   **🎯 Envelope Management**: A visual and intuitive budgeting system to track your projects and daily expenses.
+*   **🤖 Local AI Assistant (Ollama)**: Chat with your finances in natural language. Smart categorization, trend forecasting, and tailored advice without compromising privacy.
+*   **⚡ Extreme Performance**: Virtualized table rendering to handle tens of thousands of transactions seamlessly.
+*   **🎯 Envelope Budgeting**: Intuitive visual envelopes for ongoing spending and savings goals.
 
 ---
 
@@ -224,9 +227,12 @@ Access the interface at `http://localhost:8434`.
 
 ## 🆕 What's New (v1.0.98)
 
-* **🎛️ Filter Dropdown Stacking Fix**: Ensured category and filter dropdown menus always render above the sticky period banner on Dashboard.
-* **📋 Dynamic In-App Changelog**: Automatic cache refresh based on file modification timestamp so new release notes appear instantly without backend restarts.
-* **🎨 Header Icon Clean-up**: Removed duplicate chart emoji in the Financial Summary view header.
+* **📸 Historical Snapshots for AI Badges**: Point-in-time financial metrics (spent, limit, balances, recent ops) are now frozen when generated, preserving historical accuracy when reviewing past chat sessions.
+* **📱 Mobile-First AI Assistant Experience**: Redesigned bottom sheets and cards for AI Memory and capabilities modals, smart popovers with auto-flip, and native virtual keyboard adaptation.
+* **🏦 Accounting Grounding & Bank Reconciliation Awareness**: Intelligent duplicate detection distinguishing legitimate double debits from phantom entries, accompanied by mandatory financial impact assessments.
+* **🔙 Unified Contextual Back Navigation**: Added harmonized Back buttons (`⬅️ Retour`) in Budgets and History for instant one-click return to originating chat sessions.
+* **🧠 Persistent AI Financial Memory**: Native tools to store and forget persistent financial preferences and contextual facts.
+* **📋 Streamlined History View**: Refocused History exclusively on recorded database transactions and audit, preserving day-to-day online sync workflows on the Dashboard.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

@@ -189,3 +189,70 @@ def test_financial_briefing_generation(db_session):
     assert "days_until_next_paycheck" in summary
     assert "savings_safety_buffer_euros" in summary
 
+def test_build_entity_snapshots(db_session):
+    from datetime import date
+    from app.models import Account, Transaction, Category, Budget, BudgetCategory
+    from app.services.chat.chat_snapshot import build_entity_snapshots
+
+    db = db_session
+    acc = Account(name="Compte Courant", type="checking", initial_balance=1500.0)
+    cat = Category(name="Alimentation", type="expense_var")
+    bud = Budget(name="Alimentation", monthly_amount=400.0, envelope_type="spending")
+    db.add_all([acc, cat, bud])
+    db.commit()
+
+    bcat = BudgetCategory(budget_id=bud.id, category_name="Alimentation")
+    t = Transaction(date_operation=date(2026, 8, 10), description="Supermarché", amount=85.5, type="expense_var", category="Alimentation", budget_id=bud.id, from_account_id=acc.id)
+    db.add_all([bcat, t])
+    db.commit()
+
+    # Test detection in AI text
+    text = "Votre budget Alimentation est actuellement consommé et votre Compte Courant affiche un solde stable."
+    snapshots = build_entity_snapshots(text, db, 2026, 8)
+
+    assert "budget:Alimentation" in snapshots
+    assert snapshots["budget:Alimentation"]["spent"] == 85.5
+    assert snapshots["budget:Alimentation"]["limit"] == 400.0
+    assert snapshots["budget:Alimentation"]["snapshot_year"] == 2026
+    assert snapshots["budget:Alimentation"]["snapshot_month"] == 8
+    assert len(snapshots["budget:Alimentation"]["recent_txs"]) == 1
+
+    assert "account:Compte Courant" in snapshots
+    assert snapshots["account:Compte Courant"]["type"] == "account"
+
+    assert "category:Alimentation" in snapshots
+    assert len(snapshots["category:Alimentation"]["recent_txs"]) == 1
+
+def test_detect_anomalies_and_duplicates_accounting_awareness(db_session):
+    from datetime import date
+    from app.models import Account, Transaction
+    from app.services.chat.chat_tools import detect_anomalies_and_subscriptions_tool
+
+    db = db_session
+    acc = Account(name="Compte Principal", type="checking", initial_balance=2000.0)
+    db.add(acc)
+    db.commit()
+
+    # Case 1: Both reconciled (legitimate separate bank debits or double billing)
+    t1 = Transaction(date_operation=date.today(), description="Google One", amount=21.99, type="expense_var", from_account_id=acc.id, reconciliation_date=date.today())
+    t2 = Transaction(date_operation=date.today(), description="Google One", amount=21.99, type="expense_var", from_account_id=acc.id, reconciliation_date=date.today())
+    
+    # Case 2: One reconciled, one unreconciled phantom
+    t3 = Transaction(date_operation=date.today(), description="Restaurant Le Bistro", amount=45.0, type="expense_var", from_account_id=acc.id, reconciliation_date=date.today())
+    t4 = Transaction(date_operation=date.today(), description="Restaurant Le Bistro", amount=45.0, type="expense_var", from_account_id=acc.id, reconciliation_date=None)
+
+    db.add_all([t1, t2, t3, t4])
+    db.commit()
+
+    res = detect_anomalies_and_subscriptions_tool(db)
+    dups = res["potential_duplicate_charges"]
+    # Only the genuine unreconciled duplicate must be reported (Google One is legitimately reconciled twice on bank statement)
+    assert len(dups) == 1
+
+    dup_bistro = dups[0]
+    assert dup_bistro["description"] == "Restaurant Le Bistro"
+    assert dup_bistro["target_unreconciled_id_to_delete"] == t4.id
+    assert "Saisie manuelle" in dup_bistro["accounting_advice"]
+
+
+

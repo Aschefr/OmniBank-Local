@@ -44,8 +44,10 @@ window.AllOperationsView = {
                     <div class="view-header-title-group">
                         <h2 class="view-header-title">
                             📋 <span data-i18n="nav_history">${window.i18n.t('nav_history')}</span>
-                            <button id="btnHistoryBackToAnalytics" class="btn btn-secondary toolbar-btn" style="display:none; padding: 0 10px; font-size: 12.5px;" onclick="window.app.loadView(window.AllOperationsView.backToView || 'analytics')" title="${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}">⬅️ <span data-i18n="btn_back">${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}</span></button>
                         </h2>
+                        <button id="btnHistoryBackToAnalytics" class="btn btn-secondary toolbar-btn" style="display:none; align-items:center; gap:6px; font-size:12.5px; height:34px; border-radius:8px; padding:0 12px; font-weight:600; cursor:pointer;" onclick="const v = window.AllOperationsView.backToView || 'analytics'; window.AllOperationsView.backToView = null; window.app.loadView(v)" title="${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}">
+                            <span>⬅️</span> <span data-i18n="btn_back">${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}</span>
+                        </button>
                     </div>
                     <div class="view-header-toolbar">
                         <button class="btn btn-secondary toolbar-btn" onclick="document.getElementById('historyColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
@@ -118,7 +120,6 @@ window.AllOperationsView = {
 
 
             <div class="timeline-table-container" style="padding-bottom: 20px;">
-                <div id="allOpsGhostBox"></div>
                 <table class="data-table timeline-table mobile-card-table">
                     <thead>
                         <tr>
@@ -483,14 +484,6 @@ window.AllOperationsView = {
         const unrecFilter = document.getElementById('historyUnreconciledFilter');
         const unrecChecked = unrecFilter ? unrecFilter.checked : false;
 
-        // Rendu du bloc d'opérations fantômes bancaires en attente
-        if (window.BankSyncView && typeof window.BankSyncView.renderGhostBox === 'function') {
-            const ghostContainer = document.getElementById('allOpsGhostBox');
-            if (ghostContainer) {
-                window.BankSyncView.renderGhostBox(ghostContainer, tAcc || null);
-            }
-        }
-
         // Apply filters
         let filtered = this.transactions;
 
@@ -631,7 +624,7 @@ window.AllOperationsView = {
                     ${origSubtext}
                 </td>
                 <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}" style="text-align: center;">${reconCellHtml}</td>
-                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && this.budgetsMap[tx.budget_id]) ? this.budgetsMap[tx.budget_id] : (tx.category && this.categoryToBudgetMap && this.categoryToBudgetMap[tx.category]) ? this.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
+                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && this.budgetsMap[tx.budget_id]) ? this.budgetsMap[tx.budget_id] : (tx.category && this.categoryToBudgetMap && this.categoryToBudgetMap[tx.category]) ? this.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="if(window.BudgetsView) window.BudgetsView.backToView='all_operations'; window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
                 <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuisTitle}">${depuisBadge}</td>
                 <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${versBadge}</td>
                 <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}" title="${recText}">${recText}</td>

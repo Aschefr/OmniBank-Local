@@ -468,6 +468,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                                 if (panel && panel.classList.contains('open')) {
                                     this.fetchFacts();
                                 }
+                            } else if (data.entity_snapshots) {
+                                if (!this._streamDetached && this.messages[aiMsgIndex]) {
+                                    this.messages[aiMsgIndex].entity_snapshots = data.entity_snapshots;
+                                }
                             } else if (data.clear_text) {
                                 // Backend started a new tool iteration — reset the visible bubble
                                 // to avoid showing stale "thinking" text from the previous round.

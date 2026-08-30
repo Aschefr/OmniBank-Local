@@ -9,7 +9,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         return `
         <div>
             <div class="bv-header view-header">
-                <h2 data-i18n="budget_title">${window.i18n.t('budget_title')}</h2>
+                <div class="view-header-title-group" style="display:flex; align-items:center; gap:10px;">
+                    <h2 data-i18n="budget_title">${window.i18n.t('budget_title')}</h2>
+                    <button id="btnBudgetsBackToSource" class="btn btn-secondary toolbar-btn" style="display:none; align-items:center; gap:6px; font-size:12.5px; height:34px; border-radius:8px; padding:0 12px; font-weight:600; cursor:pointer;" onclick="const v = window.BudgetsView.backToView || 'chat'; window.BudgetsView.backToView = null; window.app.loadView(v)" title="${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}">
+                        <span>⬅️</span> <span data-i18n="btn_back">${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}</span>
+                    </button>
+                </div>
                 <div class="bv-header-actions">
                     <button id="budgetAiBtn" class="btn btn-secondary" style="${aiDisp}" onclick="window.BudgetsView.openAiWindowModal()" data-i18n="budget_btn_suggestions">${window.i18n.t('budget_btn_suggestions')}</button>
                     <button class="btn btn-secondary bv-btn-delete" onclick="window.BudgetsView.showBulkDeleteModal()" data-i18n="budget_btn_bulk_delete">${window.i18n.t('budget_btn_bulk_delete') || '🗑️ Nettoyer'}</button>
