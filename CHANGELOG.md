@@ -4,7 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.98] - 2026-08-30
 
+### Added & Improved
+- **Historical Snapshots for AI Interactive Badges 📸**:
+  - Captured point-in-time financial snapshots (spending, limit, balance, and recent operations) at the exact moment each AI response is generated, ensuring entity badges (budgets, accounts, categories) remain historically faithful when reviewing past conversations.
+  - Contextualized quick-action buttons in popovers ("Open in Budgets", "View Operations") to automatically navigate and pre-filter by the message's historical period (`YYYY-MM`).
+  - Implemented seamless fallback to live metrics for pre-existing conversations without snapshots.
+- **Mobile-First AI Assistant Experience 📱**:
+  - Overhauled AI chat modals (AI Memory and Tool Capabilities) into responsive vertical cards and bottom sheets on mobile viewports (<= 768px).
+  - Integrated smart popover positioning with automatic upward flipping when space below the badge is constrained.
+  - Connected mobile virtual keyboard resize handling via `VisualViewport` API and `interactive-widget=resizes-content`.
+  - Added full 2-row responsive header with dedicated role selector for compact mobile screens.
+- **Accounting Grounding & Reconciliation-Aware AI Audits 🏦**:
+  - Enriched anomaly and duplicate detection (`detect_anomalies_and_subscriptions`) with bank reconciliation awareness, distinguishing between genuine bank statement debits (reconciled) and unverified manual/phantom duplicates.
+  - Implemented strict accounting impact evaluation rules requiring the AI to compute and state concrete financial consequences on bank balances, budget envelopes, and Reste à Vivre before proposing modifications or deletions.
+  - Fixed action parser in chat interface to reliably convert empty update objects into interactive deletion review cards.
+- **Unified Contextual Back Navigation 🔙**:
+  - Added a dedicated Back button (`⬅️ Retour`) in the **Budgets** view header when navigating from AI Chat, Overview, or History, allowing instant one-click return to the originating view.
+  - Harmonized the Back button in **History** (`Historique`) with the application's modern toolbar button styling (`.btn-secondary`), fixing visual inconsistency and title font inheritance.
+- **Streamlined History View (Audit & Database Focus) 📋**:
+  - Removed the unrecorded online bank sync banner ("Opérations en ligne non enregistrées") from the **History** view, keeping it exclusively focused on recorded database transactions and audit, while preserving daily synchronization workflows on the **Dashboard** (Journal).
+- **AI Memory & Missing Tool Groups 🧠**:
+  - Added dedicated Memory tool group (`store_financial_fact`, `forget_financial_fact`) and updated tool capability catalog to reflect all 33 available AI functions.
+
 ### Fixed
+- **Chat Action Parsing & Raw JSON Prevention 🧩**:
+  - Fixed regular expression in chat renderer to cleanly capture transaction deletion action blocks without leaking raw JSON objects into markdown responses.
+- **Chat View Double Scrollbar 📐**:
+  - Eliminated duplicate outer container scrollbar in the AI Chat view by constraining `.app-main` overflow during active chat sessions.
 - **Filter Dropdown Layering (Z-Index) 🎛️**:
   - Fixed category and filter dropdown menus rendering underneath the sticky period banner on Dashboard view.
 - **Dynamic In-App Changelog Updates 📋**:

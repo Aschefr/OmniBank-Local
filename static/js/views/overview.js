@@ -1355,7 +1355,7 @@ window.OverviewView = {
             const color = over ? '#ef4444' : pct >= 80 ? '#f59e0b' : pct >= 50 ? '#3b82f6' : '#10b981';
 
             html += `
-                <div class="overview-budget-item" onclick="window.app.loadView('budgets')">
+                <div class="overview-budget-item" onclick="if(window.BudgetsView) window.BudgetsView.backToView='overview'; window.app.loadView('budgets')">
                     <div class="overview-budget-header">
                         <span class="overview-budget-name">${periodLabels[period] || period}</span>
                         <span class="overview-budget-pct" style="color: ${color};">${Math.round(pct)}% ${window.i18n.t('overview_used')}</span>
@@ -1391,7 +1391,7 @@ window.OverviewView = {
             const color = pct >= 100 ? '#10b981' : pct >= 50 ? '#3b82f6' : '#f59e0b';
 
             html += `
-                <div class="overview-savings-item" onclick="window.app.loadView('budgets')">
+                <div class="overview-savings-item" onclick="if(window.BudgetsView) window.BudgetsView.backToView='overview'; window.app.loadView('budgets')">
                     <div class="overview-savings-header">
                         <span class="overview-savings-name">${escapeHtml(s.name)}</span>
                         <span class="overview-savings-pct" style="color: ${color};">${Math.round(pct)}%</span>

@@ -59,6 +59,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         // Re-render once after all data is loaded
         this.renderStatus();
         this.checkAiTaskStatusOnMount();
+
+        const backBtn = document.getElementById('btnBudgetsBackToSource');
+        if (backBtn) {
+            backBtn.style.display = this.backToView ? 'inline-flex' : 'none';
+        }
     },
 
     // ── Per-type navigation ────────────────────────────────────────────
