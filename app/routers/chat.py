@@ -61,6 +61,8 @@ from app.services.chat.chat_tools import (
     generate_csv_export_link_tool,
     simulate_loan_amortization_tool,
     get_financial_summary_tool,
+    get_spending_trends_tool,
+    get_dashboard_synthesis_tool,
     store_financial_fact_tool,
     forget_financial_fact_tool,
 )
@@ -483,7 +485,9 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "create_category": "Création de la nouvelle catégorie...",
                     "delete_category": "Suppression de la catégorie...",
                     "set_predicted_paycheck": "Mise à jour de la date/montant théorique de salaire...",
-                    "get_monthly_overview": "Récupération de l'aperçu budgétaire mensuel..."
+                    "get_monthly_overview": "Récupération de l'aperçu budgétaire mensuel...",
+                    "get_spending_trends": "Analyse des tendances et moyennes historiques de dépenses...",
+                    "get_dashboard_synthesis": "Consultation de la synthèse mensuelle du tableau de bord..."
                 }
                 tool_desc_map_en = {
                     "get_financial_summary": "Analyzing left-to-live and paycheck forecasts...",
@@ -513,7 +517,9 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "create_category": "Creating new category...",
                     "delete_category": "Deleting category...",
                     "set_predicted_paycheck": "Updating predicted paycheck day/amount...",
-                    "get_monthly_overview": "Fetching monthly budget overview..."
+                    "get_monthly_overview": "Fetching monthly budget overview...",
+                    "get_spending_trends": "Analyzing spending trends and multi-month averages...",
+                    "get_dashboard_synthesis": "Consulting monthly dashboard synthesis..."
                 }
                 tool_desc_map = tool_desc_map_en if req.lang == "en" else tool_desc_map_fr
 
@@ -583,7 +589,8 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "search_transactions", "get_spending_analytics", "get_budgets_status",
                     "get_monthly_overview", "get_recurrence_templates", "get_net_worth_history",
                     "get_saving_recommendations", "search_similar_past_spends",
-                    "detect_anomalies_and_subscriptions"
+                    "detect_anomalies_and_subscriptions", "get_spending_trends",
+                    "get_dashboard_synthesis"
                 }
                 MAX_TOOL_ITERATIONS = 4
                 all_tool_names = []
@@ -664,6 +671,10 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                         if tool_result is None:
                             if fn_name == "get_financial_summary":
                                 tool_result = get_financial_summary_tool(db)
+                            elif fn_name == "get_spending_trends":
+                                tool_result = get_spending_trends_tool(db)
+                            elif fn_name == "get_dashboard_synthesis":
+                                tool_result = get_dashboard_synthesis_tool(db, fn_args.get("year"), fn_args.get("month"))
                             elif fn_name == "get_net_worth":
                                 tool_result = get_net_worth_tool(db)
                             elif fn_name == "get_account_balances":

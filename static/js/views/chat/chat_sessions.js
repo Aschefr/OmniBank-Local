@@ -65,15 +65,16 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     ? `<span class="badge" style="background: rgba(51, 102, 255, 0.1); color: var(--accent); font-size: 10px; padding: 2px 6px; border-radius: 4px;">${window.i18n.t('config_ai_memory_scope_session')} (ID: ${f.session_id})</span>`
                     : `<span class="badge" style="background: rgba(0, 200, 83, 0.1); color: var(--color-income); font-size: 10px; padding: 2px 6px; border-radius: 4px;">${window.i18n.t('config_ai_memory_scope_global')}</span>`;
                 
+                // Desktop: table row — Mobile: card via CSS classes
                 return `
-                    <tr id="fact-row-${f.id}" style="border-bottom: 1px solid var(--border-color);">
-                        <td style="font-weight: 500; font-size: 11px; color: var(--text-color); font-family: monospace; padding: 10px; width: 30%;">${f.fact_key}</td>
-                        <td style="padding: 10px; width: 45%;">
-                            <input type="text" id="fact-input-${f.id}" class="inline-input" value="${f.fact_value}" style="border: 1px solid var(--border-color); padding: 5px; font-size: 12px; width: 100%;" onchange="window.ChatView.saveFactInline(${f.id})">
+                    <tr id="fact-row-${f.id}" class="ai-memory-row">
+                        <td class="ai-memory-cell-key" data-label="${window.i18n.t('config_ai_memory_col_key')}">${f.fact_key}</td>
+                        <td class="ai-memory-cell-val" data-label="${window.i18n.t('config_ai_memory_col_value')}">
+                            <input type="text" id="fact-input-${f.id}" class="inline-input ai-memory-input" value="${f.fact_value.replace(/"/g, '&quot;')}" onchange="window.ChatView.saveFactInline(${f.id})">
                         </td>
-                        <td style="padding: 10px; white-space: nowrap; width: 15%;">${scopeLabel}</td>
-                        <td style="padding: 10px; text-align: right; white-space: nowrap; width: 10%;">
-                            <button class="btn btn-secondary" onclick="window.ChatView.deleteFact(${f.id})" style="padding: 4px 8px; font-size: 11px; height: auto;">
+                        <td class="ai-memory-cell-scope" data-label="${window.i18n.t('config_ai_memory_col_scope')}">${scopeLabel}</td>
+                        <td class="ai-memory-cell-action">
+                            <button class="btn btn-secondary ai-memory-del-btn" onclick="window.ChatView.deleteFact(${f.id})">
                                 🗑️ ${window.i18n.t('config_ai_memory_btn_delete')}
                             </button>
                         </td>
@@ -168,7 +169,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 name: window.i18n.t('chat_group_analysis_name') || 'Analyse & Soldes',
                 access: 'readonly',
                 desc: window.i18n.t('chat_group_analysis_desc') || 'Consultation en temps réel du reste à vivre, du patrimoine net global, des soldes de comptes bancaires et de l\'état d\'avancement des enveloppes budgétaires.',
-                tools: 'get_financial_summary, get_net_worth, get_account_balances, get_spending_analytics, get_budgets_status, get_recurrence_templates, get_net_worth_history'
+                tools: 'get_financial_summary, get_spending_trends, get_dashboard_synthesis, get_monthly_overview, get_net_worth, get_account_balances, get_spending_analytics, get_budgets_status, get_recurrence_templates, get_net_worth_history'
             },
             {
                 emoji: '🔍',
@@ -189,48 +190,48 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 name: window.i18n.t('chat_group_write_name') || 'Actions & Modifications',
                 access: 'validation',
                 desc: window.i18n.t('chat_group_write_desc') || 'Création, modification et suppression directe d\'enveloppes de budget, de modèles de récurrence, de tirelires (alimentation/retrait) et de catégories. (Toutes ces actions sont soumises à la revue et annulables à 100% via l\'historique).',
-                tools: 'apply_transaction_correction, create_budget_envelope, update_budget_envelope, delete_budget_envelope, allocate_savings_funds, create_recurrence_template, update_recurrence_template, delete_recurrence_template, create_category, delete_category, set_predicted_paycheck'
+                tools: 'apply_transaction_correction, delete_transaction, create_budget_envelope, update_budget_envelope, delete_budget_envelope, allocate_savings_funds, create_recurrence_template, update_recurrence_template, delete_recurrence_template, create_category, delete_category, set_predicted_paycheck'
+            },
+            {
+                emoji: '🧠',
+                name: window.i18n.t('chat_group_memory_name') || 'Mémoire',
+                access: 'memory',
+                desc: window.i18n.t('chat_group_memory_desc') || 'Mémorisation et oubli de faits financiers persistants à travers les conversations (loyer, objectifs d\'épargne, événements récurrents…).',
+                tools: 'store_financial_fact, forget_financial_fact'
             }
         ];
 
+
         const rows = groups.map(g => {
-            const isVal = g.access === 'validation';
+            const i18nKey = g.access === 'validation' ? 'chat_info_access_validation'
+                          : g.access === 'memory'     ? 'chat_info_access_memory'
+                          :                             'chat_info_access_readonly';
             const accessBadge = `<span class="access-badge badge-${g.access}">
-                ${window.i18n.t(isVal ? 'chat_info_access_validation' : 'chat_info_access_readonly')}
+                ${window.i18n.t(i18nKey)}
             </span>`;
+
 
             const toolsHtml = g.tools.split(', ').map(t => {
                 const toolLabel = (window.i18n && window.i18n.t(`tool_${t}`)) || t;
                 const toolDesc = (window.i18n && window.i18n.t(`tool_${t}_desc`)) || toolLabel;
-                return `<code title="${toolDesc.replace(/"/g, '&quot;')}" style="font-size: 10px; padding: 1px 4px; background: rgba(128,128,128,0.15); border-radius: 4px; color: var(--text-muted); display: inline-block; margin: 1px 2px 1px 0; font-family: monospace; cursor: help;">${toolLabel}</code>`;
+                return `<code title="${toolDesc.replace(/"/g, '&quot;')}" class="chat-info-tool-code">${toolLabel}</code>`;
             }).join(' ');
 
-            return `<tr>
-                <td class="tool-emoji-col" style="font-size: 20px; text-align: center; vertical-align: top; padding-top: 12px; width: 40px;">${g.emoji}</td>
-                <td class="tool-name-col" style="vertical-align: top; padding-top: 10px; width: 30%;">
-                    <strong style="font-size: 14px; color: var(--text-color);">${g.name}</strong>
-                    <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 2px;">
-                        ${toolsHtml}
+            // Card layout (works both on desktop and mobile via CSS)
+            return `<div class="chat-info-group-card">
+                <div class="chat-info-group-header">
+                    <span class="chat-info-group-emoji">${g.emoji}</span>
+                    <div class="chat-info-group-meta">
+                        <strong class="chat-info-group-name">${g.name}</strong>
+                        ${accessBadge}
                     </div>
-                </td>
-                <td class="tool-access-col" style="vertical-align: top; padding-top: 12px; width: 15%;">${accessBadge}</td>
-                <td class="tool-desc-col" style="vertical-align: top; padding-top: 12px; font-size: 12px; line-height: 1.5; color: var(--text-muted); white-space: normal; word-break: break-word;">${g.desc}</td>
-            </tr>`;
+                </div>
+                <p class="chat-info-group-desc">${g.desc}</p>
+                <div class="chat-info-group-tools">${toolsHtml}</div>
+            </div>`;
         }).join('');
 
-        container.innerHTML = `<table class="chat-info-table" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-            <thead>
-                <tr>
-                    <th style="padding-left: 0; width: 40px;"></th>
-                    <th style="width: 30%; text-align: left;">${window.i18n.t('chat_info_header_capability') || 'Capacité'}</th>
-                    <th style="width: 15%; text-align: left;">${window.i18n.t('chat_info_header_access') || 'Accès'}</th>
-                    <th style="text-align: left;">${window.i18n.t('chat_info_header_desc') || 'Description'}</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${rows}
-            </tbody>
-        </table>`;
+        container.innerHTML = `<div class="chat-info-groups-list">${rows}</div>`;
     },
 
     async loadSessions(preventSelectSession = false) {

@@ -160,12 +160,16 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             displayContent = window.escapeHtml(displayContent);
         }
 
-        // Append status indicator if present
+        if (!isUser) {
+            displayContent = this.enrichWithEntityBadges(displayContent);
+        }
+
+        // Append status indicator if present AFTER entity enrichment to prevent badges inside status text
         if (!isUser && msg.status) {
             displayContent = `
                 <div class="ai-status-indicator" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent); padding: 4px 8px; background: rgba(51, 102, 255, 0.1); border-radius: 12px; margin-bottom: 8px;">
                     <span class="spinner-border-sm" style="width:10px; height:10px; border:2px solid; border-right-color:transparent; border-radius:50%; animation: spin 0.75s linear infinite; display: inline-block; box-sizing: border-box;"></span>
-                    <span>${msg.status}</span>
+                    <span>${window.escapeHtml(msg.status)}</span>
                 </div>
                 <div style="margin-top: 4px;">${displayContent}</div>
             `;
@@ -358,6 +362,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         this._updateCompressionUI();
         this.updateTokenUsageIndicator();
         this.renderMath();
+        this.initEntityPopover();
 
         if (isRestore) {
             const savedScroll = sessionStorage.getItem(`chatScrollPos_${this.activeSessionId}`);
@@ -620,5 +625,522 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         this.sendMessage();
     },
 
+    // ─── Smart Entity Badges & Interactive Popover Engine ───
+    _entityCache: null,
+    _entityLoading: false,
+    _popoverInitialized: false,
+
+    async loadEntityCache() {
+        if (this._entityCache || this._entityLoading) return;
+        this._entityLoading = true;
+        try {
+            const [bRes, aRes, cRes] = await Promise.all([
+                API.get('/api/budgets/status').catch(() => null),
+                API.get('/api/accounts/').catch(() => null),
+                API.get('/api/categories/').catch(() => null)
+            ]);
+            this._entityCache = {
+                budgets: (bRes?.budgets || []).filter(b => b.name && b.name.trim().length >= 3),
+                accounts: (aRes || []).filter(a => a.name && a.name.trim().length >= 3),
+                categories: (cRes || []).filter(c => (c.name || c).trim().length >= 3)
+            };
+        } catch (e) {
+            console.warn('[Chat] Failed to load entity cache:', e);
+        } finally {
+            this._entityLoading = false;
+        }
+    },
+
+    enrichWithEntityBadges(html) {
+        if (!html || typeof html !== 'string') return html;
+
+        // Try getting entities from cache or fallback to globals
+        let budgets = this._entityCache?.budgets;
+        if (!budgets && window.BudgetsView?.statusData?.budgets) {
+            budgets = window.BudgetsView.statusData.budgets;
+        }
+        let accounts = this._entityCache?.accounts;
+        if (!accounts && window.accounts) {
+            accounts = window.accounts;
+        }
+        let categories = this._entityCache?.categories;
+        if (!categories && window.categories) {
+            categories = window.categories;
+        }
+
+        if (!budgets && !accounts && !categories) {
+            this.loadEntityCache();
+            return html;
+        }
+
+        // Build list of entities sorted by length descending to match longest phrases first
+        const entities = [];
+        if (budgets) {
+            for (const b of budgets) {
+                if (b.name && b.name.length >= 3) {
+                    entities.push({
+                        type: 'budget',
+                        id: b.id,
+                        name: b.name,
+                        icon: b.envelope_type === 'savings' ? '🎯' : '🏷️',
+                        data: b
+                    });
+                }
+            }
+        }
+        if (accounts) {
+            for (const a of accounts) {
+                if (a.name && a.name.length >= 3) {
+                    entities.push({
+                        type: 'account',
+                        id: a.id,
+                        name: a.name,
+                        icon: '🏦',
+                        data: a
+                    });
+                }
+            }
+        }
+        if (categories) {
+            for (const c of categories) {
+                const cname = typeof c === 'string' ? c : c.name;
+                if (cname && cname.length >= 3 && !entities.some(e => e.name.toLowerCase() === cname.toLowerCase())) {
+                    entities.push({
+                        type: 'category',
+                        id: c.id || 0,
+                        name: cname,
+                        icon: '🛒',
+                        data: c
+                    });
+                }
+            }
+        }
+
+        if (entities.length === 0) return html;
+        entities.sort((a, b) => b.name.length - a.name.length);
+
+        // Safe DOM parsing & text replacement
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
+            const container = doc.body.firstElementChild;
+
+            const walkTextNodes = (node) => {
+                if (!node) return;
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    const tag = node.tagName.toLowerCase();
+                    if (tag === 'pre' || tag === 'code' || tag === 'a' || tag === 'button' || tag === 'summary' ||
+                        node.classList.contains('ai-entity-badge') || 
+                        node.classList.contains('ai-action-box') || 
+                        node.classList.contains('ai-status-indicator') || 
+                        node.classList.contains('tool-badge') || 
+                        node.classList.contains('ai-think-details') ||
+                        node.classList.contains('ai-think-summary')) {
+                        return;
+                    }
+                    Array.from(node.childNodes).forEach(walkTextNodes);
+                } else if (node.nodeType === Node.TEXT_NODE) {
+                    const text = node.textContent;
+                    if (!text || !text.trim()) return;
+
+                    for (const ent of entities) {
+                        const escapedName = ent.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const regex = new RegExp(`(?<![\\wÀ-ÿ])(${escapedName})(?![\\wÀ-ÿ])`, 'i');
+                        const match = text.match(regex);
+                        if (match) {
+                            const matchIndex = match.index;
+                            const matchStr = match[0];
+
+                            const beforeText = text.substring(0, matchIndex);
+                            const afterText = text.substring(matchIndex + matchStr.length);
+
+                            const badgeSpan = doc.createElement('span');
+                            badgeSpan.className = `ai-entity-badge type-${ent.type}`;
+                            badgeSpan.setAttribute('data-entity-type', ent.type);
+                            badgeSpan.setAttribute('data-entity-id', ent.id);
+                            badgeSpan.setAttribute('data-entity-name', ent.name);
+                            badgeSpan.setAttribute('tabindex', '0');
+                            badgeSpan.setAttribute('role', 'button');
+                            badgeSpan.innerHTML = `<span class="ai-entity-icon">${ent.icon}</span><span class="ai-entity-label">${matchStr}</span>`;
+
+                            const parent = node.parentNode;
+                            if (beforeText) parent.insertBefore(doc.createTextNode(beforeText), node);
+                            parent.insertBefore(badgeSpan, node);
+                            if (afterText) {
+                                const remainingNode = doc.createTextNode(afterText);
+                                parent.insertBefore(remainingNode, node);
+                                walkTextNodes(remainingNode);
+                            }
+                            parent.removeChild(node);
+                            return;
+                        }
+                    }
+                }
+            };
+
+            walkTextNodes(container);
+            return container.innerHTML;
+        } catch (e) {
+            console.warn('[Chat] enrichWithEntityBadges error:', e);
+            return html;
+        }
+    },
+
+    initEntityPopover() {
+        let popover = document.getElementById('aiEntityPopover');
+        if (!popover) {
+            popover = document.createElement('div');
+            popover.id = 'aiEntityPopover';
+            document.body.appendChild(popover);
+        }
+
+        if (this._popoverInitialized) return;
+        this._popoverInitialized = true;
+
+        let _hideTimeout = null;
+
+        const showPopoverForBadge = async (badge) => {
+            clearTimeout(_hideTimeout);
+
+            const entType = badge.getAttribute('data-entity-type');
+            const entId = parseInt(badge.getAttribute('data-entity-id') || 0);
+            const entName = badge.getAttribute('data-entity-name');
+
+            popover.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        <span>${entType === 'budget' ? '🏷️' : entType === 'account' ? '🏦' : '🛒'}</span>
+                        <span title="${window.escapeHtml(entName)}">${window.escapeHtml(entName)}</span>
+                    </div>
+                    <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(99,102,241,0.15); color:var(--accent); text-transform:uppercase; font-weight:600;">
+                        ${entType}
+                    </span>
+                </div>
+                <div style="text-align:center; padding:15px 0; font-size:12px; color:var(--text-muted);">
+                    <span class="spinner-border-sm" style="display:inline-block; width:14px; height:14px; border:2px solid; border-right-color:transparent; border-radius:50%; animation:spin 0.7s linear infinite;"></span>
+                    <span style="margin-left:6px;">${window.i18n.t('budget_loading') || 'Chargement...'}</span>
+                </div>
+            `;
+
+            popover.style.display = 'block';
+            popover.classList.add('visible');
+
+            const adjustPosition = () => {
+                if (window.innerWidth <= 600) {
+                    popover.style.top = '';
+                    popover.style.left = '';
+                    return;
+                }
+                const rect = badge.getBoundingClientRect();
+                const popWidth = 320;
+                let left = rect.left + (rect.width / 2) - (popWidth / 2);
+                left = Math.max(12, Math.min(window.innerWidth - popWidth - 12, left));
+
+                const popHeight = popover.offsetHeight || 280;
+                let top = rect.bottom + 8;
+                // If displaying below overflows the bottom of the screen:
+                if (top + popHeight > window.innerHeight - 10) {
+                    // Display ABOVE the badge if space allows
+                    if (rect.top - popHeight - 8 > 10) {
+                        top = rect.top - popHeight - 8;
+                    } else {
+                        // Clamp inside viewport
+                        top = Math.max(10, window.innerHeight - popHeight - 12);
+                    }
+                }
+                popover.style.top = `${top}px`;
+                popover.style.left = `${left}px`;
+            };
+
+            adjustPosition();
+
+            if (entType === 'budget') {
+                await this._renderBudgetPopoverContent(popover, entId, entName);
+            } else if (entType === 'account') {
+                await this._renderAccountPopoverContent(popover, entId, entName);
+            } else {
+                await this._renderCategoryPopoverContent(popover, entName);
+            }
+
+            // Re-adjust position with final rendered height
+            requestAnimationFrame(() => adjustPosition());
+        };
+
+        const scheduleHide = () => {
+            _hideTimeout = setTimeout(() => {
+                popover.classList.remove('visible');
+                setTimeout(() => {
+                    if (!popover.classList.contains('visible')) {
+                        popover.style.display = 'none';
+                    }
+                }, 180);
+            }, 250);
+        };
+
+        // Event delegation
+        document.addEventListener('mouseover', (e) => {
+            const badge = e.target.closest('.ai-entity-badge');
+            if (badge) {
+                showPopoverForBadge(badge);
+            }
+        });
+
+        document.addEventListener('mouseout', (e) => {
+            const badge = e.target.closest('.ai-entity-badge');
+            if (badge) {
+                scheduleHide();
+            }
+        });
+
+        popover.addEventListener('mouseenter', () => {
+            clearTimeout(_hideTimeout);
+        });
+
+        popover.addEventListener('mouseleave', () => {
+            scheduleHide();
+        });
+
+        document.addEventListener('click', (e) => {
+            const badge = e.target.closest('.ai-entity-badge');
+            if (badge) {
+                e.preventDefault();
+                e.stopPropagation();
+                showPopoverForBadge(badge);
+            } else if (!e.target.closest('#aiEntityPopover')) {
+                popover.classList.remove('visible');
+                popover.style.display = 'none';
+            }
+        });
+    },
+
+    async _renderBudgetPopoverContent(popover, budgetId, budgetName) {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+        const fmt = window.formatCurrency || ((v) => `${Number(v).toFixed(2)} €`);
+
+        try {
+            // 1. Get budget info
+            let budget = (this._entityCache?.budgets || []).find(b => b.id === budgetId || b.name === budgetName);
+            if (!budget) {
+                const statusRes = await API.get('/api/budgets/status');
+                budget = (statusRes?.budgets || []).find(b => b.id === budgetId || b.name === budgetName);
+            }
+
+            const spent = budget?.expenses || 0.0;
+            const limit = budget?.budget_amount || 0.0;
+            const pct = budget?.percent || (limit > 0 ? (spent / limit * 100) : 0);
+            const remaining = budget?.balance !== undefined ? budget.balance : (limit - spent);
+
+            let barColor = '#10b981';
+            if (pct >= 100) barColor = '#ef4444';
+            else if (pct >= 80) barColor = '#f59e0b';
+
+            // 2. Fetch recent transactions for this budget
+            let txHtml = '';
+            try {
+                const txs = await API.get(`/api/budgets/${budgetId || budget?.id}/transactions?year=${y}&month=${m}`);
+                if (txs && txs.length > 0) {
+                    const recent3 = txs.slice(0, 3);
+                    txHtml = `
+                        <div style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:8px;">
+                            <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">
+                                ${window.i18n.t('chat_entity_recent_txs') || 'Dernières opérations'} :
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:4px;">
+                                ${recent3.map(t => `
+                                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;" title="${window.escapeHtml(t.description)}">${window.escapeHtml(t.description)}</span>
+                                        <span style="font-weight:600; color:${t.is_income ? '#10b981' : '#ef4444'};">${t.is_income ? '+' : '-'}${fmt(Math.abs(t.amount))}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (e) {}
+
+            popover.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        <span>🏷️</span>
+                        <span title="${window.escapeHtml(budgetName)}">${window.escapeHtml(budgetName)}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:11px; font-weight:700; color:${barColor};">
+                            ${pct.toFixed(1)}%
+                        </span>
+                        <button onclick="document.getElementById('aiEntityPopover').classList.remove('visible'); document.getElementById('aiEntityPopover').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:0 4px; line-height:1;" title="Fermer">✕</button>
+                    </div>
+                </div>
+
+                <div style="background:rgba(128,128,128,0.2); border-radius:999px; height:8px; overflow:hidden; margin-bottom:8px;">
+                    <div style="background:${barColor}; width:${Math.min(100, pct)}%; height:100%; border-radius:999px; transition:width 0.3s ease;"></div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; font-size:11px; background:rgba(0,0,0,0.15); padding:8px; border-radius:8px; margin-bottom:8px;">
+                    <div>
+                        <span style="color:var(--text-muted);">${window.i18n.t('chat_entity_spent') || 'Dépensé'} :</span>
+                        <div style="font-weight:600; color:var(--text-main);">${fmt(spent)}</div>
+                    </div>
+                    <div>
+                        <span style="color:var(--text-muted);">${window.i18n.t('chat_entity_limit') || 'Plafond'} :</span>
+                        <div style="font-weight:600; color:var(--text-main);">${fmt(limit)}</div>
+                    </div>
+                </div>
+
+                ${txHtml}
+
+                <div style="display:flex; gap:8px; margin-top:12px;">
+                    <button class="btn btn-primary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToBudget(${budgetId || budget?.id || 0}, '${window.escapeHtml(budgetName)}', ${y}, ${m})">
+                        📊 ${window.i18n.t('chat_entity_open_budget') || 'Ouvrir dans Budgets'}
+                    </button>
+                    <button class="btn btn-secondary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(budgetName)}')">
+                        🔍 ${window.i18n.t('chat_entity_filter_ops') || 'Voir opérations'}
+                    </button>
+                </div>
+            `;
+        } catch (e) {
+            popover.innerHTML = `<div style="font-size:12px; color:var(--text-muted); padding:10px;">🏷️ ${window.escapeHtml(budgetName)}</div>`;
+        }
+    },
+
+    async _renderAccountPopoverContent(popover, accountId, accountName) {
+        const fmt = window.formatCurrency || ((v) => `${Number(v).toFixed(2)} €`);
+        try {
+            const accounts = this._entityCache?.accounts || (await API.get('/api/accounts/').catch(() => []));
+            const acc = accounts.find(a => a.id === accountId || a.name === accountName);
+
+            popover.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                    <div style="font-weight:700; font-size:13px; color:var(--text-main);">
+                        🏦 ${window.escapeHtml(accountName)}
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(59,130,246,0.15); color:#3b82f6; text-transform:uppercase; font-weight:600;">
+                            ${acc?.type || 'Compte'}
+                        </span>
+                        <button onclick="document.getElementById('aiEntityPopover').classList.remove('visible'); document.getElementById('aiEntityPopover').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:0 4px; line-height:1;" title="Fermer">✕</button>
+                    </div>
+                </div>
+
+                <div style="background:rgba(0,0,0,0.15); padding:10px; border-radius:8px; margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                        <span style="color:var(--text-muted);">${window.i18n.t('chat_entity_reconciled_bal') || 'Solde rapproché'} :</span>
+                        <span style="font-weight:700; color:var(--text-main);">${fmt(acc?.initial_balance || 0)}</span>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-primary" style="width:100%; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.app.loadView('accounts'); document.getElementById('aiEntityPopover').style.display='none';">
+                        🏦 ${window.i18n.t('chat_entity_open_account') || 'Ouvrir dans Comptes'}
+                    </button>
+                </div>
+            `;
+        } catch (e) {
+            popover.innerHTML = `<div style="font-size:12px; color:var(--text-muted); padding:10px;">🏦 ${window.escapeHtml(accountName)}</div>`;
+        }
+    },
+
+    async _renderCategoryPopoverContent(popover, categoryName) {
+        const fmt = window.formatCurrency || ((v) => `${Number(v).toFixed(2)} €`);
+        try {
+            const txs = await API.get(`/api/transactions/?search=${encodeURIComponent(categoryName)}&limit=15`);
+            const matchingTxs = (txs || []).filter(t => 
+                (t.category && t.category.toLowerCase() === categoryName.toLowerCase()) ||
+                (t.description && t.description.toLowerCase().includes(categoryName.toLowerCase()))
+            );
+
+            let txListHtml = '';
+            if (matchingTxs.length > 0) {
+                const recent4 = matchingTxs.slice(0, 4);
+                txListHtml = `
+                    <div style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:8px;">
+                        <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">
+                            ${window.i18n.t('chat_entity_recent_txs') || 'Dernières opérations'} :
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:5px;">
+                            ${recent4.map(t => `
+                                <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; padding:2px 0;">
+                                    <div style="display:flex; flex-direction:column; max-width:180px; overflow:hidden;">
+                                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500;" title="${window.escapeHtml(t.description)}">${window.escapeHtml(t.description)}</span>
+                                        <span style="font-size:9px; color:var(--text-muted);">${t.date_operation || t.date || ''}</span>
+                                    </div>
+                                    <span style="font-weight:600; color:${t.is_income ? '#10b981' : '#ef4444'}; white-space:nowrap;">
+                                        ${t.is_income ? '+' : '-'}${fmt(Math.abs(t.amount))}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                txListHtml = `
+                    <div style="font-size:11px; color:var(--text-muted); margin:10px 0; font-style:italic;">
+                        ${window.i18n.t('chat_entity_no_txs') || 'Aucune opération trouvée'}
+                    </div>
+                `;
+            }
+
+            popover.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <div style="font-weight:700; font-size:13px; color:var(--text-main);">
+                        🛒 ${window.escapeHtml(categoryName)}
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(245,158,11,0.15); color:#f59e0b; font-weight:600;">
+                            Catégorie
+                        </span>
+                        <button onclick="document.getElementById('aiEntityPopover').classList.remove('visible'); document.getElementById('aiEntityPopover').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:0 4px; line-height:1;" title="Fermer">✕</button>
+                    </div>
+                </div>
+
+                ${txListHtml}
+
+                <div style="display:flex; gap:8px; margin-top:12px;">
+                    <button class="btn btn-primary" style="width:100%; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(categoryName)}')">
+                        🔍 ${window.i18n.t('chat_entity_filter_ops') || 'Voir toutes les opérations'}
+                    </button>
+                </div>
+            `;
+        } catch (e) {
+            popover.innerHTML = `
+                <div style="font-weight:700; font-size:13px; margin-bottom:8px;">🛒 ${window.escapeHtml(categoryName)}</div>
+                <button class="btn btn-primary" style="width:100%; font-size:11px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(categoryName)}')">
+                    🔍 ${window.i18n.t('chat_entity_filter_ops') || 'Voir les opérations'}
+                </button>
+            `;
+        }
+    },
+
+    navigateToBudget(budgetId, budgetName, year, month) {
+        const popover = document.getElementById('aiEntityPopover');
+        if (popover) { popover.style.display = 'none'; popover.classList.remove('visible'); }
+        if (window.app) {
+            window.app.loadView('budgets');
+            setTimeout(() => {
+                if (window.BudgetsView && typeof window.BudgetsView.showDetail === 'function') {
+                    window.BudgetsView.showDetail(budgetId, budgetName, year, month);
+                }
+            }, 200);
+        }
+    },
+
+    navigateToHistory(searchTerm) {
+        const popover = document.getElementById('aiEntityPopover');
+        if (popover) { popover.style.display = 'none'; popover.classList.remove('visible'); }
+        if (window.app) {
+            if (window.AllOperationsView) {
+                const isBudget = this._entityCache?.budgets?.some(b => b.name.toLowerCase() === searchTerm.toLowerCase());
+                if (isBudget) {
+                    window.AllOperationsView.pendingFilter = { budgetEnvelopeName: searchTerm, backToView: 'chat' };
+                } else {
+                    window.AllOperationsView.pendingFilter = { search: searchTerm, category: searchTerm, backToView: 'chat' };
+                }
+            }
+            window.app.loadView('all_operations');
+        }
+    }
 
 });
+
