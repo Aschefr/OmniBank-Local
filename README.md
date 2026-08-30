@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.97-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.98-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,10 +110,11 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.97)
+## 🆕 Nouveautés (v1.0.98)
 
-* **📐 Correction des En-têtes Fixes (Sticky Headers)** : Rétablissement de la fixation parfaite des en-têtes de colonnes sous la barre d'outils lors du défilement dans le Dashboard et l'Historique.
-* **🖱️ Fluidité du Défilement Molette** : Correction du blocage et des micro-sauts de défilement sur la vue Historique grâce au calcul dynamique et précis des coordonnées du tableau virtuel.
+* **🎛️ Empilement des Menus Déroulants de Filtres** : Correction de l'ordre d'affichage des listes déroulantes de catégories pour qu'elles s'affichent toujours au-dessus de la bannière de période sticky du Dashboard.
+* **📋 Invalidation Dynamique du Changelog** : Détection automatique des modifications de versions par horodatage de fichier pour afficher immédiatement les dernières notes dans l'application sans redémarrage.
+* **🎨 Élimination du Doublon d'Icône** : Nettoyage du titre de la vue Synthèse financière pour n'afficher qu'une seule icône.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -121,7 +122,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.97-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.98-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -221,10 +222,11 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.97)
+## 🆕 What's New (v1.0.98)
 
-* **📐 Sticky Table Headers Fix**: Restored seamless sticky positioning for table column headers below the search/action toolbar during vertical scroll on Dashboard and History.
-* **🖱️ Smooth Mouse Wheel Scrolling**: Fixed wheel scroll lock and jump glitches on the History view by computing virtual table offsets dynamically via bounding box metrics.
+* **🎛️ Filter Dropdown Stacking Fix**: Ensured category and filter dropdown menus always render above the sticky period banner on Dashboard.
+* **📋 Dynamic In-App Changelog**: Automatic cache refresh based on file modification timestamp so new release notes appear instantly without backend restarts.
+* **🎨 Header Icon Clean-up**: Removed duplicate chart emoji in the Financial Summary view header.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 
