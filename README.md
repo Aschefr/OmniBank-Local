@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.96-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.97-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,12 +110,10 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.96)
+## 🆕 Nouveautés (v1.0.97)
 
-* **📱 Point de Bascule Mobile & Tablette Unifié (1024px)** : Synchronisation parfaite de la bascule mobile sur toutes les vues (Dashboard, Vue d'ensemble, Historique, Chat IA, Modales) pour une navigation fluide sur tablette (iPad, Galaxy Tab) et fenêtres partagées.
-* **📐 Barres d'Actions Tactiles 2x2** : Organisation des 4 boutons d'action du Dashboard et de l'Historique en grille compacte 2x2 sous le titre, accessible d'un tap sans aucun défilement horizontal.
-* **🌟 Refonte Responsive de la Vue d'ensemble** : Cartes héro auto-adaptatives, bandeau de rythme financier étanche et grille de graphiques en colonne unique sous 1024px.
-* **✏️ Boutons d'Action Adaptatifs** : Colonne d'actions compacte (`✏️`) sur écrans intermédiaires (1025px–1280px) éliminant tout débordement des tableaux.
+* **📐 Correction des En-têtes Fixes (Sticky Headers)** : Rétablissement de la fixation parfaite des en-têtes de colonnes sous la barre d'outils lors du défilement dans le Dashboard et l'Historique.
+* **🖱️ Fluidité du Défilement Molette** : Correction du blocage et des micro-sauts de défilement sur la vue Historique grâce au calcul dynamique et précis des coordonnées du tableau virtuel.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -123,7 +121,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.96-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.97-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -223,14 +221,10 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.96)
+## 🆕 What's New (v1.0.97)
 
-* **📱 Unified Tablet & Mobile Breakpoint (1024px)**: Synchronized mobile responsive switching across all views (Dashboard, Overview, History, AI Chat, Modals) for flawless tablet and split-window usability.
-* **📐 Ergonomic 2x2 Action Toolbars**: Quick single-tap access to all 4 primary actions on Dashboard and History without any horizontal scrolling.
-* **🌟 Responsive Overview Overhaul**: Adaptive metric cards, sealed rhythm statistics strip, and single-column bottom layout on tablet/mobile screens.
-* **✏️ Adaptive Table Actions**: Compact icon button (`✏️`) on intermediate screen widths (1025px–1280px) to prevent table overflowing.
-* **⏱️ Real-Time Financial Rhythm & Averages**: Discreet overview strip displaying Income, Fixed/Variable expenses, and Net flow with period and cadence selectors.
-* **🔔 Enhanced Notification Management**: Active/Archived tabs, real-time search, and dedicated action buttons (card click only marks as read).
+* **📐 Sticky Table Headers Fix**: Restored seamless sticky positioning for table column headers below the search/action toolbar during vertical scroll on Dashboard and History.
+* **🖱️ Smooth Mouse Wheel Scrolling**: Fixed wheel scroll lock and jump glitches on the History view by computing virtual table offsets dynamically via bounding box metrics.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

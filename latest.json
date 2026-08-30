@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHptdGRpQ3hCLzJOUkwvL3RNdjc2WFlWM1FCdERGRWpwRWpFZ2tuVEd5L2cxUk15aGRqUS9WV2RyNllxdnZia2RpenpMa2x2anJVckhZa1F1MlJmcHdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MDc2NzE5CWZpbGU6T21uaUJhbmtfMS4wLjk2X3g2NF9mci1GUi5tc2kKUnk1RzZITWhvMlVCQ1RsdjhSRGhxbUZnR29Ka0x2YnZiTEJZdUhCd2NPN0tSeGs1bnVuUFRSVzgyd1RLT21TRW5XcVhtQklpYloyaEprUkgzK25JQVE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.96/OmniBank_1.0.96_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlzMndTR3Y4TjlVbVhwYW9nZ0w3Qm1wbjlqbjR5SlZoWmN3VmJzTDZFU3REbXIwVUZxK01jTTlwb0k1cjVpUGZTVDhzNXZubjU2dGk3a3hrNjBudHdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MDgyNzI0CWZpbGU6T21uaUJhbmtfMS4wLjk3X3g2NF9mci1GUi5tc2kKMEttYTJaR3k2SExQQ3h0cTQxWEVPZERtWS94azI4b3JXVlZxUGpJdkl5bTF5L0UySnI2L0NUbHMwUjNxdUl5SnFPR1gwRzNidFErUUdnYkdQL0t2RHc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.97/OmniBank_1.0.97_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-30T07:58:39Z",
-    "version":  "1.0.96",
-    "notes":  "Unified 1024px tablet/mobile responsive layout, mobile 2x2 header toolbars, responsive overview overhaul, and mobile modal enhancements."
+    "pub_date":  "2026-08-30T09:38:44Z",
+    "version":  "1.0.97",
+    "notes":  "Fix sticky table headers positioning and restore smooth mouse wheel scrolling in History \u0026 Dashboard views"
 }

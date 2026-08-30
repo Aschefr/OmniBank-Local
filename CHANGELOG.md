@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.97] - 2026-08-30
+
+### Fixed
+- **Sticky Table Headers & Scroll Fluidity 📐**:
+  - Restored seamless sticky positioning for table column headers on Dashboard and History views, ensuring headers stay properly pinned beneath the action toolbar during vertical scroll without rendering in the middle of the table.
+  - Resolved mouse wheel scrolling freeze and jump issues on the History view by computing virtual table offsets dynamically via viewport bounding boxes.
+
 ## [1.0.96] - 2026-08-30
 
 ### Added & Improved
