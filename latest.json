@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlzMndTR3Y4TjlVbVhwYW9nZ0w3Qm1wbjlqbjR5SlZoWmN3VmJzTDZFU3REbXIwVUZxK01jTTlwb0k1cjVpUGZTVDhzNXZubjU2dGk3a3hrNjBudHdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MDgyNzI0CWZpbGU6T21uaUJhbmtfMS4wLjk3X3g2NF9mci1GUi5tc2kKMEttYTJaR3k2SExQQ3h0cTQxWEVPZERtWS94azI4b3JXVlZxUGpJdkl5bTF5L0UySnI2L0NUbHMwUjNxdUl5SnFPR1gwRzNidFErUUdnYkdQL0t2RHc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.97/OmniBank_1.0.97_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBrLzUyOGdSYWVoWEZ5T29pcXNrc1dJZHVKT0RZVkx6bzgxR044TmtUbmlwc1NTaDNEcEM3MkJLOTg3c2M3bnhZLzU5SFlEYXRhQ2tVT1BBOGE1Y2dnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MTEzNjIzCWZpbGU6T21uaUJhbmtfMS4wLjk4X3g2NF9mci1GUi5tc2kKUCtxNFhRdWg0aE81dmRnNUF4QlM0WGdaQjJ4MklpQU1DOFg2a3dxSDU3NHc3WmJRYnhIR1BRRS9TckxabFlFYkYwclV3a2dXQjVFUmFzWXFCdDV0QXc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.98/OmniBank_1.0.98_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-30T09:38:44Z",
-    "version":  "1.0.97",
-    "notes":  "Fix sticky table headers positioning and restore smooth mouse wheel scrolling in History \u0026 Dashboard views"
+    "pub_date":  "2026-08-30T18:13:43Z",
+    "version":  "1.0.98",
+    "notes":  "AI Historical Snapshots, Mobile-First Chat UI, Accounting Grounding \u0026 Unified Back Navigation"
 }

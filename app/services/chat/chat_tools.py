@@ -606,7 +606,7 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     }
 
 def detect_anomalies_and_subscriptions_tool(db: Session) -> dict:
-    from app.models import Transaction
+    from app.models import Transaction, Account
     from datetime import date, timedelta
     from collections import defaultdict
     import statistics
@@ -614,16 +614,18 @@ def detect_anomalies_and_subscriptions_tool(db: Session) -> dict:
     today = date.today()
     six_months_ago = today - timedelta(days=180)
     
+    accounts_map = {a.id: a.name for a in db.query(Account).all()}
+    
     txs = db.query(Transaction).filter(
         Transaction.date_operation >= six_months_ago,
         Transaction.date_operation <= today
-    ).all()
+    ).order_by(Transaction.date_operation.desc(), Transaction.id.desc()).all()
     
     # 1. Subscription detection (recurring values at recurring intervals)
     candidates = defaultdict(list)
     for t in txs:
         if t.type in ("expense_var", "expense_fixed") and t.amount > 5.0:
-            candidates[t.description.lower()].append(t)
+            candidates[t.description.strip().lower()].append(t)
             
     detected_subs = []
     for desc, items in candidates.items():
@@ -636,26 +638,71 @@ def detect_anomalies_and_subscriptions_tool(db: Session) -> dict:
                 intervals = [(dates[i] - dates[i-1]).days for i in range(1, len(dates))]
                 avg_interval = statistics.mean(intervals) if intervals else 0
                 if 25 <= avg_interval <= 35: # Monthly sub
+                    acc_name = accounts_map.get(items[0].from_account_id or items[0].to_account_id, "Compte courant")
                     detected_subs.append({
                         "description": items[0].description,
                         "amount_euros": items[0].amount,
+                        "annual_cost_euros": round(items[0].amount * 12, 2),
+                        "account_name": acc_name,
                         "interval_days": round(avg_interval, 1),
-                        "frequency": "Monthly"
+                        "frequency": "Monthly",
+                        "charges_count_6m": len(items)
                     })
                     
-    # 2. Duplicate detection (same date, same description, same amount)
+    # 2. Duplicate detection with accounting & bank reconciliation awareness
     duplicates = []
     seen = {}
     for t in txs:
         if t.type in ("expense_var", "expense_fixed"):
-            key = (t.date_operation, t.description.lower(), t.amount)
+            acc_id = t.from_account_id or t.to_account_id
+            acc_name = accounts_map.get(acc_id, "Compte courant")
+            is_rec = t.reconciliation_date is not None
+            key = (acc_id, t.date_operation, t.description.strip().lower(), round(t.amount, 2))
+            
             if key in seen:
+                orig = seen[key]
+                orig_rec = orig.reconciliation_date is not None
+                
+                # Si les deux opérations sont rapprochées en banque, ce sont deux débits réels confirmés par le relevé bancaire.
+                # Ce ne sont PAS des anomalies de base de données à nettoyer.
+                if orig_rec and is_rec:
+                    continue
+                
+                if not orig_rec and is_rec:
+                    rec_status = "one_unreconciled_phantom_one_bank"
+                    target_delete_id = orig.id
+                    accounting_advice = (
+                        f"Saisie manuelle/prévisionnelle #{orig.id} en doublon avec l'opération bancaire réelle #{t.id} sur {acc_name}. "
+                        f"La suppression de la saisie manuelle #{orig.id} nettoiera le doublon sans impacter le solde bancaire officiel."
+                    )
+                elif orig_rec and not is_rec:
+                    rec_status = "one_bank_one_unreconciled_phantom"
+                    target_delete_id = t.id
+                    accounting_advice = (
+                        f"Saisie manuelle/prévisionnelle #{t.id} en doublon avec l'opération bancaire réelle #{orig.id} sur {acc_name}. "
+                        f"La suppression de la saisie manuelle #{t.id} nettoiera le doublon sans impacter le solde bancaire officiel."
+                    )
+                else:
+                    rec_status = "both_unreconciled"
+                    target_delete_id = t.id
+                    accounting_advice = (
+                        f"Deux saisies manuelles ou prévisionnelles non rapprochées sur {acc_name}. "
+                        f"La suppression de l'une d'elles (#{t.id}) est sûre et évite un double décompte prévisionnel."
+                    )
+                
                 duplicates.append({
-                    "original_transaction_id": seen[key].id,
+                    "original_transaction_id": orig.id,
+                    "original_date": orig.date_operation.isoformat(),
+                    "original_is_reconciled": orig_rec,
                     "duplicate_transaction_id": t.id,
-                    "date": t.date_operation.isoformat(),
+                    "duplicate_date": t.date_operation.isoformat(),
+                    "duplicate_is_reconciled": is_rec,
+                    "target_unreconciled_id_to_delete": target_delete_id,
+                    "account_name": acc_name,
                     "description": t.description,
-                    "amount_euros": t.amount
+                    "amount_euros": t.amount,
+                    "reconciliation_status": rec_status,
+                    "accounting_advice": accounting_advice
                 })
             else:
                 seen[key] = t

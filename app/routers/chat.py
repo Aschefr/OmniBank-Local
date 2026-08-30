@@ -67,6 +67,7 @@ from app.services.chat.chat_tools import (
     forget_financial_fact_tool,
 )
 from app.services.chat.chat_prompt import load_system_prompt
+from app.services.chat.chat_snapshot import build_entity_snapshots
 from app.services.chat.chat_compression import (
     estimate_tokens, start_compression, generate_session_title
 )
@@ -178,7 +179,8 @@ async def get_session_messages(id: int, user_name: Optional[str] = None, db: Ses
             "id": m.id,
             "role": m.role,
             "content": m.content,
-            "timestamp": m.timestamp.isoformat() if m.timestamp else None
+            "timestamp": m.timestamp.isoformat() if m.timestamp else None,
+            "entity_snapshots": json.loads(m.entity_snapshots) if m.entity_snapshots else None
         } for m in messages],
         "token_usage": {
             "used": used,
@@ -772,7 +774,12 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
             
             # Save assistant response to DB
             if final_text:
-                bot_msg = ChatMessage(session_id=id, role="assistant", content=_tools_meta + final_text)
+                now_dt = date.today()
+                snapshots = build_entity_snapshots(final_text, db, now_dt.year, now_dt.month)
+                snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
+                if snapshots:
+                    yield f"data: {json.dumps({'entity_snapshots': snapshots})}\n\n"
+                bot_msg = ChatMessage(session_id=id, role="assistant", content=_tools_meta + final_text, entity_snapshots=snapshots_json)
                 db.add(bot_msg)
                 db.commit()
                 _response_saved = True
@@ -818,7 +825,10 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
             # Safety net: if Ollama failed mid-stream and response wasn't saved, save what we have
             if final_text and not _response_saved and not _client_disconnected:
                 try:
-                    bot_msg = ChatMessage(session_id=id, role="assistant", content=_tools_meta + final_text)
+                    now_dt = date.today()
+                    snapshots = build_entity_snapshots(final_text, db, now_dt.year, now_dt.month)
+                    snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
+                    bot_msg = ChatMessage(session_id=id, role="assistant", content=_tools_meta + final_text, entity_snapshots=snapshots_json)
                     db.add(bot_msg)
                     db.commit()
                     _response_saved = True

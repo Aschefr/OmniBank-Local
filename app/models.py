@@ -209,6 +209,7 @@ class ChatMessage(Base):
     role = Column(String)  # "user" or "assistant"
     content = Column(Text)
     timestamp = Column(DateTime, default=_utcnow)
+    entity_snapshots = Column(Text, nullable=True)  # JSON: {type:name -> {type,id,name,snapshot_year,snapshot_month,...}}
 
     session = relationship("ChatSession", back_populates="messages")
 

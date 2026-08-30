@@ -105,7 +105,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 #aiEntityPopover {
                     position: fixed;
                     z-index: 9999;
-                    width: 320px;
+                    width: 340px;
                     max-width: 90vw;
                     background: var(--bg-surface, #1e293b);
                     border: 1px solid var(--border-color, rgba(255,255,255,0.12));

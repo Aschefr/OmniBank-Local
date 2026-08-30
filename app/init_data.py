@@ -569,6 +569,17 @@ def init_db(target_engine=None):
             except Exception:
                 pass
             conn.commit()
+        if schema_version < 23:
+            # Schema v23: entity_snapshots for historical badge data in chat messages
+            try:
+                conn.execute(text("ALTER TABLE chat_messages ADD COLUMN entity_snapshots TEXT"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '23')"))
+            except Exception:
+                pass
+            conn.commit()
 
 
 
