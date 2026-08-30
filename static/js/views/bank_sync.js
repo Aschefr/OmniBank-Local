@@ -463,81 +463,90 @@ window.BankSyncView = {
         <!-- Modale : Cockpit Unifié — Revue & Validation des Opérations              -->
         <!-- Sert à la fois pour la synchro bancaire ET l'import de relevé CSV/XLSX    -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <div id="bankSyncReviewModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1060; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div id="bankSyncReviewModal" class="modal-overlay review-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1060; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <datalist id="bankSyncDescList"></datalist>
-            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 96%; max-width: 1550px; height: 92vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px rgba(0,0,0,0.5); overflow: hidden;">
-                <div style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card);">
+            <div class="review-modal-card">
+                <div class="review-modal-header">
                     <div>
-                        <h3 id="reviewModalTitle" style="margin: 0 0 4px 0; font-size: 18px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                        <h3 id="reviewModalTitle" class="review-modal-title">
                             <span id="reviewModalIcon">📥</span> <span id="reviewModalTitleText" data-i18n="bank_sync_review_title">${window.i18n.t('bank_sync_review_title')}</span>
                         </h3>
-                        <p id="reviewModalSubtitle" style="margin: 0; font-size: 13px; color: var(--text-muted);" data-i18n="bank_sync_review_subtitle">
+                        <p id="reviewModalSubtitle" class="review-modal-subtitle" data-i18n="bank_sync_review_subtitle">
                             ${window.i18n.t('bank_sync_review_subtitle')}
                         </p>
                     </div>
-                    <button onclick="window.BankSyncView.closeReviewModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted);">&times;</button>
+                    <button class="review-modal-close" onclick="window.BankSyncView.closeReviewModal()">&times;</button>
                 </div>
 
                 <!-- Barre CSV Import : Sélection de compte + Alertes (masqué en mode synchro) -->
-                <div id="reviewCsvBar" style="display: none; padding: 10px 24px; background: var(--bg-base); border-bottom: 1px solid var(--border-color);">
-                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <label style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap;" data-i18n="label_link_account">Lier au compte :</label>
-                            <select id="reviewCsvAccountSelect" class="inline-input" style="padding: 6px 10px; border-radius: 8px; font-size: 13px; min-width: 220px; border: 1px solid var(--border-color); background: var(--bg-card);" onchange="window.BankSyncView.onCsvAccountChanged()">
+                <div id="reviewCsvBar" class="review-csv-bar" style="display: none;">
+                    <div class="review-csv-inner">
+                        <div class="review-csv-acc-wrap">
+                            <label class="review-csv-acc-label" data-i18n="label_link_account">Lier au compte :</label>
+                            <select id="reviewCsvAccountSelect" class="inline-input review-csv-select" onchange="window.BankSyncView.onCsvAccountChanged()">
                                 <option value="" data-i18n="opt_no_account">-- Aucun compte sélectionné --</option>
                             </select>
                         </div>
-                        <div id="reviewCsvAlertBox" style="display: none; flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 12px; border: 1px solid rgba(230, 126, 34, 0.5); background-color: rgba(230, 126, 34, 0.1); color: var(--text-color); line-height: 1.4;"></div>
+                        <div id="reviewCsvAlertBox" class="review-csv-alert-box" style="display: none;"></div>
                         <div id="reviewCsvBalanceBadge" style="display: none; font-size: 12px;"></div>
                     </div>
                 </div>
 
-                <div style="padding: 12px 24px; background: var(--bg-base); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                    <div id="reviewAccountTabs" style="display: flex; gap: 8px; overflow-x: auto; max-width: 50%;"></div>
-                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <div class="review-modal-toolbar">
+                    <div id="reviewAccountTabs" class="review-account-tabs"></div>
+                    <div class="review-filter-container">
+                        <!-- Mobile selection bar: master checkbox + select all label -->
+                        <div class="review-mobile-select-bar">
+                            <label class="review-mobile-select-label" for="syncCheckAllMobile">
+                                <input type="checkbox" id="syncCheckAllMobile" class="review-mobile-master-check" onchange="window.BankSyncView.toggleCheckAll(this.checked)" checked>
+                                <span data-i18n="maintenance_convert_zeroed_select_all">${window.i18n ? window.i18n.t('maintenance_convert_zeroed_select_all') || 'Tout sélectionner' : 'Tout sélectionner'}</span>
+                            </label>
+                        </div>
                         <!-- Bouton IA visible UNIQUEMENT si l'IA locale est activée -->
-                        <button class="btn btn-sm btn-secondary" id="btnSyncCategorizeAllAI" onclick="window.BankSyncView.categorizeAllNewAI()" style="display: ${aiEnabled ? 'inline-flex' : 'none'}; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--accent); background: rgba(99,102,241,0.1); color: var(--accent); font-weight: 600; align-items: center; gap: 6px;" title="${window.i18n.t('bank_categorize_ai_tooltip')}">
-                            <span>✨</span> <span data-i18n="bank_categorize_all_ai">${window.i18n.t('bank_categorize_all_ai')}</span>
-                        </button>
+                        <div class="review-filter-group">
+                            <button class="btn btn-sm btn-secondary review-filter-pill" id="btnSyncCategorizeAllAI" onclick="window.BankSyncView.categorizeAllNewAI()" style="display: ${aiEnabled ? 'inline-flex' : 'none'};" title="${window.i18n.t('bank_categorize_ai_tooltip')}">
+                                <span>✨</span> <span data-i18n="bank_categorize_all_ai">${window.i18n.t('bank_categorize_all_ai')}</span>
+                            </button>
 
-                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600; margin-left: 6px;" data-i18n="bank_sync_filter_label">${window.i18n.t('bank_sync_filter_label')}</span>
-                        <button class="btn btn-sm" id="btnSyncFilterAll" onclick="window.BankSyncView.setReviewFilter('all')" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: white;" data-i18n="bank_sync_filter_all">${window.i18n.t('bank_sync_filter_all')}</button>
-                        <button class="btn btn-sm" id="btnSyncFilterAdd" onclick="window.BankSyncView.setReviewFilter('add')" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted);" data-i18n="bank_sync_filter_add">${window.i18n.t('bank_sync_filter_add')}</button>
-                        <button class="btn btn-sm" id="btnSyncFilterReconcile" onclick="window.BankSyncView.setReviewFilter('reconcile')" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted);" data-i18n="bank_sync_filter_reconcile">${window.i18n.t('bank_sync_filter_reconcile')}</button>
-                        <button class="btn btn-sm" id="btnSyncFilterComing" onclick="window.BankSyncView.setReviewFilter('coming')" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); font-weight: 600;" data-i18n="bank_sync_filter_coming">⏳ ${window.i18n.t('bank_sync_filter_coming')}</button>
-                        <button class="btn btn-sm" id="btnSyncFilterIgnored" onclick="window.BankSyncView.setReviewFilter('ignored')" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted);" data-i18n="bank_sync_filter_ignored">${window.i18n.t('bank_sync_filter_ignored')}</button>
-                        <button class="btn btn-sm" id="btnSyncToggleScores" onclick="window.BankSyncView.toggleReviewScores()" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; cursor: pointer;" title="${window.i18n ? window.i18n.t('bank_sync_toggle_scores_tooltip') : 'Affiche le score de confiance du rapprochement automatique. Plus le score est élevé, plus la correspondance entre l\'opération bancaire et votre opération locale est fiable.'}">
-                            <span>🎯</span> <span data-i18n="bank_sync_toggle_scores">${window.i18n ? window.i18n.t('bank_sync_toggle_scores') : 'Scores'}</span>
-                        </button>
+                            <span class="review-filter-label" data-i18n="bank_sync_filter_label">${window.i18n.t('bank_sync_filter_label')}</span>
+                            <button class="btn btn-sm review-filter-pill" id="btnSyncFilterAll" onclick="window.BankSyncView.setReviewFilter('all')" data-i18n="bank_sync_filter_all">${window.i18n.t('bank_sync_filter_all')}</button>
+                            <button class="btn btn-sm review-filter-pill" id="btnSyncFilterAdd" onclick="window.BankSyncView.setReviewFilter('add')" data-i18n="bank_sync_filter_add">${window.i18n.t('bank_sync_filter_add')}</button>
+                            <button class="btn btn-sm review-filter-pill" id="btnSyncFilterReconcile" onclick="window.BankSyncView.setReviewFilter('reconcile')" data-i18n="bank_sync_filter_reconcile">${window.i18n.t('bank_sync_filter_reconcile')}</button>
+                            <button class="btn btn-sm review-filter-pill" id="btnSyncFilterComing" onclick="window.BankSyncView.setReviewFilter('coming')" data-i18n="bank_sync_filter_coming">⏳ ${window.i18n.t('bank_sync_filter_coming')}</button>
+                            <button class="btn btn-sm review-filter-pill" id="btnSyncFilterIgnored" onclick="window.BankSyncView.setReviewFilter('ignored')" data-i18n="bank_sync_filter_ignored">${window.i18n.t('bank_sync_filter_ignored')}</button>
+                            <button class="btn btn-sm review-filter-pill" id="btnSyncToggleScores" onclick="window.BankSyncView.toggleReviewScores()" title="${window.i18n ? window.i18n.t('bank_sync_toggle_scores_tooltip') : 'Affiche le score de confiance du rapprochement automatique. Plus le score est élevé, plus la correspondance entre l\'opération bancaire et votre opération locale est fiable.'}">
+                                <span>🎯</span> <span data-i18n="bank_sync_toggle_scores">${window.i18n ? window.i18n.t('bank_sync_toggle_scores') : 'Scores'}</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div style="flex: 1; overflow-y: auto; padding: 0;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
-                        <thead style="position: sticky; top: 0; background: var(--bg-card); z-index: 10; box-shadow: 0 1px 0 var(--border-color);">
+                <div class="review-table-container">
+                    <table class="review-table">
+                        <thead class="review-thead">
                             <tr>
-                                <th style="padding: 10px 14px; width: 44px; text-align: center;">
+                                <th class="review-th-check">
                                     <input type="checkbox" id="syncCheckAll" onchange="window.BankSyncView.toggleCheckAll(this.checked)" checked title="${window.i18n ? window.i18n.t('bank_sync_check_all_tooltip') || 'Tout cocher / Tout décocher' : 'Tout cocher / Tout décocher'}" style="cursor: pointer; transform: scale(1.15);">
                                 </th>
-                                <th style="padding: 10px 14px; width: 140px; color: var(--text-muted);" data-i18n="bank_sync_th_date">${window.i18n.t('bank_sync_th_date')}</th>
-                                <th style="padding: 10px 14px; min-width: 220px; color: var(--text-muted);" data-i18n="bank_sync_th_description">${window.i18n.t('bank_sync_th_description')}</th>
-                                <th style="padding: 10px 14px; width: 200px; color: var(--text-muted);" data-i18n="bank_sync_th_category">${window.i18n.t('bank_sync_th_category')}</th>
-                                <th style="padding: 10px 14px; width: 110px; text-align: right; color: var(--text-muted);" data-i18n="bank_sync_th_amount">${window.i18n.t('bank_sync_th_amount')}</th>
-                                <th style="padding: 10px 14px; width: 200px; text-align: center; color: var(--text-muted);" data-i18n="bank_sync_th_status">${window.i18n.t('bank_sync_th_status')}</th>
-                                <th style="padding: 10px 14px; width: 250px; text-align: right; color: var(--text-muted);" data-i18n="bank_sync_th_action">${window.i18n.t('bank_sync_th_action')}</th>
+                                <th class="review-th-date" data-i18n="bank_sync_th_date">${window.i18n.t('bank_sync_th_date')}</th>
+                                <th class="review-th-desc" data-i18n="bank_sync_th_description">${window.i18n.t('bank_sync_th_description')}</th>
+                                <th class="review-th-cat" data-i18n="bank_sync_th_category">${window.i18n.t('bank_sync_th_category')}</th>
+                                <th class="review-th-amount" data-i18n="bank_sync_th_amount">${window.i18n.t('bank_sync_th_amount')}</th>
+                                <th class="review-th-status" data-i18n="bank_sync_th_status">${window.i18n.t('bank_sync_th_status')}</th>
+                                <th class="review-th-action" data-i18n="bank_sync_th_action">${window.i18n.t('bank_sync_th_action')}</th>
                             </tr>
                         </thead>
-                        <tbody id="bankSyncReviewBody"></tbody>
+                        <tbody id="bankSyncReviewBody" class="review-tbody"></tbody>
                     </table>
                 </div>
 
-                <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); background: var(--bg-card); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                    <div id="reviewSummaryBox" style="font-size: 13px; color: var(--text-main); display: flex; gap: 16px; flex-wrap: wrap; align-items: center;"></div>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-secondary" onclick="window.BankSyncView.closeReviewModal()" data-i18n="bank_sync_btn_cancel">
+                <div class="review-modal-footer">
+                    <div id="reviewSummaryBox" class="review-summary-box"></div>
+                    <div class="review-footer-buttons">
+                        <button class="btn btn-secondary review-btn-cancel" onclick="window.BankSyncView.closeReviewModal()" data-i18n="bank_sync_btn_cancel">
                             ${window.i18n.t('bank_sync_btn_cancel')}
                         </button>
-                        <button class="btn btn-primary" id="btnCommitSync" onclick="window.BankSyncView.commitSync()" style="font-weight: 700; padding: 8px 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(99,102,241,0.3);" data-i18n="bank_sync_btn_commit">
+                        <button class="btn btn-primary review-btn-commit" id="btnCommitSync" onclick="window.BankSyncView.commitSync()" data-i18n="bank_sync_btn_commit">
                             ${window.i18n.t('bank_sync_btn_commit')}
                         </button>
                     </div>

@@ -425,10 +425,10 @@ Object.assign(window.BankSyncView, {
             const showRaw = tx.raw_description && tx.raw_description !== tx.description;
             const tipSuggested = (window.i18n ? window.i18n.t('smart_label_suggested_tooltip') || window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique / règles' : 'Suggéré d’après votre historique / règles').replace(/"/g, '&quot;');
             const rawSubHtml = showRaw 
-                ? `<div style="font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 3px; font-weight: normal; opacity: 0.85; display: flex; align-items: center; gap: 4px;"><span>🏛️</span> <span>${window.escapeHtml ? window.escapeHtml(tx.raw_description) : tx.raw_description}</span> ${tx.smart_suggested ? `<span title="${tipSuggested}" style="cursor:help; font-size:11px;">💡</span>` : ''}</div>` 
+                ? `<div class="review-raw-desc" style="font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 3px; font-weight: normal; opacity: 0.85; display: flex; align-items: center; gap: 4px;"><span>🏛️</span> <span>${window.escapeHtml ? window.escapeHtml(tx.raw_description) : tx.raw_description}</span> ${tx.smart_suggested ? `<span title="${tipSuggested}" style="cursor:help; font-size:11px;">💡</span>` : ''}</div>` 
                 : '';
             const dbDesc = (tx.db_description && tx.db_description !== tx.description) 
-                ? `<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 3px;">${lblInDb} ${window.escapeHtml ? window.escapeHtml(tx.db_description) : tx.db_description}</div>` 
+                ? `<div class="review-db-desc" style="font-size: 11px; color: var(--text-muted); margin-bottom: 3px;">${lblInDb} ${window.escapeHtml ? window.escapeHtml(tx.db_description) : tx.db_description}</div>` 
                 : '';
 
             const descInput = isRec 
@@ -440,13 +440,13 @@ Object.assign(window.BankSyncView, {
             ).join('');
 
             const aiButtonHtml = (!isRec && aiEnabled) ? `
-                <button class="btn btn-secondary" style="padding: 3px 6px; font-size: 11px; border-radius: 6px;" onclick="window.BankSyncView.categorizeRowAI('${tx.csv_id}', this)" title="${window.i18n.t('bank_categorize_ai_tooltip')}">🧠</button>
+                <button class="btn btn-secondary review-ai-btn" style="padding: 3px 6px; font-size: 11px; border-radius: 6px;" onclick="window.BankSyncView.categorizeRowAI('${tx.csv_id}', this)" title="${window.i18n.t('bank_categorize_ai_tooltip')}">🧠</button>
             ` : '';
 
             const catSelect = isRec 
-                ? `<span style="color: var(--text-muted); font-size: 12px; font-style: italic;">${lblAutoCat}</span>`
+                ? `<span class="review-cat-auto" style="color: var(--text-muted); font-size: 12px; font-style: italic;">${lblAutoCat}</span>`
                 : `
-                <div style="display: flex; gap: 4px; align-items: center;">
+                <div class="review-cat-wrap" style="display: flex; gap: 4px; align-items: center;">
                     <select class="input-styled sync-cat" id="catSel_${tx.csv_id}" style="flex: 1; padding: 4px;" onchange="window.BankSyncView.updateTxCat(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">
                         ${catOptions}
                     </select>
@@ -456,8 +456,8 @@ Object.assign(window.BankSyncView, {
 
             const amountColor = (tx.raw_amount < 0) ? '#ef4444' : '#10b981';
             const amountInput = isRec 
-                ? `<span style="font-weight: 700; color: ${amountColor};">${(tx.raw_amount < 0 ? '-' : '+')} ${tx.amount.toFixed(2)} €</span>`
-                : `<input type="number" step="0.01" class="input-styled" value="${tx.amount.toFixed(2)}" style="width: 80px; text-align: right; padding: 4px; font-weight: 700; color: ${amountColor};" onchange="window.BankSyncView.updateTxAmount(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">`;
+                ? `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(tx.raw_amount < 0 ? '-' : '+')} ${tx.amount.toFixed(2)} €</span>`
+                : `<input type="number" step="0.01" class="input-styled review-amount-input" value="${tx.amount.toFixed(2)}" style="width: 80px; text-align: right; padding: 4px; font-weight: 700; color: ${amountColor};" onchange="window.BankSyncView.updateTxAmount(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">`;
 
             let rowStyle = 'border-bottom: 1px solid var(--border-color); transition: opacity 0.2s ease, filter 0.2s ease;';
             if (isExcluded || tx.is_dismissed || tx.is_auto_dismissed) {
@@ -469,7 +469,7 @@ Object.assign(window.BankSyncView, {
             }
 
             const comingDateIcon = tx.is_coming 
-                ? `<span title="${(window.i18n ? window.i18n.t('bank_sync_coming_badge') : 'Opération à venir / En attente banque').replace(/"/g, '&quot;')}" style="color: #f59e0b; font-weight: 700; margin-right: 4px; cursor: help;">⏳</span>` 
+                ? `<span class="review-coming-icon" title="${(window.i18n ? window.i18n.t('bank_sync_coming_badge') : 'Opération à venir / En attente banque').replace(/"/g, '&quot;')}" style="color: #f59e0b; font-weight: 700; margin-right: 4px; cursor: help;">⏳</span>` 
                 : '';
 
             let linkActionBtn = '';
@@ -501,37 +501,37 @@ Object.assign(window.BankSyncView, {
             let deleteOrRestoreBtn = '';
             if (tx.is_dismissed || tx.is_auto_dismissed || isExcluded) {
                 const lblRestore = (window.i18n && window.i18n.t('bank_sync_btn_restore')) || 'Rétablir';
-                deleteOrRestoreBtn = `<button class="btn btn-secondary" style="font-size: 11px; padding: 2px 8px; border-radius: 6px; height: 24px; display: inline-flex; align-items: center; gap: 4px; color: var(--accent);" onclick="window.BankSyncView.restoreReviewRow('${tx.csv_id}')" title="${lblRestore}"><span>↩️</span> <span>${lblRestore}</span></button>`;
+                deleteOrRestoreBtn = `<button class="btn btn-secondary review-restore-btn" style="font-size: 11px; padding: 2px 8px; border-radius: 6px; height: 24px; display: inline-flex; align-items: center; gap: 4px; color: var(--accent);" onclick="window.BankSyncView.restoreReviewRow('${tx.csv_id}')" title="${lblRestore}"><span>↩️</span> <span>${lblRestore}</span></button>`;
             } else {
                 deleteOrRestoreBtn = `<button class="btn-action-del" onclick="window.BankSyncView.removeTxRow('${tx.csv_id}')" title="${lblIgnoreRow}">✕</button>`;
             }
 
             return `
-            <tr id="syncRow_${tx.csv_id}" style="${rowStyle}">
-                <td style="padding: 10px 14px; text-align: center;">
+            <tr id="syncRow_${tx.csv_id}" class="review-tx-row ${isExcluded ? 'is-excluded' : ''} ${tx.is_coming ? 'is-coming' : ''} ${alreadyRec ? 'is-already-rec' : ''}" style="${rowStyle}">
+                <td class="review-cell-check" style="padding: 10px 14px; text-align: center;">
                     <input type="checkbox" class="sync-row-check" ${isExcluded ? '' : 'checked'} onchange="window.BankSyncView.toggleTxCheck(${this.currentAccountIndex}, '${tx.csv_id}', this.checked)" title="${lblRowCheck}" style="cursor: pointer; transform: scale(1.15);">
                 </td>
-                <td style="padding: 10px 14px; white-space: nowrap;">
-                    ${comingDateIcon}<input type="date" class="input-styled sync-date" value="${tx.date_operation}" style="width: 120px; padding: 4px;" ${isRec ? 'disabled' : ''} onchange="window.BankSyncView.updateTxDate(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">
+                <td class="review-cell-date" style="padding: 10px 14px; white-space: nowrap;">
+                    <div class="review-date-wrap">${comingDateIcon}<input type="date" class="input-styled sync-date" value="${tx.date_operation}" style="width: 120px; padding: 4px;" ${isRec ? 'disabled' : ''} onchange="window.BankSyncView.updateTxDate(${this.currentAccountIndex}, '${tx.csv_id}', this.value)"></div>
                 </td>
-                <td style="padding: 10px 14px;">${descInput}</td>
-                <td style="padding: 10px 14px;">${catSelect}</td>
-                <td style="padding: 10px 14px; text-align: right;">
+                <td class="review-cell-desc" style="padding: 10px 14px;">${descInput}</td>
+                <td class="review-cell-cat" style="padding: 10px 14px;">${catSelect}</td>
+                <td class="review-cell-amount" style="padding: 10px 14px; text-align: right;">
                     ${amountInput}
                 </td>
-                <td style="padding: 10px 14px; text-align: center;">
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%;">
-                        <div style="display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex-wrap: wrap;">
+                <td class="review-cell-status">
+                    <div class="review-status-wrap">
+                        <div class="review-status-badges">
                             ${statusBadge}
                             ${resolvesBadge}
                         </div>
-                        ${scoreBadge ? `<div style="margin-top: 2px;">${scoreBadge}</div>` : ''}
+                        ${scoreBadge ? `<div class="review-score-wrap">${scoreBadge}</div>` : ''}
                     </div>
                 </td>
-                <td style="padding: 10px 14px; text-align: right;">
-                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; white-space: nowrap;">
-                        <span style="font-size: 11.5px; ${actionColor} white-space: nowrap;">${actionText}</span>
-                        <div style="display: inline-flex; gap: 4px; align-items: center;">
+                <td class="review-cell-actions">
+                    <div class="review-actions-wrap">
+                        <span class="review-action-text" style="${actionColor}">${actionText}</span>
+                        <div class="review-action-btns">
                             ${linkActionBtn}
                             ${deleteOrRestoreBtn}
                         </div>
@@ -557,9 +557,11 @@ Object.assign(window.BankSyncView, {
             if (tx._excluded) {
                 row.style.opacity = '0.4';
                 row.style.filter = 'grayscale(0.7)';
+                row.classList.add('is-excluded');
             } else {
                 row.style.opacity = (tx.already_reconciled) ? '0.6' : '1';
                 row.style.filter = 'none';
+                row.classList.remove('is-excluded');
             }
         }
 
@@ -587,12 +589,18 @@ Object.assign(window.BankSyncView, {
             tx._excluded = !isChecked;
         });
 
+        const masterCheck = document.getElementById('syncCheckAll');
+        const masterCheckMobile = document.getElementById('syncCheckAllMobile');
+        if (masterCheck) masterCheck.checked = isChecked;
+        if (masterCheckMobile) masterCheckMobile.checked = isChecked;
+
         this.renderReviewTable();
     },
 
     _updateMasterCheckboxState() {
         const masterCheck = document.getElementById('syncCheckAll');
-        if (!masterCheck || !this.previewData?.accounts) return;
+        const masterCheckMobile = document.getElementById('syncCheckAllMobile');
+        if (!this.previewData?.accounts) return;
         const currentAcc = this.previewData.accounts[this.currentAccountIndex];
         if (!currentAcc || !currentAcc.transactions) return;
 
@@ -605,22 +613,21 @@ Object.assign(window.BankSyncView, {
             return true;
         });
 
+        const chks = [masterCheck, masterCheckMobile].filter(Boolean);
+        if (chks.length === 0) return;
+
         if (visibleTxs.length === 0) {
-            masterCheck.checked = false;
-            masterCheck.indeterminate = false;
+            chks.forEach(c => { c.checked = false; c.indeterminate = false; });
             return;
         }
 
         const checkedCount = visibleTxs.filter(t => !t._excluded).length;
         if (checkedCount === visibleTxs.length) {
-            masterCheck.checked = true;
-            masterCheck.indeterminate = false;
+            chks.forEach(c => { c.checked = true; c.indeterminate = false; });
         } else if (checkedCount === 0) {
-            masterCheck.checked = false;
-            masterCheck.indeterminate = false;
+            chks.forEach(c => { c.checked = false; c.indeterminate = false; });
         } else {
-            masterCheck.checked = false;
-            masterCheck.indeterminate = true;
+            chks.forEach(c => { c.checked = false; c.indeterminate = true; });
         }
     },
 

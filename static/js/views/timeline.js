@@ -112,7 +112,7 @@ window.TimelineView = {
                     </div>
                 </div>
             </div>
-            <div style="padding-bottom: 20px;">
+            <div class="timeline-table-container" style="padding-bottom: 20px;">
                 <div id="timelineGhostBox"></div>
 
 
@@ -416,12 +416,12 @@ window.TimelineView = {
             if (!cols[k]) {
                 css += `.timeline-table .col-${k} { display: none !important; }\n`;
             } else {
-                const pct = ((colWeights[k] || 1) / totalWeight * 92).toFixed(1);
+                const pct = ((colWeights[k] || 1) / totalWeight * 82).toFixed(1);
                 css += `.timeline-table .col-${k} { width: ${pct}%; }\n`;
             }
         });
-        // Actions column — enough room for Duplicate + Edit + Delete buttons
-        css += `.timeline-table .col-actions { width: 10%; }\n`;
+        // Actions column — enough room for Duplicate + Edit + Delete buttons without overflow
+        css += `.timeline-table .col-actions { width: 18%; min-width: 130px; }\n`;
         
         const styleTag = document.getElementById('timelineColsStyle');
         if (styleTag) styleTag.innerHTML = css;
@@ -809,7 +809,7 @@ window.TimelineView = {
                             return '<span class="btn-action-placeholder"></span>';
                         })()}
                         <button class="btn-action-icon btn-action-dup" onclick="window.TimelineView.duplicate(${tx.id})" title="${window.i18n.t('tooltip_duplicate') || 'Dupliquer'}">📋</button>
-                        <button class="btn-action-edit" onclick="window.TimelineView.edit(${tx.id})">${window.i18n.t('tooltip_edit') || 'Modifier'}</button>
+                        <button class="btn-action-edit" onclick="window.TimelineView.edit(${tx.id})" title="${window.i18n.t('tooltip_edit') || 'Modifier'}"><span class="btn-action-edit-icon">✏️</span><span class="btn-action-edit-label">${window.i18n.t('tooltip_edit') || 'Modifier'}</span></button>
                         <button class="btn-action-del" onclick="window.TimelineView.delete(${tx.id})" title="${window.i18n.t('btn_delete') || 'Supprimer'}">✕</button>
                     </div>
                 </td>

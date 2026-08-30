@@ -2,13 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.96] - 2026-08-30
+
+### Added & Improved
+- **Unified Tablet & Mobile Experience 📱**:
+  - Synchronized responsive mobile view switching across the entire application at a single, consistent breakpoint (1024px) for seamless navigation on tablets (iPad, Galaxy Tab) and split-screen desktop windows.
+  - Revamped Dashboard and History toolbars into an ergonomic 2x2 grid on mobile viewports for instant single-tap access to all 4 primary actions without horizontal scrolling.
+  - Overhauled Overview (Vue d'ensemble) with adaptive controls, mobile-optimized hero metric cards, responsive financial rhythm controls, and auto-stacking trend charts.
+  - Adaptive action buttons on desktop and tablet screens that automatically use compact icon buttons (`✏️`) when screen space is tight.
+  - Full mobile screen support across all dialogs and modals (Bank Review, CSV Export/Import, Bank Mapping, Paycheck Overrides).
+
+### Fixed
+- **Table Layout & Viewport Containment 📐**:
+  - Eliminated horizontal overflowing and clipped action buttons in Dashboard, History, and Overview tables on intermediate laptop and tablet screen sizes.
+  - Fixed bulk reconciliation button text clipping on mobile viewports.
+
 ## [1.0.95] - 2026-08-29
 
 ### Added & Improved
 - **Harmonized Header Toolbars & Filter Grids 📐**:
   - Clean 2-row layout across Dashboard and History separating top action buttons (*Columns, Import Statement, Online Sync, New Operation*) from search and filter pills.
   - Sticky header container keeping search and filters readily accessible at any scroll depth without blocking table headers.
-- **Mobile Viewport Ergonomics & Horizontal Filter Chips 📱**:
+- **Mobile Viewport Ergonomics & Modal Responsiveness 📱**:
+  - Comprehensive mobile overhaul across all application dialogs (Paycheck history/override/candidates, CSV Export & Import, Bank Sync Account Mapping, and Budget Envelope creation) ensuring zero horizontal clipping on smartphones (360px+).
   - Modern mobile UX complying with Apple HIG & Material 3 standards (comfortable 13–14px typography and 36px touch targets).
   - Smooth horizontal swipeable filter chips bar, reclaiming over 120px of vertical space for transaction lists on smartphones.
 - **Unified Select Dropdowns & Complete Localization 🌐**:

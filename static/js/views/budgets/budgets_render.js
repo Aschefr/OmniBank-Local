@@ -295,8 +295,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             <div id="budgetStatusContainer" style="margin-bottom:30px;"></div>
 
             <!-- Unified Modal (Details + Add/Edit Form) -->
-            <div id="budgetUnifiedModal" class="modal-overlay" style="display:none;z-index:1000;align-items:flex-start;padding-top:8vh;padding-bottom:8vh;overflow-y:auto;">
-                <div class="modal" style="width:95vw;max-width:1100px;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);padding:30px;background:var(--bg-surface);border:1px solid var(--accent);height:max-content;">
+            <div id="budgetUnifiedModal" class="modal-overlay" style="display:none;z-index:1000;align-items:flex-start;padding-top:5vh;padding-bottom:5vh;overflow-y:auto;">
+                <div class="modal budget-unified-panel" style="width: min(1100px, calc(100vw - 24px)); max-width: 95vw; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); padding: 24px; background: var(--bg-surface); border: 1px solid var(--accent); height: max-content;">
                     
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
                         <h4 id="budgetUnifiedTitle" style="margin:0;font-size:16px;" data-i18n="budget_modal_title">${window.i18n.t('budget_modal_title')}</h4>
@@ -324,18 +324,18 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             </div>
 
                             <!-- Type toggle -->
-                            <div style="display:flex;align-items:center;gap:12px;width:100%;">
+                            <div class="budget-type-row" style="display:flex;align-items:center;gap:12px;width:100%;flex-wrap:wrap;">
                                 <label style="font-size:12px;color:var(--text-muted);white-space:nowrap;" data-i18n="budget_type_label">${window.i18n.t('budget_type_label')}</label>
-                                <div style="display:flex; flex:1; background:var(--bg-base); padding:4px; border-radius:8px; border:1px solid var(--border-color);">
-                                    <label id="tabLabelCat" style="flex:1; text-align:center; cursor:pointer; padding:8px 12px; font-size:13px; border-radius:6px; transition:all 0.2s;">
+                                <div class="budget-type-toggle-group" style="display:flex; flex:1; min-width: 240px; background:var(--bg-base); padding:4px; border-radius:8px; border:1px solid var(--border-color); flex-wrap: wrap; gap: 4px;">
+                                    <label id="tabLabelCat" style="flex:1; min-width: 70px; text-align:center; cursor:pointer; padding:8px 8px; font-size:12.5px; border-radius:6px; transition:all 0.2s;">
                                         <input type="radio" name="budgetType" value="category" id="budgetTypeCategory" checked onchange="window.BudgetsView.toggleType()" style="display:none;">
                                         <span data-i18n="budget_type_category">${window.i18n.t('budget_type_category')}</span>
                                     </label>
-                                    <label id="tabLabelProj" style="flex:1; text-align:center; cursor:pointer; padding:8px 12px; font-size:13px; border-radius:6px; transition:all 0.2s;">
+                                    <label id="tabLabelProj" style="flex:1; min-width: 70px; text-align:center; cursor:pointer; padding:8px 8px; font-size:12.5px; border-radius:6px; transition:all 0.2s;">
                                         <input type="radio" name="budgetType" value="project" id="budgetTypeProject" onchange="window.BudgetsView.toggleType()" style="display:none;">
                                         <span data-i18n="budget_type_project">${window.i18n.t('budget_type_project')}</span>
                                     </label>
-                                    <label id="tabLabelSavings" style="flex:1; text-align:center; cursor:pointer; padding:8px 12px; font-size:13px; border-radius:6px; transition:all 0.2s;">
+                                    <label id="tabLabelSavings" style="flex:1; min-width: 70px; text-align:center; cursor:pointer; padding:8px 8px; font-size:12.5px; border-radius:6px; transition:all 0.2s;">
                                         <input type="radio" name="budgetType" value="savings" id="budgetTypeSavings" onchange="window.BudgetsView.toggleType()" style="display:none;">
                                         <span data-i18n="budget_type_savings">${window.i18n.t('budget_type_savings')}</span>
                                     </label>
