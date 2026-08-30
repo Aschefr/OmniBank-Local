@@ -1170,6 +1170,7 @@ def simulate_loan_amortization_tool(db: Session, principal: float, rate_percent:
 
 def get_financial_summary_tool(db: Session) -> dict:
     from app.services.finance_engine import calculate_rest_to_live, predict_next_paycheck
+    from app.models import Budget, BudgetAllocation, Transaction
     from datetime import date
     
     today = date.today()
@@ -1177,9 +1178,31 @@ def get_financial_summary_tool(db: Session) -> dict:
     next_pay_date = paycheck["date"]
     
     rest_to_live = calculate_rest_to_live(db, today, next_pay_date)
+
+    days_until_paycheck = 30
+    if isinstance(next_pay_date, date):
+        days_until_paycheck = max(1, (next_pay_date - today).days)
+    daily_budget = round(rest_to_live / days_until_paycheck, 2) if rest_to_live > 0 else 0.0
+
+    # Savings buffer
+    savings_budgets = db.query(Budget).filter(Budget.envelope_type == "savings", Budget.is_closed == False).all()
+    savings_total = 0.0
+    for sb in savings_budgets:
+        allocs = db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == sb.id).all()
+        alloc_bal = sum(a.amount for a in allocs)
+        txs = db.query(Transaction).filter(
+            Transaction.budget_id == sb.id,
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+        ).all()
+        tx_inc = sum(abs(t.amount) for t in txs if t.type == "income")
+        tx_exp = sum(abs(t.amount) for t in txs if t.type != "income")
+        savings_total += max((tx_inc - tx_exp) + alloc_bal, 0.0)
     
     return {
         "current_rest_to_live_euros": rest_to_live,
+        "daily_budget_available_euros": daily_budget,
+        "days_until_next_paycheck": days_until_paycheck,
+        "savings_safety_buffer_euros": round(savings_total, 2),
         "next_predicted_paycheck": {
             "date": next_pay_date.isoformat() if isinstance(next_pay_date, date) else str(next_pay_date),
             "amount": paycheck["amount"],
@@ -1187,6 +1210,202 @@ def get_financial_summary_tool(db: Session) -> dict:
             "logical_period": paycheck["logical_period"]
         }
     }
+
+def get_spending_trends_tool(db: Session) -> dict:
+    """
+    Computes multi-month historical spending averages (3, 6, 12 months), savings rates,
+    and identifies categories with significant spending changes (+/- X%).
+    """
+    from datetime import date, timedelta
+    from collections import defaultdict
+    from app.models import Transaction
+
+    today = date.today()
+
+    def _calc_period(days: int, months_count: float):
+        start = today - timedelta(days=days)
+        txs = db.query(Transaction).filter(
+            Transaction.date_operation >= start,
+            Transaction.date_operation <= today,
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+        ).all()
+        inc = sum(t.amount for t in txs if t.type == "income")
+        fixed = sum(t.amount for t in txs if t.type == "expense_fixed")
+        var = sum(t.amount for t in txs if t.type == "expense_var")
+        tot_exp = fixed + var
+        sav = inc - tot_exp
+        rate = round((sav / inc * 100), 1) if inc > 0 else 0.0
+        
+        # Category breakdown
+        by_cat = defaultdict(float)
+        for t in txs:
+            if t.type in ("expense_var", "expense_fixed"):
+                cname = t.category or "Sans catégorie"
+                by_cat[cname] += t.amount
+
+        return {
+            "monthly_avg_income": round(inc / months_count, 2),
+            "monthly_avg_fixed_expenses": round(fixed / months_count, 2),
+            "monthly_avg_variable_expenses": round(var / months_count, 2),
+            "monthly_avg_total_expenses": round(tot_exp / months_count, 2),
+            "monthly_avg_net_savings": round(sav / months_count, 2),
+            "savings_rate_percent": rate,
+            "category_monthly_averages": {k: round(v / months_count, 2) for k, v in by_cat.items()}
+        }
+
+    p3m = _calc_period(90, 3.0)
+    p6m = _calc_period(180, 6.0)
+    p12m = _calc_period(365, 12.0)
+
+    # Detect category shifts between 3m and 6m
+    cats_3m = p3m["category_monthly_averages"]
+    cats_6m = p6m["category_monthly_averages"]
+    
+    growing_categories = []
+    shrinking_categories = []
+
+    all_cats = set(cats_3m.keys()) | set(cats_6m.keys())
+    for cat in all_cats:
+        avg3 = cats_3m.get(cat, 0.0)
+        avg6 = cats_6m.get(cat, 0.0)
+        if avg6 > 20.0 or avg3 > 20.0:  # Ignore negligible amounts
+            delta = avg3 - avg6
+            pct_change = round((delta / avg6 * 100), 1) if avg6 > 0 else 100.0
+            if pct_change >= 15.0 and delta >= 20.0:
+                growing_categories.append({
+                    "category": cat,
+                    "avg_monthly_3m_euros": avg3,
+                    "avg_monthly_6m_euros": avg6,
+                    "increase_euros": round(delta, 2),
+                    "change_percent": f"+{pct_change}%"
+                })
+            elif pct_change <= -15.0 and delta <= -20.0:
+                shrinking_categories.append({
+                    "category": cat,
+                    "avg_monthly_3m_euros": avg3,
+                    "avg_monthly_6m_euros": avg6,
+                    "decrease_euros": round(abs(delta), 2),
+                    "change_percent": f"{pct_change}%"
+                })
+
+    growing_categories.sort(key=lambda x: x["avg_monthly_3m_euros"], reverse=True)
+    shrinking_categories.sort(key=lambda x: x["avg_monthly_6m_euros"], reverse=True)
+
+    return {
+        "averages_3_months": {
+            "monthly_income_euros": p3m["monthly_avg_income"],
+            "monthly_expenses_euros": p3m["monthly_avg_total_expenses"],
+            "monthly_fixed_euros": p3m["monthly_avg_fixed_expenses"],
+            "monthly_variable_euros": p3m["monthly_avg_variable_expenses"],
+            "monthly_savings_euros": p3m["monthly_avg_net_savings"],
+            "savings_rate_percent": p3m["savings_rate_percent"]
+        },
+        "averages_6_months": {
+            "monthly_income_euros": p6m["monthly_avg_income"],
+            "monthly_expenses_euros": p6m["monthly_avg_total_expenses"],
+            "monthly_fixed_euros": p6m["monthly_avg_fixed_expenses"],
+            "monthly_variable_euros": p6m["monthly_avg_variable_expenses"],
+            "monthly_savings_euros": p6m["monthly_avg_net_savings"],
+            "savings_rate_percent": p6m["savings_rate_percent"]
+        },
+        "averages_12_months": {
+            "monthly_income_euros": p12m["monthly_avg_income"],
+            "monthly_expenses_euros": p12m["monthly_avg_total_expenses"],
+            "savings_rate_percent": p12m["savings_rate_percent"]
+        },
+        "notable_spending_changes": {
+            "growing_categories_recent": growing_categories[:5],
+            "shrinking_categories_recent": shrinking_categories[:5]
+        }
+    }
+
+def get_dashboard_synthesis_tool(db: Session, year: int = None, month: int = None) -> dict:
+    """
+    Returns the complete monthly synthesis mirroring what the user sees in the OmniBank dashboard.
+    """
+    import calendar
+    from datetime import date
+    from app.models import Transaction, Budget, BudgetAllocation
+    from app.routers.budgets import get_budget_status
+    from app.services.finance_engine import calculate_rest_to_live, predict_next_paycheck
+
+    today = date.today()
+    y = int(year) if year is not None else today.year
+    m = int(month) if month is not None else today.month
+
+    # Current month date bounds
+    start_cur = date(y, m, 1)
+    end_cur = date(y, m, calendar.monthrange(y, m)[1])
+
+    # Previous month date bounds
+    if m == 1:
+        prev_y, prev_m = y - 1, 12
+    else:
+        prev_y, prev_m = y, m - 1
+    start_prev = date(prev_y, prev_m, 1)
+    end_prev = date(prev_y, prev_m, calendar.monthrange(prev_y, prev_m)[1])
+
+    def _query_month_totals(s, e):
+        txs = db.query(Transaction).filter(
+            Transaction.date_operation >= s,
+            Transaction.date_operation <= e,
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+        ).all()
+        inc = sum(t.amount for t in txs if t.type == "income")
+        fix = sum(t.amount for t in txs if t.type == "expense_fixed")
+        var = sum(t.amount for t in txs if t.type == "expense_var")
+        return round(inc, 2), round(fix, 2), round(var, 2), round(fix + var, 2), round(inc - (fix + var), 2)
+
+    cur_inc, cur_fix, cur_var, cur_exp, cur_sav = _query_month_totals(start_cur, end_cur)
+    prev_inc, prev_fix, prev_var, prev_exp, prev_sav = _query_month_totals(start_prev, end_prev)
+
+    # Budget Envelopes Status
+    b_status = get_budget_status(year=y, month=m, db=db)
+    envelopes = []
+    for b in b_status.get("budgets", []):
+        pct = b.get("percent", 0.0)
+        status_label = "healthy"
+        if pct >= 100.0:
+            status_label = "overspent"
+        elif pct >= 80.0:
+            status_label = "warning"
+
+        envelopes.append({
+            "name": b.get("name"),
+            "envelope_type": b.get("envelope_type", "spending"),
+            "limit_euros": b.get("budget_amount", 0.0),
+            "spent_euros": b.get("expenses", 0.0),
+            "remaining_euros": b.get("balance", 0.0),
+            "percent_spent": pct,
+            "status": status_label
+        })
+
+    # Reste à vivre
+    paycheck = predict_next_paycheck(db)
+    rtl = calculate_rest_to_live(db, today, paycheck["date"]) if (y == today.year and m == today.month) else None
+
+    return {
+        "period": {"year": y, "month": m},
+        "monthly_totals": {
+            "total_income_euros": cur_inc,
+            "total_expenses_fixed_euros": cur_fix,
+            "total_expenses_variable_euros": cur_var,
+            "total_expenses_euros": cur_exp,
+            "net_savings_euros": cur_sav,
+            "savings_rate_percent": round((cur_sav / cur_inc * 100), 1) if cur_inc > 0 else 0.0
+        },
+        "comparison_vs_previous_month": {
+            "previous_month_period": f"{prev_y}-{prev_m:02d}",
+            "income_delta_euros": round(cur_inc - prev_inc, 2),
+            "expenses_delta_euros": round(cur_exp - prev_exp, 2),
+            "net_savings_delta_euros": round(cur_sav - prev_sav, 2)
+        },
+        "current_reste_a_vivre_euros": rtl,
+        "budget_envelopes": envelopes
+    }
+
 
 def store_financial_fact_tool(db: Session, key: str, value: str, private_to_session: bool = False, session_id: int = None, user_name: str = None) -> dict:
     from app.models import AIFact, OrgUser
@@ -1262,8 +1481,36 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_financial_summary",
-            "description": "Get the current 'Reste à vivre' (left to live) amount and the next predicted paycheck details (amount, date, logical period). Use this when the user asks about their remaining budget, budget difficulties, or paycheck/income projections.",
+            "description": "Get the current 'Reste à vivre' (left to live) amount, daily spending ceiling, days remaining until next paycheck, savings safety buffer, and predicted paycheck details. Use this when the user asks about remaining budget or paycheck projections.",
             "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_spending_trends",
+            "description": "Get historical spending and income averages over 3, 6, and 12 months, overall savings rate, and identify categories with recent notable spending growth or reduction. Use this for deep financial health analysis and budget optimization advice.",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_dashboard_synthesis",
+            "description": "Get the complete monthly dashboard synthesis: total income, fixed vs variable expenses, net savings, comparison against previous month (M-1), and consumption status of all budget envelopes. Use this when the user asks about their overall monthly progress or dashboard metrics.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "year": {
+                        "type": "integer",
+                        "description": "Optional year. Defaults to current year."
+                    },
+                    "month": {
+                        "type": "integer",
+                        "description": "Optional month (1-12). Defaults to current month."
+                    }
+                }
+            }
         }
     },
     {

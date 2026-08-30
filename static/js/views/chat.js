@@ -45,9 +45,96 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     animation: brain-glow 1.2s ease-in-out infinite;
                     border-color: rgba(139, 92, 246, 0.6) !important;
                 }
+                /* Interactive AI Entity Badges */
+                .ai-entity-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 1px 7px;
+                    margin: 0 2px;
+                    background: rgba(99, 102, 241, 0.14);
+                    border: 1px solid rgba(99, 102, 241, 0.35);
+                    border-radius: 6px;
+                    color: var(--text-main, #e2e8f0);
+                    font-weight: 600;
+                    font-size: 0.95em;
+                    cursor: pointer;
+                    text-decoration: none;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    vertical-align: baseline;
+                }
+                .ai-entity-badge:hover, .ai-entity-badge:focus {
+                    background: rgba(99, 102, 241, 0.28);
+                    border-color: var(--accent, #6366f1);
+                    box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+                    transform: translateY(-1px);
+                    outline: none;
+                }
+                .ai-entity-badge.type-budget {
+                    background: rgba(16, 185, 129, 0.14);
+                    border-color: rgba(16, 185, 129, 0.35);
+                }
+                .ai-entity-badge.type-budget:hover {
+                    background: rgba(16, 185, 129, 0.28);
+                    border-color: #10b981;
+                    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+                }
+                .ai-entity-badge.type-account {
+                    background: rgba(59, 130, 246, 0.14);
+                    border-color: rgba(59, 130, 246, 0.35);
+                }
+                .ai-entity-badge.type-account:hover {
+                    background: rgba(59, 130, 246, 0.28);
+                    border-color: #3b82f6;
+                    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+                }
+                .ai-entity-badge.type-category {
+                    background: rgba(245, 158, 11, 0.14);
+                    border-color: rgba(245, 158, 11, 0.35);
+                }
+                .ai-entity-badge.type-category:hover {
+                    background: rgba(245, 158, 11, 0.28);
+                    border-color: #f59e0b;
+                    box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+                }
+                .ai-entity-icon {
+                    font-size: 0.9em;
+                    opacity: 0.9;
+                }
+                /* Floating Entity Popover */
+                #aiEntityPopover {
+                    position: fixed;
+                    z-index: 9999;
+                    width: 320px;
+                    max-width: 90vw;
+                    background: var(--bg-surface, #1e293b);
+                    border: 1px solid var(--border-color, rgba(255,255,255,0.12));
+                    border-radius: 12px;
+                    box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+                    padding: 16px;
+                    pointer-events: auto;
+                    opacity: 0;
+                    transform: translateY(6px) scale(0.98);
+                    transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
+                    display: none;
+                    font-family: inherit;
+                }
+                #aiEntityPopover.visible {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                    display: block;
+                }
+                .app-main:has(.chat-wrapper),
+                body.in-chat-view .app-main {
+                    padding: 15px !important;
+                    overflow: hidden !important;
+                }
                 .chat-wrapper {
                     display: flex;
-                    height: calc(100vh - 160px);
+                    height: calc(100vh - 100px);
+                    height: calc(100dvh - 100px);
                     background: var(--bg-surface);
                     border: 1px solid var(--border-color);
                     border-radius: 12px;
@@ -461,6 +548,86 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     z-index: 9;
                     backdrop-filter: blur(2px);
                 }
+                /* ── Info modal : tool groups as cards ─────────────────── */
+                .chat-info-groups-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+                .chat-info-group-card {
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid var(--border-color);
+                    border-radius: 10px;
+                    padding: 14px 16px;
+                }
+                .chat-info-group-header {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 10px;
+                    margin-bottom: 8px;
+                }
+                .chat-info-group-emoji { font-size: 22px; line-height: 1; flex-shrink: 0; }
+                .chat-info-group-meta {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+                .chat-info-group-name {
+                    font-size: 14px;
+                    color: var(--text-color);
+                }
+                .chat-info-group-desc {
+                    font-size: 12px;
+                    line-height: 1.6;
+                    color: var(--text-muted);
+                    margin: 0 0 10px 0;
+                }
+                .chat-info-group-tools {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 3px;
+                }
+                .chat-info-tool-code {
+                    font-size: 10px;
+                    padding: 2px 5px;
+                    background: rgba(128,128,128,0.15);
+                    border-radius: 4px;
+                    color: var(--text-muted);
+                    display: inline-block;
+                    font-family: monospace;
+                    cursor: help;
+                    word-break: break-word;
+                }
+                /* ── Memory modal : responsive table ───────────────────── */
+                .ai-memory-row {
+                    border-bottom: 1px solid var(--border-color);
+                }
+                .ai-memory-row td {
+                    padding: 10px 10px;
+                    vertical-align: middle;
+                }
+                .ai-memory-cell-key {
+                    font-weight: 500;
+                    font-size: 11px;
+                    color: var(--text-color);
+                    font-family: monospace;
+                    width: 28%;
+                    word-break: break-all;
+                }
+                .ai-memory-cell-val { width: 40%; }
+                .ai-memory-cell-scope { width: 18%; white-space: nowrap; }
+                .ai-memory-cell-action { width: 14%; text-align: right; white-space: nowrap; }
+                .ai-memory-input {
+                    border: 1px solid var(--border-color) !important;
+                    padding: 5px !important;
+                    font-size: 12px !important;
+                    width: 100% !important;
+                }
+                .ai-memory-del-btn {
+                    padding: 4px 8px !important;
+                    font-size: 11px !important;
+                    height: auto !important;
+                }
                 @media (max-width: 1024px) {
                     .chat-sidebar {
                         position: absolute;
@@ -480,6 +647,145 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     }
                     .chat-message-actions {
                         opacity: 1 !important; /* Always visible on mobile for accessibility */
+                    }
+                    #chatMenuBtn {
+                        display: inline-flex !important;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                }
+                @media (max-width: 768px) {
+                    .app-main:has(.chat-wrapper),
+                    body.in-chat-view .app-main {
+                        padding: 6px !important;
+                        overflow: hidden !important;
+                    }
+                    .chat-wrapper {
+                        height: calc(100vh - 68px) !important;
+                        height: calc(100dvh - 68px) !important;
+                        border-radius: 8px !important;
+                    }
+                    .chat-main-header {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        gap: 8px !important;
+                        padding: 10px 12px !important;
+                        height: auto !important;
+                    }
+                    .chat-main-header > div:first-child {
+                        width: 100% !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        gap: 8px !important;
+                        overflow: hidden !important;
+                    }
+                    .chat-main-header > div:first-child h3 {
+                        font-size: 13.5px !important;
+                        white-space: nowrap !important;
+                        overflow: hidden !important;
+                        text-overflow: ellipsis !important;
+                        flex: 1 !important;
+                    }
+                    .chat-main-header > div:last-child {
+                        width: 100% !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        gap: 6px !important;
+                    }
+                    #chatRoleSelect {
+                        flex: 1 !important;
+                        min-width: 130px !important;
+                        font-size: 12px !important;
+                        padding: 5px 8px !important;
+                        height: 34px !important;
+                    }
+                    .chat-main-header .btn {
+                        font-size: 12px !important;
+                        padding: 5px 8px !important;
+                        height: 34px !important;
+                        white-space: nowrap !important;
+                    }
+                    .chat-messages {
+                        padding: 12px !important;
+                        gap: 10px !important;
+                    }
+                    .chat-message-row {
+                        max-width: 95% !important;
+                    }
+                    .chat-bubble {
+                        padding: 10px 14px !important;
+                        font-size: 13px !important;
+                    }
+                    /* ── Modales en plein écran sur mobile ─────────── */
+                    .chat-info-modal {
+                        max-width: 100% !important;
+                        width: 100% !important;
+                        max-height: 92vh !important;
+                        border-radius: 16px 16px 0 0 !important;
+                        margin: 0 !important;
+                        position: fixed !important;
+                        bottom: 0 !important;
+                        left: 0 !important;
+                        right: 0 !important;
+                    }
+                    .chat-info-panel {
+                        align-items: flex-end !important;
+                    }
+                    /* ── Mémoire IA : table → cards ─────────────────── */
+                    .ai-memory-row {
+                        display: block !important;
+                        border: 1px solid var(--border-color) !important;
+                        border-radius: 8px !important;
+                        margin-bottom: 10px !important;
+                        padding: 8px !important;
+                        background: rgba(255,255,255,0.02) !important;
+                    }
+                    .ai-memory-row td {
+                        display: flex !important;
+                        align-items: center !important;
+                        width: 100% !important;
+                        padding: 5px 4px !important;
+                        font-size: 12px !important;
+                        border: none !important;
+                    }
+                    .ai-memory-row td::before {
+                        content: attr(data-label) " :";
+                        font-size: 10px !important;
+                        font-weight: 700 !important;
+                        color: var(--accent) !important;
+                        text-transform: uppercase !important;
+                        min-width: 72px !important;
+                        flex-shrink: 0 !important;
+                        margin-right: 8px !important;
+                    }
+                    .ai-memory-cell-action {
+                        justify-content: flex-end !important;
+                        width: auto !important;
+                    }
+                    .ai-memory-cell-action::before { content: "" !important; min-width: 0 !important; }
+                    .ai-memory-cell-key, .ai-memory-cell-val, .ai-memory-cell-scope {
+                        width: 100% !important;
+                    }
+                    /* Masquer le thead du tableau mémoire sur mobile */
+                    #chatMemoryPanel thead { display: none !important; }
+                    #chatMemoryPanel .table { border-collapse: separate; border-spacing: 0; }
+                }
+                @media (max-width: 600px) {
+                    #aiEntityPopover {
+                        position: fixed !important;
+                        left: 12px !important;
+                        right: 12px !important;
+                        bottom: 16px !important;
+                        top: auto !important;
+                        width: calc(100vw - 24px) !important;
+                        max-width: 460px !important;
+                        margin: 0 auto !important;
+                        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+                        border-radius: 16px !important;
+                        transform: translateY(20px) scale(0.98) !important;
+                    }
+                    #aiEntityPopover.visible {
+                        transform: translateY(0) scale(1) !important;
                     }
                 }
                 .ai-think-details {
@@ -574,6 +880,11 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     background: rgba(255, 165, 0, 0.15);
                     color: #ffa500;
                     border: 1px solid rgba(255, 165, 0, 0.3);
+                }
+                .access-badge.badge-memory {
+                    background: rgba(161, 101, 255, 0.15);
+                    color: #a165ff;
+                    border: 1px solid rgba(161, 101, 255, 0.3);
                 }
                 .role-mini-badge {
                     display: inline-block;
@@ -880,14 +1191,16 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             clearInterval(this._generationPollTimer);
             this._generationPollTimer = null;
         }
-        // Clear compression polling timer
-        if (this._compressionPollTimer) {
-            clearInterval(this._compressionPollTimer);
-            this._compressionPollTimer = null;
+        if (this._onVisualViewportChange && window.visualViewport) {
+            window.visualViewport.removeEventListener('resize', this._onVisualViewportChange);
+            window.visualViewport.removeEventListener('scroll', this._onVisualViewportChange);
+            this._onVisualViewportChange = null;
         }
+        document.body.classList.remove('in-chat-view');
     },
 
     async init() {
+        document.body.classList.add('in-chat-view');
         this.sessions = [];
         const savedSessionId = sessionStorage.getItem('chatActiveSessionId');
         this.activeSessionId = savedSessionId ? parseInt(savedSessionId) : null;
@@ -931,6 +1244,35 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         };
         setTimeout(checkViewport, 100);
         window.addEventListener('resize', checkViewport);
+
+        // Mobile Virtual Keyboard Handling (VisualViewport API)
+        if (window.visualViewport) {
+            const onVisualViewportChange = () => {
+                const chatWrapper = document.querySelector('.chat-wrapper');
+                if (chatWrapper && window.innerWidth <= 768) {
+                    const vpHeight = window.visualViewport.height;
+                    chatWrapper.style.height = `${Math.max(200, vpHeight - 65)}px`;
+                    const messagesEl = document.getElementById('chatMessages');
+                    if (messagesEl) {
+                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                    }
+                }
+            };
+            window.visualViewport.addEventListener('resize', onVisualViewportChange);
+            window.visualViewport.addEventListener('scroll', onVisualViewportChange);
+            this._onVisualViewportChange = onVisualViewportChange;
+        }
+
+        const chatInput = document.getElementById('chatInput');
+        if (chatInput) {
+            chatInput.addEventListener('focus', () => {
+                setTimeout(() => {
+                    const messagesEl = document.getElementById('chatMessages');
+                    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+                    chatInput.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                }, 300);
+            });
+        }
 
         // Event delegation for AI action boxes
         document.getElementById('chatMessages')?.addEventListener('click', (e) => {
