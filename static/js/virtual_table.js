@@ -96,7 +96,9 @@ window.VirtualTable = class VirtualTable {
 
         // First render the area around the target so it's in DOM
         const rh = this.rowHeight;
-        const tbodyOffset = tbody.offsetTop;
+        const scrollerRect = scroller.getBoundingClientRect();
+        const tbodyRect = tbody.getBoundingClientRect();
+        const tbodyOffset = (tbodyRect.top - scrollerRect.top) + scroller.scrollTop;
         const targetScrollTop = tbodyOffset + (idx * rh) - (scroller.clientHeight / 2) + (rh / 2);
 
         // Force render around target area
@@ -170,7 +172,9 @@ window.VirtualTable = class VirtualTable {
         const rh = this.rowHeight;
 
         // Where is the tbody in the scroll container?
-        const tbodyTop = tbody.offsetTop;
+        const scrollerRect = scroller.getBoundingClientRect();
+        const tbodyRect = tbody.getBoundingClientRect();
+        const tbodyTop = (tbodyRect.top - scrollerRect.top) + scroller.scrollTop;
         const scrollTop = scroller.scrollTop;
         const viewH = scroller.clientHeight;
 
