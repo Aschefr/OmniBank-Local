@@ -117,7 +117,7 @@ window.AllOperationsView = {
             </div>
 
 
-            <div style="padding-bottom: 20px;">
+            <div class="timeline-table-container" style="padding-bottom: 20px;">
                 <div id="allOpsGhostBox"></div>
                 <table class="data-table timeline-table mobile-card-table">
                     <thead>
@@ -218,12 +218,12 @@ window.AllOperationsView = {
             if (!cols[k]) {
                 css += `.timeline-table .col-${k} { display: none !important; }\n`;
             } else {
-                const pct = ((colWeights[k] || 1) / totalWeight * 92).toFixed(1);
+                const pct = ((colWeights[k] || 1) / totalWeight * 82).toFixed(1);
                 css += `.timeline-table .col-${k} { width: ${pct}%; }\n`;
             }
         });
-        // Actions column — enough room for Duplicate + Edit + Delete buttons
-        css += `.timeline-table .col-actions { width: 10%; }\n`;
+        // Actions column — enough room for Duplicate + Edit + Delete buttons without overflow
+        css += `.timeline-table .col-actions { width: 18%; min-width: 130px; }\n`;
         
         const styleTag = document.getElementById('historyColsStyle');
         if (styleTag) styleTag.innerHTML = css;
@@ -640,7 +640,7 @@ window.AllOperationsView = {
                             return '<span class="btn-action-placeholder"></span>';
                         })()}
                         <button class="btn-action-icon btn-action-dup" onclick="window.AllOperationsView.duplicate(${tx.id})" title="${window.i18n.t('tooltip_duplicate') || 'Dupliquer'}">📋</button>
-                        <button class="btn-action-edit" onclick="window.AllOperationsView.edit(${tx.id})">${window.i18n.t('tooltip_edit') || 'Modifier'}</button>
+                        <button class="btn-action-edit" onclick="window.AllOperationsView.edit(${tx.id})" title="${window.i18n.t('tooltip_edit') || 'Modifier'}"><span class="btn-action-edit-icon">✏️</span><span class="btn-action-edit-label">${window.i18n.t('tooltip_edit') || 'Modifier'}</span></button>
                         <button class="btn-action-del" onclick="window.AllOperationsView.delete(${tx.id})" title="${window.i18n.t('btn_delete') || 'Supprimer'}">✕</button>
                     </div>
                 </td>

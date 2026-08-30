@@ -1,4 +1,5 @@
-// static/js/views/recurrences/recurrences_wizard.js — Assistant annuel de renouvellement et génération en masse
+// [DEPRECATED / NON UTILISÉ] A supprimer - Le nouveau moteur prolonge désormais automatiquement les récurrences (paramétrable dans les réglages). Ne pas modifier pour éviter toute régression.
+// static/js/views/recurrences/recurrences_wizard.js — Assistant annuel de renouvellement et génération en masse (Obsolète)
 window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
     async showWizard() {
         const targetYear = this.selectedYear + 1;

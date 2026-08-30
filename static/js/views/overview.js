@@ -1765,14 +1765,14 @@ window.OverviewView = {
                             ticks: {
                                 callback: (v) => formatCurrency(v),
                                 color: 'rgba(128,128,128,0.6)',
-                                font: { size: window.innerWidth < 768 ? 9.5 : 11 }
+                                font: { size: window.innerWidth < 1024 ? 9.5 : 11 }
                             }
                         },
                         x: {
                             grid: { display: false },
                             ticks: {
                                 color: 'rgba(128,128,128,0.8)',
-                                font: { size: window.innerWidth < 768 ? 10.5 : 12, weight: '600' }
+                                font: { size: window.innerWidth < 1024 ? 10.5 : 12, weight: '600' }
                             }
                         }
                     }

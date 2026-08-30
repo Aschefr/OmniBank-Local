@@ -461,7 +461,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     z-index: 9;
                     backdrop-filter: blur(2px);
                 }
-                @media (max-width: 768px) {
+                @media (max-width: 1024px) {
                     .chat-sidebar {
                         position: absolute;
                         left: 0;
@@ -926,7 +926,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         const checkViewport = () => {
             const menuBtn = document.getElementById('chatMenuBtn');
             if (menuBtn) {
-                menuBtn.style.display = window.innerWidth <= 768 ? 'inline-block' : 'none';
+                menuBtn.style.display = window.innerWidth <= 1024 ? 'inline-block' : 'none';
             }
         };
         setTimeout(checkViewport, 100);

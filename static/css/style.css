@@ -592,7 +592,11 @@ h3 {
 .data-table td.col-actions { overflow: visible; text-overflow: clip; }
 
 .data-table th.col-recon,
-.data-table td.col-recon { overflow: visible; text-overflow: clip; }
+.data-table td.col-recon {
+    overflow: visible;
+    text-overflow: clip;
+    min-width: 110px !important;
+}
 
 .data-table th.col-depuis,
 .data-table td.col-depuis,
@@ -1359,13 +1363,26 @@ body.privacy-mode #valNextPayAmount:hover {
         font-size: 9px;
     }
 
-    .mobile-card-table .mobile-card-actions {
+    .mobile-card-table .mobile-card-actions,
+    .mobile-card-table td.col-actions {
+        display: flex !important;
         justify-content: flex-end !important;
         gap: 8px !important;
         flex-direction: row !important;
         padding-top: 10px !important;
         border-bottom: none !important;
         width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        box-sizing: border-box !important;
+    }
+
+    .mobile-card-table .row-actions-group {
+        display: flex !important;
+        width: 100% !important;
+        justify-content: flex-end !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
     }
 
     .mobile-card-table .mobile-card-actions::before {
@@ -1395,12 +1412,18 @@ body.privacy-mode #valNextPayAmount:hover {
 
     .view-header-bar {
         display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        flex-wrap: nowrap !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
         gap: 8px !important;
         padding: 0 !important;
         margin-bottom: 8px !important;
+    }
+
+    .view-header-title-group {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
     }
 
     .view-header-title {
@@ -1409,17 +1432,17 @@ body.privacy-mode #valNextPayAmount:hover {
         gap: 6px !important;
         white-space: nowrap !important;
         flex-shrink: 0 !important;
+        margin: 0 !important;
     }
 
     .view-header-toolbar {
         display: flex !important;
-        flex-wrap: nowrap !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-        scrollbar-width: none !important;
+        flex-wrap: wrap !important;
+        overflow-x: visible !important;
         gap: 6px !important;
         justify-content: flex-start !important;
-        padding-bottom: 2px !important;
+        width: 100% !important;
+        padding-bottom: 0 !important;
     }
 
     .view-header-toolbar::-webkit-scrollbar {
@@ -1428,14 +1451,20 @@ body.privacy-mode #valNextPayAmount:hover {
 
     .view-header-toolbar .btn,
     .view-header-toolbar .toolbar-btn {
+        flex: 1 1 calc(50% - 4px) !important;
+        min-width: 0 !important;
         height: 36px !important;
-        padding: 0 11px !important;
-        font-size: 12.5px !important;
+        padding: 0 8px !important;
+        font-size: 12px !important;
         font-weight: 600 !important;
         border-radius: 9px !important;
         gap: 5px !important;
         white-space: nowrap !important;
-        flex-shrink: 0 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        justify-content: center !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
     }
 
     /* Mobile Filter Bar with Horizontal Chip Scroll */
@@ -2906,7 +2935,7 @@ body.compact-mode .rec-instance-row .btn {
 }
 
 /* Mobile */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .wizard-body {
         padding: 24px 18px;
         border-radius: 14px;
@@ -4426,9 +4455,12 @@ input[type="range"]::-moz-range-thumb:hover {
 
 .overview-root {
     max-width: 1440px;
+    width: 100%;
     margin: 0 auto;
     padding: 16px 28px 48px;
     animation: overviewFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 @keyframes overviewFadeIn {
@@ -5400,7 +5432,7 @@ input[type="range"]::-moz-range-thumb:hover {
     white-space: nowrap;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .overview-rhythm-badges {
         grid-template-columns: 1fr 1fr;
     }
@@ -5685,11 +5717,18 @@ input[type="range"]::-moz-range-thumb:hover {
     border-top: 1px dashed var(--border-color);
 }
 
-/* ── Section 3: Bottom Grid (2 Columns: Trend + Budgets) ─────────────────── */
+/* ── Section 3: Bottom Grid (3 Columns: Trend + Top 3 + Budgets & Savings) ─ */
 .overview-bottom-grid {
     display: grid;
-    grid-template-columns: 1.2fr 1fr 1.2fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 24px;
+    width: 100%;
+    min-width: 0;
+}
+
+.overview-bottom-grid > * {
+    min-width: 0;
+    max-width: 100%;
 }
 
 .overview-card {
@@ -5699,6 +5738,9 @@ input[type="range"]::-moz-range-thumb:hover {
     padding: 24px 26px;
     box-shadow: var(--shadow-sm);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .overview-card:hover {
@@ -5723,6 +5765,12 @@ input[type="range"]::-moz-range-thumb:hover {
     position: relative;
     height: 240px;
     margin-top: 10px;
+    min-width: 0;
+    width: 100%;
+}
+
+#ovTrendChart {
+    max-width: 100% !important;
 }
 
 .overview-trend-legend {
@@ -5818,18 +5866,30 @@ body.overview-fullscreen .app-body {
 @media (max-width: 1200px) {
     .overview-bottom-grid {
         grid-template-columns: 1fr;
+        gap: 20px;
+        width: 100%;
+    }
+    .overview-hero {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+    }
+    .overview-controls-bar {
+        flex-wrap: wrap;
+        gap: 8px;
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .overview-root {
         padding: 12px 12px 32px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .overview-top-bar {
         flex-direction: column;
         align-items: stretch;
-        gap: 10px;
+        gap: 12px;
         margin-bottom: 16px;
     }
 
@@ -5843,6 +5903,8 @@ body.overview-fullscreen .app-body {
         width: 100%;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
     .overview-main-title {
@@ -5855,19 +5917,20 @@ body.overview-fullscreen .app-body {
     }
 
     .overview-controls-bar {
-        display: flex;
-        width: 100%;
-        align-items: center;
-        gap: 8px;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        width: 100% !important;
+        align-items: center !important;
+        gap: 8px !important;
     }
 
     .overview-acc-dropdown {
-        flex: 1;
-        min-width: 0;
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
     }
 
     .overview-acc-trigger {
-        width: 100%;
+        width: 100% !important;
         height: 36px;
         padding: 0 10px;
         font-size: 12px;
@@ -5879,14 +5942,67 @@ body.overview-fullscreen .app-body {
         max-width: calc(100vw - 32px);
     }
 
-    .overview-bank-sync-btn,
-    .overview-add-btn {
+    .overview-bank-sync-btn {
+        flex: 1 1 calc(50% - 4px) !important;
         height: 36px;
-        padding: 0 12px;
+        padding: 0 10px;
         font-size: 12px;
-        border-radius: 12px;
+        border-radius: 10px;
         white-space: nowrap;
-        flex-shrink: 0;
+        justify-content: center !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+
+    .overview-add-btn {
+        flex: 1 1 calc(50% - 4px) !important;
+        height: 36px;
+        padding: 0 10px;
+        font-size: 12px;
+        border-radius: 10px;
+        white-space: nowrap;
+        justify-content: center !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+
+    /* Rhythm Strip & Controls on Mobile */
+    .overview-rhythm-strip {
+        padding: 12px 14px;
+        border-radius: 14px;
+        margin-bottom: 18px;
+    }
+
+    .overview-rhythm-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .overview-rhythm-controls {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .overview-rhythm-control-group {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .overview-rhythm-segmented {
+        max-width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .overview-rhythm-badges {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
     }
 
     /* 📱 Mobile Hero Single-Column Stacked Cards */
@@ -5894,42 +6010,46 @@ body.overview-fullscreen .app-body {
         display: grid;
         grid-template-columns: 1fr;
         gap: 12px;
-        margin-bottom: 24px;
+        margin-bottom: 20px;
     }
 
     .overview-hero-card {
-        padding: 16px 18px;
-        border-radius: 18px;
-        gap: 16px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        gap: 14px;
+        box-sizing: border-box;
     }
 
     .overview-hero-icon {
-        width: 48px;
-        height: 48px;
-        font-size: 24px;
-        border-radius: 14px;
+        width: 44px;
+        height: 44px;
+        font-size: 22px;
+        border-radius: 12px;
         flex-shrink: 0;
     }
 
     .overview-hero-label {
-        font-size: 11px;
+        font-size: 10.5px;
         letter-spacing: 0.5px;
-        margin-bottom: 4px;
+        margin-bottom: 3px;
     }
 
     .overview-hero-value {
-        font-size: 22px;
+        font-size: 20px;
         letter-spacing: -0.5px;
     }
 
     .overview-hero-sub {
-        font-size: 11.5px;
-        margin-top: 3px;
+        font-size: 11px;
+        margin-top: 2px;
     }
 
     .overview-main-card {
         padding: 16px 12px;
         border-radius: 16px;
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 20px;
     }
 
     .overview-card-header {
@@ -5943,7 +6063,7 @@ body.overview-fullscreen .app-body {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
     }
 
     .overview-search-input {
@@ -5952,7 +6072,8 @@ body.overview-fullscreen .app-body {
     }
 
     .overview-bulk-wrapper {
-        flex: 1;
+        flex: 1 1 100%;
+        width: 100%;
         min-width: 0;
     }
 
@@ -5961,17 +6082,53 @@ body.overview-fullscreen .app-body {
         justify-content: center;
         overflow: hidden;
         text-overflow: ellipsis;
-        padding: 7px 10px;
+        padding: 8px 12px;
+        box-sizing: border-box;
     }
 
     .overview-link-btn {
+        flex: 1 1 100%;
+        text-align: right;
+        padding: 4px 8px;
+    }
+
+    /* Filter Tabs & Horizon Selector on Mobile */
+    .overview-tabs-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .overview-tabs-left {
+        width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 2px;
+    }
+
+    .overview-tab {
+        white-space: nowrap;
         flex-shrink: 0;
-        padding: 6px 8px;
+    }
+
+    .overview-horizon-selector {
+        width: 100%;
+        display: flex;
+    }
+
+    .overview-horizon-selector .ov-horizon-btn {
+        flex: 1;
+        justify-content: center;
+        text-align: center;
+        white-space: nowrap;
     }
 
     /* 📱 Mobile Operations Table Transformation (Card format) */
     .overview-ops-table-container {
         max-height: 520px;
+        overflow-x: hidden;
+        width: 100%;
     }
 
     .overview-ops-table {
@@ -6003,6 +6160,8 @@ body.overview-fullscreen .app-body {
         border: 1px solid var(--border-color);
         border-radius: 14px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .overview-op-tr:hover {
@@ -6081,11 +6240,14 @@ body.overview-fullscreen .app-body {
     .overview-bottom-grid {
         grid-template-columns: 1fr;
         gap: 16px;
+        width: 100%;
     }
 
     .overview-card {
         padding: 16px 14px;
         border-radius: 16px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .overview-card .overview-card-header {
@@ -6105,6 +6267,7 @@ body.overview-fullscreen .app-body {
         display: flex;
         width: 100%;
         justify-content: space-between;
+        gap: 4px;
     }
 
     .ov-mode-btn {
@@ -6112,10 +6275,12 @@ body.overview-fullscreen .app-body {
         text-align: center;
         padding: 5px 4px;
         font-size: 11px;
+        white-space: nowrap;
     }
 
     .overview-trend-container {
         height: 200px;
+        width: 100%;
     }
 
     .overview-trend-legend {
@@ -6301,6 +6466,17 @@ body.overview-fullscreen .app-body {
     align-items: center;
     gap: 6px;
     box-shadow: 0 2px 6px rgba(16, 185, 129, 0.12);
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.overview-bulk-btn span,
+#ovBulkBtnLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    display: inline-block;
 }
 
 .overview-bulk-btn:hover {
@@ -6566,7 +6742,7 @@ body.overview-fullscreen .app-body {
     transform: scale(0.99);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .ghost-desktop-table-wrapper {
         display: none !important;
     }
@@ -6736,6 +6912,12 @@ body.overview-fullscreen .app-body {
 }
 
 /* ── Table Row Actions (Aligned & Solid) ── */
+.timeline-table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 .row-actions-group {
     display: inline-flex;
     gap: 4px;
@@ -6772,6 +6954,36 @@ body.overview-fullscreen .app-body {
     transition: all 0.15s ease;
     box-sizing: border-box;
     flex-shrink: 0;
+}
+
+.btn-action-edit-icon {
+    display: none;
+}
+
+.btn-action-edit-label {
+    display: inline;
+}
+
+@media (max-width: 1280px) and (min-width: 1025px) {
+    .btn-action-edit {
+        width: 26px !important;
+        min-width: 26px !important;
+        padding: 0 !important;
+    }
+    .btn-action-edit-label {
+        display: none !important;
+    }
+    .btn-action-edit-icon {
+        display: inline !important;
+        font-size: 11.5px !important;
+    }
+    .timeline-table th.col-actions,
+    .timeline-table td.col-actions {
+        width: 130px !important;
+        min-width: 125px !important;
+        padding-right: 8px !important;
+        padding-left: 4px !important;
+    }
 }
 
 .btn-action-edit:hover {
@@ -7120,6 +7332,7 @@ body.overview-fullscreen .app-body {
     width: auto !important;
 }
 
+
 #notifMenu .btn-notif-action-main:hover {
     opacity: 0.9 !important;
 }
@@ -7198,4 +7411,864 @@ body.overview-fullscreen .app-body {
     background: rgba(239, 68, 68, 0.15) !important;
 }
 
+/* ════════════════════════════════════════════════════════════════════════════ */
+/* Cockpit Unifié : Modale de Revue & Validation des Opérations (Responsive)   */
+/* ════════════════════════════════════════════════════════════════════════════ */
+
+.review-modal-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    width: 96%;
+    max-width: 1550px;
+    height: 92vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.review-modal-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-card);
+}
+
+.review-modal-title {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.review-modal-subtitle {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.review-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-muted);
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease;
+}
+
+.review-modal-close:hover {
+    color: var(--text-main);
+}
+
+.review-csv-bar {
+    padding: 10px 24px;
+    background: var(--bg-base);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.review-csv-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.review-csv-acc-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.review-csv-acc-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.review-csv-select {
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    min-width: 220px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+}
+
+.review-csv-alert-box {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    border: 1px solid rgba(230, 126, 34, 0.5);
+    background-color: rgba(230, 126, 34, 0.1);
+    color: var(--text-color);
+    line-height: 1.4;
+}
+
+.review-modal-toolbar {
+    padding: 12px 24px;
+    background: var(--bg-base);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.review-account-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    max-width: 50%;
+}
+
+.review-filter-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.review-mobile-select-bar {
+    display: none;
+}
+
+.review-filter-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.review-filter-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-left: 6px;
+}
+
+.review-filter-pill {
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.review-table-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.review-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: left;
+}
+
+.review-thead {
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+    z-index: 10;
+    box-shadow: 0 1px 0 var(--border-color);
+}
+
+.review-thead th {
+    padding: 10px 14px;
+    color: var(--text-muted);
+}
+
+.review-th-check {
+    width: 44px;
+    text-align: center;
+}
+
+.review-th-date { width: 140px; }
+.review-th-desc { min-width: 220px; }
+.review-th-cat { width: 200px; }
+.review-th-amount { width: 110px; text-align: right; }
+.review-th-status { width: 200px; text-align: center; }
+.review-th-action { width: 250px; text-align: right; }
+.review-cell-status {
+    padding: 10px 14px;
+    text-align: center;
+}
+
+.review-status-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+}
+
+.review-status-badges {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.review-score-wrap {
+    margin-top: 2px;
+}
+
+.review-cell-actions {
+    padding: 10px 14px;
+    text-align: right;
+}
+
+.review-actions-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.review-action-text {
+    font-size: 11.5px;
+    white-space: nowrap;
+}
+
+.review-action-btns {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.review-modal-footer {
+    padding: 14px 24px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-card);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.review-summary-box {
+    font-size: 13px;
+    color: var(--text-main);
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.review-footer-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.review-btn-commit {
+    font-weight: 700;
+    padding: 8px 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* ── Mobile Viewport Adaptations (<= 1024px) ──────────────────────────────── */
+@media (max-width: 1024px) {
+    #bankSyncReviewModal.modal-overlay {
+        padding: 0 !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
+    }
+
+    .review-modal-card {
+        width: 100vw !important;
+        height: 100dvh !important;
+        max-width: 100vw !important;
+        max-height: 100dvh !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    .review-modal-header {
+        padding: 10px 14px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .review-modal-title {
+        font-size: 15px !important;
+        margin-bottom: 2px !important;
+    }
+
+    .review-modal-subtitle {
+        font-size: 11px !important;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.35;
+    }
+
+    .review-modal-close {
+        width: 38px !important;
+        height: 38px !important;
+        font-size: 24px !important;
+        background: var(--bg-surface) !important;
+        border-radius: 8px !important;
+        border: 1px solid var(--border-color) !important;
+    }
+
+    .review-csv-bar {
+        padding: 8px 12px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .review-csv-inner {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+
+    .review-csv-acc-wrap {
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 4px !important;
+    }
+
+    .review-csv-select {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .review-modal-toolbar {
+        padding: 8px 12px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .review-account-tabs {
+        max-width: 100% !important;
+        width: 100% !important;
+        display: flex !important;
+        gap: 6px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        padding-bottom: 2px !important;
+    }
+
+    .review-account-tabs::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .review-filter-container {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    .review-mobile-select-bar {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 2px 2px !important;
+    }
+
+    .review-mobile-select-label {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: var(--text-main) !important;
+        cursor: pointer !important;
+    }
+
+    .review-mobile-master-check {
+        width: 18px !important;
+        height: 18px !important;
+        cursor: pointer !important;
+        accent-color: var(--accent) !important;
+    }
+
+    .review-filter-group {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        white-space: nowrap !important;
+        gap: 6px !important;
+        padding-bottom: 4px !important;
+        scrollbar-width: none !important;
+        width: 100% !important;
+    }
+
+    .review-filter-group::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .review-filter-label {
+        display: none !important;
+    }
+
+    .review-filter-pill {
+        padding: 5px 12px !important;
+        font-size: 11.5px !important;
+        border-radius: 20px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .review-thead {
+        display: none !important;
+    }
+
+    .review-table-container {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding: 10px 12px !important;
+        background: var(--bg-base) !important;
+    }
+
+    .review-table {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    .review-tbody {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        width: 100% !important;
+    }
+
+    /* Card Layout on Mobile */
+    .review-tx-row {
+        display: grid !important;
+        grid-template-columns: auto 1fr auto !important;
+        grid-template-areas:
+            "check date amount"
+            "desc  desc desc"
+            "cat   cat  cat"
+            "status status status"
+            "actions actions actions" !important;
+        gap: 8px 10px !important;
+        align-items: center !important;
+        padding: 12px 14px !important;
+        border-radius: 14px !important;
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-color) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+    }
+
+    .review-tx-row.is-coming {
+        background: rgba(245, 158, 11, 0.04) !important;
+        border-left: 4px solid #f59e0b !important;
+    }
+
+    .review-cell-check {
+        grid-area: check !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 24px !important;
+    }
+
+    .review-cell-check input[type="checkbox"] {
+        width: 18px !important;
+        height: 18px !important;
+        transform: none !important;
+        cursor: pointer !important;
+        accent-color: var(--accent) !important;
+    }
+
+    .review-cell-date {
+        grid-area: date !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    .review-date-wrap {
+        display: flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+    }
+
+    .review-date-wrap input[type="date"] {
+        width: auto !important;
+        max-width: 130px !important;
+        font-size: 12px !important;
+        padding: 4px 6px !important;
+        border-radius: 6px !important;
+    }
+
+    .review-cell-amount {
+        grid-area: amount !important;
+        padding: 0 !important;
+        text-align: right !important;
+        display: flex !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+    }
+
+    .review-amount-text {
+        font-size: 15px !important;
+        font-weight: 800 !important;
+    }
+
+    .review-amount-input {
+        width: 86px !important;
+        font-size: 13.5px !important;
+        padding: 4px 6px !important;
+        border-radius: 6px !important;
+        text-align: right !important;
+    }
+
+    .review-cell-desc {
+        grid-area: desc !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+
+    .review-cell-desc input[type="text"] {
+        width: 100% !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        padding: 7px 10px !important;
+        border-radius: 8px !important;
+        box-sizing: border-box !important;
+    }
+
+    .review-raw-desc,
+    .review-db-desc {
+        word-break: break-word !important;
+    }
+
+    .review-cell-cat {
+        grid-area: cat !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+
+    .review-cat-wrap {
+        width: 100% !important;
+    }
+
+    .review-cat-wrap select {
+        font-size: 12.5px !important;
+        padding: 6px 8px !important;
+        border-radius: 8px !important;
+        width: 100% !important;
+    }
+
+    .review-ai-btn {
+        padding: 5px 8px !important;
+        font-size: 12px !important;
+        border-radius: 8px !important;
+    }
+
+    .review-cat-auto {
+        font-size: 12px !important;
+        color: var(--text-muted) !important;
+        font-style: italic !important;
+        display: inline-block !important;
+        padding: 4px 0 !important;
+    }
+
+    .review-cell-status {
+        grid-area: status !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+    }
+
+    .review-status-wrap {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        flex-wrap: wrap !important;
+        width: 100% !important;
+    }
+
+    .review-status-badges {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 4px !important;
+        flex-wrap: wrap !important;
+    }
+
+    .review-score-wrap {
+        margin-top: 0 !important;
+    }
+
+    .review-cell-actions {
+        grid-area: actions !important;
+        padding: 6px 0 0 0 !important;
+        border-top: 1px dashed var(--border-color) !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+    }
+
+    .review-actions-wrap {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        gap: 8px !important;
+    }
+
+    .review-action-text {
+        font-size: 11.5px !important;
+        font-weight: 500 !important;
+    }
+
+    .review-action-btns {
+        display: flex !important;
+        gap: 6px !important;
+        align-items: center !important;
+    }
+
+    .review-action-btns .btn-action-del,
+    .review-action-btns .btn-action-icon {
+        width: 32px !important;
+        height: 32px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 6px !important;
+        font-size: 14px !important;
+    }
+
+    .review-restore-btn {
+        height: 30px !important;
+        padding: 4px 10px !important;
+        font-size: 11px !important;
+    }
+
+    .review-modal-footer {
+        padding: 10px 14px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .review-summary-box {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px 10px !important;
+        font-size: 11.5px !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+
+    .review-summary-box span[style*="border-left"] {
+        border-left: none !important;
+        padding-left: 0 !important;
+        margin-left: 0 !important;
+        width: 100% !important;
+        margin-top: 4px !important;
+    }
+
+    .review-footer-buttons {
+        display: flex !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    .review-btn-cancel {
+        flex: 1 !important;
+        min-height: 42px !important;
+        font-size: 13px !important;
+        border-radius: 10px !important;
+    }
+
+    .review-btn-commit {
+        flex: 2 !important;
+        min-height: 42px !important;
+        font-size: 13.5px !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+    }
+
+    /* Sub-modals mobile responsiveness */
+    #linkGhostModal .modal,
+    #linkGhostModal > div:first-child,
+    #balanceAdjustModal > div:first-child {
+        width: 96vw !important;
+        max-width: 96vw !important;
+        max-height: 92dvh !important;
+        border-radius: 14px !important;
+    }
+
+    /* ── Paycheck Modals Mobile Viewport ── */
+    .pay-modal-card {
+        padding: 16px !important;
+        width: calc(100vw - 20px) !important;
+        max-width: 95vw !important;
+        border-radius: 14px !important;
+    }
+
+    .pay-candidates-actions {
+        flex-direction: column-reverse !important;
+        gap: 8px !important;
+    }
+
+    .pay-candidates-actions button,
+    .pay-candidates-actions .pay-candidates-right-btns,
+    .pay-candidates-actions .pay-candidates-right-btns button {
+        width: 100% !important;
+    }
+
+    #payHistoryTableBody td,
+    #payHistoryTableBody th,
+    #payCandidatesTableBody td,
+    #payCandidatesTableBody th {
+        padding: 6px 4px !important;
+        font-size: 12px !important;
+    }
+
+    /* ── Bank Sync Mapping Modal Mobile Viewport ── */
+    #mappingModal .modal,
+    #mappingModal > div:first-child {
+        width: calc(100vw - 16px) !important;
+        max-width: 96vw !important;
+        padding: 14px !important;
+        border-radius: 14px !important;
+    }
+
+    .mapping-card-item {
+        padding: 12px !important;
+        border-radius: 10px !important;
+    }
+
+    .mapping-card-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    .mapping-card-controls {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+
+    .mapping-card-controls .mapping-linked-label {
+        margin-bottom: 2px !important;
+    }
+
+    .mapping-card-controls .mapping-select {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .mapping-card-controls .mapping-create-btn {
+        width: 100% !important;
+        justify-content: center !important;
+        min-height: 34px !important;
+    }
+
+    .mapping-quick-create-box > div {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .mapping-quick-create-box > div > div {
+        width: 100% !important;
+        min-width: 0 !important;
+        flex: none !important;
+    }
+
+    /* ── Budget Unified Modal Mobile Viewport ── */
+    .budget-unified-panel {
+        padding: 14px !important;
+        width: calc(100vw - 16px) !important;
+        border-radius: 12px !important;
+    }
+
+    .budget-type-row {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 6px !important;
+    }
+
+    .budget-type-toggle-group {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .budget-type-toggle-group label {
+        padding: 6px 4px !important;
+        font-size: 11.5px !important;
+    }
+
+    /* ── Fallback Import Modal Mobile Viewport ── */
+    #importDataModal .modal {
+        width: calc(100vw - 16px) !important;
+        padding: 14px !important;
+        border-radius: 12px !important;
+    }
+
+    #importFiltersContainer {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+
+    #importAnalysisButtons,
+    #importSaveButtons {
+        width: 100% !important;
+        justify-content: flex-end !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+
+    #importAnalysisButtons button,
+    #importSaveButtons button {
+        flex: 1 1 auto !important;
+        min-height: 36px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #exportColumnsContainer {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+}
 
