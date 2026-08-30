@@ -348,8 +348,17 @@ window.AllOperationsView = {
                     this.backToView = null;
                 }
 
-                // Set category filter
-                if (pf.category) {
+                // Set category filter or budget envelope categories
+                if (pf.budgetEnvelopeName) {
+                    const budgetCategories = Object.keys(this.categoryToBudgetMap || {}).filter(
+                        cat => this.categoryToBudgetMap[cat] === pf.budgetEnvelopeName
+                    );
+                    if (budgetCategories.length > 0) {
+                        window.MultiSelect.setSelected('historyCategoryFilter', budgetCategories);
+                    } else {
+                        window.MultiSelect.setSelected('historyCategoryFilter', [pf.budgetEnvelopeName]);
+                    }
+                } else if (pf.category) {
                     window.MultiSelect.setSelected('historyCategoryFilter', [pf.category]);
                 }
                 // Set month filter
@@ -367,10 +376,14 @@ window.AllOperationsView = {
                     const accInput = document.getElementById('historyAccountFilter');
                     if (accInput) accInput.value = pf.accountId.toString();
                 }
-                // Set year in search
+                // Set year or text in search
                 if (pf.year) {
                     const searchInput = document.getElementById('historySearch');
                     if (searchInput) searchInput.value = pf.year;
+                }
+                if (pf.search) {
+                    const searchInput = document.getElementById('historySearch');
+                    if (searchInput) searchInput.value = pf.search;
                 }
             } else {
                 this.isDrillDown = false;

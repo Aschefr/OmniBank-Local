@@ -127,3 +127,65 @@ def test_ai_facts_api(db_session):
 
     # Cleanup overrides
     app.dependency_overrides.clear()
+
+def test_financial_briefing_generation(db_session):
+    from datetime import date
+    from app.models import Account, Transaction, Budget
+    from app.services.chat.chat_briefing import generate_financial_briefing
+    from app.services.chat.chat_tools import (
+        get_spending_trends_tool, get_dashboard_synthesis_tool, get_financial_summary_tool
+    )
+    
+    db = db_session
+    # 1. Test empty DB handling
+    empty_briefing = generate_financial_briefing(db)
+    assert "No accounts configured yet." in empty_briefing
+
+    # 2. Add sample account and transactions
+    acc = Account(name="Courant", type="checking", initial_balance=2000.0)
+    db.add(acc)
+    db.commit()
+
+    # Add income and expenses
+    t1 = Transaction(date_operation=date.today(), description="Salaire", amount=3000.0, type="income", to_account_id=acc.id, reconciliation_date=date.today())
+    t2 = Transaction(date_operation=date.today(), description="Loyer", amount=800.0, type="expense_fixed", from_account_id=acc.id, reconciliation_date=date.today())
+    t3 = Transaction(date_operation=date.today(), description="Courses", amount=150.0, type="expense_var", category="Alimentation", from_account_id=acc.id, reconciliation_date=date.today())
+    db.add_all([t1, t2, t3])
+    db.commit()
+
+    # 3. Test briefing with data
+    briefing = generate_financial_briefing(db, role="advisor")
+    assert "LIVE USER FINANCIAL SITUATION & DOSSIER" in briefing
+    assert "Reconciled Net Worth" in briefing
+    assert "Reste à Vivre" in briefing
+
+    # 4. Test role specific briefing
+    briefing_sim = generate_financial_briefing(db, role="simulator")
+    assert "Simulator Briefing" in briefing_sim
+
+    briefing_plan = generate_financial_briefing(db, role="budget_planner")
+    assert "Budget Planner Briefing" in briefing_plan
+
+    # 5. Test spending trends tool
+    trends = get_spending_trends_tool(db)
+    assert "averages_3_months" in trends
+    assert "averages_6_months" in trends
+    assert "averages_12_months" in trends
+    assert "notable_spending_changes" in trends
+    assert trends["averages_3_months"]["monthly_income_euros"] > 0
+
+    # 6. Test dashboard synthesis tool
+    synthesis = get_dashboard_synthesis_tool(db)
+    assert "period" in synthesis
+    assert "monthly_totals" in synthesis
+    assert "comparison_vs_previous_month" in synthesis
+    assert synthesis["monthly_totals"]["total_income_euros"] == 3000.0
+    assert synthesis["monthly_totals"]["total_expenses_euros"] == 950.0
+
+    # 7. Test enriched financial summary tool
+    summary = get_financial_summary_tool(db)
+    assert "current_rest_to_live_euros" in summary
+    assert "daily_budget_available_euros" in summary
+    assert "days_until_next_paycheck" in summary
+    assert "savings_safety_buffer_euros" in summary
+
