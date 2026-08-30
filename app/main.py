@@ -349,13 +349,12 @@ def get_version():
         return {"version": "?"}
 
 
-# In-memory changelog cache to avoid repeated file reads
+# In-memory changelog cache with mtime check to avoid repeated file reads while remaining dynamic
 _changelog_cache = None
+_changelog_mtime = 0
 
 def parse_changelog():
-    global _changelog_cache
-    if _changelog_cache is not None:
-        return _changelog_cache
+    global _changelog_cache, _changelog_mtime
 
     import re
     changelog_path = resource_path("CHANGELOG.md")
@@ -368,11 +367,15 @@ def parse_changelog():
         logger.warning(f"[changelog] CHANGELOG.md not found at any known path.")
         return []
 
-    releases = []
-    current_release = None
-    release_pattern = re.compile(r'^##\s+\[?([0-9a-zA-Z\.\-]+)\]?(?:\s*-\s*([0-9\-]+))?')
-
     try:
+        mtime = os.path.getmtime(changelog_path)
+        if _changelog_cache is not None and mtime == _changelog_mtime:
+            return _changelog_cache
+
+        releases = []
+        current_release = None
+        release_pattern = re.compile(r'^##\s+\[?([0-9a-zA-Z\.\-]+)\]?(?:\s*-\s*([0-9\-]+))?')
+
         with open(changelog_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
@@ -398,6 +401,7 @@ def parse_changelog():
             del r["content"]
 
         _changelog_cache = releases
+        _changelog_mtime = mtime
         return releases
     except Exception as e:
         logger.error(f"[changelog] Error parsing CHANGELOG.md: {e}")
