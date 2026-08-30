@@ -7,7 +7,7 @@
 
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.95-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.96-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,12 +110,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.95)
+## 🆕 Nouveautés (v1.0.96)
 
-* **📐 Harmonisation des Barres d'Outils & Filtres Dédiés** : Organisation claire sur 2 lignes pour le Dashboard et l'Historique, séparant les boutons d'action des filtres et de la recherche avec maintien sticky au défilement.
-* **📱 Expérience Mobile Conforme aux Standards** : Typographie lisible (13-14px), cibles tactiles de 36px (normes Apple HIG & Material 3) et barre de filtres défilable horizontalement au doigt (*chips scroll*).
-* **⏱️ Rythme Financier & Moyennes en Temps Réel** : Bandeau discret dans la Vue d'ensemble affichant revenus, dépenses fixes, variables et solde net avec sélecteurs de période et de cadence.
-* **🔔 Gestion Avancée des Notifications** : Onglets Actives/Archives, recherche en direct et actions contextuelles déclenchées exclusivement via boutons dédiés (le clic carte marquant comme lu uniquement).
+* **📱 Point de Bascule Mobile & Tablette Unifié (1024px)** : Synchronisation parfaite de la bascule mobile sur toutes les vues (Dashboard, Vue d'ensemble, Historique, Chat IA, Modales) pour une navigation fluide sur tablette (iPad, Galaxy Tab) et fenêtres partagées.
+* **📐 Barres d'Actions Tactiles 2x2** : Organisation des 4 boutons d'action du Dashboard et de l'Historique en grille compacte 2x2 sous le titre, accessible d'un tap sans aucun défilement horizontal.
+* **🌟 Refonte Responsive de la Vue d'ensemble** : Cartes héro auto-adaptatives, bandeau de rythme financier étanche et grille de graphiques en colonne unique sous 1024px.
+* **✏️ Boutons d'Action Adaptatifs** : Colonne d'actions compacte (`✏️`) sur écrans intermédiaires (1025px–1280px) éliminant tout débordement des tableaux.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -123,7 +123,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.95-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.96-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -223,10 +223,12 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.95)
+## 🆕 What's New (v1.0.96)
 
-* **📐 Harmonized Toolbars & Dedicated Filter Grids**: Clean 2-row layout across Dashboard and History separating action buttons from search and filter pills with sticky scroll positioning.
-* **📱 Mobile Viewport Standards**: Legible 13-14px typography, 36px touch targets (Apple HIG & Material 3), and swipeable horizontal filter chips.
+* **📱 Unified Tablet & Mobile Breakpoint (1024px)**: Synchronized mobile responsive switching across all views (Dashboard, Overview, History, AI Chat, Modals) for flawless tablet and split-window usability.
+* **📐 Ergonomic 2x2 Action Toolbars**: Quick single-tap access to all 4 primary actions on Dashboard and History without any horizontal scrolling.
+* **🌟 Responsive Overview Overhaul**: Adaptive metric cards, sealed rhythm statistics strip, and single-column bottom layout on tablet/mobile screens.
+* **✏️ Adaptive Table Actions**: Compact icon button (`✏️`) on intermediate screen widths (1025px–1280px) to prevent table overflowing.
 * **⏱️ Real-Time Financial Rhythm & Averages**: Discreet overview strip displaying Income, Fixed/Variable expenses, and Net flow with period and cadence selectors.
 * **🔔 Enhanced Notification Management**: Active/Archived tabs, real-time search, and dedicated action buttons (card click only marks as read).
 
