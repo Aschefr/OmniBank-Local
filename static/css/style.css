@@ -6914,8 +6914,6 @@ body.overview-fullscreen .app-body {
 /* ── Table Row Actions (Aligned & Solid) ── */
 .timeline-table-container {
     width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
 }
 
 .row-actions-group {

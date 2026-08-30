@@ -666,8 +666,10 @@ window.AllOperationsView = {
         if (!header || !table) return;
 
         const update = () => {
-            const offset = header.offsetHeight - 32;
-            table.style.setProperty('--sticky-top', offset + 'px');
+            // Lire le `top` CSS réel (négatif) pour compenser correctement (desktop: -32px, mobile: -12px)
+            const topOffset = parseFloat(getComputedStyle(header).top) || 0;
+            const offset = header.offsetHeight + topOffset;
+            table.style.setProperty('--sticky-top', Math.max(0, offset) + 'px');
         };
         update();
 
