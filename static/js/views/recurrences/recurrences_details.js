@@ -17,7 +17,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             if (chevron) chevron.style.transform = 'rotate(0deg)';
         } else {
             this.expandedTemplateIds.add(templateId);
-            const disp = (this.currentViewMode === 'timeline' || window.innerWidth <= 768) ? 'block' : 'table-row';
+            const disp = (this.currentViewMode === 'timeline' || window.innerWidth <= 1024) ? 'block' : 'table-row';
             detailsRow.style.setProperty('display', disp, 'important');
             if (chevron) chevron.style.transform = 'rotate(90deg)';
             this.renderTemplateDetails(templateId);

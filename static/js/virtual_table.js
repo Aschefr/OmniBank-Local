@@ -31,7 +31,7 @@ window.VirtualTable = class VirtualTable {
         this._scrollHandler = null;
         this._rafId = null;
         this._pendingScroll = null;
-        this._mobileBreakpoint = 768;
+        this._mobileBreakpoint = 1024;
     }
 
     /** @returns {boolean} true when viewport is in mobile card-layout mode */

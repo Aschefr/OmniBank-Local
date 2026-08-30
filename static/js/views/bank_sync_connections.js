@@ -718,30 +718,30 @@ Object.assign(window.BankSyncView, {
             const detectedType = detectType(r);
 
             return `
-            <div style="background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                    <div>
+            <div class="mapping-card-item" style="background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px;">
+                <div class="mapping-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div class="mapping-account-info">
                         <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${r.label}</div>
-                        <div style="font-size: 12px; color: var(--text-muted); display: flex; gap: 10px; margin-top: 2px;">
+                        <div style="font-size: 12px; color: var(--text-muted); display: flex; gap: 10px; margin-top: 2px; flex-wrap: wrap;">
                             <span>${lblType}: <strong>${r.type}</strong></span>
                             <span>${lblNumber}: <strong>${r.id}</strong></span>
                             <span>${lblBalance}: <strong style="color: ${balColor};">${balStr}</strong></span>
                         </div>
                     </div>
 
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">${lblLinkedTo}</span>
+                    <div class="mapping-card-controls" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span class="mapping-linked-label" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">${lblLinkedTo}</span>
                         <select class="input-styled mapping-select" data-remote-id="${r.id}" style="min-width: 200px; padding: 6px 10px;">
                             ${localAccOptions}
                         </select>
-                        <button class="btn btn-secondary" onclick="window.BankSyncView.toggleQuickCreateForm('${r.id}')" style="font-size: 11px; padding: 6px 10px; border-radius: 8px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${btnCreateTitle}">
+                        <button class="btn btn-secondary mapping-create-btn" onclick="window.BankSyncView.toggleQuickCreateForm('${r.id}')" style="font-size: 11px; padding: 6px 10px; border-radius: 8px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${btnCreateTitle}">
                             <span>➕</span> <span>${btnCreateText}</span>
                         </button>
                     </div>
                 </div>
 
                 <!-- Mini-formulaire in-line de création personnalisée -->
-                <div id="qcBox_${r.id}" style="display: none; padding: 12px 14px; background: var(--bg-card); border: 1px dashed var(--accent-border, var(--border-color)); border-radius: 10px; margin-top: 4px;">
+                <div id="qcBox_${r.id}" class="mapping-quick-create-box" style="display: none; padding: 12px 14px; background: var(--bg-card); border: 1px dashed var(--accent-border, var(--border-color)); border-radius: 10px; margin-top: 4px;">
                     <div style="font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                         <span>✨</span> <span data-i18n="bank_sync_custom_create_title">${window.i18n.t('bank_sync_custom_create_title')}</span>
                     </div>
@@ -765,7 +765,7 @@ Object.assign(window.BankSyncView, {
                             <label style="font-size: 10px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 3px;" data-i18n="bank_sync_custom_create_balance">${window.i18n.t('bank_sync_custom_create_balance')}</label>
                             <input type="number" step="0.01" id="qcBal_${r.id}" class="input-styled" value="${r.balance || 0}" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px;">
                         </div>
-                        <div style="display: flex; gap: 6px;">
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                             <button class="btn btn-primary" onclick="window.BankSyncView.submitQuickCreate('${r.id}', '${r.currency || 'EUR'}')" style="height: 32px; padding: 0 12px; font-size: 11px; font-weight: 700; white-space: nowrap; border-radius: 6px;">
                                 <span data-i18n="bank_sync_custom_create_submit">${window.i18n.t('bank_sync_custom_create_submit')}</span>
                             </button>
