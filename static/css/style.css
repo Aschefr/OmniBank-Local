@@ -440,11 +440,12 @@ body {
 }
 
 /* Sticky view headers: extend into parent padding to fully cover scrolling content */
+.view-header-sticky-container,
 #timelineHeader,
 #historyHeader {
     position: sticky;
     top: -32px;
-    z-index: 20;
+    z-index: 500;
     background-color: var(--bg-base);
     padding-top: 24px;
     padding-bottom: 10px;

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.98] - 2026-08-30
+
+### Fixed
+- **Filter Dropdown Layering (Z-Index) 🎛️**:
+  - Fixed category and filter dropdown menus rendering underneath the sticky period banner on Dashboard view.
+- **Dynamic In-App Changelog Updates 📋**:
+  - Implemented automatic changelog cache invalidation via file modification timestamps so newly published release notes appear immediately without requiring a backend server restart.
+- **View Header Icon Duplicate 🎨**:
+  - Removed duplicate chart icon in the Financial Summary (Synthèse financière) view header.
+
 ## [1.0.97] - 2026-08-30
 
 ### Fixed
