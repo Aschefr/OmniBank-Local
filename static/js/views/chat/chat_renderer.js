@@ -97,6 +97,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             } else {
                 displayContent = DOMPurify.sanitize(marked.parse(rawContent));
                 
+                // Wrap markdown tables for responsive scrolling & beautiful styling
+                displayContent = displayContent.replace(/<table>([\s\S]*?)<\/table>/g, '<div class="chat-table-wrapper"><table class="chat-markdown-table">$1</table></div>');
+                
                 // Replace placeholders back to HTML details after sanitization
                 if (hasThink) {
                     const defaultInProgress = '🧠 Réflexion en cours...';

@@ -110,14 +110,13 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.98)
+## 🆕 Nouveautés (v1.0.99)
 
-* **📸 Snapshots Historiques pour Badges IA** : Les badges d'entités financières (budgets, comptes, catégories) générés par l'IA capturent l'état exact des finances au moment de la réponse pour une fidélité temporelle parfaite lors de la relecture.
-* **📱 Expérience Assistant IA Mobile-First** : Modales responsives (mémoire et catalogue d'outils), popovers à positionnement dynamique avec inversion verticale, et prise en charge du redimensionnement par le clavier virtuel mobile.
-* **🏦 Ancrage Comptable & Détection Réaliste des Doublons** : Audit IA intelligent distinguant les vrais doublons des débits bancaires rapprochés légitimes, avec évaluation chiffrée obligatoire des conséquences financières (solde, enveloppe, reste à vivre).
-* **🔙 Navigation Retour Contextuelle Unifiée** : Ajout d'un bouton Retour harmonisé dans l'en-tête des Budgets et de l'Historique pour revenir d'un clic à la conversation ou à la vue d'origine.
-* **🧠 Mémoire Financière de l'IA** : Intégration d'outils d'apprentissage et d'oubli de faits financiers durables (`store_financial_fact`, `forget_financial_fact`).
-* **📋 Épuration de la Vue Historique** : Recentrage exclusif de l'Historique sur les opérations enregistrées en base et l'audit, avec conservation des flux de synchronisation quotidienne sur le Journal/Dashboard.
+* **🔄 Cascade Intelligente & Résolution du Cold Start** : Moteur d'estimation des dépenses variables en 3 étages (historique réel filtré des anomalies IQR, repli sur les enveloppes budgétaires actives, et étalonnage prudentiel à 35% du salaire net pour les comptes récents) avec explication transparente de l'IA.
+* **📈 Projections Multi-Cycles & Trésorerie Réaliste** : Projection automatique des salaires mensuels à venir sur 30, 60 et 90 jours dans l'outil prévisionnel de l'IA, éliminant tout faux déficit de trésorerie.
+* **📊 Rendu Stylisé des Tableaux Markdown** : Affichage responsive, moderne et contrasté des tableaux générés par l'IA dans le Chat (fond sombre, en-têtes bleutés, padding généreux, chiffres tabulaires).
+* **🛠 Nouveaux Outils RAG IA** : Intégration de l'auditeur d'intégrité comptable (`audit_transactions_integrity`) et du simulateur de projets financiers (`simulate_financial_scenario`).
+* **🛡️ Sérialisation Robuste de l'API** : Assouplissement du schéma `TransactionBase` (`date_saisie` optionnelle) pour fiabiliser la consultation de l'Historique.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -125,7 +124,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.98-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.0.99-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -225,14 +224,13 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.98)
+## 🆕 What's New (v1.0.99)
 
-* **📸 Historical Snapshots for AI Badges**: Point-in-time financial metrics (spent, limit, balances, recent ops) are now frozen when generated, preserving historical accuracy when reviewing past chat sessions.
-* **📱 Mobile-First AI Assistant Experience**: Redesigned bottom sheets and cards for AI Memory and capabilities modals, smart popovers with auto-flip, and native virtual keyboard adaptation.
-* **🏦 Accounting Grounding & Bank Reconciliation Awareness**: Intelligent duplicate detection distinguishing legitimate double debits from phantom entries, accompanied by mandatory financial impact assessments.
-* **🔙 Unified Contextual Back Navigation**: Added harmonized Back buttons (`⬅️ Retour`) in Budgets and History for instant one-click return to originating chat sessions.
-* **🧠 Persistent AI Financial Memory**: Native tools to store and forget persistent financial preferences and contextual facts.
-* **📋 Streamlined History View**: Refocused History exclusively on recorded database transactions and audit, preserving day-to-day online sync workflows on the Dashboard.
+* **🔄 Intelligent Cascade & Cold Start Resolution**: 3-tier hierarchical spending rate estimation engine (observed history with IQR outlier filtering, fallback to active spending envelopes, and 35% net salary prudential baseline) with transparent AI source notes.
+* **📈 Multi-Cycle Projections & Realistic Forecasting**: Automated multi-month paycheck projection over 30, 60, and 90 days in the AI Forecaster, eliminating artificial cash deficits.
+* **📊 Rich Markdown Tables in AI Chat**: Custom modern styling for AI-generated tables (dark backdrop, subtle blue accent headers, tabular numerals, generous cell spacing, hover effects).
+* **🛠 New AI Assistant RAG Tools**: Added accounting integrity audit tool (`audit_transactions_integrity`) and What-If project simulator (`simulate_financial_scenario`).
+* **🛡️ Resilient API Serialization**: Made `date_saisie` optional in `TransactionBase` FastAPI schema to ensure faultless History table rendering on legacy or imported entries.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 
