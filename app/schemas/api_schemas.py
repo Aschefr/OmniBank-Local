@@ -12,7 +12,7 @@ def _validate_date_range(v: Optional[date]) -> Optional[date]:
     return v
 
 class TransactionBase(BaseModel):
-    date_saisie: date
+    date_saisie: Optional[date] = None
     date_operation: date
     description: str
     amount: float

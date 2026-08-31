@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.99] - 2026-08-31
+
+### Added & Improved
+- **Intelligent Cascade & Cold Start Resolution 🔄**:
+  - Implemented a 3-tier hierarchical spending rate estimation engine (`calculate_daily_variable_spending_rate`):
+    1. **Tier 1 (Observed Real History $\ge 15$ days)**: Computes actual daily spending rate from past 90-day variable expenses with statistical IQR outlier exclusion (e.g. major one-off vehicle or appliance purchases).
+    2. **Tier 2 (Active Budget Envelopes Fallback)**: Automatically converts active spending budget envelopes into a daily variable pace (`Total / 30.42 days`) when transaction history is sparse.
+    3. **Tier 3 (Prudential Salary Ratio)**: Employs a 35% net salary prudential baseline when onboarding brand-new accounts with zero envelopes and zero history.
+  - Enhanced AI transparency: The assistant explicitly communicates the computation basis (`daily_average_source_note`) directly in projections and summaries.
+  - Extended fallback cascade across budget planning (50/30/20 benchmark guidance), anomaly detection (envelope consumption spikes), and savings advice (`get_saving_recommendations`).
+- **Enhanced Multi-Cycle AI Forecasting & Role Tools 📈**:
+  - Multi-cycle paycheck projection in `forecast_balances_history`: Projects upcoming monthly paychecks on expected dates across 30, 60, and 90-day horizons, eliminating artificial cash deficits.
+  - Clear financial distinction between operational checking account liquidity and total liquid savings cushions (Livret A, LDD).
+  - Added dedicated AI Assistant RAG tools: `audit_transactions_integrity` (unreconciled items $>30$ days, uncategorized operations, inverted debit/credit flows) and `simulate_financial_scenario` (What-If project sandbox and borrowing capacity).
+- **Polished Markdown Table Rendering in AI Chat 📊**:
+  - Designed custom modern styling for AI-generated Markdown tables (`.chat-table-wrapper` and `.chat-markdown-table`): rounded borders, dark backdrop, contrast header with subtle blue accent, generous cell padding (10px 16px), tabular numbers, and smooth row hover effects.
+- **Resilient Transaction Serialization 🛡️**:
+  - Made `date_saisie` optional in FastAPI schema `TransactionBase`, preventing 500 serialization errors on transactions missing manual entry timestamps.
+
 ## [1.0.98] - 2026-08-30
 
 ### Added & Improved

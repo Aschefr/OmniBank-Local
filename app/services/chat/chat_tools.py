@@ -162,6 +162,8 @@ def get_spending_analytics_tool(db: Session, start_date: str, end_date: str) -> 
 
 def get_budgets_status_tool(db: Session, year: int = None, month: int = None) -> dict:
     from app.routers.budgets import get_budget_status
+    from datetime import date, timedelta
+    from app.models import Transaction, BudgetCategory
     today = date.today()
     try:
         y = int(year) if year is not None else today.year
@@ -171,6 +173,34 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
     
     status_data = get_budget_status(year=y, month=m, db=db)
     
+    # Pre-calculate 3-month and 6-month historical spending by budget envelope and categories
+    three_months_ago = today - timedelta(days=90)
+    six_months_ago = today - timedelta(days=180)
+    
+    past_txs_6m = db.query(Transaction).filter(
+        Transaction.date_operation >= six_months_ago,
+        Transaction.date_operation <= today,
+        Transaction.type.in_(("expense_var", "expense_fixed")),
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+    ).all()
+    
+    # Map category names to budget ids
+    budget_cats = db.query(BudgetCategory).all()
+    cat_to_budget = {bc.category_name.strip().lower(): bc.budget_id for bc in budget_cats if bc.category_name}
+    
+    # Accumulate spending per budget
+    spent_by_b_3m = defaultdict(float)
+    spent_by_b_6m = defaultdict(float)
+    for t in past_txs_6m:
+        b_id = t.budget_id
+        if not b_id and t.category:
+            b_id = cat_to_budget.get(t.category.strip().lower())
+        if b_id:
+            spent_by_b_6m[b_id] += t.amount
+            if t.date_operation >= three_months_ago:
+                spent_by_b_3m[b_id] += t.amount
+
     envelopes = []
     total_budgeted = 0.0
     total_spent_committed = 0.0
@@ -178,20 +208,26 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
     total_income = 0.0
 
     for b in status_data.get("budgets", []):
+        b_id = b.get("id")
         total_budgeted += b.get("budget_amount", 0.0)
         total_spent_committed += b.get("expenses", 0.0)
         total_spent_reconciled += b.get("reconciled_expenses", 0.0)
         total_income += b.get("income", 0.0)
 
+        avg_3m = round(spent_by_b_3m.get(b_id, 0.0) / 3.0, 2) if b_id else 0.0
+        avg_6m = round(spent_by_b_6m.get(b_id, 0.0) / 6.0, 2) if b_id else 0.0
+
         envelopes.append({
-            "id": b.get("id"),
+            "id": b_id,
             "name": b.get("name"),
             "type": b.get("envelope_type", "spending"),
             "period": b.get("period", "monthly"),
             "limit": b.get("budget_amount", 0.0),
             "spent": b.get("expenses", 0.0),
             "remaining": b.get("balance", 0.0),
-            "percent": b.get("percent", 0.0)
+            "percent": b.get("percent", 0.0),
+            "historical_monthly_avg_spent_3m": avg_3m,
+            "historical_monthly_avg_spent_6m": avg_6m
         })
 
     net_spent_committed = round(total_spent_committed - total_income, 2)
@@ -208,7 +244,33 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
         "total_remaining": total_remaining
     }
 
-    return {"year": y, "month": m, "summary": summary, "budgets": envelopes}
+    # Calculate suggested 50/30/20 reference if history is insufficient
+    total_avg_6m = sum(b["historical_monthly_avg_spent_6m"] for b in envelopes)
+    from app.services.finance_engine import predict_next_paycheck
+    try:
+        paycheck = predict_next_paycheck(db)
+        salary = paycheck.get("amount", 0.0) if paycheck else 0.0
+    except Exception:
+        salary = 0.0
+        
+    reference_guidance = None
+    if total_avg_6m < 50.0 and salary > 0:
+        reference_guidance = {
+            "basis": "prudential_rule_50_30_20",
+            "monthly_income_reference_euros": salary,
+            "recommended_needs_50pct_euros": round(salary * 0.50, 2),
+            "recommended_wants_30pct_euros": round(salary * 0.30, 2),
+            "recommended_savings_20pct_euros": round(salary * 0.20, 2),
+            "note": "Historique réel récent insuffisant. Étalonnage standard 50/30/20 proposé à titre indicatif."
+        }
+
+    return {
+        "year": y,
+        "month": m,
+        "summary": summary,
+        "budgets": envelopes,
+        "reference_guidance": reference_guidance
+    }
 
 def get_monthly_overview_tool(db: Session, year: int = None, month: int = None) -> dict:
     import calendar
@@ -348,11 +410,151 @@ def suggest_transaction_category_tool(db: Session, description: str) -> dict:
         
     return {"suggested_category": None, "confidence": "low"}
 
+def calculate_daily_variable_spending_rate(db: Session, account_id: int, today: date, horizon_days: int = 90) -> dict:
+    """
+    Calcule le rythme de dépenses variables quotidien via une cascade intelligente à 3 niveaux :
+    1. Historique réel des dépenses variables sur les 90 derniers jours (avec filtrage IQR des outliers).
+    2. Fallback Enveloppes Budgétaires : somme mensuelle des enveloppes 'spending' / 30.416.
+    3. Fallback Prudentiel Salaire (Cold Start Total) : 35% du salaire net prévu / 30.416.
+    """
+    from datetime import timedelta
+    from app.models import Transaction, Budget
+    from app.services.finance_engine import predict_next_paycheck
+    import statistics as _stats
+    
+    ninety_days_ago = today - timedelta(days=90)
+    
+    # 1. Vérifier l'historique réel des dépenses variables hors récurrences
+    past_var_txs = db.query(Transaction).filter(
+        Transaction.from_account_id == account_id,
+        Transaction.to_account_id.is_(None),
+        Transaction.type == "expense_var",
+        Transaction.date_operation >= ninety_days_ago,
+        Transaction.date_operation <= today,
+        Transaction.recurrence_id.is_(None),
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).all()
+    
+    excluded_outliers = []
+    normal_var_txs = list(past_var_txs)
+    
+    if len(past_var_txs) >= 5:
+        amounts = sorted([t.amount for t in past_var_txs])
+        q1 = amounts[len(amounts) // 4]
+        q3 = amounts[3 * len(amounts) // 4]
+        iqr = q3 - q1
+        upper_fence = q3 + 3.0 * iqr
+        median_amt = _stats.median(amounts)
+        
+        normal_var_txs = []
+        for t in past_var_txs:
+            is_outlier = (
+                t.amount > upper_fence
+                and t.amount > 500
+                and t.amount > 5 * median_amt
+            )
+            if is_outlier:
+                excluded_outliers.append({
+                    "transaction_id": t.id,
+                    "description": t.description,
+                    "amount_euros": t.amount,
+                    "date": t.date_operation.isoformat() if t.date_operation else None,
+                    "category": t.category
+                })
+            else:
+                normal_var_txs.append(t)
+                
+    # Calculer l'emprise temporelle observée
+    valid_dates = [t.date_operation for t in past_var_txs if t.date_operation]
+    min_date = min(valid_dates, default=today)
+    observed_days = max(1, (today - min_date).days + 1)
+    total_var_spent = sum(t.amount for t in normal_var_txs)
+    
+    # ── ÉTAGE 1 : Historique réel suffisant (>= 15 jours d'activité observée) ──
+    if observed_days >= 15 and len(normal_var_txs) >= 3 and total_var_spent > 0:
+        denominator_days = min(90.0, float(observed_days))
+        daily_rate = round(total_var_spent / denominator_days, 2)
+        return {
+            "daily_rate_euros": daily_rate,
+            "monthly_equivalent_euros": round(daily_rate * 30.416, 2),
+            "source_mode": "historical_real",
+            "source_label": f"Moyenne réelle constatée ({daily_rate:.2f} €/j sur {int(denominator_days)} jours observés)",
+            "observed_days": int(denominator_days),
+            "excluded_outliers": excluded_outliers
+        }
+        
+    # ── ÉTAGE 2 : Fallback Enveloppes Budgétaires Actives ──
+    active_spending_budgets = db.query(Budget).filter(
+        Budget.envelope_type == "spending",
+        Budget.is_closed == False
+    ).all()
+    total_budget_limit = sum(b.monthly_amount for b in active_spending_budgets if b.monthly_amount)
+    
+    if total_budget_limit > 0:
+        daily_rate = round(total_budget_limit / 30.416, 2)
+        return {
+            "daily_rate_euros": daily_rate,
+            "monthly_equivalent_euros": round(total_budget_limit, 2),
+            "source_mode": "budget_envelopes",
+            "source_label": f"Enveloppes budgétaires actives ({total_budget_limit:.2f} €/mois = {daily_rate:.2f} €/j)",
+            "observed_days": 0,
+            "excluded_outliers": []
+        }
+        
+    # ── ÉTAGE 3 : Fallback Ratio Prudentiel Salaire (Cold Start Total) ──
+    from app.models import GlobalConfig, RecurrenceTemplate
+    salary_amount = 0.0
+    try:
+        paycheck = predict_next_paycheck(db)
+        if paycheck and paycheck.get("amount"):
+            salary_amount = float(paycheck.get("amount") or 0.0)
+    except Exception:
+        salary_amount = 0.0
+        
+    if not salary_amount or salary_amount <= 0:
+        conf_sal = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_amount").first()
+        if conf_sal and conf_sal.value:
+            try:
+                salary_amount = float(conf_sal.value)
+            except Exception:
+                pass
+                
+    if not salary_amount or salary_amount <= 0:
+        inc_tpl = db.query(RecurrenceTemplate).filter(
+            RecurrenceTemplate.type == "income",
+            RecurrenceTemplate.is_closed == False
+        ).first()
+        if inc_tpl and inc_tpl.amount:
+            salary_amount = float(inc_tpl.amount)
+        
+    if salary_amount and salary_amount > 0:
+        # Ratio standard de dépenses de vie : 35% du revenu net
+        monthly_prudential = round(salary_amount * 0.35, 2)
+        daily_rate = round(monthly_prudential / 30.416, 2)
+        return {
+            "daily_rate_euros": daily_rate,
+            "monthly_equivalent_euros": monthly_prudential,
+            "source_mode": "prudential_salary_ratio",
+            "source_label": f"Estimation prudentielle standard (35% du salaire net = {monthly_prudential:.2f} €/mois, soit {daily_rate:.2f} €/j)",
+            "observed_days": 0,
+            "excluded_outliers": []
+        }
+        
+    return {
+        "daily_rate_euros": 0.0,
+        "monthly_equivalent_euros": 0.0,
+        "source_mode": "none",
+        "source_label": "Aucun historique ni budget disponible (0.00 €/j)",
+        "observed_days": 0,
+        "excluded_outliers": []
+    }
+
 def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     from datetime import date, timedelta
-    from app.services.finance_engine import calculate_balances, get_main_account, predict_next_paycheck
-    from app.models import RecurrenceTemplate, Transaction
-    import statistics as _stats
+    import calendar
+    from app.services.finance_engine import calculate_balances, get_main_account, predict_next_paycheck, get_liquid_net_worth
+    from app.models import RecurrenceTemplate, Transaction, Budget, BudgetAllocation
+    from collections import defaultdict
     
     try:
         days = int(days)
@@ -370,25 +572,58 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     balances = calculate_balances(db, only_reconciled=True)
     current_balance = balances.get(account.id, 0.0)
     
+    # Liquid net worth across all accounts (savings cushion)
+    liquid_total, _ = get_liquid_net_worth(db, only_reconciled=True, precomputed_balances=balances)
+    
     # Load all active recurrence templates
     templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
     template_ids = {t.id for t in templates}
 
-    # --- Unreconciled pending expenses (already entered, not yet debited) ---
-    # These are KNOWN future outflows that the user has already planned/entered.
-    # Ignoring them would make the projection overly optimistic vs the real RTL.
-    from app.services.finance_engine import predict_next_paycheck as _predict_paycheck
+    # --- Next predicted paycheck and multi-cycle salary projection ---
+    projected_income_events = []
+    paycheck_info = None
+    next_pay_date = None
     try:
-        _pay_info = _predict_paycheck(db)
-        _next_pay_date = _pay_info.get("date", end_date)
-    except Exception:
-        _next_pay_date = end_date
+        paycheck_info = predict_next_paycheck(db)
+        first_pay_date = paycheck_info.get("date")
+        pay_amount = paycheck_info.get("amount", 0.0)
+        next_pay_date = first_pay_date
+        
+        # Check if there is already an active income template for salary
+        has_salary_template = any(
+            t.type == "income" and t.amount > 500
+            for t in templates
+        )
+        
+        if pay_amount and pay_amount > 0 and isinstance(first_pay_date, date) and not has_salary_template:
+            cur_pay_date = first_pay_date
+            while cur_pay_date <= end_date:
+                if cur_pay_date > today:
+                    projected_income_events.append({
+                        "date": cur_pay_date.isoformat(),
+                        "amount_euros": pay_amount,
+                        "source": "predicted_paycheck",
+                        "logical_period": f"{cur_pay_date.year:04d}-{cur_pay_date.month:02d}"
+                    })
+                # Advance to next month's pay date (same day of month)
+                target_month = cur_pay_date.month + 1
+                target_year = cur_pay_date.year
+                if target_month > 12:
+                    target_month = 1
+                    target_year += 1
+                
+                day_target = first_pay_date.day
+                max_days = calendar.monthrange(target_year, target_month)[1]
+                cur_pay_date = date(target_year, target_month, min(day_target, max_days))
+    except Exception as e:
+        logger.warning(f"[forecast] Error projecting multi-month paychecks: {e}")
 
+    # --- Unreconciled pending expenses (already entered by user for current cycle) ---
     pending_expenses = db.query(Transaction).filter(
         Transaction.reconciliation_date == None,
         Transaction.date_operation <= end_date,
         Transaction.from_account_id == account.id,
-        Transaction.to_account_id.is_(None),  # Expense only (not transfers)
+        Transaction.to_account_id.is_(None),
         (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
         (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
     ).all()
@@ -397,28 +632,23 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
         Transaction.reconciliation_date == None,
         Transaction.date_operation <= end_date,
         Transaction.from_account_id == account.id,
-        Transaction.to_account_id != None,  # Transfer out
+        Transaction.to_account_id != None,
         (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
         (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
     ).all()
 
-    # Build a date-indexed map of pending outflows for the simulation.
-    # Exclude those linked to recurrence templates (they'll be projected via templates).
-    from collections import defaultdict
     pending_by_date = defaultdict(float)
     pending_total = 0.0
     for t in pending_expenses + pending_transfers:
         if t.recurrence_id and t.recurrence_id in template_ids:
-            continue  # Will be covered by the template projection — skip to avoid double count
+            continue  # Covered by recurrence template
         tx_date = t.date_operation if t.date_operation and t.date_operation > today else today
-        # Cap to forecast window
         if tx_date > end_date:
             continue
         pending_by_date[tx_date.isoformat()] += t.amount
         pending_total += t.amount
 
-    # Savings reservations (tirelire) — reserved funds that aren't available for spending
-    from app.models import Budget, BudgetAllocation
+    # Savings reservations (tirelires)
     savings_reserved = 0.0
     savings_budgets = db.query(Budget).filter(
         Budget.envelope_type == "savings",
@@ -438,135 +668,132 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
         tx_income = sum(abs(t.amount) for t in txs if t.type == "income")
         tx_expenses = sum(abs(t.amount) for t in txs if t.type != "income")
         savings_reserved += (tx_income - tx_expenses) + alloc_balance
-    savings_reserved = max(savings_reserved, 0)
+    savings_reserved = max(savings_reserved, 0.0)
 
-    # Calculate daily average VARIABLE spending only (exclude recurring charges)
-    # Recurring charges will be applied separately via templates to avoid double counting
-    thirty_days_ago = today - timedelta(days=30)
-    past_var_txs = db.query(Transaction).filter(
-        Transaction.from_account_id == account.id,
-        Transaction.to_account_id.is_(None),
-        Transaction.date_operation >= thirty_days_ago,
-        Transaction.date_operation <= today,
-        Transaction.recurrence_id.is_(None)  # Exclude recurring transactions
-    ).all()
+    # Calculate daily average VARIABLE spending via Intelligent Cascade
+    spending_rate_info = calculate_daily_variable_spending_rate(db, account.id, today, horizon_days=days)
+    daily_avg_var_spend = spending_rate_info["daily_rate_euros"]
+    excluded_outliers = spending_rate_info.get("excluded_outliers", [])
+    data_source_mode = spending_rate_info["source_mode"]
+    data_source_note = spending_rate_info["source_label"]
 
-    # --- Outlier detection (IQR + absolute + relative thresholds) ---
-    # Exceptional one-time purchases (e.g. vehicle, major appliance) should NOT
-    # be projected as daily recurring spending.  They are already reflected in
-    # the current_balance (deducted once) but must not inflate daily_avg.
-    excluded_outliers = []
-    normal_var_txs = list(past_var_txs)
+    # Date cutoff: planned expenses cover the period until next paycheck
+    cycle_cutoff_date = next_pay_date if isinstance(next_pay_date, date) else today
 
-    if len(past_var_txs) >= 5:
-        amounts = sorted([t.amount for t in past_var_txs])
-        q1 = amounts[len(amounts) // 4]
-        q3 = amounts[3 * len(amounts) // 4]
-        iqr = q3 - q1
-        upper_fence = q3 + 3.0 * iqr          # 3×IQR — very conservative
-        median_amt = _stats.median(amounts)
-
-        normal_var_txs = []
-        for t in past_var_txs:
-            # All three conditions must be met to classify as outlier:
-            #  1. Exceeds statistical upper fence (3×IQR)
-            #  2. Absolute amount > 500 € (small amounts are never outliers)
-            #  3. Amount > 5× the median (truly exceptional relative to habits)
-            is_outlier = (
-                t.amount > upper_fence
-                and t.amount > 500
-                and t.amount > 5 * median_amt
-            )
-            if is_outlier:
-                excluded_outliers.append({
-                    "transaction_id": t.id,
-                    "description": t.description,
-                    "amount_euros": t.amount,
-                    "date": t.date_operation.isoformat() if t.date_operation else None,
-                    "category": t.category
-                })
-                logger.info(
-                    f"[forecast] Outlier exclu de la projection : "
-                    f"{t.description} — {t.amount} € "
-                    f"(fence={upper_fence:.2f}, médiane={median_amt:.2f})"
-                )
-            else:
-                normal_var_txs.append(t)
-
-    total_var_spent_30d = sum(t.amount for t in normal_var_txs)
-    daily_avg_var_spend = round(total_var_spent_30d / 30.0, 2)
-
-    # Collect predicted paycheck(s) that fall within the forecast window.
-    # This is critical: if the user's salary is NOT a RecurrenceTemplate, it would
-    # otherwise be missing from the projection, causing a false "going negative" alert.
-    projected_income_events = []
-    try:
-        paycheck = predict_next_paycheck(db)
-        pay_date = paycheck.get("date")
-        pay_amount = paycheck.get("amount", 0.0)
-        if pay_amount and pay_amount > 0 and isinstance(pay_date, date):
-            if today < pay_date <= end_date:
-                projected_income_events.append({
-                    "date": pay_date.isoformat(),
-                    "amount_euros": pay_amount,
-                    "source": "predicted_paycheck",
-                    "logical_period": paycheck.get("logical_period", "")
-                })
-    except Exception:
-        pass
-    
-    # Effective starting balance = reconciled - savings reservations
-    # This is the conservative "spending budget" view.  Tirelires are virtual
-    # envelopes on the SAME bank account — the money is physically there and
-    # can be tapped in an emergency, preventing a real overdraft.
+    # Effective starting balance
     effective_balance = round(current_balance - savings_reserved, 2)
 
     # Project chronologically day-by-day
-    points = [{"date": today.isoformat(), "projected_balance_euros": effective_balance}]
+    points = [{"date": today.isoformat(), "projected_balance_euros": effective_balance, "real_bank_balance_euros": current_balance}]
     running_balance = effective_balance
-    
+    running_bank_balance = current_balance
+
+    monthly_breakdown = defaultdict(lambda: {
+        "projected_income": 0.0,
+        "fixed_expenses": 0.0,
+        "variable_expenses": 0.0,
+        "end_balance": 0.0,
+        "end_real_bank_balance": 0.0
+    })
+
     sim_date = today
     while sim_date < end_date:
         sim_date += timedelta(days=1)
+        month_key = f"{sim_date.year:04d}-{sim_date.month:02d}"
         
-        # Deduct daily average VARIABLE spend only
-        running_balance -= daily_avg_var_spend
-
-        # Deduct pending unreconciled expenses on their scheduled date
+        # 1. Variable expenses:
+        # - Current cycle: deduct real planned expenses on their scheduled dates.
+        # - Future cycles (or dates without scheduled entries): apply estimated daily variable spend.
         date_key = sim_date.isoformat()
-        if date_key in pending_by_date:
-            running_balance -= pending_by_date[date_key]
+        has_pending = date_key in pending_by_date
         
-        # Apply recurrence templates (charges & income) on their scheduled day
+        if has_pending:
+            day_var = pending_by_date[date_key]
+            running_balance -= day_var
+            running_bank_balance -= day_var
+            monthly_breakdown[month_key]["variable_expenses"] += day_var
+        elif sim_date > cycle_cutoff_date:
+            running_balance -= daily_avg_var_spend
+            running_bank_balance -= daily_avg_var_spend
+            monthly_breakdown[month_key]["variable_expenses"] += daily_avg_var_spend
+        
+        # 2. Recurrence templates
         for t in templates:
+            freq = (t.frequency or "Monthly").strip().lower()
             applies = False
-            if t.frequency == "Monthly" and t.day_of_month == sim_date.day:
-                applies = True
-            elif t.frequency == "Weekly" and sim_date.weekday() == (t.day_of_month % 7 if t.day_of_month else 0):
-                applies = True
-            elif t.frequency == "Bimonthly" and t.day_of_month == sim_date.day and sim_date.month % 2 == 0:
-                applies = True
-                
+            dom = t.day_of_month or 1
+            
+            if freq in ("monthly", "mensuel", "mensuelle"):
+                max_d = calendar.monthrange(sim_date.year, sim_date.month)[1]
+                if sim_date.day == min(dom, max_d):
+                    applies = True
+            elif freq in ("weekly", "hebdomadaire", "hebdo"):
+                if sim_date.weekday() == (dom % 7):
+                    applies = True
+            elif freq in ("bi-weekly", "biweekly", "bimensuel", "bimensuelle"):
+                if sim_date.weekday() == (dom % 7) and (sim_date.isocalendar()[1] % 2 == 0):
+                    applies = True
+            elif freq in ("bi-monthly", "bimonthly", "bimestriel", "bimestrielle"):
+                max_d = calendar.monthrange(sim_date.year, sim_date.month)[1]
+                if sim_date.day == min(dom, max_d) and (sim_date.month % 2 == 0):
+                    applies = True
+            elif freq in ("quarterly", "trimestriel", "trimestrielle"):
+                max_d = calendar.monthrange(sim_date.year, sim_date.month)[1]
+                if sim_date.day == min(dom, max_d) and ((sim_date.month - 1) % 3 == 0):
+                    applies = True
+            elif freq in ("semi-annually", "semiannual", "semestriel", "semestrielle"):
+                max_d = calendar.monthrange(sim_date.year, sim_date.month)[1]
+                if sim_date.day == min(dom, max_d) and ((sim_date.month - 1) % 6 == 0):
+                    applies = True
+            elif freq in ("yearly", "annuel", "annuelle", "annual"):
+                month_target = getattr(t, "month_of_year", None) or 1
+                max_d = calendar.monthrange(sim_date.year, sim_date.month)[1]
+                if sim_date.month == month_target and sim_date.day == min(dom, max_d):
+                    applies = True
+                    
             if applies:
                 if t.type == "income":
                     running_balance += t.amount
+                    running_bank_balance += t.amount
+                    monthly_breakdown[month_key]["projected_income"] += t.amount
                 elif t.from_account_id == account.id and t.type in ("expense_fixed", "expense_var"):
                     running_balance -= t.amount
+                    running_bank_balance -= t.amount
+                    monthly_breakdown[month_key]["fixed_expenses"] += t.amount
 
-        # Inject predicted paycheck on its expected date
+        # 3. Projected paychecks
         for income_event in projected_income_events:
             if income_event["date"] == sim_date.isoformat():
                 running_balance += income_event["amount_euros"]
-                    
+                running_bank_balance += income_event["amount_euros"]
+                monthly_breakdown[month_key]["projected_income"] += income_event["amount_euros"]
+
+        monthly_breakdown[month_key]["end_balance"] = round(running_balance, 2)
+        monthly_breakdown[month_key]["end_real_bank_balance"] = round(running_bank_balance, 2)
+        
         points.append({
             "date": sim_date.isoformat(),
-            "projected_balance_euros": round(running_balance, 2)
+            "projected_balance_euros": round(running_balance, 2),
+            "real_bank_balance_euros": round(running_bank_balance, 2)
         })
-        
+
+    # Format monthly breakdown for AI interpretation
+    breakdown_list = [
+        {
+            "period": k,
+            "projected_income_euros": round(v["projected_income"], 2),
+            "fixed_expenses_euros": round(v["fixed_expenses"], 2),
+            "variable_expenses_euros": round(v["variable_expenses"], 2),
+            "projected_end_balance_euros": round(v["end_balance"], 2),
+            "projected_real_bank_balance_euros": round(v["end_real_bank_balance"], 2)
+        }
+        for k, v in sorted(monthly_breakdown.items())
+    ]
+
     income_note = (
-        f"{len(projected_income_events)} salaire(s) prévu(s) inclus dans cette projection."
+        f"{len(projected_income_events)} salaire(s) prévu(s) projeté(s) sur les cycles mensuels de l'horizon."
         if projected_income_events
-        else "Aucun salaire prévu trouvé dans la fenêtre de projection. Si votre salaire n'est pas configuré comme récurrence, mettez à jour via set_predicted_paycheck."
+        else "Revenus basés sur les modèles de récurrence enregistrés."
     )
 
     outlier_note = ""
@@ -583,8 +810,11 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
 
     return {
         "checking_account": account.name,
+        "total_liquid_savings_cushion_euros": round(liquid_total, 2),
         "daily_average_variable_spend_euros": daily_avg_var_spend,
-        "daily_average_note": "Variable spending only (non-recurring). Recurring charges applied separately via templates.",
+        "daily_average_source_mode": data_source_mode,
+        "daily_average_source_note": data_source_note,
+        "daily_average_note": "Variable spending rate applied on dates not covered by planned transactions.",
         "forecast_days": days,
         "projected_income_events": projected_income_events,
         "income_note": income_note,
@@ -595,61 +825,163 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
         "savings_safety_buffer_euros": round(savings_reserved, 2),
         "savings_safety_note": (
             "Les tirelires sont des enveloppes virtuelles sur le même compte courant. "
-            "Les fonds sont physiquement disponibles et peuvent être utilisés en cas "
-            "de dépassement du reste à vivre pour éviter un découvert réel. "
-            "Le découvert bancaire réel ne survient que si le solde total du compte "
-            "(incluant les fonds tirelires) devient négatif."
+            "Les fonds sont physiquement disponibles et évitent un découvert bancaire réel."
         ) if savings_reserved > 0 else "",
         "effective_starting_balance_euros": effective_balance,
+        "real_bank_starting_balance_euros": current_balance,
         "real_overdraft_threshold_euros": round(-savings_reserved, 2) if savings_reserved > 0 else 0.0,
+        "monthly_breakdown": breakdown_list,
         "history": points
     }
 
 def detect_anomalies_and_subscriptions_tool(db: Session) -> dict:
-    from app.models import Transaction, Account
+    from app.models import Transaction, Account, RecurrenceTemplate
     from datetime import date, timedelta
     from collections import defaultdict
     import statistics
+    from app.services.finance_engine import get_overdraft_warning
     
     today = date.today()
     six_months_ago = today - timedelta(days=180)
+    thirty_days_ago = today - timedelta(days=30)
     
     accounts_map = {a.id: a.name for a in db.query(Account).all()}
+    active_templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
+    template_descs = {t.description.strip().lower() for t in active_templates if t.description}
     
     txs = db.query(Transaction).filter(
         Transaction.date_operation >= six_months_ago,
-        Transaction.date_operation <= today
+        Transaction.date_operation <= today,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
     ).order_by(Transaction.date_operation.desc(), Transaction.id.desc()).all()
     
-    # 1. Subscription detection (recurring values at recurring intervals)
+    # 1. Subscription & Price Increase Detection
     candidates = defaultdict(list)
     for t in txs:
-        if t.type in ("expense_var", "expense_fixed") and t.amount > 5.0:
+        if t.type in ("expense_var", "expense_fixed") and t.amount > 3.0:
             candidates[t.description.strip().lower()].append(t)
             
     detected_subs = []
+    price_increases = []
+    unregistered_subs = []
+    
     for desc, items in candidates.items():
         if len(items) >= 3:
-            # Check if amounts are very close
             amounts = [i.amount for i in items]
-            if len(set(amounts)) == 1 or (statistics.stdev(amounts) / statistics.mean(amounts) < 0.05):
-                # Check intervals
-                dates = sorted([i.date_operation for i in items])
-                intervals = [(dates[i] - dates[i-1]).days for i in range(1, len(dates))]
-                avg_interval = statistics.mean(intervals) if intervals else 0
-                if 25 <= avg_interval <= 35: # Monthly sub
-                    acc_name = accounts_map.get(items[0].from_account_id or items[0].to_account_id, "Compte courant")
-                    detected_subs.append({
+            dates = sorted([i.date_operation for i in items])
+            intervals = [(dates[idx] - dates[idx-1]).days for idx in range(1, len(dates))]
+            avg_interval = statistics.mean(intervals) if intervals else 0
+            
+            if 24 <= avg_interval <= 36: # Monthly pattern
+                acc_name = accounts_map.get(items[0].from_account_id or items[0].to_account_id, "Compte courant")
+                recent_amt = items[0].amount
+                sub_entry = {
+                    "description": items[0].description,
+                    "amount_euros": recent_amt,
+                    "annual_cost_euros": round(recent_amt * 12, 2),
+                    "account_name": acc_name,
+                    "interval_days": round(avg_interval, 1),
+                    "frequency": "Monthly",
+                    "charges_count_6m": len(items)
+                }
+                detected_subs.append(sub_entry)
+                
+                # Check for price increases (compare most recent vs older charges)
+                older_amounts = [it.amount for it in items[1:]]
+                min_old = min(older_amounts)
+                if recent_amt > min_old * 1.05 and (recent_amt - min_old) >= 1.0:
+                    delta = round(recent_amt - min_old, 2)
+                    pct = round((delta / min_old) * 100, 1)
+                    price_increases.append({
                         "description": items[0].description,
-                        "amount_euros": items[0].amount,
-                        "annual_cost_euros": round(items[0].amount * 12, 2),
-                        "account_name": acc_name,
-                        "interval_days": round(avg_interval, 1),
-                        "frequency": "Monthly",
-                        "charges_count_6m": len(items)
+                        "old_amount_euros": min_old,
+                        "new_amount_euros": recent_amt,
+                        "increase_euros": delta,
+                        "increase_percent": f"+{pct}%",
+                        "account_name": acc_name
                     })
                     
-    # 2. Duplicate detection with accounting & bank reconciliation awareness
+                # Check if unregistered in recurrence templates
+                if desc not in template_descs and not any(desc in td or td in desc for td in template_descs):
+                    unregistered_subs.append(sub_entry)
+
+    # 2. Recent Spending Spikes (outliers vs category median OR budget envelope ratio)
+    from app.models import Budget, BudgetCategory
+    budget_cats = db.query(BudgetCategory).all()
+    cat_to_budget_obj = {}
+    for bc in budget_cats:
+        if bc.category_name and bc.budget_id:
+            b_obj = db.query(Budget).filter(Budget.id == bc.budget_id, Budget.is_closed == False).first()
+            if b_obj:
+                cat_to_budget_obj[bc.category_name.strip().lower()] = b_obj
+
+    recent_txs = [t for t in txs if t.date_operation >= thirty_days_ago and t.type in ("expense_var", "expense_fixed")]
+    by_cat = defaultdict(list)
+    for t in txs:
+        if t.category and t.type in ("expense_var", "expense_fixed"):
+            by_cat[t.category.strip().lower()].append(t.amount)
+            
+    recent_spikes = []
+    for t in recent_txs:
+        cat_key = (t.category or "").strip().lower()
+        cat_amounts = by_cat.get(cat_key, [])
+        is_spike = False
+        spike_detail = {}
+        
+        # Method A: Historical statistical outlier (>= 5 charges)
+        if len(cat_amounts) >= 5 and t.amount > 50.0:
+            cat_med = statistics.median(cat_amounts)
+            if t.amount > max(cat_med * 3.0, 100.0):
+                is_spike = True
+                spike_detail = {
+                    "detection_basis": "historical_median_outlier",
+                    "category_median_euros": round(cat_med, 2),
+                    "note": f"Dépense > 3x la médiane habituelle ({cat_med:.2f} €) de la catégorie."
+                }
+        # Method B: Fallback on Budget Envelope (Cold start / few transactions)
+        elif cat_key in cat_to_budget_obj and t.amount >= 50.0:
+            b_obj = cat_to_budget_obj[cat_key]
+            b_limit = b_obj.monthly_amount or 0.0
+            if b_limit > 0 and t.amount >= (0.40 * b_limit):
+                pct_env = round((t.amount / b_limit) * 100, 1)
+                is_spike = True
+                spike_detail = {
+                    "detection_basis": "budget_envelope_consumption",
+                    "envelope_name": b_obj.name,
+                    "envelope_monthly_limit_euros": b_limit,
+                    "consumed_envelope_percent": f"{pct_env}%",
+                    "note": f"Achat isolé consommant {pct_env}% de l'enveloppe mensuelle '{b_obj.name}'."
+                }
+                
+        if is_spike:
+            spike_data = {
+                "transaction_id": t.id,
+                "date": t.date_operation.isoformat() if t.date_operation else None,
+                "description": t.description,
+                "amount_euros": t.amount,
+                "category": t.category,
+            }
+            spike_data.update(spike_detail)
+            recent_spikes.append(spike_data)
+
+    # 3. Overdraft Warning from Engine
+    overdraft_info = None
+    try:
+        od = get_overdraft_warning(db)
+        if od:
+            overdraft_info = {
+                "will_overdraft": True,
+                "projected_date": od["date"].isoformat() if isinstance(od["date"], date) else str(od["date"]),
+                "transaction_description": od["transaction_description"],
+                "transaction_amount_euros": od["transaction_amount"],
+                "projected_negative_balance_euros": od["projected_balance"],
+                "transaction_id": od.get("transaction_id")
+            }
+    except Exception as e:
+        logger.warning(f"[detect_anomalies] Error calculating overdraft warning: {e}")
+
+    # 4. Duplicate detection with accounting & bank reconciliation awareness
     duplicates = []
     seen = {}
     for t in txs:
@@ -663,8 +995,6 @@ def detect_anomalies_and_subscriptions_tool(db: Session) -> dict:
                 orig = seen[key]
                 orig_rec = orig.reconciliation_date is not None
                 
-                # Si les deux opérations sont rapprochées en banque, ce sont deux débits réels confirmés par le relevé bancaire.
-                # Ce ne sont PAS des anomalies de base de données à nettoyer.
                 if orig_rec and is_rec:
                     continue
                 
@@ -708,7 +1038,11 @@ def detect_anomalies_and_subscriptions_tool(db: Session) -> dict:
                 seen[key] = t
                 
     return {
+        "overdraft_warning": overdraft_info,
         "detected_subscriptions": detected_subs,
+        "price_increases_detected": price_increases,
+        "unregistered_subscriptions": unregistered_subs,
+        "recent_spending_spikes": recent_spikes[:5],
         "potential_duplicate_charges": duplicates
     }
 
@@ -1070,14 +1404,16 @@ def set_predicted_paycheck_tool(db: Session, amount: float, day_of_month: int, d
     }
 
 def get_saving_recommendations_tool(db: Session) -> dict:
-    from app.models import Transaction
+    from app.models import Transaction, RecurrenceTemplate, Budget
     from datetime import date, timedelta
+    from app.services.finance_engine import predict_next_paycheck
     
     today = date.today()
     six_months_ago = today - timedelta(days=180)
     txs = db.query(Transaction).filter(
         Transaction.date_operation >= six_months_ago,
-        Transaction.date_operation <= today
+        Transaction.date_operation <= today,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
     ).all()
     
     total_income = sum(t.amount for t in txs if t.type == "income")
@@ -1088,6 +1424,56 @@ def get_saving_recommendations_tool(db: Session) -> dict:
     monthly_fixed = round(total_fixed / 6.0, 2)
     monthly_var = round(total_var / 6.0, 2)
     
+    # ── CASCADE INTELLIGENTE SI HISTORIQUE INSUFFISANT ──
+    data_mode = "historical_6m"
+    if monthly_income < 100.0:
+        sal = 0.0
+        try:
+            paycheck = predict_next_paycheck(db)
+            if paycheck and paycheck.get("amount"):
+                sal = float(paycheck.get("amount") or 0.0)
+        except Exception:
+            sal = 0.0
+            
+        if not sal or sal <= 0:
+            from app.models import GlobalConfig
+            conf_sal = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_amount").first()
+            if conf_sal and conf_sal.value:
+                try:
+                    sal = float(conf_sal.value)
+                except Exception:
+                    pass
+                    
+        if not sal or sal <= 0:
+            inc_tpl = db.query(RecurrenceTemplate).filter(
+                RecurrenceTemplate.type == "income",
+                RecurrenceTemplate.is_closed == False
+            ).first()
+            if inc_tpl and inc_tpl.amount:
+                sal = float(inc_tpl.amount)
+            
+        if sal > 0:
+            monthly_income = sal
+            # Fixed charges from templates
+            active_tpls = db.query(RecurrenceTemplate).filter(
+                RecurrenceTemplate.is_closed == False,
+                RecurrenceTemplate.type.in_(("expense_fixed", "expense_var"))
+            ).all()
+            monthly_fixed = round(sum(t.amount for t in active_tpls), 2)
+            
+            # Variable expenses from active budgets
+            active_budgets = db.query(Budget).filter(
+                Budget.envelope_type == "spending",
+                Budget.is_closed == False
+            ).all()
+            total_b = sum(b.monthly_amount for b in active_budgets if b.monthly_amount)
+            if total_b > 0:
+                monthly_var = round(total_b, 2)
+                data_mode = "projected_envelopes_and_templates"
+            else:
+                monthly_var = round(sal * 0.35, 2)
+                data_mode = "projected_prudential_ratio"
+                
     savings = round(monthly_income - monthly_fixed - monthly_var, 2)
     
     # 50/30/20 standard percentages
@@ -1096,6 +1482,7 @@ def get_saving_recommendations_tool(db: Session) -> dict:
     savings_pct = round((savings / monthly_income * 100) if monthly_income > 0 else 0, 1)
     
     return {
+        "data_source_mode": data_mode,
         "monthly_averages": {
             "income_euros": monthly_income,
             "needs_fixed_euros": monthly_fixed,
@@ -1106,6 +1493,11 @@ def get_saving_recommendations_tool(db: Session) -> dict:
             "needs_percent": needs_pct,
             "wants_percent": wants_pct,
             "savings_percent": savings_pct
+        },
+        "target_50_30_20_benchmarks": {
+            "target_needs_50pct_euros": round(monthly_income * 0.50, 2),
+            "target_wants_30pct_euros": round(monthly_income * 0.30, 2),
+            "target_savings_20pct_euros": round(monthly_income * 0.20, 2)
         },
         "recommendation": "Augmenter l'épargne" if savings_pct < 20 else "Structure saine et équilibrée"
     }
@@ -1454,6 +1846,186 @@ def get_dashboard_synthesis_tool(db: Session, year: int = None, month: int = Non
     }
 
 
+def audit_transactions_integrity_tool(db: Session) -> dict:
+    from app.models import Transaction, RecurrenceTemplate
+    from datetime import date, timedelta
+    
+    today = date.today()
+    thirty_days_ago = today - timedelta(days=30)
+    forty_five_days_ago = today - timedelta(days=45)
+    
+    # 1. Past unreconciled transactions (> 30 days old)
+    past_unreconciled = db.query(Transaction).filter(
+        Transaction.reconciliation_date == None,
+        Transaction.date_operation < thirty_days_ago,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).order_by(Transaction.date_operation.desc()).limit(20).all()
+    
+    past_unrec_list = [
+        {
+            "id": t.id,
+            "date": t.date_operation.isoformat() if t.date_operation else None,
+            "description": t.description,
+            "amount_euros": t.amount,
+            "category": t.category,
+            "days_overdue": (today - t.date_operation).days if t.date_operation else 0
+        }
+        for t in past_unreconciled
+    ]
+    
+    # 2. Uncategorized transactions
+    uncategorized = db.query(Transaction).filter(
+        (Transaction.category == None) | (Transaction.category == "") | (Transaction.category == "Sans catégorie"),
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).order_by(Transaction.date_operation.desc()).limit(20).all()
+    
+    uncat_list = [
+        {
+            "id": t.id,
+            "date": t.date_operation.isoformat() if t.date_operation else None,
+            "description": t.description,
+            "amount_euros": t.amount,
+            "type": t.type
+        }
+        for t in uncategorized
+    ]
+    
+    # 3. Suspicious or inverted transactions
+    suspicious = []
+    recent_txs = db.query(Transaction).filter(
+        Transaction.date_operation >= today - timedelta(days=90),
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).all()
+    
+    for t in recent_txs:
+        issue = None
+        if t.amount is None or t.amount <= 0:
+            issue = "Montant nul ou négatif invalide"
+        elif t.type == "income" and any(k in (t.description or "").lower() for k in ["retrait", "carte", "cb ", "paiement", "prelevement"]):
+            issue = "Recette potentiellement classée par erreur en débit"
+        elif t.type in ("expense_var", "expense_fixed") and any(k in (t.description or "").lower() for k in ["salaire", "remboursement", "virement reçu", "caf", "cpam"]):
+            issue = "Dépense potentiellement classée par erreur (semble être un revenu ou remboursement)"
+            
+        if issue:
+            suspicious.append({
+                "id": t.id,
+                "date": t.date_operation.isoformat() if t.date_operation else None,
+                "description": t.description,
+                "amount_euros": t.amount,
+                "current_type": t.type,
+                "potential_issue": issue
+            })
+
+    # 4. Missing expected recurring charges
+    active_templates = db.query(RecurrenceTemplate).filter(
+        RecurrenceTemplate.is_closed == False,
+        RecurrenceTemplate.type.in_(("expense_fixed", "expense_var"))
+    ).all()
+    
+    missing_recurrences = []
+    for tpl in active_templates:
+        tx_found = db.query(Transaction).filter(
+            Transaction.date_operation >= forty_five_days_ago,
+            (Transaction.recurrence_id == tpl.id) | (Transaction.description.ilike(f"%{tpl.description}%"))
+        ).first()
+        if not tx_found:
+            missing_recurrences.append({
+                "template_id": tpl.id,
+                "description": tpl.description,
+                "expected_amount_euros": tpl.amount,
+                "frequency": tpl.frequency,
+                "day_of_month": tpl.day_of_month,
+                "note": "Aucun débit constaté sur les 45 derniers jours pour ce modèle récurrent actif."
+            })
+            
+    return {
+        "summary": {
+            "unreconciled_past_count": len(past_unrec_list),
+            "uncategorized_count": len(uncat_list),
+            "suspicious_entries_count": len(suspicious),
+            "missing_recurring_charges_count": len(missing_recurrences)
+        },
+        "unreconciled_past_transactions": past_unrec_list,
+        "uncategorized_transactions": uncat_list,
+        "suspicious_transactions": suspicious[:10],
+        "missing_recurring_charges": missing_recurrences
+    }
+
+def simulate_financial_scenario_tool(db: Session, horizon_months: int = 12, project_name: str = None, one_off_amount: float = 0.0, recurring_monthly_amount: float = 0.0, recurring_duration_months: int = 12) -> dict:
+    from app.services.simulator_engine import run_simulation
+    from datetime import date, timedelta
+    from app.models import Transaction
+    
+    try:
+        horizon_months = max(3, min(int(horizon_months), 36))
+    except Exception:
+        horizon_months = 12
+        
+    one_off = float(one_off_amount or 0.0)
+    rec_monthly = float(recurring_monthly_amount or 0.0)
+    rec_dur = max(1, min(int(recurring_duration_months or horizon_months), horizon_months))
+    p_name = project_name or "Projet Simulé"
+    
+    custom_events = []
+    if one_off > 0:
+        custom_events.append({
+            "label": f"{p_name} (Apport/Achat unique)",
+            "event_type": "one_off_expense",
+            "amount": one_off,
+            "duration_months": 1
+        })
+    if rec_monthly > 0:
+        custom_events.append({
+            "label": f"{p_name} (Mensualité/Charge)",
+            "event_type": "recurring_expense",
+            "amount": rec_monthly,
+            "duration_months": rec_dur
+        })
+        
+    sim_result = run_simulation(
+        db,
+        horizon_months=horizon_months,
+        custom_events=custom_events if custom_events else None
+    )
+    
+    today = date.today()
+    six_months_ago = today - timedelta(days=180)
+    txs_inc = db.query(Transaction).filter(
+        Transaction.date_operation >= six_months_ago,
+        Transaction.date_operation <= today,
+        Transaction.type == "income",
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).all()
+    avg_income = (sum(t.amount for t in txs_inc) / 6.0) if txs_inc else 0.0
+    max_debt_capacity_33pct = round(avg_income * 0.33, 2)
+    
+    baseline_end = sim_result.get("baseline_trajectory", [{}])[-1].get("end_balance", 0.0) if sim_result.get("baseline_trajectory") else 0.0
+    simulated_end = sim_result.get("simulated_trajectory", [{}])[-1].get("end_balance", 0.0) if sim_result.get("simulated_trajectory") else 0.0
+    
+    return {
+        "project_name": p_name,
+        "simulation_horizon_months": horizon_months,
+        "project_cost_summary": {
+            "initial_one_off_euros": one_off,
+            "monthly_commitment_euros": rec_monthly,
+            "monthly_duration_months": rec_dur,
+            "total_project_cost_euros": round(one_off + (rec_monthly * rec_dur), 2)
+        },
+        "user_borrowing_capacity": {
+            "monthly_average_income_euros": round(avg_income, 2),
+            "max_recommended_monthly_debt_33pct_euros": max_debt_capacity_33pct,
+            "is_within_recommended_debt_capacity": rec_monthly <= max_debt_capacity_33pct if avg_income > 0 else True
+        },
+        "trajectory_comparison": {
+            "baseline_balance_end_horizon_euros": baseline_end,
+            "simulated_balance_end_horizon_euros": simulated_end,
+            "net_worth_impact_euros": round(simulated_end - baseline_end, 2),
+            "min_simulated_balance_euros": sim_result.get("kpis", {}).get("min_simulated_balance", 0.0),
+            "first_overdraft_month": sim_result.get("kpis", {}).get("first_overdraft_month")
+        },
+        "is_financially_viable": sim_result.get("kpis", {}).get("min_simulated_balance", 0.0) >= 0.0
+    }
+
 def store_financial_fact_tool(db: Session, key: str, value: str, private_to_session: bool = False, session_id: int = None, user_name: str = None) -> dict:
     from app.models import AIFact, OrgUser
     try:
@@ -1524,6 +2096,31 @@ def forget_financial_fact_tool(db: Session, key: str, private_to_session: bool =
         return {"error": str(e)}
 
 TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "audit_transactions_integrity",
+            "description": "Audit the database transactions for data integrity: unreconciled past operations (>30 days), un-categorized operations, suspicious/inverted entries, and missing regular recurring debits. Use this in Auditor mode.",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "simulate_financial_scenario",
+            "description": "Run a comprehensive What-If financial sandbox simulation for a future project (vehicle purchase, real estate, sabbatical, renovations) over 3 to 36 months. Computes trajectory, net worth impact, debt capacity ratio, and overdraft risk. Use this in Simulator mode.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "horizon_months": {"type": "integer", "description": "Simulation horizon in months (e.g. 6, 12, 24). Default is 12."},
+                    "project_name": {"type": "string", "description": "Human name for the project (e.g. 'Achat Moto', 'Travaux Cuisine')."},
+                    "one_off_amount": {"type": "number", "description": "Initial one-off expense or down payment."},
+                    "recurring_monthly_amount": {"type": "number", "description": "Monthly recurring cost or loan repayment."},
+                    "recurring_duration_months": {"type": "integer", "description": "Duration in months of the recurring monthly cost."}
+                }
+            }
+        }
+    },
     {
         "type": "function",
         "function": {
