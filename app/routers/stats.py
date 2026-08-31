@@ -128,6 +128,38 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
         ).all()
         total_unreconciled_expenses = sum(tx.amount for tx in all_unrec_txs)
+
+    # Calculate unreconciled income before next pay (or overall)
+    unreconciled_income = 0.0
+    if next_pay_date and main_acc:
+        unrec_inc_txs = db.query(Transaction).filter(
+            Transaction.date_operation < next_pay_date,
+            Transaction.reconciliation_date.is_(None),
+            Transaction.to_account_id == main_acc.id,
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+        ).all()
+        unreconciled_income = round(sum(tx.amount for tx in unrec_inc_txs), 2)
+    elif main_acc:
+        unrec_inc_txs = db.query(Transaction).filter(
+            Transaction.reconciliation_date.is_(None),
+            Transaction.to_account_id == main_acc.id,
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+        ).all()
+        unreconciled_income = round(sum(tx.amount for tx in unrec_inc_txs), 2)
+
+    total_unreconciled_income = 0.0
+    if main_acc:
+        all_unrec_inc = db.query(Transaction).filter(
+            Transaction.reconciliation_date.is_(None),
+            Transaction.to_account_id == main_acc.id,
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+        ).all()
+        total_unreconciled_income = round(sum(tx.amount for tx in all_unrec_inc), 2)
+
+    rest_to_live_with_income = round(rest_to_live + unreconciled_income, 2)
         
     # Hide overdraft warning if the risk date is after the next predicted pay date
     if warning and next_pay_date:
@@ -206,6 +238,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "liquid_net_worth": liquid_net_worth,
         "loan_total": loan_total,
         "rest_to_live": rest_to_live,
+        "rest_to_live_with_income": rest_to_live_with_income,
         "next_pay_date": next_pay_date,
         "next_pay_amount": next_pay_amount,
         "is_pay_override": is_pay_override,
@@ -216,6 +249,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "overdraft_warning": warning,
         "unreconciled_expenses": unreconciled_expenses,
         "total_unreconciled_expenses": total_unreconciled_expenses,
+        "unreconciled_income": unreconciled_income,
+        "total_unreconciled_income": total_unreconciled_income,
         "budget_summary": period_groups,
         "savings_summary": savings_summary,
         "savings_details": savings_list,

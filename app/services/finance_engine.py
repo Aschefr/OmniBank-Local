@@ -266,6 +266,7 @@ def get_accounts_available_balances(db: Session, precomputed_balances: dict = No
 def get_overdraft_warning(db: Session, account_id: int = None, current_date: date = None, precomputed_balances: dict = None):
     """
     Calculate if and when the account will drop below 0 if NO future income is received.
+    Also calculates the impact of planned incoming transactions (recettes prévues).
     If account_id is None, uses the main account.
     """
     if account_id is None:
@@ -276,7 +277,8 @@ def get_overdraft_warning(db: Session, account_id: int = None, current_date: dat
         return None
         
     balances_now = precomputed_balances if precomputed_balances is not None else calculate_balances(db, only_reconciled=True)
-    simulated_balance = balances_now.get(account.id, 0.0)
+    initial_balance = balances_now.get(account.id, 0.0)
+    simulated_balance = initial_balance
     
     # Get all unreconciled expenses sorted by date (exclude skipped and pending cross-profile)
     future_expenses = db.query(Transaction).filter(
@@ -286,19 +288,69 @@ def get_overdraft_warning(db: Session, account_id: int = None, current_date: dat
         (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
     ).order_by(Transaction.date_operation.asc()).all()
 
-    
+    conservative_warning = None
     for t in future_expenses:
         simulated_balance -= t.amount
         if simulated_balance < 0:
-            return {
+            conservative_warning = {
                 "date": t.date_operation,
                 "transaction_description": t.description,
                 "transaction_amount": t.amount,
                 "projected_balance": round(simulated_balance, 2),
                 "transaction_id": t.id
             }
+            break
             
-    return None
+    if not conservative_warning:
+        return None
+
+    # Calculate beneficial impact of planned receipts
+    future_income = db.query(Transaction).filter(
+        Transaction.reconciliation_date == None,
+        Transaction.to_account_id == account.id,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+    ).order_by(Transaction.date_operation.asc()).all()
+
+    planned_income_total = sum(t.amount for t in future_income)
+    planned_income_before_risk = sum(t.amount for t in future_income if t.date_operation <= conservative_warning["date"])
+
+    # Simulate combined chronological cashflow up to the conservative risk date (income first on same date)
+    ops = []
+    for t in future_expenses:
+        ops.append((t.date_operation, 1, -t.amount, t))
+    for t in future_income:
+        ops.append((t.date_operation, 0, t.amount, t))
+    ops.sort(key=lambda x: (x[0], x[1]))
+
+    horizon_date = conservative_warning["date"]
+    ops_up_to_risk = [op for op in ops if op[0] <= horizon_date]
+
+    sim_with_inc = initial_balance
+    min_sim_with_inc = initial_balance
+    first_neg_date = None
+    first_neg_amount = None
+
+    for op_date, _, delta, _ in ops_up_to_risk:
+        sim_with_inc += delta
+        if sim_with_inc < min_sim_with_inc:
+            min_sim_with_inc = sim_with_inc
+        if sim_with_inc < 0 and first_neg_date is None:
+            first_neg_date = op_date
+            first_neg_amount = sim_with_inc
+
+    covered_by_income = (min_sim_with_inc >= 0)
+
+    conservative_warning.update({
+        "covered_by_income": covered_by_income,
+        "planned_income_total": round(planned_income_total, 2),
+        "planned_income_before_risk": round(planned_income_before_risk, 2),
+        "projected_balance_with_income": round(min_sim_with_inc, 2),
+        "with_income_risk_date": first_neg_date,
+        "with_income_risk_amount": round(first_neg_amount, 2) if first_neg_amount is not None else None,
+    })
+
+    return conservative_warning
 
 def predict_next_paycheck(db: Session):
     """
