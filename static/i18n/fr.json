@@ -2311,5 +2311,7 @@
   "chat_entity_projected_bal": "Solde prévisionnel",
   "chat_group_memory_name": "Mémoire",
   "chat_group_memory_desc": "Mémorisation et oubli de faits financiers persistants à travers les conversations (loyer, objectifs d'épargne, événements récurrents…).",
-  "chat_info_access_memory": "Mémoire"
+  "chat_info_access_memory": "Mémoire",
+  "chat_entity_committed_planned": "Engagé (Prévu)",
+  "chat_entity_future_breakdown_title": "Opérations & charges prévues"
 }

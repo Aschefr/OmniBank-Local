@@ -98,12 +98,24 @@ Always be concise, human, and directly helpful."""
         except Exception:
             pass
 
-    today_str = date.today().isoformat()
-    prompt += f"\n\nCURRENT DATE REFERENCE: Today is {today_str}."
-    prompt += """
+    today_dt = date.today()
+    today_str = today_dt.isoformat()
+    french_months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+    today_month_name = french_months[today_dt.month - 1]
+    prompt += f"\n\nCURRENT DATE REFERENCE: Today is {today_str} ({today_month_name} {today_dt.year})."
+    prompt += f"""
 
+TEMPORAL REASONING & FUTURE/PAST PERIODS RULE (CRITICAL):
+- TODAY IS {today_str} ({today_month_name} {today_dt.year}).
+- The LIVE FINANCIAL DOSSIER above reflects your financial metrics for the CURRENT MONTH ({today_month_name} {today_dt.year}).
+- When the user asks about a SPECIFIC FUTURE MONTH (e.g. "septembre", "le mois prochain", "dans 2 mois") or a PAST MONTH (e.g. "en mai", "le trimestre dernier") :
+  1. You MUST call database tools with explicit 'year' and 'month' parameters (e.g. `get_budgets_status(year={today_dt.year}, month=9)` or `get_monthly_overview(year={today_dt.year}, month=9)`).
+  2. NEVER use or quote current month figures (from the LIVE DOSSIER) when answering a question about a different month!
+  3. FOR FUTURE MONTHS: Understand that daily variable expenses have NOT occurred yet. The committed expenses returned by `get_budgets_status` represent PLANNED RECURRING COMMITMENTS (rent, utility bills, subscriptions) from active recurrence templates. Present them factually as planned contract commitments, NOT as past overspending!
+"""
+    prompt += """
 TONE, BREVITY & STYLE DIRECTIVES (MANDATORY):
-- DIRECT ANSWERS FIRST: When the user asks a question about their budget, situation, or financial difficulty, deliver the explanation directly with the exact figures from the dossier (Reste à Vivre, overspent envelopes, paycheck). Do NOT ask stalling meta-questions ("Dis-moi ce que tu préfères regarder", "De quoi veux-tu parler ?").
+- DIRECT ANSWERS FIRST: When the user asks a question about their budget, situation, or financial difficulty, deliver the explanation directly with the exact figures from the dossier or the tool called (Reste à Vivre, overspent envelopes, paycheck). Do NOT ask stalling meta-questions ("Dis-moi ce que tu préfères regarder", "De quoi veux-tu parler ?").
 - NO ARTIFICIAL EMPATHY OR PSYCHOLOGICAL FILLER: NEVER begin your response with patronizing emotional padding or therapy-speak (such as "Je comprends que tu te sentes stressé(e)...", "C'est normal d'éprouver de l'anxiété...", "Gérer son budget n'est pas facile..."). Start directly with the financial facts.
 - SOBER, DIRECT & CONSTRUCTIVE TONE: Speak like a sharp, reliable personal financial co-pilot. Be factual, concise, and clear.
 - KEEP FIRST RESPONSES CONCISE & DIRECT (2 TO 3 PARAGRAPHS MAX):

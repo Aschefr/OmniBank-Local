@@ -488,6 +488,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 if (data.token_usage) {
                     this.tokenUsage = data.token_usage;
                 }
+                if (!this._entityCache && this.loadEntityCache) {
+                    await this.loadEntityCache();
+                }
                 this.renderHistory(isRestore);
 
                 // Check compression status if compressing

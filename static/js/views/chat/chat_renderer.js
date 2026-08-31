@@ -636,34 +636,79 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
     // ─── Smart Entity Badges & Interactive Popover Engine ───
     _entityCache: null,
-    _entityLoading: false,
+    _entityLoadingPromise: null,
     _popoverInitialized: false,
 
     async loadEntityCache() {
-        if (this._entityCache || this._entityLoading) return;
-        this._entityLoading = true;
-        try {
-            const [bRes, aRes, cRes] = await Promise.all([
-                API.get('/api/budgets/status').catch(() => null),
-                API.get('/api/accounts/').catch(() => null),
-                API.get('/api/categories/').catch(() => null)
-            ]);
-            this._entityCache = {
-                budgets: (bRes?.budgets || []).filter(b => b.name && b.name.trim().length >= 3),
-                accounts: (aRes || []).filter(a => a.name && a.name.trim().length >= 3),
-                categories: (cRes || []).filter(c => (c.name || c).trim().length >= 3)
-            };
-        } catch (e) {
-            console.warn('[Chat] Failed to load entity cache:', e);
-        } finally {
-            this._entityLoading = false;
-        }
+        if (this._entityCache) return this._entityCache;
+        if (this._entityLoadingPromise) return this._entityLoadingPromise;
+        
+        this._entityLoadingPromise = (async () => {
+            try {
+                const [bRes, aRes, cRes] = await Promise.all([
+                    API.get('/api/budgets/status').catch(() => null),
+                    API.get('/api/accounts/').catch(() => null),
+                    API.get('/api/categories/').catch(() => null)
+                ]);
+                this._entityCache = {
+                    budgets: (bRes?.budgets || []).filter(b => b.name && b.name.trim().length >= 3),
+                    accounts: (aRes || []).filter(a => a.name && a.name.trim().length >= 3),
+                    categories: (cRes || []).filter(c => (c.name || c).trim().length >= 3)
+                };
+                // If messages are already displayed without full badges, trigger a re-render
+                if (this.messages && this.messages.length > 0 && !this._activeAbortController) {
+                    this.renderHistory();
+                }
+                return this._entityCache;
+            } catch (e) {
+                console.warn('[Chat] Failed to load entity cache:', e);
+            } finally {
+                this._entityLoadingPromise = null;
+            }
+        })();
+        return this._entityLoadingPromise;
     },
 
     enrichWithEntityBadges(html, entitySnapshots = null) {
         if (!html || typeof html !== 'string') return html;
 
-        // Try getting entities from cache or fallback to globals
+        // Build list of entities sorted by length descending to match longest phrases first
+        const entities = [];
+
+        // 1. If message has historical snapshots attached, extract all snapshot entities directly!
+        if (entitySnapshots && typeof entitySnapshots === 'object') {
+            for (const [snapKey, snapData] of Object.entries(entitySnapshots)) {
+                if (!snapData) continue;
+                let type = 'category';
+                let name = snapKey;
+                let id = snapData.id || 0;
+                if (snapKey.startsWith('budget:')) {
+                    type = 'budget';
+                    name = snapKey.substring(7);
+                } else if (snapKey.startsWith('account:')) {
+                    type = 'account';
+                    name = snapKey.substring(8);
+                } else if (snapKey.startsWith('category:')) {
+                    type = 'category';
+                    name = snapKey.substring(9);
+                }
+                if (name && name.length >= 3 && !entities.some(e => e.name.toLowerCase() === name.toLowerCase())) {
+                    let icon = '🏷️';
+                    if (type === 'budget') icon = snapData.envelope_type === 'savings' ? '🎯' : '🏷️';
+                    else if (type === 'account') icon = '🏦';
+                    else if (type === 'category') icon = '🛒';
+                    entities.push({
+                        type,
+                        id,
+                        name,
+                        icon,
+                        data: snapData
+                    });
+                }
+            }
+        }
+
+        // 2. Supplement with global cache or live globals
         let budgets = this._entityCache?.budgets;
         if (!budgets && window.BudgetsView?.statusData?.budgets) {
             budgets = window.BudgetsView.statusData.budgets;
@@ -677,16 +722,14 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             categories = window.categories;
         }
 
-        if (!budgets && !accounts && !categories) {
+        if (!budgets && !accounts && !categories && entities.length === 0) {
             this.loadEntityCache();
             return html;
         }
 
-        // Build list of entities sorted by length descending to match longest phrases first
-        const entities = [];
         if (budgets) {
             for (const b of budgets) {
-                if (b.name && b.name.length >= 3) {
+                if (b.name && b.name.length >= 3 && !entities.some(e => e.type === 'budget' && e.name.toLowerCase() === b.name.toLowerCase())) {
                     entities.push({
                         type: 'budget',
                         id: b.id,
@@ -699,7 +742,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
         if (accounts) {
             for (const a of accounts) {
-                if (a.name && a.name.length >= 3) {
+                if (a.name && a.name.length >= 3 && !entities.some(e => e.type === 'account' && e.name.toLowerCase() === a.name.toLowerCase())) {
                     entities.push({
                         type: 'account',
                         id: a.id,
@@ -976,6 +1019,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 } catch (e) {}
             }
 
+            const isFuture = snapshot?.is_future || (y > now.getFullYear() || (y === now.getFullYear() && m > (now.getMonth() + 1)));
+
             let barColor = '#10b981';
             if (pct >= 100) barColor = '#ef4444';
             else if (pct >= 80) barColor = '#f59e0b';
@@ -1000,12 +1045,13 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             }
 
             const snapshotBadge = isHistorical ? `
-                <span title="Données enregistrées lors de cette réponse" style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--text-muted); font-weight:500; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0;">
-                    <span>📸</span><span>${m}/${y}</span>
+                <span title="${isFuture ? 'Projection prévisionnelle pour cette période future' : 'Données enregistrées lors de cette réponse'}" style="font-size:10px; padding:2px 6px; border-radius:4px; background:${isFuture ? 'rgba(139,92,246,0.18)' : 'rgba(255,255,255,0.08)'}; color:${isFuture ? '#c084fc' : 'var(--text-muted)'}; font-weight:600; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0; border:1px solid ${isFuture ? 'rgba(192,132,252,0.3)' : 'transparent'};">
+                    <span>${isFuture ? '🔮' : '📸'}</span><span>${m}/${y}${isFuture ? ' (Prévu)' : ''}</span>
                 </span>
             ` : '';
 
             const snapshotContextJson = isHistorical ? JSON.stringify({ snapshot_year: y, snapshot_month: m }).replace(/"/g, '&quot;') : 'null';
+            const spentLabel = isFuture ? (window.i18n.t('chat_entity_committed_planned') || 'Engagé (Prévu)') : (window.i18n.t('chat_entity_spent') || 'Dépensé');
 
             popover.innerHTML = `
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px;">
@@ -1028,7 +1074,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; font-size:11px; background:rgba(0,0,0,0.15); padding:8px; border-radius:8px; margin-bottom:8px;">
                     <div>
-                        <span style="color:var(--text-muted);">${window.i18n.t('chat_entity_spent') || 'Dépensé'} :</span>
+                        <span style="color:var(--text-muted);">${spentLabel} :</span>
                         <div style="font-weight:600; color:var(--text-main);">${fmt(spent)}</div>
                     </div>
                     <div>
@@ -1211,6 +1257,13 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         if (window.app) {
             if (window.BudgetsView) {
                 window.BudgetsView.backToView = 'chat';
+                if (year && month) {
+                    const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
+                    window.BudgetsView.monthlyMonth = targetMonth;
+                    if (window.ProfileStorage) {
+                        ProfileStorage.set('budget_monthly_month', targetMonth);
+                    }
+                }
             }
             window.app.loadView('budgets');
             setTimeout(() => {
@@ -1219,7 +1272,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 if (window.BudgetsView && typeof window.BudgetsView.showDetail === 'function') {
                     window.BudgetsView.showDetail(budgetId, budgetName, year, month);
                 }
-            }, 200);
+            }, 250);
         }
     },
 

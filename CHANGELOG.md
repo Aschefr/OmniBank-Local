@@ -5,21 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [1.0.99] - 2026-08-31
 
 ### Added & Improved
-- **Intelligent Cascade & Cold Start Resolution 🔄**:
-  - Implemented a 3-tier hierarchical spending rate estimation engine (`calculate_daily_variable_spending_rate`):
-    1. **Tier 1 (Observed Real History $\ge 15$ days)**: Computes actual daily spending rate from past 90-day variable expenses with statistical IQR outlier exclusion (e.g. major one-off vehicle or appliance purchases).
-    2. **Tier 2 (Active Budget Envelopes Fallback)**: Automatically converts active spending budget envelopes into a daily variable pace (`Total / 30.42 days`) when transaction history is sparse.
-    3. **Tier 3 (Prudential Salary Ratio)**: Employs a 35% net salary prudential baseline when onboarding brand-new accounts with zero envelopes and zero history.
-  - Enhanced AI transparency: The assistant explicitly communicates the computation basis (`daily_average_source_note`) directly in projections and summaries.
-  - Extended fallback cascade across budget planning (50/30/20 benchmark guidance), anomaly detection (envelope consumption spikes), and savings advice (`get_saving_recommendations`).
-- **Enhanced Multi-Cycle AI Forecasting & Role Tools 📈**:
-  - Multi-cycle paycheck projection in `forecast_balances_history`: Projects upcoming monthly paychecks on expected dates across 30, 60, and 90-day horizons, eliminating artificial cash deficits.
-  - Clear financial distinction between operational checking account liquidity and total liquid savings cushions (Livret A, LDD).
-  - Added dedicated AI Assistant RAG tools: `audit_transactions_integrity` (unreconciled items $>30$ days, uncategorized operations, inverted debit/credit flows) and `simulate_financial_scenario` (What-If project sandbox and borrowing capacity).
-- **Polished Markdown Table Rendering in AI Chat 📊**:
-  - Designed custom modern styling for AI-generated Markdown tables (`.chat-table-wrapper` and `.chat-markdown-table`): rounded borders, dark backdrop, contrast header with subtle blue accent, generous cell padding (10px 16px), tabular numbers, and smooth row hover effects.
-- **Resilient Transaction Serialization 🛡️**:
-  - Made `date_saisie` optional in FastAPI schema `TransactionBase`, preventing 500 serialization errors on transactions missing manual entry timestamps.
+- **Intelligent Spending Cascade & Cold Start Support 🔄**:
+  - Implemented an automatic 3-tier fallback engine (observed history, active budget envelopes, or prudential salary ratio) delivering reliable financial forecasts and Reste à Vivre calculations even on brand-new or low-history profiles.
+- **Enhanced Interactive Badges & Budget Parity 🔮**:
+  - Interactive chat badges now seamlessly adapt to past, present, and future periods with dedicated planned badges (`🔮 M/YYYY (Prévu)`), instant navigation to the corresponding budget month, and strict 100% amount parity with the Budgets view.
+  - Resolved badge persistence on browser refresh (F5).
+- **Multi-Cycle Forecasting & Financial Integrity Audits 📈**:
+  - Improved multi-month paycheck projections across 30, 60, and 90-day horizons.
+  - Added specialized integrity auditing tools for the AI assistant to pinpoint long-unreconciled items and uncategorized operations.
+- **Polished Markdown Tables in AI Chat 📊**:
+  - Modern, responsive styling for AI-generated comparison tables with clear contrast headers and tabular alignment.
 
 ## [1.0.98] - 2026-08-30
 
