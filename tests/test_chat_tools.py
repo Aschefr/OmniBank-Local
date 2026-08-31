@@ -268,3 +268,111 @@ def test_build_entity_snapshots_future_period(db_session):
     assert snap["is_future"] is True
 
 
+def test_get_recurrence_templates_tool_excludes_completed_occurrences(db_session):
+    """Vérifie que get_recurrence_templates_tool et get_active_recurrence_templates excluent strictement les modèles dont max_occurrences est atteint."""
+    from app.services.chat.chat_tools import get_recurrence_templates_tool, get_active_recurrence_templates
+
+    # Template 10: 3 occurrences max, 3 déjà faites -> DOIT être exclu
+    tpl_completed = RecurrenceTemplate(
+        id=10,
+        description="Delko - Freins Prius",
+        amount=179.28,
+        type="expense_var",
+        category="Automobile",
+        frequency="Monthly",
+        day_of_month=18,
+        max_occurrences=3,
+        from_account_id=1,
+        is_closed=False
+    )
+    # Template 11: 4 occurrences max, 2 faites -> DOIT rester actif (remaining=2)
+    tpl_partial = RecurrenceTemplate(
+        id=11,
+        description="Paiement 4x Smartphone",
+        amount=200.0,
+        type="expense_var",
+        category="High-Tech",
+        frequency="Monthly",
+        day_of_month=10,
+        max_occurrences=4,
+        from_account_id=1,
+        is_closed=False
+    )
+    # Template 12: Illimité -> DOIT rester actif
+    tpl_unlimited = RecurrenceTemplate(
+        id=12,
+        description="Assurance Habitation",
+        amount=45.0,
+        type="expense_fixed",
+        category="Logement",
+        frequency="Monthly",
+        day_of_month=1,
+        max_occurrences=None,
+        from_account_id=1,
+        is_closed=False
+    )
+    db_session.add_all([tpl_completed, tpl_partial, tpl_unlimited])
+    db_session.flush()
+
+    today = date.today()
+    # 3 txs pour tpl_completed
+    for i in range(3):
+        db_session.add(Transaction(
+            recurrence_id=10,
+            description="Delko - Freins Prius",
+            amount=179.28,
+            date_operation=today - timedelta(days=30 * (3 - i)),
+            reconciliation_date=today - timedelta(days=30 * (3 - i)),
+            from_account_id=1,
+            type="expense_var",
+            category="Automobile"
+        ))
+
+    # 2 txs pour tpl_partial
+    for i in range(2):
+        db_session.add(Transaction(
+            recurrence_id=11,
+            description="Paiement 4x Smartphone",
+            amount=200.0,
+            date_operation=today - timedelta(days=30 * (2 - i)),
+            reconciliation_date=today - timedelta(days=30 * (2 - i)),
+            from_account_id=1,
+            type="expense_var",
+            category="High-Tech"
+        ))
+
+    db_session.commit()
+
+    # 1. get_active_recurrence_templates
+    active_tpls = get_active_recurrence_templates(db_session)
+    active_ids = {t.id for t in active_tpls}
+    assert 10 not in active_ids, "Le template 10 (Delko) avec 3/3 occurrences complétées ne doit PAS être dans les actifs"
+    assert 11 in active_ids, "Le template 11 (2/4 occurrences) doit être actif"
+    assert 12 in active_ids, "Le template 12 (illimité) doit être actif"
+
+    # 2. get_recurrence_templates_tool (default include_completed=False)
+    tool_res = get_recurrence_templates_tool(db_session)
+    tool_ids = {t["id"] for t in tool_res["templates"]}
+    assert 10 not in tool_ids
+    assert 11 in tool_ids
+    assert 12 in tool_ids
+
+    # Vérifier les métadonnées du template partiel
+    tpl_partial_data = next(t for t in tool_res["templates"] if t["id"] == 11)
+    assert tpl_partial_data["max_occurrences"] == 4
+    assert tpl_partial_data["occurrences_generated"] == 2
+    assert tpl_partial_data["remaining_occurrences"] == 2
+    assert tpl_partial_data["status"] == "active"
+    assert tpl_partial_data["is_completed"] is False
+
+    # 3. get_recurrence_templates_tool avec include_completed=True
+    tool_all_res = get_recurrence_templates_tool(db_session, include_completed=True)
+    all_tool_ids = {t["id"] for t in tool_all_res["templates"]}
+    assert 10 in all_tool_ids
+    tpl_completed_data = next(t for t in tool_all_res["templates"] if t["id"] == 10)
+    assert tpl_completed_data["is_completed"] is True
+    assert tpl_completed_data["status"] == "completed"
+    assert tpl_completed_data["remaining_occurrences"] == 0
+
+
+

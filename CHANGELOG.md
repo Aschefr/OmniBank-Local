@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-08-31
+
+### Added & Improved
+- **Strict Temporal Grounding & Exhausted Recurrences Exclusion for AI Assistant 🛡️**:
+  - Automatically filtered out completed recurrence templates (`max_occurrences` quota reached) across all AI RAG tools (`get_recurrence_templates`, `detect_anomalies_and_subscriptions`, `get_forecast_simulation`, `simulate_financial_scenario`, and `audit_transactions_integrity`).
+  - Enriched recurrence tool payloads with human-readable frequency labels (`frequency_human`), applicable calendar month lists (`applicable_months`), last reconciled payment details, and precise next expected execution dates (`next_expected_date`), preventing linguistic and temporal hallucinations on non-monthly (semi-annual, yearly) commitments.
+
 ## [1.0.99] - 2026-08-31
 
 ### Added & Improved
