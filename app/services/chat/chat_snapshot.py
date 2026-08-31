@@ -73,7 +73,7 @@ def build_entity_snapshots(final_text: str, db: Session, year: int, month: int) 
                 if cat.name and len(cat.name) >= 3 and cat.name.lower() in text_lower:
                     key = f"category:{cat.name}"
                     if key not in snapshots:
-                        snap = _snapshot_category(db, cat)
+                        snap = _snapshot_category(db, cat, year, month)
                         if snap:
                             snapshots[key] = snap
         except Exception as e:
@@ -105,23 +105,27 @@ def _snapshot_budget(db: Session, budget_data: dict, year: int, month: int) -> O
         remaining = float(budget_data.get("remaining", limit_ - spent))
         percent = float(budget_data.get("percent", (spent / limit_ * 100) if limit_ > 0 else 0.0))
 
-        # 3 dernières transactions du mois pour ce budget
+        # Dernières transactions du mois pour ce budget (par catégories et budget_id)
         recent_txs = []
         if budget_id:
             try:
                 start_date = date(year, month, 1)
                 end_date = date(year, month, calendar.monthrange(year, month)[1])
-                txs = (
-                    db.query(Transaction)
-                    .filter(
-                        Transaction.date_operation >= start_date,
-                        Transaction.date_operation <= end_date,
-                        Transaction.budget_id == budget_id,
-                    )
-                    .order_by(Transaction.date_operation.desc())
-                    .limit(3)
-                    .all()
+                from app.models import BudgetCategory
+                b_cats = [bc.category_name for bc in db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget_id).all()]
+                
+                query = db.query(Transaction).filter(
+                    Transaction.date_operation >= start_date,
+                    Transaction.date_operation <= end_date,
+                    (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+                    (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
                 )
+                if b_cats:
+                    query = query.filter((Transaction.budget_id == budget_id) | (Transaction.category.in_(b_cats)))
+                else:
+                    query = query.filter(Transaction.budget_id == budget_id)
+
+                txs = query.order_by(Transaction.date_operation.desc()).limit(5).all()
                 for t in txs:
                     recent_txs.append({
                         "description": t.description or "",
@@ -132,12 +136,16 @@ def _snapshot_budget(db: Session, budget_data: dict, year: int, month: int) -> O
             except Exception as e:
                 logger.debug(f"[Snapshot] Transactions budget {budget_id}: {e}")
 
+        today = date.today()
+        is_future = (year > today.year) or (year == today.year and month > today.month)
+
         return {
             "type": "budget",
             "id": budget_id,
             "name": budget_name,
             "snapshot_year": year,
             "snapshot_month": month,
+            "is_future": is_future,
             "spent": round(spent, 2),
             "limit": round(limit_, 2),
             "percent": round(percent, 1),
@@ -170,19 +178,42 @@ def _snapshot_account(db: Session, account: Account) -> Optional[dict]:
         return None
 
 
-def _snapshot_category(db: Session, category: Category) -> Optional[dict]:
+def _snapshot_category(db: Session, category: Category, year: int = None, month: int = None) -> Optional[dict]:
     """Capture les 4 dernières transactions d'une catégorie."""
     try:
+        today = date.today()
+        y = year or today.year
+        m = month or today.month
+        
+        # Try finding transactions in targeted month first
+        start_date = date(y, m, 1)
+        end_date = date(y, m, calendar.monthrange(y, m)[1])
+        
         txs = (
             db.query(Transaction)
             .filter(
                 Transaction.category == category.name,
-                Transaction.date_operation <= date.today(),
+                Transaction.date_operation >= start_date,
+                Transaction.date_operation <= end_date,
             )
             .order_by(Transaction.date_operation.desc())
             .limit(4)
             .all()
         )
+        
+        if not txs:
+            # Fallback to recent transactions up to today
+            txs = (
+                db.query(Transaction)
+                .filter(
+                    Transaction.category == category.name,
+                    Transaction.date_operation <= today,
+                )
+                .order_by(Transaction.date_operation.desc())
+                .limit(4)
+                .all()
+            )
+            
         recent_txs = [
             {
                 "description": t.description or "",
@@ -195,7 +226,9 @@ def _snapshot_category(db: Session, category: Category) -> Optional[dict]:
         return {
             "type": "category",
             "name": category.name,
-            "snapshot_date": date.today().isoformat(),
+            "snapshot_year": y,
+            "snapshot_month": m,
+            "snapshot_date": today.isoformat(),
             "recent_txs": recent_txs,
         }
     except Exception as e:

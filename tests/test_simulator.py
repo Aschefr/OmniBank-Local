@@ -35,6 +35,13 @@ def setup_sim_db():
     acc_sav = Account(id=2, name="Livret A Test", type="Livret", initial_balance=10000.0)
     db.add_all([acc_main, acc_sav])
 
+    # Create Category and GlobalConfig
+    from app.models import Category, GlobalConfig
+    db.query(Category).delete()
+    db.query(GlobalConfig).delete()
+    db.add(Category(name="Salaire", type="income"))
+    db.add(GlobalConfig(key="pay_category", value="Salaire"))
+
     # Create test recurrence template (loyer -600€)
     rec = RecurrenceTemplate(
         id=1,
@@ -53,6 +60,8 @@ def setup_sim_db():
         description="Salaire reçu",
         amount=2200.0,
         type="income",
+        category="Salaire",
+        is_salary=True,
         to_account_id=1,
         reconciliation_date=date.today()
     )

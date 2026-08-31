@@ -229,3 +229,42 @@ def test_saving_recommendations_cold_start(db_session):
     assert "target_50_30_20_benchmarks" in res
     assert res["target_50_30_20_benchmarks"]["target_savings_20pct_euros"] == 500.0
 
+
+def test_get_budgets_status_future_period(db_session):
+    """Vérifie que get_budgets_status_tool détecte les périodes futures et projette les récurrences."""
+    today = date.today()
+    future_year = today.year + 1
+    future_month = 9
+
+    res = get_budgets_status_tool(db_session, year=future_year, month=future_month)
+    assert "target_period" in res
+    assert res["target_period"]["year"] == future_year
+    assert res["target_period"]["month"] == future_month
+    assert res["target_period"]["is_future"] is True
+    assert res["target_period"]["is_past"] is False
+    assert res["target_period"]["is_current"] is False
+
+    # Check budget items
+    assert len(res["budgets"]) > 0
+    food_budget = next((b for b in res["budgets"] if b["name"] == "Alimentation"), None)
+    assert food_budget is not None
+    assert food_budget["is_future_period"] is True
+
+
+def test_build_entity_snapshots_future_period(db_session):
+    """Vérifie que build_entity_snapshots génère des snapshots correctement datés pour un mois futur."""
+    from app.services.chat.chat_snapshot import build_entity_snapshots
+
+    text_ai = "Votre budget Alimentation est bien dimensionné pour le mois prochain."
+    today = date.today()
+    future_year = today.year + 1
+    future_month = 10
+
+    snaps = build_entity_snapshots(text_ai, db_session, year=future_year, month=future_month)
+    assert "budget:Alimentation" in snaps
+    snap = snaps["budget:Alimentation"]
+    assert snap["snapshot_year"] == future_year
+    assert snap["snapshot_month"] == future_month
+    assert snap["is_future"] is True
+
+
