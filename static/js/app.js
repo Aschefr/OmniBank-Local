@@ -1538,6 +1538,23 @@ class App {
             } else {
                 valRestToLive.style.color = ''; // Default green
             }
+
+            const valRestToLiveSub = document.getElementById('valRestToLiveSub');
+            if (valRestToLiveSub) {
+                const inc = stats.unreconciled_income || 0;
+                if (inc > 0) {
+                    valRestToLiveSub.style.display = 'block';
+                    valRestToLiveSub.style.color = '#10b981';
+                    const ravWithInc = (stats.rest_to_live_with_income !== undefined) ? stats.rest_to_live_with_income : (stats.rest_to_live + inc);
+                    const subText = window.i18n.tp ? window.i18n.tp('overview_rav_planned_income', { income: formatCurrency(inc), total: formatCurrency(ravWithInc) }) : `+${formatCurrency(inc)} prévus (→ ${formatCurrency(ravWithInc)})`;
+                    valRestToLiveSub.textContent = subText;
+                    const tooltip = window.i18n.tp ? window.i18n.tp('overview_rav_planned_income_tooltip', { income: formatCurrency(inc), total: formatCurrency(ravWithInc) }) : `Reste à vivre avec encaissement des recettes prévues (+${formatCurrency(inc)}) : ${formatCurrency(ravWithInc)}`;
+                    valRestToLiveSub.title = tooltip;
+                } else {
+                    valRestToLiveSub.style.display = 'none';
+                    valRestToLiveSub.textContent = '';
+                }
+            }
             
             // Load base config early to check Org Mode
             const configs = window.app.config || await API.get('/api/config/');
@@ -1798,10 +1815,27 @@ class App {
             const overdraftBox = document.getElementById('overdraftBox');
             if (stats.overdraft_warning) {
                 overdraftBox.style.display = 'block';
-                document.getElementById('valOverdraft').textContent = formatCurrency(stats.overdraft_warning.projected_balance);
-                document.getElementById('valOverdraftDate').textContent = `${formatDate(stats.overdraft_warning.date)} (${stats.overdraft_warning.transaction_description})`;
+                const od = stats.overdraft_warning;
+                document.getElementById('valOverdraft').textContent = formatCurrency(od.projected_balance);
                 
-                const expText = window.i18n.t('msg_overdraft_explanation') ? window.i18n.tp('msg_overdraft_explanation', {date: formatDate(stats.overdraft_warning.date)}) : `If no income by ${formatDate(stats.overdraft_warning.date)}, risk of overdraft caused by this transaction.`;
+                let dateSub = `${formatDate(od.date)} (${od.transaction_description})`;
+                if (od.covered_by_income) {
+                    const incAmt = od.planned_income_before_risk || od.planned_income_total || 0;
+                    const covLabel = window.i18n.tp ? window.i18n.tp('overview_overdraft_covered_sub', { income: formatCurrency(incAmt) }) : `Couvert (+${formatCurrency(incAmt)})`;
+                    dateSub += ` • <span style="color: #10b981; font-weight: 700;">✅ ${covLabel}</span>`;
+                }
+                document.getElementById('valOverdraftDate').innerHTML = dateSub;
+                
+                let expText = '';
+                if (od.covered_by_income) {
+                    const incAmt = od.planned_income_before_risk || od.planned_income_total || 0;
+                    expText = window.i18n.tp ? window.i18n.tp('msg_overdraft_covered_by_income', { date: formatDate(od.date), amount: formatCurrency(od.projected_balance), income: formatCurrency(incAmt) }) : `Si aucune recette avant le ${formatDate(od.date)}, risque de découvert (${formatCurrency(od.projected_balance)}). Les recettes prévues (+${formatCurrency(incAmt)}) permettent toutefois d'absorber ce risque.`;
+                } else if (od.projected_balance_with_income !== undefined && od.projected_balance_with_income > od.projected_balance) {
+                    const incAmt = od.planned_income_total || 0;
+                    expText = window.i18n.tp ? window.i18n.tp('msg_overdraft_reduced_by_income', { date: formatDate(od.date), amount: formatCurrency(od.projected_balance), income: formatCurrency(incAmt), reduced_amount: formatCurrency(od.projected_balance_with_income) }) : `Si aucune recette avant le ${formatDate(od.date)}, risque de découvert (${formatCurrency(od.projected_balance)}). Avec les recettes prévues (+${formatCurrency(incAmt)}), le découvert est réduit à ${formatCurrency(od.projected_balance_with_income)}.`;
+                } else {
+                    expText = window.i18n.t('msg_overdraft_explanation') ? window.i18n.tp('msg_overdraft_explanation', {date: formatDate(od.date)}) : `If no income by ${formatDate(od.date)}, risk of overdraft caused by this transaction.`;
+                }
                 document.getElementById('valOverdraftExplanation').textContent = expText;
                 
                 const btnLocate = document.getElementById('btnLocateOverdraft');
