@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [1.0.99] - 2026-08-31
 
 ### Added & Improved
+- **Planned Income Impact on Key Financial Indicators 💡**:
+  - Added secondary indicators on Overview Hero cards and Sidebar summary cards ("Reste à vivre" & "Risque découvert") to display the positive impact of expected receipts within the active period (e.g. `+287,50 € prévus (→ -18,28 €)` and `Couvert (+287,50 €)`).
 - **Intelligent Spending Cascade & Cold Start Support 🔄**:
   - Implemented an automatic 3-tier fallback engine (observed history, active budget envelopes, or prudential salary ratio) delivering reliable financial forecasts and Reste à Vivre calculations even on brand-new or low-history profiles.
 - **Enhanced Interactive Badges & Budget Parity 🔮**:

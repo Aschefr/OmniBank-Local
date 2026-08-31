@@ -62,6 +62,7 @@ window.OverviewView = {
                         <div class="overview-hero-content">
                             <div class="overview-hero-label" id="ovRestToLiveLabel" data-i18n="overview_rest_to_live">${window.i18n.t('overview_rest_to_live')}</div>
                             <div class="overview-hero-value privacy-blur" id="ovRestToLive">—</div>
+                            <div class="overview-hero-sub" id="ovRestToLiveSub" style="display:none;"></div>
                         </div>
                     </div>
                     <div class="overview-hero-card overview-hero-projection">
@@ -727,19 +728,50 @@ window.OverviewView = {
 
         const rav = document.getElementById('ovRestToLive');
         const ravLabel = document.getElementById('ovRestToLiveLabel');
+        const ravSub = document.getElementById('ovRestToLiveSub');
         if (ravLabel) {
             ravLabel.textContent = isOrgMode
                 ? (window.i18n.t('overview_org_available') || 'Trésorerie Disponible')
                 : (window.i18n.t('overview_rest_to_live') || 'Reste à vivre');
         }
         if (rav) {
-            rav.textContent = formatCurrency(stats.rest_to_live);
+            let currentRav = stats.rest_to_live;
+            let plannedInc = stats.unreconciled_income || 0;
+            let ravWithInc = (stats.rest_to_live_with_income !== undefined) ? stats.rest_to_live_with_income : (currentRav + plannedInc);
+
+            if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
+                const todayISO = new Date().toISOString().split('T')[0];
+                const horizonISO = stats.next_pay_date || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
+                const accTxs = (this._transactions || []).filter(tx => {
+                    if (tx.reconciliation_date || tx.is_skipped) return false;
+                    if (tx.date_operation < todayISO || tx.date_operation > horizonISO) return false;
+                    return String(tx.to_account_id) === String(this._selectedAccountId);
+                });
+                plannedInc = accTxs.reduce((sum, tx) => sum + tx.amount, 0);
+                ravWithInc = currentRav + plannedInc;
+            }
+
+            rav.textContent = formatCurrency(currentRav);
             if (stats.savings_overflow) {
                 rav.style.color = stats.savings_overflow.fully_consumed ? '#ef4444' : '#f59e0b';
-            } else if (stats.rest_to_live < 0) {
+            } else if (currentRav < 0) {
                 rav.style.color = '#ef4444';
             } else {
                 rav.style.color = '#10b981';
+            }
+
+            if (ravSub) {
+                if (plannedInc > 0) {
+                    ravSub.style.display = 'block';
+                    ravSub.style.color = '#10b981';
+                    const subText = window.i18n.tp ? window.i18n.tp('overview_rav_planned_income', { income: formatCurrency(plannedInc), total: formatCurrency(ravWithInc) }) : `+${formatCurrency(plannedInc)} prévus (→ ${formatCurrency(ravWithInc)})`;
+                    ravSub.textContent = subText;
+                    const tooltip = window.i18n.tp ? window.i18n.tp('overview_rav_planned_income_tooltip', { income: formatCurrency(plannedInc), total: formatCurrency(ravWithInc) }) : `Reste à vivre avec encaissement des recettes prévues (+${formatCurrency(plannedInc)}) : ${formatCurrency(ravWithInc)}`;
+                    ravSub.title = tooltip;
+                } else {
+                    ravSub.style.display = 'none';
+                    ravSub.textContent = '';
+                }
             }
         }
 
@@ -812,12 +844,32 @@ window.OverviewView = {
         const odCard = document.getElementById('ovOverdraftCard');
         if (stats.overdraft_warning && odCard) {
             odCard.style.display = 'flex';
+            const od = stats.overdraft_warning;
             const odAmtEl = document.getElementById('ovOverdraftAmount');
+            const odDateEl = document.getElementById('ovOverdraftDate');
             if (odAmtEl) {
-                odAmtEl.textContent = formatCurrency(stats.overdraft_warning.projected_balance);
+                odAmtEl.textContent = formatCurrency(od.projected_balance);
                 odAmtEl.style.color = '#ef4444';
             }
-            document.getElementById('ovOverdraftDate').textContent = formatDate(stats.overdraft_warning.date);
+            if (odDateEl) {
+                let dateSub = formatDate(od.date);
+                if (od.covered_by_income) {
+                    const incAmt = od.planned_income_before_risk || od.planned_income_total || 0;
+                    const covLabel = window.i18n.tp ? window.i18n.tp('overview_overdraft_covered_sub', { income: formatCurrency(incAmt) }) : `Couvert (+${formatCurrency(incAmt)})`;
+                    dateSub += ` • <span style="color: #10b981; font-weight: 700;">✅ ${covLabel}</span>`;
+                    const tooltip = window.i18n.tp ? window.i18n.tp('overview_overdraft_covered_tooltip', { date: formatDate(od.date), amount: formatCurrency(od.projected_balance), income: formatCurrency(incAmt) }) : `Risque théorique sans recettes au ${formatDate(od.date)} (${formatCurrency(od.projected_balance)}), mais absorbé par les recettes prévues (+${formatCurrency(incAmt)}) d'ici cette date.`;
+                    odDateEl.title = tooltip;
+                } else if (od.projected_balance_with_income !== undefined && od.projected_balance_with_income > od.projected_balance) {
+                    const incAmt = od.planned_income_total || 0;
+                    const redLabel = window.i18n.tp ? window.i18n.tp('overview_overdraft_reduced_sub', { amount: formatCurrency(od.projected_balance_with_income) }) : `Réduit (${formatCurrency(od.projected_balance_with_income)})`;
+                    dateSub += ` • <span style="color: #f59e0b; font-weight: 700;">${redLabel}</span>`;
+                    const tooltip = window.i18n.tp ? window.i18n.tp('overview_overdraft_reduced_tooltip', { date: formatDate(od.date), amount: formatCurrency(od.projected_balance), income: formatCurrency(incAmt), projected_balance: formatCurrency(od.projected_balance_with_income) }) : `Sans recettes : ${formatCurrency(od.projected_balance)} au ${formatDate(od.date)}. Avec recettes prévues (+${formatCurrency(incAmt)}) : solde minimal projeté ${formatCurrency(od.projected_balance_with_income)}.`;
+                    odDateEl.title = tooltip;
+                } else {
+                    odDateEl.title = '';
+                }
+                odDateEl.innerHTML = dateSub;
+            }
         } else if (odCard) {
             odCard.style.display = 'none';
         }
