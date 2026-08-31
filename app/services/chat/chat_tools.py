@@ -163,7 +163,8 @@ def get_spending_analytics_tool(db: Session, start_date: str, end_date: str) -> 
 def get_budgets_status_tool(db: Session, year: int = None, month: int = None) -> dict:
     from app.routers.budgets import get_budget_status
     from datetime import date, timedelta
-    from app.models import Transaction, BudgetCategory
+    import calendar
+    from app.models import Transaction, BudgetCategory, RecurrenceTemplate
     today = date.today()
     try:
         y = int(year) if year is not None else today.year
@@ -171,6 +172,27 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
     except (ValueError, TypeError):
         return {"error": "Invalid year or month format. Expected integers."}
     
+    last_day = calendar.monthrange(y, m)[1]
+    start_date_str = f"{y:04d}-{m:02d}-01"
+    end_date_str = f"{y:04d}-{m:02d}-{last_day:02d}"
+    is_future = (y > today.year) or (y == today.year and m > today.month)
+    is_past = (y < today.year) or (y == today.year and m < today.month)
+    is_current = (y == today.year and m == today.month)
+
+    french_months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+    period_label = f"{french_months[m-1]} {y}"
+
+    target_period = {
+        "year": y,
+        "month": m,
+        "start_date": start_date_str,
+        "end_date": end_date_str,
+        "is_future": is_future,
+        "is_past": is_past,
+        "is_current": is_current,
+        "period_label": period_label
+    }
+
     status_data = get_budget_status(year=y, month=m, db=db)
     
     # Pre-calculate 3-month and 6-month historical spending by budget envelope and categories
@@ -201,6 +223,81 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
             if t.date_operation >= three_months_ago:
                 spent_by_b_3m[b_id] += t.amount
 
+    # For future months, project planned recurring commitments (avoiding double-counting if transactions already exist)
+    planned_by_budget = defaultdict(float)
+    if is_future:
+        from sqlalchemy import func
+        rec_templates = db.query(RecurrenceTemplate).filter(
+            RecurrenceTemplate.is_closed == False,
+            RecurrenceTemplate.type.in_(("expense_fixed", "expense_var"))
+        ).all()
+
+        target_month_start = date(y, m, 1)
+        target_month_end = date(y, m, calendar.monthrange(y, m)[1])
+        existing_target_month_txs = db.query(Transaction).filter(
+            Transaction.date_operation >= target_month_start,
+            Transaction.date_operation <= target_month_end,
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+            (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+        ).all()
+        existing_rec_ids_in_target_month = {t.recurrence_id for t in existing_target_month_txs if t.recurrence_id}
+        existing_descs_in_target_month = {t.description.strip().lower() for t in existing_target_month_txs if t.description}
+
+        tx_counts = dict(
+            db.query(Transaction.recurrence_id, func.count(Transaction.id))
+            .filter(Transaction.recurrence_id.isnot(None))
+            .group_by(Transaction.recurrence_id)
+            .all()
+        )
+
+        last_tx_dates = dict(
+            db.query(Transaction.recurrence_id, func.max(Transaction.date_operation))
+            .filter(Transaction.recurrence_id.isnot(None))
+            .group_by(Transaction.recurrence_id)
+            .all()
+        )
+
+        for rt in rec_templates:
+            # 1. Skip if transaction already exists in the target month (prevent duplicate counting with actual_spent)
+            if rt.id in existing_rec_ids_in_target_month:
+                continue
+            if rt.description and rt.description.strip().lower() in existing_descs_in_target_month:
+                continue
+
+            # 2. Check max occurrences (e.g. 3x or 4x payments completed)
+            occ_count = tx_counts.get(rt.id, 0)
+            if rt.max_occurrences and occ_count >= rt.max_occurrences:
+                continue
+
+            amt = abs(rt.amount)
+            freq = (rt.frequency or "monthly").lower()
+
+            norm_amt = 0.0
+            if "year" in freq or "annuel" in freq:
+                target_moy = rt.month_of_year
+                if not target_moy and rt.id in last_tx_dates and last_tx_dates[rt.id]:
+                    target_moy = last_tx_dates[rt.id].month
+                if target_moy == m:
+                    norm_amt = amt
+            elif "quarter" in freq or "trimestr" in freq:
+                target_moy = rt.month_of_year or (last_tx_dates[rt.id].month if (rt.id in last_tx_dates and last_tx_dates[rt.id]) else 1)
+                if (m - target_moy) % 3 == 0:
+                    norm_amt = amt
+            elif "semi" in freq or "semestr" in freq:
+                target_moy = rt.month_of_year or (last_tx_dates[rt.id].month if (rt.id in last_tx_dates and last_tx_dates[rt.id]) else 1)
+                if (m - target_moy) % 6 == 0:
+                    norm_amt = amt
+            elif "week" in freq or "hebdo" in freq:
+                norm_amt = amt * 4.33
+            elif "bi-week" in freq or "quinz" in freq:
+                norm_amt = amt * 2.16
+            else: # Monthly
+                norm_amt = amt
+            
+            b_id = cat_to_budget.get(rt.category.strip().lower()) if rt.category else None
+            if b_id and norm_amt > 0:
+                planned_by_budget[b_id] += norm_amt
+
     envelopes = []
     total_budgeted = 0.0
     total_spent_committed = 0.0
@@ -209,10 +306,21 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
 
     for b in status_data.get("budgets", []):
         b_id = b.get("id")
-        total_budgeted += b.get("budget_amount", 0.0)
-        total_spent_committed += b.get("expenses", 0.0)
-        total_spent_reconciled += b.get("reconciled_expenses", 0.0)
-        total_income += b.get("income", 0.0)
+        limit_val = b.get("budget_amount", 0.0)
+        actual_spent = b.get("expenses", 0.0)
+        reconciled_spent = b.get("reconciled_expenses", 0.0)
+        income_val = b.get("income", 0.0)
+
+        planned_rec = round(planned_by_budget.get(b_id, 0.0), 2) if is_future else 0.0
+        # Strict parity with Budgets view: spent is exactly what is committed/recorded in the ledger
+        display_spent = actual_spent
+        remaining_val = round(limit_val - display_spent, 2)
+        pct_val = round((display_spent / limit_val * 100) if limit_val > 0 else 0.0, 1)
+
+        total_budgeted += limit_val
+        total_spent_committed += display_spent
+        total_spent_reconciled += reconciled_spent
+        total_income += income_val
 
         avg_3m = round(spent_by_b_3m.get(b_id, 0.0) / 3.0, 2) if b_id else 0.0
         avg_6m = round(spent_by_b_6m.get(b_id, 0.0) / 6.0, 2) if b_id else 0.0
@@ -220,12 +328,20 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
         envelopes.append({
             "id": b_id,
             "name": b.get("name"),
-            "type": b.get("envelope_type", "spending"),
+            "envelope_type": b.get("envelope_type", "spending"),
+            "limit": limit_val,
+            "spent": display_spent,
+            "actual_spent_in_db": actual_spent,
+            "planned_uncommitted_recurring": planned_rec,
+            "total_projected_spent": round(actual_spent + planned_rec, 2),
+            "reconciled_spent": reconciled_spent,
+            "remaining": remaining_val,
+            "percent": pct_val,
+            "is_future_period": is_future,
+            "planned_recurring_commitments": planned_rec,
             "period": b.get("period", "monthly"),
-            "limit": b.get("budget_amount", 0.0),
-            "spent": b.get("expenses", 0.0),
-            "remaining": b.get("balance", 0.0),
-            "percent": b.get("percent", 0.0),
+            "status": "exceeded" if display_spent > limit_val else ("warning" if pct_val >= 80 else "ok"),
+            "categories": b.get("categories", []),
             "historical_monthly_avg_spent_3m": avg_3m,
             "historical_monthly_avg_spent_6m": avg_6m
         })
@@ -243,6 +359,11 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
         "net_spent_reconciled": net_spent_reconciled,
         "total_remaining": total_remaining
     }
+
+    if is_future:
+        tot_planned_rec = round(sum(planned_by_budget.values()), 2)
+        summary["planned_uncommitted_recurring_total"] = tot_planned_rec
+        summary["future_period_note"] = f"Période future ({period_label}) : Les montants 'spent' de chaque enveloppe correspondent exactement aux opérations et récurrences engagées visibles dans l'écran Budgets (total engagé: {total_spent_committed:.2f} €). Citez toujours 'spent' comme le montant engagé de l'enveloppe."
 
     # Calculate suggested 50/30/20 reference if history is insufficient
     total_avg_6m = sum(b["historical_monthly_avg_spent_6m"] for b in envelopes)
@@ -265,6 +386,7 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
         }
 
     return {
+        "target_period": target_period,
         "year": y,
         "month": m,
         "summary": summary,
@@ -289,8 +411,22 @@ def get_monthly_overview_tool(db: Session, year: int = None, month: int = None) 
     summary = get_financial_summary_tool(db)
     balances = get_balances_tool(db)
     
+    is_future = (y > today.year) or (y == today.year and m > today.month)
+    is_past = (y < today.year) or (y == today.year and m < today.month)
+    is_current = (y == today.year and m == today.month)
+    french_months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+
     return {
-        "period": {"year": y, "month": m},
+        "target_period": {
+            "year": y,
+            "month": m,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "is_future": is_future,
+            "is_past": is_past,
+            "is_current": is_current,
+            "period_label": f"{french_months[m-1]} {y}"
+        },
         "budget_status": budgets,
         "spending_analytics": spending,
         "financial_summary": summary,
@@ -1825,7 +1961,22 @@ def get_dashboard_synthesis_tool(db: Session, year: int = None, month: int = Non
     paycheck = predict_next_paycheck(db)
     rtl = calculate_rest_to_live(db, today, paycheck["date"]) if (y == today.year and m == today.month) else None
 
+    is_future = (y > today.year) or (y == today.year and m > today.month)
+    is_past = (y < today.year) or (y == today.year and m < today.month)
+    is_current = (y == today.year and m == today.month)
+    french_months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+
     return {
+        "target_period": {
+            "year": y,
+            "month": m,
+            "start_date": start_cur.isoformat(),
+            "end_date": end_cur.isoformat(),
+            "is_future": is_future,
+            "is_past": is_past,
+            "is_current": is_current,
+            "period_label": f"{french_months[m-1]} {y}"
+        },
         "period": {"year": y, "month": m},
         "monthly_totals": {
             "total_income_euros": cur_inc,
@@ -2242,17 +2393,17 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_budgets_status",
-            "description": "Get consumption progress and remaining balances of all budget envelopes and savings for a specific year and month. Use this to check if envelopes are overspent or how much budget is left, NOT for raw spending reports.",
+            "description": "Get consumption progress and remaining balances of all budget envelopes and savings for a specific year and month. CRITICAL: When the user asks about a specific past or future month (e.g. next month, September -> year=2026, month=9), you MUST pass explicit year and month parameters so the tool returns the correct period and projected recurring commitments instead of the current month.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "year": {
                         "type": "integer",
-                        "description": "Optional year. Defaults to current year."
+                        "description": "Year to analyze (e.g. 2026). Pass explicitly when analyzing a past or future month."
                     },
                     "month": {
                         "type": "integer",
-                        "description": "Optional month (1-12). Defaults to current month."
+                        "description": "Month to analyze (1-12). Pass explicitly when analyzing a past or future month (e.g. 9 for September)."
                     }
                 }
             }
@@ -2328,17 +2479,17 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_monthly_overview",
-            "description": "Get a comprehensive monthly overview including budget envelopes status, category spending statistics, rest-to-live details, next paycheck predictions, and account balances in one single tool call. Use this as a starting point when the user asks about their monthly budget status or overall financial situation.",
+            "description": "Get a comprehensive monthly overview including budget envelopes status, category spending statistics, rest-to-live details, next paycheck predictions, and account balances in one single tool call. CRITICAL: Pass explicit year and month when analyzing a past or future month.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "year": {
                         "type": "integer",
-                        "description": "Optional year. Defaults to current year."
+                        "description": "Year to analyze (e.g. 2026). Defaults to current year."
                     },
                     "month": {
                         "type": "integer",
-                        "description": "Optional month (1-12). Defaults to current month."
+                        "description": "Month to analyze (1-12). Defaults to current month."
                     }
                 }
             }

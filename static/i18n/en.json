@@ -2311,5 +2311,7 @@
   "chat_entity_projected_bal": "Projected Balance",
   "chat_group_memory_name": "Memory",
   "chat_group_memory_desc": "Store and delete persistent financial facts across conversations (rent, savings goals, recurring events…).",
-  "chat_info_access_memory": "Memory"
+  "chat_info_access_memory": "Memory",
+  "chat_entity_committed_planned": "Committed (Planned)",
+  "chat_entity_future_breakdown_title": "Planned operations & charges"
 }

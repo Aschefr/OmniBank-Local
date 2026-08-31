@@ -73,6 +73,39 @@ from app.services.chat.chat_snapshot import build_entity_snapshots
 from app.services.chat.chat_compression import (
     estimate_tokens, start_compression, generate_session_title
 )
+import re
+
+def _detect_mentioned_month_year(text: str, default_year: int, default_month: int) -> tuple[int, int]:
+    """Détecte les mentions de mois/années dans une question utilisateur ou une réponse."""
+    if not text:
+        return default_year, default_month
+    text_lower = text.lower()
+    months_map = {
+        "janvier": 1, "january": 1, "janv": 1,
+        "février": 2, "fevrier": 2, "february": 2, "fevr": 2, "févr": 2,
+        "mars": 3, "march": 3,
+        "avril": 4, "april": 4, "avr": 4,
+        "mai": 5, "may": 5,
+        "juin": 6, "june": 6,
+        "juillet": 7, "july": 7, "juil": 7,
+        "août": 8, "aout": 8, "august": 8,
+        "septembre": 9, "september": 9, "sept": 9,
+        "octobre": 10, "october": 10, "oct": 10,
+        "novembre": 11, "november": 11, "nov": 11,
+        "décembre": 12, "decembre": 12, "december": 12, "dec": 12, "déc": 12
+    }
+    detected_month = None
+    for name, m_num in months_map.items():
+        if re.search(r'\b' + name + r'\b', text_lower):
+            detected_month = m_num
+            break
+    
+    year_match = re.search(r'\b(202[0-9]|203[0-9])\b', text_lower)
+    detected_year = int(year_match.group(1)) if year_match else default_year
+    
+    if detected_month:
+        return detected_year, detected_month
+    return default_year, default_month
 
 @router.get("/sessions")
 async def list_sessions(db: Session = Depends(get_db)):
@@ -606,6 +639,7 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                 detected_write_actions = []
                 loop_read_cache = {}
                 iteration = 0
+                target_period_override = {"year": None, "month": None}
 
                 while iteration < MAX_TOOL_ITERATIONS:
                     payload = {
@@ -656,6 +690,18 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
 
                         fn_name = tool_call["function"]["name"]
                         fn_args = tool_call["function"].get("arguments", {})
+                        if isinstance(fn_args, str):
+                            try: fn_args = json.loads(fn_args)
+                            except: fn_args = {}
+
+                        # Intercept explicit year/month from tool arguments
+                        if isinstance(fn_args, dict):
+                            if fn_args.get("year"):
+                                try: target_period_override["year"] = int(fn_args["year"])
+                                except: pass
+                            if fn_args.get("month"):
+                                try: target_period_override["month"] = int(fn_args["month"])
+                                except: pass
 
                         # Check disconnect BEFORE executing write tools to prevent partial writes
                         if fn_name in _WRITE_TOOLS:
@@ -753,6 +799,13 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                             else:
                                 tool_result = {"error": f"Tool '{fn_name}' is not supported or defined."}
 
+                            # Extract target_period from tool result if returned
+                            if isinstance(tool_result, dict) and "target_period" in tool_result:
+                                tp = tool_result["target_period"]
+                                if tp.get("year") and tp.get("month"):
+                                    target_period_override["year"] = tp["year"]
+                                    target_period_override["month"] = tp["month"]
+
                             # Cache the result if cacheable
                             if fn_name in _CACHEABLE_READ_TOOLS:
                                 cache_key = f"{fn_name}:{json.dumps(fn_args, sort_keys=True)}"
@@ -786,7 +839,13 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
             # Save assistant response to DB
             if final_text:
                 now_dt = date.today()
-                snapshots = build_entity_snapshots(final_text, db, now_dt.year, now_dt.month)
+                snap_y = target_period_override["year"]
+                snap_m = target_period_override["month"]
+                if not snap_y or not snap_m:
+                    det_y, det_m = _detect_mentioned_month_year(f"{req.content} {final_text}", now_dt.year, now_dt.month)
+                    snap_y = det_y
+                    snap_m = det_m
+                snapshots = build_entity_snapshots(final_text, db, snap_y, snap_m)
                 snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
                 if snapshots:
                     yield f"data: {json.dumps({'entity_snapshots': snapshots})}\n\n"
@@ -837,7 +896,13 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
             if final_text and not _response_saved and not _client_disconnected:
                 try:
                     now_dt = date.today()
-                    snapshots = build_entity_snapshots(final_text, db, now_dt.year, now_dt.month)
+                    snap_y = target_period_override["year"]
+                    snap_m = target_period_override["month"]
+                    if not snap_y or not snap_m:
+                        det_y, det_m = _detect_mentioned_month_year(f"{req.content} {final_text}", now_dt.year, now_dt.month)
+                        snap_y = det_y
+                        snap_m = det_m
+                    snapshots = build_entity_snapshots(final_text, db, snap_y, snap_m)
                     snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
                     bot_msg = ChatMessage(session_id=id, role="assistant", content=_tools_meta + final_text, entity_snapshots=snapshots_json)
                     db.add(bot_msg)

@@ -1374,6 +1374,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             }
         });
 
+        this.loadEntityCache?.();
         await this.loadSessions();
         this.populateInfoToolsList();
     },
