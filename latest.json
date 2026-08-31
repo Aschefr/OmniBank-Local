@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDBrLzUyOGdSYWVoWEZ5T29pcXNrc1dJZHVKT0RZVkx6bzgxR044TmtUbmlwc1NTaDNEcEM3MkJLOTg3c2M3bnhZLzU5SFlEYXRhQ2tVT1BBOGE1Y2dnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MTEzNjIzCWZpbGU6T21uaUJhbmtfMS4wLjk4X3g2NF9mci1GUi5tc2kKUCtxNFhRdWg0aE81dmRnNUF4QlM0WGdaQjJ4MklpQU1DOFg2a3dxSDU3NHc3WmJRYnhIR1BRRS9TckxabFlFYkYwclV3a2dXQjVFUmFzWXFCdDV0QXc9PQo=",
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDluSkpNMjd1M3hmNlJhQkZUQ1VKN1hiNVdPWUpsdFFCd3ROVldNblpueWUyWmhJdmp1akxPaER1SU1Gd2FKaE40aTdweDVXUnFsYmVPSnNoWW5MWUFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MTk5OTg3CWZpbGU6T21uaUJhbmtfMS4wLjk5X3g2NF9mci1GUi5tc2kKb0JBaUFTUTJ3am93ZlZ5cjBMdnJvWVg0bkRORnVpeFlhY0swOXlZendwR2NLRm5RNUlwa21LdkZDZE95Z1RmdFBRSnJuUWZWZ3ZNYVBUdkEybW01RGc9PQo=",
                                              "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.99/OmniBank_1.0.99_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-31T09:50:00Z",
+    "pub_date":  "2026-08-31T18:13:07Z",
     "version":  "1.0.99",
-    "notes":  "Intelligent Cascade Spending Engine, Multi-Cycle Forecasting, Rich Markdown Tables & Resilient Serialization"
+    "notes":  "v1.0.99: Planned Receipts Impact on Key Indicators, Cascade Spending Rate Fallback, Multi-Cycle Forecasting \u0026 Rich AI Tables"
 }
