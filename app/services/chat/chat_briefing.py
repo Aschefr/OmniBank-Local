@@ -160,17 +160,23 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
         # --- Role-Specific Complements ---
         if role == 'simulator':
             disposable_monthly = max(0.0, avg_monthly_income - avg_monthly_exp)
-            lines.append(f"[Simulator Briefing] Disposable monthly capacity: ~{disposable_monthly:.2f} {base_curr}/mo | Liquid safety cushion: {savings_total:.2f} {base_curr}.")
-        elif role in ('alerts', 'optimizer'):
+            max_debt_cap = round(avg_monthly_income * 0.33, 2) if avg_monthly_income > 0 else 0.0
+            lines.append(f"[Simulator Briefing] Disposable monthly capacity: ~{disposable_monthly:.2f} {base_curr}/mo | 33% Borrowing ceiling: ~{max_debt_cap:.2f} {base_curr}/mo | Liquid safety cushion: {savings_total:.2f} {base_curr}.")
+        elif role == 'alerts':
+            from app.services.finance_engine import get_overdraft_warning
+            od = get_overdraft_warning(db)
+            od_str = f"⚠️ OVERDRAFT RISK DETECTED on {od['date']} ({od['projected_balance']} {base_curr})" if od else "No immediate overdraft detected."
             active_templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
-            rec_exp_total = sum(t.amount for t in active_templates if t.type in ("expense_fixed", "expense_var"))
             unrec_past_txs = db.query(Transaction).filter(
                 Transaction.reconciliation_date == None,
                 Transaction.date_operation < today
             ).count()
-            lines.append(f"[Optimizer/Alerts Briefing] {len(active_templates)} active recurring templates ({rec_exp_total:.2f} {base_curr}/mo total commitments) | {unrec_past_txs} unreconciled past-due operations.")
+            lines.append(f"[Alerts Briefing] {od_str} | {len(active_templates)} active recurring templates | {unrec_past_txs} unreconciled past operations.")
+        elif role == 'optimizer':
+            active_templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
+            rec_exp_total = sum(t.amount for t in active_templates if t.type in ("expense_fixed", "expense_var"))
+            lines.append(f"[Optimizer Briefing] {len(active_templates)} active recurring templates ({rec_exp_total:.2f} {base_curr}/mo total commitments). Check `detect_anomalies_and_subscriptions` for price increases.")
         elif role == 'budget_planner':
-            # Category breakdown over 6 months
             six_months_ago = today - timedelta(days=180)
             cat_txs = db.query(Transaction.category, func.sum(Transaction.amount)).filter(
                 Transaction.date_operation >= six_months_ago,
@@ -178,27 +184,28 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
                 Transaction.type.in_(("expense_var", "expense_fixed")),
                 (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
             ).group_by(Transaction.category).order_by(func.sum(Transaction.amount).desc()).limit(5).all()
-            if cat_txs:
-                top_cats = ", ".join(f"{c[0] or 'Sans catégorie'}: ~{c[1]/6.0:.0f} {base_curr}/mo" for c in cat_txs)
-                lines.append(f"[Budget Planner Briefing] Top 6-month historical spending categories: {top_cats}.")
+            top_cats = ", ".join(f"{c[0] or 'Sans catégorie'}: ~{c[1]/6.0:.0f} {base_curr}/mo" for c in cat_txs) if cat_txs else "None"
+            lines.append(f"[Budget Planner Briefing] Top 6-month historical spending categories: {top_cats}.")
         elif role == 'forecaster':
             from app.services.chat.chat_tools import forecast_balances_history_tool
             try:
-                fc = forecast_balances_history_tool(db, days=30)
-                fc_end = fc.get("history", [{}])[-1].get("projected_balance_euros", 0.0)
+                fc = forecast_balances_history_tool(db, days=90)
+                fc_breakdown = fc.get("monthly_breakdown", [])
                 daily_var = fc.get("daily_average_variable_spend_euros", 0.0)
-                lines.append(f"[Forecaster Briefing] Projected balance in 30 days: {fc_end:.2f} {base_curr} | Estimated daily variable spend rate: {daily_var:.2f} {base_curr}/day.")
-            except Exception:
-                pass
+                fc_end = fc_breakdown[-1].get("projected_end_balance_euros", 0.0) if fc_breakdown else 0.0
+                liq_cushion = fc.get("total_liquid_savings_cushion_euros", 0.0)
+                lines.append(f"[Forecaster Briefing] Projected balance in 90 days (3 cycles): {fc_end:.2f} {base_curr} | Liquid savings cushion: {liq_cushion:.2f} {base_curr} | Daily variable rate: {daily_var:.2f} {base_curr}/day.")
+            except Exception as e:
+                logger.warning(f"[Briefing] Forecaster calculation error: {e}")
         elif role == 'auditor':
             unrec_past = db.query(Transaction).filter(
                 Transaction.reconciliation_date == None,
-                Transaction.date_operation < today
+                Transaction.date_operation < today - timedelta(days=30)
             ).count()
             uncat_count = db.query(Transaction).filter(
                 (Transaction.category == None) | (Transaction.category == "") | (Transaction.category == "Sans catégorie")
             ).count()
-            lines.append(f"[Auditor Briefing] {unrec_past} past transactions awaiting reconciliation | {uncat_count} un-categorized transactions in database.")
+            lines.append(f"[Auditor Briefing] {unrec_past} transactions overdue >30 days awaiting reconciliation | {uncat_count} un-categorized transactions.")
 
         lines.append("=== END LIVE DOSSIER ===")
         return "\n".join(lines)

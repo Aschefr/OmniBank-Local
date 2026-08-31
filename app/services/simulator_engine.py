@@ -541,6 +541,18 @@ def run_simulation(
 
     predicted_salary_for_account = predicted_salary if (not target_acc_ids or (pay_account_id and pay_account_id in target_acc_ids)) else 0.0
 
+    # ── Cascade intelligente si aucun historique de dépenses variables (Cold Start) ──
+    if avg_variable_expense == 0.0:
+        from app.models import Budget
+        active_spending_budgets = db.query(Budget).filter(
+            Budget.envelope_type == "spending",
+            Budget.is_closed == False
+        ).all()
+        total_budgets_limit = sum(b.monthly_amount for b in active_spending_budgets if b.monthly_amount)
+        if total_budgets_limit > 0:
+            avg_variable_expense = float(total_budgets_limit)
+            logger.info(f"[Simulateur] Cascade: Dépenses variables initialisées via les enveloppes budgétaires ({avg_variable_expense:.2f} €/mois)")
+
     try:
         twelve_months_ago = _add_months(date(today.year, today.month, 1), -12)
         current_month_start = date(today.year, today.month, 1)

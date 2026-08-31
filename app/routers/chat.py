@@ -65,6 +65,8 @@ from app.services.chat.chat_tools import (
     get_dashboard_synthesis_tool,
     store_financial_fact_tool,
     forget_financial_fact_tool,
+    audit_transactions_integrity_tool,
+    simulate_financial_scenario_tool,
 )
 from app.services.chat.chat_prompt import load_system_prompt
 from app.services.chat.chat_snapshot import build_entity_snapshots
@@ -489,7 +491,9 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "set_predicted_paycheck": "Mise à jour de la date/montant théorique de salaire...",
                     "get_monthly_overview": "Récupération de l'aperçu budgétaire mensuel...",
                     "get_spending_trends": "Analyse des tendances et moyennes historiques de dépenses...",
-                    "get_dashboard_synthesis": "Consultation de la synthèse mensuelle du tableau de bord..."
+                    "get_dashboard_synthesis": "Consultation de la synthèse mensuelle du tableau de bord...",
+                    "audit_transactions_integrity": "Audit de l'intégrité des opérations et des récurrences...",
+                    "simulate_financial_scenario": "Simulation financière avancée (What-If)..."
                 }
                 tool_desc_map_en = {
                     "get_financial_summary": "Analyzing left-to-live and paycheck forecasts...",
@@ -521,7 +525,9 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "set_predicted_paycheck": "Updating predicted paycheck day/amount...",
                     "get_monthly_overview": "Fetching monthly budget overview...",
                     "get_spending_trends": "Analyzing spending trends and multi-month averages...",
-                    "get_dashboard_synthesis": "Consulting monthly dashboard synthesis..."
+                    "get_dashboard_synthesis": "Consulting monthly dashboard synthesis...",
+                    "audit_transactions_integrity": "Auditing transaction data integrity...",
+                    "simulate_financial_scenario": "Running financial What-If simulation..."
                 }
                 tool_desc_map = tool_desc_map_en if req.lang == "en" else tool_desc_map_fr
 
@@ -592,7 +598,8 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "get_monthly_overview", "get_recurrence_templates", "get_net_worth_history",
                     "get_saving_recommendations", "search_similar_past_spends",
                     "detect_anomalies_and_subscriptions", "get_spending_trends",
-                    "get_dashboard_synthesis"
+                    "get_dashboard_synthesis", "audit_transactions_integrity",
+                    "simulate_financial_scenario"
                 }
                 MAX_TOOL_ITERATIONS = 4
                 all_tool_names = []
@@ -733,6 +740,10 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                                 tool_result = generate_csv_export_link_tool(db, fn_args.get("category"), fn_args.get("start_date"), fn_args.get("end_date"), fn_args.get("type"))
                             elif fn_name == "simulate_loan_amortization":
                                 tool_result = simulate_loan_amortization_tool(db, fn_args.get("principal"), fn_args.get("rate_percent"), fn_args.get("years"))
+                            elif fn_name == "audit_transactions_integrity":
+                                tool_result = audit_transactions_integrity_tool(db)
+                            elif fn_name == "simulate_financial_scenario":
+                                tool_result = simulate_financial_scenario_tool(db, fn_args.get("horizon_months", 12), fn_args.get("project_name"), fn_args.get("one_off_amount", 0.0), fn_args.get("recurring_monthly_amount", 0.0), fn_args.get("recurring_duration_months", 12))
                             elif fn_name == "store_financial_fact":
                                 tool_result = store_financial_fact_tool(db, fn_args.get("key"), fn_args.get("value"), fn_args.get("private_to_session", False), session_id=session.id, user_name=req.user_name)
                                 yield f"data: {json.dumps({'fact_update': {'action': 'store', 'key': fn_args.get('key')}})}\n\n"

@@ -340,6 +340,97 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     padding-left: 24px;
                     margin: 8px 0;
                 }
+                .chat-bubble.ai h1, .chat-bubble.ai h2, .chat-bubble.ai h3, .chat-bubble.ai h4 {
+                    margin-top: 14px;
+                    margin-bottom: 8px;
+                    font-weight: 700;
+                    color: var(--text-color);
+                }
+                .chat-bubble.ai hr {
+                    border: 0;
+                    height: 1px;
+                    background: var(--border-color);
+                    margin: 14px 0;
+                }
+
+                /* Markdown Tables in Chat Bubbles */
+                .chat-table-wrapper {
+                    width: 100%;
+                    max-width: 100%;
+                    overflow-x: auto;
+                    margin: 14px 0;
+                    border-radius: 10px;
+                    border: 1px solid var(--border-color);
+                    background: var(--bg-surface);
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+                    scrollbar-width: thin;
+                }
+                .chat-bubble table,
+                .chat-markdown-table {
+                    width: 100%;
+                    min-width: 520px;
+                    border-collapse: separate;
+                    border-spacing: 0;
+                    font-size: 13px;
+                    line-height: 1.5;
+                    text-align: left;
+                    margin: 0;
+                }
+                .chat-bubble thead,
+                .chat-markdown-table thead {
+                    background: rgba(51, 102, 255, 0.08);
+                }
+                .chat-bubble th,
+                .chat-markdown-table th {
+                    padding: 11px 16px;
+                    font-weight: 700;
+                    font-size: 11.5px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    color: var(--text-color);
+                    border-bottom: 2px solid var(--border-color);
+                    border-right: 1px solid var(--border-color);
+                    white-space: nowrap;
+                }
+                .chat-bubble th:last-child,
+                .chat-markdown-table th:last-child {
+                    border-right: none;
+                }
+                .chat-bubble td,
+                .chat-markdown-table td {
+                    padding: 10px 16px;
+                    border-bottom: 1px solid var(--border-color);
+                    border-right: 1px solid var(--border-color);
+                    color: var(--text-color);
+                    font-variant-numeric: tabular-nums;
+                    vertical-align: middle;
+                }
+                .chat-bubble td:last-child,
+                .chat-markdown-table td:last-child {
+                    border-right: none;
+                }
+                .chat-bubble tbody tr:last-child td,
+                .chat-markdown-table tbody tr:last-child td {
+                    border-bottom: none;
+                }
+                .chat-bubble tbody tr,
+                .chat-markdown-table tbody tr {
+                    transition: background 0.15s ease;
+                }
+                .chat-bubble tbody tr:nth-child(even),
+                .chat-markdown-table tbody tr:nth-child(even) {
+                    background: rgba(255, 255, 255, 0.015);
+                }
+                .chat-bubble tbody tr:hover,
+                .chat-markdown-table tbody tr:hover {
+                    background: rgba(51, 102, 255, 0.06);
+                }
+                .chat-bubble th:first-child,
+                .chat-bubble td:first-child,
+                .chat-markdown-table th:first-child,
+                .chat-markdown-table td:first-child {
+                    font-weight: 600;
+                }
                 .chat-message-actions {
                     display: flex;
                     gap: 8px;
