@@ -4,10 +4,9 @@
   <a href="#-français">Français</a> • 
   <a href="#-english">English</a>
 </p>
-
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.98-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.99-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -112,6 +111,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 ## 🆕 Nouveautés (v1.0.99)
 
+* **💡 Impact des Recettes Prévues sur les Indicateurs Clés** : Intégration d'indicateurs secondaires sur les cartes Hero et la barre latérale ("Reste à vivre" et "Risque de découvert") pour refléter en temps réel l'impact positif et rassurant des recettes prévues sur la période (ex : `+287,50 € prévus` et `Couvert (+287,50 €)`).
 * **🔄 Cascade Intelligente & Résolution du Cold Start** : Moteur d'estimation des dépenses variables en 3 étages (historique réel filtré des anomalies IQR, repli sur les enveloppes budgétaires actives, et étalonnage prudentiel à 35% du salaire net pour les comptes récents) avec explication transparente de l'IA.
 * **📈 Projections Multi-Cycles & Trésorerie Réaliste** : Projection automatique des salaires mensuels à venir sur 30, 60 et 90 jours dans l'outil prévisionnel de l'IA, éliminant tout faux déficit de trésorerie.
 * **📊 Rendu Stylisé des Tableaux Markdown** : Affichage responsive, moderne et contrasté des tableaux générés par l'IA dans le Chat (fond sombre, en-têtes bleutés, padding généreux, chiffres tabulaires).
@@ -226,6 +226,7 @@ Access the interface at `http://localhost:8434`.
 
 ## 🆕 What's New (v1.0.99)
 
+* **💡 Planned Receipts Impact on Key Indicators** : Integrated secondary indicators across Overview Hero cards and Sidebar summary cards ("Safe to Spend / Reste à vivre" and "Overdraft Risk") to display the beneficial impact of upcoming expected income within the current cycle (e.g. `+287.50 € expected` and `Covered (+287.50 €)`).
 * **🔄 Intelligent Cascade & Cold Start Resolution**: 3-tier hierarchical spending rate estimation engine (observed history with IQR outlier filtering, fallback to active spending envelopes, and 35% net salary prudential baseline) with transparent AI source notes.
 * **📈 Multi-Cycle Projections & Realistic Forecasting**: Automated multi-month paycheck projection over 30, 60, and 90 days in the AI Forecaster, eliminating artificial cash deficits.
 * **📊 Rich Markdown Tables in AI Chat**: Custom modern styling for AI-generated tables (dark backdrop, subtle blue accent headers, tabular numerals, generous cell spacing, hover effects).
