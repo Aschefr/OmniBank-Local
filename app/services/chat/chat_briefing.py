@@ -164,17 +164,19 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
             lines.append(f"[Simulator Briefing] Disposable monthly capacity: ~{disposable_monthly:.2f} {base_curr}/mo | 33% Borrowing ceiling: ~{max_debt_cap:.2f} {base_curr}/mo | Liquid safety cushion: {savings_total:.2f} {base_curr}.")
         elif role == 'alerts':
             from app.services.finance_engine import get_overdraft_warning
+            from app.services.chat.chat_tools import get_active_recurrence_templates
             od = get_overdraft_warning(db)
             od_str = f"⚠️ OVERDRAFT RISK DETECTED on {od['date']} ({od['projected_balance']} {base_curr})" if od else "No immediate overdraft detected."
-            active_templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
+            active_templates = get_active_recurrence_templates(db)
             unrec_past_txs = db.query(Transaction).filter(
                 Transaction.reconciliation_date == None,
                 Transaction.date_operation < today
             ).count()
             lines.append(f"[Alerts Briefing] {od_str} | {len(active_templates)} active recurring templates | {unrec_past_txs} unreconciled past operations.")
         elif role == 'optimizer':
-            active_templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
-            rec_exp_total = sum(t.amount for t in active_templates if t.type in ("expense_fixed", "expense_var"))
+            from app.services.chat.chat_tools import get_active_recurrence_templates
+            active_templates = get_active_recurrence_templates(db, template_types=("expense_fixed", "expense_var"))
+            rec_exp_total = sum(t.amount for t in active_templates)
             lines.append(f"[Optimizer Briefing] {len(active_templates)} active recurring templates ({rec_exp_total:.2f} {base_curr}/mo total commitments). Check `detect_anomalies_and_subscriptions` for price increases.")
         elif role == 'budget_planner':
             six_months_ago = today - timedelta(days=180)

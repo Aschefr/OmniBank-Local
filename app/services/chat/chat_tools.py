@@ -433,20 +433,196 @@ def get_monthly_overview_tool(db: Session, year: int = None, month: int = None) 
         "account_balances": balances
     }
 
-def get_recurrence_templates_tool(db: Session) -> dict:
-    templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
-    return {"templates": [
-        {
+def get_active_recurrence_templates(db: Session, template_type: str = None, template_types: tuple = None) -> list:
+    """
+    Returns only truly active recurrence templates, strictly excluding:
+    - closed templates (is_closed == True)
+    - completed/exhausted templates where max_occurrences is reached.
+    """
+    from sqlalchemy import func
+    from app.models import RecurrenceTemplate, Transaction
+
+    query = db.query(RecurrenceTemplate).filter(
+        (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed == None)
+    )
+    if template_type:
+        query = query.filter(RecurrenceTemplate.type == template_type)
+    elif template_types:
+        query = query.filter(RecurrenceTemplate.type.in_(template_types))
+
+    templates = query.all()
+    if not templates:
+        return []
+
+    # Count existing non-skipped transactions for each template
+    tx_counts = dict(
+        db.query(Transaction.recurrence_id, func.count(Transaction.id))
+        .filter(
+            Transaction.recurrence_id.in_([t.id for t in templates]),
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        )
+        .group_by(Transaction.recurrence_id)
+        .all()
+    )
+
+    active = []
+    for t in templates:
+        if t.max_occurrences and tx_counts.get(t.id, 0) >= t.max_occurrences:
+            continue
+        active.append(t)
+    return active
+
+def _compute_recurrence_schedule(t, last_tx_date = None) -> tuple:
+    """
+    Returns (applicable_months: list[int], frequency_human: str, next_expected_date: Optional[str])
+    """
+    from datetime import date
+    freq = (t.frequency or "monthly").strip().lower()
+    day = t.day_of_month or 1
+    base_m = t.month_of_year or (last_tx_date.month if last_tx_date else 1)
+    
+    french_months = [
+        "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+        "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+    ]
+    
+    today = date.today()
+    applicable_months = []
+    freq_human = ""
+    next_date = None
+    
+    if "year" in freq or "annuel" in freq:
+        applicable_months = [base_m]
+        freq_human = f"Annuel (1 fois par an en {french_months[base_m-1]})"
+        cand_year = today.year
+        cand = date(cand_year, base_m, min(day, 28))
+        if cand <= today:
+            cand = date(cand_year + 1, base_m, min(day, 28))
+        next_date = cand.isoformat()
+    elif "semi" in freq or "semestr" in freq:
+        m2 = (base_m + 5) % 12 + 1
+        applicable_months = sorted([base_m, m2])
+        freq_human = f"Semestriel / 2 fois par an (Tous les 6 mois : {french_months[applicable_months[0]-1]} et {french_months[applicable_months[1]-1]})"
+        cands = []
+        for y in (today.year, today.year + 1):
+            for m in applicable_months:
+                cands.append(date(y, m, min(day, 28)))
+        future_cands = [c for c in cands if c > today]
+        if future_cands:
+            next_date = min(future_cands).isoformat()
+    elif "quarter" in freq or "trimestr" in freq:
+        applicable_months = sorted([(base_m - 1 + 3 * i) % 12 + 1 for i in range(4)])
+        months_str = ", ".join(french_months[m-1] for m in applicable_months)
+        freq_human = f"Trimestriel / 4 fois par an (Tous les 3 mois : {months_str})"
+        cands = []
+        for y in (today.year, today.year + 1):
+            for m in applicable_months:
+                cands.append(date(y, m, min(day, 28)))
+        future_cands = [c for c in cands if c > today]
+        if future_cands:
+            next_date = min(future_cands).isoformat()
+    elif "bi-week" in freq or "bi-month" in freq or "quinzain" in freq:
+        applicable_months = list(range(1, 13))
+        freq_human = "Toutes les 2 semaines (Bi-mensuel)"
+    elif "week" in freq or "hebdo" in freq:
+        applicable_months = list(range(1, 13))
+        freq_human = "Hebdomadaire (Toutes les semaines)"
+    else: # monthly
+        applicable_months = list(range(1, 13))
+        freq_human = f"Mensuel (Tous les mois vers le {day})"
+        cand = date(today.year, today.month, min(day, 28))
+        if cand <= today:
+            m = today.month + 1 if today.month < 12 else 1
+            y = today.year if today.month < 12 else today.year + 1
+            cand = date(y, m, min(day, 28))
+        next_date = cand.isoformat()
+
+    return applicable_months, freq_human, next_date
+
+def get_recurrence_templates_tool(db: Session, include_completed: bool = False) -> dict:
+    from sqlalchemy import func
+    from datetime import date
+    from app.models import RecurrenceTemplate, Transaction
+
+    today = date.today()
+
+    templates = db.query(RecurrenceTemplate).filter(
+        (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed == None)
+    ).all()
+
+    tx_counts = dict(
+        db.query(Transaction.recurrence_id, func.count(Transaction.id))
+        .filter(
+            Transaction.recurrence_id.isnot(None),
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        )
+        .group_by(Transaction.recurrence_id)
+        .all()
+    )
+
+    # Find the most recent reconciled operation
+    last_reconciled_map = {}
+    for tx in db.query(Transaction).filter(
+        Transaction.recurrence_id.isnot(None),
+        Transaction.reconciliation_date.isnot(None),
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).order_by(Transaction.date_operation.desc()).all():
+        if tx.recurrence_id not in last_reconciled_map:
+            last_reconciled_map[tx.recurrence_id] = {
+                "date": tx.date_operation.isoformat() if tx.date_operation else None,
+                "amount": tx.amount,
+                "date_obj": tx.date_operation
+            }
+
+    # Find the very next upcoming planned transaction from DB if already scheduled
+    next_planned_map = {}
+    for tx in db.query(Transaction).filter(
+        Transaction.recurrence_id.isnot(None),
+        Transaction.reconciliation_date.is_(None),
+        Transaction.date_operation >= today,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).order_by(Transaction.date_operation.asc()).all():
+        if tx.recurrence_id not in next_planned_map:
+            next_planned_map[tx.recurrence_id] = tx.date_operation.isoformat()
+
+    result = []
+    for t in templates:
+        occ_count = tx_counts.get(t.id, 0)
+        is_completed = bool(t.max_occurrences and occ_count >= t.max_occurrences)
+        remaining = max(0, t.max_occurrences - occ_count) if t.max_occurrences else None
+
+        if is_completed and not include_completed:
+            continue
+
+        last_rec = last_reconciled_map.get(t.id)
+        last_dt_obj = last_rec.get("date_obj") if last_rec else None
+        applicable_months, freq_human, computed_next_date = _compute_recurrence_schedule(t, last_dt_obj)
+        next_expected_date = next_planned_map.get(t.id, computed_next_date)
+
+        result.append({
             "id": t.id,
             "description": t.description,
             "amount": t.amount,
             "type": t.type,
             "category": t.category,
             "frequency": t.frequency,
-            "day_of_month": t.day_of_month
-        }
-        for t in templates
-    ]}
+            "frequency_human": freq_human,
+            "applicable_months": applicable_months,
+            "day_of_month": t.day_of_month,
+            "month_of_year": t.month_of_year,
+            "max_occurrences": t.max_occurrences,
+            "occurrences_generated": occ_count,
+            "remaining_occurrences": remaining,
+            "is_completed": is_completed,
+            "status": "completed" if is_completed else "active",
+            "last_reconciled_payment": {
+                "date": last_rec["date"],
+                "amount": last_rec["amount"]
+            } if last_rec else None,
+            "next_expected_date": next_expected_date
+        })
+
+    return {"templates": result, "total_active": len(result)}
 
 def get_net_worth_history_tool(db: Session, months: int = 12) -> dict:
     try:
@@ -711,8 +887,8 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     # Liquid net worth across all accounts (savings cushion)
     liquid_total, _ = get_liquid_net_worth(db, only_reconciled=True, precomputed_balances=balances)
     
-    # Load all active recurrence templates
-    templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
+    # Load all active recurrence templates (strictly excluding completed max_occurrences)
+    templates = get_active_recurrence_templates(db)
     template_ids = {t.id for t in templates}
 
     # --- Next predicted paycheck and multi-cycle salary projection ---
@@ -982,7 +1158,7 @@ def detect_anomalies_and_subscriptions_tool(db: Session) -> dict:
     thirty_days_ago = today - timedelta(days=30)
     
     accounts_map = {a.id: a.name for a in db.query(Account).all()}
-    active_templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.is_closed == False).all()
+    active_templates = get_active_recurrence_templates(db)
     template_descs = {t.description.strip().lower() for t in active_templates if t.description}
     
     txs = db.query(Transaction).filter(
@@ -1581,20 +1757,14 @@ def get_saving_recommendations_tool(db: Session) -> dict:
                     pass
                     
         if not sal or sal <= 0:
-            inc_tpl = db.query(RecurrenceTemplate).filter(
-                RecurrenceTemplate.type == "income",
-                RecurrenceTemplate.is_closed == False
-            ).first()
-            if inc_tpl and inc_tpl.amount:
-                sal = float(inc_tpl.amount)
+            inc_tpls = get_active_recurrence_templates(db, template_type="income")
+            if inc_tpls and inc_tpls[0].amount:
+                sal = float(inc_tpls[0].amount)
             
         if sal > 0:
             monthly_income = sal
-            # Fixed charges from templates
-            active_tpls = db.query(RecurrenceTemplate).filter(
-                RecurrenceTemplate.is_closed == False,
-                RecurrenceTemplate.type.in_(("expense_fixed", "expense_var"))
-            ).all()
+            # Fixed charges from active templates
+            active_tpls = get_active_recurrence_templates(db, template_types=("expense_fixed", "expense_var"))
             monthly_fixed = round(sum(t.amount for t in active_tpls), 2)
             
             # Variable expenses from active budgets
@@ -2068,10 +2238,7 @@ def audit_transactions_integrity_tool(db: Session) -> dict:
             })
 
     # 4. Missing expected recurring charges
-    active_templates = db.query(RecurrenceTemplate).filter(
-        RecurrenceTemplate.is_closed == False,
-        RecurrenceTemplate.type.in_(("expense_fixed", "expense_var"))
-    ).all()
+    active_templates = get_active_recurrence_templates(db, template_types=("expense_fixed", "expense_var"))
     
     missing_recurrences = []
     for tpl in active_templates:
