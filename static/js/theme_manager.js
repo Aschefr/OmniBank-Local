@@ -177,12 +177,7 @@ window.ThemeManager = {
                                     <span class="theme-option-name">${name}</span>
                                 </div>
                             </div>
-                            <div class="theme-option-right">
-                                <div class="theme-swatch" style="background:${t.bg}; border-color:${t.accent};" title="${name}">
-                                    <span class="theme-swatch-dot" style="background:${t.accent};"></span>
-                                </div>
-                                ${isActive ? '<span class="theme-check">✓</span>' : ''}
-                            </div>
+                            ${isActive ? '<span class="theme-check">✓</span>' : ''}
                         </div>
                     `;
                 }).join('')}
@@ -219,6 +214,17 @@ window.ThemeManager = {
         options.forEach(opt => {
             const isTarget = opt.getAttribute('onclick')?.includes(`'${this.currentThemeId}'`);
             opt.classList.toggle('active', !!isTarget);
+            let check = opt.querySelector('.theme-check');
+            if (isTarget) {
+                if (!check) {
+                    const checkSpan = document.createElement('span');
+                    checkSpan.className = 'theme-check';
+                    checkSpan.textContent = '✓';
+                    opt.appendChild(checkSpan);
+                }
+            } else if (check) {
+                check.remove();
+            }
         });
     }
 };
