@@ -15,7 +15,7 @@ window.HistoryView = {
                 </div>
             </div>
 
-            <div class="table-responsive" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; margin-bottom: 20px;">
+            <div class="table-responsive history-table-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; margin-bottom: 20px;">
                 <table class="data-table mobile-card-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
                     <thead>
                         <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.15);">

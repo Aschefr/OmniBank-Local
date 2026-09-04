@@ -209,10 +209,10 @@ window.BankSyncView = {
                     <h3 style="font-size: 17px; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
                         <span>⚡</span> <span data-i18n="bank_sync_title">${window.i18n.t('bank_sync_title')}</span>
                     </h3>
-                    <span style="font-size: 11.5px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.25); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: help; box-sizing: border-box; line-height: 1;" title="${window.i18n.t('bank_sync_security_notice')}">
+                    <span class="bank-sync-secure-badge" style="font-size: 11.5px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.25); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: help; box-sizing: border-box; line-height: 1;" title="${window.i18n.t('bank_sync_security_notice')}">
                         <span>🛡️</span> <span data-i18n="bank_sync_badge_secure">${window.i18n.t('bank_sync_badge_secure')}</span>
                     </span>
-                    <span id="bankSyncVaultPill" style="display: inline-flex; align-items: center;"></span>
+                    <span id="bankSyncVaultPill" class="bank-sync-vault-wrapper" style="display: inline-flex; align-items: center;"></span>
                 </div>
 
                 <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">

@@ -186,8 +186,8 @@ Object.assign(window.BankSyncView, {
                 const effectiveError = isStalePasswordError ? null : (conn.last_error && conn.last_error.trim() ? conn.last_error.trim() : null);
                 const isError = !isStalePasswordError && (conn.last_sync_status === 'error' || conn.last_sync_status === 'auto_error' || Boolean(effectiveError));
                 const statusBadge = isError 
-                    ? `<span style="background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🔴</span> <span>${window.i18n.t('bank_sync_status_error')}</span></span>`
-                    : `<span style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🟢</span> <span>${window.i18n.t('bank_sync_status_connected')}</span></span>`;
+                    ? `<span class="bank-connection-status-badge" style="background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🔴</span> <span>${window.i18n.t('bank_sync_status_error')}</span></span>`
+                    : `<span class="bank-connection-status-badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🟢</span> <span>${window.i18n.t('bank_sync_status_connected')}</span></span>`;
 
                 let localizedError = effectiveError;
                 if (effectiveError && (effectiveError.includes('Erreur lors de la synchronisation') || effectiveError.includes('Erreur de synchronisation'))) {
@@ -217,7 +217,7 @@ Object.assign(window.BankSyncView, {
                                 <span style="background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; color: var(--text-main); font-weight: 600;">${conn.backend}</span>
                                 <span>•</span>
                                 <span>${lastSyncText}</span>
-                                ${conn.last_sync_count ? `<span style="background: rgba(16,185,129,0.12); color: #10b981; font-weight: 700; padding: 1px 8px; border-radius: 6px; font-size: 11px;">+${conn.last_sync_count} op.</span>` : ''}
+                                ${conn.last_sync_count ? `<span class="bank-sync-count-tag" style="background: rgba(16,185,129,0.12); color: #10b981; font-weight: 700; padding: 1px 8px; border-radius: 6px; font-size: 11px;">+${conn.last_sync_count} op.</span>` : ''}
                             </div>
                             ${displayError ? `
                                 <div style="font-size: 11px; color: #ef4444; margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">

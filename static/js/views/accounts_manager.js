@@ -36,7 +36,7 @@ window.AccountsView = {
                 </h3>
             </div>
 
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 18px; border-radius: 14px; border: 1px solid var(--border-color);">
+            <div class="accounts-add-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 18px; border-radius: 14px; border: 1px solid var(--border-color);">
                 <h4 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:var(--text-main);" data-i18n="acc_new_account">${window.i18n.t('acc_new_account')}</h4>
                 <div class="accounts-add-form" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
                     <input type="text" id="acc_name" class="inline-input" data-i18n-placeholder="acc_ph_name" placeholder="${window.i18n.t('acc_ph_name') || 'Nom du compte'}" style="border:1px solid var(--border-color); padding: 5px; flex: 2;">
@@ -72,7 +72,7 @@ window.AccountsView = {
                 </div>
             </div>
 
-            <div style="overflow-x: auto;">
+            <div class="accounts-table-card" style="overflow-x: auto;">
                 <table class="data-table">
                     <thead>
                         <tr>
