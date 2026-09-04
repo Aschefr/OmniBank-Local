@@ -139,7 +139,7 @@ window.AllOperationsView = {
                             <th class="col-attachments" data-i18n="col_attachments">${window.i18n.t('col_attachments')}</th>
                             <th class="col-createdBy" data-i18n="col_created_by">${window.i18n.t('col_created_by')}</th>
                             <th class="col-modifiedBy" data-i18n="col_modified_by">${window.i18n.t('col_modified_by')}</th>
-                            <th class="col-actions" style="text-align: right; padding-right: 15px;" data-i18n="th_actions">${window.i18n.t('th_actions') || 'Actions'}</th>
+                            <th class="col-actions" style="text-align: right;" data-i18n="th_actions">${window.i18n.t('th_actions') || 'Actions'}</th>
                         </tr>
                     </thead>
                     <tbody id="allOperationsBody">
@@ -201,16 +201,47 @@ window.AllOperationsView = {
             if (el) el.checked = cols[k];
         });
         
-        // Column weight map (higher = more space)
+        // Column weight map (higher = more space) & minimum readable widths
         const colWeights = {
-            dateSaisie: 1.5, date: 1.5, desc: 4, type: 1.8,
-            cat: 2.5, amount: 1.5, recon: 1.8, budget: 1.5,
-            depuis: 1.5, vers: 1.5, recurrence: 1.2, slip: 1.2, attachments: 1,
-            createdBy: 1.5, modifiedBy: 1.5
+            dateSaisie: 1.0,
+            date: 1.0,
+            desc: 2.2,
+            type: 1.4,
+            cat: 1.6,
+            amount: 1.1,
+            recon: 1.3,
+            budget: 1.2,
+            depuis: 1.3,
+            vers: 1.3,
+            recurrence: 1.0,
+            slip: 1.0,
+            attachments: 0.8,
+            createdBy: 1.0,
+            modifiedBy: 1.0,
+            actions: 1.8
+        };
+
+        const colMinWidths = {
+            dateSaisie: '90px',
+            date: '85px',
+            desc: '140px',
+            type: '115px',
+            cat: '120px',
+            amount: '90px',
+            recon: '110px',
+            budget: '110px',
+            depuis: '110px',
+            vers: '110px',
+            recurrence: '95px',
+            slip: '80px',
+            attachments: '60px',
+            createdBy: '90px',
+            modifiedBy: '90px',
+            actions: '180px'
         };
         
-        // Calculate total weight of visible columns
-        let totalWeight = 0;
+        // Calculate total weight of visible columns + actions
+        let totalWeight = colWeights.actions || 1.1;
         Object.keys(cols).forEach(k => { if (cols[k]) totalWeight += (colWeights[k] || 1); });
         
         // Build CSS: hide invisible cols + set dynamic widths on visible ones
@@ -219,12 +250,14 @@ window.AllOperationsView = {
             if (!cols[k]) {
                 css += `.timeline-table .col-${k} { display: none !important; }\n`;
             } else {
-                const pct = ((colWeights[k] || 1) / totalWeight * 82).toFixed(1);
-                css += `.timeline-table .col-${k} { width: ${pct}%; }\n`;
+                const pct = ((colWeights[k] || 1) / totalWeight * 100).toFixed(1);
+                const minW = colMinWidths[k] ? `min-width: ${colMinWidths[k]};` : '';
+                css += `.timeline-table .col-${k} { width: ${pct}%; ${minW} }\n`;
             }
         });
-        // Actions column — enough room for Duplicate + Edit + Delete buttons without overflow
-        css += `.timeline-table .col-actions { width: 18%; min-width: 130px; }\n`;
+        // Actions column dynamic allocation based on full 100% distribution
+        const actionsPct = ((colWeights.actions || 1.1) / totalWeight * 100).toFixed(1);
+        css += `.timeline-table .col-actions { width: ${actionsPct}%; min-width: ${colMinWidths.actions}; }\n`;
         
         const styleTag = document.getElementById('historyColsStyle');
         if (styleTag) styleTag.innerHTML = css;

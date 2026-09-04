@@ -20,7 +20,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     
-    <link rel="stylesheet" href="/static/css/style.css?v=13">
+    <link rel="stylesheet" href="/static/css/style.css?v=46">
 
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -136,18 +136,28 @@
                     </div>
                 <button id="compactToggle" data-i18n-title="tooltip_compact_mode" title="Affichage compact" style="font-size:15px; line-height:1;"><svg id="compactIcon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect y="2" width="16" height="2.5" rx="1"/><rect y="7" width="16" height="2.5" rx="1"/><rect y="12" width="16" height="2.5" rx="1"/></svg></button>
                 <button id="privacyToggle" data-i18n-title="tooltip_hide_amounts" title="Masquer les montants">👁️</button>
-                <button id="themeToggle" data-i18n-title="tooltip_change_theme" title="Changer le thème">🌓</button>
-                <div class="lang-dropdown" style="position: relative;">
-                    <button id="langToggleBtn" style="display:flex; align-items:center; gap:5px; background:transparent; border:1px solid var(--border-color); padding:4px 8px; border-radius:6px; cursor:pointer; color:var(--text-main);">
+                <div id="themeMenuWrapper">
+                    <button id="themeToggle" data-i18n-title="tooltip_theme_manager" title="Changer le thème" onclick="if(window.ThemeManager) window.ThemeManager.toggleMenu()">🌓</button>
+                    <div id="themeMenu"></div>
+                </div>
+                <div class="lang-dropdown">
+                    <button id="langToggleBtn" title="Language / Langue">
                         <span id="currentLangFlag" class="fi fi-fr"></span>
-                        <span style="font-size: 12px;">▼</span>
+                        <span style="font-size: 10px; opacity: 0.7;">▼</span>
                     </button>
-                    <div id="langMenu" style="display:none; position:absolute; top:100%; right:0; margin-top:5px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:6px; box-shadow:var(--shadow-md); z-index:100; min-width:120px; overflow:hidden;">
-                        <div class="lang-option" data-lang="fr" style="padding:8px 12px; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:13px;">
-                            <span class="fi fi-fr"></span> Français
+                    <div id="langMenu">
+                        <div class="lang-option active" data-lang="fr">
+                            <div class="lang-option-left">
+                                <span class="fi fi-fr"></span>
+                                <span>Français</span>
+                            </div>
+                            <span class="lang-check">✓</span>
                         </div>
-                        <div class="lang-option" data-lang="en" style="padding:8px 12px; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:13px;">
-                            <span class="fi fi-gb"></span> English
+                        <div class="lang-option" data-lang="en">
+                            <div class="lang-option-left">
+                                <span class="fi fi-gb"></span>
+                                <span>English</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -177,9 +187,15 @@
                     <button data-view="config" class="nav-btn" style="text-align: left;">⚙️ <span data-i18n="nav_configuration">Configuration</span></button>
                     
                     <div style="border-top: 1px solid var(--border-color); margin: 8px 0; padding-top: 8px; display: flex; gap: 8px; align-items: center; justify-content: space-around; flex-wrap: wrap;">
-                        <button onclick="document.getElementById('themeToggle').click()" class="btn btn-secondary btn-sm" title="Changer le thème" style="padding: 6px 10px; font-size: 13px;">🌓 Thème</button>
+                        <button id="mobileThemeBtn" onclick="window.ThemeManager.cycleTheme()" class="btn btn-secondary btn-sm" title="Changer le thème" style="padding: 6px 10px; font-size: 13px;">🌓 Thème</button>
+                        <button onclick="document.getElementById('compactToggle').click()" class="btn btn-secondary btn-sm" title="Affichage compact" style="padding: 6px 10px; font-size: 13px;">📐 Compact</button>
                         <button onclick="document.getElementById('privacyToggle').click()" class="btn btn-secondary btn-sm" title="Masquer les montants" style="padding: 6px 10px; font-size: 13px;">👁️ Masquer</button>
                         <button onclick="window.ServerConfig.openModal()" class="btn btn-secondary btn-sm" title="Connexion au serveur" style="padding: 6px 10px; font-size: 13px;">📡 Serveur</button>
+                    </div>
+
+                    <div style="border-top: 1px solid var(--border-color); margin: 10px 0 4px; padding-top: 10px;">
+                        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;" data-i18n="mobile_select_theme">THÈMES</div>
+                        <div id="mobileThemeList" style="display: flex; flex-direction: column; gap: 4px;"></div>
                     </div>
 
                     <div style="border-top: 1px solid var(--border-color); margin: 10px 0 4px; padding-top: 10px;">
@@ -436,7 +452,7 @@
             <!-- Header -->
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0;">
                 <h3 style="margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.3px;" data-i18n="form_title">Saisie d'opération</h3>
-                <div id="op_inferred_type_display" style="background-color: var(--accent); color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase;">neutral</div>
+                <div id="op_inferred_type_display" class="op-inferred-type-badge" style="background-color: var(--accent); color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase;">neutral</div>
             </div>
             
             <!-- Body -->
@@ -1193,7 +1209,8 @@
     <script src="/static/js/views/setup_wizard.js?v=2"></script>
     <script src="/static/js/views/history_manager.js"></script>
     <script src="/static/js/components/server_config.js"></script>
-    <script src="/static/js/app.js?v=14"></script>
+    <script src="/static/js/theme_manager.js?v=3"></script>
+    <script src="/static/js/app.js?v=17"></script>
 
 </body>
 </html>

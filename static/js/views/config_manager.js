@@ -10,7 +10,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div>
             </div>
             
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div class="config-card config-ai-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
                     <h3 style="display:flex; align-items:center; gap:8px; margin:0;" data-i18n="config_ai_title">🤖 Configuration Ollama (Assistant IA)</h3>
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">
@@ -118,7 +118,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div> <!-- End ollamaSettings -->
             </div>
 
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_opt_title">${window.i18n.t('config_opt_title')}</h3>
                 <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;">
                     ${window.i18n.t('config_opt_desc')}
@@ -180,7 +180,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </style>
             </div>
 
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_gen_settings_title">⚙️ ${window.i18n.t('config_gen_settings_title')}</h3>
                 <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_gen_settings_desc">
                     ${window.i18n.t('config_gen_settings_desc')}
@@ -192,7 +192,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             </div>
 
             <!-- Phase 9: User management panel (org mode only) -->
-            <div id="configOrgUsersPanel" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); display: none;">
+            <div id="configOrgUsersPanel" class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); display: none;">
                 <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_org_users">👥 ${window.i18n.t('config_org_users')}</h3>
                 <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_org_users_desc">${window.i18n.t('config_org_users_desc')}</p>
                 <div id="orgUsersList" style="margin-bottom: 12px;"></div>
@@ -202,7 +202,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div>
             </div>
             <!-- Section Profils Maîtres -->
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
                     <h3 style="display:flex; align-items:center; gap:8px; margin:0;" data-i18n="profiles_title">👤 Profils Maîtres</h3>
                     <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="window.ConfigView._showCreateProfileModal()">
@@ -232,13 +232,13 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             </div>
 
             <!-- Improvement 03: Shared mode (multi-session Windows) -->
-            <div id="configSharedModePanel" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div id="configSharedModePanel" class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <h3 style="display:flex; align-items:center; gap:8px;">🖥️ <span data-i18n="config_shared_mode">${window.i18n.t('config_shared_mode')}</span></h3>
                 <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_shared_mode_desc">${window.i18n.t('config_shared_mode_desc')}</p>
                 <div id="sharedModeStatus" style="margin-bottom: 12px;"></div>
                 <div id="sharedModeActions" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
             </div>
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_data_mgmt">Gestion des données</h3>
                 <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;">
                     ${window.i18n.t('config_data_desc')}
@@ -310,7 +310,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             </div>
 
             <!-- Server Connection Settings Card -->
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                     <div>
                         <h3 style="display:flex; align-items:center; gap:8px; margin:0 0 4px 0;" data-i18n="config_server_title">📡 ${window.i18n ? window.i18n.t('config_server_title') : 'Connexion Serveur (Docker / Client Distant)'}</h3>
@@ -323,7 +323,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             </div>
 
             <!-- Improvement 05: Auto Backup -->
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
                     <h3 style="display:flex; align-items:center; gap:8px; margin:0;" data-i18n="config_auto_backup_title">${window.i18n.t('config_auto_backup_title')}</h3>
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
@@ -367,7 +367,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             </div>
 
             <!-- Multi-Currency & Exchange Rates Settings -->
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <h3 style="display:flex; align-items:center; gap:8px; margin:0 0 15px 0;" data-i18n="config_currency_title">💱 Devises & Taux de Change</h3>
                 <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_currency_desc">Configurez la devise principale de l'application et les taux de conversion hors-ligne pour la valeur nette globale.</p>
                 
@@ -419,12 +419,59 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div>
             </div>
 
+            <!-- Theme & Appearance Management -->
+            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
+                    <h3 style="display:flex; align-items:center; gap:8px; margin:0;" data-i18n="theme_manager_title">🎨 ${window.i18n ? window.i18n.t('theme_manager_title') : 'Gestionnaire de Thèmes'}</h3>
+                </div>
+                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 16px;" data-i18n="theme_manager_desc">
+                    ${window.i18n ? window.i18n.t('theme_manager_desc') : 'Personnalisez l\'apparence visuelle d\'OmniBank selon vos préférences.'}
+                </p>
+
+                <div class="theme-config-grid" id="themeConfigGrid">
+                    ${(window.ThemeManager ? window.ThemeManager.getThemes() : []).map(t => {
+                        const current = window.ThemeManager ? window.ThemeManager.currentThemeId : 'dark';
+                        const isActive = t.id === current;
+                        const name = window.i18n ? window.i18n.t(t.nameKey) : t.id;
+                        const desc = window.i18n ? window.i18n.t(t.descKey) : '';
+                        return `
+                            <div class="theme-card ${isActive ? 'active' : ''}" onclick="window.ThemeManager.applyTheme('${t.id}'); window.ConfigView._refreshThemeCards();">
+                                <div class="theme-card-header">
+                                    <div class="theme-card-title">
+                                        <span>${t.icon}</span>
+                                        <span>${name}</span>
+                                    </div>
+                                    <div class="theme-swatch" style="background:${t.bg}; border-color:${t.accent};">
+                                        <span class="theme-swatch-dot" style="background:${t.accent};"></span>
+                                    </div>
+                                </div>
+                                <div class="theme-card-preview" style="background:${t.bg}; color:${t.type === 'dark' ? '#f3f4f6' : '#0f172a'};">
+                                    <span style="font-size:11px; font-weight:700; color:${t.accent};">${t.type.toUpperCase()}</span>
+                                    <span style="font-size:12px; font-weight:800; font-family:monospace;">8 592,36 €</span>
+                                </div>
+                                <p class="theme-card-desc">${desc}</p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+
             <!-- Smart Label Matching Rules -->
             ${window.ConfigSmartLabels ? window.ConfigSmartLabels.render() : ''}
 
             <!-- Diagnostics & Bug Reporting -->
             ${window.ConfigDiagnostics ? window.ConfigDiagnostics.render() : ''}
         `;
+    },
+
+    _refreshThemeCards() {
+        const grid = document.getElementById('themeConfigGrid');
+        if (!grid || !window.ThemeManager) return;
+        const current = window.ThemeManager.currentThemeId;
+        grid.querySelectorAll('.theme-card').forEach(card => {
+            const isMatch = card.getAttribute('onclick')?.includes(`'${current}'`);
+            card.classList.toggle('active', !!isMatch);
+        });
     },
 
     async init() {

@@ -167,22 +167,17 @@ class App {
         this._uiInitialized = true;
         try {
         // Theme toggle
-        const savedTheme = ProfileStorage.get('omni_theme');
-        if (savedTheme === 'dark') {
-            document.body.classList.add('theme-dark');
-        } else if (savedTheme === 'light') {
-            document.body.classList.remove('theme-dark');
-        }
-        
-        document.getElementById('themeToggle').addEventListener('click', () => {
-            document.body.classList.toggle('theme-dark');
-            const isDark = document.body.classList.contains('theme-dark');
-            ProfileStorage.set('omni_theme', isDark ? 'dark' : 'light');
-            window.dispatchEvent(new CustomEvent('themeChanged', { detail: { isDark } }));
-            if (window.SimulatorView && typeof window.SimulatorView.renderChart === 'function' && document.getElementById('simChartCanvas')) {
-                window.SimulatorView.renderChart();
+        // Theme Manager Initialization
+        if (window.ThemeManager) {
+            window.ThemeManager.init();
+        } else {
+            const savedTheme = ProfileStorage.get('omni_theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.body.classList.remove('theme-dark');
+            } else {
+                document.body.classList.add('theme-dark');
             }
-        });
+        }
         
         // Privacy toggle
         const privacyToggle = document.getElementById('privacyToggle');
@@ -207,7 +202,8 @@ class App {
         const svgNormal = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect y="2" width="16" height="2.5" rx="1"/><rect y="7" width="16" height="2.5" rx="1"/><rect y="12" width="16" height="2.5" rx="1"/></svg>';
         const svgCompact = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect y="1" width="16" height="1.5" rx=".75"/><rect y="5" width="16" height="1.5" rx=".75"/><rect y="9" width="16" height="1.5" rx=".75"/><rect y="13" width="16" height="1.5" rx=".75"/></svg>';
         if (compactToggle) {
-            if (ProfileStorage.get('omni_compact') === 'true') {
+            const savedCompact = (typeof ProfileStorage !== 'undefined' && ProfileStorage.get) ? ProfileStorage.get('omni_compact') : localStorage.getItem('omni_compact');
+            if (savedCompact === 'true' || savedCompact === true) {
                 document.body.classList.add('compact-mode');
                 compactToggle.innerHTML = svgCompact;
                 compactToggle.classList.add('toggle-active');
@@ -218,7 +214,10 @@ class App {
                 const isCompact = document.body.classList.contains('compact-mode');
                 compactToggle.innerHTML = isCompact ? svgCompact : svgNormal;
                 compactToggle.classList.toggle('toggle-active', isCompact);
-                ProfileStorage.set('omni_compact', isCompact);
+                if (typeof ProfileStorage !== 'undefined' && ProfileStorage.set) {
+                    ProfileStorage.set('omni_compact', isCompact);
+                }
+                localStorage.setItem('omni_compact', isCompact);
                 // Re-measure row height and refresh active VirtualTable
                 [window.TimelineView, window.AllOperationsView].forEach(v => {
                     if (v && v._vt) {
@@ -808,7 +807,7 @@ class App {
 
         groups.forEach(group => {
             if (group.items.length === 0) return;
-            const isCollapsed = this._collapsedNotifGroups.has(group.key);
+            const isCollapsed = this._collapsedNotifGroups ? this._collapsedNotifGroups.has(group.key) : false;
             const chevronClass = isCollapsed ? 'notif-group-chevron collapsed' : 'notif-group-chevron';
             const itemsDisplay = isCollapsed ? 'none' : 'flex';
 
@@ -2895,12 +2894,18 @@ class App {
         if (!langMenu || !window.i18n) return;
         
         const langs = window.i18n.availableLangs || [];
+        const currentLang = window.i18n.lang || 'fr';
         let html = '';
         for (const l of langs) {
+            const isActive = l.code === currentLang;
             html += `
-                <button class="lang-option" data-lang="${l.code}" style="display:flex; align-items:center; gap:8px; width:100%; padding:6px 10px; background:none; border:none; color:var(--text-main); cursor:pointer; font-size:12px;">
-                    <span class="fi fi-${l.flag}"></span> ${escapeHtml(l.label)}
-                </button>
+                <div class="lang-option ${isActive ? 'active' : ''}" data-lang="${l.code}">
+                    <div class="lang-option-left">
+                        <span class="fi fi-${l.flag}"></span>
+                        <span>${escapeHtml(l.label)}</span>
+                    </div>
+                    ${isActive ? '<span class="lang-check">✓</span>' : ''}
+                </div>
             `;
         }
         langMenu.innerHTML = html;
@@ -2948,6 +2953,9 @@ class App {
 
     updateMobileLangUI() {
         this.renderMobileLangList();
+        if (window.ThemeManager) {
+            window.ThemeManager.renderMobileThemeList();
+        }
     }
 
     updateDesktopLangUI() {
@@ -2955,6 +2963,7 @@ class App {
         if (!window.i18n) return;
         const info = window.i18n.getLangInfo();
         if (currentLangFlag) currentLangFlag.className = `fi fi-${info.flag}`;
+        this.populateLangDropdown();
     }
 }
 
