@@ -294,6 +294,7 @@ Object.assign(window.BankSyncView, {
         this.showToast('Coffre déverrouillé avec succès !', 'success');
         await this.loadVaultStatus();
         await this.loadPendingSync();
+        await this.loadConnections();
     },
 
     async lockVault() {
@@ -305,6 +306,7 @@ Object.assign(window.BankSyncView, {
         this.stopVaultCountdown();
         this.vaultStatus = { is_unlocked: false, remaining_days: 0, remaining_seconds: 0 };
         this.renderVaultStatusBar();
+        await this.loadConnections();
         this.showToast('Coffre-fort verrouillé (mémoire purgée).', 'info');
     },
 

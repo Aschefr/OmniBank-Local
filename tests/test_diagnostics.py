@@ -100,3 +100,103 @@ def test_clear_diagnostics_api():
 
     assert len(LOG_BUFFER) == 0
     assert len(EXCEPTION_BUFFER) == 0
+
+
+def test_diagnostic_report_with_bank_and_alerts():
+    """Verify bank connections and alert notifications appear in diagnostic report."""
+    from app.database import get_db
+    from app.models import BankConnection, Notification
+
+    db = next(get_db())
+    try:
+        # Create a test connection with an error
+        conn = BankConnection(
+            label="Crédit Agricole Test Diag",
+            backend="cragr",
+            is_active=True,
+            last_sync_status="auto_error",
+            last_error="Action requise : nouvelles CGU à accepter"
+        )
+        db.add(conn)
+
+        # Create a test notification
+        notif = Notification(
+            type="bank_sync_error",
+            title="⚠️ Échec relevé Crédit Agricole",
+            content="Erreur lors du relevé : nouvelles CGU",
+            is_read=False
+        )
+        db.add(notif)
+        db.commit()
+
+        report = get_diagnostic_report(db)
+        assert "bank_connections" in report
+        assert "recent_alerts" in report
+
+        # Find the created connection
+        ca_conns = [c for c in report["bank_connections"] if c["backend"] == "cragr" and "Test Diag" in c["label"]]
+        assert len(ca_conns) == 1
+        assert ca_conns[0]["last_sync_status"] == "auto_error"
+        assert "CGU" in ca_conns[0]["last_error"]
+
+        # Find the created alert
+        matching_alerts = [a for a in report["recent_alerts"] if "Échec relevé" in a["title"]]
+        assert len(matching_alerts) >= 1
+        assert matching_alerts[0]["type"] == "bank_sync_error"
+
+    finally:
+        # Clean up test records
+        try:
+            db.query(Notification).filter(Notification.title == "⚠️ Échec relevé Crédit Agricole").delete()
+            db.query(BankConnection).filter(BankConnection.label == "Crédit Agricole Test Diag").delete()
+            db.commit()
+        except Exception:
+            pass
+        db.close()
+
+
+def test_clean_error_message_element_not_found():
+    """Verify that element not found (like clientId) is converted to actionable guidance."""
+    from app.services.bank_sync_service import clean_error_message
+
+    err = Exception("Element ['clientId'] not found")
+    cleaned = clean_error_message(err)
+
+    assert "Action requise sur votre espace bancaire" in cleaned
+    assert "CGU" in cleaned
+    assert "clientId" in cleaned
+
+
+def test_auto_sync_failure_records_diagnostic_exception():
+    """Verify that auto-sync failures register into backend exception buffer."""
+    from app.database import get_db
+    from app.models import BankConnection, Notification
+    from app.services.bank_sync_scheduler import execute_auto_sync_for_connection
+
+    clear_diagnostic_buffers()
+    db = next(get_db())
+    test_conn = BankConnection(backend="cragr", label="Test CA Failure Diag", is_active=True)
+    db.add(test_conn)
+    db.commit()
+    db.refresh(test_conn)
+
+    try:
+        execute_auto_sync_for_connection(db, test_conn, "invalid_password")
+        # Check that exception was recorded in EXCEPTION_BUFFER
+        assert len(EXCEPTION_BUFFER) >= 1
+        last_exc = EXCEPTION_BUFFER[-1]
+        assert "BankScheduler" in last_exc["context"]
+        assert "Test CA Failure Diag" in last_exc["context"]
+
+        # Check that connection recorded the cleaned error
+        db.refresh(test_conn)
+        assert test_conn.last_sync_status == "auto_error"
+        assert test_conn.last_error is not None
+    finally:
+        try:
+            db.query(Notification).filter(Notification.title.like("%Test CA Failure Diag%")).delete()
+            db.query(BankConnection).filter(BankConnection.id == test_conn.id).delete()
+            db.commit()
+        except Exception:
+            pass
+        db.close()

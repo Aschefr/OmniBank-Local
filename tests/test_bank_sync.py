@@ -2479,6 +2479,42 @@ def test_check_reconciliation_prefers_close_unreconciled_over_far_reconciled_rec
     assert rec_second_pass["match_score"] == 100
 
 
+def test_cragr_hotfix_client_id_mire_options():
+    """Verify that _apply_module_hotfixes patches cragr AppConfigPage to read clientId from mireOptions."""
+    from woob.core import Woob
+    from app.services.bank_sync_service import _apply_module_hotfixes
+
+    w = Woob()
+    _apply_module_hotfixes(w, "cragr")
+
+    import sys
+    pages_mod = sys.modules.get("woob_modules.cragr.pages")
+    assert pages_mod is not None
+    assert hasattr(pages_mod, "AppConfigPage")
+
+    # Test that AppConfigPage retrieves clientId from mireOptions
+    class MockAppPage(pages_mod.AppConfigPage):
+        def __init__(self, doc):
+            self.doc = doc
+
+    test_doc = {
+        "environment": "prod",
+        "mireOptions": {
+            "userType": "customer",
+            "clientId": "mock_ca_client_id_999",
+            "loginMethod": "GET"
+        }
+    }
+    page = MockAppPage(test_doc)
+    assert page.get_client_id() == "mock_ca_client_id_999"
+
+    # Test that direct clientId still works
+    direct_doc = {"clientId": "direct_123"}
+    page_direct = MockAppPage(direct_doc)
+    assert page_direct.get_client_id() == "direct_123"
+
+
+
 
 
 

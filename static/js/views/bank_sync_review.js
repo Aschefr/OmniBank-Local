@@ -61,8 +61,14 @@ Object.assign(window.BankSyncView, {
         }
 
         this.previewData = previewData;
-        this.currentAccountIndex = 0;
-        this.currentFilter = 'all';
+        const firstPendingAccIdx = (previewData?.accounts || []).findIndex(acc => {
+            return (acc.transactions || []).some(tx => {
+                const isIgnored = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+                return !isIgnored;
+            });
+        });
+        this.currentAccountIndex = firstPendingAccIdx >= 0 ? firstPendingAccIdx : 0;
+        this.currentFilter = 'pending';
         this.showMatchScores = localStorage.getItem('omnibank_review_show_scores') === 'true';
 
         const scoreBtn = document.getElementById('btnSyncToggleScores');
@@ -160,7 +166,7 @@ Object.assign(window.BankSyncView, {
         }
 
         this.renderAccountTabs();
-        this.renderReviewTable();
+        this.setReviewFilter('pending');
     },
 
     closeReviewModal() {
@@ -250,7 +256,7 @@ Object.assign(window.BankSyncView, {
     setReviewFilter(filter) {
         this.currentFilter = filter;
 
-        ['btnSyncFilterAll', 'btnSyncFilterAdd', 'btnSyncFilterReconcile', 'btnSyncFilterComing', 'btnSyncFilterIgnored'].forEach(id => {
+        ['btnSyncFilterPending', 'btnSyncFilterAll', 'btnSyncFilterAdd', 'btnSyncFilterReconcile', 'btnSyncFilterComing', 'btnSyncFilterIgnored'].forEach(id => {
             const btn = document.getElementById(id);
             if (btn) {
                 btn.style.background = 'transparent';
@@ -260,6 +266,7 @@ Object.assign(window.BankSyncView, {
         });
 
         const activeMap = {
+            'pending': 'btnSyncFilterPending',
             'all': 'btnSyncFilterAll',
             'add': 'btnSyncFilterAdd',
             'reconcile': 'btnSyncFilterReconcile',
@@ -268,8 +275,8 @@ Object.assign(window.BankSyncView, {
         };
         const activeBtn = document.getElementById(activeMap[filter]);
         if (activeBtn) {
-            activeBtn.style.background = filter === 'coming' ? '#d97706' : 'var(--accent)';
-            activeBtn.style.borderColor = filter === 'coming' ? '#d97706' : 'var(--accent)';
+            activeBtn.style.background = filter === 'coming' ? '#d97706' : (filter === 'pending' ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' : 'var(--accent)');
+            activeBtn.style.borderColor = filter === 'coming' ? '#d97706' : (filter === 'pending' ? '#92400e' : 'var(--accent)');
             activeBtn.style.color = 'white';
         }
 
@@ -320,6 +327,10 @@ Object.assign(window.BankSyncView, {
 
         let visibleTxs = txs.filter(tx => {
             const isIgnoredOrExcluded = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+            if (this.currentFilter === 'pending') {
+                // Affiche uniquement les opérations à rapprocher, en attente et nouvelles (exclut les ignorées et déjà en base)
+                return !isIgnoredOrExcluded;
+            }
             if (this.currentFilter === 'all') return true;
             if (this.currentFilter === 'coming') return !!tx.is_coming;
             if (this.currentFilter === 'ignored') return isIgnoredOrExcluded;
@@ -577,6 +588,7 @@ Object.assign(window.BankSyncView, {
         const txs = currentAcc.transactions;
         let visibleTxs = txs.filter(tx => {
             const isIgnoredOrExcluded = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+            if (this.currentFilter === 'pending') return !isIgnoredOrExcluded;
             if (this.currentFilter === 'all') return true;
             if (this.currentFilter === 'coming') return !!tx.is_coming;
             if (this.currentFilter === 'ignored') return isIgnoredOrExcluded;
@@ -605,9 +617,11 @@ Object.assign(window.BankSyncView, {
         if (!currentAcc || !currentAcc.transactions) return;
 
         let visibleTxs = currentAcc.transactions.filter(tx => {
+            const isIgnoredOrExcluded = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+            if (this.currentFilter === 'pending') return !isIgnoredOrExcluded;
             if (this.currentFilter === 'all') return true;
             if (this.currentFilter === 'coming') return !!tx.is_coming;
-            if (this.currentFilter === 'ignored') return (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+            if (this.currentFilter === 'ignored') return isIgnoredOrExcluded;
             if (this.currentFilter === 'reconcile') return (tx.is_reconciled && !tx.already_reconciled && !tx.is_coming);
             if (this.currentFilter === 'add') return (!tx.is_reconciled && !tx.is_coming);
             return true;
@@ -942,18 +956,22 @@ Object.assign(window.BankSyncView, {
         });
 
         // Mise à jour dynamique des boutons de filtre avec les compteurs
+        const btnPending = document.getElementById('btnSyncFilterPending');
         const btnAll = document.getElementById('btnSyncFilterAll');
         const btnAdd = document.getElementById('btnSyncFilterAdd');
         const btnRec = document.getElementById('btnSyncFilterReconcile');
         const btnComing = document.getElementById('btnSyncFilterComing');
         const btnIgnored = document.getElementById('btnSyncFilterIgnored');
 
+        const accPending = accNew + accReconciled + accComing;
+        const lblPending = (window.i18n && window.i18n.t('bank_sync_filter_pending')) || 'À traiter';
         const lblAll = (window.i18n && window.i18n.t('bank_sync_filter_all')) || 'Toutes';
         const lblAdd = (window.i18n && window.i18n.t('bank_sync_filter_add')) || 'À ajouter';
         const lblRec = (window.i18n && window.i18n.t('bank_sync_filter_reconcile')) || 'À rapprocher';
         const lblComing = (window.i18n && window.i18n.t('bank_sync_filter_coming')) || 'En attente en ligne';
         const lblIgnored = (window.i18n && window.i18n.t('bank_sync_status_already_processed_short')) || 'Déjà traitées';
 
+        if (btnPending) btnPending.textContent = `⚡ ${lblPending} (${accPending})`;
         if (btnAll) btnAll.textContent = `${lblAll} (${currentTxs.length})`;
         if (btnAdd) btnAdd.textContent = `${lblAdd} (+${accNew})`;
         if (btnRec) btnRec.textContent = `${lblRec} (${accReconciled})`;

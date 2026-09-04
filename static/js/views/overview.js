@@ -677,7 +677,7 @@ window.OverviewView = {
                 </button>
                 ` : ''}
                 ${pendingData.accounts && pendingData.accounts.length > 0 ? `
-                <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.openPendingReviewModal()" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 600;">
+                <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.openPendingReviewModal(this)" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 600;">
                     📋 ${window.i18n.t('bank_sync_pending_review_btn') || 'Revue des opérations'}
                 </button>
                 ` : ''}

@@ -186,6 +186,11 @@ def unlock_vault(req: VaultUnlockRequest, db: Session = Depends(get_db)):
             conn.last_error = None
             if conn.last_sync_status in ("auto_error", "error"):
                 conn.last_sync_status = "idle"
+    from app.models import Notification
+    db.query(Notification).filter(
+        Notification.type == "bank_sync_error",
+        (Notification.content.like("%mot de passe%") | Notification.content.like("%coffre%"))
+    ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
     db.commit()
 
     return {
@@ -585,17 +590,30 @@ def test_existing_connection(conn_id: int, req: SyncConnectionRequest, db: Sessi
     active_pid = get_active_profile().get("id", "default")
     pw = req.master_password or VaultSessionManager.get_password(req.vault_token, profile_id=active_pid)
     if not pw:
-        raise HTTPException(status_code=401, detail="Mot de passe maître requis ou coffre verrouillé")
+        raise HTTPException(status_code=401, detail="Coffre-fort verrouillé : veuillez déverrouiller votre coffre.")
+
+    if not CredentialVault.has_credentials(db, conn.id):
+        raise HTTPException(status_code=404, detail="Aucun identifiant configuré pour cette connexion bancaire.")
 
     creds = CredentialVault.retrieve_credentials(db, conn.id, pw)
     if not creds:
-        raise HTTPException(status_code=401, detail="Mot de passe maître incorrect ou identifiants introuvables")
+        raise HTTPException(status_code=401, detail="Mot de passe maître incorrect : impossible de déchiffrer les identifiants.")
 
     try:
         accounts = BankSyncService.test_connection_and_list_accounts(
             backend_name=conn.backend,
             credentials=creds,
         )
+        conn.last_error = None
+        conn.last_sync_at = datetime.now(timezone.utc)
+        if conn.last_sync_status in ("auto_error", "error"):
+            conn.last_sync_status = "success"
+        from app.models import Notification
+        db.query(Notification).filter(
+            Notification.type == "bank_sync_error",
+            Notification.link_data.like(f'%"conn_id": {conn.id}%')
+        ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
+        db.commit()
         return accounts
     except Exception as e:
         logger.warning(f"[BankSync] Échec du test pour la connexion {conn_id} : {e}")
@@ -618,11 +636,14 @@ async def test_connection_stream(
     active_pid = get_active_profile().get("id", "default")
     pw = VaultSessionManager.get_password(vault_token, profile_id=active_pid)
     if not pw:
-        raise HTTPException(status_code=401, detail="Mot de passe maître requis ou coffre verrouillé")
+        raise HTTPException(status_code=401, detail="Coffre-fort verrouillé : veuillez déverrouiller votre coffre.")
+
+    if not CredentialVault.has_credentials(db, conn.id):
+        raise HTTPException(status_code=404, detail="Aucun identifiant configuré pour cette connexion bancaire.")
 
     creds = CredentialVault.retrieve_credentials(db, conn.id, pw)
     if not creds:
-        raise HTTPException(status_code=401, detail="Mot de passe maître incorrect ou identifiants introuvables")
+        raise HTTPException(status_code=401, detail="Mot de passe maître incorrect : impossible de déchiffrer les identifiants.")
 
     session_id = f"test_{conn_id}_{uuid.uuid4().hex[:8]}"
     event_queue: asyncio.Queue = asyncio.Queue()
@@ -643,6 +664,25 @@ async def test_connection_stream(
                 session_id=session_id,
                 event_callback=sse_callback
             )
+            from app.database import SessionLocal
+            from app.models import Notification
+            worker_db = SessionLocal()
+            try:
+                worker_conn = worker_db.query(BankConnection).filter(BankConnection.id == conn_id).first()
+                if worker_conn:
+                    worker_conn.last_error = None
+                    worker_conn.last_sync_at = datetime.now(timezone.utc)
+                    if worker_conn.last_sync_status in ("auto_error", "error"):
+                        worker_conn.last_sync_status = "success"
+                    worker_db.query(Notification).filter(
+                        Notification.type == "bank_sync_error",
+                        Notification.link_data.like(f'%"conn_id": {conn_id}%')
+                    ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
+                    worker_db.commit()
+            except Exception as w_err:
+                logger.debug(f"[BankSync] Erreur mise à jour statut test SSE: {w_err}")
+            finally:
+                worker_db.close()
             sse_callback("accounts", {"accounts": [a.model_dump() for a in accounts]})
         except Exception as e:
             logger.warning(f"[BankSync] Échec du flux de test {conn_id} : {e}")
@@ -755,7 +795,7 @@ async def sync_connection_stream(
     active_pid = get_active_profile().get("id", "default")
     pw = VaultSessionManager.get_password(vault_token, profile_id=active_pid)
     if not pw:
-        raise HTTPException(status_code=401, detail="Mot de passe maître requis ou coffre verrouillé")
+        raise HTTPException(status_code=401, detail="Coffre-fort verrouillé : veuillez déverrouiller votre coffre.")
 
     session_id = f"sync_{conn_id}_{uuid.uuid4().hex[:8]}"
     event_queue: asyncio.Queue = asyncio.Queue()
@@ -783,6 +823,17 @@ async def sync_connection_stream(
                 event_callback=sse_callback,
                 session_id=session_id
             )
+            if worker_conn:
+                worker_conn.last_error = None
+                worker_conn.last_sync_at = datetime.now(timezone.utc)
+                if worker_conn.last_sync_status in ("auto_error", "error"):
+                    worker_conn.last_sync_status = "success"
+                from app.models import Notification
+                worker_db.query(Notification).filter(
+                    Notification.type == "bank_sync_error",
+                    Notification.link_data.like(f'%"conn_id": {conn_id}%')
+                ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
+                worker_db.commit()
         except Exception as e:
             err_msg = clean_error_message(e)
             logger.error(f"[BankSync] Erreur durant le flux de sync {conn_id} ({type(e).__name__}) : {err_msg}", exc_info=True)
