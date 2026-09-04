@@ -207,12 +207,7 @@ window.ThemeManager = {
                         <span>${t.icon}</span>
                         <span>${escapeHtml(name)}</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div class="theme-swatch" style="background:${t.bg}; border-color:${t.accent}; width: 18px; height: 18px;" title="${escapeHtml(name)}">
-                            <span class="theme-swatch-dot" style="background:${t.accent}; width: 6px; height: 6px;"></span>
-                        </div>
-                        ${isActive ? '<span class="mobile-theme-check">✓</span>' : ''}
-                    </div>
+                    ${isActive ? '<span class="mobile-theme-check">✓</span>' : ''}
                 </button>
             `;
         }

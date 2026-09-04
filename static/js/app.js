@@ -274,6 +274,8 @@ class App {
                 }
             });
             overlay.addEventListener('click', closeSidebar);
+            const closeBtn = document.getElementById('sidebarCloseBtn');
+            if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
             // Close sidebar when clicking a nav button on mobile
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.addEventListener('click', closeSidebar);
@@ -2923,6 +2925,7 @@ class App {
         const container = document.getElementById('mobileLangList');
         if (!container || !window.i18n) return;
 
+        const escapeHtml = str => String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
         const langs = window.i18n.availableLangs || [];
         const current = window.i18n.lang;
         let html = '';
@@ -2931,8 +2934,10 @@ class App {
             const isActive = l.code === current;
             html += `
                 <button class="mobile-lang-item ${isActive ? 'active' : ''}" onclick="window.app.setLanguage('${l.code}')">
-                    <span class="fi fi-${l.flag}"></span>
-                    <span>${escapeHtml(l.label)}</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="fi fi-${l.flag}"></span>
+                        <span>${escapeHtml(l.label)}</span>
+                    </div>
                     ${isActive ? '<span class="mobile-lang-check">✓</span>' : ''}
                 </button>
             `;

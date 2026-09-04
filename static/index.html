@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title data-i18n="app_title">OmniBank Local</title>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/static/img/logo.png">
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
@@ -41,7 +42,7 @@
         <header class="app-header">
             <div style="display:flex; align-items:center; gap: 10px;">
                 <button id="mobileMenuBtn" class="mobile-only-btn" style="display:none; font-size: 20px; background: none; border: none; color: var(--text-main); cursor: pointer;">☰</button>
-                <div class="logo">🏦 <span data-i18n="app_title">OmniBank</span> <span id="appVersionBadge" onclick="window.app.showChangelog()" style="font-size: 10px; background: var(--bg-base); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 600; color: var(--text-muted); vertical-align: middle; letter-spacing: 0.3px; cursor: pointer; transition: background 0.2s, border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.borderColor='var(--border-color)';this.style.background='var(--bg-base)'">v…</span></div>
+                <div class="logo"><img src="/static/img/logo.png" alt="OmniBank Logo" class="app-logo-img"> <span data-i18n="app_title">OmniBank</span> <span id="appVersionBadge" onclick="window.app.showChangelog()" style="font-size: 10px; background: var(--bg-base); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 600; color: var(--text-muted); vertical-align: middle; letter-spacing: 0.3px; cursor: pointer; transition: background 0.2s, border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.borderColor='var(--border-color)';this.style.background='var(--bg-base)'">v…</span></div>
             </div>
             <nav class="main-nav">
                 <button data-view="overview" class="nav-btn" style="display:none;">👀 <span data-i18n="nav_overview">Vue d'ensemble</span></button>
@@ -169,8 +170,17 @@
 
         <div class="app-body">
             <aside class="app-sidebar" id="sidebar">
-                <nav class="mobile-nav" style="display: none; flex-direction: column; gap: 8px; margin-bottom: 20px;">
-                    <h3 style="margin-bottom: 8px; color: var(--text-muted); font-size: 11px;">MENU</h3>
+                <!-- Mobile Drawer Header -->
+                <div class="mobile-sidebar-header">
+                    <div style="display: flex; align-items: center; gap: 9px;">
+                        <img src="/static/img/logo.png" alt="OmniBank Logo" class="app-logo-img" style="width: 24px; height: 24px; border-radius: 6px;">
+                        <span style="font-weight: 800; font-size: 14.5px; color: var(--text-main); letter-spacing: -0.3px;">OmniBank</span>
+                    </div>
+                    <button id="sidebarCloseBtn" class="mobile-sidebar-close" onclick="document.getElementById('sidebarOverlay').click()" data-i18n-title="mobile_drawer_close" title="Fermer le menu">✕</button>
+                </div>
+
+                <nav class="mobile-nav" style="display: none; flex-direction: column; gap: 6px; margin-bottom: 20px;">
+                    <div class="sidebar-section-title" data-i18n="mobile_nav_menu">MENU</div>
                     <button data-view="overview" class="nav-btn" style="text-align: left; display:none;">👀 <span data-i18n="nav_overview">Vue d'ensemble</span></button>
                     <button data-view="dashboard" class="nav-btn active" style="text-align: left;">🏠 <span data-i18n="nav_dashboard">Dashboard</span></button>
                     <button data-view="all_operations" class="nav-btn" style="text-align: left;">📋 <span data-i18n="nav_history">Historique</span></button>
@@ -186,33 +196,33 @@
                     <button data-view="history" class="nav-btn" style="text-align: left;">🕓 <span data-i18n="nav_history_actions">Actions</span></button>
                     <button data-view="config" class="nav-btn" style="text-align: left;">⚙️ <span data-i18n="nav_configuration">Configuration</span></button>
                     
-                    <div style="border-top: 1px solid var(--border-color); margin: 8px 0; padding-top: 8px; display: flex; gap: 8px; align-items: center; justify-content: space-around; flex-wrap: wrap;">
-                        <button id="mobileThemeBtn" onclick="window.ThemeManager.cycleTheme()" class="btn btn-secondary btn-sm" title="Changer le thème" style="padding: 6px 10px; font-size: 13px;">🌓 Thème</button>
-                        <button onclick="document.getElementById('compactToggle').click()" class="btn btn-secondary btn-sm" title="Affichage compact" style="padding: 6px 10px; font-size: 13px;">📐 Compact</button>
-                        <button onclick="document.getElementById('privacyToggle').click()" class="btn btn-secondary btn-sm" title="Masquer les montants" style="padding: 6px 10px; font-size: 13px;">👁️ Masquer</button>
-                        <button onclick="window.ServerConfig.openModal()" class="btn btn-secondary btn-sm" title="Connexion au serveur" style="padding: 6px 10px; font-size: 13px;">📡 Serveur</button>
+                    <div class="mobile-quick-actions-grid">
+                        <button id="mobileThemeBtn" onclick="window.ThemeManager.cycleTheme()" class="btn btn-secondary mobile-quick-btn" title="Changer le thème">🌓 <span data-i18n="mobile_action_theme">Thème</span></button>
+                        <button onclick="document.getElementById('compactToggle').click()" class="btn btn-secondary mobile-quick-btn" title="Affichage compact">📐 <span data-i18n="mobile_action_compact">Compact</span></button>
+                        <button onclick="document.getElementById('privacyToggle').click()" class="btn btn-secondary mobile-quick-btn" title="Masquer les montants">👁️ <span data-i18n="mobile_action_privacy">Masquer</span></button>
+                        <button onclick="window.ServerConfig.openModal()" class="btn btn-secondary mobile-quick-btn" title="Connexion au serveur">📡 <span data-i18n="mobile_action_server">Serveur</span></button>
                     </div>
 
-                    <div style="border-top: 1px solid var(--border-color); margin: 10px 0 4px; padding-top: 10px;">
-                        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;" data-i18n="mobile_select_theme">THÈMES</div>
+                    <div style="border-top: 1px solid var(--border-color); margin: 12px 0 4px; padding-top: 12px;">
+                        <div class="sidebar-section-title" data-i18n="mobile_select_theme">THÈMES</div>
                         <div id="mobileThemeList" style="display: flex; flex-direction: column; gap: 4px;"></div>
                     </div>
 
-                    <div style="border-top: 1px solid var(--border-color); margin: 10px 0 4px; padding-top: 10px;">
-                        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;" data-i18n="mobile_select_language">LANGUE</div>
+                    <div style="border-top: 1px solid var(--border-color); margin: 12px 0 4px; padding-top: 12px;">
+                        <div class="sidebar-section-title" data-i18n="mobile_select_language">LANGUE</div>
                         <div id="mobileLangList" style="display: flex; flex-direction: column; gap: 4px;"></div>
                     </div>
                 </nav>
 
                 <div class="sidebar-accounts-card">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <h3 id="sidebarAccountsTitle" style="margin:0; font-size:13px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                        <h3 id="sidebarAccountsTitle" style="margin:0; font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
                             <span id="sidebarAccountsIcon">🏦</span> <span id="sidebarAccountsLabel" data-i18n="sidebar_accounts">Comptes & Livrets</span>
                         </h3>
                         <div id="sidebarAccountsNav" style="display:none; gap:4px; align-items:center;">
-                            <button id="sidebarAccPrevBtn" class="btn btn-secondary btn-sm" onclick="window.app.toggleSidebarAccountMode(-1)" style="padding:1px 6px; font-size:10px; height:20px; line-height:1; border-radius:4px;" title="Volet précédent">◀</button>
-                            <span id="sidebarAccModeBadge" style="font-size:10px; font-weight:700; color:var(--text-muted); min-width:20px; text-align:center;">1/2</span>
-                            <button id="sidebarAccNextBtn" class="btn btn-secondary btn-sm" onclick="window.app.toggleSidebarAccountMode(1)" style="padding:1px 6px; font-size:10px; height:20px; line-height:1; border-radius:4px;" title="Volet suivant">▶</button>
+                            <button id="sidebarAccPrevBtn" class="btn btn-secondary btn-sm" onclick="window.app.toggleSidebarAccountMode(-1)" style="padding:2px 8px; font-size:11.5px; height:24px; min-width:24px; line-height:1; border-radius:5px;" title="Volet précédent">◀</button>
+                            <span id="sidebarAccModeBadge" style="font-size:11px; font-weight:700; color:var(--text-muted); min-width:22px; text-align:center;">1/2</span>
+                            <button id="sidebarAccNextBtn" class="btn btn-secondary btn-sm" onclick="window.app.toggleSidebarAccountMode(1)" style="padding:2px 8px; font-size:11.5px; height:24px; min-width:24px; line-height:1; border-radius:5px;" title="Volet suivant">▶</button>
                         </div>
                     </div>
                     <div id="accountsList" class="accounts-list">
@@ -258,43 +268,43 @@
                             </div>
                             <span id="btnLocateOverdraft" style="cursor: pointer; font-size: 16px; padding: 4px;" data-i18n-title="tooltip_locate_overdraft" title="Voir l'opération dans l'historique">🔍</span>
                         </div>
-                        <div id="valOverdraftExplanation" style="font-size: 10px; color: var(--text-muted); margin-top: 8px; line-height: 1.2; border-top: 1px dashed rgba(255, 86, 48, 0.3); padding-top: 6px;">
+                        <div id="valOverdraftExplanation" style="font-size: 11.5px; color: var(--text-muted); margin-top: 8px; line-height: 1.35; border-top: 1px dashed rgba(255, 86, 48, 0.3); padding-top: 6px;">
                         </div>
                     </div>
                     
                     <div id="sidebarBudgetBars"><!-- dynamically rendered by app.js --></div>
                 </div>
 
-                <div id="quickSettingsBox" style="margin-top: auto; padding: 15px; border-radius: 8px; background-color: var(--bg-body); border: 1px solid var(--border-color);">
-                    <h3 style="font-size: 12px; margin-bottom: 10px; color: var(--text-main); font-weight: 600;" data-i18n="dashboard_quick_settings">Jour de paie</h3>
+                <div id="quickSettingsBox" style="margin-top: auto; padding: 14px; border-radius: 8px; background-color: var(--bg-body); border: 1px solid var(--border-color);">
+                    <div class="sidebar-section-title" style="margin-bottom: 10px;" data-i18n="dashboard_quick_settings">JOUR DE PAIE</div>
                     <div id="quickPayContainer" style="display:flex; flex-direction: column; gap: 8px;">
                         <div id="quickPayTypeContainer" style="display:flex; align-items:center; justify-content:space-between;">
-                            <span style="font-size:13px; color:var(--text-muted);" data-i18n="label_pay_type">Paie type :</span>
-                            <select id="quickPayType" class="inline-input" style="padding:4px; font-size:12px; border-radius: 6px;" onchange="window.app.onQuickPayTypeChange(true)">
+                            <span style="font-size:12.5px; color:var(--text-muted); font-weight:500;" data-i18n="label_pay_type">Paie type :</span>
+                            <select id="quickPayType" class="inline-input" style="padding:4px 8px; font-size:12.5px; border-radius: 6px;" onchange="window.app.onQuickPayTypeChange(true)">
                                 <option value="monthly" data-i18n="opt_pay_monthly">Mensuelle</option>
                                 <option value="bimonthly" id="quickPayOptBimonthly" hidden data-i18n="opt_pay_bimonthly">Bi-mensuelle</option>
                             </select>
                         </div>
                         <div style="display:flex; align-items:center; justify-content:space-between;">
-                            <span style="font-size:13px; color:var(--text-muted);" id="lblQuickPayDay1" data-i18n="label_pay_day">Jour :</span>
+                            <span style="font-size:12.5px; color:var(--text-muted); font-weight:500;" id="lblQuickPayDay1" data-i18n="label_pay_day">Jour :</span>
                             <div style="display: flex; gap: 5px;">
-                                <input type="number" id="quickPayDay" class="inline-input" style="width:50px; padding:6px; font-size:14px; text-align:center; font-weight:bold; border-radius: 6px; border: 1px solid var(--accent); color: var(--accent);" min="1" max="31" onchange="window.app.saveQuickPay()">
-                                <input type="number" id="quickPayDay2" class="inline-input" style="display: none; width:50px; padding:6px; font-size:14px; text-align:center; font-weight:bold; border-radius: 6px; border: 1px solid var(--accent); color: var(--accent);" min="1" max="31" onchange="window.app.saveQuickPay()">
+                                <input type="number" id="quickPayDay" class="inline-input" style="width:52px; padding:5px 6px; font-size:13.5px; text-align:center; font-weight:bold; border-radius: 6px; border: 1px solid var(--accent); color: var(--accent);" min="1" max="31" onchange="window.app.saveQuickPay()">
+                                <input type="number" id="quickPayDay2" class="inline-input" style="display: none; width:52px; padding:5px 6px; font-size:13.5px; text-align:center; font-weight:bold; border-radius: 6px; border: 1px solid var(--accent); color: var(--accent);" min="1" max="31" onchange="window.app.saveQuickPay()">
                             </div>
                         </div>
                         <div style="border-top: 1px dashed var(--border-color); margin: 4px 0;"></div>
                         <div style="display:flex; align-items:center; justify-content:space-between;">
-                            <span style="font-size:12px; color:var(--text-muted);" data-i18n="label_pay_category">Catégorie paie :</span>
-                            <select id="quickPayCategory" class="inline-input" style="padding:4px; font-size:11px; border-radius: 6px; width: 110px;" onchange="window.app.saveQuickPay()">
+                            <span style="font-size:12.5px; color:var(--text-muted); font-weight:500;" data-i18n="label_pay_category">Catégorie paie :</span>
+                            <select id="quickPayCategory" class="inline-input" style="padding:4px 8px; font-size:12px; border-radius: 6px; width: 115px;" onchange="window.app.saveQuickPay()">
                                 <option value="" data-i18n="opt_any_category">-- Toutes --</option>
                             </select>
                         </div>
                         <div style="display:flex; align-items:center; justify-content:space-between;">
-                            <span style="font-size:12px; color:var(--text-muted);" data-i18n="label_pay_threshold">Seuil mini (%) :</span>
-                            <input type="number" id="quickPayThreshold" class="inline-input" style="width:60px; padding:4px; font-size:11px; text-align:center; border-radius: 6px;" min="0" max="100" placeholder="30" onchange="window.app.saveQuickPay()">
+                            <span style="font-size:12.5px; color:var(--text-muted); font-weight:500;" data-i18n="label_pay_threshold">Seuil mini (%) :</span>
+                            <input type="number" id="quickPayThreshold" class="inline-input" style="width:60px; padding:4px 6px; font-size:12.5px; text-align:center; border-radius: 6px;" min="0" max="100" placeholder="30" onchange="window.app.saveQuickPay()">
                         </div>
                     </div>
-                    <p style="font-size: 10px; color: var(--text-muted); margin-top: 8px; line-height: 1.3;" data-i18n="dashboard_pay_algo_hint">Sert de base à l'algorithme pour repérer tes salaires dans l'historique.</p>
+                    <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 8px; line-height: 1.35;" data-i18n="dashboard_pay_algo_hint">Sert de base à l'algorithme pour repérer tes salaires dans l'historique.</p>
                 </div>
             </aside>
 

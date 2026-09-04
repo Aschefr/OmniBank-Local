@@ -177,45 +177,49 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     <h3 data-i18n="config_currency_title">💱 Devises & Taux de Change</h3>
                     <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_currency_desc">Configurez la devise principale de l'application et les taux de conversion hors-ligne pour la valeur nette globale.</p>
                     
-                    <div class="flex-row-mobile-col" style="display: flex; gap: 20px; margin-bottom: 20px; align-items: flex-end;">
-                        <div style="flex: 1;">
-                            <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_base_currency_label">Devise Principale Globale</label>
-                            <select id="conf_base_currency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.saveBaseCurrency()">
-                                <option value="EUR">EUR (€) - Euro</option>
-                                <option value="USD">USD ($) - Dollar US</option>
-                                <option value="GBP">GBP (£) - Livre Sterling</option>
-                                <option value="CHF">CHF (CHF) - Franc Suisse</option>
-                                <option value="CAD">CAD (CA$) - Dollar Canadien</option>
-                                <option value="JPY">JPY (¥) - Yen Japonais</option>
-                            </select>
+                    <div style="margin-bottom: 18px; max-width: 320px;">
+                        <label style="display: block; font-size: 11.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px;" data-i18n="config_base_currency_label">Devise Principale Globale</label>
+                        <select id="conf_base_currency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px 12px; width: 100%; font-size: 13.5px;" onchange="window.ConfigView.saveBaseCurrency()">
+                            <option value="EUR">EUR (€) - Euro</option>
+                            <option value="USD">USD ($) - Dollar US</option>
+                            <option value="GBP">GBP (£) - Livre Sterling</option>
+                            <option value="CHF">CHF (CHF) - Franc Suisse</option>
+                            <option value="CAD">CAD (CA$) - Dollar Canadien</option>
+                            <option value="JPY">JPY (¥) - Yen Japonais</option>
+                        </select>
+                    </div>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap: wrap; gap: 8px; margin: 18px 0 10px 0;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <h4 style="margin:0; font-size: 13.5px; font-weight: 600;" data-i18n="config_exchange_rates_title">Grille des Taux de Change (Hors-Ligne)</h4>
+                            <span id="rateCountBadge" class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:12px;">0 devises</span>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="btnFetchOnlineRates" onclick="window.ConfigView.fetchOnlineRates()" style="font-size:12px; padding:4px 10px; display:inline-flex; align-items:center; gap:5px;" data-i18n="config_btn_fetch_online">🌐 Actualiser en ligne</button>
+                    </div>
+                    
+                    <div class="rate-add-container" style="background: var(--bg-base); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="rate_from" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_from_placeholder') : 'De (ex: USD)'}" style="flex: 1; min-width: 80px; text-transform: uppercase; font-size: 13px; text-align: center; font-weight: 600;">
+                            <span style="font-weight: 700; color: var(--text-muted); font-size: 13px;">➔</span>
+                            <input type="text" id="rate_to" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_to_placeholder') : 'Vers (ex: EUR)'}" style="flex: 1; min-width: 80px; text-transform: uppercase; font-size: 13px; text-align: center; font-weight: 600;">
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" id="rate_value" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_val_placeholder') : 'Taux (ex: 0.92)'}" step="0.0001" style="flex: 1; min-width: 100px; font-size: 13px;">
+                            <button class="btn btn-primary btn-sm" onclick="window.ConfigView.addExchangeRate()" style="padding: 6px 14px; font-size: 13px; white-space: nowrap; font-weight: 600;" data-i18n="config_btn_add_rate">➕ Ajouter</button>
                         </div>
                     </div>
 
-                    <div style="display:flex; align-items:center; justify-content:space-between; margin: 15px 0 10px 0;">
-                        <h4 style="margin:0; font-size: 13.5px;" data-i18n="config_exchange_rates_title">Grille des Taux de Change (Hors-Ligne)</h4>
-                        <span id="rateCountBadge" class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px;">0 devises</span>
-                    </div>
-                    
-                    <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
-                        <input type="text" id="rate_from" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_from_placeholder') : 'De (ex: USD)'}" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
-                        <input type="text" id="rate_to" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_to_placeholder') : 'Vers (ex: EUR)'}" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
-                        <input type="number" id="rate_value" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_val_placeholder') : 'Taux (ex: 0.92)'}" step="0.0001" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 120px; font-size: 12px;">
-                        <button class="btn btn-secondary" onclick="window.ConfigView.addExchangeRate()" style="font-size:12px; padding:5px 10px;" data-i18n="config_btn_add_rate">➕ Ajouter</button>
-                        <button class="btn btn-secondary" id="btnFetchOnlineRates" onclick="window.ConfigView.fetchOnlineRates()" style="margin-left: auto; font-size:12px; padding:5px 10px;" data-i18n="config_btn_fetch_online">🌐 Actualiser en ligne</button>
-                    </div>
-
                     <div style="margin-bottom: 8px;">
-                        <input type="text" id="rateSearchInput" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_search_placeholder') : '🔍 Rechercher une devise (USD, GBP, CHF...)'}" style="width:100%; font-size:11px; padding:5px 10px; border:1px solid var(--border-color); border-radius:6px;" oninput="window.ConfigView.filterExchangeRates()">
+                        <input type="text" id="rateSearchInput" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_search_placeholder') : '🔍 Rechercher une devise (USD, GBP, CHF...)'}" style="width:100%; font-size:13px; padding:6px 10px; border:1px solid var(--border-color); border-radius:6px;" oninput="window.ConfigView.filterExchangeRates()">
                     </div>
 
                     <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
-                        <table class="data-table" style="width: 100%; margin: 0; font-size: 12px;">
-                            <thead style="position: sticky; top: 0; background: var(--bg-surface); z-index: 2; border-bottom: 2px solid var(--border-color);">
+                        <table class="data-table rates-table" style="width: 100%; margin: 0; font-size: 13px; border-collapse: collapse;">
+                            <thead style="position: sticky; top: 0; background: var(--bg-surface); z-index: 2; border-bottom: 1px solid var(--border-color);">
                                 <tr>
-                                    <th data-i18n="config_th_from">De</th>
-                                    <th data-i18n="config_th_to">Vers</th>
-                                    <th data-i18n="config_th_rate">Taux</th>
-                                    <th style="width: 60px; text-align: right;" data-i18n="acc_th_actions">Action</th>
+                                    <th style="padding: 8px 10px; text-align: left; font-size: 11.5px;" data-i18n="config_th_pair">Paire</th>
+                                    <th style="padding: 8px 10px; text-align: left; font-size: 11.5px;" data-i18n="config_th_rate">Taux</th>
+                                    <th style="width: 36px; text-align: center; padding: 8px 4px;"></th>
                                 </tr>
                             </thead>
                             <tbody id="exchangeRatesBody">
@@ -339,7 +343,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                                 <select id="conf_ollama_model" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px;" onchange="window.ConfigView.save()">
                                     <option value="" data-i18n="config_ai_no_model">${window.i18n.t('config_ai_no_model')}</option>
                                 </select>
-                                <p style="font-size: 10px; color: var(--color-expense); margin-top: 5px;" data-i18n="config_ai_model_warning">${window.i18n.t('config_ai_model_warning')}</p>
+                                <p style="font-size: 11.5px; color: var(--color-expense); margin-top: 5px;" data-i18n="config_ai_model_warning">${window.i18n.t('config_ai_model_warning')}</p>
                             </div>
                         </div>
 
@@ -350,27 +354,27 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                                     <input type="range" id="conf_ollama_temp_slider" min="0" max="1" step="0.1" value="0.3" style="flex: 1;" oninput="document.getElementById('conf_ollama_temp').value = this.value" onchange="window.ConfigView.save()">
                                     <input type="number" id="conf_ollama_temp" class="inline-input" min="0" max="1" step="0.1" value="0.3" style="width: 60px; border: 1px solid var(--border-color); padding: 5px; text-align: center;" oninput="document.getElementById('conf_ollama_temp_slider').value = this.value" onchange="window.ConfigView.save()">
                                 </div>
-                                <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_temp_hint">${window.i18n.t('config_ai_temp_hint')}</p>
+                                <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_temp_hint">${window.i18n.t('config_ai_temp_hint')}</p>
                             </div>
                             <div style="flex: 1;">
                                 <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_ctx">Taille du Contexte</label>
                                 <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
                                     <input type="number" id="conf_ollama_ctx" class="inline-input" value="4096" style="border: 1px solid var(--border-color); padding: 8px;" onchange="window.ConfigView.save()">
                                     <div style="display: flex; gap: 5px;">
-                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='2048'; window.ConfigView.save()">2K</button>
-                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='4096'; window.ConfigView.save()">4K</button>
-                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='8192'; window.ConfigView.save()">8K</button>
-                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='16384'; window.ConfigView.save()">16K</button>
-                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='32768'; window.ConfigView.save()">32K</button>
+                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='2048'; window.ConfigView.save()">2K</button>
+                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='4096'; window.ConfigView.save()">4K</button>
+                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='8192'; window.ConfigView.save()">8K</button>
+                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='16384'; window.ConfigView.save()">16K</button>
+                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='32768'; window.ConfigView.save()">32K</button>
                                     </div>
                                 </div>
-                                <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_ctx_hint">${window.i18n.t('config_ai_ctx_hint')}</p>
+                                <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_ctx_hint">${window.i18n.t('config_ai_ctx_hint')}</p>
                             </div>
                         </div>
 
                         <div style="margin-top: 10px; padding: 10px; border-radius: 8px; background: rgba(51, 102, 255, 0.05); border: 1px dashed var(--accent);">
-                            <h5 style="margin: 0 0 5px 0; font-size: 11px; font-weight: bold; color: var(--accent);" data-i18n="config_ai_optimal_hint">${window.i18n.t('config_ai_optimal_hint')}</h5>
-                            <ul style="margin: 0; padding-left: 15px; font-size: 10px; color: var(--text-muted); line-height: 1.4;">
+                            <h5 style="margin: 0 0 5px 0; font-size: 12px; font-weight: bold; color: var(--accent);" data-i18n="config_ai_optimal_hint">${window.i18n.t('config_ai_optimal_hint')}</h5>
+                            <ul style="margin: 0; padding-left: 15px; font-size: 11.5px; color: var(--text-muted); line-height: 1.45;">
                                 <li data-i18n="config_ai_temp_hint_detail">${window.i18n.t('config_ai_temp_hint_detail')}</li>
                                 <li style="margin-top: 4px;" data-i18n="config_ai_ctx_hint_detail">${window.i18n.t('config_ai_ctx_hint_detail')}</li>
                             </ul>
