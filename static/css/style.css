@@ -1318,7 +1318,8 @@ body.privacy-mode #valNextPayAmount:hover {
 }
 
 /* Mobile Responsive */
-.mobile-only-btn {
+.mobile-only-btn,
+.mobile-sidebar-header {
     display: none !important;
 }
 
@@ -8812,9 +8813,10 @@ body.overview-fullscreen .app-body {
 }
 
 .theme-check {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 800;
     color: var(--accent);
+    margin-left: auto;
 }
 
 /* ── Theme Configuration Cards in Settings ── */
