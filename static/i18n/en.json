@@ -2334,5 +2334,13 @@
   "theme_titanium_light": "Executive Alabaster",
   "theme_titanium_light_desc": "Crisp executive light theme with maximum legibility (alabaster & pure white).",
   "tooltip_theme_manager": "Change visual theme",
-  "mobile_select_theme": "Themes"
+  "mobile_select_theme": "Themes",
+  "config_tab_general": "General & Appearance",
+  "config_tab_security": "Spaces & Security",
+  "config_tab_ai": "AI Assistant & Smart Labels",
+  "config_tab_data": "Data & Maintenance",
+  "config_search_placeholder": "Search a setting...",
+  "config_maintenance_title": "Maintenance & Repair Tools",
+  "config_maintenance_desc": "Technical tools to verify data consistency, clean anomalies, or reset.",
+  "config_search_no_results": "No settings match your search query."
 }

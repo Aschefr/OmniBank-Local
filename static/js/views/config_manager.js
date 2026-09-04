@@ -2,466 +2,612 @@
 // Assemble les sous-modules : config_ai.js, config_backups.js, config_org_users.js, config_profiles.js
 
 window.ConfigView = Object.assign(window.ConfigView || {}, {
+    activeTab: 'general',
+
     render() {
+        const activeTab = (function() {
+            try {
+                const saved = localStorage.getItem('omnibank_config_tab');
+                if (['general', 'security', 'ai', 'data'].includes(saved)) return saved;
+            } catch(e) {}
+            return 'general';
+        })();
+        this.activeTab = activeTab;
+
         return `
-            <div class="view-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;margin-bottom:18px;">
+            <div class="view-header-bar config-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
                 <div class="view-header-title-group">
                     <h2 class="view-header-title">⚙️ <span data-i18n="nav_configuration">${window.i18n.t('nav_configuration')}</span></h2>
                 </div>
+                <div class="config-search-box">
+                    <span class="config-search-icon">🔍</span>
+                    <input type="text" id="configSearchInput" class="config-search-input" data-i18n-placeholder="config_search_placeholder" placeholder="${window.i18n ? window.i18n.t('config_search_placeholder') : 'Rechercher un paramètre...'}" oninput="window.ConfigView.filterSettings(this.value)">
+                </div>
             </div>
-            
-            <div class="config-card config-ai-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
-                    <h3 style="display:flex; align-items:center; gap:8px; margin:0;" data-i18n="config_ai_title">🤖 Configuration Ollama (Assistant IA)</h3>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">
-                        <span class="toggle-switch">
-                            <input type="checkbox" id="conf_enable_ai" onchange="window.ConfigView.toggleAI(this.checked); window.ConfigView.save();">
-                            <span class="slider"></span>
-                        </span>
-                        <span data-i18n="config_ai_enable">${window.i18n.t('config_ai_enable')}</span>
-                    </label>
-                </div>
-                
-                <div id="ollamaSettings">
-                    <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;">
-                        ${window.i18n.t('config_ai_desc')}
-                    </p>
-                
-                <div class="flex-row-mobile-col" style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <div style="flex: 1;">
-                        <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_url">URL Ollama</label>
-                        <input type="text" id="conf_ollama_url" class="inline-input" placeholder="http://127.0.0.1:11434" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px;" onchange="window.ConfigView.save()">
-                    </div>
-                    <div style="display: flex; align-items: flex-end;">
-                        <button class="btn btn-secondary" onclick="window.ConfigView.fetchModels()" style="height: 35px;" data-i18n="config_ai_test_btn">🔄 Tester & Récupérer Modèles</button>
-                    </div>
-                </div>
 
-                <div class="flex-row-mobile-col" style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <div style="flex: 1;">
-                        <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_model">Modèle Sélectionné</label>
-                        <select id="conf_ollama_model" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px;" onchange="window.ConfigView.save()">
-                            <option value="" data-i18n="config_ai_no_model">${window.i18n.t('config_ai_no_model')}</option>
-                        </select>
-                        <p style="font-size: 10px; color: var(--color-expense); margin-top: 5px;" data-i18n="config_ai_model_warning">${window.i18n.t('config_ai_model_warning')}</p>
-                    </div>
-                </div>
+            <!-- Tab Navigation Bar -->
+            <div class="config-tabs-bar" id="configTabsBar">
+                <button type="button" class="config-tab-btn ${activeTab === 'general' ? 'active' : ''}" data-tab="general" onclick="window.ConfigView.switchTab('general')">
+                    <span class="config-tab-icon">🎛️</span>
+                    <span data-i18n="config_tab_general">${window.i18n ? window.i18n.t('config_tab_general') : 'Général'}</span>
+                </button>
+                <button type="button" class="config-tab-btn ${activeTab === 'security' ? 'active' : ''}" data-tab="security" onclick="window.ConfigView.switchTab('security')">
+                    <span class="config-tab-icon">🔒</span>
+                    <span data-i18n="config_tab_security">${window.i18n ? window.i18n.t('config_tab_security') : 'Sécurité & Accès'}</span>
+                </button>
+                <button type="button" class="config-tab-btn ${activeTab === 'ai' ? 'active' : ''}" data-tab="ai" onclick="window.ConfigView.switchTab('ai')">
+                    <span class="config-tab-icon">🤖</span>
+                    <span data-i18n="config_tab_ai">${window.i18n ? window.i18n.t('config_tab_ai') : 'Intelligence Artificielle'}</span>
+                </button>
+                <button type="button" class="config-tab-btn ${activeTab === 'data' ? 'active' : ''}" data-tab="data" onclick="window.ConfigView.switchTab('data')">
+                    <span class="config-tab-icon">💾</span>
+                    <span data-i18n="config_tab_data">${window.i18n ? window.i18n.t('config_tab_data') : 'Données & Maintenance'}</span>
+                </button>
+            </div>
 
-                <div class="flex-row-mobile-col" style="display: flex; gap: 20px; margin-bottom: 15px;">
-                    <div style="flex: 1;">
-                        <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_temp">Température (Créativité)</label>
-                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-                            <input type="range" id="conf_ollama_temp_slider" min="0" max="1" step="0.1" value="0.3" style="flex: 1;" oninput="document.getElementById('conf_ollama_temp').value = this.value" onchange="window.ConfigView.save()">
-                            <input type="number" id="conf_ollama_temp" class="inline-input" min="0" max="1" step="0.1" value="0.3" style="width: 60px; border: 1px solid var(--border-color); padding: 5px; text-align: center;" oninput="document.getElementById('conf_ollama_temp_slider').value = this.value" onchange="window.ConfigView.save()">
-                        </div>
-                        <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_temp_hint">${window.i18n.t('config_ai_temp_hint')}</p>
-                    </div>
-                    <div style="flex: 1;">
-                        <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_ctx">Taille du Contexte</label>
-                        <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
-                            <input type="number" id="conf_ollama_ctx" class="inline-input" value="4096" style="border: 1px solid var(--border-color); padding: 8px;" onchange="window.ConfigView.save()">
-                            <div style="display: flex; gap: 5px;">
-                                <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='2048'; window.ConfigView.save()">2K</button>
-                                <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='4096'; window.ConfigView.save()">4K</button>
-                                <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='8192'; window.ConfigView.save()">8K</button>
-                                <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='16384'; window.ConfigView.save()">16K</button>
-                                <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='32768'; window.ConfigView.save()">32K</button>
-                            </div>
-                        </div>
-                        <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_ctx_hint">${window.i18n.t('config_ai_ctx_hint')}</p>
-                    </div>
-                </div>
-
-                <div style="margin-top: 10px; padding: 10px; border-radius: 8px; background: rgba(51, 102, 255, 0.05); border: 1px dashed var(--accent);">
-                    <h5 style="margin: 0 0 5px 0; font-size: 11px; font-weight: bold; color: var(--accent);" data-i18n="config_ai_optimal_hint">${window.i18n.t('config_ai_optimal_hint')}</h5>
-                    <ul style="margin: 0; padding-left: 15px; font-size: 10px; color: var(--text-muted); line-height: 1.4;">
-                        <li data-i18n="config_ai_temp_hint_detail">${window.i18n.t('config_ai_temp_hint_detail')}</li>
-                        <li style="margin-top: 4px;" data-i18n="config_ai_ctx_hint_detail">${window.i18n.t('config_ai_ctx_hint_detail')}</li>
-                    </ul>
-                </div>
-
-                <hr style="border:none; border-top:1px solid var(--border-color); margin:18px 0;">
-
-                <div style="margin-top: 15px;">
+            <!-- TAB 1: GÉNÉRAL -->
+            <div class="config-tab-pane" id="configPane_general" style="${activeTab === 'general' ? '' : 'display: none;'}">
+                <!-- Theme & Appearance Management -->
+                <div class="config-card" id="themeConfigCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
-                        <h4 style="margin:0; font-size: 13px;" data-i18n="settings_ai_reports_title">Bilans Périodiques Proactifs</h4>
+                        <h3 data-i18n="theme_manager_title">🎨 ${window.i18n ? window.i18n.t('theme_manager_title') : 'Gestionnaire de Thèmes'}</h3>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 16px;" data-i18n="theme_manager_desc">
+                        ${window.i18n ? window.i18n.t('theme_manager_desc') : 'Personnalisez l\'apparence visuelle d\'OmniBank selon vos préférences.'}
+                    </p>
+
+                    <div class="theme-config-grid" id="themeConfigGrid">
+                        ${(window.ThemeManager ? window.ThemeManager.getThemes() : []).map(t => {
+                            const current = window.ThemeManager ? window.ThemeManager.currentThemeId : 'dark';
+                            const isActive = t.id === current;
+                            const name = window.i18n ? window.i18n.t(t.nameKey) : t.id;
+                            const desc = window.i18n ? window.i18n.t(t.descKey) : '';
+                            return `
+                                <div class="theme-card theme-card-${t.id} ${isActive ? 'active' : ''}" onclick="window.ThemeManager.applyTheme('${t.id}'); window.ConfigView._refreshThemeCards();">
+                                    <div class="theme-card-header">
+                                        <div class="theme-card-title">
+                                            <span class="theme-card-icon">${t.icon}</span>
+                                            <span>${name}</span>
+                                        </div>
+                                        <div class="theme-card-radio ${isActive ? 'active' : ''}">
+                                            <span class="theme-card-radio-dot"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Mini UI Mockup Preview -->
+                                    <div class="theme-card-ui-mockup theme-mockup-${t.id}">
+                                        <div class="theme-mockup-header">
+                                            <div class="theme-mockup-dots">
+                                                <span style="background: #ef4444;"></span>
+                                                <span style="background: #f59e0b;"></span>
+                                                <span style="background: #10b981;"></span>
+                                            </div>
+                                            <span class="theme-mockup-badge">${t.type.toUpperCase()}</span>
+                                        </div>
+                                        <div class="theme-mockup-body">
+                                            <div class="theme-mockup-sidebar">
+                                                <div class="theme-mockup-nav-item active"></div>
+                                                <div class="theme-mockup-nav-item"></div>
+                                                <div class="theme-mockup-nav-item"></div>
+                                            </div>
+                                            <div class="theme-mockup-main">
+                                                <div class="theme-mockup-card">
+                                                    <div class="theme-mockup-card-label">Solde global</div>
+                                                    <div class="theme-mockup-card-val">8 592,36 €</div>
+                                                    <div class="theme-mockup-card-sub">
+                                                        <span class="theme-mockup-pill">+287,50 €</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <p class="theme-card-desc">${desc}</p>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- Optional Features / Modules -->
+                <div class="config-card" id="configFeaturesCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                    <h3 data-i18n="config_opt_title">🎛️ ${window.i18n.t('config_opt_title')}</h3>
+                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;">
+                        ${window.i18n.t('config_opt_desc')}
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
                             <div style="position: relative; width: 40px; height: 24px;">
-                                <input type="checkbox" id="conf_ai_reports_enabled" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.toggleAIReports(this.checked); window.ConfigView.save()">
+                                <input type="checkbox" id="conf_enable_bimonthly" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
                                 <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
                                 <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
                             </div>
-                            <span data-i18n="settings_ai_reports_enable">Activer les bilans de santé financière par l'IA</span>
+                            <span data-i18n="config_opt_bimonthly">Activer la récurrence bi-mensuelle</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            <div style="position: relative; width: 40px; height: 24px;">
+                                <input type="checkbox" id="conf_enable_attachments" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
+                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                            </div>
+                            <span data-i18n="config_opt_attachments">Activer les documents joints (Upload de fichiers)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            <div style="position: relative; width: 40px; height: 24px;">
+                                <input type="checkbox" id="conf_enable_check_slips" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
+                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                            </div>
+                            <span data-i18n="config_opt_check_slips">Activer la saisie des numéros de bordereaux de chèques</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            <div style="position: relative; width: 40px; height: 24px;">
+                                <input type="checkbox" id="conf_enable_org_mode" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView._onOrgModeToggle()">
+                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                            </div>
+                            <span data-i18n="config_opt_org_mode">Activer le mode Organisation (Association/CSE)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            <div style="position: relative; width: 40px; height: 24px;">
+                                <input type="checkbox" id="conf_enable_overview" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
+                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                            </div>
+                            <span data-i18n="config_opt_overview">Activer la vue d'ensemble (page d'accueil simplifiée)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            <div style="position: relative; width: 40px; height: 24px;">
+                                <input type="checkbox" id="conf_enable_simulator" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
+                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                            </div>
+                            <span data-i18n="config_opt_simulator">Activer le simulateur de projets & What-If</span>
                         </label>
                     </div>
-                    <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;" data-i18n="settings_ai_reports_enable_desc">Génère périodiquement une courte notification analytique résumant votre état de santé financière.</p>
+                    <div id="configLicenseStatus" style="margin-top: 8px; display: none;"></div>
+                    <style>
+                        .global-toggle:checked ~ .slider { background-color: var(--accent) !important; }
+                        .global-toggle:checked ~ .slider-knob { transform: translateX(16px) !important; }
+                    </style>
+                </div>
+
+                <!-- Multi-Currency & Exchange Rates Settings -->
+                <div class="config-card" id="configCurrenciesCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                    <h3 data-i18n="config_currency_title">💱 Devises & Taux de Change</h3>
+                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_currency_desc">Configurez la devise principale de l'application et les taux de conversion hors-ligne pour la valeur nette globale.</p>
                     
-                    <div id="aiReportsSubSettings" style="display: none;">
-                        <div class="flex-row-mobile-col" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
-                            <div style="flex: 1; min-width: 180px;">
-                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="settings_ai_reports_freq">Fréquence des rapports</label>
-                                <select id="conf_ai_reports_frequency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
-                                    <option value="daily" data-i18n="settings_ai_reports_freq_daily">Quotidien</option>
-                                    <option value="weekly" data-i18n="settings_ai_reports_freq_weekly">Hebdomadaire (Recommandé)</option>
-                                    <option value="monthly" data-i18n="settings_ai_reports_freq_monthly">Mensuel</option>
+                    <div class="flex-row-mobile-col" style="display: flex; gap: 20px; margin-bottom: 20px; align-items: flex-end;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_base_currency_label">Devise Principale Globale</label>
+                            <select id="conf_base_currency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.saveBaseCurrency()">
+                                <option value="EUR">EUR (€) - Euro</option>
+                                <option value="USD">USD ($) - Dollar US</option>
+                                <option value="GBP">GBP (£) - Livre Sterling</option>
+                                <option value="CHF">CHF (CHF) - Franc Suisse</option>
+                                <option value="CAD">CAD (CA$) - Dollar Canadien</option>
+                                <option value="JPY">JPY (¥) - Yen Japonais</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin: 15px 0 10px 0;">
+                        <h4 style="margin:0; font-size: 13.5px;" data-i18n="config_exchange_rates_title">Grille des Taux de Change (Hors-Ligne)</h4>
+                        <span id="rateCountBadge" class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px;">0 devises</span>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
+                        <input type="text" id="rate_from" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_from_placeholder') : 'De (ex: USD)'}" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
+                        <input type="text" id="rate_to" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_to_placeholder') : 'Vers (ex: EUR)'}" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
+                        <input type="number" id="rate_value" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_val_placeholder') : 'Taux (ex: 0.92)'}" step="0.0001" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 120px; font-size: 12px;">
+                        <button class="btn btn-secondary" onclick="window.ConfigView.addExchangeRate()" style="font-size:12px; padding:5px 10px;" data-i18n="config_btn_add_rate">➕ Ajouter</button>
+                        <button class="btn btn-secondary" id="btnFetchOnlineRates" onclick="window.ConfigView.fetchOnlineRates()" style="margin-left: auto; font-size:12px; padding:5px 10px;" data-i18n="config_btn_fetch_online">🌐 Actualiser en ligne</button>
+                    </div>
+
+                    <div style="margin-bottom: 8px;">
+                        <input type="text" id="rateSearchInput" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_search_placeholder') : '🔍 Rechercher une devise (USD, GBP, CHF...)'}" style="width:100%; font-size:11px; padding:5px 10px; border:1px solid var(--border-color); border-radius:6px;" oninput="window.ConfigView.filterExchangeRates()">
+                    </div>
+
+                    <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
+                        <table class="data-table" style="width: 100%; margin: 0; font-size: 12px;">
+                            <thead style="position: sticky; top: 0; background: var(--bg-surface); z-index: 2; border-bottom: 2px solid var(--border-color);">
+                                <tr>
+                                    <th data-i18n="config_th_from">De</th>
+                                    <th data-i18n="config_th_to">Vers</th>
+                                    <th data-i18n="config_th_rate">Taux</th>
+                                    <th style="width: 60px; text-align: right;" data-i18n="acc_th_actions">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="exchangeRatesBody">
+                                <!-- Rendered dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- General Settings (Recurrences) -->
+                <div class="config-card" id="configGenSettingsCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                    <h3 data-i18n="config_gen_settings_title">⚙️ ${window.i18n.t('config_gen_settings_title')}</h3>
+                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_gen_settings_desc">
+                        ${window.i18n.t('config_gen_settings_desc')}
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 500;">
+                        <input type="number" id="conf_recurrence_months" class="inline-input" min="1" max="36" value="12" style="width: 70px; text-align: center; border-radius: 6px; padding: 6px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13px;" onchange="window.ConfigView.save()">
+                        <span data-i18n="config_recurrence_months">Nombre de mois de récurrences à générer à l'avance</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: SÉCURITÉ & ACCÈS -->
+            <div class="config-tab-pane" id="configPane_security" style="${activeTab === 'security' ? '' : 'display: none;'}">
+                <!-- Master Profiles & PIN Lock -->
+                <div class="config-card" id="configProfilesCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
+                        <h3 data-i18n="profiles_title">👤 Profils Maîtres</h3>
+                        <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="window.ConfigView._showCreateProfileModal()">
+                            ➕ <span data-i18n="profiles_create">Créer un profil</span>
+                        </button>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="profiles_subtitle">
+                        Gérez plusieurs espaces de comptes indépendants sur cette même installation. Chaque profil maître possède sa propre base de données et ses propres pièces jointes isolées.
+                    </p>
+                    <div id="profilesListContainer" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;"></div>
+                    <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <label style="font-weight: 600; font-size: 12px; color: var(--text-main);" data-i18n="profiles_autolock_label">Verrouillage automatique (inactivité)</label>
+                            <div style="font-size: 11px; color: var(--text-muted);" data-i18n="profiles_autolock_hint">${window.i18n ? window.i18n.t('profiles_autolock_hint') : 'Actif si un code PIN de protection est configuré sur le profil'}</div>
+                        </div>
+                        <select id="autoLockMinutesSelect" class="inline-input" style="min-width: 180px;" onchange="if(window.ProfileStorage){ window.ProfileStorage.set('omni_autolock_minutes', this.value); if(window.app && window.app.initAutoLock) window.app.initAutoLock(); } showToast(window.i18n ? window.i18n.t('profiles_autolock_saved') : 'Réglage de verrouillage sauvegardé', 'success');">
+                            <option value="5" data-i18n="profiles_autolock_5m">Après 5 minutes (Recommandé)</option>
+                            <option value="1" data-i18n="profiles_autolock_1m">Après 1 minute</option>
+                            <option value="15" data-i18n="profiles_autolock_15m">Après 15 minutes</option>
+                            <option value="30" data-i18n="profiles_autolock_30m">Après 30 minutes</option>
+                            <option value="off" data-i18n="profiles_autolock_off">Désactivé</option>
+                        </select>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 15px; font-style: italic; background: rgba(99,102,241,0.05); padding: 8px 12px; border-radius: 8px; border: 1px dashed rgba(99,102,241,0.3);" data-i18n="profiles_pin_recovery_hint">
+                        💡 En cas de perte du code PIN, ouvrez le fichier <code>profiles.json</code> situé dans votre dossier de données et supprimez les champs <code>pin_hash</code> et <code>pin_salt</code> du profil concerné.
+                    </p>
+                </div>
+
+                <!-- Org Users Panel (org mode only) -->
+                <div id="configOrgUsersPanel" class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); display: none;">
+                    <h3 data-i18n="config_org_users">👥 ${window.i18n.t('config_org_users')}</h3>
+                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_org_users_desc">${window.i18n.t('config_org_users_desc')}</p>
+                    <div id="orgUsersList" style="margin-bottom: 12px;"></div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="newOrgUserName" class="inline-input" data-i18n-placeholder="ph_user_name" placeholder="${window.i18n.t('ph_user_name')}" style="flex: 1; padding: 8px 12px; font-size: 13px;">
+                        <button class="btn btn-primary" style="padding: 8px 16px; font-size: 13px; white-space: nowrap;" onclick="window.ConfigView._addOrgUser()" data-i18n="btn_add_user">+ ${window.i18n.t('btn_add_user')}</button>
+                    </div>
+                </div>
+
+                <!-- Shared Mode Panel (Multi-session Windows) -->
+                <div id="configSharedModePanel" class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                    <h3>🖥️ <span data-i18n="config_shared_mode">${window.i18n.t('config_shared_mode')}</span></h3>
+                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_shared_mode_desc">${window.i18n.t('config_shared_mode_desc')}</p>
+                    <div id="sharedModeStatus" style="margin-bottom: 12px;"></div>
+                    <div id="sharedModeActions" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                </div>
+
+                <!-- Server Connection Settings Card -->
+                <div class="config-card" id="configServerCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <h3 data-i18n="config_server_title">📡 ${window.i18n ? window.i18n.t('config_server_title') : 'Connexion Serveur (Docker / Client Distant)'}</h3>
+                            <p style="color: var(--text-muted); font-size: 12.5px; margin: 0;" data-i18n="config_server_desc">${window.i18n ? window.i18n.t('config_server_desc') : "Configurez l'adresse IP et le port du serveur backend auto-hébergé pour les accès distants ou mobiles."}</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="window.ServerConfig.openModal()" style="display:flex; align-items:center; gap:6px;">
+                            <span>⚙️</span> <span data-i18n="config_server_btn">${window.i18n ? window.i18n.t('config_server_btn') : 'Configurer le serveur'}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: INTELLIGENCE ARTIFICIELLE -->
+            <div class="config-tab-pane" id="configPane_ai" style="${activeTab === 'ai' ? '' : 'display: none;'}">
+                <!-- Ollama AI Settings -->
+                <div class="config-card config-ai-card" id="configAiCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
+                        <h3 data-i18n="config_ai_title">🤖 Configuration Ollama (Assistant IA)</h3>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="conf_enable_ai" onchange="window.ConfigView.toggleAI(this.checked); window.ConfigView.save();">
+                                <span class="slider"></span>
+                            </span>
+                            <span data-i18n="config_ai_enable">${window.i18n.t('config_ai_enable')}</span>
+                        </label>
+                    </div>
+                    
+                    <div id="ollamaSettings">
+                        <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;">
+                            ${window.i18n.t('config_ai_desc')}
+                        </p>
+                    
+                        <div class="flex-row-mobile-col" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_url">URL Ollama</label>
+                                <input type="text" id="conf_ollama_url" class="inline-input" placeholder="http://127.0.0.1:11434" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px;" onchange="window.ConfigView.save()">
+                            </div>
+                            <div style="display: flex; align-items: flex-end;">
+                                <button class="btn btn-secondary" onclick="window.ConfigView.fetchModels()" style="height: 35px;" data-i18n="config_ai_test_btn">🔄 Tester & Récupérer Modèles</button>
+                            </div>
+                        </div>
+
+                        <div class="flex-row-mobile-col" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_model">Modèle Sélectionné</label>
+                                <select id="conf_ollama_model" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px;" onchange="window.ConfigView.save()">
+                                    <option value="" data-i18n="config_ai_no_model">${window.i18n.t('config_ai_no_model')}</option>
+                                </select>
+                                <p style="font-size: 10px; color: var(--color-expense); margin-top: 5px;" data-i18n="config_ai_model_warning">${window.i18n.t('config_ai_model_warning')}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex-row-mobile-col" style="display: flex; gap: 20px; margin-bottom: 15px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_temp">Température (Créativité)</label>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                                    <input type="range" id="conf_ollama_temp_slider" min="0" max="1" step="0.1" value="0.3" style="flex: 1;" oninput="document.getElementById('conf_ollama_temp').value = this.value" onchange="window.ConfigView.save()">
+                                    <input type="number" id="conf_ollama_temp" class="inline-input" min="0" max="1" step="0.1" value="0.3" style="width: 60px; border: 1px solid var(--border-color); padding: 5px; text-align: center;" oninput="document.getElementById('conf_ollama_temp_slider').value = this.value" onchange="window.ConfigView.save()">
+                                </div>
+                                <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_temp_hint">${window.i18n.t('config_ai_temp_hint')}</p>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_ctx">Taille du Contexte</label>
+                                <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
+                                    <input type="number" id="conf_ollama_ctx" class="inline-input" value="4096" style="border: 1px solid var(--border-color); padding: 8px;" onchange="window.ConfigView.save()">
+                                    <div style="display: flex; gap: 5px;">
+                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='2048'; window.ConfigView.save()">2K</button>
+                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='4096'; window.ConfigView.save()">4K</button>
+                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='8192'; window.ConfigView.save()">8K</button>
+                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='16384'; window.ConfigView.save()">16K</button>
+                                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="document.getElementById('conf_ollama_ctx').value='32768'; window.ConfigView.save()">32K</button>
+                                    </div>
+                                </div>
+                                <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_ctx_hint">${window.i18n.t('config_ai_ctx_hint')}</p>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 10px; padding: 10px; border-radius: 8px; background: rgba(51, 102, 255, 0.05); border: 1px dashed var(--accent);">
+                            <h5 style="margin: 0 0 5px 0; font-size: 11px; font-weight: bold; color: var(--accent);" data-i18n="config_ai_optimal_hint">${window.i18n.t('config_ai_optimal_hint')}</h5>
+                            <ul style="margin: 0; padding-left: 15px; font-size: 10px; color: var(--text-muted); line-height: 1.4;">
+                                <li data-i18n="config_ai_temp_hint_detail">${window.i18n.t('config_ai_temp_hint_detail')}</li>
+                                <li style="margin-top: 4px;" data-i18n="config_ai_ctx_hint_detail">${window.i18n.t('config_ai_ctx_hint_detail')}</li>
+                            </ul>
+                        </div>
+
+                        <hr style="border:none; border-top:1px solid var(--border-color); margin:18px 0;">
+
+                        <div style="margin-top: 15px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
+                                <h4 style="margin:0; font-size: 13.5px;" data-i18n="settings_ai_reports_title">Bilans Périodiques Proactifs</h4>
+                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                                    <div style="position: relative; width: 40px; height: 24px;">
+                                        <input type="checkbox" id="conf_ai_reports_enabled" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.toggleAIReports(this.checked); window.ConfigView.save()">
+                                        <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                                        <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                                    </div>
+                                    <span data-i18n="settings_ai_reports_enable">Activer les bilans de santé financière par l'IA</span>
+                                </label>
+                            </div>
+                            <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;" data-i18n="settings_ai_reports_enable_desc">Génère périodiquement une courte notification analytique résumant votre état de santé financière.</p>
+                            
+                            <div id="aiReportsSubSettings" style="display: none;">
+                                <div class="flex-row-mobile-col" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                                    <div style="flex: 1; min-width: 180px;">
+                                        <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="settings_ai_reports_freq">Fréquence des rapports</label>
+                                        <select id="conf_ai_reports_frequency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
+                                            <option value="daily" data-i18n="settings_ai_reports_freq_daily">Quotidien</option>
+                                            <option value="weekly" data-i18n="settings_ai_reports_freq_weekly">Hebdomadaire (Recommandé)</option>
+                                            <option value="monthly" data-i18n="settings_ai_reports_freq_monthly">Mensuel</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-secondary" id="btnTriggerAIReport" onclick="window.ConfigView.triggerAIReportGeneration()" style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                                            ⚡ <span data-i18n="settings_ai_btn_generate_report">Générer un bilan maintenant</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div> <!-- End ollamaSettings -->
+                </div>
+
+                <!-- Smart Label Matching Rules -->
+                ${window.ConfigSmartLabels ? window.ConfigSmartLabels.render() : ''}
+            </div>
+
+            <!-- TAB 4: DONNÉES & MAINTENANCE -->
+            <div class="config-tab-pane" id="configPane_data" style="${activeTab === 'data' ? '' : 'display: none;'}">
+                <!-- Data Management & Backups -->
+                <div class="config-card" id="configDataMgmtCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                    <h3 data-i18n="config_data_mgmt">💾 Gestion des données</h3>
+                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;">
+                        ${window.i18n.t('config_data_desc')}
+                    </p>
+                    
+                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                        <!-- Export -->
+                        <button class="btn btn-secondary" onclick="window.ConfigView.exportCSV()" style="display: flex; align-items: center; gap: 5px;">
+                            📥 <span data-i18n="btn_export_csv">Exporter les données (CSV)</span>
+                        </button>
+                        
+                        <!-- Import vers DB -->
+                        <input type="file" id="rawDbCsvInput" accept=".csv" style="display: none;" onchange="window.ConfigView.importRawCSV(event)">
+                        <button class="btn btn-primary" onclick="document.getElementById('rawDbCsvInput').click()" style="display: flex; align-items: center; gap: 5px;">
+                            📤 <span data-i18n="btn_import_csv_db">Import CSV vers DB</span>
+                        </button>
+                        
+                        <!-- Backup -->
+                        <button class="btn btn-secondary" onclick="window.ConfigView.downloadBackup()" style="display: flex; align-items: center; gap: 5px;">
+                            💾 <span data-i18n="btn_download_backup">Télécharger Sauvegarde Complète (ZIP)</span>
+                        </button>
+
+                        <!-- Restore Backup -->
+                        <input type="file" id="restoreBackupInput" accept=".zip" style="display: none;" onchange="window.ConfigView.restoreBackup(event)">
+                        <button class="btn btn-warning" onclick="document.getElementById('restoreBackupInput').click()" style="display: flex; align-items: center; gap: 5px; background-color: var(--color-expense-fixed, #ff5630); color: #fff;">
+                            📂 <span data-i18n="btn_restore_backup">Restaurer Sauvegarde (ZIP)</span>
+                        </button>
+
+                        <!-- Backup Global All Profiles -->
+                        <button class="btn btn-secondary" onclick="window.ConfigView.downloadAllProfilesBackup()" style="display: flex; align-items: center; gap: 5px;" title="${window.i18n ? window.i18n.t('profiles_backup_all_tooltip') : 'Sauvegarder tous les profils maîtres dans une seule archive'}">
+                            📦 <span data-i18n="profiles_backup_all">Sauvegarder tous les profils (ZIP)</span>
+                        </button>
+
+                        <!-- Restore Global All Profiles -->
+                        <input type="file" id="restoreAllProfilesBackupInput" accept=".zip" style="display: none;" onchange="window.ConfigView.restoreAllProfilesBackup(event)">
+                        <button class="btn btn-secondary" onclick="document.getElementById('restoreAllProfilesBackupInput').click()" style="display: flex; align-items: center; gap: 5px;" title="${window.i18n ? window.i18n.t('profiles_restore_all_tooltip') : 'Restaurer tous les profils maîtres depuis une archive globale'}">
+                            📂 <span data-i18n="profiles_restore_all">Restaurer tous les profils (ZIP)</span>
+                        </button>
+                    </div>
+
+                    <hr style="border:none; border-top:1px solid var(--border-color); margin:18px 0;">
+
+                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                        <!-- Re-launch Wizard -->
+                        <button class="btn btn-secondary" onclick="window.SetupWizard.show()" style="display: flex; align-items: center; gap: 5px;">
+                            🧙 <span data-i18n="btn_relaunch_wizard">${window.i18n.t('btn_relaunch_wizard')}</span>
+                        </button>
+
+                        <!-- Fix type mismatch -->
+                        <button class="btn btn-secondary" id="btnFixTypeMismatch" onclick="window.ConfigView.fixTypeMismatch()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(245,158,11,0.5); color: #f59e0b;">
+                            🔧 <span data-i18n="maintenance_fix_types">${window.i18n.t('maintenance_fix_types') || 'Fix inconsistent types'}</span>
+                        </button>
+
+                        <!-- Orphan recurrence cleanup -->
+                        <button class="btn btn-secondary" id="btnCleanOrphanRecurrences" onclick="window.ConfigView.cleanOrphanRecurrences()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(239,68,68,0.5); color: #ef4444;">
+                            🧹 <span data-i18n="maintenance_orphan_btn">${window.i18n.t('maintenance_orphan_btn') || 'Clean up orphan recurrences'}</span>
+                        </button>
+
+                        <!-- Convert zeroed to skipped -->
+                        <button class="btn btn-secondary" id="btnConvertZeroedToSkipped" onclick="window.ConfigView.convertZeroedToSkipped()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(99,102,241,0.5); color: var(--accent, #6366f1);">
+                            🔄 <span data-i18n="maintenance_convert_zeroed_btn">${window.i18n.t('maintenance_convert_zeroed_btn') || 'Convert 0€ transactions to Skipped'}</span>
+                        </button>
+
+                        <!-- Clear DB -->
+                        <button class="btn btn-danger" onclick="window.ConfigView.clearDB()" style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+                            ⚠️ <span data-i18n="btn_clear_db">Vider la base de données</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Auto Backup Card -->
+                <div class="config-card" id="configAutoBackupCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
+                        <h3 data-i18n="config_auto_backup_title">🕒 ${window.i18n.t('config_auto_backup_title')}</h3>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            <div style="position: relative; width: 40px; height: 24px;">
+                                <input type="checkbox" id="conf_auto_backup_enabled" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.toggleAutoBackup(this.checked); window.ConfigView.save()">
+                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
+                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                            </div>
+                            <span data-i18n="config_auto_backup_enable">${window.i18n.t('config_auto_backup_enable')}</span>
+                        </label>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_auto_backup_desc">${window.i18n.t('config_auto_backup_desc')}</p>
+
+                    <div id="autoBackupSettings">
+                        <div class="flex-row-mobile-col" style="display: flex; gap: 15px; margin-bottom: 15px; align-items: flex-end; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 150px;">
+                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_auto_backup_frequency">${window.i18n.t('config_auto_backup_frequency')}</label>
+                                <select id="conf_auto_backup_frequency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
+                                    <option value="daily" data-i18n="config_auto_backup_freq_daily">${window.i18n.t('config_auto_backup_freq_daily')}</option>
+                                    <option value="weekly" data-i18n="config_auto_backup_freq_weekly">${window.i18n.t('config_auto_backup_freq_weekly')}</option>
+                                    <option value="monthly" data-i18n="config_auto_backup_freq_monthly">${window.i18n.t('config_auto_backup_freq_monthly')}</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1; min-width: 150px;">
+                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_auto_backup_max_count">${window.i18n.t('config_auto_backup_max_count')}</label>
+                                <select id="conf_auto_backup_max_count" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
+                                    <option value="3">3</option>
+                                    <option value="5" selected>5</option>
+                                    <option value="10">10</option>
+                                    <option value="20">20</option>
                                 </select>
                             </div>
                             <div>
-                                <button class="btn btn-secondary" id="btnTriggerAIReport" onclick="window.ConfigView.triggerAIReportGeneration()" style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
-                                    ⚡ <span data-i18n="settings_ai_btn_generate_report">Générer un bilan maintenant</span>
+                                <button class="btn btn-secondary" id="btnTriggerAutoBackup" onclick="window.ConfigView.triggerAutoBackup()" style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                                    ▶️ <span data-i18n="config_auto_backup_trigger">${window.i18n.t('config_auto_backup_trigger')}</span>
                                 </button>
                             </div>
                         </div>
+                        <div id="autoBackupStatusPanel"></div>
                     </div>
                 </div>
 
-                </div> <!-- End ollamaSettings -->
+                <!-- Diagnostics & Bug Reporting -->
+                ${window.ConfigDiagnostics ? window.ConfigDiagnostics.render() : ''}
             </div>
-
-            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_opt_title">${window.i18n.t('config_opt_title')}</h3>
-                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;">
-                    ${window.i18n.t('config_opt_desc')}
-                </p>
-                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                        <div style="position: relative; width: 40px; height: 24px;">
-                            <input type="checkbox" id="conf_enable_bimonthly" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
-                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                            <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                        </div>
-                        <span data-i18n="config_opt_bimonthly">Activer la récurrence bi-mensuelle</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                        <div style="position: relative; width: 40px; height: 24px;">
-                            <input type="checkbox" id="conf_enable_attachments" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
-                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                            <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                        </div>
-                        <span data-i18n="config_opt_attachments">Activer les documents joints (Upload de fichiers)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                        <div style="position: relative; width: 40px; height: 24px;">
-                            <input type="checkbox" id="conf_enable_check_slips" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
-                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                            <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                        </div>
-                        <span data-i18n="config_opt_check_slips">Activer la saisie des numéros de bordereaux de chèques</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                        <div style="position: relative; width: 40px; height: 24px;">
-                            <input type="checkbox" id="conf_enable_org_mode" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView._onOrgModeToggle()">
-                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                            <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                        </div>
-                        <span data-i18n="config_opt_org_mode">Activer le mode Organisation (Association/CSE)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                        <div style="position: relative; width: 40px; height: 24px;">
-                            <input type="checkbox" id="conf_enable_overview" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
-                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                            <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                        </div>
-                        <span data-i18n="config_opt_overview">Activer la vue d'ensemble (page d'accueil simplifiée)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                        <div style="position: relative; width: 40px; height: 24px;">
-                            <input type="checkbox" id="conf_enable_simulator" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
-                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                            <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                        </div>
-                        <span data-i18n="config_opt_simulator">Activer le simulateur de projets & What-If</span>
-                    </label>
-                </div>
-                <div id="configLicenseStatus" style="margin-top: 8px; display: none;"></div>
-                <style>
-                    .global-toggle:checked ~ .slider { background-color: var(--accent) !important; }
-                    .global-toggle:checked ~ .slider-knob { transform: translateX(16px) !important; }
-                </style>
-            </div>
-
-            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_gen_settings_title">⚙️ ${window.i18n.t('config_gen_settings_title')}</h3>
-                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_gen_settings_desc">
-                    ${window.i18n.t('config_gen_settings_desc')}
-                </p>
-                <div style="display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 500;">
-                    <input type="number" id="conf_recurrence_months" class="inline-input" min="1" max="36" value="12" style="width: 70px; text-align: center; border-radius: 6px; padding: 6px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13px;" onchange="window.ConfigView.save()">
-                    <span data-i18n="config_recurrence_months">Nombre de mois de récurrences à générer à l'avance</span>
-                </div>
-            </div>
-
-            <!-- Phase 9: User management panel (org mode only) -->
-            <div id="configOrgUsersPanel" class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); display: none;">
-                <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_org_users">👥 ${window.i18n.t('config_org_users')}</h3>
-                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_org_users_desc">${window.i18n.t('config_org_users_desc')}</p>
-                <div id="orgUsersList" style="margin-bottom: 12px;"></div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" id="newOrgUserName" class="inline-input" data-i18n-placeholder="ph_user_name" placeholder="${window.i18n.t('ph_user_name')}" style="flex: 1; padding: 8px 12px; font-size: 13px;">
-                    <button class="btn btn-primary" style="padding: 8px 16px; font-size: 13px; white-space: nowrap;" onclick="window.ConfigView._addOrgUser()" data-i18n="btn_add_user">+ ${window.i18n.t('btn_add_user')}</button>
-                </div>
-            </div>
-            <!-- Section Profils Maîtres -->
-            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
-                    <h3 style="display:flex; align-items:center; gap:8px; margin:0;" data-i18n="profiles_title">👤 Profils Maîtres</h3>
-                    <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="window.ConfigView._showCreateProfileModal()">
-                        ➕ <span data-i18n="profiles_create">Créer un profil</span>
-                    </button>
-                </div>
-                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="profiles_subtitle">
-                    Gérez plusieurs espaces de comptes indépendants sur cette même installation. Chaque profil maître possède sa propre base de données et ses propres pièces jointes isolées.
-                </p>
-                <div id="profilesListContainer" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;"></div>
-                <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                    <div>
-                        <label style="font-weight: 600; font-size: 12px; color: var(--text-main);" data-i18n="profiles_autolock_label">Verrouillage automatique (inactivité)</label>
-                        <div style="font-size: 11px; color: var(--text-muted);" data-i18n="profiles_autolock_hint">${window.i18n ? window.i18n.t('profiles_autolock_hint') : 'Actif si un code PIN de protection est configuré sur le profil'}</div>
-                    </div>
-                    <select id="autoLockMinutesSelect" class="inline-input" style="min-width: 180px;" onchange="if(window.ProfileStorage){ window.ProfileStorage.set('omni_autolock_minutes', this.value); if(window.app && window.app.initAutoLock) window.app.initAutoLock(); } showToast(window.i18n ? window.i18n.t('profiles_autolock_saved') : 'Réglage de verrouillage sauvegardé', 'success');">
-                        <option value="5" data-i18n="profiles_autolock_5m">Après 5 minutes (Recommandé)</option>
-                        <option value="1" data-i18n="profiles_autolock_1m">Après 1 minute</option>
-                        <option value="15" data-i18n="profiles_autolock_15m">Après 15 minutes</option>
-                        <option value="30" data-i18n="profiles_autolock_30m">Après 30 minutes</option>
-                        <option value="off" data-i18n="profiles_autolock_off">Désactivé</option>
-                    </select>
-                </div>
-                <p style="font-size: 11px; color: var(--text-muted); margin-top: 15px; font-style: italic; background: rgba(99,102,241,0.05); padding: 8px 12px; border-radius: 8px; border: 1px dashed rgba(99,102,241,0.3);" data-i18n="profiles_pin_recovery_hint">
-                    💡 En cas de perte du code PIN, ouvrez le fichier <code>profiles.json</code> situé dans votre dossier de données et supprimez les champs <code>pin_hash</code> et <code>pin_salt</code> du profil concerné.
-                </p>
-            </div>
-
-            <!-- Improvement 03: Shared mode (multi-session Windows) -->
-            <div id="configSharedModePanel" class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                <h3 style="display:flex; align-items:center; gap:8px;">🖥️ <span data-i18n="config_shared_mode">${window.i18n.t('config_shared_mode')}</span></h3>
-                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_shared_mode_desc">${window.i18n.t('config_shared_mode_desc')}</p>
-                <div id="sharedModeStatus" style="margin-bottom: 12px;"></div>
-                <div id="sharedModeActions" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
-            </div>
-            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="config_data_mgmt">Gestion des données</h3>
-                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;">
-                    ${window.i18n.t('config_data_desc')}
-                </p>
-                
-                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                    <!-- Export -->
-                    <button class="btn btn-secondary" onclick="window.ConfigView.exportCSV()" style="display: flex; align-items: center; gap: 5px;">
-                        📥 <span data-i18n="btn_export_csv">Exporter les données (CSV)</span>
-                    </button>
-                    
-                    <!-- Import vers DB -->
-                    <input type="file" id="rawDbCsvInput" accept=".csv" style="display: none;" onchange="window.ConfigView.importRawCSV(event)">
-                    <button class="btn btn-primary" onclick="document.getElementById('rawDbCsvInput').click()" style="display: flex; align-items: center; gap: 5px;">
-                        📤 <span data-i18n="btn_import_csv_db">Import CSV vers DB</span>
-                    </button>
-                    
-                    <!-- Backup -->
-                    <button class="btn btn-secondary" onclick="window.ConfigView.downloadBackup()" style="display: flex; align-items: center; gap: 5px;">
-                        💾 <span data-i18n="btn_download_backup">Télécharger Sauvegarde Complète (ZIP)</span>
-                    </button>
-
-                    <!-- Restore Backup -->
-                    <input type="file" id="restoreBackupInput" accept=".zip" style="display: none;" onchange="window.ConfigView.restoreBackup(event)">
-                    <button class="btn btn-warning" onclick="document.getElementById('restoreBackupInput').click()" style="display: flex; align-items: center; gap: 5px; background-color: var(--color-expense-fixed, #ff5630); color: #fff;">
-                        📂 <span data-i18n="btn_restore_backup">Restaurer Sauvegarde (ZIP)</span>
-                    </button>
-
-                    <!-- Backup Global All Profiles -->
-                    <button class="btn btn-secondary" onclick="window.ConfigView.downloadAllProfilesBackup()" style="display: flex; align-items: center; gap: 5px;" title="${window.i18n ? window.i18n.t('profiles_backup_all_tooltip') : 'Sauvegarder tous les profils maîtres dans une seule archive'}">
-                        📦 <span data-i18n="profiles_backup_all">Sauvegarder tous les profils (ZIP)</span>
-                    </button>
-
-                    <!-- Restore Global All Profiles -->
-                    <input type="file" id="restoreAllProfilesBackupInput" accept=".zip" style="display: none;" onchange="window.ConfigView.restoreAllProfilesBackup(event)">
-                    <button class="btn btn-secondary" onclick="document.getElementById('restoreAllProfilesBackupInput').click()" style="display: flex; align-items: center; gap: 5px;" title="${window.i18n ? window.i18n.t('profiles_restore_all_tooltip') : 'Restaurer tous les profils maîtres depuis une archive globale'}">
-                        📂 <span data-i18n="profiles_restore_all">Restaurer tous les profils (ZIP)</span>
-                    </button>
-                </div>
-
-                <hr style="border:none; border-top:1px solid var(--border-color); margin:18px 0;">
-
-                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                    <!-- Re-launch Wizard -->
-                    <button class="btn btn-secondary" onclick="window.SetupWizard.show()" style="display: flex; align-items: center; gap: 5px;">
-                        🧙 <span data-i18n="btn_relaunch_wizard">${window.i18n.t('btn_relaunch_wizard')}</span>
-                    </button>
-
-                    <!-- Fix type mismatch -->
-                    <button class="btn btn-secondary" id="btnFixTypeMismatch" onclick="window.ConfigView.fixTypeMismatch()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(245,158,11,0.5); color: #f59e0b;">
-                        🔧 <span data-i18n="maintenance_fix_types">${window.i18n.t('maintenance_fix_types') || 'Fix inconsistent types'}</span>
-                    </button>
-
-                    <!-- Orphan recurrence cleanup -->
-                    <button class="btn btn-secondary" id="btnCleanOrphanRecurrences" onclick="window.ConfigView.cleanOrphanRecurrences()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(239,68,68,0.5); color: #ef4444;">
-                        🧹 <span data-i18n="maintenance_orphan_btn">${window.i18n.t('maintenance_orphan_btn') || 'Clean up orphan recurrences'}</span>
-                    </button>
-
-                    <!-- Convert zeroed to skipped -->
-                    <button class="btn btn-secondary" id="btnConvertZeroedToSkipped" onclick="window.ConfigView.convertZeroedToSkipped()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(99,102,241,0.5); color: var(--accent, #6366f1);">
-                        🔄 <span data-i18n="maintenance_convert_zeroed_btn">${window.i18n.t('maintenance_convert_zeroed_btn') || 'Convert 0€ transactions to Skipped'}</span>
-                    </button>
-
-                    <!-- Clear DB -->
-                    <button class="btn btn-danger" onclick="window.ConfigView.clearDB()" style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
-                        ⚠️ <span data-i18n="btn_clear_db">Vider la base de données</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Server Connection Settings Card -->
-            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                    <div>
-                        <h3 style="display:flex; align-items:center; gap:8px; margin:0 0 4px 0;" data-i18n="config_server_title">📡 ${window.i18n ? window.i18n.t('config_server_title') : 'Connexion Serveur (Docker / Client Distant)'}</h3>
-                        <p style="color: var(--text-muted); font-size: 12px; margin: 0;" data-i18n="config_server_desc">${window.i18n ? window.i18n.t('config_server_desc') : "Configurez l'adresse IP et le port du serveur backend auto-hébergé pour les accès distants ou mobiles."}</p>
-                    </div>
-                    <button class="btn btn-primary" onclick="window.ServerConfig.openModal()" style="display:flex; align-items:center; gap:6px;">
-                        <span>⚙️</span> <span data-i18n="config_server_btn">${window.i18n ? window.i18n.t('config_server_btn') : 'Configurer le serveur'}</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Improvement 05: Auto Backup -->
-            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
-                    <h3 style="display:flex; align-items:center; gap:8px; margin:0;" data-i18n="config_auto_backup_title">${window.i18n.t('config_auto_backup_title')}</h3>
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                        <div style="position: relative; width: 40px; height: 24px;">
-                            <input type="checkbox" id="conf_auto_backup_enabled" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.toggleAutoBackup(this.checked); window.ConfigView.save()">
-                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                            <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                        </div>
-                        <span data-i18n="config_auto_backup_enable">${window.i18n.t('config_auto_backup_enable')}</span>
-                    </label>
-                </div>
-                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_auto_backup_desc">${window.i18n.t('config_auto_backup_desc')}</p>
-
-                <div id="autoBackupSettings">
-                    <div class="flex-row-mobile-col" style="display: flex; gap: 15px; margin-bottom: 15px; align-items: flex-end; flex-wrap: wrap;">
-                        <div style="flex: 1; min-width: 150px;">
-                            <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_auto_backup_frequency">${window.i18n.t('config_auto_backup_frequency')}</label>
-                            <select id="conf_auto_backup_frequency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
-                                <option value="daily" data-i18n="config_auto_backup_freq_daily">${window.i18n.t('config_auto_backup_freq_daily')}</option>
-                                <option value="weekly" data-i18n="config_auto_backup_freq_weekly">${window.i18n.t('config_auto_backup_freq_weekly')}</option>
-                                <option value="monthly" data-i18n="config_auto_backup_freq_monthly">${window.i18n.t('config_auto_backup_freq_monthly')}</option>
-                            </select>
-                        </div>
-                        <div style="flex: 1; min-width: 150px;">
-                            <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_auto_backup_max_count">${window.i18n.t('config_auto_backup_max_count')}</label>
-                            <select id="conf_auto_backup_max_count" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
-                                <option value="3">3</option>
-                                <option value="5" selected>5</option>
-                                <option value="10">10</option>
-                                <option value="20">20</option>
-                            </select>
-                        </div>
-                        <div>
-                            <button class="btn btn-secondary" id="btnTriggerAutoBackup" onclick="window.ConfigView.triggerAutoBackup()" style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
-                                ▶️ <span data-i18n="config_auto_backup_trigger">${window.i18n.t('config_auto_backup_trigger')}</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div id="autoBackupStatusPanel"></div>
-                </div>
-            </div>
-
-            <!-- Multi-Currency & Exchange Rates Settings -->
-            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                <h3 style="display:flex; align-items:center; gap:8px; margin:0 0 15px 0;" data-i18n="config_currency_title">💱 Devises & Taux de Change</h3>
-                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px;" data-i18n="config_currency_desc">Configurez la devise principale de l'application et les taux de conversion hors-ligne pour la valeur nette globale.</p>
-                
-                <div class="flex-row-mobile-col" style="display: flex; gap: 20px; margin-bottom: 20px; align-items: flex-end;">
-                    <div style="flex: 1;">
-                        <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_base_currency_label">Devise Principale Globale</label>
-                        <select id="conf_base_currency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.saveBaseCurrency()">
-                            <option value="EUR">EUR (€) - Euro</option>
-                            <option value="USD">USD ($) - Dollar US</option>
-                            <option value="GBP">GBP (£) - Livre Sterling</option>
-                            <option value="CHF">CHF (CHF) - Franc Suisse</option>
-                            <option value="CAD">CAD (CA$) - Dollar Canadien</option>
-                            <option value="JPY">JPY (¥) - Yen Japonais</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div style="display:flex; align-items:center; justify-content:space-between; margin: 15px 0 10px 0;">
-                    <h4 style="margin:0; font-size: 13px;" data-i18n="config_exchange_rates_title">Grille des Taux de Change (Hors-Ligne)</h4>
-                    <span id="rateCountBadge" class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px;">0 devises</span>
-                </div>
-                
-                <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
-                    <input type="text" id="rate_from" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_from_placeholder') : 'De (ex: USD)'}" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
-                    <input type="text" id="rate_to" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_to_placeholder') : 'Vers (ex: EUR)'}" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 100px; text-transform: uppercase; font-size: 12px;">
-                    <input type="number" id="rate_value" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_val_placeholder') : 'Taux (ex: 0.92)'}" step="0.0001" style="border: 1px solid var(--border-color); padding: 5px 8px; width: 120px; font-size: 12px;">
-                    <button class="btn btn-secondary" onclick="window.ConfigView.addExchangeRate()" style="font-size:12px; padding:5px 10px;" data-i18n="config_btn_add_rate">➕ Ajouter</button>
-                    <button class="btn btn-secondary" id="btnFetchOnlineRates" onclick="window.ConfigView.fetchOnlineRates()" style="margin-left: auto; font-size:12px; padding:5px 10px;" data-i18n="config_btn_fetch_online">🌐 Actualiser en ligne</button>
-                </div>
-
-                <div style="margin-bottom: 8px;">
-                    <input type="text" id="rateSearchInput" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_search_placeholder') : '🔍 Rechercher une devise (USD, GBP, CHF...)'}" style="width:100%; font-size:11px; padding:5px 10px; border:1px solid var(--border-color); border-radius:6px;" oninput="window.ConfigView.filterExchangeRates()">
-                </div>
-
-                <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
-                    <table class="data-table" style="width: 100%; margin: 0; font-size: 12px;">
-                        <thead style="position: sticky; top: 0; background: var(--bg-surface); z-index: 2; border-bottom: 2px solid var(--border-color);">
-                            <tr>
-                                <th data-i18n="config_th_from">De</th>
-                                <th data-i18n="config_th_to">Vers</th>
-                                <th data-i18n="config_th_rate">Taux</th>
-                                <th style="width: 60px; text-align: right;" data-i18n="acc_th_actions">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="exchangeRatesBody">
-                            <!-- Rendered dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Theme & Appearance Management -->
-            <div class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
-                    <h3 style="display:flex; align-items:center; gap:8px; margin:0;" data-i18n="theme_manager_title">🎨 ${window.i18n ? window.i18n.t('theme_manager_title') : 'Gestionnaire de Thèmes'}</h3>
-                </div>
-                <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 16px;" data-i18n="theme_manager_desc">
-                    ${window.i18n ? window.i18n.t('theme_manager_desc') : 'Personnalisez l\'apparence visuelle d\'OmniBank selon vos préférences.'}
-                </p>
-
-                <div class="theme-config-grid" id="themeConfigGrid">
-                    ${(window.ThemeManager ? window.ThemeManager.getThemes() : []).map(t => {
-                        const current = window.ThemeManager ? window.ThemeManager.currentThemeId : 'dark';
-                        const isActive = t.id === current;
-                        const name = window.i18n ? window.i18n.t(t.nameKey) : t.id;
-                        const desc = window.i18n ? window.i18n.t(t.descKey) : '';
-                        return `
-                            <div class="theme-card ${isActive ? 'active' : ''}" onclick="window.ThemeManager.applyTheme('${t.id}'); window.ConfigView._refreshThemeCards();">
-                                <div class="theme-card-header">
-                                    <div class="theme-card-title">
-                                        <span>${t.icon}</span>
-                                        <span>${name}</span>
-                                    </div>
-                                    <div class="theme-swatch" style="background:${t.bg}; border-color:${t.accent};">
-                                        <span class="theme-swatch-dot" style="background:${t.accent};"></span>
-                                    </div>
-                                </div>
-                                <div class="theme-card-preview" style="background:${t.bg}; color:${t.type === 'dark' ? '#f3f4f6' : '#0f172a'};">
-                                    <span style="font-size:11px; font-weight:700; color:${t.accent};">${t.type.toUpperCase()}</span>
-                                    <span style="font-size:12px; font-weight:800; font-family:monospace;">8 592,36 €</span>
-                                </div>
-                                <p class="theme-card-desc">${desc}</p>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            </div>
-
-            <!-- Smart Label Matching Rules -->
-            ${window.ConfigSmartLabels ? window.ConfigSmartLabels.render() : ''}
-
-            <!-- Diagnostics & Bug Reporting -->
-            ${window.ConfigDiagnostics ? window.ConfigDiagnostics.render() : ''}
         `;
+    },
+
+    switchTab(tabId) {
+        if (!['general', 'security', 'ai', 'data'].includes(tabId)) {
+            tabId = 'general';
+        }
+        this.activeTab = tabId;
+        try {
+            localStorage.setItem('omnibank_config_tab', tabId);
+        } catch (e) {}
+
+        const searchInput = document.getElementById('configSearchInput');
+        if (searchInput && searchInput.value.trim() !== '') {
+            searchInput.value = '';
+        }
+
+        const tabsBar = document.getElementById('configTabsBar');
+        if (tabsBar) {
+            tabsBar.querySelectorAll('.config-tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+            });
+        }
+
+        const panes = document.querySelectorAll('.config-tab-pane');
+        panes.forEach(pane => {
+            const isTarget = pane.id === `configPane_${tabId}`;
+            pane.style.display = isTarget ? 'block' : 'none';
+        });
+
+        document.querySelectorAll('.config-card').forEach(card => {
+            card.classList.remove('config-card-hidden');
+        });
+
+        if (tabId === 'security') {
+            this._refreshOrgUsersPanel();
+        }
+    },
+
+    filterSettings(query) {
+        const q = (query || '').trim().toLowerCase();
+        const panes = document.querySelectorAll('.config-tab-pane');
+        const cards = document.querySelectorAll('.config-card');
+
+        if (!q) {
+            this.switchTab(this.activeTab || 'general');
+            return;
+        }
+
+        panes.forEach(pane => {
+            pane.style.display = 'block';
+        });
+
+        const isOrg = document.getElementById('conf_enable_org_mode')?.checked;
+
+        cards.forEach(card => {
+            if (card.id === 'configOrgUsersPanel' && !isOrg) {
+                card.classList.add('config-card-hidden');
+                return;
+            }
+            const text = (card.innerText || card.textContent || '').toLowerCase();
+            const matches = text.includes(q);
+            card.classList.toggle('config-card-hidden', !matches);
+        });
+
+        panes.forEach(pane => {
+            const visibleCards = pane.querySelectorAll('.config-card:not(.config-card-hidden)');
+            pane.style.display = visibleCards.length > 0 ? 'block' : 'none';
+        });
     },
 
     _refreshThemeCards() {
@@ -471,6 +617,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         grid.querySelectorAll('.theme-card').forEach(card => {
             const isMatch = card.getAttribute('onclick')?.includes(`'${current}'`);
             card.classList.toggle('active', !!isMatch);
+            const radio = card.querySelector('.theme-card-radio');
+            if (radio) {
+                radio.classList.toggle('active', !!isMatch);
+            }
         });
     },
 
@@ -479,6 +629,14 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         if (window.ConfigSmartLabels && typeof window.ConfigSmartLabels.init === 'function') {
             await window.ConfigSmartLabels.init();
         }
+        const tab = this.activeTab || (function() {
+            try {
+                const saved = localStorage.getItem('omnibank_config_tab');
+                if (['general', 'security', 'ai', 'data'].includes(saved)) return saved;
+            } catch(e) {}
+            return 'general';
+        })();
+        this.switchTab(tab);
     },
 
     async loadData() {

@@ -8,7 +8,7 @@
 window.ConfigDiagnostics = {
     render() {
         return `
-            <div id="configDiagSection" class="config-diag-section" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); transition: border-color 0.3s ease;">
+            <div id="configDiagSection" class="config-card config-diag-section" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); transition: border-color 0.3s ease;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                     <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;" data-i18n="config_diag_title">
                         🛠️ ${window.i18n?.t('config_diag_title') || 'Diagnostics & Rapport d\'Incident'}

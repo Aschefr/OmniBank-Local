@@ -12,6 +12,10 @@ All notable changes to this project will be documented in this file.
   - Preserved 100% of classic styling across Classic Dark and Classic Light themes without alteration.
 - **Dynamic Table Column Sizing & Balanced Space 📊**:
   - Calibrated proportional column widths across Dashboard and History tables, eliminating awkward whitespace while keeping ample room for labels.
+- **Tabbed Settings Layout & Rich Theme Previews ⚙️**:
+  - Reorganized the Configuration page into clean categorical tabs (Général, Sécurité & Accès, Assistant IA, Données & Maintenance) with instant live search filtering.
+  - Upgraded theme selector cards with interactive mini UI mockups faithfully showcasing palette accents, window headers, and typography per theme.
+  - Enhanced section title hierarchy and visual contrast across all configuration cards.
 - **Enhanced AI Accuracy on Non-Monthly Recurrences 🛡️**:
   - Enriched AI assistant context with explicit frequencies, calendar schedules, and exact next payment dates, preventing hallucinations on semi-annual and annual commitments.
 
