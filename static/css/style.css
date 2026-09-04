@@ -8703,9 +8703,9 @@ body.overview-fullscreen .app-body {
 /* ── Theme Configuration Cards in Settings ── */
 .theme-config-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 14px;
-    margin-top: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 14px;
 }
 
 .theme-card {
@@ -8714,11 +8714,12 @@ body.overview-fullscreen .app-body {
     border-radius: 12px;
     padding: 14px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     position: relative;
+    user-select: none;
 }
 
 .theme-card:hover {
@@ -8730,6 +8731,7 @@ body.overview-fullscreen .app-body {
 .theme-card.active {
     border-color: var(--accent);
     background: var(--accent-subtle);
+    box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm);
 }
 
 .theme-card-header {
@@ -8747,14 +8749,156 @@ body.overview-fullscreen .app-body {
     color: var(--text-main);
 }
 
-.theme-card-preview {
-    height: 48px;
+.theme-card-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.theme-card-radio {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    background: transparent;
+    flex-shrink: 0;
+}
+
+.theme-card-radio.active {
+    border-color: var(--accent);
+    background: var(--accent);
+}
+
+.theme-card-radio-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: none;
+}
+
+.theme-card-radio.active .theme-card-radio-dot {
+    display: block;
+}
+
+/* ── Rich Mini UI Mockup Preview for Themes ── */
+.theme-card-ui-mockup {
     border-radius: 8px;
-    padding: 8px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 110px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    transition: transform 0.2s ease;
+}
+
+.theme-card:hover .theme-card-ui-mockup {
+    transform: scale(1.01);
+}
+
+.theme-mockup-header {
+    height: 22px;
+    padding: 0 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border: 1px solid rgba(128, 128, 128, 0.2);
+    flex-shrink: 0;
+}
+
+.theme-mockup-dots {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.theme-mockup-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.theme-mockup-badge {
+    font-size: 8.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+}
+
+.theme-mockup-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.theme-mockup-sidebar {
+    width: 32px;
+    padding: 6px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.theme-mockup-nav-item {
+    height: 5px;
+    border-radius: 3px;
+    opacity: 0.6;
+}
+
+.theme-mockup-nav-item.active {
+    opacity: 1;
+}
+
+.theme-mockup-main {
+    flex: 1;
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-mockup-card {
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: relative;
+}
+
+.theme-mockup-card-label {
+    font-size: 8px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.theme-mockup-card-val {
+    font-size: 11.5px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.2px;
+}
+
+.theme-mockup-card-sub {
+    margin-top: 1px;
+}
+
+.theme-mockup-pill {
+    display: inline-block;
+    font-size: 7.5px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 8px;
+    line-height: 1.2;
 }
 
 .theme-card-desc {
@@ -8762,6 +8906,281 @@ body.overview-fullscreen .app-body {
     color: var(--text-muted);
     line-height: 1.4;
     margin: 0;
+}
+
+/* ── Theme-Specific Mockup Styling ── */
+
+/* 1. Classique Sombre */
+.theme-mockup-dark {
+    background: #161c24;
+    border-color: #2d3748;
+}
+.theme-mockup-dark .theme-mockup-header {
+    background: #1c232e;
+    border-bottom: 1px solid #2d3748;
+}
+.theme-mockup-dark .theme-mockup-badge {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 10px;
+}
+.theme-mockup-dark .theme-mockup-sidebar {
+    background: #1a202c;
+    border-right: 1px solid #2d3748;
+}
+.theme-mockup-dark .theme-mockup-nav-item {
+    background: #475569;
+}
+.theme-mockup-dark .theme-mockup-nav-item.active {
+    background: #6366f1;
+}
+.theme-mockup-dark .theme-mockup-card {
+    background: #212b36;
+    border: 1px solid #334155;
+    border-radius: 6px;
+}
+.theme-mockup-dark .theme-mockup-card-label {
+    color: #94a3b8;
+}
+.theme-mockup-dark .theme-mockup-card-val {
+    color: #f8fafc;
+}
+.theme-mockup-dark .theme-mockup-pill {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border-radius: 10px;
+}
+
+/* 2. Classique Clair */
+.theme-mockup-light {
+    background: #f4f6f8;
+    border-color: #e2e8f0;
+}
+.theme-mockup-light .theme-mockup-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+}
+.theme-mockup-light .theme-mockup-badge {
+    background: rgba(99, 102, 241, 0.12);
+    color: #4f46e5;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 10px;
+}
+.theme-mockup-light .theme-mockup-sidebar {
+    background: #ffffff;
+    border-right: 1px solid #e2e8f0;
+}
+.theme-mockup-light .theme-mockup-nav-item {
+    background: #cbd5e1;
+}
+.theme-mockup-light .theme-mockup-nav-item.active {
+    background: #6366f1;
+}
+.theme-mockup-light .theme-mockup-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.theme-mockup-light .theme-mockup-card-label {
+    color: #64748b;
+}
+.theme-mockup-light .theme-mockup-card-val {
+    color: #0f172a;
+}
+.theme-mockup-light .theme-mockup-pill {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    border-radius: 10px;
+}
+
+/* 3. Executive Titanium Sombre */
+.theme-mockup-titanium-dark {
+    background: #0f141c;
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+}
+.theme-mockup-titanium-dark::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    z-index: 2;
+}
+.theme-mockup-titanium-dark .theme-mockup-header {
+    background: #161d27;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.theme-mockup-titanium-dark .theme-mockup-badge {
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(96, 165, 250, 0.35);
+    border-radius: 3px;
+    font-weight: 700;
+}
+.theme-mockup-titanium-dark .theme-mockup-sidebar {
+    background: #141a23;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+.theme-mockup-titanium-dark .theme-mockup-nav-item {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+.theme-mockup-titanium-dark .theme-mockup-nav-item.active {
+    background: #2563eb;
+    border-left: 2px solid #60a5fa;
+}
+.theme-mockup-titanium-dark .theme-mockup-card {
+    background: #1c232d;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 3px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    position: relative;
+    overflow: hidden;
+}
+.theme-mockup-titanium-dark .theme-mockup-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1.5px;
+    background: linear-gradient(90deg, #60a5fa, #93c5fd);
+}
+.theme-mockup-titanium-dark .theme-mockup-card-label {
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-size: 7.5px;
+    letter-spacing: 0.4px;
+    font-weight: 700;
+}
+.theme-mockup-titanium-dark .theme-mockup-card-val {
+    color: #ffffff;
+    font-weight: 800;
+}
+.theme-mockup-titanium-dark .theme-mockup-pill {
+    background: rgba(54, 179, 126, 0.15);
+    color: #36b37e;
+    border: 1px solid rgba(54, 179, 126, 0.3);
+    border-radius: 2px;
+}
+
+/* 4. Executive Albâtre Clair */
+.theme-mockup-titanium-light {
+    background: #f7f5f0;
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 3px 10px rgba(60, 45, 30, 0.08);
+}
+.theme-mockup-titanium-light::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    z-index: 2;
+}
+.theme-mockup-titanium-light .theme-mockup-header {
+    background: #ffffff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+.theme-mockup-titanium-light .theme-mockup-badge {
+    background: rgba(194, 94, 0, 0.12);
+    color: #c25e00;
+    border: 1px solid rgba(194, 94, 0, 0.25);
+    border-radius: 3px;
+    font-weight: 700;
+}
+.theme-mockup-titanium-light .theme-mockup-sidebar {
+    background: #f1ede4;
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+.theme-mockup-titanium-light .theme-mockup-nav-item {
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 2px;
+}
+.theme-mockup-titanium-light .theme-mockup-nav-item.active {
+    background: #c25e00;
+    border-left: 2px solid #ea580c;
+}
+.theme-mockup-titanium-light .theme-mockup-card {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.10);
+    border-radius: 3px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 3px rgba(60, 45, 30, 0.04);
+    position: relative;
+    overflow: hidden;
+}
+.theme-mockup-titanium-light .theme-mockup-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1.5px;
+    background: linear-gradient(90deg, #c25e00, #ea580c);
+}
+.theme-mockup-titanium-light .theme-mockup-card-label {
+    color: #78716c;
+    text-transform: uppercase;
+    font-size: 7.5px;
+    letter-spacing: 0.4px;
+    font-weight: 700;
+}
+.theme-mockup-titanium-light .theme-mockup-card-val {
+    color: #1c1917;
+    font-weight: 800;
+}
+.theme-mockup-titanium-light .theme-mockup-pill {
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 2px;
+}
+
+/* ── Global Section Box & Encadré Titles Enhancement ── */
+.config-card {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.config-card h3 {
+    font-size: 15.5px !important;
+    font-weight: 700 !important;
+    color: var(--text-main) !important;
+    letter-spacing: -0.2px;
+    line-height: 1.35;
+    margin-top: 0;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.config-card h4 {
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    color: var(--text-main) !important;
+    letter-spacing: -0.1px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+/* Executive Card Styling in Config */
+body.theme-titanium-dark .config-card {
+    border-radius: 6px !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.theme-titanium-light .config-card {
+    border-radius: 6px !important;
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 4px rgba(60, 45, 30, 0.04) !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
@@ -11277,6 +11696,181 @@ body.theme-titanium-dark #op_is_recurrent ~ .slider-knob,
 body.theme-titanium-light #op_is_recurrent ~ .slider-knob {
     border-radius: 3px !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   7.14 NOUVEAU LAYOUT PAR ONGLETS & RECHERCHE VUE CONFIGURATION (OPTION A)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Barre de recherche de configuration */
+.config-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.config-search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 240px;
+    max-width: 340px;
+    flex: 1;
+}
+
+.config-search-icon {
+    position: absolute;
+    left: 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.config-search-input {
+    width: 100%;
+    padding: 7px 12px 7px 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-main);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.config-search-input:focus {
+    border-color: var(--primary, #6366f1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* Barre d'onglets de configuration */
+.config-tabs-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 12px;
+    overflow-x: auto;
+    flex-wrap: wrap;
+}
+
+.config-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    white-space: nowrap;
+}
+
+.config-tab-btn:hover {
+    color: var(--text-main);
+    background: var(--bg-surface-hover, rgba(255, 255, 255, 0.05));
+    border-color: var(--border-color-hover, var(--border-color));
+}
+
+.config-tab-btn.active {
+    color: #ffffff;
+    background: var(--primary, #6366f1);
+    border-color: var(--primary, #6366f1);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+}
+
+.config-tab-icon {
+    font-size: 15px;
+    line-height: 1;
+}
+
+/* Panes d'onglets & filtrage */
+.config-tab-pane {
+    animation: configFadeIn 0.2s ease-out;
+}
+
+@keyframes configFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.config-card-hidden {
+    display: none !important;
+}
+
+/* Executive Themes (Titanium Dark & Albâtre Light) Harmonization */
+body.theme-titanium-dark .config-search-input {
+    border-radius: 4px !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    background: #161b22 !important;
+}
+
+body.theme-titanium-light .config-search-input {
+    border-radius: 4px !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    background: #ffffff !important;
+}
+
+body.theme-titanium-dark .config-tab-btn {
+    border-radius: 4px !important;
+    font-size: 12px !important;
+    letter-spacing: 0.2px;
+    font-weight: 600 !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    background: #161b22 !important;
+    color: #94a3b8 !important;
+}
+
+body.theme-titanium-dark .config-tab-btn:hover {
+    color: #f1f5f9 !important;
+    background: #1e2530 !important;
+    border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+body.theme-titanium-dark .config-tab-btn.active {
+    color: #ffffff !important;
+    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%) !important;
+    border-color: #3b82f6 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 8px rgba(37, 99, 235, 0.35) !important;
+}
+
+body.theme-titanium-light .config-tab-btn {
+    border-radius: 4px !important;
+    font-size: 12px !important;
+    letter-spacing: 0.2px;
+    font-weight: 600 !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    background: #ffffff !important;
+    color: #64748b !important;
+}
+
+body.theme-titanium-light .config-tab-btn:hover {
+    color: #1e293b !important;
+    background: #f8fafc !important;
+    border-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+body.theme-titanium-light .config-tab-btn.active {
+    color: #ffffff !important;
+    background: linear-gradient(180deg, #ea580c 0%, #c2410c 100%) !important;
+    border-color: #ea580c !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 8px rgba(234, 88, 12, 0.25) !important;
+}
+
 
 
 
