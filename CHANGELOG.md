@@ -22,8 +22,10 @@ All notable changes to this project will be documented in this file.
   - Displayed the official golden shield vault emblem across desktop header, mobile drawer, setup wizard, and startup screen.
 
 ### Fixed
-- **Mobile Theme & Language Selectors 📱**:
-  - Streamlined theme and language lists with clean, right-aligned checkmarks for active choices.
+- **Desktop Sidebar Cleanliness 🖥️**:
+  - Ensured the mobile drawer header (logo, title, and close button) remains strictly hidden on desktop viewports.
+- **Theme & Language Selectors 🎨**:
+  - Streamlined theme and language menus across desktop and mobile with clean, right-aligned checkmarks for active choices.
 - **Table Headers & Button Alignment 📐**:
   - Re-attached sticky table headers flush to the top across all views.
   - Aligned action button groups to prevent overflow on compact screens.
