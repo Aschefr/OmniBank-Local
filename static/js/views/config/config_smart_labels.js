@@ -9,7 +9,7 @@ window.ConfigSmartLabels = {
 
     render() {
         return `
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div id="configSmartLabelsCard" class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                     <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;" data-i18n="smart_label_section_title">
                         🏷️ ${window.i18n?.t('smart_label_section_title') || 'Règles de correspondance bancaire'}

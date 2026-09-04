@@ -2334,5 +2334,13 @@
   "theme_titanium_light": "Executive Albâtre",
   "theme_titanium_light_desc": "Thème clair épuré haute lisibilité (fond albâtre & blanc pur).",
   "tooltip_theme_manager": "Changer de thème visuel",
-  "mobile_select_theme": "Thèmes"
+  "mobile_select_theme": "Thèmes",
+  "config_tab_general": "Général & Apparence",
+  "config_tab_security": "Espaces & Sécurité",
+  "config_tab_ai": "Assistant IA & Smart Labels",
+  "config_tab_data": "Données & Maintenance",
+  "config_search_placeholder": "Rechercher un paramètre...",
+  "config_maintenance_title": "Outils de Maintenance & Réparation",
+  "config_maintenance_desc": "Outils techniques pour vérifier la cohérence de vos données, nettoyer les anomalies ou réinitialiser.",
+  "config_search_no_results": "Aucun paramètre ne correspond à votre recherche."
 }
