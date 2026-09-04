@@ -64,16 +64,21 @@
         }
 
         .logo-wrapper {
-            font-size: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: rgba(51, 102, 255, 0.08);
-            border: 1px solid rgba(51, 102, 255, 0.15);
+            width: 76px;
+            height: 76px;
+            border-radius: 20px;
             animation: pulseGlow 2s infinite ease-in-out;
+        }
+
+        .logo-wrapper img {
+            width: 72px;
+            height: 72px;
+            border-radius: 18px;
+            object-fit: cover;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
         }
 
         .brand-title {
@@ -149,7 +154,7 @@
 <body class="theme-dark">
     <div class="loading-container">
         <div class="logo-wrapper">
-            🏦
+            <img src="/static/img/logo.png" alt="OmniBank Logo">
         </div>
         <div>
             <h1 class="brand-title">OmniBank <span class="brand-accent">Local</span></h1>

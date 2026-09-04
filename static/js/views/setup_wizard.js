@@ -144,7 +144,7 @@ window.SetupWizard = {
         const isOrg = this._orgMode || false;
         body.innerHTML = `
             <div class="wizard-step-content wizard-center">
-                <div class="wizard-logo-anim">🏦</div>
+                <div class="wizard-logo-anim"><img src="/static/img/logo.png" alt="OmniBank Logo" style="width: 72px; height: 72px; border-radius: 18px; object-fit: cover; box-shadow: 0 4px 16px rgba(0,0,0,0.25);"></div>
                 <h1 class="wizard-title" data-i18n="wizard_welcome_title">${window.i18n.t('wizard_welcome_title')}</h1>
                 <p class="wizard-subtitle" data-i18n="wizard_welcome_desc">${window.i18n.t('wizard_welcome_desc')}</p>
 
