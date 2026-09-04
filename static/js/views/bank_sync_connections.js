@@ -67,6 +67,7 @@ Object.assign(window.BankSyncView, {
                 }
                 this.vaultStatus = res;
                 this.renderVaultStatusBar();
+                await this.loadConnections();
             }
         } catch (unlockErr) {
             console.warn('[BankSync] Erreur validation mot de passe maître:', unlockErr);
@@ -598,6 +599,7 @@ Object.assign(window.BankSyncView, {
                 this.currentRemoteAccounts = d.accounts || [];
                 this.saveCachedRemoteAccounts(conn, this.currentRemoteAccounts);
                 this.renderMappingRows(conn, this.currentRemoteAccounts);
+                this.loadConnections();
             } catch (err) {
                 console.error('Erreur traitement comptes SSE:', err);
             }

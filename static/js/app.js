@@ -305,6 +305,17 @@ class App {
             });
         });
 
+        // Horizontal mouse-wheel scroll support on desktop main-nav
+        const mainNav = document.querySelector('.main-nav');
+        if (mainNav) {
+            mainNav.addEventListener('wheel', (e) => {
+                if (e.deltaY !== 0 && mainNav.scrollWidth > mainNav.clientWidth) {
+                    e.preventDefault();
+                    mainNav.scrollLeft += e.deltaY;
+                }
+            }, { passive: false });
+        }
+
         // Prevent mouse back/forward buttons & keyboard shortcuts to avoid app navigation bug in Tauri
         window.addEventListener('mousedown', (e) => { if (e.button === 3 || e.button === 4) e.preventDefault(); });
         window.addEventListener('mouseup', (e) => { if (e.button === 3 || e.button === 4) e.preventDefault(); });
@@ -2279,6 +2290,9 @@ class App {
         document.querySelectorAll('.nav-btn').forEach(b => {
             if (b.getAttribute('data-view') === viewName) {
                 b.classList.add('active');
+                if (b.closest('.main-nav')) {
+                    b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                }
             } else {
                 b.classList.remove('active');
             }

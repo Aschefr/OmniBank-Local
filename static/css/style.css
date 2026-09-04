@@ -342,12 +342,14 @@ body {
     border-bottom: 1px solid var(--border-color);
     border-top: 3px solid var(--accent);
     transition: border-top-color 0.3s ease;
+    gap: 12px;
 }
 
 .header-actions {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .header-actions button:not(#notifMenu *):not(#themeMenu *):not(#langMenu *):not(.user-switcher-btn):not(.notif-action-btn):not(#langToggleBtn):not(.profile-badge):not(#profileBtn) {
@@ -447,6 +449,7 @@ body {
     align-items: center;
     gap: 8px;
     user-select: none;
+    flex-shrink: 0;
 }
 
 .app-logo-img {
@@ -465,10 +468,13 @@ body {
 
 .main-nav {
     display: flex;
+    align-items: center;
     gap: 8px;
     overflow-x: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    min-width: 0;
+    flex-shrink: 1;
 }
 .main-nav::-webkit-scrollbar {
     display: none;
@@ -494,6 +500,12 @@ body {
     gap: 4px;
     text-align: center;
     line-height: 1.2;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+.main-nav .nav-btn span {
+    white-space: nowrap !important;
 }
 
 .nav-btn:hover {
@@ -596,9 +608,9 @@ body {
     z-index: 500;
     background-color: var(--bg-base);
     padding-top: 24px;
-    padding-bottom: 10px;
+    padding-bottom: 12px;
     margin-top: -32px;
-    margin-bottom: 12px;
+    margin-bottom: 0;
 }
 
 .responsive-header-controls {
@@ -7109,7 +7121,32 @@ body.overview-fullscreen .app-body {
     transform: scale(0.99);
 }
 
+/* Badge mobile d'accès aux opérations bancaires en attente (Sur demande) */
+.mobile-pending-sync-btn {
+    display: none !important;
+}
+
 @media (max-width: 1024px) {
+    #timelineGhostBox {
+        display: none !important;
+    }
+    .mobile-pending-sync-btn.active {
+        display: inline-flex !important;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 10px;
+        font-size: 11.5px;
+        font-weight: 700;
+        border-radius: 8px;
+        white-space: nowrap;
+        cursor: pointer;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+    }
+    .mobile-pending-sync-btn:active {
+        transform: scale(0.97);
+    }
     .ghost-desktop-table-wrapper {
         display: none !important;
     }
@@ -9317,7 +9354,7 @@ body.theme-titanium-light .app-header {
     border-bottom: 1px solid var(--border-color);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03), var(--shadow-sm);
     padding: 0 20px;
-    height: 58px;
+    min-height: 58px;
 }
 
 body.theme-titanium-dark .main-nav,
@@ -9328,6 +9365,7 @@ body.theme-titanium-light .main-nav {
     border: 1px solid var(--border-color);
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
     gap: 1px;
+    align-items: center;
 }
 
 body.theme-titanium-dark .main-nav .nav-btn,
@@ -9647,6 +9685,14 @@ body.theme-titanium-light .data-table thead th {
     color: var(--text-muted);
     padding: 8px 10px;
     z-index: 10;
+}
+
+body.theme-titanium-dark .data-table thead th:first-child,
+body.theme-titanium-light .data-table thead th:first-child,
+body.theme-titanium-dark .data-table thead th:last-child,
+body.theme-titanium-light .data-table thead th:last-child {
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
 }
 
 body.theme-titanium-dark .data-table tbody tr,
@@ -10363,7 +10409,7 @@ body.theme-titanium-light .main-nav {
 body.theme-titanium-dark .main-nav .nav-btn,
 body.theme-titanium-light .main-nav .nav-btn {
     border-radius: 4px !important;
-    font-size: 12px !important;
+    font-size: 12.5px !important;
 }
 
 body.theme-titanium-dark .main-nav .nav-btn.active,
@@ -12168,5 +12214,421 @@ body.theme-titanium-light .data-table th {
         white-space: nowrap;
     }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   7.15 EXECUTIVE FINISHING: BANDEAU AMBRÉ, ACTIONS & MODALE DE REVUE
+   Strictement scopé à Titanium Sombre & Albâtre Clair — Zéro impact classiques
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Bandeau Bento des Opérations en attente (Amber Box) ── */
+body.theme-titanium-dark .ghost-rows-container,
+body.theme-titanium-light .ghost-rows-container {
+    border-radius: 6px !important;
+    position: relative !important;
+    padding: 14px 16px !important;
+}
+
+body.theme-titanium-dark .ghost-rows-container {
+    background: var(--bg-surface) !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+body.theme-titanium-light .ghost-rows-container {
+    background: var(--bg-surface) !important;
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.06) !important;
+}
+
+/* Liseret métallique supérieur doré 2px */
+body.theme-titanium-dark .ghost-rows-container::before,
+body.theme-titanium-light .ghost-rows-container::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 10;
+}
+
+body.theme-titanium-dark .ghost-rows-container::before {
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #fef3c7 100%) !important;
+}
+
+body.theme-titanium-light .ghost-rows-container::before {
+    background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #fde68a 100%) !important;
+}
+
+/* Barres de solde internes au bandeau */
+body.theme-titanium-dark .ghost-balance-bar,
+body.theme-titanium-light .ghost-balance-bar {
+    border-radius: 4px !important;
+    border: 1px solid var(--border-color) !important;
+    font-size: 11.5px !important;
+    padding: 6px 12px !important;
+}
+
+body.theme-titanium-dark .ghost-balance-bar {
+    background: var(--bg-base) !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.theme-titanium-light .ghost-balance-bar {
+    background: var(--bg-base) !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Tableau desktop du sas */
+body.theme-titanium-dark .ghost-desktop-table-wrapper table thead th,
+body.theme-titanium-light .ghost-desktop-table-wrapper table thead th {
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 7px 10px !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    color: var(--text-muted) !important;
+    background: transparent !important;
+}
+
+body.theme-titanium-dark .ghost-row,
+body.theme-titanium-light .ghost-row {
+    border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+/* Boutons dans le bandeau ambré */
+body.theme-titanium-dark .ghost-box-header-btn-wrap .btn,
+body.theme-titanium-light .ghost-box-header-btn-wrap .btn,
+body.theme-titanium-dark .ghost-row .btn,
+body.theme-titanium-light .ghost-row .btn,
+body.theme-titanium-dark .ghost-mobile-card .btn,
+body.theme-titanium-light .ghost-mobile-card .btn {
+    border-radius: 4px !important;
+}
+
+body.theme-titanium-dark .ghost-row .btn-primary,
+body.theme-titanium-dark .ghost-mobile-card .btn-primary {
+    background: #2563eb !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+    color: #fff !important;
+}
+
+body.theme-titanium-light .ghost-row .btn-primary,
+body.theme-titanium-light .ghost-mobile-card .btn-primary {
+    background: #c25e00 !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    color: #fff !important;
+}
+
+/* ── 2. Boutons d'Action de Lignes (Modifier, Dupliquer, Supprimer) ── */
+body.theme-titanium-dark .btn-action-edit,
+body.theme-titanium-dark .btn-action-icon,
+body.theme-titanium-dark .btn-action-del,
+body.theme-titanium-light .btn-action-edit,
+body.theme-titanium-light .btn-action-icon,
+body.theme-titanium-light .btn-action-del {
+    border-radius: 4px !important;
+    height: 25px !important;
+    transition: all 0.12s ease !important;
+}
+
+body.theme-titanium-dark .btn-action-edit {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: var(--text-main) !important;
+}
+body.theme-titanium-dark .btn-action-edit:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+body.theme-titanium-dark .btn-action-icon {
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+body.theme-titanium-dark .btn-action-icon:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+body.theme-titanium-dark .btn-action-del {
+    background: rgba(239, 68, 68, 0.08) !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
+    color: #f87171 !important;
+}
+body.theme-titanium-dark .btn-action-del:hover {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+body.theme-titanium-light .btn-action-edit {
+    background: rgba(0, 0, 0, 0.03) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+body.theme-titanium-light .btn-action-edit:hover {
+    background: rgba(0, 0, 0, 0.06) !important;
+    border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+body.theme-titanium-light .btn-action-icon {
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+body.theme-titanium-light .btn-action-icon:hover {
+    background: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* ── 3. Boutons de Rapprochement dans les Tableaux & Vues (Bento + Teinte Profil Maître) ── */
+body.theme-titanium-dark .recon-btn,
+body.theme-titanium-light .recon-btn {
+    border-radius: 4px !important;
+    font-weight: 600 !important;
+    transition: all 0.15s ease !important;
+}
+
+/* 3a. Rapprochement Manuel (Unmatched) : 100% Teinte Accent du Profil */
+body.theme-titanium-dark .recon-btn-unmatched,
+body.theme-titanium-dark .overview-recon-action-btn {
+    background: color-mix(in srgb, var(--accent) 12%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent) !important;
+    color: color-mix(in srgb, var(--accent) 80%, #ffffff) !important;
+    box-shadow: none !important;
+    border-radius: 4px !important;
+}
+body.theme-titanium-dark .recon-btn-unmatched:hover,
+body.theme-titanium-dark .overview-recon-action-btn:hover {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent) !important;
+}
+
+body.theme-titanium-light .recon-btn-unmatched,
+body.theme-titanium-light .overview-recon-action-btn {
+    background: color-mix(in srgb, var(--accent) 8%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent) !important;
+    color: color-mix(in srgb, var(--accent) 85%, #000000) !important;
+    box-shadow: none !important;
+    border-radius: 4px !important;
+}
+body.theme-titanium-light .recon-btn-unmatched:hover,
+body.theme-titanium-light .overview-recon-action-btn:hover {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 25%, transparent) !important;
+}
+
+/* 3b. Trouvé en Banque (Matched / 1-Clic) : 75% Vert Émeraude + 25% Accent Profil */
+body.theme-titanium-dark .recon-btn-matched,
+body.theme-titanium-dark .overview-matched-action-btn {
+    --match-color: color-mix(in srgb, var(--accent) 25%, #10b981 75%);
+    background: color-mix(in srgb, var(--match-color) 12%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--match-color) 40%, transparent) !important;
+    color: color-mix(in srgb, var(--match-color) 85%, #ffffff) !important;
+    box-shadow: none !important;
+    border-radius: 4px !important;
+}
+body.theme-titanium-dark .recon-btn-matched:hover,
+body.theme-titanium-dark .overview-matched-action-btn:hover {
+    background: var(--match-color) !important;
+    border-color: var(--match-color) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--match-color) 35%, transparent) !important;
+}
+
+body.theme-titanium-light .recon-btn-matched,
+body.theme-titanium-light .overview-matched-action-btn {
+    --match-color: color-mix(in srgb, var(--accent) 25%, #059669 75%);
+    background: color-mix(in srgb, var(--match-color) 8%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--match-color) 40%, transparent) !important;
+    color: color-mix(in srgb, var(--match-color) 90%, #000000) !important;
+    box-shadow: none !important;
+    border-radius: 4px !important;
+}
+body.theme-titanium-light .recon-btn-matched:hover,
+body.theme-titanium-light .overview-matched-action-btn:hover {
+    background: var(--match-color) !important;
+    border-color: var(--match-color) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--match-color) 25%, transparent) !important;
+}
+
+/* 3c. Opération À Venir (Coming) : 75% Ambré Chaud + 25% Accent Profil */
+body.theme-titanium-dark .recon-btn-coming,
+body.theme-titanium-dark .overview-coming-action-btn {
+    --coming-color: color-mix(in srgb, var(--accent) 25%, #f59e0b 75%);
+    background: color-mix(in srgb, var(--coming-color) 12%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--coming-color) 40%, transparent) !important;
+    color: color-mix(in srgb, var(--coming-color) 85%, #ffffff) !important;
+    box-shadow: none !important;
+    border-radius: 4px !important;
+}
+body.theme-titanium-dark .recon-btn-coming:hover,
+body.theme-titanium-dark .overview-coming-action-btn:hover {
+    background: var(--coming-color) !important;
+    border-color: var(--coming-color) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--coming-color) 35%, transparent) !important;
+}
+
+body.theme-titanium-light .recon-btn-coming,
+body.theme-titanium-light .overview-coming-action-btn {
+    --coming-color: color-mix(in srgb, var(--accent) 25%, #d97706 75%);
+    background: color-mix(in srgb, var(--coming-color) 8%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--coming-color) 40%, transparent) !important;
+    color: color-mix(in srgb, var(--coming-color) 90%, #000000) !important;
+    box-shadow: none !important;
+    border-radius: 4px !important;
+}
+body.theme-titanium-light .recon-btn-coming:hover,
+body.theme-titanium-light .overview-coming-action-btn:hover {
+    background: var(--coming-color) !important;
+    border-color: var(--coming-color) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--coming-color) 25%, transparent) !important;
+}
+
+/* ── 4. Barre de Filtres, Recherche, MultiSelect & Toggles ── */
+body.theme-titanium-dark #timelineSearch,
+body.theme-titanium-dark #historySearch,
+body.theme-titanium-light #timelineSearch,
+body.theme-titanium-light #historySearch,
+body.theme-titanium-dark .view-filter-bar input[type="text"],
+body.theme-titanium-dark .view-filter-bar input[type="date"],
+body.theme-titanium-light .view-filter-bar input[type="text"],
+body.theme-titanium-light .view-filter-bar input[type="date"] {
+    border-radius: 4px !important;
+    height: 32px !important;
+    font-size: 12px !important;
+}
+
+body.theme-titanium-dark .view-filter-bar .filter-pill,
+body.theme-titanium-light .view-filter-bar .filter-pill {
+    border-radius: 4px !important;
+    height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+body.theme-titanium-dark .view-filter-bar button.btn-secondary,
+body.theme-titanium-light .view-filter-bar button.btn-secondary {
+    border-radius: 4px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    line-height: 32px !important;
+}
+
+body.theme-titanium-dark .multi-select-trigger,
+body.theme-titanium-light .multi-select-trigger {
+    border-radius: 4px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    font-size: 12px !important;
+}
+
+body.theme-titanium-dark .multi-select-dropdown,
+body.theme-titanium-light .multi-select-dropdown {
+    border-radius: 6px !important;
+    position: absolute;
+    overflow: hidden;
+}
+body.theme-titanium-dark .multi-select-dropdown {
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 32px rgba(0, 0, 0, 0.5) !important;
+}
+body.theme-titanium-light .multi-select-dropdown {
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 10px 25px rgba(60, 45, 30, 0.15) !important;
+}
+
+/* Curseur toggle rectangulaire de précision */
+body.theme-titanium-dark .toggle-switch .slider,
+body.theme-titanium-light .toggle-switch .slider {
+    border-radius: 4px !important;
+}
+body.theme-titanium-dark .toggle-switch .slider:before,
+body.theme-titanium-dark .toggle-switch .slider::before,
+body.theme-titanium-light .toggle-switch .slider:before,
+body.theme-titanium-light .toggle-switch .slider::before {
+    border-radius: 3px !important;
+}
+
+/* ── 5. Modale de Revue Bancaire Cockpit ── */
+body.theme-titanium-dark .review-modal-card,
+body.theme-titanium-light .review-modal-card {
+    border-radius: 6px !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+body.theme-titanium-dark .review-modal-card {
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 25px 60px -12px rgba(0, 0, 0, 0.7) !important;
+}
+
+body.theme-titanium-light .review-modal-card {
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 20px 45px -10px rgba(60, 45, 30, 0.2) !important;
+}
+
+body.theme-titanium-dark .review-modal-card::before,
+body.theme-titanium-light .review-modal-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 100;
+}
+
+body.theme-titanium-dark .review-modal-card::before {
+    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%) !important;
+}
+
+body.theme-titanium-light .review-modal-card::before {
+    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%) !important;
+}
+
+body.theme-titanium-dark .review-filter-pill,
+body.theme-titanium-light .review-filter-pill,
+body.theme-titanium-dark .review-modal-close,
+body.theme-titanium-light .review-modal-close {
+    border-radius: 4px !important;
+}
+
+body.theme-titanium-dark .review-thead th,
+body.theme-titanium-light .review-thead th {
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+body.theme-titanium-dark .review-btn-commit {
+    border-radius: 4px !important;
+    background: #2563eb !important;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35) !important;
+}
+
+body.theme-titanium-light .review-btn-commit {
+    border-radius: 4px !important;
+    background: #c25e00 !important;
+    box-shadow: 0 2px 8px rgba(194, 94, 0, 0.3) !important;
+}
+
+/* ── 6. Notifications non lues harmonisées ── */
+body.theme-titanium-dark .notif-card.unread {
+    border-left: 4px solid var(--accent) !important;
+    background: rgba(96, 165, 250, 0.06) !important;
+}
+body.theme-titanium-light .notif-card.unread {
+    border-left: 4px solid var(--accent) !important;
+    background: rgba(194, 94, 0, 0.05) !important;
+}
+
 
 

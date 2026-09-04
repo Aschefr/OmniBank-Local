@@ -333,7 +333,7 @@ Object.assign(window.BankSyncView, {
                 if (data.accounts) {
                     this.saveCachedPreview(connId, data);
                     this.openReviewModal(connId, data);
-                    this.renderConnectionsList();
+                    this.loadConnections();
                 } else {
                     this.loadConnections();
                 }

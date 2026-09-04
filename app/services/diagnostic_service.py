@@ -25,12 +25,16 @@ class DiagnosticLogHandler(logging.Handler):
     """Logging handler that captures WARNING, ERROR, and critical logs into memory."""
     def emit(self, record: logging.LogRecord):
         try:
-            msg = self.format(record)
+            raw_msg = record.getMessage()
+            if record.exc_info and not record.exc_text:
+                record.exc_text = self.formatException(record.exc_info)
+            if record.exc_text:
+                raw_msg += f"\n{record.exc_text}"
             entry = {
                 "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
                 "level": record.levelname,
                 "logger": record.name,
-                "message": msg
+                "message": raw_msg
             }
             LOG_BUFFER.append(entry)
         except Exception:
@@ -195,6 +199,52 @@ def get_system_diagnostics(db_session=None) -> Dict[str, Any]:
 def get_diagnostic_report(db_session=None) -> Dict[str, Any]:
     """Produces the complete sanitized diagnostic report payload."""
     system_info = get_system_diagnostics(db_session)
+
+    # Bank connections and sync states
+    bank_connections: List[Dict[str, Any]] = []
+    recent_alerts: List[Dict[str, Any]] = []
+
+    if db_session:
+        try:
+            from app.models import BankConnection
+            conns = db_session.query(BankConnection).order_by(BankConnection.id.asc()).all()
+            for c in conns:
+                bank_connections.append({
+                    "id": c.id,
+                    "label": sanitize_text(c.label),
+                    "backend": c.backend,
+                    "is_active": bool(c.is_active),
+                    "last_sync_status": c.last_sync_status,
+                    "last_sync_at": c.last_sync_at.strftime("%Y-%m-%d %H:%M:%S UTC") if c.last_sync_at else None,
+                    "last_error": sanitize_text(c.last_error) if c.last_error else None
+                })
+        except Exception:
+            pass
+
+        try:
+            from app.models import Notification
+            notifs = (
+                db_session.query(Notification)
+                .filter(
+                    (Notification.type.like("%error%")) |
+                    (Notification.title.like("%Échec%")) |
+                    (Notification.title.like("%Erreur%"))
+                )
+                .order_by(Notification.created_at.desc())
+                .limit(10)
+                .all()
+            )
+            for n in notifs:
+                recent_alerts.append({
+                    "id": n.id,
+                    "type": n.type,
+                    "title": sanitize_text(n.title),
+                    "content": sanitize_text(n.content),
+                    "is_read": bool(n.is_read),
+                    "created_at": n.created_at.strftime("%Y-%m-%d %H:%M:%S UTC") if n.created_at else None
+                })
+        except Exception:
+            pass
     
     # Sanitize logs before returning
     sanitized_logs: List[Dict[str, Any]] = []
@@ -219,6 +269,8 @@ def get_diagnostic_report(db_session=None) -> Dict[str, Any]:
 
     return {
         "system_info": system_info,
+        "bank_connections": bank_connections,
+        "recent_alerts": recent_alerts,
         "recent_logs": sanitized_logs,
         "recent_exceptions": sanitized_exceptions,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")

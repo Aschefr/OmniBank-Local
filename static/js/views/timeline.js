@@ -42,6 +42,9 @@ window.TimelineView = {
                 <div class="view-header-bar" style="position:static; margin:0; padding:0 0 10px 0;">
                     <div class="view-header-title-group">
                         <h2 class="view-header-title">🏠 <span data-i18n="nav_timeline">${window.i18n.t('nav_timeline')}</span></h2>
+                        <button id="btnMobilePendingSync" class="btn btn-gold btn-sm mobile-pending-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.openPendingReviewModal(this) : null" title="${window.i18n.t('bank_sync_pending_review_tooltip') || 'Ouvrir la vue détaillée de revue et rapprochement'}">
+                            <span>📥</span> <span id="btnMobilePendingSyncLabel">${window.i18n.t('bank_sync_pending_badge_short') || 'En attente'}</span> <span id="btnMobilePendingSyncCount" class="badge" style="background: rgba(0,0,0,0.3); color: #fff; padding: 1px 6px; border-radius: 10px; font-size: 11px;">0</span>
+                        </button>
                     </div>
                     <div class="view-header-toolbar">
                         <button class="btn btn-secondary toolbar-btn" onclick="document.getElementById('timelineColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
@@ -111,11 +114,11 @@ window.TimelineView = {
                         </div>
                     </div>
                 </div>
+
+                <!-- Amber Pending Operations Box (Sticky with timelineHeader) -->
+                <div id="timelineGhostBox" style="display: none; margin-top: 10px;"></div>
             </div>
             <div class="timeline-table-container" style="padding-bottom: 20px;">
-                <div id="timelineGhostBox"></div>
-
-
                 <table class="data-table timeline-table mobile-card-table">
                     <thead>
                         <tr>
@@ -881,7 +884,7 @@ window.TimelineView = {
             // Lire le `top` CSS réel (négatif) pour compenser correctement (desktop: -32px, mobile: -12px)
             const topOffset = parseFloat(getComputedStyle(header).top) || 0;
             const offset = header.offsetHeight + topOffset;
-            table.style.setProperty('--sticky-top', Math.max(0, offset) + 'px');
+            table.style.setProperty('--sticky-top', Math.max(0, Math.floor(offset) - 2) + 'px');
         };
         update();
 
