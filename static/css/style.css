@@ -443,6 +443,24 @@ body {
     font-size: 1.25rem;
     font-weight: 700;
     letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+}
+
+.app-logo-img {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s ease;
+}
+
+.logo:hover .app-logo-img {
+    transform: scale(1.06);
 }
 
 .main-nav {
@@ -1343,13 +1361,57 @@ body.privacy-mode #valNextPayAmount:hover {
         top: 0;
         bottom: 0;
         z-index: 1000;
-        transition: left 0.3s ease;
-        width: 270px;
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 290px;
+        max-width: 84vw;
+        padding: 14px 16px 30px !important;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.45);
     }
 
     .app-sidebar.mobile-open {
         left: 0;
+    }
+
+    .mobile-sidebar-header {
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 12px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .mobile-sidebar-close {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .mobile-sidebar-close:hover,
+    .mobile-sidebar-close:active {
+        background: var(--bg-surface-hover);
+        color: var(--text-main);
+        border-color: var(--accent);
+    }
+
+    .sidebar-section-title {
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        color: var(--text-muted) !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        margin-bottom: 8px !important;
+        display: flex;
+        align-items: center;
     }
 
     .sidebar-overlay {
@@ -1407,6 +1469,61 @@ body.privacy-mode #valNextPayAmount:hover {
 
     .mobile-nav {
         display: flex !important;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .mobile-nav .nav-btn {
+        display: flex !important;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px !important;
+        font-size: 13.5px !important;
+        font-weight: 500 !important;
+        border-radius: 8px !important;
+        border: 1px solid transparent !important;
+        border-bottom: 1px solid transparent !important;
+        box-shadow: none !important;
+        color: var(--text-muted);
+        min-height: 38px;
+        width: 100%;
+        text-align: left;
+        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .mobile-nav .nav-btn:hover {
+        background-color: var(--bg-surface-hover) !important;
+        color: var(--text-main) !important;
+    }
+
+    .mobile-nav .nav-btn.active {
+        background-color: var(--accent-subtle) !important;
+        border-color: var(--accent-border) !important;
+        color: var(--accent) !important;
+        font-weight: 700 !important;
+        box-shadow: none !important;
+    }
+
+    .mobile-quick-actions-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        border-top: 1px solid var(--border-color);
+        margin: 12px 0 6px;
+        padding-top: 12px;
+    }
+
+    .mobile-quick-btn {
+        font-size: 12.5px !important;
+        font-weight: 600 !important;
+        padding: 8px 10px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+        height: 36px !important;
+        border-radius: 8px !important;
+        white-space: nowrap !important;
     }
 
     .flex-row-mobile-col {
@@ -6913,7 +7030,7 @@ body.overview-fullscreen .app-body {
     align-items: center;
     gap: 10px;
     padding: 8px 12px;
-    border-radius: 6px;
+    border-radius: 8px;
     background: transparent;
     border: 1px solid transparent;
     color: var(--text-main);
@@ -9211,8 +9328,8 @@ body.theme-titanium-light .main-nav {
     gap: 1px;
 }
 
-body.theme-titanium-dark .nav-btn,
-body.theme-titanium-light .nav-btn {
+body.theme-titanium-dark .main-nav .nav-btn,
+body.theme-titanium-light .main-nav .nav-btn {
     border-radius: 4px;
     padding: 5px 11px;
     font-size: 12.5px;
@@ -9222,14 +9339,14 @@ body.theme-titanium-light .nav-btn {
     border: 1px solid transparent;
 }
 
-body.theme-titanium-dark .nav-btn:hover,
-body.theme-titanium-light .nav-btn:hover {
+body.theme-titanium-dark .main-nav .nav-btn:hover,
+body.theme-titanium-light .main-nav .nav-btn:hover {
     color: var(--text-main);
     background: var(--bg-surface-hover);
 }
 
-body.theme-titanium-dark .nav-btn.active,
-body.theme-titanium-light .nav-btn.active {
+body.theme-titanium-dark .main-nav .nav-btn.active,
+body.theme-titanium-light .main-nav .nav-btn.active {
     background: var(--bg-surface);
     color: var(--accent) !important;
     font-weight: 600;
@@ -10241,14 +10358,14 @@ body.theme-titanium-light .main-nav {
     border-radius: 6px !important;
 }
 
-body.theme-titanium-dark .nav-btn,
-body.theme-titanium-light .nav-btn {
+body.theme-titanium-dark .main-nav .nav-btn,
+body.theme-titanium-light .main-nav .nav-btn {
     border-radius: 4px !important;
     font-size: 12px !important;
 }
 
-body.theme-titanium-dark .nav-btn.active,
-body.theme-titanium-light .nav-btn.active {
+body.theme-titanium-dark .main-nav .nav-btn.active,
+body.theme-titanium-light .main-nav .nav-btn.active {
     border-radius: 4px !important;
 }
 
@@ -11871,10 +11988,183 @@ body.theme-titanium-light .config-tab-btn.active {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 8px rgba(234, 88, 12, 0.25) !important;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   7.15 HARMONISATION TYPOGRAPHIQUE GLOBALE & ÉCHELLE PROPORTIONNÉE
+   ══════════════════════════════════════════════════════════════════════ */
 
+/* 1. Échelle des Titres & Cartes */
+.card-header h3,
+.dashboard-card-title,
+.config-card h3 {
+    font-size: 15.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.2px;
+    line-height: 1.35;
+}
 
+.config-card h4,
+.card-header h4 {
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.1px;
+    line-height: 1.35;
+}
 
+/* 2. Paragraphes, Descriptions & Aides */
+.config-card p,
+.theme-card-desc,
+.form-help-text,
+.card-subtitle {
+    font-size: 13px !important;
+    color: var(--text-muted) !important;
+    line-height: 1.5 !important;
+}
 
+/* 3. Libellés de Formulaire (Labels) */
+.config-card label,
+.form-group label,
+.input-label {
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    color: var(--text-muted) !important;
+}
 
+/* 4. Champs de Saisie, Sélecteurs & Recherche (Taille équilibrée 13px - 13.5px) */
+.config-card input[type="text"],
+.config-card input[type="number"],
+.config-card input[type="date"],
+.config-card input[type="password"],
+.config-card select,
+.config-search-input,
+.inline-input,
+.filter-pill-select {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+}
+
+#conf_base_currency,
+.config-card select.inline-input {
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+}
+
+/* 5. Tableaux : En-têtes et Cellules */
+.data-table th,
+.table-compact .data-table th,
+body.theme-titanium-dark .data-table th,
+body.theme-titanium-light .data-table th {
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.4px !important;
+    text-transform: uppercase !important;
+}
+
+.data-table td {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+}
+
+.rates-table td {
+    font-size: 12.5px !important;
+}
+
+/* 6. Badges, Tags & Micro-copies */
+#notifCountBadge {
+    font-size: 11px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    line-height: 18px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 4px !important;
+    font-weight: 700 !important;
+}
+
+.badge,
+.category-badge,
+.account-badge,
+.bv-tag,
+.bv-tag--cat,
+.overview-org-tag,
+.overview-health-badge,
+.overview-count-pill,
+.review-filter-pill,
+.license-badge,
+.user-picker-badge,
+.wizard-type-tag,
+.notif-tab-badge,
+.coming-badge,
+.ghost-badge,
+.sim-badge {
+    font-size: 11.5px !important;
+    line-height: 1.35 !important;
+}
+
+/* 7. Boutons de navigation et d'actions */
+.btn-xs {
+    font-size: 11.5px !important;
+}
+
+.btn-sm {
+    font-size: 12px !important;
+}
+
+.btn-filter,
+.recon-btn {
+    font-size: 12px !important;
+}
+
+.btn-delete-rate {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    transition: all 0.15s ease;
+}
+
+.btn-delete-rate:hover {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #ef4444 !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.rates-table tr:last-child {
+    border-bottom: none !important;
+}
+
+/* ── Optimisation Responsive Mobile & Tactile (< 768px) ── */
+@media (max-width: 768px) {
+    /* Cibles tactiles confortables */
+    .filter-pill-select,
+    .inline-input,
+    .btn-filter,
+    .config-tab-btn {
+        min-height: 36px !important;
+    }
+
+    .theme-card {
+        padding: 12px !important;
+    }
+
+    /* En-tête mobile : profil et titre */
+    #profileBtn span,
+    .user-switcher-btn span {
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
 
 

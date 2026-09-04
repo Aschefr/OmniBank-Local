@@ -171,16 +171,16 @@ window.ConfigSmartLabels = {
                             </button>
                         </td>
                         <td style="padding: 8px 6px; text-align: center;">
-                            <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: var(--text-muted); font-weight: 700; font-size: 10px; padding: 2px 8px; border-radius: 6px;">
+                            <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: var(--text-muted); font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 6px;">
                                 ${m.match_count || 1}
                             </span>
                         </td>
                         <td class="col-actions" style="padding: 8px 12px; text-align: right; overflow: visible;">
                             <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px;">
-                                <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${window.i18n?.t('smart_label_toggle_to_map') || 'Passer en statut Associé'}" style="padding: 2px 8px; font-size: 11px; height: 24px; color: #10b981; border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.08); display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                                    🏷️ <span style="font-size: 10px;">${window.i18n?.t('smart_label_btn_map') || 'Associer'}</span>
+                                <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${window.i18n?.t('smart_label_toggle_to_map') || 'Passer en statut Associé'}" style="padding: 2px 8px; font-size: 11px; height: 26px; color: #10b981; border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.08); display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                                    🏷️ <span style="font-size: 11px;">${window.i18n?.t('smart_label_btn_map') || 'Associer'}</span>
                                 </button>
-                                <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.deleteMapping(${m.id})" title="${window.i18n?.t('btn_delete') || 'Supprimer'}" style="padding: 2px 6px; font-size: 11px; height: 24px; color: var(--text-muted); border-radius: 6px; cursor: pointer;">
+                                <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.deleteMapping(${m.id})" title="${window.i18n?.t('btn_delete') || 'Supprimer'}" style="padding: 2px 6px; font-size: 11px; height: 26px; color: var(--text-muted); border-radius: 6px; cursor: pointer;">
                                     ✕
                                 </button>
                             </div>
@@ -205,16 +205,16 @@ window.ConfigSmartLabels = {
                         ${catBadge}
                     </td>
                     <td style="padding: 8px 6px; text-align: center;">
-                        <span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; font-weight: 700; font-size: 10px; padding: 2px 8px; border-radius: 6px;">
+                        <span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 6px;">
                             ${m.match_count || 1}
                         </span>
                     </td>
                     <td class="col-actions" style="padding: 8px 12px; text-align: right; overflow: visible;">
                         <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px;">
-                            <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${window.i18n?.t('smart_label_toggle_to_ignore') || 'Passer en statut Ignoré'}" style="padding: 2px 8px; font-size: 11px; height: 24px; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                                🚫 <span style="font-size: 10px;">${window.i18n?.t('smart_label_btn_ignore') || 'Ignorer'}</span>
+                            <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${window.i18n?.t('smart_label_toggle_to_ignore') || 'Passer en statut Ignoré'}" style="padding: 2px 8px; font-size: 11px; height: 26px; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                                🚫 <span style="font-size: 11px;">${window.i18n?.t('smart_label_btn_ignore') || 'Ignorer'}</span>
                             </button>
-                            <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.deleteMapping(${m.id})" title="${window.i18n?.t('btn_delete') || 'Supprimer'}" style="padding: 2px 6px; font-size: 11px; height: 24px; color: var(--text-muted); border-radius: 6px; cursor: pointer;">
+                            <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.deleteMapping(${m.id})" title="${window.i18n?.t('btn_delete') || 'Supprimer'}" style="padding: 2px 6px; font-size: 11px; height: 26px; color: var(--text-muted); border-radius: 6px; cursor: pointer;">
                                 ✕
                             </button>
                         </div>

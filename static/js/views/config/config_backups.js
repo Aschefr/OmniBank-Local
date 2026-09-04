@@ -725,9 +725,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     </div>
                     <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                         <input type="text" readonly value="${dir}" id="autoBackupPathInput" style="flex: 1; font-size: 11px; font-family: monospace; padding: 4px 8px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-main); cursor: text; min-width: 0;" onclick="this.select()">
-                        <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 10px; white-space: nowrap;" onclick="navigator.clipboard.writeText(document.getElementById('autoBackupPathInput').value).then(()=>showToast(window.i18n.t('config_auto_backup_copied'),'success',2000))" title="${window.i18n.t('config_auto_backup_copy_path')}">📋 ${window.i18n.t('config_auto_backup_copy_path')}</button>
+                        <button class="btn btn-secondary btn-xs" style="padding: 4px 10px; font-size: 11.5px; white-space: nowrap;" onclick="navigator.clipboard.writeText(document.getElementById('autoBackupPathInput').value).then(()=>showToast(window.i18n.t('config_auto_backup_copied'),'success',2000))" title="${window.i18n.t('config_auto_backup_copy_path')}">📋 ${window.i18n.t('config_auto_backup_copy_path')}</button>
                     </div>
-                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 5px; font-style: italic;">
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; font-style: italic;">
                         🔒 ${window.i18n.t('config_auto_backup_path_hint')}
                     </div>
                 </div>`;

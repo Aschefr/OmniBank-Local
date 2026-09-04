@@ -7,28 +7,28 @@ All notable changes to this project will be documented in this file.
 ### Added & Improved
 - **New Executive Themes (Titanium Dark & Albâtre Light) 🏛️**:
   - Introduced two modern Executive themes: **Titanium Dark** (slate-metallic satin) and **Albâtre Light** (warm luxury ivory & bronze).
-  - Extended crisp 6px bento card geometry, continuous metallic top accent borders, and 4px precision badges across all views (Overview, Dashboard, History, Synthèse, Budgets, Trends, Recurrences, Categories, Accounts, Chat IA, and Settings).
-  - Refined sidebar layout with larger, more legible typography, aesthetic card spacing, and distinct semantic color accents.
-  - Preserved 100% of classic styling across Classic Dark and Classic Light themes without alteration.
-- **Dynamic Table Column Sizing & Balanced Space 📊**:
-  - Calibrated proportional column widths across Dashboard and History tables, eliminating awkward whitespace while keeping ample room for labels.
+  - Extended crisp bento card geometry, metallic top accent borders, and precision badges across all views.
+  - Preserved classic styling across Classic Dark and Classic Light themes without alteration.
 - **Tabbed Settings Layout & Rich Theme Previews ⚙️**:
-  - Reorganized the Configuration page into clean categorical tabs (Général, Sécurité & Accès, Assistant IA, Données & Maintenance) with instant live search filtering.
-  - Upgraded theme selector cards with interactive mini UI mockups faithfully showcasing palette accents, window headers, and typography per theme.
-  - Enhanced section title hierarchy and visual contrast across all configuration cards.
+  - Reorganized the Configuration page into categorical tabs with live search filtering.
+  - Upgraded theme selector cards with interactive mini UI mockups faithfully showcasing palette accents.
 - **Enhanced AI Accuracy on Non-Monthly Recurrences 🛡️**:
-  - Enriched AI assistant context with explicit frequencies, calendar schedules, and exact next payment dates, preventing hallucinations on semi-annual and annual commitments.
+  - Improved assistant understanding of multi-month, semi-annual, and annual recurring commitments.
+- **Mobile Experience & Navigation Drawer Redesign 📱**:
+  - Refactored mobile drawer with a dedicated header, close button, symmetrical quick actions, and comfortable touch targets.
+  - Redesigned the Currencies & Exchange Rates card for clear reading and ease of entry on small screens.
+  - Harmonized typography scale and visual hierarchy across all mobile components.
+- **Official Brand Logo Harmonization 🎨**:
+  - Displayed the official golden shield vault emblem across desktop header, mobile drawer, setup wizard, and startup screen.
 
 ### Fixed
-- **Compact View & Multi-Theme Table Compression 📐**:
-  - Balanced row compression in compact mode across all themes, fitting 20+ operations on screen while retaining comfortable touch targets and readable badges.
-- **Table Headers & Action Buttons Alignment 📐**:
-  - Re-attached sticky table headers flush to the top with 0 gap across all views.
-  - Properly aligned table action button groups, preventing right-edge overflow on desktop.
-- **Mobile Theme Switching & Navigation Drawer 📱**:
-  - Added dedicated theme selector swatches in the mobile navigation drawer with instant single-tap switching.
-- **Language & Popover Menu Stacking 🌐**:
-  - Fixed language and notification dropdown menus rendering underneath sticky toolbar buttons.
+- **Mobile Theme & Language Selectors 📱**:
+  - Streamlined theme and language lists with clean, right-aligned checkmarks for active choices.
+- **Table Headers & Button Alignment 📐**:
+  - Re-attached sticky table headers flush to the top across all views.
+  - Aligned action button groups to prevent overflow on compact screens.
+- **Dropdown & Popover Menus Stacking 🌐**:
+  - Ensured language and notification menus open above sticky toolbars.
 
 ## [1.0.99] - 2026-08-31
 

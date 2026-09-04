@@ -117,7 +117,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             this.filterExchangeRates();
         } catch (e) {
             console.error(e);
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--danger); padding:10px;">Erreur de chargement des taux de change</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--danger); padding:10px;">Erreur de chargement des taux de change</td></tr>`;
         }
     },
 
@@ -137,17 +137,22 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         }
 
         if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:10px;">${this.ratesData.length === 0 ? 'Aucun taux de change enregistré' : 'Aucun résultat trouvé'}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:14px;">${this.ratesData.length === 0 ? 'Aucun taux de change enregistré' : 'Aucun résultat trouvé'}</td></tr>`;
             return;
         }
 
         tbody.innerHTML = filtered.map(r => `
-            <tr>
-                <td><strong style="color:var(--primary);">${r.from_currency}</strong></td>
-                <td><strong>${r.to_currency}</strong></td>
-                <td>1 ${r.from_currency} = <strong>${r.rate}</strong> ${r.to_currency}</td>
-                <td style="text-align: right;">
-                    <button class="btn btn-sm btn-danger" onclick="window.ConfigView.deleteExchangeRate(${r.id})" style="padding: 1px 5px; font-size: 10px;" title="Supprimer">✕</button>
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 7px 10px; white-space: nowrap;">
+                    <span style="font-weight: 700; color: var(--accent); font-size: 12px;">${r.from_currency}</span>
+                    <span style="color: var(--text-muted); font-size: 10px; margin: 0 3px;">➔</span>
+                    <span style="font-weight: 700; color: var(--text-main); font-size: 12px;">${r.to_currency}</span>
+                </td>
+                <td style="padding: 7px 10px; font-weight: 600; color: var(--text-main); font-family: monospace; font-size: 12px;">
+                    1 <span style="font-weight: 400; color: var(--text-muted);">${r.from_currency}</span> = <strong style="color: var(--accent);">${r.rate}</strong> <span style="font-weight: 400; color: var(--text-muted);">${r.to_currency}</span>
+                </td>
+                <td style="text-align: center; padding: 4px 6px;">
+                    <button class="btn-delete-rate" onclick="window.ConfigView.deleteExchangeRate(${r.id})" title="Supprimer" aria-label="Supprimer">✕</button>
                 </td>
             </tr>
         `).join('');

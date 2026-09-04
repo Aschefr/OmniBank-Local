@@ -2342,5 +2342,12 @@
   "config_search_placeholder": "Search a setting...",
   "config_maintenance_title": "Maintenance & Repair Tools",
   "config_maintenance_desc": "Technical tools to verify data consistency, clean anomalies, or reset.",
-  "config_search_no_results": "No settings match your search query."
+  "config_search_no_results": "No settings match your search query.",
+  "config_th_pair": "Pair",
+  "mobile_action_theme": "Theme",
+  "mobile_action_compact": "Compact",
+  "mobile_action_privacy": "Hide",
+  "mobile_action_server": "Server",
+  "mobile_drawer_close": "Close menu",
+  "mobile_nav_menu": "MENU"
 }

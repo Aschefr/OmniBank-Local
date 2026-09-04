@@ -2342,5 +2342,12 @@
   "config_search_placeholder": "Rechercher un paramètre...",
   "config_maintenance_title": "Outils de Maintenance & Réparation",
   "config_maintenance_desc": "Outils techniques pour vérifier la cohérence de vos données, nettoyer les anomalies ou réinitialiser.",
-  "config_search_no_results": "Aucun paramètre ne correspond à votre recherche."
+  "config_search_no_results": "Aucun paramètre ne correspond à votre recherche.",
+  "config_th_pair": "Paire",
+  "mobile_action_theme": "Thème",
+  "mobile_action_compact": "Compact",
+  "mobile_action_privacy": "Masquer",
+  "mobile_action_server": "Serveur",
+  "mobile_drawer_close": "Fermer le menu",
+  "mobile_nav_menu": "MENU"
 }
