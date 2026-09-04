@@ -304,7 +304,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                 </div>
             </div>
             
-            <div style="background: var(--bg-surface); padding: 24px; border-radius: 16px; margin-top: 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div class="recurrences-main-card" style="background: var(--bg-surface); padding: 24px; border-radius: 16px; margin-top: 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display: flex; gap: 15px; align-items: center; justify-content: center; margin-bottom: 24px;">
                     <button class="btn btn-secondary" style="padding: 6px 16px; border-radius: 8px; font-weight: 600;" onclick="window.RecurrenceView.changeYear(-1)">&lt;</button>
                     <h3 style="margin: 0; width: 100px; text-align: center; font-size: 26px; font-weight: 700; color: var(--text-main);" id="recYearDisplay">${this.selectedYear}</h3>

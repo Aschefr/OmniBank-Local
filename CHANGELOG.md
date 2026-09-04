@@ -5,9 +5,26 @@ All notable changes to this project will be documented in this file.
 ## [1.1.0] - 2026-08-31
 
 ### Added & Improved
-- **Strict Temporal Grounding & Exhausted Recurrences Exclusion for AI Assistant 🛡️**:
-  - Automatically filtered out completed recurrence templates (`max_occurrences` quota reached) across all AI RAG tools (`get_recurrence_templates`, `detect_anomalies_and_subscriptions`, `get_forecast_simulation`, `simulate_financial_scenario`, and `audit_transactions_integrity`).
-  - Enriched recurrence tool payloads with human-readable frequency labels (`frequency_human`), applicable calendar month lists (`applicable_months`), last reconciled payment details, and precise next expected execution dates (`next_expected_date`), preventing linguistic and temporal hallucinations on non-monthly (semi-annual, yearly) commitments.
+- **New Executive Themes (Titanium Dark & Albâtre Light) 🏛️**:
+  - Introduced two modern Executive themes: **Titanium Dark** (slate-metallic satin) and **Albâtre Light** (warm luxury ivory & bronze).
+  - Extended crisp 6px bento card geometry, continuous metallic top accent borders, and 4px precision badges across all views (Overview, Dashboard, History, Synthèse, Budgets, Trends, Recurrences, Categories, Accounts, Chat IA, and Settings).
+  - Refined sidebar layout with larger, more legible typography, aesthetic card spacing, and distinct semantic color accents.
+  - Preserved 100% of classic styling across Classic Dark and Classic Light themes without alteration.
+- **Dynamic Table Column Sizing & Balanced Space 📊**:
+  - Calibrated proportional column widths across Dashboard and History tables, eliminating awkward whitespace while keeping ample room for labels.
+- **Enhanced AI Accuracy on Non-Monthly Recurrences 🛡️**:
+  - Enriched AI assistant context with explicit frequencies, calendar schedules, and exact next payment dates, preventing hallucinations on semi-annual and annual commitments.
+
+### Fixed
+- **Compact View & Multi-Theme Table Compression 📐**:
+  - Balanced row compression in compact mode across all themes, fitting 20+ operations on screen while retaining comfortable touch targets and readable badges.
+- **Table Headers & Action Buttons Alignment 📐**:
+  - Re-attached sticky table headers flush to the top with 0 gap across all views.
+  - Properly aligned table action button groups, preventing right-edge overflow on desktop.
+- **Mobile Theme Switching & Navigation Drawer 📱**:
+  - Added dedicated theme selector swatches in the mobile navigation drawer with instant single-tap switching.
+- **Language & Popover Menu Stacking 🌐**:
+  - Fixed language and notification dropdown menus rendering underneath sticky toolbar buttons.
 
 ## [1.0.99] - 2026-08-31
 

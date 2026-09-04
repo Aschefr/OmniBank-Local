@@ -2321,5 +2321,18 @@
   "wizard_users_desc": "Ajoutez les membres de votre organisation. Un utilisateur par défaut « Trésorier » est créé automatiquement.",
   "wizard_users_title": "Définir les utilisateurs",
   "wizard_welcome_desc": "Votre application de finances personnelles, 100% locale et confidentielle. Configurons ensemble votre espace en quelques etapes.",
-  "wizard_welcome_title": "Bienvenue sur OmniBank !"
+  "wizard_welcome_title": "Bienvenue sur OmniBank !",
+  "theme_manager_title": "Gestionnaire de Thèmes",
+  "theme_manager_desc": "Personnalisez l'apparence visuelle d'OmniBank selon vos préférences.",
+  "theme_select_label": "Thème actif",
+  "theme_classic_dark": "Classique Sombre",
+  "theme_classic_dark_desc": "Le thème sombre historique d'OmniBank (palette ardoise & indigo).",
+  "theme_classic_light": "Classique Clair",
+  "theme_classic_light_desc": "Le thème clair historique d'OmniBank.",
+  "theme_titanium_dark": "Executive Titanium",
+  "theme_titanium_dark_desc": "Thème sombre moderne style néobanque (fond titane profond, accents émeraude & saphir).",
+  "theme_titanium_light": "Executive Albâtre",
+  "theme_titanium_light_desc": "Thème clair épuré haute lisibilité (fond albâtre & blanc pur).",
+  "tooltip_theme_manager": "Changer de thème visuel",
+  "mobile_select_theme": "Thèmes"
 }

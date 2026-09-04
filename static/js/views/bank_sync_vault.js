@@ -143,7 +143,7 @@ Object.assign(window.BankSyncView, {
                     const tooltipTpl = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_tooltip') : 'Coffre-fort déverrouillé en mémoire (reverrouillage automatique dans {time}). Cliquez pour verrouiller immédiatement.';
                     const lockNowTooltip = window.i18n ? window.i18n.t('bank_sync_vault_lock_now_tooltip') : 'Verrouiller immédiatement';
                     pill.innerHTML = `
-                        <span id="bankSyncVaultPillBtn" style="font-size: 11.5px; font-weight: 600; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.lockVault()" title="${tooltipTpl.replace('{time}', timeStr)}">
+                        <span id="bankSyncVaultPillBtn" class="bank-sync-vault-pill" style="font-size: 11.5px; font-weight: 600; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.lockVault()" title="${tooltipTpl.replace('{time}', timeStr)}">
                             <span>🔓</span> <span id="bankSyncVaultPillText">${unlockedLabel} (${timeStr})</span> <span style="font-size: 11px; opacity: 0.75;" title="${lockNowTooltip}">🔒</span>
                         </span>
                     `;
@@ -155,7 +155,7 @@ Object.assign(window.BankSyncView, {
                     const remoteAction = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_remote_action') || '(Autoriser ce poste)' : '(Autoriser ce poste)';
                     const remoteTooltip = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_remote_tooltip') || 'Le coffre-fort est déverrouillé sur le serveur (relevés automatiques opérationnels). Cliquez pour autoriser ce navigateur avec votre mot de passe maître.' : 'Le coffre-fort est déverrouillé sur le serveur (relevés automatiques opérationnels). Cliquez pour autoriser ce navigateur avec votre mot de passe maître.';
                     pill.innerHTML = `
-                        <span id="bankSyncVaultPillBtn" style="font-size: 11.5px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.unlockVaultManually()" title="${remoteTooltip}">
+                        <span id="bankSyncVaultPillBtn" class="bank-sync-vault-pill" style="font-size: 11.5px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.unlockVaultManually()" title="${remoteTooltip}">
                             <span>🌐 🔓</span> <span id="bankSyncVaultPillText">${remoteLabel} (${timeStr})</span> <span style="font-size: 11px; text-decoration: underline; font-weight: 700;">${remoteAction}</span>
                         </span>
                     `;
@@ -166,7 +166,7 @@ Object.assign(window.BankSyncView, {
                     const unlockAction = window.i18n ? window.i18n.t('bank_sync_vault_unlock_action') : '(Déverrouiller)';
                     const lockedTooltip = window.i18n ? window.i18n.t('bank_sync_vault_locked_tooltip') : 'Coffre verrouillé. Cliquez pour déverrouiller avec votre mot de passe maître.';
                     pill.innerHTML = `
-                        <span style="font-size: 11.5px; font-weight: 600; background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.unlockVaultManually()" title="${lockedTooltip}">
+                        <span id="bankSyncVaultLockedPill" class="bank-sync-vault-pill" style="font-size: 11.5px; font-weight: 600; background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.unlockVaultManually()" title="${lockedTooltip}">
                             <span>🔒</span> <span>${lockedLabel}</span> <span style="font-size: 11px; text-decoration: underline; font-weight: 700;">${unlockAction}</span>
                         </span>
                     `;

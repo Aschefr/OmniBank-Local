@@ -2321,5 +2321,18 @@
   "wizard_users_desc": "Add your organization's members. A default 'Treasurer' user is created automatically.",
   "wizard_users_title": "Define users",
   "wizard_welcome_desc": "Your personal finance app, 100% local and private. Let's set up your space in a few steps.",
-  "wizard_welcome_title": "Welcome to OmniBank!"
+  "wizard_welcome_title": "Welcome to OmniBank!",
+  "theme_manager_title": "Theme Manager",
+  "theme_manager_desc": "Customize the visual appearance of OmniBank according to your preferences.",
+  "theme_select_label": "Active Theme",
+  "theme_classic_dark": "Classic Dark",
+  "theme_classic_dark_desc": "The original dark theme of OmniBank (slate & indigo palette).",
+  "theme_classic_light": "Classic Light",
+  "theme_classic_light_desc": "The original light theme of OmniBank.",
+  "theme_titanium_dark": "Executive Titanium",
+  "theme_titanium_dark_desc": "Modern executive dark theme (deep titanium background, emerald & sapphire accents).",
+  "theme_titanium_light": "Executive Alabaster",
+  "theme_titanium_light_desc": "Crisp executive light theme with maximum legibility (alabaster & pure white).",
+  "tooltip_theme_manager": "Change visual theme",
+  "mobile_select_theme": "Themes"
 }

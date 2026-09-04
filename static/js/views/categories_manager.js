@@ -30,7 +30,7 @@ window.CategoriesView = {
                 </div>
             </div>
             
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div class="categories-type-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                     <h3 style="margin: 0;" data-i18n="cat_custom_types">${window.i18n.t('cat_custom_types')}</h3>
                     <button class="btn btn-secondary toolbar-btn" onclick="window.CategoriesView.saveTypeLabels()" data-i18n="btn_save_names">${window.i18n.t('btn_save_names')}</button>
@@ -40,7 +40,7 @@ window.CategoriesView = {
                 </div>
             </div>
 
-            <div style="margin-bottom: 20px; background: var(--bg-surface); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div class="categories-add-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <h3 style="margin-top: 0;" data-i18n="cat_new">New Category</h3>
                 <div class="categories-add-form" style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
                     <input type="text" id="cat_name" class="inline-input" placeholder="${window.i18n.t('cat_name_ph') || 'Category name'}" style="flex: 1; min-width: 200px;">
@@ -142,9 +142,9 @@ window.CategoriesView = {
             }
             
             html += `
-            <div style="background: var(--bg-surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto;">
+            <div class="category-group-card" data-cat-type="${t}" style="background: var(--bg-surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto;">
                 <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--accent); display: flex; align-items: center; gap: 8px;">
-                    <span style="background: rgba(51,102,255,0.1); padding: 4px 8px; border-radius: 6px;">${window.app.getTypeLabel(t)}</span>
+                    <span class="category-group-badge" style="background: rgba(51,102,255,0.1); padding: 4px 8px; border-radius: 6px;">${window.app.getTypeLabel(t)}</span>
                     <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">(${cats.length})</span>
                 </h4>
                 <table class="data-table" style="width: 100%;">
