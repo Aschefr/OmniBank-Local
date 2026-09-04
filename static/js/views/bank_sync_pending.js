@@ -237,7 +237,7 @@ Object.assign(window.BankSyncView, {
                 </button>
                 ` : ''}
                 ${data.accounts && data.accounts.length > 0 ? `
-                <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
+                <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal(this)" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
                     <span>📋</span> <span>${window.i18n.t('bank_sync_pending_review_btn') || 'Ouvrir la revue'}</span>
                 </button>
                 ` : ''}
@@ -247,6 +247,35 @@ Object.assign(window.BankSyncView, {
             </div>
         </div>
         `;
+    },
+
+    _updateMobilePendingBadge(ghostCount, confirmedCount, hasDiscrepancy) {
+        const btn = document.getElementById('btnMobilePendingSync');
+        if (!btn) return;
+
+        const totalItems = (ghostCount || 0) + (confirmedCount || 0);
+        if (totalItems === 0 && !hasDiscrepancy) {
+            btn.classList.remove('active');
+            return;
+        }
+
+        btn.classList.add('active');
+        const lbl = document.getElementById('btnMobilePendingSyncLabel');
+        const cnt = document.getElementById('btnMobilePendingSyncCount');
+
+        if (totalItems > 0) {
+            if (lbl) lbl.textContent = window.i18n ? window.i18n.t('bank_sync_pending_badge_short') || 'En attente' : 'En attente';
+            if (cnt) {
+                cnt.textContent = totalItems;
+                cnt.style.display = 'inline-block';
+            }
+        } else if (hasDiscrepancy) {
+            if (lbl) lbl.textContent = window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart';
+            if (cnt) {
+                cnt.textContent = '!';
+                cnt.style.display = 'inline-block';
+            }
+        }
     },
 
     renderGhostBox(container, accountFilter = null) {
@@ -290,15 +319,21 @@ Object.assign(window.BankSyncView, {
             typeof a.bank_balance === 'number' && typeof a.local_reconciled_balance === 'number'
         );
         const hasDiscrepancy = accsWithBalance.some(a => Math.abs(a.bank_balance - a.local_reconciled_balance) >= 0.005);
+        const confirmedMatchCount = Object.values(this.pendingMatches || {}).filter(m => !m.is_coming).length;
+
+        // Mise à jour du badge mobile d'en-tête (ouvre la revue détaillée sur demande)
+        this._updateMobilePendingBadge(totalCount, confirmedMatchCount, hasDiscrepancy);
 
         // Masquer si aucune opération fantôme ET aucun écart de solde
         if (!hasGhosts && !hasDiscrepancy) {
             box.style.display = 'none';
             box.innerHTML = '';
+            if (container) container.style.display = 'none';
             return;
         }
 
         box.style.display = 'block';
+        if (container) container.style.display = 'block';
 
         // État replié/déplié : déplié si opérations fantômes, replié si seulement écarts
         const defaultCollapsed = !hasGhosts;
@@ -497,7 +532,6 @@ Object.assign(window.BankSyncView, {
         }).join('');
 
         // ── Résumé pour l'en-tête replié ─────────────────────────────
-        const confirmedMatchCount = Object.values(this.pendingMatches || {}).filter(m => !m.is_coming).length;
         let summaryParts = [];
         if (confirmedMatchCount > 0) {
             const readyLbl = window.i18n ? window.i18n.t('bank_sync_ready_to_reconcile') || 'prête(s) à rapprocher' : 'prête(s) à rapprocher';
@@ -531,7 +565,7 @@ Object.assign(window.BankSyncView, {
             : (window.i18n ? window.i18n.t('bank_sync_pending_box_title') || 'Synchronisation bancaire' : 'Synchronisation bancaire');
 
         box.innerHTML = `
-        <div class="ghost-rows-container" style="${containerBg} ${containerBorder} border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;">
+        <div class="ghost-rows-container" style="${containerBg} ${containerBorder} border-radius: 12px; padding: 12px 14px; margin-bottom: 4px;">
             <div onclick="window.BankSyncView.toggleGhostBox()" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; cursor: pointer; user-select: none;">
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <span style="font-size: 14px; color: var(--text-muted); display: inline-block;">${chevron}</span>
@@ -557,12 +591,12 @@ Object.assign(window.BankSyncView, {
                     <button class="btn ${confirmedMatchCount > 0 ? 'btn-secondary' : 'btn-primary'} ghost-box-header-btn" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 14px; border-radius: 6px; font-weight: 600; height: 30px; display: inline-flex; align-items: center; gap: 6px;">
                         <span>📥</span> <span>${window.i18n ? window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations' : 'Valider les nouvelles opérations'} (${totalCount})</span>
                     </button>` : ''}
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 30px; display: inline-flex; align-items: center; gap: 4px;" title="${window.i18n ? window.i18n.t('bank_sync_pending_review_tooltip') || 'Ouvrir la vue détaillée de revue et rapprochement' : 'Ouvrir la vue détaillée de revue et rapprochement'}">
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal(this)" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 30px; display: inline-flex; align-items: center; gap: 4px;" title="${window.i18n ? window.i18n.t('bank_sync_pending_review_tooltip') || 'Ouvrir la vue détaillée de revue et rapprochement' : 'Ouvrir la vue détaillée de revue et rapprochement'}">
                         <span>📋</span> <span>${window.i18n ? window.i18n.t('bank_sync_pending_review_btn') || 'Ouvrir la revue' : 'Ouvrir la revue'}</span>
                     </button>
                 </div>
             </div>
-            <div id="ghostBoxContent" style="${isCollapsed ? 'display: none;' : 'margin-top: 10px;'}">
+            <div id="ghostBoxContent" style="${isCollapsed ? 'display: none;' : 'margin-top: 10px; max-height: min(45vh, 400px); overflow-y: auto; overflow-x: hidden; padding-right: 4px;'}">
                 ${balanceBarsHtml}
                 ${hasGhosts ? `
             <!-- Vue Tableau Desktop -->
@@ -712,7 +746,30 @@ Object.assign(window.BankSyncView, {
         }
     },
 
-    async openPendingReviewModal() {
+    async openPendingReviewModal(triggerEl = null) {
+        if (this._isOpeningPendingReview) return;
+        this._isOpeningPendingReview = true;
+
+        let btn = triggerEl;
+        if (!btn && typeof event !== 'undefined' && event) {
+            btn = (event.currentTarget instanceof HTMLElement ? event.currentTarget : (event.target instanceof HTMLElement ? event.target.closest('button') : null));
+        }
+        if (!btn) {
+            btn = document.getElementById('btnMobilePendingSync');
+        }
+
+        let origContent = null;
+        if (btn) {
+            btn.classList.add('loading');
+            btn.style.pointerEvents = 'none';
+            btn.style.opacity = '0.85';
+            origContent = btn.innerHTML;
+            btn.innerHTML = `
+                <span class="btn-spinner" style="display:inline-block; width:13px; height:13px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align: middle;"></span>
+                <span>${window.i18n ? window.i18n.t('loading') || 'Chargement...' : 'Chargement...'}</span>
+            `;
+        }
+
         try {
             this.ensureModalsExist();
             let data = await API.get('/api/bank-sync/pending');
@@ -742,6 +799,14 @@ Object.assign(window.BankSyncView, {
         } catch (e) {
             console.error('[BankSync] Erreur ouverture des opérations en attente:', e);
             this.showToast('Erreur ouverture des opérations en attente : ' + (e.message || e), 'error');
+        } finally {
+            if (btn && origContent !== null) {
+                btn.classList.remove('loading');
+                btn.style.pointerEvents = '';
+                btn.style.opacity = '';
+                btn.innerHTML = origContent;
+            }
+            this._isOpeningPendingReview = false;
         }
     },
 

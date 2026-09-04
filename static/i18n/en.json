@@ -2349,5 +2349,7 @@
   "mobile_action_privacy": "Hide",
   "mobile_action_server": "Server",
   "mobile_drawer_close": "Close menu",
-  "mobile_nav_menu": "MENU"
+  "mobile_nav_menu": "MENU",
+  "bank_sync_pending_badge_short": "Pending",
+  "bank_sync_filter_pending": "To Review"
 }

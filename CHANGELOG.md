@@ -20,14 +20,32 @@ All notable changes to this project will be documented in this file.
   - Harmonized typography scale and visual hierarchy across all mobile components.
 - **Official Brand Logo Harmonization 🎨**:
   - Displayed the official golden shield vault emblem across desktop header, mobile drawer, setup wizard, and startup screen.
+- **Enhanced Diagnostic & Bank Incident Reports 🔍**:
+  - Diagnostic reports now capture active system alerts and live bank connection statuses for easier troubleshooting.
+- **Actionable Bank Sync Guidance 🏦**:
+  - Replaced technical errors with clear, actionable advice when user intervention is required on the bank's website or mobile app (e.g. accepting terms or confirming security prompts).
+- **Persistent Pending Bank Sync Panel & Mobile On-Demand Badge 📌**:
+  - The amber uncommitted operations banner stays pinned on scroll on desktop, cleanly docking the sticky transaction table header below it.
+  - On mobile viewports, the large inline panel remains hidden by default to keep the transaction list unobstructed, replaced by a discreet title bar badge that opens the dedicated full-screen review modal on demand.
+- **Focused Bank Review & Instant Loading Feedback ⚡**:
+  - The bank review modal now automatically selects actionable transactions (to reconcile, pending bank authorizations, and new operations) upon opening, hiding already reconciled history for immediate clarity.
+  - Added an inline spinner and immediate loading status on pending sync buttons across mobile and desktop.
+- **Executive Theme Precision Finishing (Titanium Dark & Albâtre Light) 🏛️**:
+  - Harmonized the amber pending operations panel, balance indicators, filter toolbars, and table row action buttons with crisp 6px/4px Bento geometry and signature metallic accent lines.
+  - Infused reconciliation button roles (`✓ Rapprocher`, `⚡ Trouvé en banque`, `⏳ À venir`) with distinct semantic tints blended with the user's master profile accent.
+  - Tailored the Bank Review modal and controls strictly within Executive themes with zero impact on Classic Dark and Classic Light.
 
 ### Fixed
+- **Crédit Agricole Online Synchronization 🏦**:
+  - Restored automated sync compatibility following Crédit Agricole's recent portal update.
+- **Real-Time Vault Status Refresh 🔐**:
+  - Unlocking the credential vault now immediately clears locked status banners and stale errors without requiring a page reload.
 - **Desktop Sidebar Cleanliness 🖥️**:
   - Ensured the mobile drawer header (logo, title, and close button) remains strictly hidden on desktop viewports.
 - **Theme & Language Selectors 🎨**:
   - Streamlined theme and language menus across desktop and mobile with clean, right-aligned checkmarks for active choices.
 - **Table Headers & Button Alignment 📐**:
-  - Re-attached sticky table headers flush to the top across all views.
+  - Re-attached sticky table headers flush to page toolbars, eliminating subpixel seams and row peek-through during scroll.
   - Aligned action button groups to prevent overflow on compact screens.
 - **Dropdown & Popover Menus Stacking 🌐**:
   - Ensured language and notification menus open above sticky toolbars.

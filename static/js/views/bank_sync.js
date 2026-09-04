@@ -509,6 +509,7 @@ window.BankSyncView = {
                             </button>
 
                             <span class="review-filter-label" data-i18n="bank_sync_filter_label">${window.i18n.t('bank_sync_filter_label')}</span>
+                            <button class="btn btn-sm review-filter-pill" id="btnSyncFilterPending" onclick="window.BankSyncView.setReviewFilter('pending')"><span>⚡</span> <span data-i18n="bank_sync_filter_pending">${window.i18n ? window.i18n.t('bank_sync_filter_pending') || 'À traiter' : 'À traiter'}</span></button>
                             <button class="btn btn-sm review-filter-pill" id="btnSyncFilterAll" onclick="window.BankSyncView.setReviewFilter('all')" data-i18n="bank_sync_filter_all">${window.i18n.t('bank_sync_filter_all')}</button>
                             <button class="btn btn-sm review-filter-pill" id="btnSyncFilterAdd" onclick="window.BankSyncView.setReviewFilter('add')" data-i18n="bank_sync_filter_add">${window.i18n.t('bank_sync_filter_add')}</button>
                             <button class="btn btn-sm review-filter-pill" id="btnSyncFilterReconcile" onclick="window.BankSyncView.setReviewFilter('reconcile')" data-i18n="bank_sync_filter_reconcile">${window.i18n.t('bank_sync_filter_reconcile')}</button>

@@ -608,19 +608,30 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
         conn.last_sync_status = "auto_checked"
         conn.last_sync_count = matches + new_txs
         conn.last_error = None
+        # Archiver automatiquement les notifications d'erreur précédentes pour cette connexion
+        db.query(Notification).filter(
+            Notification.type == "bank_sync_error",
+            Notification.link_data.like(f'%"conn_id": {conn.id}%')
+        ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
         db.commit()
         logger.info(f"[BankScheduler] Relevé terminé pour '{conn.label}' : {matches} rapprochements, {new_txs} nouvelles (profil={pid})")
         return preview
     except Exception as e:
-        err_msg = str(e)
-        logger.warning(f"[BankScheduler] Échec du relevé auto pour '{conn.label}' (profil={pid}) : {err_msg}")
+        from app.services.bank_sync_service import clean_error_message
+        from app.services.diagnostic_service import record_backend_exception
+
+        raw_err = str(e)
+        err_msg = clean_error_message(e)
+        logger.warning(f"[BankScheduler] Échec du relevé auto pour '{conn.label}' (profil={pid}) : {raw_err}")
+        record_backend_exception(e, context=f"BankScheduler relevé auto '{conn.label}' ({conn.backend})")
+
         conn.last_sync_status = "auto_error"
         conn.last_error = err_msg
         conn.last_sync_at = datetime.now(timezone.utc)
 
         # Créer une notification in-app d'erreur
         try:
-            err_lower = err_msg.lower()
+            err_lower = raw_err.lower()
             is_vault_err = any(k in err_lower for k in ("mot de passe", "password", "coffre", "vault", "identifiant", "verrouill"))
             notif = Notification(
                 type="bank_sync_error",

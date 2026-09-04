@@ -201,6 +201,42 @@ window.ErrorReporter = {
             md += `\n`;
         }
 
+        // Active Alerts & Incident Notifications
+        const backAlerts = backendDiag?.recent_alerts || [];
+        if (backAlerts.length > 0) {
+            md += `#### 🔔 Active Alerts & Incident Notifications (${backAlerts.length})\n`;
+            backAlerts.forEach((a, idx) => {
+                const readStatus = a.is_read ? 'Read' : 'Unread';
+                md += `**#${idx + 1} [${a.type}]** \`${a.title}\` (${a.created_at || 'Recent'} - ${readStatus})\n`;
+                if (a.content) {
+                    md += `> ${a.content}\n`;
+                }
+            });
+            md += `\n`;
+        }
+
+        // Bank Connections & Sync Health
+        const bankConns = backendDiag?.bank_connections || [];
+        if (bankConns.length > 0) {
+            md += `#### 🏦 Bank Sync Status & Connections (${bankConns.length})\n`;
+            bankConns.forEach(c => {
+                let statusBadge = '✅ Active';
+                if (c.last_sync_status && c.last_sync_status.includes('error')) {
+                    statusBadge = '⚠️ Sync Error';
+                } else if (!c.is_active) {
+                    statusBadge = '⏸️ Inactive';
+                } else if (!c.last_sync_status) {
+                    statusBadge = 'ℹ️ Never synced';
+                }
+
+                md += `- **${c.label}** (\`${c.backend}\`): ${statusBadge} | Status: \`${c.last_sync_status || 'idle'}\` | Last sync: \`${c.last_sync_at || 'Never'}\`\n`;
+                if (c.last_error) {
+                    md += `  > ⚠️ *Last Error:* \`${c.last_error}\`\n`;
+                }
+            });
+            md += `\n`;
+        }
+
         // User Action Breadcrumbs
         if (this._breadcrumbs.length > 0) {
             md += `#### 🐾 Recent User Action Breadcrumbs (Last ${this._breadcrumbs.length})\n\`\`\`\n`;
@@ -215,7 +251,12 @@ window.ErrorReporter = {
         if (backLogs.length > 0) {
             md += `#### 📜 Recent Backend Logs (Last ${backLogs.length})\n\`\`\`\n`;
             backLogs.slice(-15).forEach(l => {
-                md += `[${l.timestamp}] [${l.level}] [${l.logger}] ${l.message}\n`;
+                let msg = l.message || '';
+                if (l.level && l.logger) {
+                    const prefixPattern = new RegExp(`^\\[${l.level}\\]\\s*\\[${l.logger}\\]\\s*`, 'i');
+                    msg = msg.replace(prefixPattern, '');
+                }
+                md += `[${l.timestamp}] [${l.level}] [${l.logger}] ${msg}\n`;
             });
             md += `\`\`\`\n\n`;
         }

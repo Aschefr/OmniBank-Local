@@ -79,6 +79,50 @@ def _apply_module_hotfixes(w: Woob, backend_name: str):
         except Exception as e:
             logger.debug(f"[BankSync] Hotfix BoursoBank notice: {e}")
 
+    elif backend_name == "cragr":
+        try:
+            import sys
+            import pathlib
+            import importlib
+            mod = w.modules_loader.get_or_load_module("cragr")
+
+            # 1. Patch en mémoire de AppConfigPage.get_client_id (Crédit Agricole a déplacé clientId dans mireOptions)
+            try:
+                pages_mod = importlib.import_module("woob_modules.cragr.pages")
+            except Exception:
+                pages_mod = sys.modules.get("woob_modules.cragr.pages")
+
+            if pages_mod and hasattr(pages_mod, "AppConfigPage"):
+                app_page_cls = pages_mod.AppConfigPage
+                if not getattr(app_page_cls, "_cragr_clientid_hotfixed", False):
+                    orig_get_cid = app_page_cls.get_client_id
+                    def patched_get_client_id(self):
+                        if isinstance(self.doc, dict):
+                            cid = self.doc.get("clientId")
+                            if not cid and "mireOptions" in self.doc and isinstance(self.doc["mireOptions"], dict):
+                                cid = self.doc["mireOptions"].get("clientId")
+                            if cid:
+                                return cid
+                        return orig_get_cid(self)
+                    app_page_cls.get_client_id = patched_get_client_id
+                    app_page_cls._cragr_clientid_hotfixed = True
+                    logger.info("[BankSync] Hotfix mémoire Crédit Agricole (clientId dans mireOptions) appliqué avec succès.")
+
+            # 2. Patch sur disque du fichier pages.py si accessible en écriture
+            if hasattr(mod, "package") and hasattr(mod.package, "__file__"):
+                pkg_dir = pathlib.Path(mod.package.__file__).parent
+                pages_file = pkg_dir / "pages.py"
+                if pages_file.exists():
+                    content = pages_file.read_text(encoding="utf-8")
+                    target_old = 'return Dict("clientId")(self.doc)'
+                    target_new = 'return (self.doc.get("clientId") or (self.doc.get("mireOptions") or {}).get("clientId") if isinstance(self.doc, dict) else Dict("clientId")(self.doc))'
+                    if target_old in content:
+                        content = content.replace(target_old, target_new)
+                        pages_file.write_text(content, encoding="utf-8")
+                        logger.info("[BankSync] Hotfix fichier Crédit Agricole appliqué avec succès.")
+        except Exception as e:
+            logger.debug(f"[BankSync] Hotfix Crédit Agricole notice: {e}")
+
 
 def get_all_bank_backends(force_refresh: bool = False) -> List[BankBackendInfo]:
     """
@@ -331,17 +375,21 @@ def clean_error_message(e: Exception) -> str:
 
     # Nettoyage des motifs d'erreurs récurrents
     if "FormNotFound" in msg or exc_name == "FormNotFound":
-        return "Formulaire d'authentification introuvable. Votre banque peut demander une action préalable sur son application mobile ou bloquer temporairement les accès automatisés."
+        return "Formulaire d'authentification introuvable. Votre banque peut demander une action préalable sur son application mobile (nouvelles CGU, confirmation SécuriPass) ou bloquer temporairement les accès automatisés."
     if "BrowserIncorrectPassword" in msg or "bad login" in msg.lower():
         return "Identifiant ou mot de passe bancaire incorrect."
-    if "ActionNeeded" in msg:
-        return "Action requise sur le site ou l'application mobile de votre banque."
+    if "ActionNeeded" in msg or exc_name == "ActionNeeded":
+        return "Action requise sur le site ou l'application mobile de votre banque (ex: acceptation de nouvelles CGU ou mise à jour de sécurité)."
     if "BrowserUnavailable" in msg:
         return "Le serveur de votre banque est temporairement indisponible."
     if "AppValidationCancelled" in msg or "Authentification annulée" in msg:
         return "Validation 2FA annulée."
     if "AppValidationExpired" in msg or "Session 2FA expirée" in msg:
         return "Le délai de validation sur votre application bancaire a expiré."
+    if ("element" in msg.lower() and "not found" in msg.lower()) or "clientid" in msg.lower() or exc_name == "ElementNotFound":
+        return (
+            f"Action requise sur votre espace bancaire : un écran intermédiaire (nouvelles CGU à accepter, validation SécuriPass mobile ou confirmation de coordonnées) bloque l'accès automatisé. Connectez-vous sur le site ou l'application de votre banque pour débloquer l'accès. (Détail : {msg})"
+        )
 
     return msg
 
@@ -472,9 +520,15 @@ class BankSyncService:
         """
         from app.routers.csv_parser import check_reconciliation
 
+        if not master_password:
+            raise Exception("Coffre-fort verrouillé : veuillez déverrouiller votre coffre pour synchroniser vos comptes.")
+
+        if not CredentialVault.has_credentials(db, connection.id):
+            raise Exception("Aucun identifiant configuré pour cette connexion bancaire.")
+
         creds = CredentialVault.retrieve_credentials(db, connection.id, master_password)
         if not creds:
-            raise Exception("Mot de passe maître incorrect ou identifiants introuvables.")
+            raise Exception("Mot de passe maître incorrect : impossible de déchiffrer les identifiants.")
 
         mapping = {}
         if connection.account_mapping:
@@ -1022,6 +1076,11 @@ class BankSyncService:
             conn.last_sync_status = "success"
             conn.last_sync_count = imported + reconciled_count
             conn.last_error = None
+            from app.models import Notification
+            db.query(Notification).filter(
+                Notification.type == "bank_sync_error",
+                Notification.link_data.like(f'%"conn_id": {conn.id}%')
+            ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
 
         db.commit()
         
