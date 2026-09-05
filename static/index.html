@@ -21,7 +21,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     
-    <link rel="stylesheet" href="/static/css/style.css?v=48">
+    <link rel="stylesheet" href="/static/css/style.css?v=53">
 
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -340,7 +340,7 @@
     </div>
 
     <!-- AI Action Modal -->
-    <div id="aiActionModal" class="modal-overlay" style="display: none; z-index: 1000;">
+    <div id="aiActionModal" class="modal-overlay" style="display: none; z-index: 10000;">
         <div class="modal" style="max-width: 500px;">
             <h3 style="display:flex; align-items:center; gap:8px;" data-i18n="modal_ai_supervision">✨ Supervision de l'IA</h3>
             <p id="aiActionModalDesc" style="margin-bottom: 15px; font-size: 13px; color: var(--text-muted);" data-i18n="modal_ai_desc">
@@ -732,7 +732,7 @@
     </div>
 
     <!-- Propagate Confirmation Modal -->
-    <div id="propagateConfirmModal" class="modal-overlay" style="display: none;">
+    <div id="propagateConfirmModal" class="modal-overlay" style="display: none; z-index: 10001;">
         <div class="modal">
             <h3 data-i18n="modal_edit_recurrence_title">Modifier une opération récurrente</h3>
             <p style="margin: 15px 0;" data-i18n="modal_edit_recurrence_desc">Cette opération fait partie d'une série récurrente.<br>Voulez-vous modifier uniquement cette occurrence, ou appliquer les changements (Montant, Catégorie, etc.) aux occurrences futures de cette série ?</p>
@@ -843,18 +843,18 @@
 
     <script src="/static/js/i18n.js"></script>
     <script src="/static/js/virtual_table.js"></script>
-    <script src="/static/js/common.js?v=11"></script>
+    <script src="/static/js/common.js?v=12"></script>
     <script src="/static/js/diagnostic_reporter.js"></script>
     <script src="/static/js/components/multi-select.js"></script>
     <script src="/static/js/reconciliation_states.js?v=1"></script>
-    <script src="/static/js/views/timeline.js?v=3"></script>
-    <script src="/static/js/views/all_operations.js?v=3"></script>
+    <script src="/static/js/views/timeline.js?v=4"></script>
+    <script src="/static/js/views/all_operations.js?v=4"></script>
     <script src="/static/js/views/recurrences/recurrences_timeline.js?v=1"></script>
     <script src="/static/js/views/recurrences/recurrences_details.js?v=1"></script>
-    <script src="/static/js/views/recurrences/recurrences_wizard.js?v=1"></script>
+    <script src="/static/js/views/recurrences/recurrences_wizard.js?v=2"></script>
     <script src="/static/js/views/recurrences/recurrences_modals.js?v=1"></script>
     <script src="/static/js/views/recurrence_manager.js?v=6"></script>
-    <script src="/static/js/views/categories_manager.js?v=2"></script>
+    <script src="/static/js/views/categories_manager.js?v=3"></script>
     <script src="/static/js/views/accounts_manager.js"></script>
     <script src="/static/js/views/config/config_ai.js?v=1"></script>
     <script src="/static/js/views/config/config_backups.js?v=1"></script>
@@ -867,12 +867,12 @@
     <script src="/static/js/views/chat/chat_renderer.js?v=6"></script>
     <script src="/static/js/views/chat/chat_actions.js?v=2"></script>
     <script src="/static/js/views/chat/chat_stream.js?v=3"></script>
-    <script src="/static/js/views/chat.js?v=139"></script>
+    <script src="/static/js/views/chat.js?v=140"></script>
 
 
     <script src="/static/js/views/form.js?v=3"></script>
     <script src="/static/js/views/import_wizard.js?v=4"></script>
-    <script src="/static/js/views/analytics.js?v=6"></script>
+    <script src="/static/js/views/analytics.js?v=7"></script>
     <!-- Phase 10: License Modal -->
     <div id="licenseModal" class="modal-overlay" style="display: none;">
         <div class="modal license-modal">
@@ -1074,7 +1074,7 @@
     </div>
 
     <!-- Master Profile Configure PIN Custom Modal -->
-    <div id="masterProfilePinConfigModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); z-index:10000; align-items:center; justify-content:center;">
+    <div id="masterProfilePinConfigModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); z-index:10005; align-items:center; justify-content:center;">
         <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:16px; width:380px; max-width:92vw; padding:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); color:var(--text-main);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                 <h3 id="masterProfilePinConfigTitle" style="margin:0; font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; color:var(--text-main);">
@@ -1106,7 +1106,7 @@
     </div>
 
     <!-- Master Profile Delete Custom Modal -->
-    <div id="masterProfileDeleteModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); z-index:10000; align-items:center; justify-content:center;">
+    <div id="masterProfileDeleteModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); z-index:10005; align-items:center; justify-content:center;">
         <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:16px; width:400px; max-width:92vw; padding:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); text-align:center; color:var(--text-main);">
             <div style="font-size:36px; margin-bottom:12px;">⚠️</div>
             <h3 style="margin:0 0 8px 0; font-size:18px; font-weight:700; color:var(--text-main);">Supprimer le profil ?</h3>
@@ -1161,7 +1161,7 @@
     </div>
 
     <!-- Pending Cross-Profile Transfers Modal -->
-    <div id="pendingCrossModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.3); backdrop-filter:blur(3px); z-index:9999; align-items:center; justify-content:center;">
+    <div id="pendingCrossModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.3); backdrop-filter:blur(3px); z-index:10000; align-items:center; justify-content:center;">
         <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; width:90%; max-width:480px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,0.3); color:var(--text-main);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                 <h3 style="margin:0; font-size:16px; font-weight:700;" data-i18n="cross_profile_pending_title">Virements en attente</h3>
@@ -1198,14 +1198,14 @@
     </div>
 
     <script src="/static/js/views/budgets/budgets_core.js?v=1"></script>
-    <script src="/static/js/views/budgets/budgets_render.js?v=5"></script>
+    <script src="/static/js/views/budgets/budgets_render.js?v=6"></script>
     <script src="/static/js/views/budgets/budgets_modals.js?v=2"></script>
     <script src="/static/js/views/budgets/budgets_ai.js?v=13"></script>
     <script src="/static/js/views/budgets.js?v=3"></script>
     <script src="/static/js/views/trends.js?v=4"></script>
     <script src="/static/js/views/overview.js?v=6"></script>
     <script src="/static/js/views/simulator.js?v=30"></script>
-    <script src="/static/js/views/bank_sync.js?v=5"></script>
+    <script src="/static/js/views/bank_sync.js?v=6"></script>
     <script src="/static/js/views/bank_sync_vault.js?v=2"></script>
     <script src="/static/js/views/bank_sync_pending.js?v=4"></script>
     <script src="/static/js/views/bank_sync_review.js?v=3"></script>

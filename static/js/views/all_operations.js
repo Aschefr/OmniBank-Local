@@ -14,7 +14,7 @@ window.AllOperationsView = {
 
         return `
             <style id="historyColsStyle"></style>
-            <div id="historyColsModal" class="modal-overlay" style="display: none; z-index: 100;">
+            <div id="historyColsModal" class="modal-overlay" style="display: none; z-index: 10000;" onclick="if(event.target===this) this.style.display='none'">
                 <div class="modal" style="max-width: 380px; min-width: auto; padding: 25px;">
                     <h3 style="margin-top:0; margin-bottom: 20px; display:flex; align-items:center; gap:8px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">${window.i18n.t('btn_columns')}</h3>
                     <div class="op-form-grid-2" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 25px;">
@@ -146,9 +146,9 @@ window.AllOperationsView = {
                         <!-- Rendered dynamically -->
                     </tbody>
                 </table>
-                <div id="historyTotalsFooter" class="view-footer" style="position: sticky; bottom: -32px; margin: 0 -32px -32px -32px; background: var(--bg-surface); padding: 12px 32px 32px 32px; border-top: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); z-index: 50; font-weight: 500;">
-                    <!-- Rendered dynamically -->
-                </div>
+            </div>
+            <div id="historyTotalsFooter" class="view-footer" style="position: sticky; bottom: -32px; margin: 0 -32px -32px -32px; background: var(--bg-surface); padding: 12px 32px 32px 32px; border-top: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); z-index: 50; font-weight: 500;">
+                <!-- Rendered dynamically -->
             </div>
         `;
     },
@@ -206,11 +206,11 @@ window.AllOperationsView = {
             dateSaisie: 1.0,
             date: 1.0,
             desc: 2.2,
-            type: 1.4,
-            cat: 1.6,
+            type: 1.3,
+            cat: 1.5,
             amount: 1.1,
-            recon: 1.3,
-            budget: 1.2,
+            recon: 1.6,
+            budget: 1.4,
             depuis: 1.3,
             vers: 1.3,
             recurrence: 1.0,
@@ -222,42 +222,59 @@ window.AllOperationsView = {
         };
 
         const colMinWidths = {
-            dateSaisie: '90px',
-            date: '85px',
-            desc: '140px',
-            type: '115px',
-            cat: '120px',
-            amount: '90px',
-            recon: '110px',
-            budget: '110px',
-            depuis: '110px',
-            vers: '110px',
+            dateSaisie: '95px',
+            date: '95px',
+            desc: '160px',
+            type: '110px',
+            cat: '125px',
+            amount: '100px',
+            recon: '135px',
+            budget: '125px',
+            depuis: '120px',
+            vers: '120px',
             recurrence: '95px',
-            slip: '80px',
+            slip: '85px',
             attachments: '60px',
-            createdBy: '90px',
-            modifiedBy: '90px',
+            createdBy: '100px',
+            modifiedBy: '100px',
             actions: '180px'
         };
         
-        // Calculate total weight of visible columns + actions
-        let totalWeight = colWeights.actions || 1.1;
-        Object.keys(cols).forEach(k => { if (cols[k]) totalWeight += (colWeights[k] || 1); });
+        // Calculate total weight and total minimum pixel width of visible columns + actions
+        let totalWeight = colWeights.actions || 1.8;
+        let totalMinPx = parseInt(colMinWidths.actions, 10) || 180;
+        Object.keys(cols).forEach(k => {
+            if (cols[k]) {
+                totalWeight += (colWeights[k] || 1);
+                totalMinPx += (parseInt(colMinWidths[k], 10) || 100);
+            }
+        });
         
-        // Build CSS: hide invisible cols + set dynamic widths on visible ones
-        let css = '';
+        // Build CSS: set table min-width for desktop + hide invisible cols + set dynamic widths on visible ones
+        let css = `@media (min-width: 1025px) {\n`;
+        css += `  .timeline-table { min-width: ${totalMinPx}px; }\n`;
         Object.keys(cols).forEach(k => {
             if (!cols[k]) {
-                css += `.timeline-table .col-${k} { display: none !important; }\n`;
+                css += `  .timeline-table .col-${k} { display: none !important; }\n`;
             } else {
                 const pct = ((colWeights[k] || 1) / totalWeight * 100).toFixed(1);
                 const minW = colMinWidths[k] ? `min-width: ${colMinWidths[k]};` : '';
-                css += `.timeline-table .col-${k} { width: ${pct}%; ${minW} }\n`;
+                css += `  .timeline-table .col-${k} { width: ${pct}%; ${minW} }\n`;
             }
         });
         // Actions column dynamic allocation based on full 100% distribution
-        const actionsPct = ((colWeights.actions || 1.1) / totalWeight * 100).toFixed(1);
-        css += `.timeline-table .col-actions { width: ${actionsPct}%; min-width: ${colMinWidths.actions}; }\n`;
+        const actionsPct = ((colWeights.actions || 1.8) / totalWeight * 100).toFixed(1);
+        css += `  .timeline-table .col-actions { width: ${actionsPct}%; min-width: ${colMinWidths.actions}; }\n`;
+        css += `}\n`;
+        // Mobile card mode (<= 1024px): hide invisible cols, guarantee min-width: 0 and full width
+        css += `@media (max-width: 1024px) {\n`;
+        css += `  .mobile-card-table { min-width: 0 !important; width: 100% !important; max-width: 100% !important; }\n`;
+        Object.keys(cols).forEach(k => {
+            if (!cols[k]) {
+                css += `  .mobile-card-table .col-${k} { display: none !important; }\n`;
+            }
+        });
+        css += `}\n`;
         
         const styleTag = document.getElementById('historyColsStyle');
         if (styleTag) styleTag.innerHTML = css;
@@ -265,14 +282,11 @@ window.AllOperationsView = {
 
     async loadData() {
         try {
-            // PERF: Fetch budgets, accounts, transactions, and pending bank sync in parallel
+            // PERF: Fetch budgets, accounts, and transactions in parallel
             const [budgets, accs, allTx] = await Promise.all([
                 API.get('/api/budgets/').catch(e => { console.error('Failed to load budgets', e); return []; }),
                 API.get('/api/accounts/'),
-                API.get('/api/transactions/?limit=10000'),
-                (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') 
-                    ? window.BankSyncView.loadPendingSync().catch(e => { console.warn('Failed to load pending bank sync', e); return null; })
-                    : Promise.resolve(null)
+                API.get('/api/transactions/?limit=10000')
             ]);
 
             // Process budgets map
@@ -651,13 +665,13 @@ window.AllOperationsView = {
                 <td class="col-date" data-label="${window.i18n.t('dl_date_op')}">${renderDateWithStatus(tx)}</td>
                 <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${(tx.description || '').replace(/"/g, '&quot;')}"><span class="desc-text">${window.escapeHtml ? window.escapeHtml(tx.description || '') : (tx.description || '')}</span>${statusSubtext}</td>
                 <td class="col-type" data-label="${window.i18n.t('dl_type')}" title="${window.app.getTypeLabel(tx.type)}">${window.app.getTypeLabel(tx.type)}</td>
-                <td class="col-cat" data-label="${window.i18n.t('dl_category')}" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
+                <td class="col-cat" data-label="${window.i18n.t('dl_category')}" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span class="cat-badge">${tx.category || '-'}</span></td>
                 <td class="col-amount" data-label="${window.i18n.t('dl_amount')}">
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>
                     ${origSubtext}
                 </td>
                 <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}" style="text-align: center;">${reconCellHtml}</td>
-                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && this.budgetsMap[tx.budget_id]) ? this.budgetsMap[tx.budget_id] : (tx.category && this.categoryToBudgetMap && this.categoryToBudgetMap[tx.category]) ? this.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="if(window.BudgetsView) window.BudgetsView.backToView='all_operations'; window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
+                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && this.budgetsMap[tx.budget_id]) ? this.budgetsMap[tx.budget_id] : (tx.category && this.categoryToBudgetMap && this.categoryToBudgetMap[tx.category]) ? this.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="if(window.BudgetsView) window.BudgetsView.backToView='all_operations'; window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" class="budget-badge" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
                 <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuisTitle}">${depuisBadge}</td>
                 <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${versBadge}</td>
                 <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}" title="${recText}">${recText}</td>

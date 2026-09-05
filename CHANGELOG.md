@@ -47,6 +47,10 @@ All notable changes to this project will be documented in this file.
 - **Table Headers & Button Alignment 📐**:
   - Re-attached sticky table headers flush to page toolbars, eliminating subpixel seams and row peek-through during scroll.
   - Aligned action button groups to prevent overflow on compact screens.
+- **Mobile Viewport & Button Harmonization 📱**:
+  - Resolved global horizontal and vertical scrollbars appearing on mobile viewports (≤ 375px) caused by rigid header minimum widths and unconstrained document containers.
+  - Enforced strict root viewport clamping and made the mobile header, profile selector, and overview cards fully responsive down to 320px screens.
+  - Harmonized all mobile button heights to a uniform 36px standard, standard typography, adaptive text widths, and 8px Bento radius while strictly preserving desktop dimensions.
 - **Dropdown & Popover Menus Stacking 🌐**:
   - Ensured language and notification menus open above sticky toolbars.
 

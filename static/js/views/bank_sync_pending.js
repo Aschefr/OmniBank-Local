@@ -3,74 +3,89 @@
 
 Object.assign(window.BankSyncView, {
 
-    async loadPendingSync() {
-        try {
-            const data = await API.get('/api/bank-sync/pending');
-            this.pendingMatches = data?.matches_by_tx_id || {};
-            this.pendingDiscrepancies = data?.discrepancies_by_tx_id || {};
-            this.totalDiscrepancies = data?.total_discrepancies || 0;
-
-            // Dédupliquer les comptes défensivement
-            const seenAccKeys = new Set();
-            const uniquePendingAccs = [];
-            (data?.accounts || []).forEach(acc => {
-                const k = acc.account_id ? `id_${acc.account_id}` : `name_${(acc.account_name || acc.name || '').trim().toLowerCase()}`;
-                if (!seenAccKeys.has(k)) {
-                    seenAccKeys.add(k);
-                    uniquePendingAccs.push(acc);
-                }
-            });
-            this.pendingAccounts = uniquePendingAccs;
-
-            // Extraire toutes les opérations fantômes (non encore rapprochées)
-            this.ghostTransactions = [];
-            this._ghostCategoryCache = this._ghostCategoryCache || {};
-            const seenGhostKeys = new Set();
-            if (this.pendingAccounts && this.pendingAccounts.length > 0) {
-                this.pendingAccounts.forEach(acc => {
-                    const connId = acc.connection_id || 0;
-                    const connLabel = acc.connection_label || '';
-                    const accId = acc.account_id;
-                    const accName = acc.account_name || acc.name || `Compte #${accId}`;
-                    (acc.transactions || []).forEach(tx => {
-                        if (!tx.is_reconciled && !tx.is_dismissed && !tx.is_auto_dismissed && !tx._excluded) {
-                            const ghostKey = tx.csv_id || `${accId}_${tx.date_operation}_${tx.raw_amount}_${tx.description}`;
-                            if (seenGhostKeys.has(ghostKey)) return;
-                            seenGhostKeys.add(ghostKey);
-
-                            const key = tx.raw_description || tx.description;
-                            const cached = this._ghostCategoryCache[key];
-                            const ghost = {
-                                ...tx,
-                                account_id: tx.account_id || accId,
-                                account_name: accName,
-                                connection_id: connId,
-                                connection_label: connLabel
-                            };
-                            if (cached) {
-                                if (cached.description) ghost.description = cached.description;
-                                if (cached.category && !ghost.category) ghost.category = cached.category;
-                                if (cached.smart_suggested) ghost.smart_suggested = true;
-                                if (cached.smart_source) ghost.smart_source = cached.smart_source;
-                            }
-                            this.ghostTransactions.push(ghost);
-                        }
-                    });
-                });
-            }
-
-            // Auto-catégorisation Smart Labels (local/instantané) et IA en tâche de fond
-            if (this.ghostTransactions.some(g => !g.category && g.description)) {
-                await this.autoCategorizeGhosts();
-            }
-
-            this._ghostBoxManualCollapse = undefined;
-            this.renderPendingSyncBox(data);
-            return data;
-        } catch (e) {
-            console.warn('[BankSync] Erreur chargement pending sync:', e);
-            return null;
+    async loadPendingSync(force = false) {
+        if (!force && this._lastPendingSyncData && this._lastPendingSyncTime && (Date.now() - this._lastPendingSyncTime < 10000)) {
+            return this._lastPendingSyncData;
         }
+        if (this._inFlightPendingSyncPromise) {
+            return this._inFlightPendingSyncPromise;
+        }
+
+        this._inFlightPendingSyncPromise = (async () => {
+            try {
+                const data = await API.get('/api/bank-sync/pending');
+                this.pendingMatches = data?.matches_by_tx_id || {};
+                this.pendingDiscrepancies = data?.discrepancies_by_tx_id || {};
+                this.totalDiscrepancies = data?.total_discrepancies || 0;
+
+                // Dédupliquer les comptes défensivement
+                const seenAccKeys = new Set();
+                const uniquePendingAccs = [];
+                (data?.accounts || []).forEach(acc => {
+                    const k = acc.account_id ? `id_${acc.account_id}` : `name_${(acc.account_name || acc.name || '').trim().toLowerCase()}`;
+                    if (!seenAccKeys.has(k)) {
+                        seenAccKeys.add(k);
+                        uniquePendingAccs.push(acc);
+                    }
+                });
+                this.pendingAccounts = uniquePendingAccs;
+
+                // Extraire toutes les opérations fantômes (non encore rapprochées)
+                this.ghostTransactions = [];
+                this._ghostCategoryCache = this._ghostCategoryCache || {};
+                const seenGhostKeys = new Set();
+                if (this.pendingAccounts && this.pendingAccounts.length > 0) {
+                    this.pendingAccounts.forEach(acc => {
+                        const connId = acc.connection_id || 0;
+                        const connLabel = acc.connection_label || '';
+                        const accId = acc.account_id;
+                        const accName = acc.account_name || acc.name || `Compte #${accId}`;
+                        (acc.transactions || []).forEach(tx => {
+                            if (!tx.is_reconciled && !tx.is_dismissed && !tx.is_auto_dismissed && !tx._excluded) {
+                                const ghostKey = tx.csv_id || `${accId}_${tx.date_operation}_${tx.raw_amount}_${tx.description}`;
+                                if (seenGhostKeys.has(ghostKey)) return;
+                                seenGhostKeys.add(ghostKey);
+
+                                const key = tx.raw_description || tx.description;
+                                const cached = this._ghostCategoryCache[key];
+                                const ghost = {
+                                    ...tx,
+                                    account_id: tx.account_id || accId,
+                                    account_name: accName,
+                                    connection_id: connId,
+                                    connection_label: connLabel
+                                };
+                                if (cached) {
+                                    if (cached.description) ghost.description = cached.description;
+                                    if (cached.category && !ghost.category) ghost.category = cached.category;
+                                    if (cached.smart_suggested) ghost.smart_suggested = true;
+                                    if (cached.smart_source) ghost.smart_source = cached.smart_source;
+                                }
+                                this.ghostTransactions.push(ghost);
+                            }
+                        });
+                    });
+                }
+
+                // Auto-catégorisation Smart Labels (local/instantané) et IA en tâche de fond
+                if (this.ghostTransactions.some(g => !g.category && g.description)) {
+                    await this.autoCategorizeGhosts();
+                }
+
+                this._ghostBoxManualCollapse = undefined;
+                this.renderPendingSyncBox(data);
+                this._lastPendingSyncData = data;
+                this._lastPendingSyncTime = Date.now();
+                return data;
+            } catch (e) {
+                console.warn('[BankSync] Erreur chargement pending sync:', e);
+                return null;
+            } finally {
+                this._inFlightPendingSyncPromise = null;
+            }
+        })();
+
+        return this._inFlightPendingSyncPromise;
     },
 
     async autoCategorizeGhosts() {
@@ -149,7 +164,7 @@ Object.assign(window.BankSyncView, {
     },
 
     async refreshActiveViews(highlightTxId = null) {
-        await this.loadPendingSync();
+        await this.loadPendingSync(true);
         const curView = window.app?.currentView;
         if (curView === 'overview' && window.OverviewView && typeof window.OverviewView.init === 'function') {
             await window.OverviewView.init();

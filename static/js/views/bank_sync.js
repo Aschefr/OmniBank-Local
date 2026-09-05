@@ -312,7 +312,7 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <!-- Modale : Ajouter une banque -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <div id="addBankModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div id="addBankModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 650px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.4); overflow: hidden;">
                 <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
                     <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
@@ -380,7 +380,7 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <!-- Modale : Association des comptes (Mapping) -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <div id="mappingModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div id="mappingModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 700px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.4); overflow: hidden;">
                 <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card);">
                     <div style="display: flex; align-items: center; gap: 12px;">
@@ -413,7 +413,7 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <!-- Modale : 2FA Interactive (Smartphone / OTP) -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <div id="twoFAModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1100; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
+        <div id="twoFAModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 10100; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
             <div style="background: var(--bg-card); border: 2px solid var(--accent); border-radius: 20px; width: 95%; max-width: 480px; padding: 28px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
                 <div id="twoFAIcon" style="font-size: 48px; margin-bottom: 16px;">📱</div>
                 <h3 id="twoFATitle" style="margin: 0 0 10px 0; font-size: 20px; font-weight: 800; color: var(--text-main);" data-i18n="bank_sync_2fa_title">
@@ -441,7 +441,7 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <!-- Modale : Synchronisation en cours (Progress SSE) -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <div id="syncProgressModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div id="syncProgressModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10050; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 500px; padding: 28px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
                 <div style="font-size: 40px; margin-bottom: 14px; display: inline-block; animation: spin-reverse 2s linear infinite;">🔄</div>
                 <h3 id="syncProgressTitle" style="margin: 0 0 8px 0; font-size: 18px; font-weight: 700; color: var(--text-main);" data-i18n="bank_sync_progress_title">
@@ -463,7 +463,7 @@ window.BankSyncView = {
         <!-- Modale : Cockpit Unifié — Revue & Validation des Opérations              -->
         <!-- Sert à la fois pour la synchro bancaire ET l'import de relevé CSV/XLSX    -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <div id="bankSyncReviewModal" class="modal-overlay review-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1060; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div id="bankSyncReviewModal" class="modal-overlay review-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 10060; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <datalist id="bankSyncDescList"></datalist>
             <div class="review-modal-card">
                 <div class="review-modal-header">
@@ -558,7 +558,7 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <!-- Modale In-App : Délai Anti-Spam & Réouverture de l'Aperçu Récent -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <div id="bankSyncCooldownModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1150; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div id="bankSyncCooldownModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10150; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 480px; padding: 26px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
                 <div style="font-size: 42px; margin-bottom: 12px;">⏳</div>
                 <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 800; color: var(--text-main);" data-i18n="bank_sync_cooldown_title">
@@ -585,7 +585,7 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <!-- Modale In-App : Saisie du Mot de Passe Maître avec Option de Mémorisation -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <div id="masterPasswordModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1200; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div id="masterPasswordModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10200; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 440px; padding: 24px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
                 <div style="font-size: 40px; margin-bottom: 12px;">🔐</div>
                 <h3 id="masterPwModalTitle" style="margin: 0 0 8px 0; font-size: 18px; font-weight: 700; color: var(--text-main);" data-i18n="bank_sync_master_pw_modal_title">
@@ -642,7 +642,7 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <!-- Modale : Ajustement du solde du compte (1-clic) -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <div id="balanceAdjustModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1200; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div id="balanceAdjustModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10200; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 580px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column;">
                 <div style="padding: 18px 22px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
                     <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
@@ -712,7 +712,7 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <!-- Modale : Liaison Manuelle Ghost -> Opération DB -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <div id="linkGhostModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1250; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div id="linkGhostModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 10250; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 680px; max-height: 90vh; box-shadow: 0 25px 50px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column;">
                 
                 <!-- En-tête -->
@@ -831,7 +831,7 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <!-- Modale In-App : Confirmation de Suppression -->
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
-        <div id="confirmDeleteModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1200; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div id="confirmDeleteModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10200; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 440px; padding: 24px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
                 <div style="font-size: 40px; margin-bottom: 12px;">🗑️</div>
                 <h3 id="confirmDeleteTitle" style="margin: 0 0 8px 0; font-size: 18px; font-weight: 700; color: var(--text-main);" data-i18n="bank_sync_delete_title">
