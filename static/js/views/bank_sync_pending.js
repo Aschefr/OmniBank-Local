@@ -189,6 +189,126 @@ Object.assign(window.BankSyncView, {
         }
     },
 
+    getConfirmedMatchesList(pendingData) {
+        const list = [];
+        const seenIds = new Set();
+        if (pendingData && pendingData.accounts) {
+            pendingData.accounts.forEach(acc => {
+                const accName = acc.account_name || acc.name || (window.app?.accounts?.find(a => a.id === acc.account_id)?.name) || (window.OverviewView?._accountsMap?.[acc.account_id]?.name) || `Compte #${acc.account_id}`;
+                (acc.transactions || []).forEach(tx => {
+                    if (tx.is_reconciled && !tx.already_reconciled && !tx.is_coming && tx.matched_db_id) {
+                        if (seenIds.has(tx.matched_db_id)) return;
+                        seenIds.add(tx.matched_db_id);
+                        list.push({
+                            date_operation: tx.date_operation,
+                            account_name: accName,
+                            description: tx.db_description || tx.description || tx.raw_description || '—',
+                            amount: typeof tx.raw_amount !== 'undefined' ? parseFloat(tx.raw_amount) : (parseFloat(tx.amount) || 0),
+                            type: tx.type || ((typeof tx.raw_amount !== 'undefined' ? parseFloat(tx.raw_amount) : (parseFloat(tx.amount) || 0)) >= 0 ? 'income' : 'expense')
+                        });
+                    }
+                });
+            });
+        }
+        if (list.length === 0 && pendingData && pendingData.matches_by_tx_id) {
+            Object.entries(pendingData.matches_by_tx_id).forEach(([dbId, tx]) => {
+                if (!tx.is_coming) {
+                    if (seenIds.has(dbId)) return;
+                    seenIds.add(dbId);
+                    const accName = tx.account_name || (window.app?.accounts?.find(a => a.id === tx.account_id)?.name) || (window.OverviewView?._accountsMap?.[tx.account_id]?.name) || '—';
+                    list.push({
+                        date_operation: tx.date_operation,
+                        account_name: accName,
+                        description: tx.db_description || tx.description || tx.raw_description || '—',
+                        amount: typeof tx.raw_amount !== 'undefined' ? parseFloat(tx.raw_amount) : (parseFloat(tx.amount) || 0),
+                        type: tx.type || ((typeof tx.raw_amount !== 'undefined' ? parseFloat(tx.raw_amount) : (parseFloat(tx.amount) || 0)) >= 0 ? 'income' : 'expense')
+                    });
+                }
+            });
+        }
+        list.sort((a, b) => String(b.date_operation || '').localeCompare(String(a.date_operation || '')));
+        return list;
+    },
+
+    getGhostTransactionsList(pendingData) {
+        const list = [];
+        const seenKeys = new Set();
+        if (this.ghostTransactions && this.ghostTransactions.length > 0) {
+            this.ghostTransactions.forEach(g => {
+                const k = g.csv_id || `${g.account_id}_${g.date_operation}_${g.raw_amount}_${g.description}`;
+                if (seenKeys.has(k)) return;
+                seenKeys.add(k);
+                const accName = g.account_name || (window.app?.accounts?.find(a => a.id === g.account_id)?.name) || (window.OverviewView?._accountsMap?.[g.account_id]?.name) || `Compte #${g.account_id}`;
+                list.push({
+                    date_operation: g.date_operation,
+                    account_name: accName,
+                    description: g.description || g.raw_description || '—',
+                    amount: typeof g.raw_amount !== 'undefined' ? parseFloat(g.raw_amount) : (parseFloat(g.amount) || 0),
+                    type: g.type || ((typeof g.raw_amount !== 'undefined' ? parseFloat(g.raw_amount) : (parseFloat(g.amount) || 0)) >= 0 ? 'income' : 'expense')
+                });
+            });
+        } else if (pendingData && pendingData.accounts) {
+            pendingData.accounts.forEach(acc => {
+                const accName = acc.account_name || acc.name || (window.app?.accounts?.find(a => a.id === acc.account_id)?.name) || (window.OverviewView?._accountsMap?.[acc.account_id]?.name) || `Compte #${acc.account_id}`;
+                (acc.transactions || []).forEach(tx => {
+                    if (!tx.is_reconciled && !tx.is_dismissed && !tx.is_auto_dismissed && !tx._excluded) {
+                        const k = tx.csv_id || `${acc.account_id}_${tx.date_operation}_${tx.raw_amount}_${tx.description}`;
+                        if (seenKeys.has(k)) return;
+                        seenKeys.add(k);
+                        list.push({
+                            date_operation: tx.date_operation,
+                            account_name: accName,
+                            description: tx.description || tx.raw_description || '—',
+                            amount: typeof tx.raw_amount !== 'undefined' ? parseFloat(tx.raw_amount) : (parseFloat(tx.amount) || 0),
+                            type: tx.type || ((typeof tx.raw_amount !== 'undefined' ? parseFloat(tx.raw_amount) : (parseFloat(tx.amount) || 0)) >= 0 ? 'income' : 'expense')
+                        });
+                    }
+                });
+            });
+        }
+        list.sort((a, b) => String(b.date_operation || '').localeCompare(String(a.date_operation || '')));
+        return list;
+    },
+
+    renderOperationsTooltipHtml(title, items, maxItems = 15) {
+        if (!items || items.length === 0) return '';
+        let ttHtml = `<div class="overview-bulk-tooltip">`;
+        ttHtml += `<div class="overview-tt-title">${title} (${items.length}) :</div>`;
+        ttHtml += `<div class="overview-tt-list">`;
+        for (const item of items.slice(0, maxItems)) {
+            const rawAmt = typeof item.raw_amount !== 'undefined' ? parseFloat(item.raw_amount) : (parseFloat(item.amount) || 0);
+            const absAmt = Math.abs(rawAmt);
+            let isIncome = false;
+            if (item.type === 'income') isIncome = true;
+            else if (item.type === 'expense') isIncome = false;
+            else if (typeof item.raw_amount !== 'undefined') isIncome = parseFloat(item.raw_amount) >= 0;
+            else isIncome = (parseFloat(item.amount) || 0) >= 0;
+
+            const amtColor = isIncome ? '#10b981' : '#ef4444';
+            const dateStr = typeof formatDate === 'function' && item.date_operation ? formatDate(item.date_operation) : (item.date_operation ? String(item.date_operation).substring(0, 10) : '—');
+            const accName = item.account_name || '—';
+            const desc = item.description || '—';
+            const safeAcc = typeof escapeHtml === 'function' ? escapeHtml(accName) : accName;
+            const safeDesc = typeof escapeHtml === 'function' ? escapeHtml(desc) : desc;
+            const amtFmt = typeof formatCurrency === 'function' ? formatCurrency(absAmt) : `${absAmt.toFixed(2)} €`;
+
+            ttHtml += `
+                <div class="overview-tt-item">
+                    <span class="overview-tt-date">${dateStr}</span>
+                    <span class="overview-tt-acc" title="${safeAcc}">${safeAcc}</span>
+                    <span class="overview-tt-desc" title="${safeDesc}">${safeDesc}</span>
+                    <span class="overview-tt-amt" style="color: ${amtColor}">${amtFmt}</span>
+                </div>
+            `;
+        }
+        if (items.length > maxItems) {
+            const moreLabel = window.i18n ? window.i18n.t('overview_more_unreconciled_ops') || 'autres opérations' : 'autres opérations';
+            ttHtml += `<div class="overview-tt-more">+ ${items.length - maxItems} ${moreLabel}...</div>`;
+        }
+        ttHtml += `</div></div>`;
+        return ttHtml;
+    },
+
     renderPendingSyncBox(data) {
         const box = document.getElementById('bankPendingSyncBox');
         if (!box) return;
@@ -223,6 +343,13 @@ Object.assign(window.BankSyncView, {
             matchesText = `<span style="color: #818cf8; font-weight: 600;">⏳ <strong>${totalComingMatches}</strong> ${comingLbl}</span>`;
         }
 
+        const confirmedList = this.getConfirmedMatchesList(data);
+        const ghostList = this.getGhostTransactionsList(data);
+        const confirmedTooltipTitle = window.i18n ? window.i18n.t('bank_btn_reconcile_confirmed_tooltip') || 'Opérations confirmées qui seront rapprochées' : 'Opérations confirmées qui seront rapprochées';
+        const ghostTooltipTitle = window.i18n ? window.i18n.t('ghost_commit_all_tooltip') || 'Nouvelles opérations qui seront ajoutées' : 'Nouvelles opérations qui seront ajoutées';
+        const confirmedTooltipHtml = this.renderOperationsTooltipHtml(confirmedTooltipTitle, confirmedList);
+        const ghostsTooltipHtml = this.renderOperationsTooltipHtml(ghostTooltipTitle, ghostList);
+
         box.style.display = 'block';
         box.innerHTML = `
         <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -240,16 +367,22 @@ Object.assign(window.BankSyncView, {
                 </div>
             </div>
 
-            <div style="display: flex; gap: 8px; align-items: center;">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                 ${totalConfirmedMatches > 0 ? `
-                <button class="btn btn-primary" onclick="window.BankSyncView.reconcileAllPending()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
-                    <span>⚡</span> <span>${window.i18n ? window.i18n.t('bank_btn_reconcile_confirmed') || 'Rapprocher les opérations confirmées' : 'Rapprocher les opérations confirmées'} (${totalConfirmedMatches})</span>
-                </button>
+                <div class="overview-bulk-wrapper">
+                    <button class="btn btn-primary" onclick="window.BankSyncView.reconcileAllPending()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>⚡</span> <span>${window.i18n ? window.i18n.t('bank_btn_reconcile_confirmed') || 'Rapprocher les opérations confirmées' : 'Rapprocher les opérations confirmées'} (${totalConfirmedMatches})</span>
+                    </button>
+                    ${confirmedTooltipHtml}
+                </div>
                 ` : ''}
                 ${totalNew > 0 ? `
-                <button class="btn ${totalConfirmedMatches > 0 ? 'btn-secondary' : 'btn-primary'}" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
-                    <span>📥</span> <span>${window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations'} (${totalNew})</span>
-                </button>
+                <div class="overview-bulk-wrapper">
+                    <button class="btn ${totalConfirmedMatches > 0 ? 'btn-secondary' : 'btn-primary'}" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>📥</span> <span>${window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations'} (${totalNew})</span>
+                    </button>
+                    ${ghostsTooltipHtml}
+                </div>
                 ` : ''}
                 ${data.accounts && data.accounts.length > 0 ? `
                 <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal(this)" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 28px; display: inline-flex; align-items: center; gap: 4px;">
@@ -579,6 +712,13 @@ Object.assign(window.BankSyncView, {
             ? (window.i18n ? window.i18n.t('ghost_box_title') || 'Opérations en ligne non enregistrées' : 'Opérations en ligne non enregistrées')
             : (window.i18n ? window.i18n.t('bank_sync_pending_box_title') || 'Synchronisation bancaire' : 'Synchronisation bancaire');
 
+        const confirmedList = this.getConfirmedMatchesList(this._lastPendingSyncData);
+        const ghostList = ghosts || this.getGhostTransactionsList(this._lastPendingSyncData);
+        const confirmedTooltipTitle = window.i18n ? window.i18n.t('bank_btn_reconcile_confirmed_tooltip') || 'Opérations confirmées qui seront rapprochées' : 'Opérations confirmées qui seront rapprochées';
+        const ghostTooltipTitle = window.i18n ? window.i18n.t('ghost_commit_all_tooltip') || 'Nouvelles opérations qui seront ajoutées' : 'Nouvelles opérations qui seront ajoutées';
+        const confirmedTooltipHtml = this.renderOperationsTooltipHtml(confirmedTooltipTitle, confirmedList);
+        const ghostsTooltipHtml = this.renderOperationsTooltipHtml(ghostTooltipTitle, ghostList);
+
         box.innerHTML = `
         <div class="ghost-rows-container" style="${containerBg} ${containerBorder} border-radius: 12px; padding: 12px 14px; margin-bottom: 4px;">
             <div onclick="window.BankSyncView.toggleGhostBox()" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; cursor: pointer; user-select: none;">
@@ -597,15 +737,21 @@ Object.assign(window.BankSyncView, {
                         ${summaryText}
                     </span>` : ''}
                 </div>
-                <div class="ghost-box-header-btn-wrap" style="display: flex; gap: 8px;" onclick="event.stopPropagation();">
+                <div class="ghost-box-header-btn-wrap" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;" onclick="event.stopPropagation();">
                     ${confirmedMatchCount > 0 ? `
-                    <button class="btn btn-primary" onclick="window.BankSyncView.reconcileAllPending()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 700; height: 30px; display: inline-flex; align-items: center; gap: 4px;">
-                        <span>⚡</span> <span>${window.i18n ? window.i18n.t('bank_btn_reconcile_confirmed') || 'Rapprocher' : 'Rapprocher'} (${confirmedMatchCount})</span>
-                    </button>` : ''}
+                    <div class="overview-bulk-wrapper">
+                        <button class="btn btn-primary" onclick="window.BankSyncView.reconcileAllPending()" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 700; height: 30px; display: inline-flex; align-items: center; gap: 4px;">
+                            <span>⚡</span> <span>${window.i18n ? window.i18n.t('bank_btn_reconcile_confirmed') || 'Rapprocher' : 'Rapprocher'} (${confirmedMatchCount})</span>
+                        </button>
+                        ${confirmedTooltipHtml}
+                    </div>` : ''}
                     ${hasGhosts ? `
-                    <button class="btn ${confirmedMatchCount > 0 ? 'btn-secondary' : 'btn-primary'} ghost-box-header-btn" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 14px; border-radius: 6px; font-weight: 600; height: 30px; display: inline-flex; align-items: center; gap: 6px;">
-                        <span>📥</span> <span>${window.i18n ? window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations' : 'Valider les nouvelles opérations'} (${totalCount})</span>
-                    </button>` : ''}
+                    <div class="overview-bulk-wrapper">
+                        <button class="btn ${confirmedMatchCount > 0 ? 'btn-secondary' : 'btn-primary'} ghost-box-header-btn" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 14px; border-radius: 6px; font-weight: 600; height: 30px; display: inline-flex; align-items: center; gap: 6px;">
+                            <span>📥</span> <span>${window.i18n ? window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations' : 'Valider les nouvelles opérations'} (${totalCount})</span>
+                        </button>
+                        ${ghostsTooltipHtml}
+                    </div>` : ''}
                     <button class="btn btn-secondary" onclick="window.BankSyncView.openPendingReviewModal(this)" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600; height: 30px; display: inline-flex; align-items: center; gap: 4px;" title="${window.i18n ? window.i18n.t('bank_sync_pending_review_tooltip') || 'Ouvrir la vue détaillée de revue et rapprochement' : 'Ouvrir la vue détaillée de revue et rapprochement'}">
                         <span>📋</span> <span>${window.i18n ? window.i18n.t('bank_sync_pending_review_btn') || 'Ouvrir la revue' : 'Ouvrir la revue'}</span>
                     </button>
