@@ -13,24 +13,31 @@ This document details the complete operation of OmniBank Local's two interactive
 
 ## 🧙‍♂️ 1. Initial Setup Wizard
 
-On OmniBank Local's first launch (or when clicking *"Re-launch Setup Wizard"* in Configuration), the **Setup Wizard** guides user onboarding through 6 or 7 steps (`static/js/views/setup_wizard.js`):
+On OmniBank Local's first launch (or when clicking *"Re-launch Setup Wizard"* in Configuration), the **Setup Wizard** guides user onboarding through 7 streamlined steps (`static/js/views/setup_wizard.js`):
 
-1. **👋 Step 0: Welcome & Language**
-   - UI language selection (French FR or English EN).
+1. **👋 Step 0: Welcome, Language & Live Theme**
+   - UI language selection (French FR or English EN) and Global base currency (`EUR`, `USD`, `GBP`...).
+   - **Instant Theme Selector**: Classic Dark, Classic Light, Titanium Dark, or Alabaster Light applied live to the interface.
    - Optional Organization Mode activation (CSE / Association).
-2. **🏦 Step 1: Bank Account Creation**
-   - Set up initial accounts: Account Name, Type (*Checking*, *Savings*, *Credit Card*...), starting balance, and badge color.
-   - Select main account.
-3. **👥 Step 2 (Organization Mode): Organization Users**
-   - *(Only if Organization Mode is active)*: Create user profiles (e.g., *President*, *Treasurer*) for multi-user audit tracking.
-4. **💰 Step 3: Salary / Main Income Setup**
-   - Usual salary payment day (e.g., 28th of the month), average net amount, and bi-monthly option.
-5. **📝 Step 4: Initial Categories**
-   - Validate and seed default category tree (Groceries, Housing, Transport, Leisure, Health, Salary, etc.).
+2. **🔒 Step 1: Master Profile & Security**
+   - Workspace profile naming (e.g. *Personal Finances*, *Household*).
+   - Optional PIN code lock protection (4 to 6 digits) with auto-lock delay on inactivity.
+   - Local automatic backup toggle (weekly timestamped ZIP archive).
+3. **🏦 Step 2: Entry Mode & Bank Accounts**
+   - Choose onboarding entry path: *Manual Entry*, *Import Bank Statement (CSV/Excel)*, or *Connect Online Bank (Woob)*.
+   - For manual setup: Account Name, Type (*Checking*, *Savings*, *PEA*, *Life Insurance*...), starting balance, currency, and main account ⭐ badge.
+4. **👥 / 💰 Step 3: Organization Users (Org Mode) OR Salary & Cold-Start Income (Standard Mode)**
+   - *Organization Mode*: Set up team member names (e.g., *President*, *Treasurer*) for audit trails.
+   - *Standard Mode*: Pay day of the month (1-31), bi-monthly option, and **estimated monthly net income** to instantly initialize the Rest to Live ("Reste à Vivre") and cashflow projections without waiting for historical records.
+5. **📝 Step 4: Operations Guide & Preferred Home Screen**
+   - Educational visual primer on transaction directions (Expense, Income, Transfer, Neutral) and key reconciliation badges.
+   - Choice of default home screen: **Modern Bento Overview** (hero metrics, financial rhythm, forecasts) or **Classic Operations Journal** (full table and filters).
 6. **🤖 Step 5: Ollama AI Assistant**
-   - Detect local Ollama instance (`http://127.0.0.1:11434`), test connection, and select initial model (**`gemma4:e4b`** recommended).
-7. **🚀 Step 6: Completion**
-   - Summary of settings and launch button leading to the Dashboard.
+   - Auto-detects local Ollama instance (`http://127.0.0.1:11434`), lists installed models, provides install commands if offline, and offers optional periodic proactive financial checkups.
+7. **🚀 Step 6: Confirmation, Launch & Demo Data**
+   - Recap of appearance, security, accounts, and income settings.
+   - Primary launch button leading to your chosen home view.
+   - Secondary button to instantly explore with a pre-loaded sample dataset.
 
 ---
 

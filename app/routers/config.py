@@ -38,6 +38,49 @@ def set_config(data: Dict[str, str], db: Session = Depends(get_db)):
                     update_profile(active_prof["id"], pay_cycle_day=val)
         except Exception:
             pass
+
+    # Automatically create or update salary recurrence if base_pay_amount provided
+    if "base_pay_amount" in data:
+        try:
+            amt = float(data["base_pay_amount"])
+            if amt > 0:
+                from app.models import RecurrenceTemplate, Account, Category
+                # Ensure Salaire category exists
+                cat_sal = db.query(Category).filter(Category.name == "Salaire").first()
+                if not cat_sal:
+                    db.add(Category(name="Salaire", type="income"))
+                    db.commit()
+
+                # Check if an active income recurrence template already exists
+                salary_tpl = db.query(RecurrenceTemplate).filter(
+                    RecurrenceTemplate.type == "income",
+                    RecurrenceTemplate.is_closed == False
+                ).first()
+
+                pay_day = int(data.get("base_pay_day") or 28)
+                main_acc = db.query(Account).filter(Account.is_closed == False).first()
+
+                if salary_tpl:
+                    salary_tpl.amount = amt
+                    if "base_pay_day" in data:
+                        salary_tpl.day_of_month = pay_day
+                else:
+                    new_tpl = RecurrenceTemplate(
+                        description="Salaire / Revenu",
+                        amount=amt,
+                        type="income",
+                        category="Salaire",
+                        frequency="Monthly",
+                        day_of_month=pay_day,
+                        to_account_id=main_acc.id if main_acc else None
+                    )
+                    db.add(new_tpl)
+                db.commit()
+
+                from app.routers.recurrences import generate_recurrences
+                generate_recurrences(db=db)
+        except Exception as e:
+            pass
     
     # Automatically generate recurrences using the new window settings if modified
     if "recurrence_generation_months" in data:

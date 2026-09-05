@@ -2063,4 +2063,33 @@ def test_subscription_closure_undo_redo_flow():
     assert tpl_obj2["is_closed"] is True
 
 
+def test_setup_wizard_demo_seed_and_base_pay_amount():
+    """Vérifie l'initialisation par démo et la prise en charge de base_pay_amount."""
+    # 1. Test POST /api/config/ avec base_pay_amount
+    res_cfg = client.post("/api/config/", json={"base_pay_day": "28", "base_pay_amount": "3100.00"})
+    assert res_cfg.status_code == 200
+    assert res_cfg.json()["ok"] is True
+
+    # Vérifie que la récurrence de salaire a bien été créée
+    res_rec = client.get("/api/recurrences/")
+    assert res_rec.status_code == 200
+    rec_sal = next((r for r in res_rec.json() if r["type"] == "income"), None)
+    assert rec_sal is not None
+    assert rec_sal["amount"] == 3100.0
+    assert rec_sal["day_of_month"] == 28
+
+    # 2. Test POST /api/setup/seed-demo
+    res_demo = client.post("/api/setup/seed-demo")
+    assert res_demo.status_code == 200
+    assert res_demo.json()["ok"] is True
+
+    # Vérifie les comptes créés
+    res_acc = client.get("/api/accounts/")
+    assert res_acc.status_code == 200
+    acc_names = [a["name"] for a in res_acc.json()]
+    assert "Compte Courant" in acc_names
+    assert "Livret A" in acc_names
+
+
+
 

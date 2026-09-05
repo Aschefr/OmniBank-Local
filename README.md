@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.0.99-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -109,14 +109,14 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.0.99)
+## 🆕 Nouveautés (v1.1.0)
 
-* **💡 Impact des Recettes Prévues sur les Indicateurs Clés** : Intégration d'indicateurs secondaires sur les cartes Hero et la barre latérale ("Reste à vivre" et "Risque de découvert") pour refléter en temps réel l'impact positif et rassurant des recettes prévues sur la période (ex : `+287,50 € prévus` et `Couvert (+287,50 €)`).
-* **🔄 Cascade Intelligente & Résolution du Cold Start** : Moteur d'estimation des dépenses variables en 3 étages (historique réel filtré des anomalies IQR, repli sur les enveloppes budgétaires actives, et étalonnage prudentiel à 35% du salaire net pour les comptes récents) avec explication transparente de l'IA.
-* **📈 Projections Multi-Cycles & Trésorerie Réaliste** : Projection automatique des salaires mensuels à venir sur 30, 60 et 90 jours dans l'outil prévisionnel de l'IA, éliminant tout faux déficit de trésorerie.
-* **📊 Rendu Stylisé des Tableaux Markdown** : Affichage responsive, moderne et contrasté des tableaux générés par l'IA dans le Chat (fond sombre, en-têtes bleutés, padding généreux, chiffres tabulaires).
-* **🛠 Nouveaux Outils RAG IA** : Intégration de l'auditeur d'intégrité comptable (`audit_transactions_integrity`) et du simulateur de projets financiers (`simulate_financial_scenario`).
-* **🛡️ Sérialisation Robuste de l'API** : Assouplissement du schéma `TransactionBase` (`date_saisie` optionnelle) pour fiabiliser la consultation de l'Historique.
+* **🪄 Assistant de Démarrage Interactif (Setup Wizard)** : Nouvel assistant pas-à-pas avec aperçu direct des thèmes visuels, sécurisation par profil & code PIN, choix clair du mode d'entrée (manuel, import de relevé ou sync bancaire), initialisation du salaire et jeu de données de démonstration en 1 clic.
+* **🔍 Recherche Universelle Tolérante aux Accents** : Moteur de recherche unifié et permissif sur toutes les vues (opérations, timeline, synthèse, paramètres, notifications, synchronisation et catégories), ignorant casse, accents et formats de nombres.
+* **🏛️ Thèmes Exécutifs (Titanium Sombre & Albâtre Clair)** : Thèmes raffinés Gun Metal satiné et Ivoire chaleureux avec mise en page Bento haute précision.
+* **📱 Ergonomie Mobile & Standard de Boutons 36px** : Tiroir de navigation repensé, cartes adaptatives et standardisation rigoureuse de tous les boutons tactiles à 36px.
+* **⚡ Synchronisation Bancaire & Validation Mobile 2FA** : Détection automatique en temps réel de l'approbation sur smartphone (Crédit Mutuel, DSP2), dock d'opérations en attente et infobulles de prévisualisation au survol.
+* **🎨 Finitions Visuelles & Badge de Version** : Liseré supérieur continu sans coupure sur les cartes modales Titanium et affichage instantané de la version dès le lancement.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -124,7 +124,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.0.99-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -224,14 +224,14 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.0.99)
+## 🆕 What's New (v1.1.0)
 
-* **💡 Planned Receipts Impact on Key Indicators** : Integrated secondary indicators across Overview Hero cards and Sidebar summary cards ("Safe to Spend / Reste à vivre" and "Overdraft Risk") to display the beneficial impact of upcoming expected income within the current cycle (e.g. `+287.50 € expected` and `Covered (+287.50 €)`).
-* **🔄 Intelligent Cascade & Cold Start Resolution**: 3-tier hierarchical spending rate estimation engine (observed history with IQR outlier filtering, fallback to active spending envelopes, and 35% net salary prudential baseline) with transparent AI source notes.
-* **📈 Multi-Cycle Projections & Realistic Forecasting**: Automated multi-month paycheck projection over 30, 60, and 90 days in the AI Forecaster, eliminating artificial cash deficits.
-* **📊 Rich Markdown Tables in AI Chat**: Custom modern styling for AI-generated tables (dark backdrop, subtle blue accent headers, tabular numerals, generous cell spacing, hover effects).
-* **🛠 New AI Assistant RAG Tools**: Added accounting integrity audit tool (`audit_transactions_integrity`) and What-If project simulator (`simulate_financial_scenario`).
-* **🛡️ Resilient API Serialization**: Made `date_saisie` optional in `TransactionBase` FastAPI schema to ensure faultless History table rendering on legacy or imported entries.
+* **🪄 Modern Interactive Setup Wizard**: Completely redesigned onboarding wizard with instant live theme preview, master profile & PIN security setup, 3 clear entry paths, salary cold-start automation, and 1-click sample demo dataset.
+* **🔍 Universal Permissive Search**: Accent-insensitive, case-insensitive, and punctuation-tolerant search standardized across all application views (Operations, Timeline, Overview, Settings, Notifications, Bank Sync, Categories).
+* **🏛️ Executive Themes (Titanium Dark & Albâtre Light)**: High-precision slate-metallic and warm luxury ivory/bronze styling with refined bento card layouts.
+* **📱 Unified 36px Mobile Touch Standards**: Standardized button dimensions, redesigned touch navigation drawer, and enhanced responsive mobile readability.
+* **⚡ Bank Sync Enhancements & Auto Mobile 2FA**: Real-time smartphone 2FA detection, pinned pending operations review dock, and informative hover tooltips.
+* **🎨 Visual Polishing & Version Display**: Continuous accent gradient lines on modal cards and immediate header application version display.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 
