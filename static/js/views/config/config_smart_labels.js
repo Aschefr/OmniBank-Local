@@ -225,18 +225,21 @@ window.ConfigSmartLabels = {
     },
 
     filterMappings() {
-        const query = (document.getElementById('smartLabelSearchInput')?.value || '').toLowerCase().trim();
+        const query = (document.getElementById('smartLabelSearchInput')?.value || '').trim();
         if (!query) {
             this.renderMappings(this.mappings);
             return;
         }
-        const filtered = this.mappings.filter(m =>
-            (m.raw_pattern || '').toLowerCase().includes(query) ||
-            (m.clean_description || '').toLowerCase().includes(query) ||
-            (m.category || '').toLowerCase().includes(query) ||
-            (m.is_ignored && ('ignoré'.includes(query) || 'ignored'.includes(query) || query.includes('igno'))) ||
-            (!m.is_ignored && ('associé'.includes(query) || 'associe'.includes(query) || 'mapped'.includes(query)))
-        );
+        const filtered = this.mappings.filter(m => {
+            const statusLabel = m.is_ignored ? 'ignoré ignore ignored' : 'associé associe mapped';
+            const fields = [
+                m.raw_pattern,
+                m.clean_description,
+                m.category,
+                statusLabel
+            ];
+            return window.permissiveMatch(fields, query);
+        });
         this.renderMappings(filtered);
     },
 

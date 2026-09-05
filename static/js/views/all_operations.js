@@ -535,14 +535,20 @@ window.AllOperationsView = {
         let filtered = this.transactions;
 
         if (q) {
-            filtered = filtered.filter(tx => 
-                window.cleanStringForSearch(tx.description || '').includes(q) ||
-                window.cleanStringForSearch(tx.category || '').includes(q) ||
-                (tx.amount || '').toString().includes(q) ||
-                window.cleanStringForSearch(this.accountNames[tx.from_account_id] || '').includes(q) ||
-                window.cleanStringForSearch(this.accountNames[tx.to_account_id] || '').includes(q) ||
-                (tx.date_operation || '').includes(q)
-            );
+            filtered = filtered.filter(tx => {
+                const fields = [
+                    tx.description,
+                    tx.category,
+                    tx.amount != null ? tx.amount.toString() : '',
+                    tx.amount != null ? tx.amount.toFixed(2) : '',
+                    this.accountNames ? this.accountNames[tx.from_account_id] : '',
+                    this.accountNames ? this.accountNames[tx.to_account_id] : '',
+                    this.budgetsMap ? this.budgetsMap[tx.budget_id] : '',
+                    tx.check_slip_number,
+                    tx.date_operation
+                ];
+                return window.permissiveMatch(fields, q);
+            });
         }
         if (tType) {
             filtered = filtered.filter(tx => tx.type === tType);

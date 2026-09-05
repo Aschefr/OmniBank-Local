@@ -1009,16 +1009,27 @@ window.OverviewView = {
 
         // Apply Search Query
         if (this._searchQuery) {
-            const q = this._searchQuery.toLowerCase();
-            filtered = filtered.filter(tx =>
-                (tx.description || '').toLowerCase().includes(q) ||
-                (tx.category || '').toLowerCase().includes(q)
-            );
-            filteredGhosts = filteredGhosts.filter(g =>
-                (g.description || '').toLowerCase().includes(q) ||
-                (g.category || '').toLowerCase().includes(q) ||
-                (g.account_name || '').toLowerCase().includes(q)
-            );
+            const q = this._searchQuery;
+            filtered = filtered.filter(tx => {
+                const fields = [
+                    tx.description,
+                    tx.category,
+                    tx.amount != null ? tx.amount.toString() : '',
+                    tx.amount != null ? tx.amount.toFixed(2) : '',
+                    tx.account_name
+                ];
+                return window.permissiveMatch(fields, q);
+            });
+            filteredGhosts = filteredGhosts.filter(g => {
+                const fields = [
+                    g.description,
+                    g.category,
+                    g.amount != null ? g.amount.toString() : '',
+                    g.amount != null ? g.amount.toFixed(2) : '',
+                    g.account_name
+                ];
+                return window.permissiveMatch(fields, q);
+            });
         }
 
         if (filtered.length === 0 && filteredGhosts.length === 0) {

@@ -126,10 +126,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         const countBadge = document.getElementById('rateCountBadge');
         if (!tbody) return;
 
-        const query = (document.getElementById('rateSearchInput')?.value || '').trim().toLowerCase();
+        const query = (document.getElementById('rateSearchInput')?.value || '').trim();
         const filtered = this.ratesData.filter(r =>
-            r.from_currency.toLowerCase().includes(query) ||
-            r.to_currency.toLowerCase().includes(query)
+            window.permissiveMatch([r.from_currency, r.to_currency, `${r.from_currency}/${r.to_currency}`, `${r.from_currency} ${r.to_currency}`], query)
         );
 
         if (countBadge) {

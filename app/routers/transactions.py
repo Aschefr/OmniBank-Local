@@ -35,24 +35,30 @@ def get_transactions(
     if unreconciled_only:
         query = query.filter(Transaction.reconciliation_date == None)
     if search:
+        import unicodedata
+        from sqlalchemy import func
+        def _strip_accents(s):
+            return "".join(c for c in unicodedata.normalize('NFD', str(s)) if unicodedata.category(c) != 'Mn').lower().strip()
+
         search_str = search.strip()
-        search_pattern = f"%{search_str}%"
+        clean_search = _strip_accents(search_str)
+        search_pattern = f"%{clean_search}%"
         # Support searching description, category, or amount if search is numeric
         try:
             val = float(search_str.replace(',', '.'))
             amount_filter = and_(Transaction.amount >= val - 0.05, Transaction.amount <= val + 0.05)
             query = query.filter(
                 or_(
-                    Transaction.description.ilike(search_pattern),
-                    Transaction.category.ilike(search_pattern),
+                    func.unaccent(Transaction.description).like(search_pattern),
+                    func.unaccent(Transaction.category).like(search_pattern),
                     amount_filter
                 )
             )
         except ValueError:
             query = query.filter(
                 or_(
-                    Transaction.description.ilike(search_pattern),
-                    Transaction.category.ilike(search_pattern)
+                    func.unaccent(Transaction.description).like(search_pattern),
+                    func.unaccent(Transaction.category).like(search_pattern)
                 )
             )
     if order and order.lower() == "asc":
