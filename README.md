@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -109,7 +109,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.1.0)
+## 🆕 Nouveautés (v1.1.1)
+
+* **🏦 Rétablissement de la Synchronisation Crédit Agricole** : Résolution du blocage `Element ['clientId'] not found` sous Docker et lors des premières installations grâce à l'extraction récursive et résiliente de la configuration portail et au pré-chargement sécurisé des modules bancaires.
+* **💡 Indicateur de Solde Intelligent & Ergonomie du Sas** : Harmonisation du statut de rapprochement sur le Dashboard. Lorsque les opérations en attente équilibrent le différentiel avec la banque, un badge clair « Conforme après validation » remplace le faux avertissement rouge d'écart et permet d'ouvrir instantanément la revue ciblée sur le bon compte.
+
+## 📦 Historique Récent (v1.1.0)
 
 * **🪄 Assistant de Démarrage Interactif (Setup Wizard)** : Nouvel assistant pas-à-pas avec aperçu direct des thèmes visuels, sécurisation par profil & code PIN, choix clair du mode d'entrée (manuel, import de relevé ou sync bancaire), initialisation du salaire et jeu de données de démonstration en 1 clic.
 * **🔍 Recherche Universelle Tolérante aux Accents** : Moteur de recherche unifié et permissif sur toutes les vues (opérations, timeline, synthèse, paramètres, notifications, synchronisation et catégories), ignorant casse, accents et formats de nombres.
@@ -124,7 +129,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -224,7 +229,12 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.1.0)
+## 🆕 What's New (v1.1.1)
+
+* **🏦 Restored Crédit Agricole Bank Synchronization**: Resolved `Element ['clientId'] not found` errors under Docker and fresh installations through resilient recursive portal client configuration extraction and safe startup module pre-warming.
+* **💡 Smart Balance Indicators & Queue Ergonomics**: Unified reconciliation status detection on the Dashboard. When pending queue items match the bank delta, a reassuring "Conforme après validation" badge replaces false-positive discrepancy alarms and opens the review modal directly on the target account.
+
+## 📦 Recent History (v1.1.0)
 
 * **🪄 Modern Interactive Setup Wizard**: Completely redesigned onboarding wizard with instant live theme preview, master profile & PIN security setup, 3 clear entry paths, salary cold-start automation, and 1-click sample demo dataset.
 * **🔍 Universal Permissive Search**: Accent-insensitive, case-insensitive, and punctuation-tolerant search standardized across all application views (Operations, Timeline, Overview, Settings, Notifications, Bank Sync, Categories).

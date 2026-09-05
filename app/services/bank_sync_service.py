@@ -60,8 +60,14 @@ def get_woob() -> Woob:
     return _WOOB_INSTANCE
 
 
-def _apply_module_hotfixes(w: Woob, backend_name: str):
+def _apply_module_hotfixes(w: Woob, backend_name: str, backend: Any = None):
     """Applique les correctifs de compatibilité connus sur les modules Woob si nécessaire."""
+    # S'assurer que le module requis est bien installé localement avant d'appliquer un correctif
+    try:
+        w.repositories.install(backend_name)
+    except Exception as e:
+        logger.debug(f"[BankSync] Module install check notice ({backend_name}): {e}")
+
     if backend_name == "boursorama":
         try:
             import pathlib
@@ -85,44 +91,124 @@ def _apply_module_hotfixes(w: Woob, backend_name: str):
             import sys
             import pathlib
             import importlib
-            mod = w.modules_loader.get_or_load_module("cragr")
 
-            # 1. Patch en mémoire de AppConfigPage.get_client_id (Crédit Agricole a déplacé clientId dans mireOptions)
+            # Fonction d'extraction ultra-résiliente de clientId dans l'arbre JSON
+            def _extract_ca_client_id(doc):
+                if not isinstance(doc, dict):
+                    return None
+                if doc.get("clientId"):
+                    return doc["clientId"]
+                if isinstance(doc.get("mireOptions"), dict) and doc["mireOptions"].get("clientId"):
+                    return doc["mireOptions"]["clientId"]
+                # Parcours récursif en cas de sous-objet supplémentaire dans app-config.json
+                for _, v in doc.items():
+                    if isinstance(v, dict):
+                        found = _extract_ca_client_id(v)
+                        if found:
+                            return found
+                return None
+
+            # Fallback vers l'identifiant client public officiel du portail web Crédit Agricole
+            CA_PUBLIC_CLIENT_ID_FALLBACK = "cb811bccb65f9f25d74430e1cca02fed3a3c1deaccfe2ebfb1b52b7eb68cd284"
+
+            def make_patched_get_client_id(orig_fn):
+                def patched_get_client_id(self):
+                    cid = _extract_ca_client_id(self.doc)
+                    if cid:
+                        return cid
+                    if orig_fn:
+                        try:
+                            orig_cid = orig_fn(self)
+                            if orig_cid:
+                                return orig_cid
+                        except Exception:
+                            pass
+                    return CA_PUBLIC_CLIENT_ID_FALLBACK
+                return patched_get_client_id
+
+            mod = None
             try:
-                pages_mod = importlib.import_module("woob_modules.cragr.pages")
-            except Exception:
-                pages_mod = sys.modules.get("woob_modules.cragr.pages")
+                mod = w.modules_loader.get_or_load_module("cragr")
+            except Exception as e:
+                logger.debug(f"[BankSync] Chargement module cragr notice: {e}")
 
+            # 1. Résolution du module de pages cragr
+            pages_mod = None
+            for mod_name in ("woob_modules.cragr.pages", "cragr.pages"):
+                try:
+                    pages_mod = importlib.import_module(mod_name)
+                    if pages_mod:
+                        break
+                except Exception:
+                    pages_mod = sys.modules.get(mod_name)
+                    if pages_mod:
+                        break
+
+            # 2. Patch en mémoire des classes AppConfigPage
+            target_classes = []
             if pages_mod and hasattr(pages_mod, "AppConfigPage"):
-                app_page_cls = pages_mod.AppConfigPage
-                if not getattr(app_page_cls, "_cragr_clientid_hotfixed", False):
-                    orig_get_cid = app_page_cls.get_client_id
-                    def patched_get_client_id(self):
-                        if isinstance(self.doc, dict):
-                            cid = self.doc.get("clientId")
-                            if not cid and "mireOptions" in self.doc and isinstance(self.doc["mireOptions"], dict):
-                                cid = self.doc["mireOptions"].get("clientId")
-                            if cid:
-                                return cid
-                        return orig_get_cid(self)
-                    app_page_cls.get_client_id = patched_get_client_id
-                    app_page_cls._cragr_clientid_hotfixed = True
-                    logger.info("[BankSync] Hotfix mémoire Crédit Agricole (clientId dans mireOptions) appliqué avec succès.")
+                target_classes.append(pages_mod.AppConfigPage)
 
-            # 2. Patch sur disque du fichier pages.py si accessible en écriture
-            if hasattr(mod, "package") and hasattr(mod.package, "__file__"):
+            if backend and hasattr(backend, "browser"):
+                for attr_name in ("espace_config", "caconnect_config"):
+                    endpoint = getattr(backend.browser, attr_name, None)
+                    if endpoint and hasattr(endpoint, "klass") and endpoint.klass not in target_classes:
+                        target_classes.append(endpoint.klass)
+
+            for cls in target_classes:
+                if hasattr(cls, "get_client_id") and not getattr(cls, "_cragr_clientid_hotfixed_v2", False):
+                    cls.get_client_id = make_patched_get_client_id(cls.get_client_id)
+                    cls._cragr_clientid_hotfixed_v2 = True
+                    logger.info("[BankSync] Hotfix mémoire Crédit Agricole (clientId dans mireOptions/fallback) appliqué avec succès.")
+
+            # 3. Patch sur disque du fichier pages.py si accessible en écriture
+            pkg_dir = None
+            if mod and hasattr(mod, "package") and hasattr(mod.package, "__file__"):
                 pkg_dir = pathlib.Path(mod.package.__file__).parent
+            elif pages_mod and hasattr(pages_mod, "__file__"):
+                pkg_dir = pathlib.Path(pages_mod.__file__).parent
+
+            if pkg_dir:
                 pages_file = pkg_dir / "pages.py"
                 if pages_file.exists():
-                    content = pages_file.read_text(encoding="utf-8")
-                    target_old = 'return Dict("clientId")(self.doc)'
-                    target_new = 'return (self.doc.get("clientId") or (self.doc.get("mireOptions") or {}).get("clientId") if isinstance(self.doc, dict) else Dict("clientId")(self.doc))'
-                    if target_old in content:
-                        content = content.replace(target_old, target_new)
-                        pages_file.write_text(content, encoding="utf-8")
-                        logger.info("[BankSync] Hotfix fichier Crédit Agricole appliqué avec succès.")
+                    try:
+                        content = pages_file.read_text(encoding="utf-8")
+                        target_patterns = [
+                            'return Dict("clientId")(self.doc)',
+                            "return Dict('clientId')(self.doc)"
+                        ]
+                        replacement = 'return (self.doc.get("clientId") or (self.doc.get("mireOptions") or {}).get("clientId") if isinstance(self.doc, dict) else Dict("clientId")(self.doc))'
+                        modified = False
+                        for pat in target_patterns:
+                            if pat in content:
+                                content = content.replace(pat, replacement)
+                                modified = True
+                        if modified:
+                            pages_file.write_text(content, encoding="utf-8")
+                            logger.info("[BankSync] Hotfix fichier Crédit Agricole appliqué avec succès.")
+                    except Exception as e:
+                        logger.debug(f"[BankSync] Écriture hotfix fichier Crédit Agricole notice: {e}")
+
         except Exception as e:
             logger.debug(f"[BankSync] Hotfix Crédit Agricole notice: {e}")
+
+
+def init_known_bank_hotfixes():
+    """Précharge et applique les correctifs connus au démarrage en arrière-plan sans bloquer l'application."""
+    def _worker():
+        try:
+            w = get_woob()
+            for b in ("cragr", "boursorama"):
+                try:
+                    _apply_module_hotfixes(w, b)
+                except Exception as e:
+                    logger.debug(f"[BankSync] Notice pré-initialisation banque '{b}' : {e}")
+        except Exception as e:
+            logger.debug(f"[BankSync] Notice pré-initialisation Woob : {e}")
+
+    import threading
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
 
 
 def get_all_bank_backends(force_refresh: bool = False) -> List[BankBackendInfo]:
@@ -446,6 +532,9 @@ class BankSyncService:
             storage=None
         )
 
+        # Ré-application du hotfix ciblé sur l'instance backend et ses classes chargées
+        _apply_module_hotfixes(w, backend_name, backend=backend)
+
         if session_id:
             if "request_information" in backend.config:
                 backend.config["request_information"].set({})
@@ -607,6 +696,9 @@ class BankSyncService:
             params=clean_creds,
             storage=None
         )
+
+        # Ré-application du hotfix ciblé sur l'instance backend et ses classes chargées
+        _apply_module_hotfixes(w, backend_name, backend=backend)
 
         if session_id:
             if "request_information" in backend.config:

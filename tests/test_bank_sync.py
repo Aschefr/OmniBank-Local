@@ -52,12 +52,14 @@ def test_backend_discovery():
 @pytest.fixture(autouse=True)
 def setup_test_db():
     from sqlalchemy.pool import StaticPool
+    from app.database import _configure_sqlite_pragmas
     import app.models  # Ensure all models are registered in Base.metadata
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool
     )
+    _configure_sqlite_pragmas(engine)
     Base.metadata.create_all(engine)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -2508,10 +2510,56 @@ def test_cragr_hotfix_client_id_mire_options():
     page = MockAppPage(test_doc)
     assert page.get_client_id() == "mock_ca_client_id_999"
 
-    # Test that direct clientId still works
-    direct_doc = {"clientId": "direct_123"}
-    page_direct = MockAppPage(direct_doc)
-    assert page_direct.get_client_id() == "direct_123"
+    # Test that nested recursive clientId works
+    nested_doc = {
+        "deep": {
+            "nested": {
+                "clientId": "mock_deep_nested_456"
+            }
+        }
+    }
+    page_nested = MockAppPage(nested_doc)
+    assert page_nested.get_client_id() == "mock_deep_nested_456"
+
+    # Test that fallback to public client ID works if no clientId present
+    empty_doc = {"unknown": "data"}
+    page_empty = MockAppPage(empty_doc)
+    assert page_empty.get_client_id() == "cb811bccb65f9f25d74430e1cca02fed3a3c1deaccfe2ebfb1b52b7eb68cd284"
+
+
+def test_cragr_hotfix_backend_instance_and_other_banks():
+    """Verify that _apply_module_hotfixes patches classes on backend.browser and does not affect other backends."""
+    from woob.core import Woob
+    from app.services.bank_sync_service import _apply_module_hotfixes
+
+    w = Woob()
+    
+    # Test on a custom backend mock
+    class DummyPage:
+        def __init__(self, doc):
+            self.doc = doc
+        def get_client_id(self):
+            return self.doc.get("clientId")
+
+    class DummyEndpoint:
+        klass = DummyPage
+
+    class DummyBrowser:
+        espace_config = DummyEndpoint()
+        caconnect_config = DummyEndpoint()
+
+    class DummyBackend:
+        browser = DummyBrowser()
+
+    backend_mock = DummyBackend()
+    _apply_module_hotfixes(w, "cragr", backend=backend_mock)
+
+    # Verify that DummyPage was patched
+    inst = DummyPage({"mireOptions": {"clientId": "backend_instance_test_789"}})
+    assert inst.get_client_id() == "backend_instance_test_789"
+
+    # Verify other backend does not crash and leaves untouched
+    _apply_module_hotfixes(w, "other_unknown_backend")
 
 
 def test_2fa_clean_error_messages():

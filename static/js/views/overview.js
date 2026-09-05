@@ -634,12 +634,22 @@ window.OverviewView = {
         if (pendingData.accounts && pendingData.accounts.length > 0) {
             const accsWithBal = pendingData.accounts.filter(a => typeof a.bank_balance === 'number' && typeof a.local_reconciled_balance === 'number');
             if (accsWithBal.length > 0) {
-                const hasDiff = accsWithBal.some(a => Math.abs(a.bank_balance - a.local_reconciled_balance) >= 0.005);
-                if (hasDiff) {
-                    const firstDiffAcc = accsWithBal.find(a => Math.abs(a.bank_balance - a.local_reconciled_balance) >= 0.005);
-                    const diff = Math.round((firstDiffAcc.bank_balance - firstDiffAcc.local_reconciled_balance) * 100) / 100;
-                    const diffFormatted = (diff > 0 ? '+' : '') + diff.toFixed(2) + ' €';
-                    balanceStatusHtml = ` • <span style="color: #f59e0b; font-weight: 600;">⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart'} : ${diffFormatted}</span>`;
+                const diffAccs = accsWithBal.filter(a => Math.abs(a.bank_balance - a.local_reconciled_balance) >= 0.005);
+                if (diffAccs.length > 0) {
+                    const unresolvedAcc = diffAccs.find(a => {
+                        if (window.BankSyncView && typeof window.BankSyncView.computeAccountBalanceSyncStatus === 'function') {
+                            const st = window.BankSyncView.computeAccountBalanceSyncStatus(a);
+                            return st.hasBalances && !st.isSynced && !st.isResolvedBySync && !st.isExplainedByComing;
+                        }
+                        return true;
+                    });
+                    if (unresolvedAcc) {
+                        const diff = Math.round((unresolvedAcc.bank_balance - unresolvedAcc.local_reconciled_balance) * 100) / 100;
+                        const diffFormatted = (diff > 0 ? '+' : '') + diff.toFixed(2) + ' €';
+                        balanceStatusHtml = ` • <span style="color: #f59e0b; font-weight: 600;">⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart'} : ${diffFormatted}</span>`;
+                    } else {
+                        balanceStatusHtml = ` • <span style="color: #818cf8; font-weight: 600;">💡 ${window.i18n ? window.i18n.t('bank_sync_balance_will_sync') || 'Conforme après validation' : 'Conforme après validation'}</span>`;
+                    }
                 } else {
                     balanceStatusHtml = ` • <span style="color: #10b981; font-weight: 600;">🟢 ${window.i18n ? window.i18n.t('bank_sync_balance_synced') || 'Soldes conformes' : 'Soldes conformes'}</span>`;
                 }
