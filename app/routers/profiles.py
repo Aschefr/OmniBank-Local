@@ -22,6 +22,7 @@ from app.profile_manager import (
 )
 from app.database import get_engine, dispose_engine, get_db
 from app.init_data import init_db
+from app.services import stats_cache
 
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 
@@ -220,6 +221,7 @@ def api_delete_profile(profile_id: str):
 
     try:
         fallback_id = delete_profile(profile_id)
+        stats_cache.invalidate()
         return {
             "ok": True,
             "message": "Profil supprimé avec succès.",
@@ -251,6 +253,9 @@ def api_activate_profile(profile_id: str, req: Optional[ProfileActivateRequest] 
         # Fermer la connexion active précédente
         dispose_engine(active_profile["id"])
         set_active_profile(profile_id)
+
+        # Invalider l'intégralité du cache stats & pending pour étanchéité multi-profils
+        stats_cache.invalidate()
 
         # Assurer l'initialisation de la DB du profil cible
         target_engine = get_engine(profile_id)

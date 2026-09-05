@@ -167,15 +167,16 @@ Object.assign(window.BankSyncView, {
         try {
             const data = await API.get('/api/bank-sync/pending');
             if (data && data.accounts && data.accounts.length > 0) {
-                const connAccounts = data.accounts.filter(a => !a.connection_id || a.connection_id === connId);
-                const accountsToUse = connAccounts.length > 0 ? connAccounts : data.accounts;
-                const preview = {
-                    connection_id: connId,
-                    accounts: accountsToUse
-                };
-                this.saveCachedPreview(connId, preview);
-                await this.openReviewModal(connId, preview);
-                return;
+                const connAccounts = data.accounts.filter(a => a.connection_id === connId);
+                if (connAccounts.length > 0) {
+                    const preview = {
+                        connection_id: connId,
+                        accounts: connAccounts
+                    };
+                    this.saveCachedPreview(connId, preview);
+                    await this.openReviewModal(connId, preview);
+                    return;
+                }
             }
         } catch (_) {}
 
@@ -300,6 +301,7 @@ Object.assign(window.BankSyncView, {
             const data = JSON.parse(e.data);
             progressMsg.innerText = data.message || 'Synchronisation...';
             if (data.step === 'auth') progressBar.style.width = '45%';
+            if (data.step === '2fa_checking') progressBar.style.width = '60%';
             if (data.step === 'sync_account') progressBar.style.width = '75%';
         });
 

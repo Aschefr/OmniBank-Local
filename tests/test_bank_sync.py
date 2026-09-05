@@ -2514,6 +2514,325 @@ def test_cragr_hotfix_client_id_mire_options():
     assert page_direct.get_client_id() == "direct_123"
 
 
+def test_2fa_clean_error_messages():
+    from woob.exceptions import NeedInteractiveFor2FA, AppValidation, DecoupledValidation
+    from app.services.bank_sync_service import clean_error_message
+
+    assert "Authentification forte requise" in clean_error_message(NeedInteractiveFor2FA())
+    assert "Validation sur l'application mobile" in clean_error_message(AppValidation("Veuillez confirmer sur votre mobile"))
+    assert "Validation sur l'application mobile" in clean_error_message(AppValidation(""))
+    assert "Validation sur l'application mobile" in clean_error_message(DecoupledValidation(""))
+
+
+def test_bank_sync_2fa_need_interactive_retry():
+    import threading, time
+    from unittest.mock import MagicMock
+    from woob.exceptions import NeedInteractiveFor2FA
+    from woob.tools.value import Value
+    from app.services.bank_sync_service import (
+        BankSyncService,
+        register_2fa_session,
+        unregister_2fa_session,
+    )
+    import app.services.bank_sync_service as bss
+
+    session_id = "test_sess_need_interactive"
+    register_2fa_session(session_id)
+    events = []
+
+    class FakeAccount:
+        id = "acc_need_interactive"
+        label = "Compte Courant"
+        type = 1
+        balance = 1000.0
+        currency = "EUR"
+        iban = "FR76..."
+
+    call_count = 0
+
+    def mock_iter_accounts():
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise NeedInteractiveFor2FA()
+        return [FakeAccount()]
+
+    mock_backend = MagicMock()
+    mock_backend.config = {"request_information": Value("request_information", default=None)}
+    mock_backend.browser = MagicMock()
+    mock_backend.browser.is_interactive = False
+    mock_backend.iter_accounts = mock_iter_accounts
+
+    orig_get_woob = bss.get_woob
+    mock_woob = MagicMock()
+    mock_woob.load_backend.return_value = mock_backend
+    bss.get_woob = lambda: mock_woob
+
+    try:
+        accs = BankSyncService.test_connection_and_list_accounts(
+            backend_name="creditmutuel",
+            credentials={"login": "user", "password": "pw"},
+            session_id=session_id,
+            event_callback=lambda evt, data: events.append((evt, data))
+        )
+        assert len(accs) == 1
+        assert accs[0].id == "acc_need_interactive"
+        assert call_count == 2
+        assert mock_backend.browser.is_interactive is True
+    finally:
+        bss.get_woob = orig_get_woob
+        unregister_2fa_session(session_id)
+
+
+def test_bank_sync_2fa_app_validation_flow():
+    import threading, time
+    from unittest.mock import MagicMock
+    from woob.exceptions import AppValidation
+    from woob.tools.value import Value
+    from app.services.bank_sync_service import (
+        BankSyncService,
+        register_2fa_session,
+        unregister_2fa_session,
+        deliver_2fa_response,
+    )
+    import app.services.bank_sync_service as bss
+
+    session_id = "test_sess_app_validation"
+    register_2fa_session(session_id)
+    events = []
+
+    class FakeAccount:
+        id = "acc_app_val"
+        label = "Compte Courant CM"
+        type = 1
+        balance = 2500.0
+        currency = "EUR"
+        iban = "FR76..."
+
+    call_count = 0
+
+    def mock_iter_accounts():
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise AppValidation("Veuillez confirmer sur votre smartphone")
+        return [FakeAccount()]
+
+    mock_backend = MagicMock()
+    mock_backend.config = {
+        "request_information": Value("request_information", default=None),
+        "resume": Value("resume", default=None)
+    }
+    mock_backend.browser = MagicMock()
+    mock_backend.browser.is_interactive = True
+    mock_backend.iter_accounts = mock_iter_accounts
+
+    orig_get_woob = bss.get_woob
+    mock_woob = MagicMock()
+    mock_woob.load_backend.return_value = mock_backend
+    bss.get_woob = lambda: mock_woob
+
+    def delayed_user_response():
+        time.sleep(0.15)
+        deliver_2fa_response(session_id, {"response_type": "app_validated", "value": None})
+
+    threading.Thread(target=delayed_user_response, daemon=True).start()
+
+    try:
+        accs = BankSyncService.test_connection_and_list_accounts(
+            backend_name="creditmutuel",
+            credentials={"login": "user", "password": "pw"},
+            session_id=session_id,
+            event_callback=lambda evt, data: events.append((evt, data))
+        )
+        assert len(accs) == 1
+        assert accs[0].id == "acc_app_val"
+        assert call_count == 2
+        assert mock_backend.config["resume"].get() is True
+        event_types = [e[0] for e in events]
+        assert "2fa_required" in event_types
+        assert "progress" in event_types
+    finally:
+        bss.get_woob = orig_get_woob
+        unregister_2fa_session(session_id)
+
+
+def test_bank_sync_2fa_browser_question_flow():
+    import threading, time
+    from unittest.mock import MagicMock
+    from woob.exceptions import BrowserQuestion
+    from woob.tools.value import Value
+    from app.services.bank_sync_service import (
+        BankSyncService,
+        register_2fa_session,
+        unregister_2fa_session,
+        deliver_2fa_response,
+    )
+    import app.services.bank_sync_service as bss
+
+    session_id = "test_sess_otp_question"
+    register_2fa_session(session_id)
+    events = []
+
+    class FakeAccount:
+        id = "acc_bnp_otp"
+        label = "Compte BNP OTP"
+        type = 1
+        balance = 950.0
+        currency = "EUR"
+        iban = "FR76..."
+
+    call_count = 0
+
+    def mock_iter_accounts():
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise BrowserQuestion(Value("otp", label="Entrez le code SMS reçu"))
+        return [FakeAccount()]
+
+    mock_backend = MagicMock()
+    mock_backend.config = {
+        "request_information": Value("request_information", default=None),
+        "otp": Value("otp", default=None)
+    }
+    mock_backend.browser = MagicMock()
+    mock_backend.browser.is_interactive = True
+    mock_backend.iter_accounts = mock_iter_accounts
+
+    orig_get_woob = bss.get_woob
+    mock_woob = MagicMock()
+    mock_woob.load_backend.return_value = mock_backend
+    bss.get_woob = lambda: mock_woob
+
+    def delayed_user_otp():
+        time.sleep(0.15)
+        deliver_2fa_response(session_id, {"response_type": "otp_code", "value": "123456"})
+
+    threading.Thread(target=delayed_user_otp, daemon=True).start()
+
+    try:
+        accs = BankSyncService.test_connection_and_list_accounts(
+            backend_name="bnp",
+            credentials={"login": "user", "password": "pw"},
+            session_id=session_id,
+            event_callback=lambda evt, data: events.append((evt, data))
+        )
+        assert len(accs) == 1
+        assert accs[0].id == "acc_bnp_otp"
+        assert call_count == 2
+        assert mock_backend.config["otp"].get() == "123456"
+        event_types = [e[0] for e in events]
+        assert "2fa_required" in event_types
+    finally:
+        bss.get_woob = orig_get_woob
+        unregister_2fa_session(session_id)
+
+
+def test_multi_profile_pending_sync_and_cache_isolation():
+    """
+    Vérifie l'étanchéité stricte des données du sas d'attente (pending sync)
+    et du cache entre deux profils distincts ayant un conn_id identique (ex: conn_id=1).
+    """
+    from app.services.bank_sync_scheduler import (
+        save_pending_sync_data,
+        get_all_pending_sync,
+        clear_all_pending_sync,
+        _PENDING_SYNC_DATA
+    )
+    from app.services import stats_cache
+    from app.models import BankConnection, Account
+
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    # Connexion id=1 sur test_db
+    conn = test_db.query(BankConnection).filter(BankConnection.id == 1).first()
+    if not conn:
+        conn = BankConnection(id=1, backend="cragr", label="Crédit Agricole", is_active=True)
+        test_db.add(conn)
+        test_db.commit()
+
+    # Données Profil 1 ("default")
+    data_prof1 = {
+        "accounts": [
+            {
+                "account_id": 1,
+                "account_name": "CA Centre-Est",
+                "bank_balance": 1500.0,
+                "connection_id": 1,
+                "transactions": [
+                    {
+                        "csv_id": "tx_prof1_quentin",
+                        "date_operation": "2026-09-02",
+                        "description": "VIR INST de MLLE MARINE PLAZA",
+                        "raw_amount": 137.50,
+                        "amount": 137.50,
+                        "is_reconciled": False
+                    }
+                ]
+            }
+        ]
+    }
+
+    # Données Profil 2 ("p_thomas")
+    data_prof2 = {
+        "accounts": [
+            {
+                "account_id": 1,
+                "account_name": "Crédit Mutuel Thomas",
+                "bank_balance": 3200.0,
+                "connection_id": 1,
+                "transactions": [
+                    {
+                        "csv_id": "tx_prof2_thomas",
+                        "date_operation": "2026-09-03",
+                        "description": "ACHAT MATERIEL CSE",
+                        "raw_amount": -450.00,
+                        "amount": 450.00,
+                        "is_reconciled": False
+                    }
+                ]
+            }
+        ]
+    }
+
+    try:
+        # Enregistrer les deux sas avec conn_id=1 mais sur des profile_id différents
+        save_pending_sync_data(test_db, 1, data_prof1, profile_id="default")
+        save_pending_sync_data(test_db, 1, data_prof2, profile_id="p_thomas")
+
+        # Vérifier que les structures mémoire sont strictement cloisonnées
+        assert "default" in _PENDING_SYNC_DATA
+        assert "p_thomas" in _PENDING_SYNC_DATA
+        assert _PENDING_SYNC_DATA["default"][1]["accounts"][0]["transactions"][0]["csv_id"] == "tx_prof1_quentin"
+        assert _PENDING_SYNC_DATA["p_thomas"][1]["accounts"][0]["transactions"][0]["csv_id"] == "tx_prof2_thomas"
+
+        # Vérifier que get_all_pending_sync pour p_thomas n'expose AUCUNE donnée de default
+        pending_thomas = get_all_pending_sync(test_db, profile_id="p_thomas")
+        thomas_descriptions = [
+            tx["description"]
+            for acc in pending_thomas.get("accounts", [])
+            for tx in acc.get("transactions", [])
+        ]
+        assert "ACHAT MATERIEL CSE" in thomas_descriptions
+        assert "VIR INST de MLLE MARINE PLAZA" not in thomas_descriptions
+
+        # Vérifier le fonctionnement de l'invalidation globale du cache stats
+        stats_cache.set("default", "test_key", {"val": 1})
+        stats_cache.set("p_thomas", "test_key", {"val": 2})
+        assert stats_cache.get("default", "test_key") is not None
+        assert stats_cache.get("p_thomas", "test_key") is not None
+
+        stats_cache.invalidate()
+        assert stats_cache.get("default", "test_key") is None
+        assert stats_cache.get("p_thomas", "test_key") is None
+    finally:
+        clear_all_pending_sync(test_db, profile_id="default")
+        clear_all_pending_sync(test_db, profile_id="p_thomas")
+
+
+
+
 
 
 

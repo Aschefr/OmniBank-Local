@@ -23,6 +23,7 @@ from woob.exceptions import (
     BrowserIncorrectPassword,
     BrowserQuestion,
     BrowserUnavailable,
+    DecoupledValidation,
     NeedInteractiveFor2FA,
     OTPQuestion,
     SentOTPQuestion,
@@ -359,8 +360,10 @@ def clean_error_message(e: Exception) -> str:
     exc_name = type(e).__name__ if e else "UnknownException"
 
     if not msg or msg in ("{}", "''", '""', "None"):
-        if exc_name in ("NeedInteractiveFor2FA", "AppValidation"):
-            return "Authentification mobile ou validation 2FA requise par votre banque."
+        if exc_name == "NeedInteractiveFor2FA":
+            return "Authentification forte requise : veuillez lancer la synchronisation depuis l'application pour valider l'accès sur votre smartphone."
+        elif exc_name in ("AppValidation", "DecoupledValidation"):
+            return "Validation sur l'application mobile requise par votre banque."
         elif exc_name == "BrowserIncorrectPassword":
             return "Identifiant ou mot de passe bancaire incorrect."
         elif exc_name in ("BrowserUnavailable", "ActionNeeded"):
@@ -386,6 +389,10 @@ def clean_error_message(e: Exception) -> str:
         return "Validation 2FA annulée."
     if "AppValidationExpired" in msg or "Session 2FA expirée" in msg:
         return "Le délai de validation sur votre application bancaire a expiré."
+    if "NeedInteractiveFor2FA" in msg or exc_name == "NeedInteractiveFor2FA":
+        return "Authentification forte requise : veuillez lancer la synchronisation depuis l'application pour valider l'accès sur votre smartphone."
+    if "DecoupledValidation" in msg or "AppValidation" in msg or exc_name in ("DecoupledValidation", "AppValidation"):
+        return f"Validation sur l'application mobile requise par votre banque : {msg}" if msg and msg not in ("{}", "''", '""', "None") else "Validation sur l'application mobile requise par votre banque."
     if ("element" in msg.lower() and "not found" in msg.lower()) or "clientid" in msg.lower() or exc_name == "ElementNotFound":
         return (
             f"Action requise sur votre espace bancaire : un écran intermédiaire (nouvelles CGU à accepter, validation SécuriPass mobile ou confirmation de coordonnées) bloque l'accès automatisé. Connectez-vous sur le site ou l'application de votre banque pour débloquer l'accès. (Détail : {msg})"
@@ -418,6 +425,8 @@ class BankSyncService:
 
         # Nettoyage des credentials : suppression des valeurs vides
         clean_creds = {k: v for k, v in credentials.items() if v is not None and v != ""}
+        if session_id:
+            clean_creds["request_information"] = {}
 
         backend_instance_name = f"test_{backend_name}_{int(time.time())}"
         backend = w.load_backend(
@@ -426,6 +435,12 @@ class BankSyncService:
             params=clean_creds,
             storage=None
         )
+
+        if session_id:
+            if "request_information" in backend.config:
+                backend.config["request_information"].set({})
+            if hasattr(backend, "browser"):
+                backend.browser.is_interactive = True
 
         def _do_fetch_accounts():
             raw_accounts = list(backend.iter_accounts())
@@ -456,13 +471,22 @@ class BankSyncService:
 
         try:
             return _do_fetch_accounts()
-        except AppValidation as av:
+        except NeedInteractiveFor2FA:
             if not session_id or not event_callback:
-                raise Exception(f"Authentification mobile requise sur votre application bancaire (SCA).")
+                raise Exception("Authentification interactive 2FA requise par votre banque.")
+            if "request_information" in backend.config:
+                backend.config["request_information"].set({})
+            if hasattr(backend, "browser"):
+                backend.browser.is_interactive = True
+            return _do_fetch_accounts()
+
+        except (AppValidation, DecoupledValidation) as av:
+            if not session_id or not event_callback:
+                raise Exception("Authentification mobile requise sur votre application bancaire (SCA).")
             # Émettre l'événement 2FA vers l'UI
             event_callback("2fa_required", {
                 "type": "app_validation",
-                "message": str(av) or "Veuillez valider la connexion sur votre application bancaire mobile."
+                "message": str(av) or getattr(av, "message", None) or "Veuillez valider la notification sur votre application mobile bancaire."
             })
             # Attendre la confirmation utilisateur
             q = _TWOFA_SESSIONS.get(session_id, {}).get("queue")
@@ -471,14 +495,22 @@ class BankSyncService:
             resp = q.get(timeout=120)
             if resp.get("response_type") == "cancel":
                 raise Exception("Authentification annulée par l'utilisateur.")
+            if event_callback:
+                event_callback("progress", {"step": "2fa_checking", "message": "Vérification de la validation mobile en cours..."})
+            if "resume" in backend.config:
+                backend.config["resume"].set(True)
             if hasattr(backend, "browser") and hasattr(backend.browser, "check_interactive"):
                 backend.browser.check_interactive()
             return _do_fetch_accounts()
 
-        except (BrowserQuestion, OTPQuestion, SentOTPQuestion, NeedInteractiveFor2FA) as bq:
+        except (BrowserQuestion, OTPQuestion, SentOTPQuestion) as bq:
             if not session_id or not event_callback:
                 raise Exception("Code de sécurité (SMS/Email) requis par votre banque.")
-            msg = getattr(bq, "message", None) or "Veuillez entrer le code de sécurité reçu par SMS ou Email."
+            msg = getattr(bq, "message", None)
+            if not msg and hasattr(bq, "fields") and bq.fields:
+                msg = getattr(bq.fields[0], "label", None)
+            if not msg:
+                msg = "Veuillez entrer le code de sécurité reçu par SMS ou Email."
             event_callback("2fa_required", {
                 "type": "otp_code",
                 "message": msg
@@ -493,10 +525,17 @@ class BankSyncService:
             if not otp_val:
                 raise Exception("Aucun code fourni.")
             # Injecter le code dans la config du backend
-            if "code" in backend.config:
+            field_id = None
+            if hasattr(bq, "fields") and bq.fields:
+                field_id = getattr(bq.fields[0], "id", None)
+            if field_id and field_id in backend.config:
+                backend.config[field_id].set(otp_val)
+            elif "code" in backend.config:
                 backend.config["code"].set(otp_val)
             elif "otp" in backend.config:
                 backend.config["otp"].set(otp_val)
+            elif "email_code" in backend.config:
+                backend.config["email_code"].set(otp_val)
             return _do_fetch_accounts()
 
         except BrowserIncorrectPassword:
@@ -547,12 +586,21 @@ class BankSyncService:
         _apply_module_hotfixes(w, backend_name)
 
         clean_creds = {k: v for k, v in creds.items() if v is not None and v != ""}
+        if session_id:
+            clean_creds["request_information"] = {}
+
         backend = w.load_backend(
             backend_name,
             backend_instance_name,
             params=clean_creds,
             storage=None
         )
+
+        if session_id:
+            if "request_information" in backend.config:
+                backend.config["request_information"].set({})
+            if hasattr(backend, "browser"):
+                backend.browser.is_interactive = True
 
         if event_callback:
             event_callback("progress", {"step": "auth", "message": "Connexion sécurisée à la banque..."})
@@ -561,12 +609,20 @@ class BankSyncService:
         def _get_accounts_with_2fa():
             try:
                 return list(backend.iter_accounts())
-            except AppValidation as av:
+            except NeedInteractiveFor2FA:
                 if not session_id or not event_callback:
-                    raise Exception(f"Authentification mobile requise : {av}")
+                    raise Exception("Authentification interactive 2FA requise par votre banque.")
+                if "request_information" in backend.config:
+                    backend.config["request_information"].set({})
+                if hasattr(backend, "browser"):
+                    backend.browser.is_interactive = True
+                return _get_accounts_with_2fa()
+            except (AppValidation, DecoupledValidation) as av:
+                if not session_id or not event_callback:
+                    raise Exception(f"Authentification mobile requise sur votre application bancaire (SCA).")
                 event_callback("2fa_required", {
                     "type": "app_validation",
-                    "message": str(av) or "Veuillez valider la connexion sur votre application bancaire."
+                    "message": str(av) or getattr(av, "message", None) or "Veuillez valider la connexion sur votre application bancaire mobile."
                 })
                 q = _TWOFA_SESSIONS.get(session_id, {}).get("queue")
                 if not q:
@@ -574,13 +630,21 @@ class BankSyncService:
                 resp = q.get(timeout=120)
                 if resp.get("response_type") == "cancel":
                     raise Exception("Authentification annulée.")
+                if event_callback:
+                    event_callback("progress", {"step": "2fa_checking", "message": "Vérification de la confirmation mobile en cours..."})
+                if "resume" in backend.config:
+                    backend.config["resume"].set(True)
                 if hasattr(backend, "browser") and hasattr(backend.browser, "check_interactive"):
                     backend.browser.check_interactive()
-                return list(backend.iter_accounts())
-            except (BrowserQuestion, OTPQuestion, SentOTPQuestion, NeedInteractiveFor2FA) as bq:
+                return _get_accounts_with_2fa()
+            except (BrowserQuestion, OTPQuestion, SentOTPQuestion) as bq:
                 if not session_id or not event_callback:
-                    raise Exception(f"Code SMS/Email requis.")
-                msg = getattr(bq, "message", "Entrez le code de sécurité reçu.")
+                    raise Exception(f"Code SMS/Email requis par votre banque.")
+                msg = getattr(bq, "message", None)
+                if not msg and hasattr(bq, "fields") and bq.fields:
+                    msg = getattr(bq.fields[0], "label", None)
+                if not msg:
+                    msg = "Entrez le code de sécurité reçu."
                 event_callback("2fa_required", {
                     "type": "otp_code",
                     "message": msg
@@ -592,11 +656,20 @@ class BankSyncService:
                 if resp.get("response_type") == "cancel":
                     raise Exception("Authentification annulée.")
                 otp_val = resp.get("value", "").strip()
-                if "code" in backend.config:
+                if not otp_val:
+                    raise Exception("Aucun code fourni.")
+                field_id = None
+                if hasattr(bq, "fields") and bq.fields:
+                    field_id = getattr(bq.fields[0], "id", None)
+                if field_id and field_id in backend.config:
+                    backend.config[field_id].set(otp_val)
+                elif "code" in backend.config:
                     backend.config["code"].set(otp_val)
                 elif "otp" in backend.config:
                     backend.config["otp"].set(otp_val)
-                return list(backend.iter_accounts())
+                elif "email_code" in backend.config:
+                    backend.config["email_code"].set(otp_val)
+                return _get_accounts_with_2fa()
 
         raw_accounts = _get_accounts_with_2fa()
         cutoff_date = date.today() - timedelta(days=since_days)

@@ -346,7 +346,7 @@ Object.assign(window.BankSyncView, {
                 }
             });
             Object.keys(sessionStorage).forEach(k => {
-                if (k.startsWith('omnibank_sync_preview_')) {
+                if (k.startsWith('omnibank_sync_') || k.includes('_sync_preview_') || k.includes('_sync_rejected_') || k.includes('_sync_forced_')) {
                     sessionStorage.removeItem(k);
                 }
             });
