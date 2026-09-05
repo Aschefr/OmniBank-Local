@@ -235,8 +235,8 @@ window.AllOperationsView = {
             recurrence: '95px',
             slip: '85px',
             attachments: '60px',
-            createdBy: '100px',
-            modifiedBy: '100px',
+            createdBy: '105px',
+            modifiedBy: '115px',
             actions: '180px'
         };
         

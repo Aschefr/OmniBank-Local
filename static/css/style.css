@@ -884,11 +884,11 @@ h3 {
 
 .data-table th {
     background: var(--bg-surface);
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: 14.5px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.2px;
     position: sticky;
     top: var(--sticky-top, 0px);
     z-index: 2;
@@ -2622,8 +2622,10 @@ body.compact-mode .data-table td {
 }
 
 body.compact-mode .data-table thead th {
-    padding: 4px 8px !important;
-    font-size: 10px !important;
+    padding: 6px 10px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
 }
 
 body.compact-mode #recurrencesTableContainer .data-table th,
@@ -10054,10 +10056,10 @@ body.theme-titanium-dark .data-table thead th,
 body.theme-titanium-light .data-table thead th {
     background: var(--bg-surface);
     border-bottom: 1px solid var(--border-color);
-    font-size: 11px;
+    font-size: 14.5px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.2px;
     color: var(--text-muted);
     padding: 8px 10px;
     z-index: 10;
@@ -11145,9 +11147,9 @@ body.theme-titanium-light .years-popover::before {
 /* ── 7.4 Tableaux de Données Système & Lignes de Données ── */
 body.theme-titanium-dark .data-table thead th,
 body.theme-titanium-light .data-table thead th {
-    font-size: 10.5px !important;
+    font-size: 14.5px !important;
     font-weight: 700 !important;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.2px;
     text-transform: uppercase;
     padding: 8px 10px !important;
     border-bottom: 1px solid var(--border-color) !important;
@@ -11569,8 +11571,10 @@ body.theme-titanium-light #compactToggle.toggle-active {
 /* Dashboard & Historique tables (mode compact standard) */
 body.theme-titanium-dark.compact-mode .data-table thead th,
 body.theme-titanium-light.compact-mode .data-table thead th {
-    padding: 4px 8px !important;
-    font-size: 10px !important;
+    padding: 6px 10px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
 }
 
 body.theme-titanium-dark.compact-mode .data-table tbody td,
@@ -11584,7 +11588,7 @@ body.theme-titanium-light.compact-mode .data-table tbody td {
 body.theme-titanium-dark.compact-mode .overview-ops-table thead th,
 body.theme-titanium-light.compact-mode .overview-ops-table thead th {
     padding: 6px 12px !important;
-    font-size: 10.5px !important;
+    font-size: 11.5px !important;
 }
 
 body.theme-titanium-dark.compact-mode .overview-ops-table td,
@@ -12075,15 +12079,15 @@ body.theme-titanium-light .history-table-card::before {
 body.theme-titanium-dark .history-table-card .data-table th {
     background: #1e232b !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
-    font-size: 11px !important;
-    letter-spacing: 0.5px;
+    font-size: 14.5px !important;
+    letter-spacing: 0.2px;
     text-transform: uppercase;
 }
 body.theme-titanium-light .history-table-card .data-table th {
     background: #ede9e0 !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.10) !important;
-    font-size: 11px !important;
-    letter-spacing: 0.5px;
+    font-size: 14.5px !important;
+    letter-spacing: 0.2px;
     text-transform: uppercase;
 }
 
@@ -12485,9 +12489,9 @@ body.theme-titanium-light .config-tab-btn.active {
 .table-compact .data-table th,
 body.theme-titanium-dark .data-table th,
 body.theme-titanium-light .data-table th {
-    font-size: 11.5px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.4px !important;
+    font-size: 14.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
     text-transform: uppercase !important;
 }
 
