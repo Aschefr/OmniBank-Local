@@ -2353,5 +2353,6 @@
   "wizard_users_desc": "Add your organization's members. A default 'Treasurer' user is created automatically.",
   "wizard_users_title": "Define users",
   "wizard_welcome_desc": "Your personal finance app, 100% local and private. Let's set up your space in a few steps.",
-  "wizard_welcome_title": "Welcome to OmniBank!"
+  "wizard_welcome_title": "Welcome to OmniBank!",
+  "bank_sync_2fa_auto_detect": "Automatic detection in progress..."
 }

@@ -466,6 +466,11 @@ window.BankSyncView = {
                     ${window.i18n.t('bank_sync_2fa_default_msg')}
                 </p>
 
+                <div id="twoFAAutoDetectBanner" style="display: none; align-items: center; justify-content: center; gap: 8px; margin-bottom: 20px; padding: 10px 14px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; font-size: 12.5px; color: var(--accent); font-weight: 600;">
+                    <span class="spinner-small" style="width: 14px; height: 14px; border: 2px solid var(--accent); border-top-color: transparent; border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite;"></span>
+                    <span id="twoFAAutoDetectText" data-i18n="bank_sync_2fa_auto_detect">${window.i18n.t('bank_sync_2fa_auto_detect')}</span>
+                </div>
+
                 <div id="twoFAOtpInputContainer" style="display: none; margin-bottom: 20px;">
                     <input type="text" id="twoFAOtpInput" class="input-styled" style="width: 100%; font-size: 20px; letter-spacing: 6px; text-align: center; padding: 12px;" placeholder="123456" />
                 </div>
