@@ -12,9 +12,10 @@ All notable changes to this project will be documented in this file.
 - **Pending Bank Sync Dock & Mobile Review Badge 📌**: Pinned amber operations banner on desktop, replaced on mobile by an on-demand review badge with focused action items.
 - **Bank Sync Action Tooltips ⚡**: Added rich hover preview tooltips to the pending bank sync buttons ("Reconcile confirmed operations" and "Validate new operations") on both Overview and Dashboard, displaying the detailed list of affected operations (date, account, description, formatted amount).
 - **Actionable Bank Sync Guidance 🏦**: Added clear, plain-language guidance when manual user approval or terms validation is required on the bank's portal.
-- **Mobile App 2FA Confirmation (Crédit Mutuel) 📱**: Added seamless push notification support for banks using mobile app validation instead of SMS codes.
+- **Automatic Mobile 2FA Detection (Crédit Mutuel & SCA Banks) 📱**: Bank synchronization now automatically detects smartphone approval in real time, advancing the screen seamlessly without requiring a manual confirmation click on the PC.
 
 ### Fixed
+- **Startup Splash Screen Logo 🖼️**: Embedded the application logo into the desktop startup loader (`loading.html`), fixing the missing image placeholder icon during backend initialization.
 - **Master Profile Accent Color in Executive Themes 🎨**: Restored propagation of the active master profile's accent color across primary buttons, card headers, and accents in Titanium Dark and Albâtre Light themes.
 - **Master Profile Bank Sync Isolation 🔒**: Strictly isolated bank statement previews and pending review caches between master profiles, preventing any transaction leakage when switching between personal and shared profiles.
 - **Bank Sync Finalization ⏱️**: Fixed a timestamp recording error that prevented connection cards from showing their successful sync status and last sync date.
