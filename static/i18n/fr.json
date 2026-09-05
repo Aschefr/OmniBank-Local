@@ -2353,5 +2353,6 @@
   "wizard_users_desc": "Ajoutez les membres de votre organisation. Un utilisateur par défaut « Trésorier » est créé automatiquement.",
   "wizard_users_title": "Définir les utilisateurs",
   "wizard_welcome_desc": "Votre application de finances personnelles, 100% locale et confidentielle. Configurons ensemble votre espace en quelques etapes.",
-  "wizard_welcome_title": "Bienvenue sur OmniBank !"
+  "wizard_welcome_title": "Bienvenue sur OmniBank !",
+  "bank_sync_2fa_auto_detect": "Détection automatique en cours..."
 }

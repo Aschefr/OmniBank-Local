@@ -2657,6 +2657,78 @@ def test_bank_sync_2fa_app_validation_flow():
         unregister_2fa_session(session_id)
 
 
+def test_bank_sync_2fa_app_validation_auto_detect():
+    """Vérifie que la validation mobile passe automatiquement sans aucun clic manuel dans OmniBank."""
+    from unittest.mock import MagicMock
+    from woob.exceptions import AppValidation
+    from woob.tools.value import Value
+    from app.services.bank_sync_service import (
+        BankSyncService,
+        register_2fa_session,
+        unregister_2fa_session,
+    )
+    import app.services.bank_sync_service as bss
+
+    session_id = "test_sess_auto_detect"
+    register_2fa_session(session_id)
+    events = []
+
+    class FakeAccount:
+        id = "acc_auto_detect"
+        label = "Compte Crédit Mutuel Auto"
+        type = 1
+        balance = 1234.56
+        currency = "EUR"
+        iban = "FR7610278060000123456789012"
+
+    call_count = 0
+
+    def mock_iter_accounts():
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # La banque demande la confirmation sur le smartphone
+            raise AppValidation("Veuillez confirmer sur votre application mobile bancaire.")
+        # Dès le 2e appel (après auto-resume), la confirmation mobile a été validée côté banque
+        return [FakeAccount()]
+
+    mock_backend = MagicMock()
+    mock_backend.config = {
+        "request_information": Value("request_information", default=None),
+        "resume": Value("resume", default=None)
+    }
+    mock_backend.browser = MagicMock()
+    mock_backend.browser.is_interactive = True
+    mock_backend.iter_accounts = mock_iter_accounts
+
+    orig_get_woob = bss.get_woob
+    mock_woob = MagicMock()
+    mock_woob.load_backend.return_value = mock_backend
+    bss.get_woob = lambda: mock_woob
+
+    # NOTE : Aucun thread delayed_user_response() ni deliver_2fa_response() n'est appelé !
+    # Tout doit se débloquer et réussir automatiquement grâce à l'auto-polling.
+    try:
+        accs = BankSyncService.test_connection_and_list_accounts(
+            backend_name="creditmutuel",
+            credentials={"login": "user", "password": "pw"},
+            session_id=session_id,
+            event_callback=lambda evt, data: events.append((evt, data))
+        )
+        assert len(accs) == 1
+        assert accs[0].id == "acc_auto_detect"
+        assert call_count == 2
+        assert mock_backend.config["resume"].get() is True
+        event_types = [e[0] for e in events]
+        assert "2fa_required" in event_types
+        # Vérifier que le payload 2fa_required contient bien auto_poll: True
+        required_evt = next(e[1] for e in events if e[0] == "2fa_required")
+        assert required_evt.get("auto_poll") is True
+    finally:
+        bss.get_woob = orig_get_woob
+        unregister_2fa_session(session_id)
+
+
 def test_bank_sync_2fa_browser_question_flow():
     import threading, time
     from unittest.mock import MagicMock

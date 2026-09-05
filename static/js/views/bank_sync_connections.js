@@ -595,6 +595,8 @@ Object.assign(window.BankSyncView, {
                 const d = JSON.parse(e.data);
                 es.close();
                 this.mappingEventSource = null;
+                const twoFAModal = document.getElementById('twoFAModal');
+                if (twoFAModal) twoFAModal.style.display = 'none';
                 this.currentConnection = conn;
                 this.currentRemoteAccounts = d.accounts || [];
                 this.saveCachedRemoteAccounts(conn, this.currentRemoteAccounts);
@@ -607,6 +609,8 @@ Object.assign(window.BankSyncView, {
 
         es.addEventListener('error', (e) => {
             let errorMsg = 'Erreur lors de la communication avec la banque.';
+            const twoFAModal = document.getElementById('twoFAModal');
+            if (twoFAModal) twoFAModal.style.display = 'none';
             try {
                 if (e.data) {
                     const d = JSON.parse(e.data);

@@ -318,6 +318,8 @@ Object.assign(window.BankSyncView, {
             es.close();
             this.eventSource = null;
             this.refreshActiveViews();
+            const twoFAModal = document.getElementById('twoFAModal');
+            if (twoFAModal) twoFAModal.style.display = 'none';
             setTimeout(() => {
                 progressModal.style.display = 'none';
                 this.openReviewModal(connId, previewData);
@@ -330,6 +332,8 @@ Object.assign(window.BankSyncView, {
             progressBar.style.width = '100%';
             es.close();
             this.eventSource = null;
+            const twoFAModal = document.getElementById('twoFAModal');
+            if (twoFAModal) twoFAModal.style.display = 'none';
             setTimeout(() => {
                 progressModal.style.display = 'none';
                 if (data.accounts) {
@@ -353,6 +357,8 @@ Object.assign(window.BankSyncView, {
             es.close();
             this.eventSource = null;
             progressModal.style.display = 'none';
+            const twoFAModal = document.getElementById('twoFAModal');
+            if (twoFAModal) twoFAModal.style.display = 'none';
             this.showToast('Échec de la synchronisation : ' + msg, 'error');
             this.loadConnections();
         });
@@ -364,6 +370,7 @@ Object.assign(window.BankSyncView, {
         const icon = document.getElementById('twoFAIcon');
         const title = document.getElementById('twoFATitle');
         const msg = document.getElementById('twoFAMessage');
+        const autoBanner = document.getElementById('twoFAAutoDetectBanner');
         const otpContainer = document.getElementById('twoFAOtpInputContainer');
         const confirmBtn = document.getElementById('twoFAConfirmBtn');
 
@@ -373,14 +380,18 @@ Object.assign(window.BankSyncView, {
         if (type === 'app_validation') {
             icon.innerText = '📱';
             title.innerText = window.i18n.t('bank_sync_2fa_app_title');
+            if (autoBanner) autoBanner.style.display = 'flex';
             otpContainer.style.display = 'none';
             confirmBtn.innerText = window.i18n.t('bank_sync_2fa_app_confirm_btn');
+            confirmBtn.disabled = false;
         } else {
             icon.innerText = '🔑';
             title.innerText = window.i18n.t('bank_sync_2fa_otp_title');
+            if (autoBanner) autoBanner.style.display = 'none';
             otpContainer.style.display = 'block';
             document.getElementById('twoFAOtpInput').value = '';
             confirmBtn.innerText = window.i18n.t('bank_sync_2fa_send_btn');
+            confirmBtn.disabled = false;
         }
     },
 
@@ -390,6 +401,12 @@ Object.assign(window.BankSyncView, {
         const otpInput = document.getElementById('twoFAOtpInput');
         const isOtp = document.getElementById('twoFAOtpInputContainer').style.display !== 'none';
         const value = isOtp ? otpInput.value.trim() : null;
+        const confirmBtn = document.getElementById('twoFAConfirmBtn');
+
+        if (!isOtp && confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = `<span class="spinner-small" style="width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle;"></span> Vérification...`;
+        }
 
         try {
             await API.post('/api/bank-sync/2fa/respond', {
@@ -397,8 +414,11 @@ Object.assign(window.BankSyncView, {
                 response_type: isOtp ? 'otp_code' : 'app_validated',
                 value: value
             });
-            document.getElementById('twoFAModal').style.display = 'none';
+            if (isOtp) {
+                document.getElementById('twoFAModal').style.display = 'none';
+            }
         } catch (err) {
+            if (confirmBtn) confirmBtn.disabled = false;
             this.showToast('Erreur validation 2FA : ' + (err.detail || err.message), 'error');
         }
     },
