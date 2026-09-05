@@ -13,7 +13,7 @@ window.TimelineView = {
 
         return `
             <style id="timelineColsStyle"></style>
-            <div id="timelineColsModal" class="modal-overlay" style="display: none; z-index: 100;">
+            <div id="timelineColsModal" class="modal-overlay" style="display: none; z-index: 10000;" onclick="if(event.target===this) this.style.display='none'">
                 <div class="modal" style="max-width: 380px; min-width: auto; padding: 25px;">
                     <h3 style="margin-top:0; margin-bottom: 20px; display:flex; align-items:center; gap:8px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">${window.i18n.t('btn_columns')} </h3>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 25px;">
@@ -300,7 +300,7 @@ window.TimelineView = {
         const nextDisabled = !hasNext ? 'opacity: 0.3; cursor: not-allowed;' : 'cursor: pointer;';
         
         const navArrowsHtml = `
-            <div style="display: flex; gap: 4px; align-items: center; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 8px; margin-right: 8px;">
+            <div class="paycheck-nav-arrows" style="display: flex; gap: 4px; align-items: center; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 8px;">
                 <button class="btn btn-sm" style="padding: 2px 8px; border: none; background: transparent; color: var(--text-main); ${prevDisabled}" onclick="if(${hasPrev}) window.TimelineView.navigatePeriod('prev')" title="${window.i18n.t('tooltip_prev_period')}">◀</button>
                 <button class="btn btn-sm" style="padding: 2px 8px; border: none; background: transparent; color: var(--text-main); font-size: 11px; font-weight: 600;" onclick="window.TimelineView.navigatePeriod('current')" title="${window.i18n.t('btn_current_period')}">📅</button>
                 <button class="btn btn-sm" style="padding: 2px 8px; border: none; background: transparent; color: var(--text-main); ${nextDisabled}" onclick="if(${hasNext}) window.TimelineView.navigatePeriod('next')" title="${window.i18n.t('tooltip_next_period')}">▶</button>
@@ -315,18 +315,20 @@ window.TimelineView = {
         container.style.marginTop = '15px';
 
         container.innerHTML = `
-            <div style="${statusClass} padding: 8px 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: all 0.3s ease; flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
-                    <div style="font-size: 20px; background: rgba(255,255,255,0.08); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; box-shadow: inset 0 0 6px rgba(0,0,0,0.05);">📅</div>
-                    <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; flex: 1;">
-                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; opacity: 0.85; white-space: nowrap;">${statusTitle}</span>
-                        <span id="paycheckWidgetDesc" style="font-size: 13px; color: var(--text-main); font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; flex: 1; min-width: 100px;">${statusDesc}</span>
+            <div class="paycheck-widget-inner" style="${statusClass} padding: 8px 16px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: all 0.3s ease;">
+                <div class="paycheck-widget-top">
+                    <div class="paycheck-widget-info">
+                        <div class="paycheck-widget-icon">📅</div>
+                        <div class="paycheck-widget-text">
+                            <span class="paycheck-widget-title">${statusTitle}</span>
+                            <span id="paycheckWidgetDesc" class="paycheck-widget-desc">${statusDesc}</span>
+                        </div>
+                    </div>
+                    <div class="paycheck-widget-nav">
+                        ${navArrowsHtml}
                     </div>
                 </div>
-                <div style="flex-shrink: 0; display: flex; align-items: center;">
-                    ${navArrowsHtml}
-                    ${actionBtnHtml}
-                </div>
+                ${actionBtnHtml ? `<div class="paycheck-widget-actions">${actionBtnHtml}</div>` : ''}
             </div>
         `;
     },
@@ -406,11 +408,11 @@ window.TimelineView = {
             dateSaisie: 1.0,
             date: 1.0,
             desc: 2.2,
-            type: 1.4,
-            cat: 1.6,
+            type: 1.3,
+            cat: 1.5,
             amount: 1.1,
-            recon: 1.3,
-            budget: 1.2,
+            recon: 1.6,
+            budget: 1.4,
             depuis: 1.3,
             vers: 1.3,
             recurrence: 1.0,
@@ -422,42 +424,59 @@ window.TimelineView = {
         };
 
         const colMinWidths = {
-            dateSaisie: '90px',
-            date: '85px',
-            desc: '140px',
-            type: '115px',
-            cat: '120px',
-            amount: '90px',
-            recon: '110px',
-            budget: '110px',
-            depuis: '110px',
-            vers: '110px',
+            dateSaisie: '95px',
+            date: '95px',
+            desc: '160px',
+            type: '110px',
+            cat: '125px',
+            amount: '100px',
+            recon: '135px',
+            budget: '125px',
+            depuis: '120px',
+            vers: '120px',
             recurrence: '95px',
-            slip: '80px',
+            slip: '85px',
             attachments: '60px',
-            createdBy: '90px',
-            modifiedBy: '90px',
+            createdBy: '100px',
+            modifiedBy: '100px',
             actions: '180px'
         };
         
-        // Calculate total weight of visible columns + actions
-        let totalWeight = colWeights.actions || 1.1;
-        Object.keys(cols).forEach(k => { if (cols[k]) totalWeight += (colWeights[k] || 1); });
+        // Calculate total weight and total minimum pixel width of visible columns + actions
+        let totalWeight = colWeights.actions || 1.8;
+        let totalMinPx = parseInt(colMinWidths.actions, 10) || 180;
+        Object.keys(cols).forEach(k => {
+            if (cols[k]) {
+                totalWeight += (colWeights[k] || 1);
+                totalMinPx += (parseInt(colMinWidths[k], 10) || 100);
+            }
+        });
         
-        // Build CSS: hide invisible cols + set dynamic proportional widths and min-widths on visible ones
-        let css = '';
+        // Build CSS: set table min-width for desktop + hide invisible cols + set dynamic proportional widths and min-widths on visible ones
+        let css = `@media (min-width: 1025px) {\n`;
+        css += `  .timeline-table { min-width: ${totalMinPx}px; }\n`;
         Object.keys(cols).forEach(k => {
             if (!cols[k]) {
-                css += `.timeline-table .col-${k} { display: none !important; }\n`;
+                css += `  .timeline-table .col-${k} { display: none !important; }\n`;
             } else {
                 const pct = ((colWeights[k] || 1) / totalWeight * 100).toFixed(1);
                 const minW = colMinWidths[k] ? `min-width: ${colMinWidths[k]};` : '';
-                css += `.timeline-table .col-${k} { width: ${pct}%; ${minW} }\n`;
+                css += `  .timeline-table .col-${k} { width: ${pct}%; ${minW} }\n`;
             }
         });
         // Actions column dynamic allocation based on full 100% distribution
-        const actionsPct = ((colWeights.actions || 1.1) / totalWeight * 100).toFixed(1);
-        css += `.timeline-table .col-actions { width: ${actionsPct}%; min-width: ${colMinWidths.actions}; }\n`;
+        const actionsPct = ((colWeights.actions || 1.8) / totalWeight * 100).toFixed(1);
+        css += `  .timeline-table .col-actions { width: ${actionsPct}%; min-width: ${colMinWidths.actions}; }\n`;
+        css += `}\n`;
+        // Mobile card mode (<= 1024px): hide invisible cols, guarantee min-width: 0 and full width
+        css += `@media (max-width: 1024px) {\n`;
+        css += `  .mobile-card-table { min-width: 0 !important; width: 100% !important; max-width: 100% !important; }\n`;
+        Object.keys(cols).forEach(k => {
+            if (!cols[k]) {
+                css += `  .mobile-card-table .col-${k} { display: none !important; }\n`;
+            }
+        });
+        css += `}\n`;
         
         const styleTag = document.getElementById('timelineColsStyle');
         if (styleTag) styleTag.innerHTML = css;
@@ -465,14 +484,16 @@ window.TimelineView = {
 
     async loadData() {
         try {
-            // PERF: Fetch transactions, budgets, dashboard stats, and pending bank sync in parallel
+            // PERF: Fetch transactions, budgets, and dashboard stats in parallel
+            // Pending bank sync is kicked off concurrently without blocking the main table render
+            const pendingSyncPromise = (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') 
+                ? window.BankSyncView.loadPendingSync().catch(e => { console.warn('Failed to load pending bank sync', e); return null; })
+                : Promise.resolve(null);
+
             const [allTransactions, budgets, stats] = await Promise.all([
                 API.get('/api/transactions/?limit=10000'),
                 API.get('/api/budgets/').catch(e => { console.error('Failed to load budgets', e); return []; }),
-                API.get('/api/stats/dashboard').catch(e => { console.error('Failed to load paycheck stats', e); return null; }),
-                (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') 
-                    ? window.BankSyncView.loadPendingSync().catch(e => { console.warn('Failed to load pending bank sync', e); return null; })
-                    : Promise.resolve(null)
+                API.get('/api/stats/dashboard').catch(e => { console.error('Failed to load paycheck stats', e); return null; })
             ]);
             
             // Keep all transactions, filtering will be done in renderTable
@@ -513,6 +534,14 @@ window.TimelineView = {
             if (stats) this.renderPaycheckWidget(stats);
 
             this.renderTable();
+
+            // When pending bank sync completes in background, refresh the ghost box and mobile pending badge
+            pendingSyncPromise.then(() => {
+                const ghostContainer = document.getElementById('timelineGhostBox');
+                if (ghostContainer && window.BankSyncView && typeof window.BankSyncView.renderGhostBox === 'function') {
+                    window.BankSyncView.renderGhostBox(ghostContainer);
+                }
+            });
 
             if (this._pendingHighlightTxId) {
                 const txId = this._pendingHighlightTxId;
@@ -816,7 +845,7 @@ window.TimelineView = {
                 <td class="col-date" data-label="${window.i18n.t('dl_date_op')}">${renderDateWithStatus(tx)}</td>
                 <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${(tx.description || '').replace(/"/g, '&quot;')}"><span class="desc-text">${tx.description}</span></td>
                 <td class="col-type" data-label="${window.i18n.t('dl_type')}" title="${window.app.getTypeLabel(tx.type) || '-'}">${window.app.getTypeLabel(tx.type) || '-'}</td>
-                <td class="col-cat" data-label="${window.i18n.t('dl_category')}" style="white-space: nowrap;" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span style="background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${tx.category || '-'}</span></td>
+                <td class="col-cat" data-label="${window.i18n.t('dl_category')}" style="white-space: nowrap;" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span class="cat-badge">${tx.category || '-'}</span></td>
                 <td class="col-amount" data-label="${window.i18n.t('dl_amount')}">
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>
                     ${origSubtext}
@@ -824,7 +853,7 @@ window.TimelineView = {
                 <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}" style="text-align: center;">
                     ${reconcileHTML}
                 </td>
-                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && window.TimelineView.budgetsMap[tx.budget_id]) ? window.TimelineView.budgetsMap[tx.budget_id] : (tx.category && window.TimelineView.categoryToBudgetMap && window.TimelineView.categoryToBudgetMap[tx.category]) ? window.TimelineView.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="if(window.BudgetsView) window.BudgetsView.backToView='timeline'; window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
+                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && window.TimelineView.budgetsMap[tx.budget_id]) ? window.TimelineView.budgetsMap[tx.budget_id] : (tx.category && window.TimelineView.categoryToBudgetMap && window.TimelineView.categoryToBudgetMap[tx.category]) ? window.TimelineView.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="if(window.BudgetsView) window.BudgetsView.backToView='timeline'; window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" class="budget-badge" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
                 <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuisTitle}">${depuis}</td>
                 <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${vers}</td>
                 <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}" title="${recText}">${recText}</td>

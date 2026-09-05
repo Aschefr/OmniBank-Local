@@ -930,7 +930,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     position: fixed;
                     inset: 0;
                     background: rgba(0, 0, 0, 0.6);
-                    z-index: 1000;
+                    z-index: 10000;
                     align-items: center;
                     justify-content: center;
                     backdrop-filter: blur(4px);
@@ -1247,7 +1247,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 </div>
 
                 <!-- Context Re-generation Modal -->
-                <div id="contextRegenerateModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:2000; align-items:center; justify-content:center; backdrop-filter:blur(4px); animation:fadeIn 0.2s ease;" onclick="if(event.target===this) window.ChatView.closeRegenerateModal()">
+                <div id="contextRegenerateModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; align-items:center; justify-content:center; backdrop-filter:blur(4px); animation:fadeIn 0.2s ease;" onclick="if(event.target===this) window.ChatView.closeRegenerateModal()">
                     <div style="background:var(--bg-sidebar); border:1px solid var(--border-color); border-radius:12px; width:95%; max-width:500px; padding:24px; box-shadow:0 20px 50px rgba(0,0,0,0.5); animation:scaleIn 0.25s cubic-bezier(0.34,1.56,0.64,1);">
                         <h3 style="margin:0 0 8px 0; font-size:16px; display:flex; align-items:center; gap:8px;">🔄 <span id="contextRegenerateTitle"></span></h3>
                         <p style="margin:0 0 16px 0; font-size:13px; color:var(--text-muted);">Le résumé actuel sera remplacé par le nouveau résumé généré.</p>

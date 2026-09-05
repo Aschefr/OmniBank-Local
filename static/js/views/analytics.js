@@ -47,7 +47,7 @@ window.AnalyticsView = {
 
                     <div style="position:relative; display:inline-block;">
                         <button id="analyticsYearsBtn" class="btn btn-secondary toolbar-btn" onclick="window.AnalyticsView.toggleYearsPopover(event)" data-i18n="analytics_btn_years">⚙️ Années</button>
-                        <div id="analyticsYearsPopover" class="years-popover print-hide" style="display:none; position:absolute; right:0; top:calc(100% + 5px); background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; box-shadow:var(--shadow-md); padding:12px; min-width:180px; z-index:100; flex-direction:column; gap:8px; backdrop-filter:blur(12px);"></div>
+                        <div id="analyticsYearsPopover" class="years-popover print-hide" style="display:none; position:absolute; right:0; top:calc(100% + 5px); background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; box-shadow:var(--shadow-md); padding:12px; min-width:180px; z-index:2500; flex-direction:column; gap:8px; backdrop-filter:blur(12px);"></div>
                     </div>
 
                     <button class="btn btn-secondary toolbar-btn" onclick="window.AnalyticsView.showExportModal()" data-i18n-title="tooltip_export_pdf" title="Générer un PDF du rapport" data-i18n="btn_export_pdf">📥 Exporter en PDF</button>
@@ -1006,7 +1006,7 @@ window.AnalyticsView = {
         }).join('');
 
         const modalHtml = `
-        <div id="exportPdfModal" class="modal-overlay" style="display:flex;z-index:9999;">
+        <div id="exportPdfModal" class="modal-overlay" style="display:flex;z-index:10000;" onclick="if(event.target===this) this.remove()">
             <div class="modal" style="width: min(750px, calc(100vw - 24px)); max-width:92vw; max-height:92vh; display:flex; flex-direction:column;">
                 <h3 style="margin-bottom: 14px;">${window.i18n.t('export_modal_title')}</h3>
                 <div style="flex:1; overflow-y:auto; padding-right:8px;">

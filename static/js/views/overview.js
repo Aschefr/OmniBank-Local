@@ -1156,7 +1156,7 @@ window.OverviewView = {
                     <td class="ov-td-action" style="text-align: right; white-space: nowrap;">
                         <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
                             ${reconBtnHtml}
-                            <button class="btn btn-secondary btn-sm ov-action-menu-trigger" style="padding: 4px 8px; font-size: 14px; font-weight: 700; line-height: 1; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; height: 28px; width: 28px;" onclick="event.stopPropagation(); window.OverviewView.toggleActionMenu(${tx.id}, event)" title="${window.i18n.t('th_actions') || 'Actions'}">
+                            <button class="btn btn-secondary btn-sm ov-action-menu-trigger" onclick="event.stopPropagation(); window.OverviewView.toggleActionMenu(${tx.id}, event)" title="${window.i18n.t('th_actions') || 'Actions'}">
                                 ⋮
                             </button>
                         </div>

@@ -304,9 +304,15 @@ def get_pending_sync_summary(db: Session = Depends(get_db)):
     """Retourne toutes les opérations en attente (rapprochements détectés + nouvelles opérations enrichies par Smart Label)."""
     from app.services.bank_sync_scheduler import get_all_pending_sync
     from app.services.smart_label_service import resolve_smart_labels_batch
+    from app.services import stats_cache
+    active_pid = get_active_profile().get("id", "default")
+    cached_result = stats_cache.get(active_pid, "bank_pending_sync_summary")
+    if cached_result is not None:
+        return cached_result
 
-    pending = get_all_pending_sync(db)
+    pending = get_all_pending_sync(db, profile_id=active_pid)
     if not pending or "accounts" not in pending:
+        stats_cache.set(active_pid, "bank_pending_sync_summary", pending)
         return pending
 
     # Collecter tous les libellés bruts des transactions non rapprochées
@@ -334,6 +340,7 @@ def get_pending_sync_summary(db: Session = Depends(get_db)):
                             if not tx.get("category") and res.get("category"):
                                 tx["category"] = res["category"]
 
+    stats_cache.set(active_pid, "bank_pending_sync_summary", pending)
     return pending
 
 
