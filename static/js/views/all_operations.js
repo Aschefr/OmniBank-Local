@@ -459,7 +459,7 @@ window.AllOperationsView = {
             console.error("Failed to load operations", e);
             const tbody = document.getElementById('historyBody');
             if (tbody) {
-                const msg = (window.i18n && window.i18n.t('msg_save_error')) || 'Erreur de chargement';
+                const msg = (window.i18n && (window.i18n.t('error_loading') || window.i18n.t('msg_error_generic'))) || 'Erreur de chargement';
                 tbody.innerHTML = `<tr><td class="row-marker"></td><td colspan="15" style="text-align:center; padding: 25px; color: var(--text-muted); font-style: italic;">⚠️ ${msg}</td></tr>`;
             }
         }

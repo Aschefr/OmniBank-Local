@@ -3,8 +3,15 @@
 
 Object.assign(window.BankSyncView, {
 
-    async openReviewModal(connId, previewData) {
+    async openReviewModal(connId, previewData, targetAccountId = null) {
         this.ensureModalsExist();
+        if (!previewData) {
+            if (this.previewData && this.previewData.accounts && this.previewData.accounts.length > 0) {
+                previewData = this.previewData;
+            } else if (typeof this.openPendingReviewModal === 'function') {
+                return await this.openPendingReviewModal(null, targetAccountId);
+            }
+        }
         if (!window.app?.categoriesList || window.app.categoriesList.length === 0) {
             try {
                 window.app.categoriesList = await API.get('/api/categories/');
@@ -61,13 +68,19 @@ Object.assign(window.BankSyncView, {
         }
 
         this.previewData = previewData;
-        const firstPendingAccIdx = (previewData?.accounts || []).findIndex(acc => {
-            return (acc.transactions || []).some(tx => {
-                const isIgnored = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
-                return !isIgnored;
+        let selectedIdx = -1;
+        if (targetAccountId != null) {
+            selectedIdx = (previewData?.accounts || []).findIndex(acc => String(acc.account_id) === String(targetAccountId));
+        }
+        if (selectedIdx < 0) {
+            selectedIdx = (previewData?.accounts || []).findIndex(acc => {
+                return (acc.transactions || []).some(tx => {
+                    const isIgnored = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+                    return !isIgnored;
+                });
             });
-        });
-        this.currentAccountIndex = firstPendingAccIdx >= 0 ? firstPendingAccIdx : 0;
+        }
+        this.currentAccountIndex = selectedIdx >= 0 ? selectedIdx : 0;
         this.currentFilter = 'pending';
         this.showMatchScores = localStorage.getItem('omnibank_review_show_scores') === 'true';
 

@@ -41,6 +41,11 @@ async def lifespan(app: FastAPI):
     start_scheduler()
     from app.services.bank_sync_scheduler import start_bank_sync_scheduler
     start_bank_sync_scheduler()
+    try:
+        from app.services.bank_sync_service import init_known_bank_hotfixes
+        init_known_bank_hotfixes()
+    except Exception as e:
+        logger.debug(f"[Startup] Initialisation des correctifs bancaires notice: {e}")
     
     # Start UDP local discovery beacon
     try:

@@ -2394,5 +2394,6 @@
     "wizard_ai_install_hint": "Download and run Ollama from ollama.com, then run `ollama run gemma2` in a terminal.",
     "wizard_ai_reports_enable": "Enable proactive AI financial checkup reports",
     "wizard_btn_demo": "🧪 Explore with sample demo data",
-    "wizard_toast_demo_success": "Demo dataset loaded successfully!"
+    "wizard_toast_demo_success": "Demo dataset loaded successfully!",
+    "bank_sync_balance_explained_coming": "Explained by pending operations"
 }

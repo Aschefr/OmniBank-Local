@@ -397,6 +397,90 @@ Object.assign(window.BankSyncView, {
         `;
     },
 
+    computeAccountBalanceSyncStatus(acc, ghosts = []) {
+        const bankBal = (typeof acc.bank_balance === 'number') ? acc.bank_balance : null;
+        const localBal = (typeof acc.local_reconciled_balance === 'number') ? acc.local_reconciled_balance : null;
+        if (bankBal === null || localBal === null) {
+            return { hasBalances: false };
+        }
+
+        const delta = Math.round((bankBal - localBal) * 100) / 100;
+        if (Math.abs(delta) < 0.005) {
+            return {
+                hasBalances: true,
+                delta: 0,
+                isSynced: true,
+                isResolvedBySync: false,
+                isExplainedByComing: false,
+                bankBal,
+                localBal
+            };
+        }
+
+        const accGhosts = (ghosts || []).filter(g => String(g.account_id) === String(acc.account_id));
+        const allTxs = (acc.transactions && acc.transactions.length > 0)
+            ? acc.transactions
+            : accGhosts;
+
+        let netSyncImpact = 0.0;
+        let hasResolvingTx = false;
+        let accComingCount = 0;
+        let accComingAmount = 0.0;
+
+        allTxs.forEach(tx => {
+            const isIgnored = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled);
+            if (!isIgnored) {
+                const rawAmt = typeof tx.raw_amount !== 'undefined' ? parseFloat(tx.raw_amount) : (parseFloat(tx.amount) || 0);
+                if (tx.is_coming) {
+                    accComingCount++;
+                    accComingAmount += rawAmt;
+                } else {
+                    netSyncImpact += rawAmt;
+                }
+                if (tx._resolves_diff || Math.abs(rawAmt - delta) < 0.005) {
+                    hasResolvingTx = true;
+                    tx._resolves_diff = true;
+                }
+            }
+        });
+
+        // Si acc.transactions ne contenait pas certains fantômes présents dans ghosts, les incorporer
+        if (acc.transactions && acc.transactions.length > 0 && accGhosts.length > 0) {
+            const knownCsvIds = new Set(allTxs.map(t => t.csv_id).filter(Boolean));
+            accGhosts.forEach(g => {
+                if (g.csv_id && knownCsvIds.has(g.csv_id)) return;
+                const rawAmt = typeof g.raw_amount !== 'undefined' ? parseFloat(g.raw_amount) : (parseFloat(g.amount) || 0);
+                if (g.is_coming) {
+                    accComingCount++;
+                    accComingAmount += rawAmt;
+                } else {
+                    netSyncImpact += rawAmt;
+                }
+                if (g._resolves_diff || Math.abs(rawAmt - delta) < 0.005) {
+                    hasResolvingTx = true;
+                    g._resolves_diff = true;
+                }
+            });
+        }
+
+        netSyncImpact = Math.round(netSyncImpact * 100) / 100;
+        const isResolvedBySync = hasResolvingTx || Math.abs(netSyncImpact - delta) < 0.01;
+        const isExplainedByComing = !isResolvedBySync && accComingCount > 0 && Math.abs(Math.abs(accComingAmount) - Math.abs(delta)) < 0.01;
+
+        return {
+            hasBalances: true,
+            delta,
+            isSynced: false,
+            isResolvedBySync,
+            isExplainedByComing,
+            netSyncImpact,
+            accComingCount,
+            accComingAmount,
+            bankBal,
+            localBal
+        };
+    },
+
     _updateMobilePendingBadge(ghostCount, confirmedCount, hasDiscrepancy) {
         const btn = document.getElementById('btnMobilePendingSync');
         if (!btn) return;
@@ -466,7 +550,10 @@ Object.assign(window.BankSyncView, {
         const accsWithBalance = relevantAccounts.filter(a =>
             typeof a.bank_balance === 'number' && typeof a.local_reconciled_balance === 'number'
         );
-        const hasDiscrepancy = accsWithBalance.some(a => Math.abs(a.bank_balance - a.local_reconciled_balance) >= 0.005);
+        const hasDiscrepancy = accsWithBalance.some(a => {
+            const st = this.computeAccountBalanceSyncStatus(a, ghosts);
+            return st.hasBalances && !st.isSynced && !st.isResolvedBySync && !st.isExplainedByComing;
+        });
         const confirmedMatchCount = Object.values(this.pendingMatches || {}).filter(m => !m.is_coming).length;
 
         // Mise à jour du badge mobile d'en-tête (ouvre la revue détaillée sur demande)
@@ -494,29 +581,19 @@ Object.assign(window.BankSyncView, {
 
         const balanceBarsHtml = relevantAccounts.map(acc => {
             const accName = acc.account_name || acc.name || '';
-            const bankBal = (typeof acc.bank_balance === 'number') ? acc.bank_balance : null;
-            const localBal = (typeof acc.local_reconciled_balance === 'number') ? acc.local_reconciled_balance : null;
-            if (bankBal === null || localBal === null) return '';
-
-            const delta = Math.round((bankBal - localBal) * 100) / 100;
-            const accGhosts = ghosts.filter(g => String(g.account_id) === String(acc.account_id));
-            const netGhostSum = Math.round(accGhosts.reduce((sum, g) => sum + (typeof g.raw_amount !== 'undefined' ? parseFloat(g.raw_amount) : (parseFloat(g.amount) || 0)), 0) * 100) / 100;
-
-            // Détection du delta cible : surligner l'opération qui résout exactement l'écart
-            if (Math.abs(delta) >= 0.005) {
-                accGhosts.forEach(g => {
-                    const rawAmt = typeof g.raw_amount !== 'undefined' ? parseFloat(g.raw_amount) : (parseFloat(g.amount) || 0);
-                    if (Math.abs(rawAmt - delta) < 0.005) {
-                        g._resolves_diff = true;
-                    }
-                });
-            }
+            const status = this.computeAccountBalanceSyncStatus(acc, ghosts);
+            if (!status.hasBalances) return '';
+            const { bankBal, localBal, delta } = status;
 
             let statusBadge = '';
-            if (Math.abs(delta) < 0.005) {
+            if (status.isSynced) {
                 statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_synced') : 'Le solde de votre banque correspond au centime près à votre solde rapproché dans OmniBank.').replace(/"/g, '&quot;')}">✓ ${window.i18n ? window.i18n.t('bank_sync_balance_synced') : 'Soldes conformes'}</span>`;
-            } else if (accGhosts.length > 0 && Math.abs(delta - netGhostSum) < 0.005) {
-                statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box;">🔵 ${window.i18n ? window.i18n.t('bank_sync_balance_will_sync') : 'Conforme après validation'}</span>`;
+            } else if (status.isResolvedBySync) {
+                const deltaTip = (window.i18n ? window.i18n.t('bank_sync_delta_resolved_by_sync_tip') || "L'écart sera automatiquement comblé lors de l'enregistrement de vos opérations sélectionnées." : "L'écart sera automatiquement comblé lors de l'enregistrement de vos opérations sélectionnées.").replace(/"/g, '&quot;');
+                statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.35); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; cursor: pointer;" onclick="window.BankSyncView.openPendingReviewModal ? window.BankSyncView.openPendingReviewModal(this, ${acc.account_id}) : null" title="${deltaTip}">💡 ${window.i18n ? window.i18n.t('bank_sync_balance_will_sync') || 'Conforme après validation' : 'Conforme après validation'}</span>`;
+            } else if (status.isExplainedByComing) {
+                const comingTip = (window.i18n && typeof window.i18n.tp === 'function' ? window.i18n.tp('bank_sync_delta_explained_by_coming', { count: status.accComingCount }) : `L'écart de ${(delta > 0 ? '+' : '') + delta.toFixed(2)} € correspond aux ${status.accComingCount} opération(s) en attente.`).replace(/"/g, '&quot;');
+                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box;" title="${comingTip}">⏳ ${window.i18n ? window.i18n.t('bank_sync_balance_explained_coming') || 'Expliqué par opérations en attente' : 'Expliqué par opérations en attente'}</span>`;
             } else {
                 const diffFormatted = (delta > 0 ? '+' : '') + delta.toFixed(2) + ' €';
                 const escapedAccName = (window.escapeHtml ? window.escapeHtml(accName) : accName).replace(/'/g, "\\'");
@@ -907,7 +984,7 @@ Object.assign(window.BankSyncView, {
         }
     },
 
-    async openPendingReviewModal(triggerEl = null) {
+    async openPendingReviewModal(triggerEl = null, targetAccountId = null) {
         if (this._isOpeningPendingReview) return;
         this._isOpeningPendingReview = true;
 
@@ -941,7 +1018,7 @@ Object.assign(window.BankSyncView, {
                     _source: isCsv ? 'csv_import' : 'bank_sync',
                     connection_id: firstConnId,
                     accounts: data.accounts
-                });
+                }, targetAccountId);
                 return;
             }
 
@@ -950,7 +1027,7 @@ Object.assign(window.BankSyncView, {
                 for (const conn of this.connections) {
                     const cached = this.getCachedPreview(conn.id);
                     if (cached && cached.data && cached.data.accounts && cached.data.accounts.length > 0) {
-                        await this.openReviewModal(conn.id, cached.data);
+                        await this.openReviewModal(conn.id, cached.data, targetAccountId);
                         return;
                     }
                 }
