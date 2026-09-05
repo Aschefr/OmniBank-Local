@@ -714,6 +714,13 @@ window.AllOperationsView = {
 
     _stickyObserver: null,
     _initStickyObserver() {
+        if (window.innerWidth <= 1024) {
+            if (this._stickyObserver) {
+                this._stickyObserver.disconnect();
+                this._stickyObserver = null;
+            }
+            return;
+        }
         const header = document.getElementById('historyHeader');
         const table = document.querySelector('.data-table');
         if (!header || !table) return;
@@ -807,7 +814,8 @@ window.AllOperationsView = {
             const row = tbody.querySelector(`tr[data-id="${txId}"]`);
             if (!row) { console.log('[Highlight] Row not found in DOM for tx', txId); return; }
 
-            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const isMobile = window.innerWidth <= 1024;
+            row.scrollIntoView({ behavior: isMobile ? 'auto' : 'smooth', block: 'center' });
 
             // Apply highlight via inline styles (beats any CSS specificity)
             row.style.setProperty('background-color', highlightColor, 'important');
