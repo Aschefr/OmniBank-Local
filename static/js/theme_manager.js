@@ -106,6 +106,11 @@ window.ThemeManager = {
             document.body.classList.add(`theme-${theme.id}`);
         }
 
+        // Reapply active profile accent color if present
+        if (window.app && window.app._activeThemeColor && typeof window.app.applyProfileTheme === 'function') {
+            window.app.applyProfileTheme(window.app._activeThemeColor);
+        }
+
         // Persist theme
         try {
             if (window.ProfileStorage) {

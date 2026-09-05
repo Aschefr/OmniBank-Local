@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - **Mobile App 2FA Confirmation (Crédit Mutuel) 📱**: Added seamless push notification support for banks using mobile app validation instead of SMS codes.
 
 ### Fixed
+- **Master Profile Accent Color in Executive Themes 🎨**: Restored propagation of the active master profile's accent color across primary buttons, card headers, and accents in Titanium Dark and Albâtre Light themes.
 - **Master Profile Bank Sync Isolation 🔒**: Strictly isolated bank statement previews and pending review caches between master profiles, preventing any transaction leakage when switching between personal and shared profiles.
 - **Bank Sync Finalization ⏱️**: Fixed a timestamp recording error that prevented connection cards from showing their successful sync status and last sync date.
 - **Mobile Scrolling Stability 📱**: Eliminated rapid scroll jumping and bouncing when browsing transaction cards on mobile devices.
