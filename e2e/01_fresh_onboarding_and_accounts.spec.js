@@ -56,4 +56,58 @@ test.describe('Module A : Parcours Base Vierge - Onboarding & Gestion des Compte
     const sidebar = page.locator('#sidebar');
     await expect(sidebar).toContainText('6 500,00');
   });
+
+  test('01.03 - Parcours interactif SetupWizard (Thème, Profil, Mode d\'entrée et Salaire)', async ({ page }) => {
+    // Relancer le wizard via la fonction globale
+    await openApp(page, { autoDismiss: false });
+    await page.evaluate(() => window.SetupWizard && window.SetupWizard.show());
+
+    const wizard = page.locator('#setupWizardOverlay');
+    await expect(wizard).toBeVisible({ timeout: 5000 });
+
+    // Étape 0 : Sélection d'un thème (ex: Titanium Dark)
+    const themeTitanium = page.locator('.wizard-theme-card').filter({ hasText: 'Titanium' });
+    if (await themeTitanium.count() > 0) {
+      await themeTitanium.first().click();
+      await expect(themeTitanium.first()).toHaveClass(/active/);
+    }
+    // Clic Suivant -> Étape 1
+    await page.click('.wizard-step-content button.wizard-btn-primary');
+
+    // Étape 1 : Profil & Sécurité
+    const profileNameInput = page.locator('#wizProfileName');
+    await expect(profileNameInput).toBeVisible({ timeout: 5000 });
+    await profileNameInput.fill('Foyer Test');
+    await page.click('.wizard-nav button.wizard-btn-primary');
+
+    // Étape 2 : Mode d'entrée
+    const entryManual = page.locator('.wizard-entry-tile').first();
+    await expect(entryManual).toBeVisible({ timeout: 5000 });
+    await page.click('.wizard-nav button.wizard-btn-primary');
+
+    // Étape 3 : Salaire & Reste à vivre
+    const payDayInput = page.locator('#wizPayDay');
+    await expect(payDayInput).toBeVisible({ timeout: 5000 });
+    const payAmountInput = page.locator('#wizPayAmount');
+    await payAmountInput.fill('2800');
+    await page.click('.wizard-nav button.wizard-btn-primary');
+
+    // Étape 4 : Guide Opérations & Accueil
+    await expect(page.locator('.wizard-home-card').first()).toBeVisible({ timeout: 5000 });
+    await page.click('.wizard-nav button.wizard-btn-primary');
+
+    // Étape 5 : IA (Passer)
+    const skipAiBtn = page.locator('button[data-i18n="wizard_btn_skip_ai"]');
+    await expect(skipAiBtn).toBeVisible({ timeout: 5000 });
+    await skipAiBtn.click();
+
+    // Étape 6 : Lancement
+    const launchBtn = page.locator('button.wizard-btn-launch');
+    await expect(launchBtn).toBeVisible({ timeout: 5000 });
+    await launchBtn.click();
+
+    // Le wizard doit disparaître
+    await expect(wizard).not.toBeVisible({ timeout: 5000 });
+  });
 });
+

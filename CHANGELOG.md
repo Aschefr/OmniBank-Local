@@ -2,22 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.0] - 2026-08-31
+## [1.1.0] - 2026-09-05
 
 ### Added & Improved
+- **Modern Interactive Setup Wizard 🪄**: Redesigned first-launch onboarding assistant with live theme switching, master profile & PIN security configuration, clear account setup choices (manual, file import, or bank sync), salary cold-start automation, and 1-click demo data discovery.
 - **Universal Permissive Search & Accent Insensitivity 🔍**: Standardized search across all views (Operations, Timeline, Overview, Settings, Notifications, Bank Sync, and Categories) to ignore accents, case, and comma/dot number formats, with multi-word matching in any order.
 - **Executive Themes (Titanium Dark & Albâtre Light) 🏛️**: Introduced slate-metallic satin and warm luxury ivory/bronze themes with precision bento styling across all views.
 - **Tabbed Settings & Live Theme Previews ⚙️**: Reorganized configuration into clear categorical tabs with instant search and interactive palette mockups.
 - **Mobile Experience & Unified Button Standards 📱**: Redesigned navigation drawer, streamlined currency rates card, and harmonized all mobile touch buttons to a clean 36px standard.
-- **Pending Bank Sync Dock & Mobile Review Badge 📌**: Pinned amber operations banner on desktop, replaced on mobile by an on-demand review badge with focused action items.
-- **Bank Sync Action Tooltips ⚡**: Added rich hover preview tooltips to the pending bank sync buttons ("Reconcile confirmed operations" and "Validate new operations") on both Overview and Dashboard, displaying the detailed list of affected operations (date, account, description, formatted amount).
-- **Actionable Bank Sync Guidance 🏦**: Added clear, plain-language guidance when manual user approval or terms validation is required on the bank's portal.
-- **Automatic Mobile 2FA Detection (Crédit Mutuel & SCA Banks) 📱**: Bank synchronization now automatically detects smartphone approval in real time, advancing the screen seamlessly without requiring a manual confirmation click on the PC.
+- **Pending Bank Sync Dock & Action Tooltips ⚡**: Added pinned pending operations banner with hover tooltips detailing affected operations, replaced on mobile by an on-demand review badge.
+- **Automatic Mobile 2FA Detection 📱**: Bank synchronization now automatically detects smartphone approval in real time, advancing the screen seamlessly without requiring manual clicks on PC.
 
 ### Fixed
-- **Startup Splash Screen Logo 🖼️**: Embedded the application logo into the desktop startup loader (`loading.html`), fixing the missing image placeholder icon during backend initialization.
-- **Master Profile Accent Color in Executive Themes 🎨**: Restored propagation of the active master profile's accent color across primary buttons, card headers, and accents in Titanium Dark and Albâtre Light themes.
-- **Master Profile Bank Sync Isolation 🔒**: Strictly isolated bank statement previews and pending review caches between master profiles, preventing any transaction leakage when switching between personal and shared profiles.
+- **Theme Modal Borders & Spacing 🎨**: Fixed accent hairline clipping and restored proper padding and contrast across modal cards and profile selectors in Titanium themes.
+- **App Version Badge 🏷️**: Fixed header version badge initialization to immediately display the full version upon launch.
+- **Startup Splash Screen Logo 🖼️**: Embedded the application logo into the desktop startup loader (`loading.html`), eliminating missing image placeholders during backend initialization.
+- **Master Profile Bank Sync Isolation 🔒**: Strictly isolated bank statement previews and pending review caches between master profiles, preventing transaction leakage when switching profiles.
 - **Bank Sync Finalization ⏱️**: Fixed a timestamp recording error that prevented connection cards from showing their successful sync status and last sync date.
 - **Mobile Scrolling Stability 📱**: Eliminated rapid scroll jumping and bouncing when browsing transaction cards on mobile devices.
 - **Zero Notification Badge 🔔**: Notification counter is now cleanly hidden when there are 0 unread alerts, only displaying when active notifications exist.
