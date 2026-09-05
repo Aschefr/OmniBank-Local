@@ -646,6 +646,23 @@ window.OverviewView = {
             }
         }
 
+        const confirmedList = (window.BankSyncView && typeof window.BankSyncView.getConfirmedMatchesList === 'function')
+            ? window.BankSyncView.getConfirmedMatchesList(pendingData)
+            : [];
+        const ghostList = (window.BankSyncView && typeof window.BankSyncView.getGhostTransactionsList === 'function')
+            ? window.BankSyncView.getGhostTransactionsList(pendingData)
+            : [];
+
+        const confirmedTooltipTitle = window.i18n ? window.i18n.t('bank_btn_reconcile_confirmed_tooltip') || 'Opérations confirmées qui seront rapprochées' : 'Opérations confirmées qui seront rapprochées';
+        const ghostTooltipTitle = window.i18n ? window.i18n.t('ghost_commit_all_tooltip') || 'Nouvelles opérations qui seront ajoutées' : 'Nouvelles opérations qui seront ajoutées';
+
+        const renderTooltip = (window.BankSyncView && typeof window.BankSyncView.renderOperationsTooltipHtml === 'function')
+            ? (title, items) => window.BankSyncView.renderOperationsTooltipHtml(title, items)
+            : () => '';
+
+        const confirmedTooltipHtml = renderTooltip(confirmedTooltipTitle, confirmedList);
+        const ghostsTooltipHtml = renderTooltip(ghostTooltipTitle, ghostList);
+
         banner.style.display = 'block';
         banner.innerHTML = `
         <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 14px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 4px 12px rgba(99,102,241,0.06);">
@@ -667,14 +684,20 @@ window.OverviewView = {
 
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                 ${totalConfirmedMatches > 0 ? `
-                <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.reconcileAllPending()" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
-                    ⚡ ${window.i18n ? window.i18n.t('bank_btn_reconcile_confirmed') || 'Rapprocher les opérations confirmées' : 'Rapprocher les opérations confirmées'} (${totalConfirmedMatches})
-                </button>
+                <div class="overview-bulk-wrapper">
+                    <button class="btn btn-primary btn-sm" onclick="window.BankSyncView.reconcileAllPending()" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
+                        ⚡ ${window.i18n ? window.i18n.t('bank_btn_reconcile_confirmed') || 'Rapprocher les opérations confirmées' : 'Rapprocher les opérations confirmées'} (${totalConfirmedMatches})
+                    </button>
+                    ${confirmedTooltipHtml}
+                </div>
                 ` : ''}
                 ${totalNew > 0 ? `
-                <button class="btn btn-gold btn-sm" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
-                    📥 ${window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations'} (${totalNew})
-                </button>
+                <div class="overview-bulk-wrapper">
+                    <button class="btn btn-gold btn-sm" onclick="window.BankSyncView.commitAllGhosts()" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 700;">
+                        📥 ${window.i18n.t('ghost_commit_all') || 'Valider les nouvelles opérations'} (${totalNew})
+                    </button>
+                    ${ghostsTooltipHtml}
+                </div>
                 ` : ''}
                 ${pendingData.accounts && pendingData.accounts.length > 0 ? `
                 <button class="btn btn-secondary btn-sm" onclick="window.BankSyncView.openPendingReviewModal(this)" style="font-size: 12px; padding: 5px 12px; border-radius: 8px; font-weight: 600;">

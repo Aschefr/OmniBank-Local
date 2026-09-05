@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - **Tabbed Settings & Live Theme Previews ⚙️**: Reorganized configuration into clear categorical tabs with instant search and interactive palette mockups.
 - **Mobile Experience & Unified Button Standards 📱**: Redesigned navigation drawer, streamlined currency rates card, and harmonized all mobile touch buttons to a clean 36px standard.
 - **Pending Bank Sync Dock & Mobile Review Badge 📌**: Pinned amber operations banner on desktop, replaced on mobile by an on-demand review badge with focused action items.
+- **Bank Sync Action Tooltips ⚡**: Added rich hover preview tooltips to the pending bank sync buttons ("Reconcile confirmed operations" and "Validate new operations") on both Overview and Dashboard, displaying the detailed list of affected operations (date, account, description, formatted amount).
 - **Actionable Bank Sync Guidance 🏦**: Added clear, plain-language guidance when manual user approval or terms validation is required on the bank's portal.
 
 ### Fixed

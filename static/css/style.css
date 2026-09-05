@@ -7114,14 +7114,23 @@ body.overview-fullscreen .app-body {
     right: 0;
     margin-top: 8px;
     width: 380px;
+    max-width: min(380px, calc(100vw - 32px));
     max-height: 280px;
     overflow-y: auto;
     background: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 14px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
     z-index: 100;
+    text-align: left;
+    white-space: normal;
+    cursor: default;
+    pointer-events: auto;
+}
+
+.overview-bulk-wrapper:hover {
+    z-index: 150;
 }
 
 .overview-bulk-wrapper:hover .overview-bulk-tooltip {
