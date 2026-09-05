@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDNOSVNwUkpvcWFURjZkNzloU0wzbExObk1LN1ZjbnRhTXpBcTdFY0VlZU9VR3dJMVBCZDVYMUtPeXdMeUp6ZGNoK0FuSXN1OFZmMCtTWUtQZm1uWUFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4NjE0NzA2CWZpbGU6T21uaUJhbmtfMS4xLjBfeDY0X2ZyLUZSLm1zaQo4UzBYVWZWTXNZV3FlWkhxYklUSXNxTUFxNkxkdENPYS9sNHdtUnJHaDBwNTVIOE43VjJ6b25EK3FEenRSSXVUQ0grQ1JzKzd2QWhNSlZCeDBFY0VDQT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.0/OmniBank_1.1.0_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDcxQnRveStzbWFCNzR6ZTlTNWFHcllFaEJZb29ZaldSbVRIRm1nQ2piUjFxcitzRWl5OUZoZzBmc2dJY2xvSUxDRUpsVEorYUp5dGdxUWhISW1LNEFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4NjE3NzM4CWZpbGU6T21uaUJhbmtfMS4xLjFfeDY0X2ZyLUZSLm1zaQpXdi83VnBCU0Q3MjZ5bjA1Uk00UVRjMFV4SS9xaG5hMVJQY2dFQS8ybkdnQ0JJcHNMbzdLeGFiaFJYTERHWFFmMk1namt6R1NRUm1TVGgwZlJib0hDQT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.1/OmniBank_1.1.1_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-09-05T13:25:07Z",
-    "version":  "1.1.0",
-    "notes":  "v1.1.0: Modern Setup Wizard, Universal Search, Executive Themes, Mobile 36px \u0026 Bank Sync 2FA"
+    "pub_date":  "2026-09-05T14:15:38Z",
+    "version":  "1.1.1",
+    "notes":  "Fix Crédit Agricole bank sync on fresh/Docker setups and pending balance indicator ergonomics"
 }

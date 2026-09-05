@@ -2394,5 +2394,6 @@
     "wizard_ai_install_hint": "Téléchargez et lancez Ollama depuis ollama.com, puis exécutez `ollama run gemma2` dans un terminal.",
     "wizard_ai_reports_enable": "Activer les bilans de santé financière périodiques par l'IA",
     "wizard_btn_demo": "🧪 Découvrir avec des données de démonstration",
-    "wizard_toast_demo_success": "Jeu de données de démonstration chargé avec succès !"
+    "wizard_toast_demo_success": "Jeu de données de démonstration chargé avec succès !",
+    "bank_sync_balance_explained_coming": "Expliqué par opérations en attente"
 }

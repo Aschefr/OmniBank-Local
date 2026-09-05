@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-09-05
+
+### Fixed
+- **Crédit Agricole Synchronization (Docker & Fresh Installs) 🏦**: Resolved `Element ['clientId'] not found` errors by ensuring compatibility hotfixes persist through dynamic module installations, recursive client ID extraction, and pre-warming bank connectors at startup.
+- **Pending Sync Balance Indicator 💡**: Unified balance status detection across the dashboard queue dock, overview cards, and review modal. When pending operations in the queue will resolve the balance difference, an intuitive "Conforme après validation" badge is displayed instead of an alarmist red discrepancy alert with an unnecessary adjust button.
+
 ## [1.1.0] - 2026-09-05
 
 ### Added & Improved
