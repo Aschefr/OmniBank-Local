@@ -505,7 +505,7 @@ window.AccountsView = {
         ).join('');
 
         const modalHtml = `
-        <div id="accEditModal" class="modal-overlay" style="display:flex;z-index:9999;">
+        <div id="accEditModal" class="modal-overlay" style="display:flex;z-index:10000;" onclick="if(event.target===this) this.remove()">
             <div class="modal" style="width: min(520px, calc(100vw - 24px)); max-width:90vw;">
                 <h3 style="margin-bottom:18px;">${window.i18n.t('acc_edit_title') || 'Modifier le compte'}</h3>
                 <div style="display:flex;flex-direction:column;gap:14px; max-height: 75vh; overflow-y: auto; padding-right: 4px;">
@@ -730,7 +730,7 @@ window.AccountsView = {
         const defaultDate = `${today.getFullYear()}-12-31`;
 
         const modalHtml = `
-        <div id="accInterestModal" class="modal-overlay" style="display:flex;z-index:9999;backdrop-filter:blur(4px);">
+        <div id="accInterestModal" class="modal-overlay" style="display:flex;z-index:10000;backdrop-filter:blur(4px);" onclick="if(event.target===this) this.remove()">
             <div class="modal" style="width: min(440px, calc(100vw - 24px)); max-width:90vw;">
                 <h3 style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
                     <span>🎁</span> <span>${window.i18n.t('acc_modal_interest_title') || 'Comptabilisation des Intérêts'}</span>

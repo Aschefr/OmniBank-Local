@@ -300,7 +300,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             <div id="budgetStatusContainer" style="margin-bottom:30px;"></div>
 
             <!-- Unified Modal (Details + Add/Edit Form) -->
-            <div id="budgetUnifiedModal" class="modal-overlay" style="display:none;z-index:1000;align-items:flex-start;padding-top:5vh;padding-bottom:5vh;overflow-y:auto;">
+            <div id="budgetUnifiedModal" class="modal-overlay" style="display:none;z-index:10000;align-items:flex-start;padding-top:5vh;padding-bottom:5vh;overflow-y:auto;" onclick="if(event.target===this) window.BudgetsView.closeUnifiedModal()">
                 <div class="modal budget-unified-panel" style="width: min(1100px, calc(100vw - 24px)); max-width: 95vw; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); padding: 24px; background: var(--bg-surface); border: 1px solid var(--accent); height: max-content;">
                     
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
@@ -995,7 +995,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             html += `<p class="bv-empty">${window.i18n.t('budget_no_active') || 'Aucune enveloppe budgétaire active.'}</p>`;
         }
 
-        container.innerHTML = html;
+        if (container) {
+            container.innerHTML = html;
+        }
 
         if (this._pendingHighlightName) {
             const name = this._pendingHighlightName;

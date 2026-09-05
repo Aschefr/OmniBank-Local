@@ -570,7 +570,7 @@ class App {
                     }
                 });
                 if (foundNew) {
-                    this.showToast(window.i18n ? window.i18n.t('notif_new_received') || "Nouvelle notification reçue" : "Nouvelle notification reçue", 'info');
+                    showToast(window.i18n ? window.i18n.t('notif_new_received') || "Nouvelle notification reçue" : "Nouvelle notification reçue", 'info');
                     if (hasBankSyncNotif && window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') {
                         window.BankSyncView.loadPendingSync();
                     }
@@ -2273,6 +2273,14 @@ class App {
     loadView(viewName) {
         if (viewName === 'accounts_manager') {
             viewName = 'accounts';
+        }
+        if (viewName === 'bank_sync_pending') {
+            viewName = 'dashboard';
+            setTimeout(() => {
+                if (window.BankSyncView && typeof window.BankSyncView.openPendingReviewModal === 'function') {
+                    window.BankSyncView.openPendingReviewModal();
+                }
+            }, 100);
         }
         if (viewName === 'simulator' && this.config.enable_simulator === 'false') {
             viewName = 'dashboard';

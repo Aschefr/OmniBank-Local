@@ -26,7 +26,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const yearOptions = uniqueYears.map(yr => `<option value="${yr}" ${yr === (targetYear - 1) ? 'selected' : ''}>${yr}</option>`).join('');
 
         let wizardHtml = `
-            <div id="recWizardModal" class="modal-overlay" style="z-index: 1000;">
+            <div id="recWizardModal" class="modal-overlay" style="z-index: 10000;">
                 <div class="modal" style="width: 95%; max-width: 1200px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; padding: 0; border-radius: 14px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6);">
                     <div style="padding: 20px; background: var(--bg-surface); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                         <h2 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">${window.i18n.t('wizard_title_prep')} <input type="number" id="wizardTargetYear" value="${targetYear}" style="background:transparent; border:none; color:inherit; font-size:inherit; font-weight:inherit; width:80px; border-bottom: 2px solid var(--primary-color); outline:none;" oninput="window.RecurrenceView.onTargetYearInput()"></h2>

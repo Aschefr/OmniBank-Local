@@ -66,6 +66,7 @@ def clear_pending_sync_for_connection(db: Session, conn_id: int, profile_id: Opt
             _set_config_value(db, "bank_pending_sync_cache", json.dumps(_PENDING_SYNC_DATA[pid]))
         else:
             _set_config_value(db, "bank_pending_sync_cache", "")
+    stats_cache.invalidate(pid)
     logger.info(f"[BankSyncScheduler] Sas de synchronisation purgé pour la connexion #{conn_id} (profil={pid})")
 
 
@@ -76,6 +77,7 @@ def clear_all_pending_sync(db: Session, profile_id: Optional[str] = None):
     if pid in _PENDING_SYNC_DATA:
         _PENDING_SYNC_DATA[pid].clear()
     _set_config_value(db, "bank_pending_sync_cache", "")
+    stats_cache.invalidate(pid)
     logger.info(f"[BankSyncScheduler] Intégralité du sas de synchronisation purgé pour profil={pid}.")
 
 
@@ -105,6 +107,7 @@ def add_dismissed_transaction(db: Session, csv_id: str, metadata: Optional[Dict[
         "dismissed_at": datetime.now(timezone.utc).isoformat()
     }
     _set_config_value(db, key, json.dumps(dismissed))
+    stats_cache.invalidate(pid)
     logger.info(f"[BankSyncScheduler] csv_id={csv_id} ajouté aux exclusions persistantes (profil={pid}).")
     return True
 
@@ -137,6 +140,7 @@ def remove_dismissed_transaction(db: Session, csv_id: str, profile_id: Optional[
         serializable = {str(k): v for k, v in prof_data.items()}
         _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if prof_data else "")
 
+    stats_cache.invalidate(pid)
     return removed
 
 
@@ -189,6 +193,7 @@ def remove_committed_from_pending(db: Session, csv_ids: List[str], profile_id: O
     if changed:
         serializable = {str(k): v for k, v in prof_data.items()}
         _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if prof_data else "")
+        stats_cache.invalidate(pid)
         logger.info(f"[BankSyncScheduler] {len(csv_ids)} opération(s) purgée(s) du sas d'attente (profil={pid}).")
 
 
@@ -514,6 +519,7 @@ def save_pending_sync_data(db: Session, conn_id: int, preview_data: Dict[str, An
     try:
         serializable = {str(k): v for k, v in _PENDING_SYNC_DATA[pid].items()}
         _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable))
+        stats_cache.invalidate(pid)
     except Exception as e:
         logger.warning(f"[BankScheduler] Erreur de sauvegarde du cache pending: {e}")
 
