@@ -40,6 +40,10 @@ class App {
         const darkB = Math.max(0, Math.floor(b * 0.85));
         const hoverHex = `#${darkR.toString(16).padStart(2, '0')}${darkG.toString(16).padStart(2, '0')}${darkB.toString(16).padStart(2, '0')}`;
 
+        const lightR = Math.min(255, Math.floor(r + (255 - r) * 0.45));
+        const lightG = Math.min(255, Math.floor(g + (255 - g) * 0.45));
+        const lightB = Math.min(255, Math.floor(b + (255 - b) * 0.45));
+
         let styleEl = document.getElementById('dynamicProfileThemeStyle');
         if (!styleEl) {
             styleEl = document.createElement('style');
@@ -48,13 +52,14 @@ class App {
         }
 
         styleEl.textContent = `
-            :root, body, .theme-dark {
+            :root, body, .theme-dark, body.theme-dark, body.theme-classic-dark, body.theme-classic-light, body.theme-titanium-dark, body.theme-titanium-light, .theme-titanium-dark, .theme-titanium-light {
                 --accent: ${colorHex} !important;
                 --accent-hover: ${hoverHex} !important;
                 --accent-rgb: ${r}, ${g}, ${b} !important;
                 --accent-subtle: rgba(${r}, ${g}, ${b}, 0.18) !important;
                 --accent-border: rgba(${r}, ${g}, ${b}, 0.45) !important;
                 --accent-glow: rgba(${r}, ${g}, ${b}, 0.35) !important;
+                --accent-gradient: linear-gradient(90deg, ${colorHex} 0%, rgba(${lightR}, ${lightG}, ${lightB}, 0.75) 50%, rgba(${r}, ${g}, ${b}, 0.1) 100%) !important;
             }
         `;
 
