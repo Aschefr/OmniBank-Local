@@ -44,6 +44,10 @@ class App {
         const lightG = Math.min(255, Math.floor(g + (255 - g) * 0.45));
         const lightB = Math.min(255, Math.floor(b + (255 - b) * 0.45));
 
+        const highlightR = Math.min(255, Math.floor(r + (255 - r) * 0.75));
+        const highlightG = Math.min(255, Math.floor(g + (255 - g) * 0.75));
+        const highlightB = Math.min(255, Math.floor(b + (255 - b) * 0.75));
+
         let styleEl = document.getElementById('dynamicProfileThemeStyle');
         if (!styleEl) {
             styleEl = document.createElement('style');
@@ -59,16 +63,58 @@ class App {
                 --accent-subtle: rgba(${r}, ${g}, ${b}, 0.18) !important;
                 --accent-border: rgba(${r}, ${g}, ${b}, 0.45) !important;
                 --accent-glow: rgba(${r}, ${g}, ${b}, 0.35) !important;
-                --accent-gradient: linear-gradient(90deg, ${colorHex} 0%, rgba(${lightR}, ${lightG}, ${lightB}, 0.75) 50%, rgba(${r}, ${g}, ${b}, 0.1) 100%) !important;
+                --accent-gradient: linear-gradient(90deg, ${colorHex} 0%, rgb(${lightR}, ${lightG}, ${lightB}) 50%, rgb(${highlightR}, ${highlightG}, ${highlightB}) 100%) !important;
             }
         `;
 
         this._activeThemeColor = colorHex;
     }
 
+    async loadAppVersion() {
+        if (this._appVersionLoaded) return;
+        try {
+            let version = null;
+            try {
+                if (window.__TAURI_INTERNALS__) {
+                    version = await window.__TAURI_INTERNALS__.invoke('get_app_version');
+                } else if (window.__TAURI__ && window.__TAURI__.core) {
+                    version = await window.__TAURI__.core.invoke('get_app_version');
+                }
+            } catch (err) {
+                console.warn('[version] Tauri IPC failed, trying backend fallback', err);
+            }
+            
+            if (!version) {
+                // Fallback for dev mode without Tauri or if IPC fails
+                const vData = await API.get('/api/version');
+                version = vData ? vData.version : null;
+            }
+            const badge = document.getElementById('appVersionBadge');
+            if (badge && version && version !== '?') {
+                badge.textContent = `v${version}`;
+                this._appVersion = version;
+                this._appVersionLoaded = true;
+                // Auto-show changelog after update (one-time per version)
+                if (window.ProfileStorage) {
+                    const lastSeen = window.ProfileStorage.get('omni_last_seen_version');
+                    if (lastSeen && lastSeen !== version) {
+                        // Version changed (or first time feature is seen) → show changelog after UI loads
+                        setTimeout(() => this.showChangelog(), 1500);
+                    }
+                    window.ProfileStorage.set('omni_last_seen_version', version);
+                }
+            }
+        } catch (e) {
+            console.warn('[version] All version checks failed', e);
+        }
+    }
+
     async init() {
         // Init i18n
         await window.i18n.init();
+
+        // Immediately display app version in header (so it is visible during wizard / user picker too)
+        await this.loadAppVersion();
 
         // Init Master Profiles
         try {
@@ -114,38 +160,6 @@ class App {
             }
         }
         
-        // Display app version in header (via Tauri IPC command)
-        try {
-            let version = null;
-            try {
-                if (window.__TAURI_INTERNALS__) {
-                    version = await window.__TAURI_INTERNALS__.invoke('get_app_version');
-                } else if (window.__TAURI__ && window.__TAURI__.core) {
-                    version = await window.__TAURI__.core.invoke('get_app_version');
-                }
-            } catch (err) {
-                console.warn('[version] Tauri IPC failed, trying backend fallback', err);
-            }
-            
-            if (!version) {
-                // Fallback for dev mode without Tauri or if IPC fails
-                const vData = await API.get('/api/version');
-                version = vData.version;
-            }
-            const badge = document.getElementById('appVersionBadge');
-            if (badge && version) {
-                badge.textContent = `v${version}`;
-                this._appVersion = version;
-                // Auto-show changelog after update (one-time per version)
-                const lastSeen = ProfileStorage.get('omni_last_seen_version');
-                if (lastSeen !== version) {
-                    // Version changed (or first time feature is seen) → show changelog after UI loads
-                    setTimeout(() => this.showChangelog(), 1500);
-                }
-                ProfileStorage.set('omni_last_seen_version', version);
-            }
-        } catch (e) { console.warn('[version] All version checks failed', e); }
-        
         // ── Phase 9: Check if org mode needs user selection ──
         if (this.config.enable_org_mode === 'true') {
             const savedUser = sessionStorage.getItem('omni_current_user');
@@ -170,6 +184,9 @@ class App {
     async _initUI() {
         if (this._uiInitialized) return;
         this._uiInitialized = true;
+        if (!this._appVersionLoaded) {
+            await this.loadAppVersion();
+        }
         try {
         // Theme toggle
         // Theme Manager Initialization

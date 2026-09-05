@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDluSkpNMjd1M3hmNlJhQkZUQ1VKN1hiNVdPWUpsdFFCd3ROVldNblpueWUyWmhJdmp1akxPaER1SU1Gd2FKaE40aTdweDVXUnFsYmVPSnNoWW5MWUFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MTk5OTg3CWZpbGU6T21uaUJhbmtfMS4wLjk5X3g2NF9mci1GUi5tc2kKb0JBaUFTUTJ3am93ZlZ5cjBMdnJvWVg0bkRORnVpeFlhY0swOXlZendwR2NLRm5RNUlwa21LdkZDZE95Z1RmdFBRSnJuUWZWZ3ZNYVBUdkEybW01RGc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.0.99/OmniBank_1.0.99_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDNOSVNwUkpvcWFURjZkNzloU0wzbExObk1LN1ZjbnRhTXpBcTdFY0VlZU9VR3dJMVBCZDVYMUtPeXdMeUp6ZGNoK0FuSXN1OFZmMCtTWUtQZm1uWUFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4NjE0NzA2CWZpbGU6T21uaUJhbmtfMS4xLjBfeDY0X2ZyLUZSLm1zaQo4UzBYVWZWTXNZV3FlWkhxYklUSXNxTUFxNkxkdENPYS9sNHdtUnJHaDBwNTVIOE43VjJ6b25EK3FEenRSSXVUQ0grQ1JzKzd2QWhNSlZCeDBFY0VDQT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.0/OmniBank_1.1.0_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-08-31T18:13:07Z",
-    "version":  "1.0.99",
-    "notes":  "v1.0.99: Planned Receipts Impact on Key Indicators, Cascade Spending Rate Fallback, Multi-Cycle Forecasting \u0026 Rich AI Tables"
+    "pub_date":  "2026-09-05T13:25:07Z",
+    "version":  "1.1.0",
+    "notes":  "v1.1.0: Modern Setup Wizard, Universal Search, Executive Themes, Mobile 36px \u0026 Bank Sync 2FA"
 }
