@@ -1057,7 +1057,7 @@ window.FormView = {
             const isSelected = (c.name === currentVal);
             const typeMatch = !currentType || c.type === currentType || isSelected;
             if (typeMatch) {
-                if (!search || window.cleanStringForSearch(c.name).includes(search) || isSelected) {
+                if (!search || window.permissiveMatch(c.name, search) || isSelected) {
                     html += `<option value="${c.name}" ${isSelected ? 'selected' : ''}>${c.name}</option>`;
                 }
             }

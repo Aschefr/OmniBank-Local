@@ -97,10 +97,9 @@ window.MultiSelect = {
     _filter(id, query) {
         const container = document.getElementById(id);
         if (!container) return;
-        const q = window.cleanStringForSearch(query);
         container.querySelectorAll('.ms-item:not(.ms-all)').forEach(item => {
-            const label = window.cleanStringForSearch(item.querySelector('span')?.textContent || '');
-            item.style.display = label.includes(q) ? 'flex' : 'none';
+            const label = item.querySelector('span')?.textContent || '';
+            item.style.display = window.permissiveMatch(label, query) ? 'flex' : 'none';
         });
     },
 

@@ -58,8 +58,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const cleanTerm = window.cleanStringForSearch(searchTerm);
 
         for (const key of ['expense_fixed', 'expense_var', 'income', 'neutral', 'other']) {
-            const visibleCats = cleanTerm
-                ? groups[key].cats.filter(c => window.cleanStringForSearch(c.name).includes(cleanTerm))
+            const visibleCats = searchTerm
+                ? groups[key].cats.filter(c => window.permissiveMatch(c.name, searchTerm))
                 : groups[key].cats;
             if (visibleCats.length === 0) continue;
 

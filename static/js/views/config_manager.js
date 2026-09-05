@@ -583,7 +583,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
     },
 
     filterSettings(query) {
-        const q = (query || '').trim().toLowerCase();
+        const q = (query || '').trim();
         const panes = document.querySelectorAll('.config-tab-pane');
         const cards = document.querySelectorAll('.config-card');
 
@@ -603,8 +603,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 card.classList.add('config-card-hidden');
                 return;
             }
-            const text = (card.innerText || card.textContent || '').toLowerCase();
-            const matches = text.includes(q);
+            const text = card.innerText || card.textContent || '';
+            const matches = window.permissiveMatch(text, q);
             card.classList.toggle('config-card-hidden', !matches);
         });
 

@@ -686,10 +686,53 @@ window.formatHistoryLabel = function (data) {
 };
 
 window.cleanStringForSearch = function(str) {
-    if (!str) return '';
+    if (str == null) return '';
     return str.toString()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase();
+        .toLowerCase()
+        .trim();
 };
+
+/**
+ * Permissive search matcher:
+ * - Accent-insensitive (e.g. "é" matches "e", "ç" matches "c", "ô" matches "o")
+ * - Case-insensitive
+ * - Multi-word / token permissive: all space-separated terms must be found in any order across the searchable text
+ * - Amount normalization: matches numbers formatted with dot or comma (e.g. "45,50" matches "45.50")
+ *
+ * @param {string|string[]} haystack - Single string or array of strings to search in
+ * @param {string} query - User search input
+ * @returns {boolean} true if query matches haystack
+ */
+window.permissiveMatch = function(haystack, query) {
+    if (!query) return true;
+    const cleanQuery = window.cleanStringForSearch(query);
+    if (!cleanQuery) return true;
+
+    let target = '';
+    if (Array.isArray(haystack)) {
+        target = haystack.filter(h => h != null).map(h => window.cleanStringForSearch(h)).join(' ');
+    } else {
+        target = window.cleanStringForSearch(haystack);
+    }
+    if (!target) return false;
+
+    const tokens = cleanQuery.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return true;
+
+    return tokens.every(token => {
+        if (target.includes(token)) return true;
+        // Also check comma <-> dot variant for numbers (e.g. "45,50" <-> "45.50")
+        if (token.includes(',')) {
+            const dotToken = token.replace(/,/g, '.');
+            if (target.includes(dotToken)) return true;
+        } else if (token.includes('.')) {
+            const commaToken = token.replace(/\./g, ',');
+            if (target.includes(commaToken)) return true;
+        }
+        return false;
+    });
+};
+
 
