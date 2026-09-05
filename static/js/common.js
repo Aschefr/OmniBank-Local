@@ -5,6 +5,9 @@ const ProfileStorage = {
     init(profileId) {
         if (profileId) this._prefix = profileId;
     },
+    getActiveProfileId() {
+        return this._prefix || (window.app && window.app.activeProfileId) || 'default';
+    },
     get(key) {
         const val = localStorage.getItem(`${this._prefix}_${key}`);
         if (val !== null) return val;

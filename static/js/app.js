@@ -2873,6 +2873,11 @@ class App {
             const res = await API.post(`/api/profiles/${profileId}/activate`, body);
             sessionStorage.removeItem('omni_is_locked');
             if (res.ok) {
+                // Purge intégrale de sessionStorage pour garantir une étanchéité absolue entre profils
+                try {
+                    sessionStorage.clear();
+                } catch (_) {}
+
                 if (res.reload_required) {
                     window.location.reload();
                 } else {

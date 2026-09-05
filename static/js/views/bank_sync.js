@@ -45,14 +45,41 @@ window.BankSyncView = {
         return Boolean(window.app && window.app.config && (window.app.config.enable_ai === 'true' || window.app.config.enable_ai === true));
     },
 
+    getActiveProfileId() {
+        if (window.ProfileStorage && typeof window.ProfileStorage.getActiveProfileId === 'function') {
+            return window.ProfileStorage.getActiveProfileId();
+        }
+        if (window.app && window.app.activeProfileId) {
+            return window.app.activeProfileId;
+        }
+        return 'default';
+    },
+
+    _getPreviewCacheKey(connId) {
+        const pid = this.getActiveProfileId();
+        return `omnibank_${pid}_sync_preview_${connId}`;
+    },
+
+    _getRejectedMatchesKey(connId) {
+        const pid = this.getActiveProfileId();
+        return `omnibank_${pid}_sync_rejected_${connId}`;
+    },
+
+    _getForcedMatchesKey(connId) {
+        const pid = this.getActiveProfileId();
+        return `omnibank_${pid}_sync_forced_${connId}`;
+    },
+
     // ── GESTION DU CACHE DU DERNIER APERÇU ──────────────────────────
     saveCachedPreview(connId, previewData) {
         try {
+            const pid = this.getActiveProfileId();
             const entry = {
+                profileId: pid,
                 timestamp: Date.now(),
                 data: previewData
             };
-            sessionStorage.setItem(`omnibank_sync_preview_${connId}`, JSON.stringify(entry));
+            sessionStorage.setItem(this._getPreviewCacheKey(connId), JSON.stringify(entry));
         } catch (e) {
             console.warn('[BankSync] Impossible de cacher l\'aperçu:', e);
         }
@@ -60,9 +87,16 @@ window.BankSyncView = {
 
     getCachedPreview(connId) {
         try {
-            const raw = sessionStorage.getItem(`omnibank_sync_preview_${connId}`);
+            const pid = this.getActiveProfileId();
+            const key = this._getPreviewCacheKey(connId);
+            const raw = sessionStorage.getItem(key);
             if (!raw) return null;
-            return JSON.parse(raw);
+            const entry = JSON.parse(raw);
+            if (entry && entry.profileId && entry.profileId !== pid) {
+                sessionStorage.removeItem(key);
+                return null;
+            }
+            return entry;
         } catch (e) {
             return null;
         }
@@ -71,7 +105,7 @@ window.BankSyncView = {
     // ── GESTION DES DÉROGATIONS DE RAPPROCHEMENT (REJECTED & FORCED MATCHES) ──
     getRejectedMatches(connId) {
         try {
-            return JSON.parse(sessionStorage.getItem(`omnibank_sync_rejected_${connId}`) || '[]');
+            return JSON.parse(sessionStorage.getItem(this._getRejectedMatchesKey(connId)) || '[]');
         } catch { return []; }
     },
 
@@ -81,12 +115,12 @@ window.BankSyncView = {
         if (!list.some(r => r.csv_id === csvId && r.db_id === dbId)) {
             list.push({ csv_id: csvId, db_id: dbId });
         }
-        sessionStorage.setItem(`omnibank_sync_rejected_${connId}`, JSON.stringify(list));
+        sessionStorage.setItem(this._getRejectedMatchesKey(connId), JSON.stringify(list));
     },
 
     getForceMatches(connId) {
         try {
-            return JSON.parse(sessionStorage.getItem(`omnibank_sync_forced_${connId}`) || '[]');
+            return JSON.parse(sessionStorage.getItem(this._getForcedMatchesKey(connId)) || '[]');
         } catch { return []; }
     },
 
@@ -95,35 +129,41 @@ window.BankSyncView = {
         let list = this.getForceMatches(connId);
         list = list.filter(f => f.csv_id !== csvId);
         list.push({ csv_id: csvId, db_id: dbId });
-        sessionStorage.setItem(`omnibank_sync_forced_${connId}`, JSON.stringify(list));
+        sessionStorage.setItem(this._getForcedMatchesKey(connId), JSON.stringify(list));
     },
 
     removeForceMatch(connId, csvId) {
         if (!connId || !csvId) return;
         let list = this.getForceMatches(connId);
         list = list.filter(f => f.csv_id !== csvId);
-        sessionStorage.setItem(`omnibank_sync_forced_${connId}`, JSON.stringify(list));
+        sessionStorage.setItem(this._getForcedMatchesKey(connId), JSON.stringify(list));
     },
 
     clearMatchOverrides(connId) {
         if (!connId) return;
+        sessionStorage.removeItem(this._getRejectedMatchesKey(connId));
+        sessionStorage.removeItem(this._getForcedMatchesKey(connId));
         sessionStorage.removeItem(`omnibank_sync_rejected_${connId}`);
         sessionStorage.removeItem(`omnibank_sync_forced_${connId}`);
     },
 
     clearCachedPreview(connId) {
         if (!connId) return;
+        sessionStorage.removeItem(this._getPreviewCacheKey(connId));
         sessionStorage.removeItem(`omnibank_sync_preview_${connId}`);
     },
 
     async clearAllCaches() {
-        // 1. Vider tous les caches sessionStorage (previews + overrides)
+        // 1. Vider tous les caches sessionStorage (previews + overrides) pour ce profil et legacy
+        const pid = this.getActiveProfileId();
         const keysToRemove = [];
         for (let i = 0; i < sessionStorage.length; i++) {
             const k = sessionStorage.key(i);
-            if (k && (k.startsWith('omnibank_sync_preview_') ||
-                      k.startsWith('omnibank_sync_rejected_') ||
-                      k.startsWith('omnibank_sync_forced_'))) {
+            if (!k) continue;
+            if (k.startsWith(`omnibank_${pid}_sync_`) ||
+                k.startsWith('omnibank_sync_preview_') ||
+                k.startsWith('omnibank_sync_rejected_') ||
+                k.startsWith('omnibank_sync_forced_')) {
                 keysToRemove.push(k);
             }
         }
@@ -149,7 +189,7 @@ window.BankSyncView = {
         if (!conn) return null;
         const connId = typeof conn === 'object' ? conn.id : conn;
         const backend = typeof conn === 'object' ? (conn.backend || 'unknown') : 'generic';
-        const profileId = (window.ProfileStorage && window.ProfileStorage.getActiveProfileId) ? window.ProfileStorage.getActiveProfileId() : 'default';
+        const profileId = this.getActiveProfileId();
         return `omnibank_remote_accounts_${profileId}_${backend}_${connId}`;
     },
 
@@ -193,7 +233,10 @@ window.BankSyncView = {
             if (key) localStorage.removeItem(key);
             const connId = typeof conn === 'object' ? conn.id : conn;
             if (connId) {
+                const pid = this.getActiveProfileId();
+                localStorage.removeItem(`omnibank_remote_accounts_${pid}_${connId}`);
                 localStorage.removeItem(`omnibank_remote_accounts_${connId}`);
+                sessionStorage.removeItem(this._getPreviewCacheKey(connId));
                 sessionStorage.removeItem(`omnibank_sync_preview_${connId}`);
             }
         } catch (_) {}

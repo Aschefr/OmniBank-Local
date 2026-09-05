@@ -5,6 +5,7 @@ le test interactif, le mapping de comptes et la synchronisation sécurisée.
 """
 
 import asyncio
+from datetime import date, datetime, timezone
 import json
 import logging
 import uuid
