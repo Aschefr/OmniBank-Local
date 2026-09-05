@@ -5,54 +5,19 @@ All notable changes to this project will be documented in this file.
 ## [1.1.0] - 2026-08-31
 
 ### Added & Improved
-- **New Executive Themes (Titanium Dark & Albâtre Light) 🏛️**:
-  - Introduced two modern Executive themes: **Titanium Dark** (slate-metallic satin) and **Albâtre Light** (warm luxury ivory & bronze).
-  - Extended crisp bento card geometry, metallic top accent borders, and precision badges across all views.
-  - Preserved classic styling across Classic Dark and Classic Light themes without alteration.
-- **Tabbed Settings Layout & Rich Theme Previews ⚙️**:
-  - Reorganized the Configuration page into categorical tabs with live search filtering.
-  - Upgraded theme selector cards with interactive mini UI mockups faithfully showcasing palette accents.
-- **Enhanced AI Accuracy on Non-Monthly Recurrences 🛡️**:
-  - Improved assistant understanding of multi-month, semi-annual, and annual recurring commitments.
-- **Mobile Experience & Navigation Drawer Redesign 📱**:
-  - Refactored mobile drawer with a dedicated header, close button, symmetrical quick actions, and comfortable touch targets.
-  - Redesigned the Currencies & Exchange Rates card for clear reading and ease of entry on small screens.
-  - Harmonized typography scale and visual hierarchy across all mobile components.
-- **Official Brand Logo Harmonization 🎨**:
-  - Displayed the official golden shield vault emblem across desktop header, mobile drawer, setup wizard, and startup screen.
-- **Enhanced Diagnostic & Bank Incident Reports 🔍**:
-  - Diagnostic reports now capture active system alerts and live bank connection statuses for easier troubleshooting.
-- **Actionable Bank Sync Guidance 🏦**:
-  - Replaced technical errors with clear, actionable advice when user intervention is required on the bank's website or mobile app (e.g. accepting terms or confirming security prompts).
-- **Persistent Pending Bank Sync Panel & Mobile On-Demand Badge 📌**:
-  - The amber uncommitted operations banner stays pinned on scroll on desktop, cleanly docking the sticky transaction table header below it.
-  - On mobile viewports, the large inline panel remains hidden by default to keep the transaction list unobstructed, replaced by a discreet title bar badge that opens the dedicated full-screen review modal on demand.
-- **Focused Bank Review & Instant Loading Feedback ⚡**:
-  - The bank review modal now automatically selects actionable transactions (to reconcile, pending bank authorizations, and new operations) upon opening, hiding already reconciled history for immediate clarity.
-  - Added an inline spinner and immediate loading status on pending sync buttons across mobile and desktop.
-- **Executive Theme Precision Finishing (Titanium Dark & Albâtre Light) 🏛️**:
-  - Harmonized the amber pending operations panel, balance indicators, filter toolbars, and table row action buttons with crisp 6px/4px Bento geometry and signature metallic accent lines.
-  - Infused reconciliation button roles (`✓ Rapprocher`, `⚡ Trouvé en banque`, `⏳ À venir`) with distinct semantic tints blended with the user's master profile accent.
-  - Tailored the Bank Review modal and controls strictly within Executive themes with zero impact on Classic Dark and Classic Light.
+- **Executive Themes (Titanium Dark & Albâtre Light) 🏛️**: Introduced slate-metallic satin and warm luxury ivory/bronze themes with precision bento styling across all views.
+- **Tabbed Settings & Live Theme Previews ⚙️**: Reorganized configuration into clear categorical tabs with instant search and interactive palette mockups.
+- **Mobile Experience & Unified Button Standards 📱**: Redesigned navigation drawer, streamlined currency rates card, and harmonized all mobile touch buttons to a clean 36px standard.
+- **Pending Bank Sync Dock & Mobile Review Badge 📌**: Pinned amber operations banner on desktop, replaced on mobile by an on-demand review badge with focused action items.
+- **Actionable Bank Sync Guidance 🏦**: Added clear, plain-language guidance when manual user approval or terms validation is required on the bank's portal.
 
 ### Fixed
-- **Crédit Agricole Online Synchronization 🏦**:
-  - Restored automated sync compatibility following Crédit Agricole's recent portal update.
-- **Real-Time Vault Status Refresh 🔐**:
-  - Unlocking the credential vault now immediately clears locked status banners and stale errors without requiring a page reload.
-- **Desktop Sidebar Cleanliness 🖥️**:
-  - Ensured the mobile drawer header (logo, title, and close button) remains strictly hidden on desktop viewports.
-- **Theme & Language Selectors 🎨**:
-  - Streamlined theme and language menus across desktop and mobile with clean, right-aligned checkmarks for active choices.
-- **Table Headers & Button Alignment 📐**:
-  - Re-attached sticky table headers flush to page toolbars, eliminating subpixel seams and row peek-through during scroll.
-  - Aligned action button groups to prevent overflow on compact screens.
-- **Mobile Viewport & Button Harmonization 📱**:
-  - Resolved global horizontal and vertical scrollbars appearing on mobile viewports (≤ 375px) caused by rigid header minimum widths and unconstrained document containers.
-  - Enforced strict root viewport clamping and made the mobile header, profile selector, and overview cards fully responsive down to 320px screens.
-  - Harmonized all mobile button heights to a uniform 36px standard, standard typography, adaptive text widths, and 8px Bento radius while strictly preserving desktop dimensions.
-- **Dropdown & Popover Menus Stacking 🌐**:
-  - Ensured language and notification menus open above sticky toolbars.
+- **Mobile Scrolling Stability 📱**: Eliminated rapid scroll jumping and bouncing when browsing transaction cards on mobile devices.
+- **Zero Notification Badge 🔔**: Notification counter is now cleanly hidden when there are 0 unread alerts, only displaying when active notifications exist.
+- **Mobile Viewport Overflow 📐**: Eliminated global horizontal and vertical scrollbars on compact mobile screens down to 320px.
+- **Crédit Agricole Synchronization 🏦**: Restored automatic sync compatibility with updated bank portal workflows.
+- **Sticky Headers & Action Buttons Alignment 🖥️**: Re-attached table headers flush to toolbars without seams and aligned row actions cleanly.
+- **Real-Time Vault Status Refresh 🔐**: Unlocking the credential vault immediately clears lock banners without requiring a manual reload.
 
 ## [1.0.99] - 2026-08-31
 

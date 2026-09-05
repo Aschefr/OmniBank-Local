@@ -588,7 +588,11 @@ class App {
             const bellBadge = document.getElementById('notifCountBadge');
             if (bellBadge) {
                 bellBadge.innerText = totalUnreadBadge > 99 ? '99+' : totalUnreadBadge;
-                bellBadge.style.display = totalUnreadBadge > 0 ? 'inline-block' : 'none';
+                if (totalUnreadBadge > 0) {
+                    bellBadge.style.setProperty('display', 'inline-flex', 'important');
+                } else {
+                    bellBadge.style.setProperty('display', 'none', 'important');
+                }
             }
 
             const activeTabBadge = document.getElementById('notifActiveUnreadBadge');

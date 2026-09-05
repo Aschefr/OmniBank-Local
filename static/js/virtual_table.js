@@ -29,14 +29,39 @@ window.VirtualTable = class VirtualTable {
         this._lastEnd = -1;
         this._measured = false;
         this._scrollHandler = null;
+        this._resizeHandler = null;
         this._rafId = null;
         this._pendingScroll = null;
         this._mobileBreakpoint = 1024;
+
+        this._setupResizeListener();
     }
 
     /** @returns {boolean} true when viewport is in mobile card-layout mode */
     _isMobile() {
         return window.innerWidth <= this._mobileBreakpoint;
+    }
+
+    _setupResizeListener() {
+        let resizeTimer = null;
+        this._resizeHandler = () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (this._isMobile()) {
+                    this._detachScroll();
+                    const tbody = document.getElementById(this.tbodyId);
+                    if (tbody && this._rows.length > 0) {
+                        tbody.innerHTML = this._rows.join('');
+                    }
+                } else {
+                    this._attachScroll();
+                    this._lastStart = -1;
+                    this._lastEnd = -1;
+                    this._render(true);
+                }
+            }, 100);
+        };
+        window.addEventListener('resize', this._resizeHandler);
     }
 
     /**
@@ -66,7 +91,7 @@ window.VirtualTable = class VirtualTable {
             if (opts.scrollToId) {
                 requestAnimationFrame(() => {
                     const el = document.getElementById(opts.scrollToId);
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (el) el.scrollIntoView({ behavior: 'auto', block: 'center' });
                 });
             }
             return;
@@ -90,6 +115,10 @@ window.VirtualTable = class VirtualTable {
     }
 
     _scrollToIndex(idx) {
+        if (this._isMobile()) {
+            this._detachScroll();
+            return;
+        }
         const scroller = document.querySelector(this.scrollSelector);
         const tbody = document.getElementById(this.tbodyId);
         if (!scroller || !tbody) return;
@@ -103,15 +132,14 @@ window.VirtualTable = class VirtualTable {
 
         // Force render around target area
         this._lastStart = -1;
-        const savedScroll = scroller.scrollTop;
         scroller.scrollTop = Math.max(0, targetScrollTop);
         this._render(true);
 
-        // Now smooth-scroll to exact position
+        // Now scroll to exact position
         requestAnimationFrame(() => {
             scroller.scrollTo({
                 top: Math.max(0, targetScrollTop),
-                behavior: 'smooth'
+                behavior: 'auto'
             });
         });
     }
@@ -119,10 +147,12 @@ window.VirtualTable = class VirtualTable {
     /** Force a re-render at current scroll position (e.g., after column toggle). */
     refresh() {
         if (this._isMobile()) {
+            this._detachScroll();
             const tbody = document.getElementById(this.tbodyId);
             if (tbody) tbody.innerHTML = this._rows.join('');
             return;
         }
+        this._attachScroll();
         this._lastStart = -1;
         this._lastEnd = -1;
         this._render(true);
@@ -131,6 +161,10 @@ window.VirtualTable = class VirtualTable {
     /** Cleanup listeners. */
     destroy() {
         this._detachScroll();
+        if (this._resizeHandler) {
+            window.removeEventListener('resize', this._resizeHandler);
+            this._resizeHandler = null;
+        }
         if (this._rafId) {
             cancelAnimationFrame(this._rafId);
             this._rafId = null;
@@ -140,15 +174,25 @@ window.VirtualTable = class VirtualTable {
     // ── Internal ──────────────────────────────────────────────────────────
 
     _attachScroll() {
+        if (this._isMobile()) {
+            this._detachScroll();
+            return;
+        }
         if (this._scrollHandler) return; // already attached
         const scroller = document.querySelector(this.scrollSelector);
         if (!scroller) return;
 
         this._scrollHandler = () => {
+            if (this._isMobile()) {
+                this._detachScroll();
+                return;
+            }
             if (this._rafId) return; // already scheduled
             this._rafId = requestAnimationFrame(() => {
                 this._rafId = null;
-                this._render(false);
+                if (!this._isMobile()) {
+                    this._render(false);
+                }
             });
         };
         scroller.addEventListener('scroll', this._scrollHandler, { passive: true });
@@ -164,6 +208,10 @@ window.VirtualTable = class VirtualTable {
     }
 
     _render(force) {
+        if (this._isMobile()) {
+            this._detachScroll();
+            return;
+        }
         const tbody = document.getElementById(this.tbodyId);
         const scroller = document.querySelector(this.scrollSelector);
         if (!tbody || !scroller) return;
