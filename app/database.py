@@ -123,6 +123,18 @@ def _configure_sqlite_pragmas(target_engine: Engine):
         except Exception:
             pass
 
+        # Fonction SQL personnalisée pour les recherches permissives (insensibles aux accents et à la casse)
+        try:
+            import unicodedata
+            def _sqlite_unaccent(text):
+                if text is None:
+                    return ""
+                return "".join(c for c in unicodedata.normalize('NFD', str(text)) if unicodedata.category(c) != 'Mn').lower()
+
+            dbapi_connection.create_function("UNACCENT", 1, _sqlite_unaccent)
+        except Exception:
+            pass
+
         cursor.close()
         try:
             dbapi_connection.isolation_level = old_isolation

@@ -270,9 +270,9 @@ Object.assign(window.BankSyncView, {
     },
 
     filterBackends(query) {
-        const q = query.toLowerCase().trim();
+        const q = query || '';
         const filtered = this.backends.filter(b => 
-            b.name.toLowerCase().includes(q) || b.description.toLowerCase().includes(q)
+            window.permissiveMatch([b.name, b.description, b.uuid, b.id], q)
         );
         this.renderBackendsGrid(filtered);
     },

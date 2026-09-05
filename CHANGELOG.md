@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [1.1.0] - 2026-08-31
 
 ### Added & Improved
+- **Universal Permissive Search & Accent Insensitivity 🔍**: Standardized search across all views (Operations, Timeline, Overview, Settings, Notifications, Bank Sync, and Categories) to ignore accents, case, and comma/dot number formats, with multi-word matching in any order.
 - **Executive Themes (Titanium Dark & Albâtre Light) 🏛️**: Introduced slate-metallic satin and warm luxury ivory/bronze themes with precision bento styling across all views.
 - **Tabbed Settings & Live Theme Previews ⚙️**: Reorganized configuration into clear categorical tabs with instant search and interactive palette mockups.
 - **Mobile Experience & Unified Button Standards 📱**: Redesigned navigation drawer, streamlined currency rates card, and harmonized all mobile touch buttons to a clean 36px standard.

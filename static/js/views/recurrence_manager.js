@@ -430,11 +430,14 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             
             // Text search
             if (q) {
-                const descText = window.cleanStringForSearch(t.description || '');
-                const catText = window.cleanStringForSearch(t.category || '');
-                const freqText = window.cleanStringForSearch(t.frequency || '');
-                const amountText = (t.displayAmount || 0).toString().toLowerCase();
-                if (!descText.includes(q) && !catText.includes(q) && !freqText.includes(q) && !amountText.includes(q)) {
+                const fields = [
+                    t.description,
+                    t.category,
+                    t.frequency,
+                    t.displayAmount != null ? t.displayAmount.toString() : '',
+                    t.displayAmount != null ? t.displayAmount.toFixed(2) : ''
+                ];
+                if (!window.permissiveMatch(fields, q)) {
                     return false;
                 }
             }

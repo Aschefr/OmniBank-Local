@@ -589,11 +589,22 @@ window.TimelineView = {
         let filtered = this.transactions;
 
         if (q) {
-            filtered = filtered.filter(tx => 
-                window.cleanStringForSearch(tx.description || '').includes(q) ||
-                window.cleanStringForSearch(tx.category || '').includes(q) ||
-                (tx.amount || '').toString().includes(q)
-            );
+            const accounts = window.app && window.app.accounts ? window.app.accounts : [];
+            const accMap = {};
+            accounts.forEach(a => { accMap[a.id] = a.name; });
+            filtered = filtered.filter(tx => {
+                const fields = [
+                    tx.description,
+                    tx.category,
+                    tx.amount != null ? tx.amount.toString() : '',
+                    tx.amount != null ? tx.amount.toFixed(2) : '',
+                    this.budgetsMap ? this.budgetsMap[tx.budget_id] : '',
+                    tx.from_account_id ? accMap[tx.from_account_id] : '',
+                    tx.to_account_id ? accMap[tx.to_account_id] : '',
+                    tx.check_slip_number
+                ];
+                return window.permissiveMatch(fields, q);
+            });
         }
         if (tType) {
             filtered = filtered.filter(tx => tx.type === tType);

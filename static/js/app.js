@@ -761,9 +761,14 @@ class App {
         if (query) {
             rawNotifs = rawNotifs.filter(n => {
                 const translated = this._translateNotification(n);
-                const titleMatch = (translated.title || '').toLowerCase().includes(query);
-                const contentMatch = (translated.content || '').toLowerCase().includes(query);
-                return titleMatch || contentMatch;
+                const fields = [
+                    translated.title,
+                    translated.content,
+                    n.type,
+                    n.title,
+                    n.content
+                ];
+                return window.permissiveMatch(fields, query);
             });
         }
 

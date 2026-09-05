@@ -138,7 +138,7 @@ window.CategoriesView = {
         types.forEach(t => {
             let cats = this.categories.filter(c => c.type === t);
             if (search) {
-                cats = cats.filter(c => window.cleanStringForSearch(c.name).includes(search));
+                cats = cats.filter(c => window.permissiveMatch(c.name, search));
             }
             
             html += `
