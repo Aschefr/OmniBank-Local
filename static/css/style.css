@@ -18,6 +18,7 @@
     --accent-subtle: rgba(99, 102, 241, 0.14);
     --accent-border: rgba(99, 102, 241, 0.35);
     --accent-glow: rgba(99, 102, 241, 0.25);
+    --accent-gradient: linear-gradient(90deg, #6366f1 0%, #a5b4fc 50%, #e0e7ff 100%);
 
     --success: #36b37e;
     --danger: #ff5630;
@@ -56,6 +57,7 @@ body.theme-dark {
     --accent-subtle: rgba(99, 102, 241, 0.18);
     --accent-border: rgba(99, 102, 241, 0.40);
     --accent-glow: rgba(99, 102, 241, 0.30);
+    --accent-gradient: linear-gradient(90deg, #6366f1 0%, #a5b4fc 50%, #e0e7ff 100%);
 
     --success: #36b37e;
     --danger: #ff5630;
@@ -94,6 +96,7 @@ body.theme-titanium-dark {
     --accent-subtle: rgba(96, 165, 250, 0.12);
     --accent-border: rgba(96, 165, 250, 0.35);
     --accent-glow: rgba(96, 165, 250, 0.20);
+    --accent-gradient: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
 
     --metal-bevel: none;
     --metal-bevel-strong: none;
@@ -139,6 +142,7 @@ body.theme-titanium-light {
     --accent-subtle: rgba(194, 94, 0, 0.10);
     --accent-border: rgba(194, 94, 0, 0.30);
     --accent-glow: rgba(194, 94, 0, 0.18);
+    --accent-gradient: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
 
     --metal-bevel: none;
     --metal-bevel-strong: none;
@@ -10104,35 +10108,34 @@ body.theme-titanium-light .data-table tbody td {
 }
 
 /* ── 4. Executive Precision Buttons ── */
-body.theme-titanium-dark .btn-primary {
-    background: #2563eb;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+body.theme-titanium-dark .btn-primary,
+body.theme-titanium-light .btn-primary {
+    background: var(--accent);
+    color: #ffffff;
     border-radius: 6px;
     font-weight: 600;
-    color: #ffffff;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.20);
     transition: all 0.12s ease;
 }
 
+body.theme-titanium-dark .btn-primary {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
 body.theme-titanium-dark .btn-primary:hover {
-    background: #1d4ed8;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+    background: var(--accent-hover);
+    box-shadow: 0 2px 6px var(--accent-glow);
     transform: translateY(-1px);
 }
 
 body.theme-titanium-light .btn-primary {
-    background: #c25e00;
     border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 6px;
-    font-weight: 600;
-    color: #ffffff;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-    transition: all 0.12s ease;
 }
 
 body.theme-titanium-light .btn-primary:hover {
-    background: #9a4700;
-    box-shadow: 0 2px 6px rgba(194, 94, 0, 0.25);
+    background: var(--accent-hover);
+    box-shadow: 0 2px 6px var(--accent-glow);
     transform: translateY(-1px);
 }
 
@@ -10305,10 +10308,10 @@ body.theme-titanium-light .overview-hero-card::before {
 
 /* Trésorerie (Net Worth) */
 body.theme-titanium-dark .overview-hero-networth::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light .overview-hero-networth::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 /* Reste à Vivre */
@@ -10488,11 +10491,11 @@ body.theme-titanium-light .overview-main-card::before {
 }
 
 body.theme-titanium-dark .overview-main-card::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-light .overview-main-card::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-dark .overview-card-header,
@@ -10714,10 +10717,10 @@ body.theme-titanium-light .overview-card-budgets-savings::before {
 
 /* Tendance 6M (Bleu Acier / Cuivre) */
 body.theme-titanium-dark .overview-card-trend::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light .overview-card-trend::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 /* Top 6 Dépenses (Corail / Rubis) */
@@ -10863,10 +10866,10 @@ body.theme-titanium-light .sidebar-accounts-card::before {
 }
 
 body.theme-titanium-dark .sidebar-accounts-card::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light .sidebar-accounts-card::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-dark .app-sidebar .stat-box,
@@ -10904,10 +10907,10 @@ body.theme-titanium-light #trendsStatsGrid .stat-box::before {
 }
 
 body.theme-titanium-dark #trendsStatsGrid .stat-box::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light #trendsStatsGrid .stat-box::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 /* Reste à Vivre (Émeraude / Vert) */
@@ -10972,10 +10975,10 @@ body.theme-titanium-light #quickSettingsBox::before {
 }
 
 body.theme-titanium-dark #quickSettingsBox::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light #quickSettingsBox::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 /* ── 7.3 Modales Globales & Menus Déroulants Flottants ── */
@@ -11044,7 +11047,7 @@ body.theme-titanium-dark .bv-modal-panel::before,
 body.theme-titanium-dark .bv-wizard-panel::before,
 body.theme-titanium-dark .budget-unified-panel::before,
 body.theme-titanium-dark .user-picker-container::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-light .modal::before,
@@ -11053,7 +11056,7 @@ body.theme-titanium-light .bv-modal-panel::before,
 body.theme-titanium-light .bv-wizard-panel::before,
 body.theme-titanium-light .budget-unified-panel::before,
 body.theme-titanium-light .user-picker-container::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-dark .modal .inline-input,
@@ -11140,7 +11143,7 @@ body.theme-titanium-dark #profileDropdown::before,
 body.theme-titanium-dark #userSwitcherMenu::before,
 body.theme-titanium-dark #aiEntityPopover::before,
 body.theme-titanium-dark .years-popover::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-light #notifMenu::before,
@@ -11150,7 +11153,7 @@ body.theme-titanium-light #profileDropdown::before,
 body.theme-titanium-light #userSwitcherMenu::before,
 body.theme-titanium-light #aiEntityPopover::before,
 body.theme-titanium-light .years-popover::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 /* ── 7.4 Tableaux de Données Système & Lignes de Données ── */
@@ -11257,12 +11260,12 @@ body.theme-titanium-light .dashboard-period-banner::before {
 
 body.theme-titanium-dark #periodBanner::before,
 body.theme-titanium-dark .dashboard-period-banner::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-light #periodBanner::before,
 body.theme-titanium-light .dashboard-period-banner::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-dark .table-container,
@@ -11285,11 +11288,11 @@ body.theme-titanium-light .table-container::before {
 }
 
 body.theme-titanium-dark .table-container::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-light .table-container::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 /* ── 7.6 Synthèse (Analytics) Heatmap Containers ── */
@@ -11431,10 +11434,10 @@ body.theme-titanium-light .bv-summary-bar::before {
 }
 
 body.theme-titanium-dark .bv-summary-bar::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light .bv-summary-bar::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-dark .bv-progress-track,
@@ -11485,12 +11488,12 @@ body.theme-titanium-light .trends-table-pane::before {
 
 body.theme-titanium-dark .trends-chart-pane::before,
 body.theme-titanium-dark .trends-table-pane::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-light .trends-chart-pane::before,
 body.theme-titanium-light .trends-table-pane::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 /* ── 7.9 Chat IA ── */
@@ -11653,10 +11656,10 @@ body.theme-titanium-light .rec-filter-bar::before {
     z-index: 2;
 }
 body.theme-titanium-dark .rec-filter-bar::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light .rec-filter-bar::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-dark .btn-filter,
@@ -11675,14 +11678,12 @@ body.theme-titanium-light .btn-filter.btn-filter-duration.active {
     border-color: #6d28d9 !important;
 }
 body.theme-titanium-dark .btn-filter.btn-filter-period.active,
-body.theme-titanium-dark .btn-filter.btn-filter-reset.active {
-    background: #3b82f6 !important;
-    border-color: #60a5fa !important;
-}
+body.theme-titanium-dark .btn-filter.btn-filter-reset.active,
 body.theme-titanium-light .btn-filter.btn-filter-period.active,
 body.theme-titanium-light .btn-filter.btn-filter-reset.active {
-    background: #c25e00 !important;
-    border-color: #ea580c !important;
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #ffffff !important;
 }
 
 /* 2. Cartes KPI du haut (Stats récurrences) */
@@ -11713,10 +11714,10 @@ body.theme-titanium-light #recurrenceStatsGrid .stat-box::before {
 }
 /* Total annuel planifié */
 body.theme-titanium-dark #recurrenceStatsGrid .stat-box:nth-child(1)::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light #recurrenceStatsGrid .stat-box:nth-child(1)::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 /* Moyenne mensuelle */
 body.theme-titanium-dark #recurrenceStatsGrid .stat-box:nth-child(2)::before {
@@ -11766,10 +11767,10 @@ body.theme-titanium-light .recurrences-main-card::before {
     z-index: 2;
 }
 body.theme-titanium-dark .recurrences-main-card::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light .recurrences-main-card::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 /* En-tête table et Gantt */
@@ -11829,11 +11830,11 @@ body.theme-titanium-light .categories-add-card::before {
 }
 body.theme-titanium-dark .categories-type-card::before,
 body.theme-titanium-dark .categories-add-card::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light .categories-type-card::before,
 body.theme-titanium-light .categories-add-card::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 /* 2. Les 5 Cartes de Groupes Thématiques avec Liserés Sémantiques */
@@ -11996,11 +11997,11 @@ body.theme-titanium-light .accounts-add-card::before {
 }
 body.theme-titanium-dark #bankSyncRoot.bank-sync-unified-card::before,
 body.theme-titanium-dark .accounts-add-card::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light #bankSyncRoot.bank-sync-unified-card::before,
 body.theme-titanium-light .accounts-add-card::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 /* 2. Tableau des comptes */
@@ -12030,10 +12031,10 @@ body.theme-titanium-light .accounts-table-card::before {
     z-index: 2;
 }
 body.theme-titanium-dark .accounts-table-card::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light .accounts-table-card::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-dark .accounts-table-card .data-table th {
@@ -12079,10 +12080,10 @@ body.theme-titanium-light .history-table-card::before {
     z-index: 2;
 }
 body.theme-titanium-dark .history-table-card::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light .history-table-card::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 body.theme-titanium-dark .history-table-card .data-table th {
@@ -12141,10 +12142,10 @@ body.theme-titanium-light .config-card::before {
     z-index: 2;
 }
 body.theme-titanium-dark .config-card::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    background: var(--accent-gradient);
 }
 body.theme-titanium-light .config-card::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    background: var(--accent-gradient);
 }
 
 /* Carte Ollama IA (Liseré Violet) */
@@ -12403,9 +12404,9 @@ body.theme-titanium-dark .config-tab-btn:hover {
 
 body.theme-titanium-dark .config-tab-btn.active {
     color: #ffffff !important;
-    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%) !important;
-    border-color: #3b82f6 !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 8px rgba(37, 99, 235, 0.35) !important;
+    background: var(--accent) !important;
+    border-color: var(--accent-hover) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 8px var(--accent-glow) !important;
 }
 
 body.theme-titanium-light .config-tab-btn {
@@ -12426,9 +12427,9 @@ body.theme-titanium-light .config-tab-btn:hover {
 
 body.theme-titanium-light .config-tab-btn.active {
     color: #ffffff !important;
-    background: linear-gradient(180deg, #ea580c 0%, #c2410c 100%) !important;
-    border-color: #ea580c !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 8px rgba(234, 88, 12, 0.25) !important;
+    background: var(--accent) !important;
+    border-color: var(--accent-hover) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 8px var(--accent-glow) !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -12704,18 +12705,20 @@ body.theme-titanium-light .ghost-mobile-card .btn {
 }
 
 body.theme-titanium-dark .ghost-row .btn-primary,
-body.theme-titanium-dark .ghost-mobile-card .btn-primary {
-    background: #2563eb !important;
+body.theme-titanium-dark .ghost-mobile-card .btn-primary,
+body.theme-titanium-light .ghost-row .btn-primary,
+body.theme-titanium-light .ghost-mobile-card .btn-primary {
+    background: var(--accent) !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
     color: #fff !important;
 }
 
-body.theme-titanium-light .ghost-row .btn-primary,
-body.theme-titanium-light .ghost-mobile-card .btn-primary {
-    background: #c25e00 !important;
-    border: 1px solid rgba(0, 0, 0, 0.08) !important;
-    color: #fff !important;
+body.theme-titanium-dark .ghost-row .btn-primary:hover,
+body.theme-titanium-dark .ghost-mobile-card .btn-primary:hover,
+body.theme-titanium-light .ghost-row .btn-primary:hover,
+body.theme-titanium-light .ghost-mobile-card .btn-primary:hover {
+    background: var(--accent-hover) !important;
 }
 
 /* ── 2. Boutons d'Action de Lignes (Modifier, Dupliquer, Supprimer) ── */
@@ -12983,11 +12986,11 @@ body.theme-titanium-light .review-modal-card::before {
 }
 
 body.theme-titanium-dark .review-modal-card::before {
-    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%) !important;
+    background: var(--accent-gradient) !important;
 }
 
 body.theme-titanium-light .review-modal-card::before {
-    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%) !important;
+    background: var(--accent-gradient) !important;
 }
 
 body.theme-titanium-dark .review-filter-pill,
@@ -13005,26 +13008,24 @@ body.theme-titanium-light .review-thead th {
     text-transform: uppercase;
 }
 
-body.theme-titanium-dark .review-btn-commit {
-    border-radius: 4px !important;
-    background: #2563eb !important;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35) !important;
-}
-
+body.theme-titanium-dark .review-btn-commit,
 body.theme-titanium-light .review-btn-commit {
     border-radius: 4px !important;
-    background: #c25e00 !important;
-    box-shadow: 0 2px 8px rgba(194, 94, 0, 0.3) !important;
+    background: var(--accent) !important;
+    box-shadow: 0 2px 8px var(--accent-glow) !important;
+    color: #ffffff !important;
+}
+
+body.theme-titanium-dark .review-btn-commit:hover,
+body.theme-titanium-light .review-btn-commit:hover {
+    background: var(--accent-hover) !important;
 }
 
 /* ── 6. Notifications non lues harmonisées ── */
-body.theme-titanium-dark .notif-card.unread {
-    border-left: 4px solid var(--accent) !important;
-    background: rgba(96, 165, 250, 0.06) !important;
-}
+body.theme-titanium-dark .notif-card.unread,
 body.theme-titanium-light .notif-card.unread {
     border-left: 4px solid var(--accent) !important;
-    background: rgba(194, 94, 0, 0.05) !important;
+    background: var(--accent-subtle) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

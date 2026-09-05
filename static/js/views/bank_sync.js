@@ -267,7 +267,7 @@ window.BankSyncView = {
                         <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
                     </button>
 
-                    <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="display: inline-flex; height: 36px; align-items: center; gap: 6px; font-weight: 700; padding: 0 16px; font-size: 13px; border-radius: 9px; box-shadow: 0 2px 8px rgba(99,102,241,0.25); box-sizing: border-box; white-space: nowrap;">
+                    <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="display: inline-flex; height: 36px; align-items: center; gap: 6px; font-weight: 700; padding: 0 16px; font-size: 13px; border-radius: 9px; box-shadow: 0 2px 8px var(--accent-glow); box-sizing: border-box; white-space: nowrap;">
                         <span>➕</span> <span data-i18n="bank_sync_add_btn">${window.i18n.t('bank_sync_add_btn')}</span>
                     </button>
 
