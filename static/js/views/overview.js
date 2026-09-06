@@ -772,16 +772,19 @@ window.OverviewView = {
             let plannedInc = stats.unreconciled_income || 0;
             let ravWithInc = (stats.rest_to_live_with_income !== undefined) ? stats.rest_to_live_with_income : (currentRav + plannedInc);
 
-            if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
-                const todayISO = new Date().toISOString().split('T')[0];
+            const isMainAccount = !this._selectedAccountId || (stats.main_account_id && String(this._selectedAccountId) === String(stats.main_account_id));
+            if (!isMainAccount && this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
                 const horizonISO = stats.next_pay_date || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
                 const accTxs = (this._transactions || []).filter(tx => {
                     if (tx.reconciliation_date || tx.is_skipped) return false;
-                    if (tx.date_operation < todayISO || tx.date_operation > horizonISO) return false;
+                    if (stats.next_pay_date ? tx.date_operation >= horizonISO : tx.date_operation > horizonISO) return false;
                     return String(tx.to_account_id) === String(this._selectedAccountId);
                 });
-                plannedInc = accTxs.reduce((sum, tx) => sum + tx.amount, 0);
+                plannedInc = accTxs.reduce((sum, tx) => sum + (tx.amount > 0 ? tx.amount : 0), 0);
                 ravWithInc = currentRav + plannedInc;
+            } else if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
+                plannedInc = stats.unreconciled_income || 0;
+                ravWithInc = (stats.rest_to_live_with_income !== undefined) ? stats.rest_to_live_with_income : (currentRav + plannedInc);
             }
 
             rav.textContent = formatCurrency(currentRav);

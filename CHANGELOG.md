@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2026-09-06
+
+### Added & Improved
+- **Persistent Staging Area & Review Cockpit 💾**: Pending bank synchronization operations and imported statements (CSV, Excel, AI) now persist across application restarts in both Tauri and Docker.
+
+### Fixed
+- **Overview Planned Income Mention 💡**: Restored the expected income indicator under "Reste à vivre" on the Overview card, keeping it consistent with the sidebar regardless of account selection.
+
 ## [1.1.1] - 2026-09-05
 
 ### Fixed

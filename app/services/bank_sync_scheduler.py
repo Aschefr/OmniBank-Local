@@ -277,7 +277,8 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
     if orphan_ids:
         for oid in orphan_ids:
             prof_data.pop(oid, None)
-        _set_config_value(db, "bank_pending_sync_cache", json.dumps(prof_data) if prof_data else "")
+        serializable = {str(k): v for k, v in prof_data.items()}
+        _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable) if prof_data else "")
 
     from app.services.finance_engine import calculate_balances
     balances_reconciled = calculate_balances(db, only_reconciled=True)

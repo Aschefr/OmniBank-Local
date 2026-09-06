@@ -1157,6 +1157,15 @@ Object.assign(window.BankSyncView, {
             this.closeReviewModal();
 
             if (isCsvImport) {
+                if (hasRemaining) {
+                    this.saveCachedPreview('csv_import', this.previewData);
+                    this.saveCachedPreview(-1, this.previewData);
+                } else {
+                    this.clearCachedPreview('csv_import');
+                    this.clearCachedPreview(-1);
+                    this.clearMatchOverrides('csv_import');
+                    this.clearMatchOverrides(-1);
+                }
                 const count = res.imported || allTxs.length;
                 const recCount = res.reconciled || 0;
                 let msg = window.i18n ? window.i18n.tp('msg_import_done', { count }) || `${count} opération(s) importée(s).` : `${count} opération(s) importée(s).`;
@@ -1164,7 +1173,7 @@ Object.assign(window.BankSyncView, {
                     msg += ` (✔ ${recCount} rapprochée(s))`;
                 }
                 this.showToast(msg, 'success');
-                await this.loadPendingSync();
+                await this.loadPendingSync(true);
             } else {
                 if (this.activeConnId) {
                     if (hasRemaining) {
@@ -1186,7 +1195,7 @@ Object.assign(window.BankSyncView, {
                 }
                 this.showToast(toastMsg, 'success');
                 await this.loadConnections();
-                await this.loadPendingSync();
+                await this.loadPendingSync(true);
             }
 
             // Rafraîchir toutes les vues

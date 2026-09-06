@@ -163,5 +163,54 @@ def test_dashboard_stats_endpoint_includes_planned_income():
     assert "rest_to_live" in data
     assert "rest_to_live_with_income" in data
     assert "unreconciled_income" in data
-    assert "total_unreconciled_income" in data
+    assert "main_account_id" in data
     assert data["rest_to_live_with_income"] == round(data["rest_to_live"] + data["unreconciled_income"], 2)
+
+
+def test_unreconciled_income_dated_in_past_counted_before_next_pay():
+    """
+    Vérifie qu'une recette non encore rapprochée dont la date d'opération est passée
+    (ex: hier) mais avant la prochaine paie est bien comptabilisée dans unreconciled_income.
+    """
+    db = TestingSessionLocal()
+    try:
+        acc = Account(name="Test Past Unreconciled Income Acc", type="Compte courant", initial_balance=500.0)
+        db.add(acc)
+        db.commit()
+        db.refresh(acc)
+
+        today = date.today()
+
+        # Recette non rapprochée datée d'hier
+        inc = Transaction(
+            date_saisie=today,
+            date_operation=today - timedelta(days=1),
+            description="Recette d'hier non rapprochée",
+            amount=150.0,
+            type="income",
+            from_account_id=None,
+            to_account_id=acc.id,
+            reconciliation_date=None
+        )
+        db.add(inc)
+        db.commit()
+
+        # Configure main_account_id
+        from app.models import GlobalConfig
+        main_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "main_account_id").first()
+        if not main_cfg:
+            main_cfg = GlobalConfig(key="main_account_id", value=str(acc.id))
+            db.add(main_cfg)
+        else:
+            main_cfg.value = str(acc.id)
+        db.commit()
+        stats_cache.invalidate()
+
+        res = client.get("/api/stats/dashboard")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["main_account_id"] == acc.id
+        assert data["unreconciled_income"] >= 150.0
+    finally:
+        db.close()
+
