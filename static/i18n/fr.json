@@ -2401,5 +2401,20 @@
     "loader_switching_profile_title": "Changement de profil en cours...",
     "loader_switching_profile_sub": "Chargement des comptes et des données en cours, veuillez patienter.",
     "import_tab_unassigned_hint": "⚠️ Compte OmniBank non associé. Sélectionnez le compte ci-dessus.",
-    "import_account_mapped_toast": "Compte associé et mémorisé avec succès."
+    "import_account_mapped_toast": "Compte associé et mémorisé avec succès.",
+    "bank_link_modal_title": "Lier des comptes bancaires",
+    "bank_link_add_btn": "Lier des comptes",
+    "bank_link_choose_method_title": "Choisissez comment alimenter vos comptes OmniBank :",
+    "bank_link_method_online_title": "Synchronisation en ligne (Woob)",
+    "bank_link_method_online_desc": "Connexion directe automatisée avec vos identifiants chiffrés localement dans votre coffre-fort.",
+    "bank_link_method_online_badge": "Automatique & Quotidien",
+    "bank_link_method_file_title": "Import de relevés (Excel / CSV)",
+    "bank_link_method_file_desc": "100% hors-ligne, zéro identifiant requis. Déposez vos relevés périodiques (.xlsx, .xls, .csv).",
+    "bank_link_method_file_badge": "100% Privé & Manuel",
+    "bank_link_back_to_methods": "Choisir une autre méthode",
+    "acc_source_online": "En ligne : {bank}",
+    "acc_source_file": "Relevé : \"{section}\"",
+    "acc_source_manual": "Saisie manuelle",
+    "acc_btn_import_tooltip": "Importer un relevé pour ce compte (XLSX / CSV)",
+    "acc_btn_sync_tooltip": "Relever les opérations en ligne pour ce compte"
 }
