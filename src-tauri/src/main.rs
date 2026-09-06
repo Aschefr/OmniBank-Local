@@ -247,6 +247,12 @@ fn main() {
                                             console.warn('[Tauri:safety] Force-revealing UI after 5s');
                                             c.style.opacity = '1';
                                         }
+                                        if (window.hideAppInitLoader) {
+                                            window.hideAppInitLoader();
+                                        } else {
+                                            var l = document.getElementById('appInitLoader');
+                                            if (l) l.style.display = 'none';
+                                        }
                                     }, 5000);
                                 "#);
                                 let _ = window.show();

@@ -169,7 +169,7 @@ Object.assign(window.BankSyncView, {
                 </p>
                 <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="font-weight: 600; padding: 7px 16px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
-                        <span>➕</span> <span data-i18n="bank_sync_add_btn">${window.i18n.t('bank_sync_add_btn')}</span>
+                        <span>➕</span> <span data-i18n="bank_link_add_btn">${window.i18n.t('bank_link_add_btn') || window.i18n.t('bank_sync_add_btn')}</span>
                     </button>
                     <button class="btn btn-secondary" onclick="window.ImportWizard ? window.ImportWizard.open() : null" style="font-weight: 600; padding: 7px 16px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
                         <span>📥</span> <span data-i18n="btn_import_statement">${window.i18n.t('btn_import_statement') || 'Importer un relevé'}</span>
@@ -263,11 +263,53 @@ Object.assign(window.BankSyncView, {
 
     openAddModal() {
         this.selectedBackend = null;
-        document.getElementById('addBankModal').style.display = 'flex';
-        document.getElementById('stepSelectBank').style.display = 'block';
-        document.getElementById('stepCredentials').style.display = 'none';
-        document.getElementById('btnSaveConnection').style.display = 'none';
+        const modal = document.getElementById('addBankModal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+
+        const stepMethod = document.getElementById('stepChooseMethod');
+        const stepBank = document.getElementById('stepSelectBank');
+        const stepCreds = document.getElementById('stepCredentials');
+        const btnSave = document.getElementById('btnSaveConnection');
+
+        if (stepMethod) stepMethod.style.display = 'block';
+        if (stepBank) stepBank.style.display = 'none';
+        if (stepCreds) stepCreds.style.display = 'none';
+        if (btnSave) btnSave.style.display = 'none';
+
         this.renderBackendsGrid(this.backends);
+    },
+
+    chooseAddMethod(method) {
+        if (method === 'online') {
+            const stepMethod = document.getElementById('stepChooseMethod');
+            const stepBank = document.getElementById('stepSelectBank');
+            if (stepMethod) stepMethod.style.display = 'none';
+            if (stepBank) stepBank.style.display = 'block';
+            const searchInput = document.getElementById('bankSearchInput');
+            if (searchInput) {
+                searchInput.value = '';
+                this.renderBackendsGrid(this.backends);
+                setTimeout(() => searchInput.focus(), 50);
+            }
+        } else if (method === 'file') {
+            this.closeAddModal();
+            if (window.ImportWizard && typeof window.ImportWizard.open === 'function') {
+                window.ImportWizard.open();
+            }
+        }
+    },
+
+    backToMethodSelection() {
+        const stepMethod = document.getElementById('stepChooseMethod');
+        const stepBank = document.getElementById('stepSelectBank');
+        const stepCreds = document.getElementById('stepCredentials');
+        const btnSave = document.getElementById('btnSaveConnection');
+
+        if (stepMethod) stepMethod.style.display = 'block';
+        if (stepBank) stepBank.style.display = 'none';
+        if (stepCreds) stepCreds.style.display = 'none';
+        if (btnSave) btnSave.style.display = 'none';
     },
 
     closeAddModal() {

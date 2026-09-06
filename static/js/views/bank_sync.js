@@ -303,7 +303,7 @@ window.BankSyncView = {
                     </button>
 
                     <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="display: inline-flex; height: 36px; align-items: center; gap: 6px; font-weight: 700; padding: 0 16px; font-size: 13px; border-radius: 9px; box-shadow: 0 2px 8px var(--accent-glow); box-sizing: border-box; white-space: nowrap;">
-                        <span>➕</span> <span data-i18n="bank_sync_add_btn">${window.i18n.t('bank_sync_add_btn')}</span>
+                        <span>➕</span> <span data-i18n="bank_link_add_btn">${window.i18n.t('bank_link_add_btn') || window.i18n.t('bank_sync_add_btn')}</span>
                     </button>
 
                 </div>
@@ -394,16 +394,72 @@ window.BankSyncView = {
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 650px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.4); overflow: hidden;">
                 <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
                     <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                        <span>🏦</span> <span data-i18n="bank_sync_modal_title">${window.i18n.t('bank_sync_modal_title')}</span>
+                        <span>🏦</span> <span id="addBankModalHeaderTitle" data-i18n="bank_link_modal_title">${window.i18n.t('bank_link_modal_title') || window.i18n.t('bank_sync_modal_title')}</span>
                     </h3>
                     <button onclick="window.BankSyncView.closeAddModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted);">&times;</button>
                 </div>
 
                 <div id="addBankModalBody" style="padding: 24px; overflow-y: auto; flex: 1;">
-                    <div id="stepSelectBank">
-                        <label style="display: block; font-weight: 600; font-size: 14px; margin-bottom: 10px; color: var(--text-main);" data-i18n="bank_sync_select_bank">
-                            ${window.i18n.t('bank_sync_select_bank')}
-                        </label>
+                    <!-- Étape 0 : Choix du mode d'alimentation -->
+                    <div id="stepChooseMethod">
+                        <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px 0;" data-i18n="bank_link_choose_method_title">
+                            ${window.i18n.t('bank_link_choose_method_title') || 'Choisissez comment alimenter vos comptes OmniBank :'}
+                        </p>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+                            <!-- Option 1 : Woob -->
+                            <div onclick="window.BankSyncView.chooseAddMethod('online')" style="background: var(--bg-card); border: 2px solid var(--border-color); border-radius: 12px; padding: 18px; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; justify-content: space-between;" onmouseover="this.style.borderColor='var(--accent)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='var(--border-color)'; this.style.transform='none';">
+                                <div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                        <span style="font-size: 28px;">⚡</span>
+                                        <span style="font-size: 11px; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 20px; padding: 2px 8px;" data-i18n="bank_link_method_online_badge">
+                                            ${window.i18n.t('bank_link_method_online_badge') || 'Automatique & Quotidien'}
+                                        </span>
+                                    </div>
+                                    <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: var(--text-main);" data-i18n="bank_link_method_online_title">
+                                        ${window.i18n.t('bank_link_method_online_title') || 'Synchronisation en ligne (Woob)'}
+                                    </h4>
+                                    <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4; margin: 0;" data-i18n="bank_link_method_online_desc">
+                                        ${window.i18n.t('bank_link_method_online_desc') || 'Connexion directe automatisée avec vos identifiants chiffrés localement dans votre coffre-fort.'}
+                                    </p>
+                                </div>
+                                <div style="margin-top: 16px; font-size: 13px; font-weight: 600; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                                    <span data-i18n="btn_continue">${window.i18n.t('btn_continue') || 'Continuer'}</span> <span>&rarr;</span>
+                                </div>
+                            </div>
+
+                            <!-- Option 2 : Relevé de compte -->
+                            <div onclick="window.BankSyncView.chooseAddMethod('file')" style="background: var(--bg-card); border: 2px solid var(--border-color); border-radius: 12px; padding: 18px; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; justify-content: space-between;" onmouseover="this.style.borderColor='var(--accent)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='var(--border-color)'; this.style.transform='none';">
+                                <div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                        <span style="font-size: 28px;">📄</span>
+                                        <span style="font-size: 11px; font-weight: 700; background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 20px; padding: 2px 8px;" data-i18n="bank_link_method_file_badge">
+                                            ${window.i18n.t('bank_link_method_file_badge') || '100% Privé & Manuel'}
+                                        </span>
+                                    </div>
+                                    <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: var(--text-main);" data-i18n="bank_link_method_file_title">
+                                        ${window.i18n.t('bank_link_method_file_title') || 'Import de relevés (Excel / CSV)'}
+                                    </h4>
+                                    <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4; margin: 0;" data-i18n="bank_link_method_file_desc">
+                                        ${window.i18n.t('bank_link_method_file_desc') || '100% hors-ligne, zéro identifiant requis. Déposez vos relevés périodiques (.xlsx, .xls, .csv).'}
+                                    </p>
+                                </div>
+                                <div style="margin-top: 16px; font-size: 13px; font-weight: 600; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                                    <span>${window.i18n.t('btn_import_statement') || 'Ouvrir l\'import'}</span> <span>&rarr;</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="stepSelectBank" style="display: none;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <label style="font-weight: 600; font-size: 14px; margin: 0; color: var(--text-main);" data-i18n="bank_sync_select_bank">
+                                ${window.i18n.t('bank_sync_select_bank')}
+                            </label>
+                            <button class="btn btn-secondary" onclick="window.BankSyncView.backToMethodSelection()" style="padding: 4px 10px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                                ↩ <span data-i18n="bank_link_back_to_methods">${window.i18n.t('bank_link_back_to_methods') || 'Choisir une autre méthode'}</span>
+                            </button>
+                        </div>
                         <div style="position: relative; margin-bottom: 14px;">
                             <input type="text" id="bankSearchInput" class="input-styled" placeholder="${window.i18n.t('bank_sync_search_placeholder')}" style="width: 100%; padding-left: 38px; border-radius: 10px;" oninput="window.BankSyncView.filterBackends(this.value)" />
                             <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: 0.5;">🔍</span>

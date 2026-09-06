@@ -525,7 +525,7 @@
     "btn_ignore": "Ignore",
     "btn_import_csv": "Import (CSV/XLSX)",
     "btn_import_csv_db": "Import CSV to DB",
-    "btn_import_statement": "📥 Import statement",
+    "btn_import_statement": "Import statement",
     "btn_new_category": "+ New",
     "btn_ok": "OK",
     "btn_propagate_all": "All future (and the template)",
@@ -2416,5 +2416,7 @@
     "acc_source_file": "Statement: \"{section}\"",
     "acc_source_manual": "Manual entry",
     "acc_btn_import_tooltip": "Import statement for this account (XLSX / CSV)",
-    "acc_btn_sync_tooltip": "Poll online transactions for this account"
+    "acc_btn_sync_tooltip": "Poll online transactions for this account",
+    "btn_continue": "Continue",
+    "acc_th_feed": "Feed"
 }
