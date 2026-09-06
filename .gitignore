@@ -22,6 +22,7 @@ env/
 *.sqlite3
 *.csv
 !demo_dataset_omnibank.csv
+!tests/autopilot_benchmark/*.csv
 *.xlsx
 *.xls
 *.pdf
