@@ -38,6 +38,27 @@
             <div id="userPickerBadges" class="user-picker-badges"></div>
         </div>
     </div>
+    <!-- Profile Switching & Initial Loading Overlay -->
+    <div id="appInitLoader" style="display:flex; position:fixed; inset:0; background:var(--bg-base, #0b1120); z-index:99999; flex-direction:column; align-items:center; justify-content:center; transition:opacity 0.3s ease;">
+        <div style="font-size:42px; margin-bottom:16px; animation:pulse 1.5s infinite ease-in-out;">💼</div>
+        <div id="appInitLoaderTitle" data-i18n="loader_initial_title" style="font-family:'Inter',sans-serif; font-size:18px; font-weight:700; color:var(--text-main, #f8fafc); margin-bottom:8px;">Chargement de votre espace...</div>
+        <div id="appInitLoaderSub" data-i18n="loader_initial_sub" style="font-family:'Inter',sans-serif; font-size:13px; color:var(--text-muted, #94a3b8); max-width:340px; text-align:center;">Veuillez patienter pendant la préparation des données.</div>
+        <div class="import-spinner" style="margin-top:22px; width:34px; height:34px; border-width:3px;"></div>
+    </div>
+    <script>
+        (function() {
+            var _isEn = (localStorage.getItem('site_lang') === 'en');
+            var _t = document.getElementById('appInitLoaderTitle');
+            var _s = document.getElementById('appInitLoaderSub');
+            if (sessionStorage.getItem('omni_switching_profile')) {
+                if (_t) _t.textContent = _isEn ? "Switching profile in progress..." : "Changement de profil en cours...";
+                if (_s) _s.textContent = _isEn ? "Loading accounts and data, please wait." : "Chargement des comptes et des données en cours, veuillez patienter.";
+            } else {
+                if (_t) _t.textContent = _isEn ? "Loading your workspace..." : "Chargement de votre espace...";
+                if (_s) _s.textContent = _isEn ? "Please wait while preparing data." : "Veuillez patienter pendant la préparation des données.";
+            }
+        })();
+    </script>
     <div class="app-container" style="opacity: 0; transition: opacity 0.3s ease;">
         <header class="app-header">
             <div style="display:flex; align-items:center; gap: 10px;">
@@ -316,7 +337,7 @@
 
     <!-- Old import wizard removed -->
 
-    <div id="inlineConfirm" class="modal-overlay" style="display: none; z-index: 10001;">
+    <div id="inlineConfirm" class="modal-overlay" style="display: none; z-index: 10100;">
         <div class="modal" style="max-width:650px;">
             <h3 id="confirmTitle" data-i18n="confirm_default_title">Confirmation</h3>
             <div id="confirmMessage" data-i18n="confirm_default_message">Êtes-vous sûr ?</div>

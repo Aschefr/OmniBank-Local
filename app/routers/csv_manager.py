@@ -331,13 +331,37 @@ def export_csv(db: Session = Depends(get_db), cols: str = Query(None, descriptio
     response.headers["Content-Disposition"] = "attachment; filename=export_omnibank.csv"
     return response
 
+from app.schemas.api_schemas import FileAccountMappingRequest
+
+
 def parse_file_to_raw_data(filename: str, content: bytes) -> list:
     import pandas as pd
     import csv
 
     if filename.lower().endswith(('.xlsx', '.xls')):
-        df = pd.read_excel(BytesIO(content), dtype=str, header=None)
-        return [[str(x) if pd.notna(x) else '' for x in row] for row in df.values.tolist()]
+        sheets_dict = pd.read_excel(BytesIO(content), sheet_name=None, dtype=str, header=None)
+        if not sheets_dict:
+            return []
+        if len(sheets_dict) == 1:
+            sheet_title = list(sheets_dict.keys())[0]
+            first_df = list(sheets_dict.values())[0]
+            sheet_rows = [[str(x) if pd.notna(x) else '' for x in row] for row in first_df.values.tolist()]
+            # Si le nom d'onglet est descriptif (ex: "Compte Courant", "Livret A"), préfixer l'en-tête de section
+            if str(sheet_title).strip().lower() not in ('sheet1', 'feuil1', 'feuil 1', 'sheet 1'):
+                return [[f"Compte : {sheet_title}"]] + sheet_rows
+            return sheet_rows
+
+        # Classeur Excel multi-feuilles : extraire tous les onglets avec en-têtes de section distincts
+        all_rows = []
+        for sheet_name, df in sheets_dict.items():
+            if df.empty or len(df.values) == 0:
+                continue
+            sheet_rows = [[str(x) if pd.notna(x) else '' for x in row] for row in df.values.tolist()]
+            if any(any(str(c).strip() for c in r) for r in sheet_rows):
+                all_rows.append([f"Compte : {sheet_name}"])
+                all_rows.extend(sheet_rows)
+                all_rows.append([])  # Ligne séparatrice
+        return all_rows
 
     try:
         decoded = content.decode('utf-8-sig')
@@ -358,6 +382,33 @@ def parse_file_to_raw_data(filename: str, content: bytes) -> list:
 
     reader = csv.reader(StringIO(decoded), delimiter=delim)
     return [[str(x).strip() for x in row] for row in reader]
+
+
+@router.post("/save_account_mapping")
+def save_file_account_mapping(req: FileAccountMappingRequest, db: Session = Depends(get_db)):
+    """Enregistre de manière persistante le mapping entre un libellé d'en-tête de fichier et un compte OmniBank."""
+    from app.models import GlobalConfig
+    import json
+    if not req.section_title or not req.section_title.strip() or not req.account_id:
+        raise HTTPException(status_code=400, detail="section_title et account_id sont requis.")
+
+    clean_title = req.section_title.strip().lower()
+    conf = db.query(GlobalConfig).filter(GlobalConfig.key == "file_account_mapping").first()
+    mapping = {}
+    if conf and conf.value:
+        try:
+            mapping = json.loads(conf.value)
+        except Exception:
+            mapping = {}
+
+    mapping[clean_title] = int(req.account_id)
+
+    if conf:
+        conf.value = json.dumps(mapping)
+    else:
+        db.add(GlobalConfig(key="file_account_mapping", value=json.dumps(mapping)))
+    db.commit()
+    return {"ok": True, "mapped": {clean_title: req.account_id}}
 
 
 @router.post("/inspect_file")
@@ -392,9 +443,6 @@ async def import_to_pending(
 
     content = await file.read()
     raw_data = parse_file_to_raw_data(file.filename, content)
-
-    if section_title:
-        raw_data = extract_account_block(raw_data, "", "", explicit_section_title=section_title)
 
     accounts_out = extract_all_sections_parsed(
         raw_data=raw_data,

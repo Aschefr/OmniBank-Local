@@ -1,4 +1,5 @@
 from datetime import timedelta, date
+import hashlib
 from app.models import Transaction
 
 def heuristic_parse(df):
@@ -102,327 +103,8 @@ def heuristic_parse(df):
 
     return date_col, amount_col, desc_col
 
-def check_reconciliation(db, tx_date, tx_amount, matched_ids=None, account_id=None, is_coming=False, bank_label=None, csv_id=None):
-    """
-    Checks if a matching transaction exists in the database using a composite score (0-100 pts):
-      - Priority 0: Exact bank unique identifier / hash match (csv_id) : 100 pts
-      - Exact amount (+/- 0.01 €) : 40 pts
-      - Temporal proximity (asymmetric delta) : 0 to 35 pts
-      - Text/merchant similarity (smart_label_service) : 0 to 25 pts
-    Handles internal transfers across accounts and duplicate prevention.
-    """
-    if tx_date is None or tx_amount is None:
-        return None
-    try:
-        abs_amount = abs(float(tx_amount))
-    except (ValueError, TypeError):
-        return None
-        
-    epsilon = 0.01
-    
-    from datetime import timedelta
-    from sqlalchemy import or_, and_, func
+from app.services.reconciliation_engine import check_reconciliation
 
-    # Clause de filtre par compte si fourni
-    acc_filter = None
-    if account_id:
-        acc_filter = or_(
-            Transaction.from_account_id == account_id,
-            Transaction.to_account_id == account_id
-        )
-
-    # ── PASSE 0 : Correspondance exacte et prioritaire par empreinte bancaire (csv_id) ──
-    if csv_id:
-        target_csv_ids = [csv_id]
-        if csv_id.startswith("woob_") and not csv_id.startswith("woob_coming_"):
-            target_csv_ids.append(csv_id.replace("woob_", "woob_coming_"))
-        elif csv_id.startswith("woob_coming_"):
-            target_csv_ids.append(csv_id.replace("woob_coming_", "woob_"))
-
-        csv_query = db.query(Transaction).filter(
-            Transaction.csv_id.in_(target_csv_ids),
-            Transaction.amount >= abs_amount - epsilon,
-            Transaction.amount <= abs_amount + epsilon
-        )
-        if acc_filter is not None:
-            csv_query = csv_query.filter(acc_filter)
-        if matched_ids:
-            csv_query = csv_query.filter(
-                or_(
-                    Transaction.id.notin_(matched_ids),
-                    Transaction.type == "transfer",
-                    and_(Transaction.from_account_id.isnot(None), Transaction.to_account_id.isnot(None))
-                )
-            )
-        exact_csv_match = csv_query.first()
-        if exact_csv_match:
-            return {
-                "id": exact_csv_match.id,
-                "description": exact_csv_match.description,
-                "already_reconciled": bool(exact_csv_match.reconciliation_date),
-                "match_score": 100
-            }
-
-    target_dt = tx_date.date() if hasattr(tx_date, "date") and callable(tx_date.date) else tx_date
-
-    def _compute_temporal_score(candidate_dt, bank_dt):
-        if not candidate_dt or not bank_dt:
-            return 0
-        delta = (candidate_dt - bank_dt).days
-        # delta < 0 : DB date is before bank date (e.g. bought on 20th, debited on 22nd -> delta = -2)
-        # delta > 0 : DB date is after bank date (e.g. planned for 24th, debited on 23rd -> delta = +1)
-        abs_delta = abs(delta)
-        if abs_delta == 0:
-            return 35
-        elif delta in (-1, -2):
-            return 30
-        elif delta in (1, 2):
-            return 28
-        elif delta in (-3, -4):
-            return 20
-        elif delta in (3, 4):
-            return 15
-        elif delta in (-5, -6, -7):
-            return 10
-        elif delta in (5, 6, 7):
-            return 8
-        elif 8 <= abs_delta <= 15:
-            return 5
-        elif 16 <= abs_delta <= 30:
-            return 2
-        else:
-            return 0
-
-    def _compute_text_score(candidate_desc, raw_bank_label):
-        if not candidate_desc or not raw_bank_label:
-            return 0
-        try:
-            from app.services.smart_label_service import _compute_match_score
-            ratio = _compute_match_score(raw_bank_label, candidate_desc)
-            return round(ratio * 25)
-        except Exception:
-            return 0
-
-    def _evaluate_candidate(t):
-        amt_score = 40
-        t_dt = t.date_operation if hasattr(t.date_operation, "strftime") else (t.date_operation if t.date_operation else None)
-        temp_score = _compute_temporal_score(t_dt, target_dt)
-        text_score = _compute_text_score(t.description, bank_label)
-        total = amt_score + temp_score + text_score
-        return total
-
-    def _best_scored_tx(candidates):
-        if not candidates:
-            return None, 0
-        scored = []
-        for c in candidates:
-            s = _evaluate_candidate(c)
-            if s >= 40:
-                scored.append((s, c))
-        if not scored:
-            return None, 0
-        # Trier par score décroissant, puis par proximité de date la plus faible
-        scored.sort(
-            key=lambda item: (
-                item[0],
-                -abs((item[1].date_operation - target_dt).days) if item[1].date_operation else -9999
-            ),
-            reverse=True
-        )
-        best_score, best_candidate = scored[0]
-        return best_candidate, best_score
-
-    # 1. Recherche d'un doublon déjà rapproché / existant
-    def _find_already_reconciled():
-        if is_coming:
-            start_op_limit_c = tx_date - timedelta(days=15)
-            end_op_limit_c = tx_date + timedelta(days=15)
-            recon_query = db.query(Transaction).filter(
-                Transaction.reconciliation_date != None,
-                Transaction.amount >= abs_amount - epsilon,
-                Transaction.amount <= abs_amount + epsilon,
-                Transaction.date_operation >= start_op_limit_c,
-                Transaction.date_operation <= end_op_limit_c
-            )
-        else:
-            start_recon = tx_date - timedelta(days=30)
-            end_recon = tx_date + timedelta(days=30)
-            start_op_limit = tx_date - timedelta(days=30)
-            end_op_limit = tx_date + timedelta(days=30)
-            recon_query = db.query(Transaction).filter(
-                Transaction.reconciliation_date != None,
-                Transaction.amount >= abs_amount - epsilon,
-                Transaction.amount <= abs_amount + epsilon,
-                Transaction.date_operation >= start_op_limit,
-                Transaction.date_operation <= end_op_limit,
-                or_(
-                    (Transaction.reconciliation_date >= start_recon) & (Transaction.reconciliation_date <= end_recon),
-                    (Transaction.date_operation >= start_op_limit) & (Transaction.date_operation <= end_op_limit)
-                )
-            )
-
-        if acc_filter is not None:
-            recon_query = recon_query.filter(acc_filter)
-
-        # Pour les virements internes (type == 'transfer' ou from & to renseignés),
-        # autoriser la détection même si l'ID a déjà été vu dans le lot
-        if matched_ids:
-            recon_query_filtered = recon_query.filter(
-                or_(
-                    Transaction.id.notin_(matched_ids),
-                    Transaction.type == "transfer",
-                    and_(Transaction.from_account_id.isnot(None), Transaction.to_account_id.isnot(None))
-                )
-            )
-        else:
-            recon_query_filtered = recon_query
-            
-        recon_match, recon_score = _best_scored_tx(recon_query_filtered.all())
-        if recon_match:
-            return {
-                "id": recon_match.id, 
-                "description": recon_match.description,
-                "already_reconciled": True,
-                "match_score": recon_score
-            }
-        return None
-
-    # 2. Recherche d'une prédiction non pointée / transaction planifiée
-    def _find_unreconciled_prediction():
-        if is_coming:
-            # Opération à venir : la prévision peut être planifiée aujourd'hui ou dans les jours suivants
-            start_op = tx_date - timedelta(days=10)
-            end_op = tx_date + timedelta(days=30)
-        else:
-            # Opération confirmée : débit passé, la prévision peut avoir été saisie en amont jusqu'à 30 jours (mais pas > 3j dans le futur)
-            start_op = tx_date - timedelta(days=30)
-            end_op = tx_date + timedelta(days=3)
-
-        op_query = db.query(Transaction).filter(
-            Transaction.reconciliation_date == None,
-            Transaction.date_operation >= start_op,
-            Transaction.date_operation <= end_op,
-            Transaction.amount >= abs_amount - epsilon,
-            Transaction.amount <= abs_amount + epsilon
-        )
-        if acc_filter is not None:
-            op_query = op_query.filter(acc_filter)
-
-        available_op_query = op_query
-        if matched_ids:
-            available_op_query = op_query.filter(Transaction.id.notin_(matched_ids))
-            
-        op_match, op_score = _best_scored_tx(available_op_query.all())
-        if op_match:
-            return {
-                "id": op_match.id,
-                "description": op_match.description,
-                "already_reconciled": False,
-                "match_score": op_score
-            }
-        return None
-
-    # Recherche des candidats parmi les prédictions non pointées et les opérations déjà pointées
-    unrec_match = _find_unreconciled_prediction()
-    recon_match = _find_already_reconciled()
-
-    if unrec_match and recon_match:
-        # Si les deux existent, comparer leurs scores de confiance respectifs.
-        # En cas d'égalité ou de score supérieur pour l'opération non pointée (ex: récurrence mensuelle
-        # où la prévision du mois courant est bien plus proche que le doublon du mois passé), privilégier le pointage.
-        if unrec_match.get("match_score", 0) >= recon_match.get("match_score", 0):
-            return unrec_match
-        else:
-            return recon_match
-    elif unrec_match:
-        return unrec_match
-    elif recon_match:
-        return recon_match
-
-    # 2.B : Si aucun match libre, vérifier si c'est le pendant miroir d'un virement interne
-    # déjà apparié dans ce même lot (dans matched_ids)
-    if matched_ids:
-        start_mirror = tx_date - timedelta(days=15)
-        end_mirror = tx_date + timedelta(days=15)
-        base_mirror_query = db.query(Transaction).filter(
-            Transaction.reconciliation_date == None,
-            Transaction.date_operation >= start_mirror,
-            Transaction.date_operation <= end_mirror,
-            Transaction.amount >= abs_amount - epsilon,
-            Transaction.amount <= abs_amount + epsilon
-        )
-        if acc_filter is not None:
-            base_mirror_query = base_mirror_query.filter(acc_filter)
-
-        mirror_query = base_mirror_query.filter(
-            Transaction.id.in_(matched_ids),
-            or_(
-                Transaction.type == "transfer",
-                and_(Transaction.from_account_id.isnot(None), Transaction.to_account_id.isnot(None))
-            )
-        )
-        mirror_match, mirror_score = _best_scored_tx(mirror_query.all())
-        if mirror_match:
-            return {
-                "id": mirror_match.id,
-                "description": mirror_match.description,
-                "already_reconciled": True,
-                "is_mirror_transfer": True,
-                "match_score": mirror_score
-            }
-
-    # 3. Recherche d'un virement orphelin inter-comptes (Auto-linking)
-    # Si aucun match sur le compte courant, vérifier s'il existe une écriture isolée du même montant
-    # sur un AUTRE compte actif qui correspond à l'autre patte du virement
-    if account_id:
-        from app.models import Account
-        start_orphan = tx_date - timedelta(days=15)
-        end_orphan = tx_date + timedelta(days=15)
-
-        raw_num = float(tx_amount)
-        if raw_num < 0:
-            # Débit sur ce compte (ex: Boursorama -> CA) : on cherche un crédit isolé sur un autre compte
-            orphan_q = db.query(Transaction).filter(
-                Transaction.from_account_id == None,
-                Transaction.to_account_id != None,
-                Transaction.to_account_id != account_id,
-                Transaction.date_operation >= start_orphan,
-                Transaction.date_operation <= end_orphan,
-                Transaction.amount >= abs_amount - epsilon,
-                Transaction.amount <= abs_amount + epsilon
-            )
-        else:
-            # Crédit sur ce compte (ex: CA reçu de Boursorama) : on cherche un débit isolé sur un autre compte
-            orphan_q = db.query(Transaction).filter(
-                Transaction.from_account_id != None,
-                Transaction.from_account_id != account_id,
-                Transaction.to_account_id == None,
-                Transaction.date_operation >= start_orphan,
-                Transaction.date_operation <= end_orphan,
-                Transaction.amount >= abs_amount - epsilon,
-                Transaction.amount <= abs_amount + epsilon
-            )
-
-        if matched_ids:
-            orphan_q = orphan_q.filter(Transaction.id.notin_(matched_ids))
-
-        orphan_match, orphan_score = _best_scored_tx(orphan_q.all())
-        if orphan_match:
-            other_acc_id = orphan_match.to_account_id if raw_num < 0 else orphan_match.from_account_id
-            other_acc = db.query(Account).filter(Account.id == other_acc_id).first()
-            other_acc_name = other_acc.name if other_acc else f"Compte #{other_acc_id}"
-
-            return {
-                "id": orphan_match.id,
-                "description": orphan_match.description,
-                "already_reconciled": False,
-                "is_orphan_transfer_link": True,
-                "orphan_account_id": other_acc_id,
-                "orphan_account_name": other_acc_name,
-                "match_score": orphan_score
-            }
-        
-    return None
 
 def check_import_alerts(db, account_id: int, parsed_txs: list):
     """
@@ -607,8 +289,8 @@ def detect_multi_account_sections(raw_data: list, account_name: str, account_typ
     for i, row in enumerate(raw_data):
         non_empty = [x for x in row if pd.notna(x) and str(x).strip() != '']
         if len(non_empty) == 1:
-            val = str(non_empty[0]).lower()
-            if any(k in val for k in ['compte de dépôt', 'compte de depot', 'compte courant', 'livret', 'ldd', 'compte n°', 'compte nu', 'carte n°', 'carte nu']):
+            val = str(non_empty[0]).lower().strip()
+            if val.startswith('compte') or any(k in val for k in ['compte de dépôt', 'compte de depot', 'compte courant', 'livret', 'ldd', 'compte n°', 'compte nu', 'carte n°', 'carte nu', 'compte :', 'compte:', 'onglet', 'relevé']):
                 current_title = non_empty[0]
                 current_title_idx = i
                 
@@ -702,8 +384,8 @@ def extract_all_sections_parsed(
     for i, row in enumerate(raw_data):
         non_empty = [x for x in row if pd.notna(x) and str(x).strip() != '']
         if len(non_empty) == 1:
-            val = str(non_empty[0]).lower()
-            if any(k in val for k in ['compte de dépôt', 'compte de depot', 'compte courant', 'livret', 'ldd', 'compte n°', 'compte nu', 'carte n°', 'carte nu']):
+            val = str(non_empty[0]).lower().strip()
+            if val.startswith('compte') or any(k in val for k in ['compte de dépôt', 'compte de depot', 'compte courant', 'livret', 'ldd', 'compte n°', 'compte nu', 'carte n°', 'carte nu', 'compte :', 'compte:', 'onglet', 'relevé']):
                 current_title = str(non_empty[0]).strip()
                 current_title_idx = i
 
@@ -749,6 +431,7 @@ def extract_all_sections_parsed(
     accounts_out = []
     used_account_ids = set()
     matched_ids_global = set()
+    tx_sig_counts = {}
 
     for sec_i, block in enumerate(section_blocks):
         sec_rows = block["rows"]
@@ -858,6 +541,29 @@ def extract_all_sections_parsed(
         if explicit_account_id and len(section_blocks) == 1:
             target_account = next((a for a in db_accounts if a.id == explicit_account_id), None)
 
+        # 1. Vérification du mapping persistant mémorisé dans GlobalConfig
+        if not target_account and db is not None:
+            from app.models import GlobalConfig
+            import json
+            try:
+                conf = db.query(GlobalConfig).filter(GlobalConfig.key == "file_account_mapping").first()
+                if conf and conf.value:
+                    mapping = json.loads(conf.value)
+                    clean_sec = sec_title.strip().lower()
+                    mapped_id = mapping.get(clean_sec)
+                    if not mapped_id:
+                        for map_k, map_v in mapping.items():
+                            if map_k in clean_sec or clean_sec in map_k:
+                                mapped_id = map_v
+                                break
+                    if mapped_id:
+                        found_acc = next((a for a in db_accounts if a.id == int(mapped_id)), None)
+                        if found_acc:
+                            target_account = found_acc
+                            used_account_ids.add(found_acc.id)
+            except Exception:
+                pass
+
         if not target_account and db_accounts:
             best_acc = None
             best_score = -1
@@ -934,8 +640,16 @@ def extract_all_sections_parsed(
                 v = str(row['Chèque']).strip()
                 if v and v != 'nan': check_slip_number = v
 
+            # Empreinte déterministe idempotente (SHA-256 + index ordinal intra-lot)
+            amt_val = float(amt) if amt is not None else 0.0
+            tx_sig_raw = f"{date_str}_{abs(amt_val):.2f}_{desc.strip().lower()}"
+            tx_sha = hashlib.sha256(tx_sig_raw.encode('utf-8')).hexdigest()[:12]
+            tx_sig_counts[tx_sha] = tx_sig_counts.get(tx_sha, 0) + 1
+            occ_idx = tx_sig_counts[tx_sha] - 1
+            deterministic_csv_id = f"csv_{tx_sha}_{occ_idx}"
+
             tx_results.append({
-                "csv_id": f"csv_import_{unique_batch_id}_{sec_i}_{row_idx}",
+                "csv_id": deterministic_csv_id,
                 "date_operation": date_str,
                 "description": desc,
                 "raw_description": desc,

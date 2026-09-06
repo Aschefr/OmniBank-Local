@@ -349,5 +349,24 @@ class SimulationRunRequest(BaseModel):
     conservative_weight: Optional[float] = 0.20  # Curseur continu de prudence : 0.0 (Recettes du modèle) à 1.0 (Recettes minimales), 0.20 par défaut
 
 
+class AutopilotDecisionLogOut(BaseModel):
+    id: int
+    batch_id: str
+    decision_type: str
+    action: str
+    entity_type: str
+    entity_id: Optional[int] = None
+    conn_id: Optional[int] = None
+    account_id: Optional[int] = None
+    raw_snapshot: Optional[str] = None
+    confidence_score: Optional[float] = None
+    is_undone: bool = False
+    undone_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
+class FileAccountMappingRequest(BaseModel):
+    section_title: str
+    account_id: int
