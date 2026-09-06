@@ -2951,6 +2951,195 @@ def test_multi_profile_pending_sync_and_cache_isolation():
         clear_all_pending_sync(test_db, profile_id="p_thomas")
 
 
+def test_pending_sync_persistence_across_simulated_restart():
+    """
+    Vérifie que lorsque l'application s'arrête (vidage complet de la mémoire vive RAM _PENDING_SYNC_DATA)
+    et redémarre, le sas d'attente (/api/bank-sync/pending) est intégralement restauré depuis la table
+    SQLite global_config ('bank_pending_sync_cache').
+    """
+    from app.services.bank_sync_scheduler import (
+        _PENDING_SYNC_DATA, save_pending_sync_data, get_all_pending_sync, clear_all_pending_sync
+    )
+    from app.models import GlobalConfig
+    from app.services import stats_cache
+
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    conn = BankConnection(backend="cragr", label="Test Restart Persistence", is_active=True)
+    acc = Account(name="Compte Persistant", initial_balance=2000.0)
+    test_db.add_all([conn, acc])
+    test_db.commit()
+    test_db.refresh(conn)
+    test_db.refresh(acc)
+
+    try:
+        preview_data = {
+            "connection_id": conn.id,
+            "accounts": [{
+                "account_id": acc.id,
+                "account_name": acc.name,
+                "bank_balance": 2150.0,
+                "transactions": [{
+                    "csv_id": f"restart_tx_{acc.id}_1",
+                    "date_operation": "2026-08-25",
+                    "description": "Virement Employeur",
+                    "amount": 150.0,
+                    "raw_amount": 150.0,
+                    "is_coming": False,
+                    "is_reconciled": False
+                }]
+            }]
+        }
+
+        # 1. Sauvegarder dans le sas
+        save_pending_sync_data(test_db, conn.id, preview_data)
+
+        # Vérifier que le cache est bien stocké en base SQLite
+        cached_row = test_db.query(GlobalConfig).filter(GlobalConfig.key == "bank_pending_sync_cache").first()
+        assert cached_row is not None and cached_row.value, "Le sas d'attente doit être écrit dans global_config"
+
+        # 2. SIMULATION D'UN REDÉMARRAGE COMPLET :
+        # On vide la mémoire RAM de l'application (_PENDING_SYNC_DATA) et les caches en mémoire
+        _PENDING_SYNC_DATA.clear()
+        stats_cache.invalidate()
+
+        # 3. Interroger /api/bank-sync/pending après redémarrage
+        res = client.get("/api/bank-sync/pending")
+        assert res.status_code == 200
+        data = res.json()
+
+        acc_found = next((a for a in data.get("accounts", []) if a.get("account_id") == acc.id), None)
+        assert acc_found is not None, "Le compte doit être restauré depuis SQLite après redémarrage"
+        assert len(acc_found.get("transactions", [])) == 1
+        tx = acc_found["transactions"][0]
+        assert tx["csv_id"] == f"restart_tx_{acc.id}_1"
+        assert tx["description"] == "Virement Employeur"
+        assert tx["raw_amount"] == 150.0
+    finally:
+        clear_all_pending_sync(test_db)
+
+
+def test_ai_import_persists_to_pending_sync():
+    """
+    Vérifie que le point d'accès /api/ai/import_csv sauvegarde désormais les opérations dans
+    le sas d'attente persistant (save_pending_sync_data) et que ces données survivent à un redémarrage.
+    """
+    from app.services.bank_sync_scheduler import (
+        _PENDING_SYNC_DATA, clear_all_pending_sync, CSV_IMPORT_CONN_ID
+    )
+    from app.services import stats_cache
+    from unittest.mock import patch
+
+    client = TestClient(fastapi_app)
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Compte IA Import Test", initial_balance=500.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    csv_content = (
+        "Date;Libellé;Montant\n"
+        "25/08/2026;ABONNEMENT STREAMING;-12.99\n"
+        "26/08/2026;RESTAURANT BISTROT;-34.50\n"
+    )
+
+    mock_ai_parsed = [
+        {"date": "2026-08-25", "description": "ABONNEMENT STREAMING", "amount": -12.99},
+        {"date": "2026-08-26", "description": "RESTAURANT BISTROT", "amount": -34.50}
+    ]
+
+    import io
+    file_payload = {"file": ("releve_ia.csv", io.BytesIO(csv_content.encode("utf-8-sig")), "text/csv")}
+    form_data = {"account_id": str(acc.id)}
+
+    from unittest.mock import patch, AsyncMock
+    import json
+
+    try:
+        with patch("app.routers.ai_helpers.call_ollama", AsyncMock(return_value=json.dumps(mock_ai_parsed))):
+            res = client.post("/api/ai/import_csv", files=file_payload, data=form_data)
+        assert res.status_code == 200, res.text
+        data = res.json()
+        assert "_source" in data and data["_source"] == "csv_import"
+        assert "accounts" in data and len(data["accounts"]) == 1
+
+        # Vérifier que le sas est en RAM et en base
+        # Simuler un redémarrage complet
+        _PENDING_SYNC_DATA.clear()
+        stats_cache.invalidate()
+
+        pending_res = client.get("/api/bank-sync/pending")
+        assert pending_res.status_code == 200
+        pending_data = pending_res.json()
+
+        acc_found = next((a for a in pending_data.get("accounts", []) if a.get("account_id") == acc.id), None)
+        assert acc_found is not None, "L'import IA doit persister dans le sas d'attente après redémarrage"
+        tx_descriptions = [t["description"] for t in acc_found.get("transactions", [])]
+        assert "ABONNEMENT STREAMING" in tx_descriptions
+        assert "RESTAURANT BISTROT" in tx_descriptions
+    finally:
+        clear_all_pending_sync(test_db)
+
+
+def test_csv_import_persists_when_no_bank_connections_exist():
+    """
+    Vérifie qu'un import de relevé bancaire (fichier) reste persistant dans le sas même si l'utilisateur
+    n'a configuré AUCUNE connexion bancaire en ligne (valid_conns = []).
+    """
+    from app.services.bank_sync_scheduler import (
+        _PENDING_SYNC_DATA, save_pending_sync_data, get_all_pending_sync, clear_all_pending_sync, CSV_IMPORT_CONN_ID
+    )
+    from app.services import stats_cache
+
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    # S'assurer qu'aucune connexion bancaire n'existe
+    test_db.query(BankConnection).delete()
+    test_db.commit()
+
+    acc = Account(name="Compte Fichier Seul", initial_balance=100.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    try:
+        preview_data = {
+            "_source": "csv_import",
+            "accounts": [{
+                "account_id": acc.id,
+                "account_name": acc.name,
+                "bank_balance": 100.0,
+                "transactions": [{
+                    "csv_id": f"file_only_{acc.id}_1",
+                    "date_operation": "2026-08-25",
+                    "description": "Frais bancaires trimestriels",
+                    "amount": 15.0,
+                    "raw_amount": -15.0,
+                    "is_coming": False,
+                    "is_reconciled": False
+                }]
+            }]
+        }
+
+        # 1. Sauvegarder dans le sas avec CSV_IMPORT_CONN_ID (-1)
+        save_pending_sync_data(test_db, CSV_IMPORT_CONN_ID, preview_data)
+
+        # 2. Simuler un redémarrage complet de l'application
+        _PENDING_SYNC_DATA.clear()
+        stats_cache.invalidate()
+
+        # 3. Re-charger le sas depuis SQLite
+        restored = get_all_pending_sync(test_db)
+        assert len(restored.get("accounts", [])) == 1, "Le relevé importé doit être conservé même sans connexions bancaires"
+        assert restored["accounts"][0]["account_id"] == acc.id
+        assert len(restored["accounts"][0]["transactions"]) == 1
+        assert restored["accounts"][0]["transactions"][0]["description"] == "Frais bancaires trimestriels"
+    finally:
+        clear_all_pending_sync(test_db)
+
+
 
 
 
