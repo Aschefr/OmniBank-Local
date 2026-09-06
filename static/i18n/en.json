@@ -2401,5 +2401,20 @@
     "loader_switching_profile_title": "Switching profile in progress...",
     "loader_switching_profile_sub": "Loading accounts and data, please wait.",
     "import_tab_unassigned_hint": "⚠️ OmniBank account unassigned. Select an account above.",
-    "import_account_mapped_toast": "Account successfully mapped and remembered."
+    "import_account_mapped_toast": "Account successfully mapped and remembered.",
+    "bank_link_modal_title": "Link Bank Accounts",
+    "bank_link_add_btn": "Link Accounts",
+    "bank_link_choose_method_title": "Choose how to feed your OmniBank accounts:",
+    "bank_link_method_online_title": "Online Sync (Woob)",
+    "bank_link_method_online_desc": "Automated direct connection with credentials encrypted locally in your vault.",
+    "bank_link_method_online_badge": "Automated & Daily",
+    "bank_link_method_file_title": "Statement Import (Excel / CSV)",
+    "bank_link_method_file_desc": "100% offline, zero credentials required. Upload your periodic statements (.xlsx, .xls, .csv).",
+    "bank_link_method_file_badge": "100% Private & Manual",
+    "bank_link_back_to_methods": "Choose another method",
+    "acc_source_online": "Online: {bank}",
+    "acc_source_file": "Statement: \"{section}\"",
+    "acc_source_manual": "Manual entry",
+    "acc_btn_import_tooltip": "Import statement for this account (XLSX / CSV)",
+    "acc_btn_sync_tooltip": "Poll online transactions for this account"
 }
