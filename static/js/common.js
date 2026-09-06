@@ -283,6 +283,7 @@ function showInlineConfirm(titleKey, messageKey) {
             messageEl.textContent = msgContent;
         }
 
+        modal.style.zIndex = '10100';
         modal.style.display = 'flex';
 
         const cleanup = () => {

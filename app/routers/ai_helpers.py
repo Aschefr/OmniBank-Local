@@ -215,7 +215,7 @@ async def import_csv_ai(
             else:
                 parsed_txs = [parsed_txs]
             
-        from app.routers.csv_parser import check_reconciliation
+        from app.services.reconciliation_engine import check_reconciliation
         from datetime import datetime
         results = []
         matched_ids = []

@@ -511,9 +511,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const amount = parseFloat(val);
         if (isNaN(amount) || amount < 0) return;
         try {
-            await API.put(`/api/budgets/${id}`, { monthly_amount: amount });
+            const res = await API.put(`/api/budgets/${id}`, { monthly_amount: amount });
             await this.loadStatus();
             window.app.refreshSidebar();
+            if (res && res.action_id) {
+                showUndoToast(window.i18n.t('msg_envelope_updated'), res.action_id, () => this.loadBudgets().then(() => this.loadStatus()));
+            }
         } catch(e) {
             showInlineMessage(window.i18n.t('title_info'), window.i18n.tp('msg_update_error', {error: e.message}));
         }

@@ -102,6 +102,64 @@ def _tokenize(text: str) -> Set[str]:
     return {t for t in re.split(r'\s+', text.upper()) if len(t) >= 2}
 
 
+def _compute_match_score_precomputed(
+    pat_clean: str,
+    pat_tokens: Set[str],
+    sig_pat: Set[str],
+    cand_clean: str,
+    cand_tokens: Set[str],
+    sig_cand: Set[str]
+) -> float:
+    """Version optimisée avec tokens et chaînes nettoyées pré-calculées."""
+    if not pat_clean or not cand_clean:
+        return 0.0
+
+    # Match parfait
+    if pat_clean == cand_clean:
+        return 1.0
+
+    # Inclusion stricte
+    if pat_clean in cand_clean or cand_clean in pat_clean:
+        min_len = min(len(pat_clean), len(cand_clean))
+        max_len = max(len(pat_clean), len(cand_clean))
+        return 0.85 + 0.15 * (min_len / max_len)
+
+    if not pat_tokens or not cand_tokens:
+        return 0.0
+
+    # Tokens signifiants (hors stop-words génériques)
+    common_sig = sig_pat.intersection(sig_cand)
+    strong_matches = [t for t in common_sig if len(t) >= 4]
+
+    # Filtre rapide : si aucun token en commun et longueurs très divergentes, le ratio ne peut atteindre 0.75
+    intersection = pat_tokens.intersection(cand_tokens)
+    if not intersection and not strong_matches and abs(len(pat_clean) - len(cand_clean)) > 4:
+        return 0.0
+
+    ratio = difflib.SequenceMatcher(None, pat_clean, cand_clean).ratio()
+
+    if strong_matches:
+        jaccard = len(common_sig) / max(len(sig_pat.union(sig_cand)), 1)
+        coverage_pat = len(common_sig) / max(len(sig_pat), 1)
+        coverage_cand = len(common_sig) / max(len(sig_cand), 1)
+        mut_coverage = min(coverage_pat, coverage_cand)
+
+        # Pour matcher, il faut que le mot commun représente une part significative des deux côtés
+        if mut_coverage >= 0.33 or jaccard >= 0.25:
+            return min(1.0, 0.70 + 0.20 * jaccard + 0.10 * ratio)
+
+    if intersection:
+        jaccard = len(intersection) / len(pat_tokens.union(cand_tokens))
+        coverage = len(intersection) / len(pat_tokens)
+        if coverage >= 0.5 and jaccard >= 0.30:
+            return 0.72 + 0.28 * jaccard
+
+    if ratio >= 0.75:
+        return ratio
+
+    return 0.0
+
+
 def _compute_match_score(pattern: str, candidate: str) -> float:
     """
     Calcule un score de similarité robuste combinant token overlap marchand et distance Levenshtein/difflib.
@@ -116,53 +174,12 @@ def _compute_match_score(pattern: str, candidate: str) -> float:
     if not pat_clean or not cand_clean:
         return 0.0
 
-    # Match parfait
-    if pat_clean == cand_clean:
-        return 1.0
-
-    # Inclusion stricte
-    if pat_clean in cand_clean or cand_clean in pat_clean:
-        min_len = min(len(pat_clean), len(cand_clean))
-        max_len = max(len(pat_clean), len(cand_clean))
-        return 0.85 + 0.15 * (min_len / max_len)
-
-    # Token overlap
     pat_tokens = _tokenize(pat_clean)
     cand_tokens = _tokenize(cand_clean)
-
-    if not pat_tokens or not cand_tokens:
-        return 0.0
-
-    # Tokens signifiants (hors stop-words génériques)
     sig_pat = pat_tokens - _GENERIC_TOKENS
     sig_cand = cand_tokens - _GENERIC_TOKENS
 
-    common_sig = sig_pat.intersection(sig_cand)
-    strong_matches = [t for t in common_sig if len(t) >= 4]
-
-    ratio = difflib.SequenceMatcher(None, pat_clean, cand_clean).ratio()
-
-    if strong_matches:
-        jaccard = len(common_sig) / max(len(sig_pat.union(sig_cand)), 1)
-        coverage_pat = len(common_sig) / max(len(sig_pat), 1)
-        coverage_cand = len(common_sig) / max(len(sig_cand), 1)
-        mut_coverage = min(coverage_pat, coverage_cand)
-
-        # Pour matcher, il faut que le mot commun représente une part significative des deux côtés
-        if mut_coverage >= 0.33 or jaccard >= 0.25:
-            return min(1.0, 0.70 + 0.20 * jaccard + 0.10 * ratio)
-
-    intersection = pat_tokens.intersection(cand_tokens)
-    if intersection:
-        jaccard = len(intersection) / len(pat_tokens.union(cand_tokens))
-        coverage = len(intersection) / len(pat_tokens)
-        if coverage >= 0.5 and jaccard >= 0.30:
-            return 0.72 + 0.28 * jaccard
-
-    if ratio >= 0.75:
-        return ratio
-
-    return 0.0
+    return _compute_match_score_precomputed(pat_clean, pat_tokens, sig_pat, cand_clean, cand_tokens, sig_cand)
 
 
 def resolve_smart_label(db: Session, raw_label: str) -> Dict[str, Any]:
@@ -347,6 +364,22 @@ def resolve_smart_labels_batch(db: Session, raw_labels: List[str]) -> Dict[str, 
         if not tx.category or cat_type_map.get(tx.category) not in ('expense_fixed', 'transfer')
     ]
 
+    # Pré-calculer les tokens et chaînes nettoyées des règles (une seule fois pour tout le lot)
+    rule_data = []
+    for r in all_rules:
+        r_clean = normalize_raw_label(r.raw_pattern)
+        r_tokens = _tokenize(r_clean)
+        r_sig = r_tokens - _GENERIC_TOKENS
+        rule_data.append((r, r_clean, r_tokens, r_sig))
+
+    # Pré-calculer les tokens et chaînes nettoyées des transactions candidates (une seule fois pour tout le lot)
+    cand_data = []
+    for tx in recent_txs:
+        c_clean = normalize_raw_label(tx.description)
+        c_tokens = _tokenize(c_clean)
+        c_sig = c_tokens - _GENERIC_TOKENS
+        cand_data.append((tx, c_clean, c_tokens, c_sig))
+
     results: Dict[str, Dict[str, Any]] = {}
 
     for raw in raw_labels:
@@ -354,6 +387,8 @@ def resolve_smart_labels_batch(db: Session, raw_labels: List[str]) -> Dict[str, 
             continue
         raw_str = str(raw).strip()
         pattern = normalize_raw_label(raw_str)
+        p_tokens = _tokenize(pattern)
+        p_sig = p_tokens - _GENERIC_TOKENS
 
         # 1. Match exact règle
         if pattern in rule_by_pattern:
@@ -379,8 +414,8 @@ def resolve_smart_labels_batch(db: Session, raw_labels: List[str]) -> Dict[str, 
         # 2. Match partiel règles
         best_rule = None
         best_rule_score = 0.0
-        for r in all_rules:
-            score = _compute_match_score(pattern, r.raw_pattern)
+        for r, r_clean, r_tokens, r_sig in rule_data:
+            score = _compute_match_score_precomputed(pattern, p_tokens, p_sig, r_clean, r_tokens, r_sig)
             if score > best_rule_score:
                 best_rule_score = score
                 best_rule = r
@@ -406,8 +441,8 @@ def resolve_smart_labels_batch(db: Session, raw_labels: List[str]) -> Dict[str, 
 
         # 3. Match historique (uniquement variables / recettes)
         candidate_matches = []
-        for tx in recent_txs:
-            score = _compute_match_score(pattern, tx.description)
+        for tx, c_clean, c_tokens, c_sig in cand_data:
+            score = _compute_match_score_precomputed(pattern, p_tokens, p_sig, c_clean, c_tokens, c_sig)
             if score >= 0.75:
                 candidate_matches.append((tx, score))
 

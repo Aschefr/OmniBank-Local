@@ -111,3 +111,27 @@ async def call_ollama_async(prompt: str, cfg: dict, extra_options: dict = None) 
         raise
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Impossible de contacter le serveur Ollama ({url}) : {exc}")
+
+
+def call_ollama_safe(prompt: str, cfg: dict, extra_options: dict = None) -> str | None:
+    """Appel bloquant sécurisé vers Ollama pour les tâches d'arrière-plan (scheduler, AutoPilot).
+    Ne lève JAMAIS d'HTTPException et retourne None si Ollama est injoignable ou désactivé."""
+    if not cfg or not cfg.get("enabled"):
+        return None
+    try:
+        return call_ollama_sync(prompt, cfg, extra_options)
+    except Exception as e:
+        logger.warning(f"[OllamaSafe] Échec de l'appel LLM en arrière-plan : {e}")
+        return None
+
+
+async def call_ollama_safe_async(prompt: str, cfg: dict, extra_options: dict = None) -> str | None:
+    """Appel asynchrone sécurisé vers Ollama pour les workers d'ingestion AutoPilot.
+    Ne lève JAMAIS d'HTTPException et retourne None si Ollama est indisponible."""
+    if not cfg or not cfg.get("enabled"):
+        return None
+    try:
+        return await call_ollama_async(prompt, cfg, extra_options)
+    except Exception as e:
+        logger.warning(f"[OllamaSafe] Échec de l'appel LLM asynchrone : {e}")
+        return None

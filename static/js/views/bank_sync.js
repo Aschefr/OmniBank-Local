@@ -298,6 +298,10 @@ window.BankSyncView = {
                         <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
                     </button>
 
+                    <button class="btn btn-secondary" onclick="window.ImportWizard ? window.ImportWizard.open() : null" style="display: inline-flex; height: 36px; align-items: center; gap: 6px; font-weight: 600; padding: 0 14px; font-size: 13px; border-radius: 9px; box-sizing: border-box; white-space: nowrap;" title="Importer manuellement un relevé bancaire au format Excel (.xlsx, .xls) ou CSV">
+                        <span>📥</span> <span data-i18n="btn_import_statement">${window.i18n.t('btn_import_statement') || 'Importer un relevé'}</span>
+                    </button>
+
                     <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="display: inline-flex; height: 36px; align-items: center; gap: 6px; font-weight: 700; padding: 0 16px; font-size: 13px; border-radius: 9px; box-shadow: 0 2px 8px var(--accent-glow); box-sizing: border-box; white-space: nowrap;">
                         <span>➕</span> <span data-i18n="bank_sync_add_btn">${window.i18n.t('bank_sync_add_btn')}</span>
                     </button>
@@ -622,7 +626,10 @@ window.BankSyncView = {
 
                 <div class="review-modal-footer">
                     <div id="reviewSummaryBox" class="review-summary-box"></div>
-                    <div class="review-footer-buttons">
+                    <div class="review-footer-buttons" style="display: flex; align-items: center; gap: 10px; width: 100%; justify-content: flex-end;">
+                        <button class="btn btn-secondary review-btn-purge" onclick="window.BankSyncView.purgePendingAndClose()" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3); font-size: 12px; margin-right: auto; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; background: rgba(239, 68, 68, 0.08);" title="${window.i18n ? window.i18n.t('bank_sync_purge_tooltip') || 'Vider le sas et supprimer toutes les suggestions en attente' : 'Vider le sas et supprimer toutes les suggestions en attente'}">
+                            <span>🗑️</span> <span data-i18n="bank_sync_purge_btn">${window.i18n ? window.i18n.t('bank_sync_purge_btn') || 'Vider le sas' : 'Vider le sas'}</span>
+                        </button>
                         <button class="btn btn-secondary review-btn-cancel" onclick="window.BankSyncView.closeReviewModal()" data-i18n="bank_sync_btn_cancel">
                             ${window.i18n.t('bank_sync_btn_cancel')}
                         </button>

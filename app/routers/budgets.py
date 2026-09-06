@@ -29,6 +29,7 @@ class BudgetCreate(BaseModel):
     end_date: Optional[str] = None
     account_ids: Optional[List[int]] = None
     envelope_type: Optional[str] = "spending"  # "spending" or "savings"
+    is_locked: Optional[bool] = False
 
 
 class BudgetUpdate(BaseModel):
@@ -42,6 +43,7 @@ class BudgetUpdate(BaseModel):
     end_date: Optional[str] = None
     account_ids: Optional[List[int]] = None
     envelope_type: Optional[str] = None
+    is_locked: Optional[bool] = None
 
 
 class AllocationCreate(BaseModel):

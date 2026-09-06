@@ -114,71 +114,55 @@ window.ImportWizard = {
         this.selectedFile = event.target.files[0];
         if (!this.selectedFile) return;
         
-        document.getElementById('importDataDesc').textContent = window.i18n.tp('msg_file_selected', {name: this.selectedFile.name});
+        const file = this.selectedFile;
+        event.target.value = ''; // reset input so same file can be re-selected if needed
+
+        // Réinitialiser les états et masquer les sous-composants préliminaires
+        this.fileBalance = null;
         document.getElementById('importDataTable').style.display = 'none';
         document.getElementById('importDataBody').innerHTML = '';
-        this.fileBalance = null;
-        document.getElementById('balanceVerificationBox').style.display = 'none';
-        
         const summaryDiv = document.getElementById('importSummaryText');
         if (summaryDiv) summaryDiv.style.display = 'none';
-        
         const alertBox = document.getElementById('importAlertBox');
-        if (alertBox) {
-            alertBox.style.display = 'none';
-            alertBox.innerHTML = '';
-        }
-        this._lastAnalyzedAccountId = undefined;
-        
-        this.detectedSections = [];
-        this.recommendedSection = null;
-        this.sectionConfidence = 100;
-        
+        if (alertBox) alertBox.style.display = 'none';
         const sectionContainer = document.getElementById('importSectionContainer');
-        if (sectionContainer) {
-            sectionContainer.style.display = 'none';
-        }
-        
+        if (sectionContainer) sectionContainer.style.display = 'none';
         const filtersContainer = document.getElementById('importFiltersContainer');
-        if (filtersContainer) {
-            filtersContainer.style.display = 'none';
-        }
-        
-        await this.reinspectFileSections();
-        
-        document.getElementById('btnSaveImport').style.display = 'none';
-        
-        const btnCatAll = document.getElementById('btnCategorizeAllAI');
-        if (btnCatAll) btnCatAll.style.display = 'none';
-        
-        const aiBtn = document.getElementById('btnAnalyzeAI');
-        if (aiBtn) {
-            aiBtn.style.display = (window.app && window.app.config && window.app.config.enable_ai === 'true') ? 'inline-block' : 'none';
-        }
-        
-        const analysisBtns = document.getElementById('importAnalysisButtons');
-        if (analysisBtns) analysisBtns.style.display = 'flex';
-        this._setAnalysisButtonsEnabled(true);
+        if (filtersContainer) filtersContainer.style.display = 'none';
         const saveBtns = document.getElementById('importSaveButtons');
         if (saveBtns) saveBtns.style.display = 'none';
-        
-        this.loadDescriptions();
-        
-        const accSelect = document.getElementById('importAccountSelect');
-        if (accSelect) {
-            accSelect.innerHTML = `<option value="">${window.i18n.t('opt_no_account')}</option>`;
-            if (window.app && window.app.accounts) {
-                window.app.accounts.filter(a => !a.is_closed).forEach(acc => {
-                    const opt = document.createElement('option');
-                    opt.value = acc.id;
-                    opt.textContent = acc.name;
-                    accSelect.appendChild(opt);
-                });
-            }
-        }
-        
+        const analysisBtns = document.getElementById('importAnalysisButtons');
+        if (analysisBtns) analysisBtns.style.display = 'none';
+        const accSelectBox = document.getElementById('importAccountSelect')?.parentElement;
+        if (accSelectBox) accSelectBox.style.display = 'none';
+
+        // Afficher l'indicateur d'analyse
+        this.showImportLoading('direct');
         document.getElementById('importDataModal').style.display = 'flex';
-        event.target.value = ''; // reset
+
+        // Ingestion directe multi-comptes dans le Sas d'attente
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await fetch('/api/csv/import_to_pending', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await res.json();
+            if (res.ok) {
+                this.fileBalance = result._fileBalance || result.file_balance || null;
+                // Ouvrir immédiatement le cockpit unifié avec tous les comptes et rapprochements
+                this.openReviewFromCSV(result);
+            } else {
+                if (accSelectBox) accSelectBox.style.display = 'flex';
+                this.showImportError('direct', result.detail);
+            }
+        } catch (e) {
+            console.error('[ImportWizard] Erreur import_to_pending:', e);
+            if (accSelectBox) accSelectBox.style.display = 'flex';
+            this.showImportError('direct', window.i18n ? window.i18n.t('msg_network_error') : 'Erreur de communication réseau');
+        }
     },
 
     _setAnalysisButtonsEnabled(enabled) {
@@ -210,13 +194,27 @@ window.ImportWizard = {
         const tipKey = isAI ? 'msg_ai_error_tip' : 'msg_heuristic_error_tip';
         descEl.style.display = 'block';
         descEl.style.color = '';
+        const aiAvailable = window.app && window.app.config && window.app.config.enable_ai === 'true';
+        let aiOptionHtml = '';
+        if (!isAI && aiAvailable) {
+            aiOptionHtml = `
+                <div style="margin-top: 12px;">
+                    <button class="btn btn-primary" onclick="window.ImportWizard.analyzeAI()" style="font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>🧠</span> <span>${window.i18n ? window.i18n.t('btn_analyze_ai') || 'Essayer l\'Analyse IA' : 'Essayer l\'Analyse IA'}</span>
+                    </button>
+                </div>
+            `;
+        }
         descEl.innerHTML = `
             <div class="import-error-box">
                 <div class="import-error-title">⚠️ ${isAI ? window.i18n.t('msg_ai_error_title') : window.i18n.t('msg_heuristic_error_title')}</div>
                 <div class="import-error-detail">${detail || window.i18n.t('msg_unknown_error')}</div>
                 <div class="import-error-tip">💡 ${window.i18n.t(tipKey)}</div>
+                ${aiOptionHtml}
             </div>
         `;
+        const analysisBtns = document.getElementById('importAnalysisButtons');
+        if (analysisBtns) analysisBtns.style.display = 'flex';
         this._setAnalysisButtonsEnabled(true);
     },
 

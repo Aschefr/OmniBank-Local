@@ -7,6 +7,7 @@ from sqlalchemy import func, extract, or_
 from fastapi import HTTPException
 from app.models import Budget, BudgetCategory, BudgetAllocation, Transaction, Account, GlobalConfig
 from app.services.history_service import record_action, snapshot_entity
+from app.services.stats_utils import winsorize_values
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,7 @@ def budget_to_dict(b: Budget, db: Session) -> dict:
         "end_date": b.end_date.isoformat() if b.end_date else None,
         "account_ids": parse_account_ids(b.account_ids),
         "envelope_type": b.envelope_type or "spending",
+        "is_locked": bool(b.is_locked) if b.is_locked is not None else False,
     }
 
 def get_all_budgets(db: Session) -> List[dict]:
@@ -108,6 +110,7 @@ def get_all_budgets(db: Session) -> List[dict]:
             "end_date": b.end_date.isoformat() if b.end_date else None,
             "account_ids": parse_account_ids(b.account_ids),
             "envelope_type": b.envelope_type or "spending",
+            "is_locked": bool(b.is_locked) if b.is_locked is not None else False,
         }
         for b in budgets
     ]
@@ -128,6 +131,7 @@ def create_new_budget(data, db: Session) -> dict:
         end_date=_end,
         account_ids=serialize_account_ids(data.account_ids),
         envelope_type=data.envelope_type or "spending",
+        is_locked=bool(getattr(data, "is_locked", False) or False),
     )
     db.add(b)
     db.flush()
