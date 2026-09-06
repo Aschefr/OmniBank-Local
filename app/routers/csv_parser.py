@@ -381,16 +381,48 @@ def extract_all_sections_parsed(
     current_title = None
     current_title_idx = -1
 
+    def is_bank_balance_row(desc_str: str) -> bool:
+        if not desc_str:
+            return False
+        d = desc_str.strip().lower()
+        if 'solde de tout compte' in d:
+            return False
+        balance_markers = [
+            'solde au', 'solde du', 'solde à', 'solde a', 'solde en', 'solde le',
+            'nouveau solde', 'ancien solde', 'solde initial', 'solde final',
+            'solde créditeur', 'solde crediteur', 'solde débiteur', 'solde debiteur',
+            'solde précédent', 'solde precedent', 'solde comptable', 'solde arrêté',
+            'solde arrete', 'solde intermédiaire', 'solde intermediaire', 'solde disponible'
+        ]
+        if any(m in d for m in balance_markers):
+            return True
+        if d.startswith('solde') and any(c.isdigit() for c in d):
+            return True
+        return False
+
     for i, row in enumerate(raw_data):
         non_empty = [x for x in row if pd.notna(x) and str(x).strip() != '']
-        if len(non_empty) == 1:
-            val = str(non_empty[0]).lower().strip()
-            if val.startswith('compte') or any(k in val for k in ['compte de dépôt', 'compte de depot', 'compte courant', 'livret', 'ldd', 'compte n°', 'compte nu', 'carte n°', 'carte nu', 'compte :', 'compte:', 'onglet', 'relevé']):
-                current_title = str(non_empty[0]).strip()
-                current_title_idx = i
+        row_str = " ".join(str(x).strip().lower() for x in non_empty)
 
         valid_cols = sum(1 for x in row if pd.notna(x) and not str(x).startswith('Unnamed:') and str(x).strip() != '')
-        if valid_cols >= 3 and any(str(x).strip().lower() in ['date', 'date operation', "date d'opération"] for x in row):
+        is_header_row = (
+            valid_cols >= 2 and
+            any(any(d in str(x).strip().lower() for d in ['date', 'date operation', "date d'opération", "date opération", "date de saisie", "date valeur"]) for x in row) and
+            any(any(k in str(x).strip().lower() for k in ['montant', 'debit', 'débit', 'credit', 'crédit', 'libellé', 'libelle', 'opération', 'operation', 'solde']) for x in row)
+        )
+
+        if not is_header_row and non_empty:
+            first_val = str(non_empty[0]).lower().strip()
+            account_keywords = [
+                'compte de dépôt', 'compte de depot', 'compte courant', 'livret a', 'livret',
+                'ldd', 'pea', 'assurance vie', 'compte n°', 'compte nu', 'carte n°',
+                'carte nu', 'compte :', 'compte:', 'onglet'
+            ]
+            if any(k in first_val for k in account_keywords) or (len(non_empty) <= 3 and any(k in row_str for k in ['livret a', 'livret ldd', 'ldds', 'compte courant', 'compte de dépôt'])):
+                current_title = " - ".join(str(x).strip() for x in non_empty if str(x).strip())
+                current_title_idx = i
+
+        if is_header_row:
             sections.append({
                 "title": current_title or f"Section {len(sections)+1}",
                 "title_idx": current_title_idx,
@@ -608,6 +640,12 @@ def extract_all_sections_parsed(
                 continue
 
             desc = str(row[desc_col]).strip() if desc_col and pd.notna(row[desc_col]) else "Opération importée"
+            
+            # Filtre anti-solde : Les lignes de solde ou d'arrêté ne sont pas des opérations à importer
+            if is_bank_balance_row(desc):
+                if file_balance is None and amt != 0.0:
+                    file_balance = abs(amt)
+                continue
             parsed_date_val = row['_parsed_date']
             date_str = parsed_date_val.strftime("%Y-%m-%d") if not pd.isna(parsed_date_val) else None
 

@@ -636,7 +636,12 @@ async def analyze_heuristic(
             
         desc = str(row[desc_col]) if desc_col else "Opération importée"
         
-        parsed_date_val = row['_parsed_date']
+        # Filtre anti-solde : Les lignes de solde ou d'arrêté bancaire ne sont pas des opérations
+        d_lower = desc.strip().lower()
+        if 'solde de tout compte' not in d_lower and any(m in d_lower for m in ['solde au', 'solde du', 'solde à', 'solde a', 'solde en', 'solde le', 'nouveau solde', 'ancien solde', 'solde initial', 'solde final', 'solde créditeur', 'solde débiteur', 'solde précédent', 'solde comptable']):
+            if file_balance is None and amt != 0.0:
+                file_balance = abs(amt)
+            continue
         date_str = parsed_date_val.strftime("%Y-%m-%d") if not pd.isna(parsed_date_val) else None
         
         match_info = check_reconciliation(

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.3] - 2026-09-06
+
+### Added & Improved
+- **Unified Sync & Statement Import Workflow 🔄**: Integrated online banking connection and statement file import into a single streamlined modal with a shared, persistent staging area (Review Cockpit).
+- **Per-Account Statement Import Action 📥**: Added dedicated import buttons directly in the accounts table, allowing statement file loading for any account at any time.
+- **Review Cockpit Sub-Account Badges 📊**: Displayed live pending operation count badges on individual account tabs within the staging review modal.
+- **Compact & Responsive Accounts Table 🖥️**: Reorganized the accounts table into 6 dedicated columns (`NOM`, `TYPE`, `ALIMENTATION`, `SOLDE INITIAL`, `SOLDE ACTUEL`, `ACTIONS`) with inline interactive color dot and compact 24px action buttons to eliminate overflow on constrained displays.
+
+### Fixed
+- **Startup Freeze in Organisation Mode 🚀**: Fixed an issue where the initial splash screen overlay blocked access to the profile selection modal on fresh desktop launches, and added a 5-second failsafe to prevent infinite loader locks.
+- **Bank Statement Balance Rows Exclusion 🛡️**: Automatically detected and filtered out statement summary balance lines (e.g. "Solde au DD/MM/YYYY") from transactions to prevent ghost entries.
+
 ## [1.1.2] - 2026-09-06
 
 ### Added & Improved

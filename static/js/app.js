@@ -147,72 +147,81 @@ class App {
     }
 
     async init() {
-        // Init i18n
-        await window.i18n.init();
+        // Safety timeout to ensure appInitLoader can never freeze the screen
+        setTimeout(() => {
+            window.hideAppInitLoader();
+            const container = document.querySelector('.app-container');
+            if (container && container.style.opacity !== '1') container.style.opacity = '1';
+        }, 5000);
 
-        // Parallel load of core metadata (version, profiles, global config)
-        const [versionRes, pDataRes, configRes] = await Promise.allSettled([
-            this.loadAppVersion(),
-            API.get('/api/profiles/'),
-            API.get('/api/config/')
-        ]);
-
-        // Init Master Profiles
-        if (pDataRes.status === 'fulfilled' && pDataRes.value) {
-            const pData = pDataRes.value;
-            this.activeProfileId = pData.active_profile_id;
-            this.profiles = pData.profiles || [];
-            if (window.ProfileStorage) {
-                window.ProfileStorage.init(this.activeProfileId);
-            }
-            const activeProf = this.profiles.find(p => p.id === this.activeProfileId);
-            if (activeProf && activeProf.color) {
-                this.applyProfileTheme(activeProf.color);
-            }
-            this._renderProfileSelector();
-            this.initAutoLock();
-            if (window.FormView && window.FormView.checkPendingCrossTransfers) {
-                window.FormView.checkPendingCrossTransfers();
-            }
-        } else {
-            console.error("Failed to load profiles", pDataRes.reason);
-        }
-
-        // Load Global Config
-        if (configRes.status === 'fulfilled' && configRes.value) {
-            this.config = configRes.value;
-            if (this.config && this.config.base_currency) {
-                window.appBaseCurrency = this.config.base_currency;
-            }
-        } else {
-            console.error("Failed to load global config", configRes.reason);
-            this.config = {};
-        }
-        
-        // ── Phase 8: Check if first launch / empty DB ──
-        if (window.SetupWizard) {
-            const wizardShown = await window.SetupWizard.checkAndShow();
-            if (wizardShown) {
-                // Reveal UI behind wizard (for theme consistency)
-                const container = document.querySelector('.app-container');
-                if (container) container.style.opacity = '1';
-                return; // Wizard handles the rest
-            }
-        }
-        
-        // ── Phase 9: Check if org mode needs user selection ──
-        if (this.config.enable_org_mode === 'true') {
-            const savedUser = sessionStorage.getItem('omni_current_user');
-            if (!savedUser) {
-                // Ensure default user exists
-                try { await API.post('/api/org_users/ensure_default'); } catch (e) {}
-                await this._showUserPicker();
-                return; // Blocks until user selected
-            }
-            this.currentUser = savedUser;
-        }
-        
         try {
+            // Init i18n
+            await window.i18n.init();
+
+            // Parallel load of core metadata (version, profiles, global config)
+            const [versionRes, pDataRes, configRes] = await Promise.allSettled([
+                this.loadAppVersion(),
+                API.get('/api/profiles/'),
+                API.get('/api/config/')
+            ]);
+
+            // Init Master Profiles
+            if (pDataRes.status === 'fulfilled' && pDataRes.value) {
+                const pData = pDataRes.value;
+                this.activeProfileId = pData.active_profile_id;
+                this.profiles = pData.profiles || [];
+                if (window.ProfileStorage) {
+                    window.ProfileStorage.init(this.activeProfileId);
+                }
+                const activeProf = this.profiles.find(p => p.id === this.activeProfileId);
+                if (activeProf && activeProf.color) {
+                    this.applyProfileTheme(activeProf.color);
+                }
+                this._renderProfileSelector();
+                this.initAutoLock();
+                if (window.FormView && window.FormView.checkPendingCrossTransfers) {
+                    window.FormView.checkPendingCrossTransfers();
+                }
+            } else {
+                console.error("Failed to load profiles", pDataRes.reason);
+            }
+
+            // Load Global Config
+            if (configRes.status === 'fulfilled' && configRes.value) {
+                this.config = configRes.value;
+                if (this.config && this.config.base_currency) {
+                    window.appBaseCurrency = this.config.base_currency;
+                }
+            } else {
+                console.error("Failed to load global config", configRes.reason);
+                this.config = {};
+            }
+            
+            // ── Phase 8: Check if first launch / empty DB ──
+            if (window.SetupWizard) {
+                const wizardShown = await window.SetupWizard.checkAndShow();
+                if (wizardShown) {
+                    // Reveal UI behind wizard (for theme consistency)
+                    window.hideAppInitLoader();
+                    const container = document.querySelector('.app-container');
+                    if (container) container.style.opacity = '1';
+                    return; // Wizard handles the rest
+                }
+            }
+            
+            // ── Phase 9: Check if org mode needs user selection ──
+            if (this.config.enable_org_mode === 'true') {
+                const savedUser = sessionStorage.getItem('omni_current_user');
+                if (!savedUser) {
+                    // Ensure default user exists
+                    try { await API.post('/api/org_users/ensure_default'); } catch (e) {}
+                    window.hideAppInitLoader();
+                    await this._showUserPicker();
+                    return; // Blocks until user selected
+                }
+                this.currentUser = savedUser;
+            }
+            
             await this._initUI();
         } catch (e) {
             console.error('[App] init() fatal error — forcing UI reveal:', e);
@@ -1395,6 +1404,7 @@ class App {
 
     // ── Phase 9: User Picker (full-page splash) ──────────────────
     async _showUserPicker() {
+        window.hideAppInitLoader();
         const overlay = document.getElementById('userPickerOverlay');
         if (!overlay) return;
 

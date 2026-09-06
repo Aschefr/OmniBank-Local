@@ -3867,22 +3867,38 @@ body.compact-mode .rec-instance-row .btn {
 .acc-action-btn {
     background: transparent;
     border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 3px 6px;
-    font-size: 12px;
+    border-radius: 5px;
+    padding: 0;
+    font-size: 11px;
     cursor: pointer;
     transition: all 0.15s ease;
-    margin-right: 3px;
+    margin-right: 2px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 28px;
-    height: 28px;
+    min-width: 24px;
+    width: 24px;
+    height: 24px;
     box-sizing: border-box;
+    vertical-align: middle;
 }
 
 .acc-action-btn:last-child {
     margin-right: 0;
+}
+
+.acc-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.acc-feed-btn {
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.acc-feed-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--primary, #6366f1);
 }
 
 .acc-history-btn {
@@ -3939,7 +3955,7 @@ body.compact-mode .rec-instance-row .btn {
     border-color: var(--text-muted) !important;
     color: var(--text-muted) !important;
     opacity: 0.5;
-    font-size: 14px;
+    font-size: 11px !important;
 }
 
 .acc-star-btn:hover {
@@ -3952,8 +3968,87 @@ body.compact-mode .rec-instance-row .btn {
 .acc-star-active {
     border-color: #f59e0b !important;
     color: #f59e0b !important;
-    font-size: 14px;
+    font-size: 11px !important;
     background: rgba(245, 158, 11, 0.1);
+}
+
+/* ── Tableau des comptes - Optimisation affichage restreint ── */
+.accounts-data-table {
+    table-layout: auto !important;
+    width: 100% !important;
+}
+
+.accounts-data-table th,
+.accounts-data-table td {
+    padding: 8px 10px !important;
+    vertical-align: middle;
+}
+
+.accounts-data-table th.acc-col-name,
+.accounts-data-table td.acc-col-name {
+    width: auto;
+    min-width: 130px;
+}
+
+.accounts-data-table th.acc-col-type,
+.accounts-data-table td.acc-col-type {
+    width: 1%;
+    white-space: nowrap !important;
+    min-width: 95px;
+}
+
+.accounts-data-table th.acc-col-feed,
+.accounts-data-table td.acc-col-feed {
+    width: 1%;
+    white-space: nowrap !important;
+    min-width: 115px;
+}
+
+.accounts-data-table th.acc-col-init,
+.accounts-data-table td.acc-col-init {
+    width: 1%;
+    white-space: nowrap !important;
+    text-align: right !important;
+    min-width: 80px;
+    font-size: 12px;
+}
+
+.accounts-data-table th.acc-col-curr,
+.accounts-data-table td.acc-col-curr {
+    width: 1%;
+    white-space: nowrap !important;
+    text-align: right !important;
+    min-width: 85px;
+    font-size: 12px;
+}
+
+.accounts-data-table th.acc-col-actions,
+.accounts-data-table td.acc-col-actions {
+    width: 1%;
+    white-space: nowrap !important;
+    text-align: right !important;
+    min-width: 175px;
+    overflow: visible !important;
+    text-overflow: clip;
+}
+
+.acc-actions-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    white-space: nowrap;
+}
+
+.acc-actions-wrap .acc-action-btn {
+    margin-right: 0 !important;
+}
+
+@media (max-width: 768px) {
+    .accounts-data-table th,
+    .accounts-data-table td {
+        padding: 6px 8px !important;
+    }
 }
 
 @keyframes shake {
@@ -4019,7 +4114,7 @@ tr.overdraft-flash td,
 .user-picker-overlay {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: 100000 !important;
     background: var(--bg-base);
     display: flex;
     align-items: center;
@@ -12266,7 +12361,8 @@ body.theme-titanium-dark .accounts-table-card,
 body.theme-titanium-light .accounts-table-card {
     border-radius: 6px !important;
     position: relative;
-    overflow: hidden !important;
+    overflow-x: auto !important;
+    overflow-y: hidden;
 }
 body.theme-titanium-dark .accounts-table-card {
     border: 1px solid rgba(255, 255, 255, 0.10) !important;
