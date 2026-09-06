@@ -251,6 +251,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "total_unreconciled_expenses": total_unreconciled_expenses,
         "unreconciled_income": unreconciled_income,
         "total_unreconciled_income": total_unreconciled_income,
+        "main_account_id": main_acc.id if main_acc else None,
         "budget_summary": period_groups,
         "savings_summary": savings_summary,
         "savings_details": savings_list,

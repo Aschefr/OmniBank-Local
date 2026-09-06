@@ -79,7 +79,9 @@ window.BankSyncView = {
                 timestamp: Date.now(),
                 data: previewData
             };
-            sessionStorage.setItem(this._getPreviewCacheKey(connId), JSON.stringify(entry));
+            const key = this._getPreviewCacheKey(connId);
+            localStorage.setItem(key, JSON.stringify(entry));
+            try { sessionStorage.removeItem(key); } catch (_) {}
         } catch (e) {
             console.warn('[BankSync] Impossible de cacher l\'aperçu:', e);
         }
@@ -89,11 +91,15 @@ window.BankSyncView = {
         try {
             const pid = this.getActiveProfileId();
             const key = this._getPreviewCacheKey(connId);
-            const raw = sessionStorage.getItem(key);
+            let raw = localStorage.getItem(key);
+            if (!raw) {
+                raw = sessionStorage.getItem(key);
+            }
             if (!raw) return null;
             const entry = JSON.parse(raw);
             if (entry && entry.profileId && entry.profileId !== pid) {
-                sessionStorage.removeItem(key);
+                localStorage.removeItem(key);
+                try { sessionStorage.removeItem(key); } catch (_) {}
                 return null;
             }
             return entry;
@@ -105,7 +111,9 @@ window.BankSyncView = {
     // ── GESTION DES DÉROGATIONS DE RAPPROCHEMENT (REJECTED & FORCED MATCHES) ──
     getRejectedMatches(connId) {
         try {
-            return JSON.parse(sessionStorage.getItem(this._getRejectedMatchesKey(connId)) || '[]');
+            const key = this._getRejectedMatchesKey(connId);
+            const val = localStorage.getItem(key) || sessionStorage.getItem(key) || '[]';
+            return JSON.parse(val);
         } catch { return []; }
     },
 
@@ -115,12 +123,16 @@ window.BankSyncView = {
         if (!list.some(r => r.csv_id === csvId && r.db_id === dbId)) {
             list.push({ csv_id: csvId, db_id: dbId });
         }
-        sessionStorage.setItem(this._getRejectedMatchesKey(connId), JSON.stringify(list));
+        const key = this._getRejectedMatchesKey(connId);
+        localStorage.setItem(key, JSON.stringify(list));
+        try { sessionStorage.removeItem(key); } catch (_) {}
     },
 
     getForceMatches(connId) {
         try {
-            return JSON.parse(sessionStorage.getItem(this._getForcedMatchesKey(connId)) || '[]');
+            const key = this._getForcedMatchesKey(connId);
+            const val = localStorage.getItem(key) || sessionStorage.getItem(key) || '[]';
+            return JSON.parse(val);
         } catch { return []; }
     },
 
@@ -129,45 +141,63 @@ window.BankSyncView = {
         let list = this.getForceMatches(connId);
         list = list.filter(f => f.csv_id !== csvId);
         list.push({ csv_id: csvId, db_id: dbId });
-        sessionStorage.setItem(this._getForcedMatchesKey(connId), JSON.stringify(list));
+        const key = this._getForcedMatchesKey(connId);
+        localStorage.setItem(key, JSON.stringify(list));
+        try { sessionStorage.removeItem(key); } catch (_) {}
     },
 
     removeForceMatch(connId, csvId) {
         if (!connId || !csvId) return;
         let list = this.getForceMatches(connId);
         list = list.filter(f => f.csv_id !== csvId);
-        sessionStorage.setItem(this._getForcedMatchesKey(connId), JSON.stringify(list));
+        const key = this._getForcedMatchesKey(connId);
+        localStorage.setItem(key, JSON.stringify(list));
+        try { sessionStorage.removeItem(key); } catch (_) {}
     },
 
     clearMatchOverrides(connId) {
         if (!connId) return;
-        sessionStorage.removeItem(this._getRejectedMatchesKey(connId));
-        sessionStorage.removeItem(this._getForcedMatchesKey(connId));
-        sessionStorage.removeItem(`omnibank_sync_rejected_${connId}`);
-        sessionStorage.removeItem(`omnibank_sync_forced_${connId}`);
+        const rejKey = this._getRejectedMatchesKey(connId);
+        const forceKey = this._getForcedMatchesKey(connId);
+        [rejKey, forceKey, `omnibank_sync_rejected_${connId}`, `omnibank_sync_forced_${connId}`].forEach(k => {
+            localStorage.removeItem(k);
+            try { sessionStorage.removeItem(k); } catch (_) {}
+        });
     },
 
     clearCachedPreview(connId) {
         if (!connId) return;
-        sessionStorage.removeItem(this._getPreviewCacheKey(connId));
-        sessionStorage.removeItem(`omnibank_sync_preview_${connId}`);
+        const prevKey = this._getPreviewCacheKey(connId);
+        [prevKey, `omnibank_sync_preview_${connId}`].forEach(k => {
+            localStorage.removeItem(k);
+            try { sessionStorage.removeItem(k); } catch (_) {}
+        });
     },
 
     async clearAllCaches() {
-        // 1. Vider tous les caches sessionStorage (previews + overrides) pour ce profil et legacy
+        // 1. Vider tous les caches localStorage et sessionStorage (previews + overrides) pour ce profil et legacy
         const pid = this.getActiveProfileId();
-        const keysToRemove = [];
-        for (let i = 0; i < sessionStorage.length; i++) {
-            const k = sessionStorage.key(i);
-            if (!k) continue;
-            if (k.startsWith(`omnibank_${pid}_sync_`) ||
+        const shouldRemoveKey = (k) => {
+            if (!k) return false;
+            return k.startsWith(`omnibank_${pid}_sync_`) ||
                 k.startsWith('omnibank_sync_preview_') ||
                 k.startsWith('omnibank_sync_rejected_') ||
-                k.startsWith('omnibank_sync_forced_')) {
-                keysToRemove.push(k);
-            }
+                k.startsWith('omnibank_sync_forced_');
+        };
+
+        const localKeysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (shouldRemoveKey(k)) localKeysToRemove.push(k);
         }
-        keysToRemove.forEach(k => sessionStorage.removeItem(k));
+        localKeysToRemove.forEach(k => localStorage.removeItem(k));
+
+        const sessionKeysToRemove = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const k = sessionStorage.key(i);
+            if (shouldRemoveKey(k)) sessionKeysToRemove.push(k);
+        }
+        sessionKeysToRemove.forEach(k => sessionStorage.removeItem(k));
 
         // 2. Purger le sas d'attente côté serveur
         try {
@@ -235,9 +265,10 @@ window.BankSyncView = {
             if (connId) {
                 const pid = this.getActiveProfileId();
                 localStorage.removeItem(`omnibank_remote_accounts_${pid}_${connId}`);
-                localStorage.removeItem(`omnibank_remote_accounts_${connId}`);
-                sessionStorage.removeItem(this._getPreviewCacheKey(connId));
-                sessionStorage.removeItem(`omnibank_sync_preview_${connId}`);
+                localStorage.removeItem(this._getPreviewCacheKey(connId));
+                localStorage.removeItem(`omnibank_sync_preview_${connId}`);
+                try { sessionStorage.removeItem(this._getPreviewCacheKey(connId)); } catch (_) {}
+                try { sessionStorage.removeItem(`omnibank_sync_preview_${connId}`); } catch (_) {}
             }
         } catch (_) {}
     },
@@ -294,7 +325,7 @@ window.BankSyncView = {
             this.loadLocalAccounts(),
             this.loadVaultStatus(),
             this.loadAutoSyncSettings(),
-            this.loadPendingSync()
+            this.loadPendingSync(true)
         ]);
     },
 

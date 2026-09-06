@@ -341,7 +341,7 @@ Object.assign(window.BankSyncView, {
     clearAllCachedData() {
         try {
             Object.keys(localStorage).forEach(k => {
-                if (k.startsWith('omnibank_remote_accounts_')) {
+                if (k.startsWith('omnibank_remote_accounts_') || k.startsWith('omnibank_sync_') || k.includes('_sync_preview_') || k.includes('_sync_rejected_') || k.includes('_sync_forced_')) {
                     localStorage.removeItem(k);
                 }
             });

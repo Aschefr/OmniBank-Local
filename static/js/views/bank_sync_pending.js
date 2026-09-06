@@ -5,6 +5,10 @@ Object.assign(window.BankSyncView, {
 
     async loadPendingSync(force = false) {
         if (!force && this._lastPendingSyncData && this._lastPendingSyncTime && (Date.now() - this._lastPendingSyncTime < 10000)) {
+            const box = document.getElementById('bankPendingSyncBox');
+            if (box && (!box.innerHTML || box.style.display === 'none')) {
+                this.renderPendingSyncBox(this._lastPendingSyncData);
+            }
             return this._lastPendingSyncData;
         }
         if (this._inFlightPendingSyncPromise) {
@@ -322,7 +326,8 @@ Object.assign(window.BankSyncView, {
             : Object.values(data?.matches_by_tx_id || {}).filter(m => m.is_coming).length;
         const totalNew = data?.total_new || 0;
         const totalDiscrepancies = data?.total_discrepancies || 0;
-        const hasConnections = this.connections && this.connections.length > 0;
+        const hasPendingAccounts = Boolean(data?.accounts && data.accounts.length > 0);
+        const hasConnections = (this.connections && this.connections.length > 0) || hasPendingAccounts;
 
         if (!hasConnections || (totalMatches === 0 && totalNew === 0 && totalDiscrepancies === 0)) {
             box.style.display = 'none';

@@ -103,7 +103,7 @@ window.ImportWizard = {
 
         // Rafraîchir immédiatement le sas d'attente pour que les opérations fantômes s'affichent
         if (window.BankSyncView && window.BankSyncView.loadPendingSync) {
-            window.BankSyncView.loadPendingSync();
+            window.BankSyncView.loadPendingSync(true);
         }
 
         // Ouvrir le cockpit unifié avec le preview multi-comptes
@@ -297,6 +297,9 @@ window.ImportWizard = {
                     this._pendingAIAccountId = document.getElementById('importAccountSelect')?.value;
                     this._setImportBtnState('ready');
                     showToast(window.i18n.t('msg_ai_ready'), 'success', 8000);
+                    if (window.BankSyncView && window.BankSyncView.loadPendingSync) {
+                        window.BankSyncView.loadPendingSync(true);
+                    }
                 } else {
                     this._setImportBtnState('idle');
                     this.fileBalance = result.file_balance || null;

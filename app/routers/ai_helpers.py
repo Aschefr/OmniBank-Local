@@ -256,7 +256,113 @@ async def import_csv_ai(
             results.append(tx)
             
         alerts = check_import_alerts(db, account_id, results) if account_id else {}
-        return {"transactions": results, "file_balance": file_balance, "alerts": alerts}
+
+        # Normaliser les champs des transactions pour le sas d'attente et le cockpit
+        normalized_txs = []
+        for i, tx in enumerate(results):
+            raw_amt = float(tx.get('amount', 0))
+            raw_desc = tx.get('description', '') or tx.get('raw_description', '')
+            c_id = tx.get('csv_id') or f"csv_ai_{account_id or 0}_{i}_{tx.get('date')}_{raw_amt}"
+            normalized_txs.append({
+                "csv_id": c_id,
+                "date_operation": tx.get('date'),
+                "description": tx.get('description') or raw_desc,
+                "raw_description": raw_desc,
+                "db_description": tx.get('db_description'),
+                "amount": abs(raw_amt),
+                "raw_amount": raw_amt,
+                "category": tx.get('category'),
+                "is_reconciled": bool(tx.get('is_reconciled')),
+                "already_reconciled": bool(tx.get('already_reconciled')),
+                "is_mirror_transfer": bool(tx.get('is_mirror_transfer')),
+                "is_orphan_transfer_link": bool(tx.get('is_orphan_transfer_link')),
+                "orphan_account_id": tx.get('orphan_account_id'),
+                "orphan_account_name": tx.get('orphan_account_name'),
+                "matched_db_id": tx.get('matched_db_id'),
+                "match_score": tx.get('match_score', 0),
+                "is_coming": False,
+                "attachments": tx.get('attachments'),
+                "check_slip_number": tx.get('check_slip_number'),
+                "smart_suggested": bool(tx.get('smart_suggested', False))
+            })
+
+        acc = db.query(Account).filter(Account.id == account_id).first() if account_id else None
+        target_acc_name = acc.name if acc else "Compte"
+
+        from app.services.finance_engine import calculate_balances
+        balances_reconciled = calculate_balances(db, only_reconciled=True)
+        local_rec_bal = round(balances_reconciled.get(account_id, 0.0), 2) if account_id else None
+
+        accounts_out = [{
+            "account_id": account_id,
+            "account_name": target_acc_name,
+            "section_title": section_title or target_acc_name,
+            "bank_balance": file_balance,
+            "local_reconciled_balance": local_rec_bal,
+            "alerts": alerts,
+            "transactions": normalized_txs
+        }]
+
+        preview_data = {
+            "_source": "csv_import",
+            "_csvAlerts": alerts,
+            "_fileBalance": file_balance,
+            "accounts": accounts_out,
+            "transactions": normalized_txs,
+            "file_balance": file_balance,
+            "alerts": alerts
+        }
+
+        # Persister dans le sas d'attente
+        try:
+            from app.services.bank_sync_scheduler import save_pending_sync_data, CSV_IMPORT_CONN_ID
+            save_pending_sync_data(db, CSV_IMPORT_CONN_ID, preview_data)
+        except Exception as pend_err:
+            logger.warning(f"[AI Import] Erreur enregistrement sas d'attente : {pend_err}")
+
+        # Créer une notification in-app d'import de fichier
+        try:
+            from app.models import Notification
+            from datetime import datetime, timezone
+
+            total_txs = len(normalized_txs)
+            matches = sum(1 for t in normalized_txs if t.get("is_reconciled") and not t.get("already_reconciled"))
+            new_txs = sum(1 for t in normalized_txs if not t.get("is_reconciled") and not t.get("_excluded"))
+
+            details_list = []
+            if matches == 1:
+                details_list.append("1 opération à rapprocher")
+            elif matches > 1:
+                details_list.append(f"{matches} opérations à rapprocher")
+            if new_txs == 1:
+                details_list.append("1 nouvelle opération")
+            elif new_txs > 1:
+                details_list.append(f"{new_txs} nouvelles opérations")
+            if not details_list:
+                details_list.append(f"{total_txs} opération(s) lue(s)")
+
+            fname = file.filename or "relevé_ia.csv"
+            notif = Notification(
+                type="file_import",
+                title="🧠 Import Relevé IA",
+                content=f"Fichier {fname} : " + ", ".join(details_list) + ".",
+                link_data=json.dumps({
+                    "view": "accounts",
+                    "action": "open_pending",
+                    "filename": fname,
+                    "matches": matches,
+                    "new_txs": new_txs,
+                    "total": total_txs
+                }),
+                is_read=False,
+                created_at=datetime.now(timezone.utc)
+            )
+            db.add(notif)
+            db.commit()
+        except Exception as notif_err:
+            logger.warning(f"[AI Import] Notification import non créée : {notif_err}")
+
+        return preview_data
     except Exception as e:
         logger.error("[AI Import] Échec de l'analyse IA : %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
