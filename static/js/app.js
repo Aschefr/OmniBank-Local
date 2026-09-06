@@ -1,5 +1,42 @@
 // app.js - Main orchestrator
 
+// ── Bouclier global anti-fermeture accidentelle des modales ──
+// Empêche la fermeture intempestive si l'utilisateur clique dans un input/texte et relâche en dehors
+let _lastGlobalMouseDownTarget = null;
+document.addEventListener('mousedown', (e) => {
+    _lastGlobalMouseDownTarget = e.target;
+}, true);
+
+document.addEventListener('click', (e) => {
+    const target = e.target;
+    if (target && target.nodeType === 1) {
+        const isOverlay = target.classList?.contains('modal-overlay') ||
+                          target.classList?.contains('bv-modal-overlay') ||
+                          target.classList?.contains('user-picker-overlay') ||
+                          target.classList?.contains('review-modal-overlay') ||
+                          (typeof target.className === 'string' && target.className.includes('modal-overlay')) ||
+                          (target.id && (target.id.endsWith('Modal') || target.id.includes('ModalOverlay')));
+        if (isOverlay) {
+            // Si le mousedown a démarré à l'intérieur de la boîte modale et s'est relâché sur l'overlay
+            if (_lastGlobalMouseDownTarget && _lastGlobalMouseDownTarget !== target && target.contains(_lastGlobalMouseDownTarget)) {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+            }
+        }
+    }
+}, true);
+
+window.hideAppInitLoader = function() {
+    try {
+        sessionStorage.removeItem('omni_switching_profile');
+        const loader = document.getElementById('appInitLoader');
+        if (loader && loader.style.display !== 'none') {
+            loader.style.opacity = '0';
+            setTimeout(() => { loader.style.display = 'none'; }, 300);
+        }
+    } catch (_) {}
+};
+
 class App {
     constructor() {
         this.currentView = 'dashboard';
@@ -113,12 +150,16 @@ class App {
         // Init i18n
         await window.i18n.init();
 
-        // Immediately display app version in header (so it is visible during wizard / user picker too)
-        await this.loadAppVersion();
+        // Parallel load of core metadata (version, profiles, global config)
+        const [versionRes, pDataRes, configRes] = await Promise.allSettled([
+            this.loadAppVersion(),
+            API.get('/api/profiles/'),
+            API.get('/api/config/')
+        ]);
 
         // Init Master Profiles
-        try {
-            const pData = await API.get('/api/profiles/');
+        if (pDataRes.status === 'fulfilled' && pDataRes.value) {
+            const pData = pDataRes.value;
             this.activeProfileId = pData.active_profile_id;
             this.profiles = pData.profiles || [];
             if (window.ProfileStorage) {
@@ -133,19 +174,18 @@ class App {
             if (window.FormView && window.FormView.checkPendingCrossTransfers) {
                 window.FormView.checkPendingCrossTransfers();
             }
-        } catch (e) {
-
-            console.error("Failed to load profiles", e);
+        } else {
+            console.error("Failed to load profiles", pDataRes.reason);
         }
 
         // Load Global Config
-        try {
-            this.config = await API.get('/api/config/');
+        if (configRes.status === 'fulfilled' && configRes.value) {
+            this.config = configRes.value;
             if (this.config && this.config.base_currency) {
                 window.appBaseCurrency = this.config.base_currency;
             }
-        } catch (e) {
-            console.error("Failed to load global config", e);
+        } else {
+            console.error("Failed to load global config", configRes.reason);
             this.config = {};
         }
         
@@ -178,6 +218,7 @@ class App {
             console.error('[App] init() fatal error — forcing UI reveal:', e);
             const container = document.querySelector('.app-container');
             if (container) container.style.opacity = '1';
+            window.hideAppInitLoader();
         }
     }
 
@@ -343,17 +384,13 @@ class App {
         window.addEventListener('mouseup', (e) => { if (e.button === 3 || e.button === 4) e.preventDefault(); });
         window.addEventListener('keydown', (e) => { if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) e.preventDefault(); });
 
-        // Initial Load
-        await this.refreshSidebar();
-        
-        // Initial check for pending bank sync matches BEFORE loading the initial view
-        if (window.BankSyncView && window.BankSyncView.loadPendingSync) {
-            try {
-                await window.BankSyncView.loadPendingSync();
-            } catch (e) {
-                console.warn('[BankSync] Initial pending sync load failed:', e);
-            }
-        }
+        // Initial Load (Sidebar accounts & Pending bank sync in parallel)
+        await Promise.allSettled([
+            this.refreshSidebar(),
+            (window.BankSyncView && window.BankSyncView.loadPendingSync) 
+                ? window.BankSyncView.loadPendingSync().catch(e => console.warn('[BankSync] Initial pending sync load failed:', e))
+                : Promise.resolve()
+        ]);
 
         // Restore view from ProfileStorage
         let savedView = ProfileStorage.get('omni_current_view') || this.currentView;
@@ -369,6 +406,7 @@ class App {
             // Reveal UI after init is complete (prevents FOUC)
             const container = document.querySelector('.app-container');
             if (container) container.style.opacity = '1';
+            window.hideAppInitLoader();
         }
         
         // Phase 9: Init user switcher if org mode
@@ -2891,6 +2929,21 @@ class App {
 
     async switchProfile(profileId, pin = null) {
         try {
+            // Afficher immédiatement l'overlay de chargement
+            const loader = document.getElementById('appInitLoader');
+            if (loader) {
+                const isEn = (window.i18n && window.i18n.currentLang === 'en') || (localStorage.getItem('site_lang') === 'en');
+                const title = document.getElementById('appInitLoaderTitle');
+                if (title) title.textContent = (window.i18n && window.i18n.t) ? window.i18n.t('loader_switching_profile_title') : (isEn ? "Switching profile in progress..." : "Changement de profil en cours...");
+                const sub = document.getElementById('appInitLoaderSub');
+                if (sub) sub.textContent = (window.i18n && window.i18n.t) ? window.i18n.t('loader_switching_profile_sub') : (isEn ? "Loading accounts and data, please wait." : "Chargement des comptes et des données en cours, veuillez patienter.");
+                loader.style.display = 'flex';
+                loader.style.opacity = '1';
+            }
+            try {
+                sessionStorage.setItem('omni_switching_profile', 'true');
+            } catch (_) {}
+
             const body = pin ? { pin } : {};
             const res = await API.post(`/api/profiles/${profileId}/activate`, body);
             sessionStorage.removeItem('omni_is_locked');
@@ -2898,16 +2951,19 @@ class App {
                 // Purge intégrale de sessionStorage pour garantir une étanchéité absolue entre profils
                 try {
                     sessionStorage.clear();
+                    sessionStorage.setItem('omni_switching_profile', 'true');
                 } catch (_) {}
 
                 if (res.reload_required) {
                     window.location.reload();
                 } else {
+                    window.hideAppInitLoader();
                     const overlay = document.getElementById('appLockScreen');
                     if (overlay) overlay.style.display = 'none';
                 }
             }
         } catch (e) {
+            window.hideAppInitLoader();
             console.error("Failed to switch profile", e);
             throw e;
         }

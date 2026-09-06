@@ -658,7 +658,7 @@ class BankSyncService:
         Récupère les transactions distantes sans les enregistrer, et calcule les correspondances
         de rapprochement (déjà rapprochées, à rapprocher, à ajouter) pour prévisualisation dans la modale.
         """
-        from app.routers.csv_parser import check_reconciliation
+        from app.services.reconciliation_engine import check_reconciliation
 
         if not master_password:
             raise Exception("Coffre-fort verrouillé : veuillez déverrouiller votre coffre pour synchroniser vos comptes.")
@@ -1342,7 +1342,7 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
         return preview_data
 
     from datetime import date, timedelta
-    from app.routers.csv_parser import check_reconciliation
+    from app.services.reconciliation_engine import check_reconciliation
     from app.services.finance_engine import calculate_balances
     from app.services.smart_label_service import resolve_smart_labels_batch
     from app.services.bank_sync_scheduler import get_dismissed_transactions

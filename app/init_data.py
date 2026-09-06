@@ -5,10 +5,21 @@ import app.models  # Register all models for create_all
 
 def init_db(target_engine=None):
     from app.database import get_engine
+    from sqlalchemy import text
     eng = target_engine or get_engine()
+
+    # Fast-path : si la base est déjà initialisée et au schéma cible (v24),
+    # éviter l'introspection complète de toutes les tables SQLAlchemy lors de chaque switch de profil
+    try:
+        with eng.connect() as conn:
+            row = conn.execute(text("SELECT value FROM global_config WHERE key = 'schema_version'")).fetchone()
+            if row and row[0] and str(row[0]).isdigit() and int(row[0]) >= 24:
+                return
+    except Exception:
+        pass
+
     Base.metadata.create_all(bind=eng)
 
-    from sqlalchemy import text
     with eng.connect() as conn:
         try:
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_budget_id ON transactions (budget_id)"))
@@ -577,6 +588,41 @@ def init_db(target_engine=None):
                 pass
             try:
                 conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '23')"))
+            except Exception:
+                pass
+            conn.commit()
+
+        if schema_version < 24:
+            # Schema v24: Auto-Pilot engine foundations (Decision Log & Budget Lock)
+            try:
+                conn.execute(text("ALTER TABLE budgets ADD COLUMN is_locked BOOLEAN DEFAULT 0"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS autopilot_decision_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        batch_id TEXT NOT NULL,
+                        decision_type TEXT NOT NULL,
+                        action TEXT NOT NULL,
+                        entity_type TEXT NOT NULL,
+                        entity_id INTEGER,
+                        conn_id INTEGER,
+                        account_id INTEGER,
+                        raw_snapshot TEXT,
+                        confidence_score FLOAT,
+                        is_undone BOOLEAN DEFAULT 0,
+                        undone_at DATETIME,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_autopilot_decision_log_batch_id ON autopilot_decision_log (batch_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_autopilot_decision_log_entity ON autopilot_decision_log (entity_type, entity_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_autopilot_decision_log_created_at ON autopilot_decision_log (created_at)"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '24')"))
             except Exception:
                 pass
             conn.commit()

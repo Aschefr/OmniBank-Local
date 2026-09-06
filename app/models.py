@@ -152,6 +152,7 @@ class Budget(Base):
     end_date = Column(Date, nullable=True)                   # For custom period envelopes
     account_ids = Column(String, nullable=True)              # JSON list of account IDs (org mode), null = global
     envelope_type = Column(String, default="spending")        # "spending" (classic) or "savings" (piggy bank / tirelire)
+    is_locked = Column(Boolean, default=False)                # Protection contre le recalibrage automatique Auto-Pilote
 
 class BudgetCategory(Base):
     """Many-to-many: each row links a budget to one category name."""
@@ -316,5 +317,28 @@ class BankLabelMapping(Base):
     is_ignored = Column(Boolean, default=False, nullable=False)          # Si True, ne jamais suggérer automatiquement pour ce motif
     match_count = Column(Integer, default=1)                              # Compteur de renforcement / fréquence
     last_used_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+
+
+class AutopilotDecisionLog(Base):
+    """Journal d'audit et de traçabilité des décisions du mode Auto-Pilote (réversibilité & rollback)."""
+    __tablename__ = "autopilot_decision_log"
+    __table_args__ = (
+        Index("ix_autopilot_decision_log_entity", "entity_type", "entity_id"),
+        Index("ix_autopilot_decision_log_created_at", "created_at"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    batch_id = Column(String, nullable=False, index=True)         # UUID v4 du cycle de synchronisation
+    decision_type = Column(String, nullable=False)               # "reconciliation", "new_entry", "recurrence_promotion", "budget_recalibration"
+    action = Column(String, nullable=False)                      # "AUTO_COMMIT", "SUGGESTED", "DISMISSED", "ROLLED_BACK"
+    entity_type = Column(String, nullable=False)                 # "transaction", "recurrence_template", "budget"
+    entity_id = Column(Integer, nullable=True)                   # ID de l'entité affectée
+    conn_id = Column(Integer, nullable=True)                     # ID de connexion bancaire (-1 si import fichier)
+    account_id = Column(Integer, nullable=True)                  # Compte concerné
+    raw_snapshot = Column(Text, nullable=True)                   # JSON sérialisé de l'état avant décision pour rollback
+    confidence_score = Column(Float, nullable=True)              # Score de certitude (0-100)
+    is_undone = Column(Boolean, default=False, nullable=False)   # True si décision annulée/rollback
+    undone_at = Column(DateTime, nullable=True)                  # Timestamp du rollback
     created_at = Column(DateTime, default=_utcnow)
 

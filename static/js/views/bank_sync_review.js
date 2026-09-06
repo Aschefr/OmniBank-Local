@@ -36,8 +36,7 @@ Object.assign(window.BankSyncView, {
         }
 
         // 0. Re-calcule dynamiquement en direct le rapprochement par rapport à l'état actuel de la base SQLite
-        //    (sauf en mode import CSV — pas de connexion bancaire ni d'overrides à appliquer)
-        if (!isCsvImport && previewData && previewData.accounts && previewData.accounts.length > 0) {
+        if (previewData && previewData.accounts && previewData.accounts.length > 0) {
             try {
                 const payload = {
                     ...previewData,
@@ -191,6 +190,15 @@ Object.assign(window.BankSyncView, {
         if (csvBar) csvBar.style.display = 'none';
     },
 
+    async purgePendingAndClose() {
+        const title = window.i18n ? window.i18n.t('title_confirmation') || 'Confirmation' : 'Confirmation';
+        const confirmMsg = window.i18n ? window.i18n.t('bank_sync_purge_confirm') || 'Vider tout le sas de synchronisation ? Cette action est irréversible.' : 'Vider tout le sas de synchronisation ? Cette action est irréversible.';
+        const ok = await showInlineConfirm(title, confirmMsg);
+        if (!ok) return;
+        await this.clearAllCaches();
+        this.closeReviewModal();
+    },
+
     // ── Méthodes spécifiques au mode CSV Import ──────────────────────
     _renderCsvAlerts() {
         const alertBox = document.getElementById('reviewCsvAlertBox');
@@ -198,6 +206,9 @@ Object.assign(window.BankSyncView, {
         const currentAcc = this.previewData.accounts?.[this.currentAccountIndex || 0];
         const alerts = currentAcc?.alerts || this.previewData._csvAlerts || {};
         const warningMsgs = [];
+        if (!currentAcc?.account_id) {
+            warningMsgs.push(`⚠️ ${window.i18n ? window.i18n.t('import_tab_unassigned_hint') || 'Compte OmniBank non associé. Sélectionnez le compte ci-dessus.' : 'Compte OmniBank non associé. Sélectionnez le compte ci-dessus.'}`);
+        }
         if (alerts.all_duplicate) {
             warningMsgs.push(`⚠️ ${window.i18n ? window.i18n.t('import_alert_all_duplicate') || 'Toutes les opérations existent déjà en base.' : 'Toutes les opérations existent déjà en base.'}`);
         }
@@ -219,7 +230,7 @@ Object.assign(window.BankSyncView, {
         }
     },
 
-    onCsvAccountChanged() {
+    async onCsvAccountChanged() {
         if (this._reviewSource !== 'csv_import' || !this.previewData) return;
         const accSelect = document.getElementById('reviewCsvAccountSelect');
         const newAccId = accSelect ? parseInt(accSelect.value) || null : null;
@@ -228,7 +239,31 @@ Object.assign(window.BankSyncView, {
             currentAcc.account_id = newAccId;
             const acc = window.app?.accounts?.find(a => a.id == newAccId);
             if (acc) currentAcc.account_name = acc.name;
+
+            // 1. Ré-évaluation temps réel côté backend contre ce compte SQLite
+            if (newAccId) {
+                try {
+                    const refreshed = await API.post('/api/bank-sync/re-evaluate-preview', this.previewData);
+                    if (refreshed && refreshed.accounts) {
+                        this.previewData = refreshed;
+                    }
+                } catch (errRec) {
+                    console.warn('[BankSync] Erreur re-évaluation CSV après changement de compte:', errRec);
+                }
+
+                // 2. Mémoriser de façon persistante le mapping pour les prochains imports
+                const secTitle = currentAcc.section_title || currentAcc.account_name;
+                if (secTitle) {
+                    API.post('/api/csv/save_account_mapping', {
+                        section_title: secTitle,
+                        account_id: newAccId
+                    }).then(() => {
+                        this.showToast(window.i18n ? window.i18n.t('import_account_mapped_toast') || 'Compte associé et mémorisé avec succès.' : 'Compte associé et mémorisé avec succès.', 'success', 3000);
+                    }).catch(errMap => console.warn('[BankSync] Erreur sauvegarde mapping compte:', errMap));
+                }
+            }
         }
+        this._renderCsvAlerts();
         this.renderAccountTabs();
         this.renderReviewTable();
         this.updateReviewSummary();
@@ -240,7 +275,7 @@ Object.assign(window.BankSyncView, {
 
         const accs = this.previewData.accounts;
         if (accs.length <= 1) {
-            container.innerHTML = `<span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${accs[0]?.account_name || 'Compte'}</span>`;
+            container.innerHTML = `<span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${!accs[0]?.account_id ? '⚠️ ' : ''}${accs[0]?.account_name || 'Compte'}</span>`;
             return;
         }
 
@@ -248,7 +283,7 @@ Object.assign(window.BankSyncView, {
             <button class="btn btn-sm ${idx === this.currentAccountIndex ? 'btn-primary' : 'btn-secondary'}" 
                     onclick="window.BankSyncView.switchAccountTab(${idx})" 
                     style="padding: 4px 12px; font-size: 12px; border-radius: 8px;">
-                ${acc.account_name || 'Compte'} (${acc.transactions?.length || 0})
+                ${!acc.account_id ? '⚠️ ' : ''}${acc.account_name || acc.section_title || 'Compte'} (${acc.transactions?.length || 0})
             </button>
         `).join('');
     },

@@ -164,12 +164,17 @@ Object.assign(window.BankSyncView, {
                 <h4 style="font-size: 14px; font-weight: 700; margin: 0 0 4px 0; color: var(--text-main);" data-i18n="bank_sync_empty_state">
                     ${window.i18n.t('bank_sync_empty_state')}
                 </h4>
-                <p style="font-size: 12px; color: var(--text-muted); max-width: 420px; margin: 0 auto 12px auto;" data-i18n="bank_sync_empty_desc">
+                <p style="font-size: 12px; color: var(--text-muted); max-width: 480px; margin: 0 auto 14px auto;" data-i18n="bank_sync_empty_desc">
                     ${window.i18n.t('bank_sync_empty_desc')}
                 </p>
-                <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="font-weight: 600; padding: 6px 14px; font-size: 12px; border-radius: 8px;">
-                    ➕ <span data-i18n="bank_sync_add_btn">${window.i18n.t('bank_sync_add_btn')}</span>
-                </button>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="window.BankSyncView.openAddModal()" style="font-weight: 600; padding: 7px 16px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>➕</span> <span data-i18n="bank_sync_add_btn">${window.i18n.t('bank_sync_add_btn')}</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="window.ImportWizard ? window.ImportWizard.open() : null" style="font-weight: 600; padding: 7px 16px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>📥</span> <span data-i18n="btn_import_statement">${window.i18n.t('btn_import_statement') || 'Importer un relevé'}</span>
+                    </button>
+                </div>
             </div>
             `;
             return;

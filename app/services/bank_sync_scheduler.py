@@ -221,7 +221,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
     Garantit l'unicité stricte par compte en conservant systématiquement la version la plus récente.
     """
     global _PENDING_SYNC_DATA
-    from app.routers.csv_parser import check_reconciliation
+    from app.services.reconciliation_engine import check_reconciliation
     from datetime import date, timedelta
     total_matches = 0
     total_confirmed_matches = 0

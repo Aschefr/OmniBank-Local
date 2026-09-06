@@ -2395,5 +2395,11 @@
     "wizard_ai_reports_enable": "Enable proactive AI financial checkup reports",
     "wizard_btn_demo": "🧪 Explore with sample demo data",
     "wizard_toast_demo_success": "Demo dataset loaded successfully!",
-    "bank_sync_balance_explained_coming": "Explained by pending operations"
+    "bank_sync_balance_explained_coming": "Explained by pending operations",
+    "loader_initial_title": "Loading your workspace...",
+    "loader_initial_sub": "Please wait while preparing data.",
+    "loader_switching_profile_title": "Switching profile in progress...",
+    "loader_switching_profile_sub": "Loading accounts and data, please wait.",
+    "import_tab_unassigned_hint": "⚠️ OmniBank account unassigned. Select an account above.",
+    "import_account_mapped_toast": "Account successfully mapped and remembered."
 }

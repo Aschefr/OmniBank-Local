@@ -81,7 +81,8 @@ Valider visuellement et fonctionnellement la chaîne complète :
   - Nom du profil : `Test E2E Auto-Pilote`.
   - PIN : Laisser vide (ou définir `0000` pour tester le déverrouillage).
   - Cliquer sur `Suivant →`.
-* **Étape 3/7 (Création du Compte Bancaire Principal)** :
+* **Étape 3/7 (Création du Compte Bancaire Principal & Mode d'Entrée)** :
+  - Mode d'entrée : Laisser sur `✍️ Saisie manuelle` (ou sélectionner `📥 Importer un relevé`).
   - Nom du compte : `Compte de dépôt N° 00012345678` (ou `Compte Courant`).
   - Type : `Compte courant`.
   - Solde initial au 31/08/2026 : **`1 500,00 €`**.
@@ -90,9 +91,9 @@ Valider visuellement et fonctionnellement la chaîne complète :
   - Jour de versement du salaire : `1` (ou `28`).
   - Salaire net habituel estimé : `2 400,00 €`.
   - Cliquer sur `Suivant →`.
-* **Étape 5/7 (Mode d'Entrée Privilégié)** :
-  - Sélectionner la tuile : **`📥 Importer un relevé (CSV / Excel)`**.
-  - Cliquer sur `Suivant →`.
+* **Étape 5/7 (Guide des Opérations & Choix de l'Accueil)** :
+  - Sélectionner la tuile : **`📊 Vue d'ensemble moderne (Bento)`** (ou `🏠 Journal des opérations classique`).
+  - Prendre connaissance des flux et cliquer sur `J'ai compris →`.
 * **Étape 6/7 (Intelligence Artificielle & Mode Auto-Pilote)** :
   - Vérifier la détection de l'assistant local Ollama.
   - **Activer l'interrupteur : `[X] Activer le mode Auto-Pilote (Full-Auto)`**.

@@ -71,9 +71,9 @@ Object.assign(window.BankSyncView, {
                     });
                 }
 
-                // Auto-catégorisation Smart Labels (local/instantané) et IA en tâche de fond
+                // Auto-catégorisation Smart Labels (local/instantané) et IA en tâche de fond (non bloquante)
                 if (this.ghostTransactions.some(g => !g.category && g.description)) {
-                    await this.autoCategorizeGhosts();
+                    this.autoCategorizeGhosts().catch(e => console.warn('[BankSync] Erreur auto-catégorisation en arrière-plan:', e));
                 }
 
                 this._ghostBoxManualCollapse = undefined;
@@ -394,12 +394,21 @@ Object.assign(window.BankSyncView, {
                     <span>📋</span> <span>${window.i18n.t('bank_sync_pending_review_btn') || 'Ouvrir la revue'}</span>
                 </button>
                 ` : ''}
-                <button class="btn btn-secondary" onclick="if(confirm('${(window.i18n ? window.i18n.t('bank_sync_purge_confirm') || 'Vider tout le sas de synchronisation ? Cette action est irréversible.' : 'Vider tout le sas de synchronisation ? Cette action est irréversible.').replace(/'/g, "\\'")}')) window.BankSyncView.clearAllCaches()" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; height: 28px; display: inline-flex; align-items: center; gap: 4px; opacity: 0.6; color: var(--text-muted);" title="${window.i18n ? window.i18n.t('bank_sync_purge_tooltip') || 'Vider le sas et supprimer toutes les suggestions en attente' : 'Vider le sas et supprimer toutes les suggestions en attente'}">
+                <button class="btn btn-secondary" onclick="window.BankSyncView.promptPurgeAllCaches()" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; height: 28px; display: inline-flex; align-items: center; gap: 4px; opacity: 0.6; color: var(--text-muted);" title="${window.i18n ? window.i18n.t('bank_sync_purge_tooltip') || 'Vider le sas et supprimer toutes les suggestions en attente' : 'Vider le sas et supprimer toutes les suggestions en attente'}">
                     <span>🗑️</span> <span>${window.i18n ? window.i18n.t('bank_sync_purge_btn') || 'Vider le sas' : 'Vider le sas'}</span>
                 </button>
             </div>
         </div>
         `;
+    },
+
+    async promptPurgeAllCaches() {
+        const title = window.i18n ? window.i18n.t('title_confirmation') || 'Confirmation' : 'Confirmation';
+        const msg = window.i18n ? window.i18n.t('bank_sync_purge_confirm') || 'Vider tout le sas de synchronisation ? Cette action est irréversible.' : 'Vider tout le sas de synchronisation ? Cette action est irréversible.';
+        const ok = await showInlineConfirm(title, msg);
+        if (ok) {
+            await this.clearAllCaches();
+        }
     },
 
     computeAccountBalanceSyncStatus(acc, ghosts = []) {

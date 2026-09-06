@@ -2395,5 +2395,11 @@
     "wizard_ai_reports_enable": "Activer les bilans de santé financière périodiques par l'IA",
     "wizard_btn_demo": "🧪 Découvrir avec des données de démonstration",
     "wizard_toast_demo_success": "Jeu de données de démonstration chargé avec succès !",
-    "bank_sync_balance_explained_coming": "Expliqué par opérations en attente"
+    "bank_sync_balance_explained_coming": "Expliqué par opérations en attente",
+    "loader_initial_title": "Chargement de votre espace...",
+    "loader_initial_sub": "Veuillez patienter pendant la préparation des données.",
+    "loader_switching_profile_title": "Changement de profil en cours...",
+    "loader_switching_profile_sub": "Chargement des comptes et des données en cours, veuillez patienter.",
+    "import_tab_unassigned_hint": "⚠️ Compte OmniBank non associé. Sélectionnez le compte ci-dessus.",
+    "import_account_mapped_toast": "Compte associé et mémorisé avec succès."
 }
