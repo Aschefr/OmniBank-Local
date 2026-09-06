@@ -279,13 +279,25 @@ Object.assign(window.BankSyncView, {
             return;
         }
 
-        container.innerHTML = accs.map((acc, idx) => `
+        container.innerHTML = accs.map((acc, idx) => {
+            const pendingCount = (acc.transactions || []).filter(tx => {
+                const isIgnored = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+                return !isIgnored;
+            }).length;
+
+            const badgeHtml = pendingCount > 0 
+                ? `<span style="background: ${idx === this.currentAccountIndex ? 'rgba(255,255,255,0.25)' : 'rgba(217,119,6,0.2)'}; color: ${idx === this.currentAccountIndex ? '#fff' : '#d97706'}; padding: 1px 6px; border-radius: 10px; font-size: 11px; margin-left: 6px; font-weight: 700;">${pendingCount}</span>`
+                : '';
+
+            return `
             <button class="btn btn-sm ${idx === this.currentAccountIndex ? 'btn-primary' : 'btn-secondary'}" 
                     onclick="window.BankSyncView.switchAccountTab(${idx})" 
-                    style="padding: 4px 12px; font-size: 12px; border-radius: 8px;">
-                ${!acc.account_id ? '⚠️ ' : ''}${acc.account_name || acc.section_title || 'Compte'} (${acc.transactions?.length || 0})
+                    style="padding: 4px 12px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center;">
+                <span>${!acc.account_id ? '⚠️ ' : ''}${acc.account_name || acc.section_title || 'Compte'}</span>
+                ${badgeHtml}
             </button>
-        `).join('');
+            `;
+        }).join('');
     },
 
     switchAccountTab(idx) {

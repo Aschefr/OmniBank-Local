@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.2-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.3-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -24,10 +24,11 @@
 
 ## 🌟 Pourquoi OmniBank ?
 
-*   **🔒 Confidentialité Absolue (Zéro Cloud)** : Vos données financières ne quittent jamais votre machine. Tout est stocké localement dans une base SQLite.
-*   **🤖 Assistant IA Local (Ollama)** : Interagissez avec vos finances en langage naturel. Catégorisation intelligente, analyses de tendances et conseils personnalisés sans compromettre votre vie privée.
-*   **⚡ Performance Extrême** : Grâce au rendu virtualisé, gérez des milliers de transactions sans aucun ralentissement.
-*   **🎯 Gestion par Enveloppes** : Un système budgétaire visuel et intuitif pour suivre vos projets et vos dépenses courantes.
+*   **0 Cloud, 100% Offline** : Vos données restent physiquement sur votre machine. Aucune télémétrie, aucun tracking.
+*   **IA Locale & RAG** : Vos transactions sont vectorisées en local pour permettre un dialogue fluide avec votre historique financier via **Ollama**.
+*   **Contrôle Total des Catégories** : Règles automatiques, détection intelligente de patterns et classification assistée.
+*   **Visualisations Riches** : Graphiques financiers clairs (Chart.js) et tableau virtuel pour les historiques volumineux.
+*   **Conçu pour Durer** : Base SQLite standard et exports universels (CSV, JSON).
 
 ---
 
@@ -109,22 +110,18 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.1.2)
+## 🆕 Nouveautés (v1.1.3)
+
+* **🔄 Fusion UX Synchronisation & Relevés de Compte** : Connexion bancaire directe (Woob) et import de relevés de compte (CSV, Excel) unifiés au sein d'une même modale fluide avec un sas d'attente partagé (Cockpit de revue).
+* **📥 Action d'Import Dédiée par Compte** : Bouton d'import de fichier accessible directement depuis le tableau pour l'ensemble des comptes (en ligne, relevé ou manuel).
+* **📊 Badges de Sous-Comptes dans le Sas** : Affichage dynamique du nombre d'opérations en attente par onglet de sous-compte lors de la revue.
+* **🛡️ Filtrage Intelligent des Soldes de Relevé** : Détection et exclusion automatique des lignes de solde bancaire (« Solde au DD/MM/YYYY ») du flux d'opérations pour éliminer les opérations fantômes.
+* **🖥️ Tableau des Comptes Compact & 6 Colonnes** : Organisation en 6 colonnes (`NOM`, `TYPE`, `ALIMENTATION`, `SOLDE INITIAL`, `SOLDE ACTUEL`, `ACTIONS`) avec pastille de couleur intégrée et boutons d'actions ultra-compacts 24px pour un affichage parfait sans aucun débordement.
+
+## 📦 Historique Récent (v1.1.2)
 
 * **💾 Persistance du Sas d'Attente & Cockpit de Synchronisation** : Les opérations bancaires en attente de validation (synchronisation en ligne, imports CSV, Excel ou relevés IA) sont désormais conservées de manière robuste et persistante entre les redémarrages de l'application (Tauri et Docker).
 * **💡 Rétablissement du Revenu Attendu dans le Reste à Vivre** : Correction de l'indicateur des revenus prévus sous la carte « Reste à vivre » sur la vue Synthèse, garantissant une parfaite cohérence avec la barre latérale quel que soit le compte sélectionné.
-
-## 📦 Historique Récent (v1.1.1)
-
-* **🏦 Rétablissement de la Synchronisation Crédit Agricole** : Résolution du blocage `Element ['clientId'] not found` sous Docker et lors des premières installations grâce à l'extraction récursive et résiliente de la configuration portail et au pré-chargement sécurisé des modules bancaires.
-* **💡 Indicateur de Solde Intelligent & Ergonomie du Sas** : Harmonisation du statut de rapprochement sur le Dashboard. Lorsque les opérations en attente équilibrent le différentiel avec la banque, un badge clair « Conforme après validation » remplace le faux avertissement rouge d'écart et permet d'ouvrir instantanément la revue ciblée sur le bon compte.
-
-* **🪄 Assistant de Démarrage Interactif (Setup Wizard)** : Nouvel assistant pas-à-pas avec aperçu direct des thèmes visuels, sécurisation par profil & code PIN, choix clair du mode d'entrée (manuel, import de relevé ou sync bancaire), initialisation du salaire et jeu de données de démonstration en 1 clic.
-* **🔍 Recherche Universelle Tolérante aux Accents** : Moteur de recherche unifié et permissif sur toutes les vues (opérations, timeline, synthèse, paramètres, notifications, synchronisation et catégories), ignorant casse, accents et formats de nombres.
-* **🏛️ Thèmes Exécutifs (Titanium Sombre & Albâtre Clair)** : Thèmes raffinés Gun Metal satiné et Ivoire chaleureux avec mise en page Bento haute précision.
-* **📱 Ergonomie Mobile & Standard de Boutons 36px** : Tiroir de navigation repensé, cartes adaptatives et standardisation rigoureuse de tous les boutons tactiles à 36px.
-* **⚡ Synchronisation Bancaire & Validation Mobile 2FA** : Détection automatique en temps réel de l'approbation sur smartphone (Crédit Mutuel, DSP2), dock d'opérations en attente et infobulles de prévisualisation au survol.
-* **🎨 Finitions Visuelles & Badge de Version** : Liseré supérieur continu sans coupure sur les cartes modales Titanium et affichage instantané de la version dès le lancement.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -132,7 +129,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.1.2-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.1.3-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -232,22 +229,18 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.1.2)
+## 🆕 What's New (v1.1.3)
+
+* **🔄 Unified Banking Sync & Statement Import**: Integrated online bank connections (Woob) and bank statement file imports (CSV, Excel) into a single unified workflow with a shared, persistent staging queue (Review Cockpit).
+* **📥 Direct Per-Account Statement Import Action**: Dedicated import trigger button available on every account row in the accounts table regardless of feed type.
+* **📊 Sub-Account Staging Badges**: Dynamic pending transaction counters displayed on individual sub-account tabs in the Review Cockpit.
+* **🛡️ Smart Statement Balance Row Filtering**: Automated detection and exclusion of bank summary balance lines (e.g. "Solde au DD/MM/YYYY") to prevent ghost transactions.
+* **🖥️ Streamlined 6-Column Accounts Table**: Redesigned accounts layout with 6 clear columns (`NOM`, `TYPE`, `ALIMENTATION`, `SOLDE INITIAL`, `SOLDE ACTUEL`, `ACTIONS`), inline interactive color dot, and compact 24px action buttons for zero overflow on constrained viewports.
+
+## 📦 Recent History (v1.1.2)
 
 * **💾 Persistent Staging Area & Review Cockpit**: Pending operations from bank synchronizations and imported statements (CSV, Excel, AI) now persist reliably across application restarts in both Tauri desktop and Docker environments.
 * **💡 Overview Planned Income Mention**: Restored the expected income indicator under "Reste à vivre" on the Overview summary card, maintaining full consistency with the sidebar regardless of account selection.
-
-## 📦 Recent History (v1.1.1)
-
-* **🏦 Restored Crédit Agricole Bank Synchronization**: Resolved `Element ['clientId'] not found` errors under Docker and fresh installations through resilient recursive portal client configuration extraction and safe startup module pre-warming.
-* **💡 Smart Balance Indicators & Queue Ergonomics**: Unified reconciliation status detection on the Dashboard. When pending queue items match the bank delta, a reassuring "Conforme après validation" badge replaces false-positive discrepancy alarms and opens the review modal directly on the target account.
-
-* **🪄 Modern Interactive Setup Wizard**: Completely redesigned onboarding wizard with instant live theme preview, master profile & PIN security setup, 3 clear entry paths, salary cold-start automation, and 1-click sample demo dataset.
-* **🔍 Universal Permissive Search**: Accent-insensitive, case-insensitive, and punctuation-tolerant search standardized across all application views (Operations, Timeline, Overview, Settings, Notifications, Bank Sync, Categories).
-* **🏛️ Executive Themes (Titanium Dark & Albâtre Light)**: High-precision slate-metallic and warm luxury ivory/bronze styling with refined bento card layouts.
-* **📱 Unified 36px Mobile Touch Standards**: Standardized button dimensions, redesigned touch navigation drawer, and enhanced responsive mobile readability.
-* **⚡ Bank Sync Enhancements & Auto Mobile 2FA**: Real-time smartphone 2FA detection, pinned pending operations review dock, and informative hover tooltips.
-* **🎨 Visual Polishing & Version Display**: Continuous accent gradient lines on modal cards and immediate header application version display.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

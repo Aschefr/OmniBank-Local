@@ -525,7 +525,7 @@
     "btn_ignore": "Ignorer",
     "btn_import_csv": "Importer un CSV",
     "btn_import_csv_db": "Import CSV vers DB",
-    "btn_import_statement": "📥 Importer un relevé",
+    "btn_import_statement": "Importer un relevé",
     "btn_new_category": "+ Nouvelle",
     "btn_ok": "Compris",
     "btn_propagate_all": "Toutes les futures (et le modèle)",
@@ -2416,5 +2416,7 @@
     "acc_source_file": "Relevé : \"{section}\"",
     "acc_source_manual": "Saisie manuelle",
     "acc_btn_import_tooltip": "Importer un relevé pour ce compte (XLSX / CSV)",
-    "acc_btn_sync_tooltip": "Relever les opérations en ligne pour ce compte"
+    "acc_btn_sync_tooltip": "Relever les opérations en ligne pour ce compte",
+    "btn_continue": "Continuer",
+    "acc_th_feed": "Alimentation"
 }

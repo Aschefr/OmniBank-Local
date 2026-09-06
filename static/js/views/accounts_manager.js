@@ -7,6 +7,8 @@ const ACCOUNT_COLORS = [
 window.AccountsView = {
     accounts: [],
     mainAccountId: null,
+    bankConnections: [],
+    fileAccountMapping: {},
     _colorPopoverId: null,  // track open popover
     
     render() {
@@ -73,16 +75,15 @@ window.AccountsView = {
             </div>
 
             <div class="accounts-table-card" style="overflow-x: auto;">
-                <table class="data-table">
+                <table class="data-table accounts-data-table">
                     <thead>
                         <tr>
-                            <th data-i18n="acc_th_name" style="width: 32%; min-width: 170px;">${window.i18n.t('acc_th_name')}</th>
-                            <th data-i18n="acc_th_type" style="width: 15%; min-width: 100px;">${window.i18n.t('acc_th_type')}</th>
-                            <th data-i18n="acc_th_currency" style="width: 8%; min-width: 60px; text-align: center;">${window.i18n.t('acc_th_currency') || 'Devise'}</th>
-                            <th data-i18n="acc_th_initial_balance" style="width: 13%; min-width: 90px; text-align: right;">${window.i18n.t('acc_th_initial_balance')}</th>
-                            <th data-i18n="acc_th_current_balance" style="width: 14%; min-width: 100px; text-align: right;">${window.i18n.t('acc_th_current_balance') || 'Solde Actuel'}</th>
-                            <th data-i18n="acc_th_color" style="width: 5%; min-width: 45px; text-align: center;">${window.i18n.t('acc_th_color')}</th>
-                            <th class="col-actions" style="width: 13%; min-width: 150px; text-align: right;" data-i18n="acc_th_actions">${window.i18n.t('acc_th_actions')}</th>
+                            <th class="acc-col-name" data-i18n="acc_th_name">${window.i18n.t('acc_th_name')}</th>
+                            <th class="acc-col-type" data-i18n="acc_th_type">${window.i18n.t('acc_th_type')}</th>
+                            <th class="acc-col-feed" data-i18n="acc_th_feed">${window.i18n.t('acc_th_feed') || 'Alimentation'}</th>
+                            <th class="acc-col-init" data-i18n="acc_th_initial_balance">${window.i18n.t('acc_th_initial_balance')}</th>
+                            <th class="acc-col-curr" data-i18n="acc_th_current_balance">${window.i18n.t('acc_th_current_balance') || 'Solde Actuel'}</th>
+                            <th class="acc-col-actions col-actions" data-i18n="acc_th_actions">${window.i18n.t('acc_th_actions')}</th>
                         </tr>
                     </thead>
                     <tbody id="accountsBody">
@@ -146,11 +147,24 @@ window.AccountsView = {
 
     async loadData() {
         try {
-            this.accounts = await API.get('/api/accounts/');
+            const [accs, mainAcc, configs, conns] = await Promise.all([
+                API.get('/api/accounts/'),
+                API.get('/api/stats/main_account').catch(() => null),
+                API.get('/api/config/').catch(() => ({})),
+                API.get('/api/bank-sync/connections').catch(() => [])
+            ]);
+
+            this.accounts = accs || [];
+            this.mainAccountId = mainAcc?.id || null;
+            this.bankConnections = conns || [];
             try {
-                const mainAcc = await API.get('/api/stats/main_account');
-                this.mainAccountId = mainAcc?.id || null;
-            } catch(e) { this.mainAccountId = null; }
+                this.fileAccountMapping = (configs && configs.file_account_mapping)
+                    ? (typeof configs.file_account_mapping === 'string' ? JSON.parse(configs.file_account_mapping) : configs.file_account_mapping)
+                    : {};
+            } catch (e) {
+                this.fileAccountMapping = {};
+            }
+
             this.renderTable();
 
             if (window.BankSyncView && typeof window.BankSyncView.init === 'function') {
@@ -158,6 +172,60 @@ window.AccountsView = {
             }
         } catch (e) {
             console.error("Failed to load accounts", e);
+        }
+    },
+
+    _getAccountFeedSource(accountId) {
+        // 1. Vérifier si associé à une connexion Woob en ligne
+        if (this.bankConnections && this.bankConnections.length > 0) {
+            for (const conn of this.bankConnections) {
+                if (!conn.account_mapping) continue;
+                let mapping = {};
+                try {
+                    mapping = typeof conn.account_mapping === 'string'
+                        ? JSON.parse(conn.account_mapping)
+                        : conn.account_mapping;
+                } catch (_) {}
+
+                for (const [remoteId, localId] of Object.entries(mapping)) {
+                    if (parseInt(localId, 10) === accountId) {
+                        return {
+                            type: 'online',
+                            conn: conn,
+                            label: conn.label || conn.backend
+                        };
+                    }
+                }
+            }
+        }
+
+        // 2. Vérifier si associé à une section/onglet de relevé (fichier)
+        if (this.fileAccountMapping) {
+            for (const [sectionTitle, targetId] of Object.entries(this.fileAccountMapping)) {
+                if (parseInt(targetId, 10) === accountId) {
+                    return {
+                        type: 'file',
+                        section: sectionTitle
+                    };
+                }
+            }
+        }
+
+        // 3. Sinon : Manuel
+        return {
+            type: 'manual'
+        };
+    },
+
+    openImportForAccount(accId) {
+        if (window.ImportWizard && typeof window.ImportWizard.open === 'function') {
+            window.ImportWizard.open(accId);
+        }
+    },
+
+    async syncOnlineAccount(connId) {
+        if (window.BankSyncView && typeof window.BankSyncView.triggerBackgroundSyncNow === 'function') {
+            await window.BankSyncView.triggerBackgroundSyncNow();
         }
     },
 
@@ -177,7 +245,7 @@ window.AccountsView = {
         if (!tbody) return;
 
         if (!this.accounts || this.accounts.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">${window.i18n.t('no_accounts') || 'Aucun compte enregistré.'}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">${window.i18n.t('no_accounts') || 'Aucun compte enregistré.'}</td></tr>`;
             return;
         }
 
@@ -227,7 +295,7 @@ window.AccountsView = {
 
             html += `
             <tr class="acc-group-header-tr" style="background: var(--bg-hover, rgba(255,255,255,0.03)); border-top: 2px solid var(--border-color);">
-                <td colspan="7" style="padding: 10px 14px;">
+                <td colspan="6" style="padding: 9px 12px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <span style="font-weight: 700; font-size: 13px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
                             <span>${group.icon}</span> <span>${group.title}</span>
@@ -290,29 +358,70 @@ window.AccountsView = {
                     }
                 }
 
+                const feedSource = this._getAccountFeedSource(acc.id);
+                let sourceBadgeHtml = '';
+                let feedActionBtn = '';
+
+                if (feedSource.type === 'online') {
+                    const rawTemplate = window.i18n.t('acc_source_online') || 'En ligne : {bank}';
+                    const text = rawTemplate.replace('{bank}', feedSource.label);
+                    sourceBadgeHtml = `
+                        <span class="acc-feed-badge feed-online" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.25); font-size: 11px; font-weight: 600;">
+                            <span style="font-size: 8px;">🟢</span>
+                            <span>${text}</span>
+                        </span>`;
+                    feedActionBtn = `
+                        <button class="acc-action-btn acc-feed-btn" onclick="window.AccountsView.syncOnlineAccount(${feedSource.conn.id})" title="${window.i18n.t('acc_btn_sync_tooltip') || 'Relever les opérations en ligne pour ce compte'}" style="color: #10b981;">⚡</button>
+                        <button class="acc-action-btn acc-feed-btn" onclick="window.AccountsView.openImportForAccount(${acc.id})" title="${window.i18n.t('acc_btn_import_tooltip') || 'Importer un relevé pour ce compte (XLSX / CSV)'}" style="color: var(--accent);">📥</button>
+                    `;
+                } else if (feedSource.type === 'file') {
+                    const rawTemplate = window.i18n.t('acc_source_file') || 'Relevé : "{section}"';
+                    const text = rawTemplate.replace('{section}', feedSource.section);
+                    sourceBadgeHtml = `
+                        <span class="acc-feed-badge feed-file" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: rgba(99,102,241,0.1); color: var(--accent); border: 1px solid rgba(99,102,241,0.25); font-size: 11px; font-weight: 600;">
+                            <span style="font-size: 10px;">📄</span>
+                            <span>${text}</span>
+                        </span>`;
+                    feedActionBtn = `<button class="acc-action-btn acc-feed-btn" onclick="window.AccountsView.openImportForAccount(${acc.id})" title="${window.i18n.t('acc_btn_import_tooltip') || 'Importer un relevé pour ce compte (XLSX / CSV)'}" style="color: var(--accent);">📥</button>`;
+                } else {
+                    const text = window.i18n.t('acc_source_manual') || 'Saisie manuelle';
+                    sourceBadgeHtml = `
+                        <span class="acc-feed-badge feed-manual" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: var(--bg-hover, rgba(255,255,255,0.03)); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 11px; font-weight: 500;">
+                            <span style="font-size: 10px;">✏️</span>
+                            <span>${text}</span>
+                        </span>`;
+                    feedActionBtn = `<button class="acc-action-btn acc-feed-btn" onclick="window.AccountsView.openImportForAccount(${acc.id})" title="${window.i18n.t('acc_btn_import_tooltip') || 'Importer un relevé pour ce compte (XLSX / CSV)'}" style="color: var(--text-muted);">📥</button>`;
+                }
+
                 return `
                 <tr style="${acc.is_closed ? 'opacity: 0.6;' : ''}">
-                    <td>
-                        <div>
-                            ${isMain ? '<span class="acc-main-star" title="' + window.i18n.t('acc_main_account') + '">⭐</span>' : ''}
-                            <strong>${acc.name}</strong>
-                            ${acc.is_closed ? `<span data-i18n="badge_closed" style="background:var(--danger); color:#fff; padding:2px 5px; border-radius:4px; font-size:10px; margin-left:5px; font-weight:bold;">${window.i18n.t('badge_closed') || 'Fermé'}</span>` : ''}
+                    <td class="acc-col-name">
+                        <div style="display: inline-flex; align-items: center; gap: 6px;">
+                            ${isMain ? '<span class="acc-main-star" title="' + window.i18n.t('acc_main_account') + '" style="cursor:pointer;" onclick="window.AccountsView.setMainAccount(' + acc.id + ')">⭐</span>' : ''}
+                            <strong style="color: var(--text-main); font-size: 13px;">${acc.name}</strong>
+                            <span class="acc-color-dot" style="background:${color}; cursor:pointer; width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex-shrink: 0; box-shadow: 0 0 0 1px var(--border-color);" onclick="window.AccountsView.openColorPopover(${acc.id}, this)" title="${window.i18n.t('acc_color_label')}"></span>
+                            ${acc.is_closed ? `<span data-i18n="badge_closed" style="background:var(--danger); color:#fff; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:bold;">${window.i18n.t('badge_closed') || 'Fermé'}</span>` : ''}
                         </div>
                         ${subInfoHtml}
                     </td>
-                    <td><span class="badge" style="background: var(--bg-hover); color: var(--text-main); font-size: 11px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-color);">${acc.type}</span></td>
-                    <td style="text-align: center;"><span class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-weight:bold; padding:2px 6px; border-radius:4px; font-size:11px;">${curr}</span></td>
-                    <td style="text-align: right;"><span class="privacy-blur" style="color: var(--text-muted); font-family: monospace;">${formatCurrency(acc.initial_balance, curr)}</span></td>
-                    <td style="text-align: right;"><strong class="privacy-blur" style="color: ${curBalColor}; font-family: monospace;">${formatCurrency(curBal, curr)}</strong></td>
-                    <td style="text-align: center;">
-                        <span class="acc-color-dot" style="background:${color}; cursor:pointer;" onclick="window.AccountsView.openColorPopover(${acc.id}, this)" title="${window.i18n.t('acc_color_label')}"></span>
+                    <td class="acc-col-type" style="white-space: nowrap;">
+                        <span class="badge" style="background: var(--bg-hover); color: var(--text-main); font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--border-color);">${acc.type}</span>
+                        <span class="badge" style="background: rgba(99,102,241,0.08); color: var(--primary); font-weight: 700; padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-left: 3px;">${curr}</span>
                     </td>
-                    <td class="col-actions" style="white-space: nowrap; text-align: right;">
-                        <button class="acc-action-btn ${isMain ? 'acc-star-active' : 'acc-star-btn'}" onclick="window.AccountsView.setMainAccount(${acc.id})" title="${window.i18n.t('acc_set_main')}">${isMain ? '⭐' : '☆'}</button>
-                        <button class="acc-action-btn acc-history-btn" onclick="window.AccountsView.viewHistory(${acc.id})" title="${window.i18n.t('acc_view_history') || 'Voir les opérations dans l\'historique'}">↗️</button>
-                        <button class="acc-action-btn acc-edit-btn" onclick="window.AccountsView.edit(${acc.id})" title="${window.i18n.t('tooltip_edit')}">✏️</button>
-                        <button class="acc-action-btn acc-lock-btn" onclick="window.AccountsView.toggleClose(${acc.id})" title="${acc.is_closed ? window.i18n.t('acc_reopen_action') : window.i18n.t('acc_close_action')}">${acc.is_closed ? '🔓' : '🔒'}</button>
-                        <button class="acc-action-btn acc-del-btn" onclick="window.AccountsView.delete(${acc.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
+                    <td class="acc-col-feed" style="white-space: nowrap;">
+                        ${sourceBadgeHtml}
+                    </td>
+                    <td class="acc-col-init" style="text-align: right; font-size: 12.5px;"><span class="privacy-blur" style="color: var(--text-muted); font-family: monospace;">${formatCurrency(acc.initial_balance, curr)}</span></td>
+                    <td class="acc-col-curr" style="text-align: right; font-size: 12.5px;"><strong class="privacy-blur" style="color: ${curBalColor}; font-family: monospace;">${formatCurrency(curBal, curr)}</strong></td>
+                    <td class="acc-col-actions col-actions">
+                        <div class="acc-actions-wrap">
+                            ${feedActionBtn}
+                            <button class="acc-action-btn ${isMain ? 'acc-star-active' : 'acc-star-btn'}" onclick="window.AccountsView.setMainAccount(${acc.id})" title="${window.i18n.t('acc_set_main')}">${isMain ? '⭐' : '☆'}</button>
+                            <button class="acc-action-btn acc-history-btn" onclick="window.AccountsView.viewHistory(${acc.id})" title="${window.i18n.t('acc_view_history') || 'Voir les opérations dans l\'historique'}">↗️</button>
+                            <button class="acc-action-btn acc-edit-btn" onclick="window.AccountsView.edit(${acc.id})" title="${window.i18n.t('tooltip_edit')}">✏️</button>
+                            <button class="acc-action-btn acc-lock-btn" onclick="window.AccountsView.toggleClose(${acc.id})" title="${acc.is_closed ? window.i18n.t('acc_reopen_action') : window.i18n.t('acc_close_action')}">${acc.is_closed ? '🔓' : '🔒'}</button>
+                            <button class="acc-action-btn acc-del-btn" onclick="window.AccountsView.delete(${acc.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
+                        </div>
                     </td>
                 </tr>`;
             }).join('');

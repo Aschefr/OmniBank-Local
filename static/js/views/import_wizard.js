@@ -31,7 +31,8 @@ window.ImportWizard = {
         }
     },
 
-    open() {
+    open(targetAccountId = null) {
+        this.targetAccountId = targetAccountId ? parseInt(targetAccountId, 10) : null;
         if (this._pendingAIResult) {
             this._openWithPendingAI();
             return;
@@ -143,6 +144,10 @@ window.ImportWizard = {
         // Ingestion directe multi-comptes dans le Sas d'attente
         const formData = new FormData();
         formData.append("file", file);
+        if (this.targetAccountId) {
+            formData.append("account_id", this.targetAccountId);
+            this.targetAccountId = null;
+        }
 
         try {
             const res = await fetch('/api/csv/import_to_pending', {

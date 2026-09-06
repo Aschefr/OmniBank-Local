@@ -226,3 +226,32 @@ def test_api_save_account_mapping_endpoint(client, test_db):
     data = resp.json()
     assert data["ok"] is True
     assert "extrait compte n°48593" in data["mapped"]
+
+
+def test_balance_rows_ignored_from_transactions(test_db):
+    """Vérifie que les lignes d'arrêté ou de solde ('Solde au 06/09/2026') sont exclues des opérations et enregistrées en solde."""
+    acc = Account(name="Compte Courant", type="checking", initial_balance=100.0)
+    test_db.add(acc)
+    test_db.commit()
+
+    raw_data = [
+        ["Date", "Description", "Montant"],
+        ["01/09/2026", "Achat Carrefour", "-35,00"],
+        ["06/09/2026", "Solde au 06/09/2026", "5718,76"],
+        ["06/09/2026", "Virement Salaire", "2500,00"],
+    ]
+
+    accounts = extract_all_sections_parsed(raw_data, test_db)
+    assert len(accounts) == 1
+    txs = accounts[0]["transactions"]
+
+    # Seules les 2 vraies opérations doivent être présentes (pas la ligne de solde)
+    assert len(txs) == 2
+    descs = [t["description"] for t in txs]
+    assert "Achat Carrefour" in descs
+    assert "Virement Salaire" in descs
+    assert not any("solde au" in d.lower() for d in descs)
+
+    # Le solde de compte doit avoir été capturé
+    assert accounts[0]["bank_balance"] == 5718.76
+
