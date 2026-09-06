@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDcxQnRveStzbWFCNzR6ZTlTNWFHcllFaEJZb29ZaldSbVRIRm1nQ2piUjFxcitzRWl5OUZoZzBmc2dJY2xvSUxDRUpsVEorYUp5dGdxUWhISW1LNEFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4NjE3NzM4CWZpbGU6T21uaUJhbmtfMS4xLjFfeDY0X2ZyLUZSLm1zaQpXdi83VnBCU0Q3MjZ5bjA1Uk00UVRjMFV4SS9xaG5hMVJQY2dFQS8ybkdnQ0JJcHNMbzdLeGFiaFJYTERHWFFmMk1namt6R1NRUm1TVGgwZlJib0hDQT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.1/OmniBank_1.1.1_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHhGNUZIS0ZSRHJkdVk0S3Y0cTVkeDRablBHZkpsQUZxTUk1SEhhT2prVmE3djAzb1hTK3NsVHAxOHE2VnpBbTdjWFJBMTUyOGxZU0RGd2c4eWdhMUFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4Njk3MjY4CWZpbGU6T21uaUJhbmtfMS4xLjJfeDY0X2ZyLUZSLm1zaQpFUTgzUXhtL3A5dDNmTmxKTGhWV2lJY05CZ0lPNENOV2N1OVFXbkJZN3lDVDZyWEVYVWFhNmd1UjNyYWV1eDZtVDNQb2dqNSsyVDhGcmVsNFIxNVdCdz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.2/OmniBank_1.1.2_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-09-05T14:15:38Z",
-    "version":  "1.1.1",
-    "notes":  "Fix Crédit Agricole bank sync on fresh/Docker setups and pending balance indicator ergonomics"
+    "pub_date":  "2026-09-06T12:21:08Z",
+    "version":  "1.1.2",
+    "notes":  "Persistent staging area across restarts and overview planned income indicator"
 }
