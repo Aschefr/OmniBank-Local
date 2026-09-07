@@ -188,15 +188,31 @@ def unlock_vault(req: VaultUnlockRequest, db: Session = Depends(get_db)):
             if conn.last_sync_status in ("auto_error", "error"):
                 conn.last_sync_status = "idle"
     from app.models import Notification
+    from app.services.bank_sync_scheduler import _get_config_value, trigger_manual_auto_sync
     db.query(Notification).filter(
         Notification.type == "bank_sync_error",
         (Notification.content.like("%mot de passe%") | Notification.content.like("%coffre%"))
     ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
     db.commit()
 
+    # Déclenchement réactif au déverrouillage si configuré (avec respect du cooldown anti-spam)
+    reactive_sync = None
+    sync_on_unlock = _get_config_value(db, "bank_sync_on_vault_unlock", "true").lower() == "true"
+    if not sync_on_unlock:
+        reactive_sync = {"ok": True, "skipped_passive_mode": True}
+    elif connections:
+        reactive_sync = trigger_manual_auto_sync(
+            master_password=req.master_password,
+            vault_token=token,
+            profile_id=active_pid,
+            force=False,
+            db=db
+        )
+
     return {
         "ok": True,
         "vault_token": token,
+        "reactive_sync": reactive_sync,
         **status
     }
 
@@ -253,14 +269,18 @@ def reset_vault(db: Session = Depends(get_db)):
 @router.get("/settings/auto-sync")
 def get_auto_sync_settings(db: Session = Depends(get_db)):
     """Retourne la configuration du relevé bancaire automatique."""
-    from app.services.bank_sync_scheduler import _get_config_value
+    from app.services.bank_sync_scheduler import _get_config_value, get_auto_sync_cooldown_status
     active_pid = get_active_profile().get("id", "default")
     enabled = _get_config_value(db, "bank_auto_sync_enabled", "false").lower() == "true"
     interval = int(_get_config_value(db, "bank_auto_sync_interval_hours", "24") or 24)
+    sync_on_unlock = _get_config_value(db, "bank_sync_on_vault_unlock", "true").lower() == "true"
+    cooldown_info = get_auto_sync_cooldown_status(db, active_pid)
     return {
         "enabled": enabled,
         "interval_hours": interval,
-        "vault_unlocked": VaultSessionManager.get_status(profile_id=active_pid).get("is_unlocked", False)
+        "sync_on_vault_unlock": sync_on_unlock,
+        "vault_unlocked": VaultSessionManager.get_status(profile_id=active_pid).get("is_unlocked", False),
+        **cooldown_info
     }
 
 
@@ -272,6 +292,8 @@ def update_auto_sync_settings(data: Dict[str, Any], db: Session = Depends(get_db
         _set_config_value(db, "bank_auto_sync_enabled", "true" if data["enabled"] else "false")
     if "interval_hours" in data:
         _set_config_value(db, "bank_auto_sync_interval_hours", str(int(data["interval_hours"])))
+    if "sync_on_vault_unlock" in data:
+        _set_config_value(db, "bank_sync_on_vault_unlock", "true" if data["sync_on_vault_unlock"] else "false")
     return {"ok": True}
 
 
@@ -282,7 +304,8 @@ def run_manual_auto_sync(data: Optional[Dict[str, Any]] = None):
     active_pid = get_active_profile().get("id", "default")
     master_password = data.get("master_password") if data else None
     vault_token = data.get("vault_token") if data else None
-    res = trigger_manual_auto_sync(master_password=master_password, vault_token=vault_token, profile_id=active_pid)
+    force = bool(data.get("force", True)) if data else True
+    res = trigger_manual_auto_sync(master_password=master_password, vault_token=vault_token, profile_id=active_pid, force=force)
     if not res.get("ok"):
         raise HTTPException(status_code=401, detail=res.get("detail", "Coffre verrouillé"))
     return res

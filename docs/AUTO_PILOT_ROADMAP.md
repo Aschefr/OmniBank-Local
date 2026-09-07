@@ -187,16 +187,17 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 *Associer automatiquement les opérations débitées/créditées avec les prévisions ou récurrences sans faux positif.*
 
 * **Fichiers concernés** :
+  - [`app/services/reconciliation_engine.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/reconciliation_engine.py) (`check_reconciliation` — extrait et découplé en Étape 0)
   - [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) (Nouveau service d'orchestration unifié : `AutoPilotService`)
-  - [`app/models.py`](file:///d:/Code%20Projects/OmniBank-Local/app/models.py) (Nouveau modèle de traçabilité : `AutopilotDecisionLog`)
-  - [`app/routers/csv_parser.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/csv_parser.py) (`check_reconciliation`)
+  - [`app/models.py`](file:///d:/Code%20Projects/OmniBank-Local/app/models.py) (Modèle de traçabilité : `AutopilotDecisionLog` — créé en Étape 0)
+  - [`app/routers/csv_parser.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/csv_parser.py) (`csv_id` déterministe SHA-256)
   - [`app/services/bank_sync_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_service.py)
 
-> [!WARNING]
-> **Dette Technique Préalable — `check_reconciliation` dans un routeur** :
-> La fonction `check_reconciliation` est actuellement définie dans un fichier routeur (`csv_parser.py`) au lieu d'un service, et importée depuis plusieurs services (`bank_sync_service.py`, `bank_sync_scheduler.py`) via `from app.routers.csv_parser import check_reconciliation`. Cette dépendance inversée doit être refactorée **avant ou pendant l'Étape 2** : extraire `check_reconciliation` vers un nouveau module `app/services/reconciliation_engine.py` pour respecter la séparation routeur/service et faciliter l'orchestration par `AutoPilotService`.
+> [!NOTE]
+> **Dette Technique Soldée — Refactoring `check_reconciliation` (Étape 0)** :
+> La fonction `check_reconciliation` a été extraite avec succès depuis le routeur `csv_parser.py` vers son module dédié [`app/services/reconciliation_engine.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/reconciliation_engine.py) (Jalon 0.1), éliminant la dépendance inversée et préparant l'orchestration par `AutoPilotService`.
 
-* **État d'avancement actuel : 70%**
+* **État d'avancement actuel : 85%**
   - ✅ Score composite de matching (0 à 100 points) :
     - Empreinte bancaire unique (`csv_id`) : 100 pts.
     - Montant exact ($\pm 0.01$ €) : 40 pts.
@@ -204,17 +205,13 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
     - Similarité textuelle : 0 à 25 pts.
   - ✅ Gestion des virements internes compte à compte (transferts miroirs).
   - ✅ Distinction nette entre opérations confirmées et opérations à venir (`is_coming`).
+  - ✅ Empreinte idempotente des fichiers (`csv_id` déterministe SHA-256 + index intra-lot dans `csv_parser.py` — Jalon 0.3).
+  - ✅ Modèle de traçabilité `AutopilotDecisionLog` dans `app/models.py`, schéma v24 SQLite et DTO Pydantic `AutopilotDecisionLogOut` (Jalons 0.4, 0.5, 0.6).
 * **Ce qu'il reste à faire** :
-  1. **Séparation Stricte : Évaluation Pure vs Mutation Orchestrée** :
-     - `check_reconciliation` demeure une fonction d'évaluation pure (0 à 100 points) sans effet de bord ni commit DB. Elle renvoie toutes les correspondances candidates éligibles (score $\ge 60$ pts pour alimenter les suggestions du cockpit manuel).
+  1. **Séparation Stricte : Évaluation Pure vs Mutation Orchestrée (Étape 2)** :
+     - `check_reconciliation` (dans `reconciliation_engine.py`) demeure une fonction d'évaluation pure (0 à 100 points) sans effet de bord ni commit DB. Elle renvoie toutes les correspondances candidates éligibles (score $\ge 60$ pts pour alimenter les suggestions du cockpit manuel).
      - C'est l'orchestrateur partagé `AutoPilotService` qui, lorsque `auto_pilot_enabled == True`, applique le rapprochement automatique en base uniquement pour les scores en **Zone Verte ($\ge 85$ pts)** et inscrit la décision dans `AutopilotDecisionLog` avec horodatage, score, `batch_id` (identifiant de cycle) et snapshot.
-  2. **Empreinte Idempotente des Fichiers (`csv_id` Déterministe)** :
-     - Refactorer la génération de `csv_id` dans `csv_parser.py` (ligne ~938) pour remplacer le timestamp volatile `unique_batch_id` par un hash SHA-256 déterministe calculé sur `(date, montant, libellé_nettoyé)` combiné à un compteur ordinal d'occurrence intra-lot (`occ_idx` par triplet identique) plutôt qu'un index de ligne brut.
-     - Permet d'assurer que ré-importer le même fichier (ou des relevés se chevauchant) produise des `csv_id` rigoureusement identiques même si l'ordre des lignes varie, activant le score Priorité 0 (100 pts) et éliminant tout risque de doublons d'écritures.
-  3. **Structure Exhaustive du Modèle `AutopilotDecisionLog`** :
-     - Champs requis : `id`, `batch_id` (UUID v4 — identifiant unique du cycle de synchronisation permettant le rollback groupé de toutes les décisions d'un même lot), `conn_id` (Integer nullable — ID de connexion Woob ou `-1` pour fichier importé), `account_id` (Integer nullable), `decision_type` ("reconciliation", "new_entry", "categorization", "recurrence_promotion"), `entity_type`, `entity_id`, `score`, `reason` (motif textuel explicatif), `raw_snapshot` (payload JSON original de l'opération avant mutation), `is_undone` (Boolean, default=False, index=True — statut réversible), `undone_at` (DateTime nullable), `created_at`.
-     - La présence explicite de `conn_id`, `account_id` et du drapeau d'état `is_undone` garantit que le *Rollback Global de Cycle* et les actions unitaires de la Brique 7 puissent défaire les opérations sans perte de données et sans conflit d'état dans le Decision Feed.
-  4. **Politique d'Auto-Validation (Auto-Commit Threshold)** :
+  2. **Politique d'Auto-Validation (Auto-Commit Threshold)** :
      - **Zone Verte ($\ge 85$ pts ou `csv_id` identique)** : Rapprochement automatique immédiat en base de données.
      - **Zone Orange ($60 \le \text{Score} < 85$ pts)** : Maintien dans le Sas d'attente (Cockpit) avec statut *"Rapprochement suggéré"* pour validation manuelle.
      - **Zone Rouge ($< 60$ pts)** : Traitée comme nouvelle opération distincte (aucun rapprochement forcé).
@@ -248,10 +245,12 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 
 * **Fichiers concernés** :
   - [`app/services/budget_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/budget_service.py) (Calcul mathématique du lissage EMA, Winsorizing et plafonnement — **100% offline sans dépendance Ollama**)
+  - [`app/services/stats_utils.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/stats_utils.py) (Filtre d'écrêtage Winsorizing extrait et partagé — Étape 0)
   - [`app/services/budget_ai_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/budget_ai_service.py) (Suggestions et commentaires qualitatifs IA — facultatifs)
-* **État d'avancement actuel : 35%**
+* **État d'avancement actuel : 50%**
   - ✅ Calcul des moyennes historiques sur fenêtres glissantes configurables (3 à 12 mois).
-  - ⬜ Écrêtage statistique des anomalies (Winsorizing / outlier sensitivity 1 à 5) — **existe uniquement dans `budget_ai_service.py`** (dépendant d'Ollama), doit être **dupliqué/refactoré dans `budget_service.py`** pour fonctionner 100% offline.
+  - ✅ Écrêtage statistique des anomalies (Winsorizing / outlier sensitivity 1 à 5) extrait dans [`app/services/stats_utils.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/stats_utils.py) et re-exporté dans `budget_service.py` (**100% offline sans Ollama** — Jalon 0.7).
+  - ✅ Colonne `Budget.is_locked` ajoutée en base de données (schéma SQLite v24) et intégrée aux DTOs Pydantic (Jalons 0.4, 0.5, 0.6).
   - ⬜ Synchronisation dynamique des dépenses fixes vs variables avec les `RecurrenceTemplate` — la classification fixe/variable existe dans le modèle, mais **aucune logique de synchronisation automatique** entre les templates et les enveloppes budgétaires n'est implémentée dans `budget_service.py`.
 * **Ce qu'il reste à faire** :
   1. **Cadence Périodique & Déclencheur Temporel (Anti-Thrashing)** :
@@ -268,7 +267,7 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
        `Budget.envelope_type == 'spending' and not Budget.is_project and not Budget.is_closed and not Budget.is_locked and Budget.period == 'monthly'`
      - **Exclusion stricte** : Les tirelires d'épargne (`envelope_type == 'savings'`) alimentées manuellement via `BudgetAllocation`, les budgets de projets ponctuels (`is_project == True`), les enveloppes annuelles ou clôturées sont formellement protégés contre toute retouche automatique.
      - Aucun budget automatique ne doit varier de plus de $\pm 10\%$ d'un mois sur l'autre de façon autonome.
-     - Ajout de la colonne `is_locked = Column(Boolean, default=False)` sur la table `Budget` (créée en Étape 0 via `migrate_autopilot.py` et intégrée à `init_data.py`) pour que le filtre ignore formellement toute enveloppe cadenassée par l'utilisateur.
+     - Prise en compte du cadenas `Budget.is_locked` (initialisé en Étape 0) pour que le filtre ignore formellement toute enveloppe cadenassée par l'utilisateur.
   4. **Traitement du "Cold Start" (Démarrage à Froid)** :
      - Si l'historique compte moins de 3 mois de données :
        - Priorité absolue aux montants des récurrences connues (`RecurrenceTemplate`).
@@ -285,10 +284,11 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - [`app/services/bank_sync_scheduler.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py) (`save_pending_sync_data`, `_PENDING_SYNC_DATA`)
   - [`app/routers/csv_manager.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/csv_manager.py) (`import_to_pending`)
   - [`app/routers/bank_sync.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/bank_sync.py)
-* **État d'avancement actuel : 85%**
+* **État d'avancement actuel : 90%**
   - ✅ Sas d'attente persistant (RAM + `GlobalConfig`).
   - ✅ Déduplication automatique entre imports de fichiers CSV et connexions bancaires en ligne.
   - ✅ Cockpit visuel ergonomique permettant d'ignorer, modifier ou valider les opérations.
+  - ✅ Support multi-onglets XLSX & multi-sections CSV avec mémorisation de mapping par compte (`GlobalConfig.file_account_mapping`) et ré-évaluation dynamique instantanée du rapprochement (Phase B / v1.1.3).
 * **Ce qu'il reste à faire** :
   1. **Unification du Pipeline d'Ingestion & Routage Dynamique** :
      - Les relevés Woob (`execute_auto_sync_for_connection`) et les imports de fichiers (`import_to_pending`) transitent par la même méthode `AutoPilotService.process_incoming_batch()`.
@@ -466,12 +466,12 @@ La transition vers l'Auto-Pilote s'effectuera en **7 étapes autonomes**, chacun
 
 ```mermaid
 graph TD
-    Z["Étape 0 : Fondations & Pré-requis Techniques<br/>Migration DB, Refactoring check_reconciliation, Init GlobalConfig"] --> A["Étape 1 : Réactivité Déverrouillage + Cooldown<br/>Interrupteur Maître & Setup Wizard"]
+    Z["Étape 0 : Fondations & Pré-requis Techniques<br/>Migration DB, Refactoring check_reconciliation, Init GlobalConfig"] --> A["Étape 1 : Réactivité Déverrouillage + Cooldown<br/>Modes Immédiat / Passif & Tri Chrono"]
     A --> B["Étape 2 : Orchestrateur AutoPilotService<br/>Auto-Rapprochement & Modèle DecisionLog"]
     B --> C["Étape 3 : Ingestion Autonome des Écritures<br/>Smart Labels & Fallback Ollama par lot"]
     C --> D["Étape 4 : Détection & Promotion Récurrences<br/>Charges Candidates Dynamiques (Reste à Vivre)"]
     D --> E["Étape 5 : Lissage Budgétaire EMA Déterministe<br/>(budget_service.py 100% Offline)"]
-    E --> F["Étape 6 : Centre de Contrôle Dédié<br/>Decision Feed, Rollback Snapshot & Finitions Desktop"]
+    E --> F["Étape 6 : Centre de Contrôle Dédié<br/>Decision Feed, Rollback Snapshot, Switch UI & Finitions Desktop"]
 ```
 
 ### Détail des Étapes de Livraison :
@@ -490,23 +490,16 @@ graph TD
     - [x] **Jalon 0.8 : Validation automatisée** : Exécution de la suite de tests unitaires et de non-régression (`185 passed, 0 failed` sous `pytest`).
     - *Bénéfice immédiat* : Aucun changement fonctionnel visible, base de code prête pour les étapes suivantes, zéro risque de régression.
 
-1. **Étape 1 : Réactivité Déverrouillage Coffre, Option de Déverrouillage Passif, Cooldown & Setup Wizard**
-    - Branchement de l'événement `on_vault_unlocked` configurable : paramètre `bank_sync_on_vault_unlock` permettant soit un rafraîchissement réactif immédiat, soit un déverrouillage passif silencieux (la clé est placée en RAM et le relevé est délégué au planificateur 12h/24h/48h sans appel réseau à T0).
-    - **Déclenchement réactif via `trigger_manual_auto_sync` enrichi** : Réutilisation directe de la fonction d'arrière-plan existante dans [`app/services/bank_sync_scheduler.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py), complétée d'une vérification du cooldown persistant (`last_auto_sync_attempt` dans `GlobalConfig`, délai minimal de 3 heures) pour empêcher tout appel abusif lors de déverrouillages rapprochés.
-    - **Création de la clé maître `auto_pilot_enabled`** (bool, default: `"false"`) dans `GlobalConfig` pour étanchéiser le mode classique et conditionner les futures étapes. **Cette clé est naturellement scopée par profil** puisque chaque profil OmniBank dispose de sa propre base SQLite (et donc de sa propre table `GlobalConfig`).
-    - **Tri chronologique strict de `history_raw`** : correction de l'antéchronologie native des modules Woob (`iter_history`) via `sort(key=lambda x: x["tx_date_obj"])`.
-    - Prise en charge des deux cycles de vie : Docker/Serveur 24/7 (maintien du relevé silencieux sur la durée `remember_days` 3/7/14/30j sans re-saisie) et Desktop Tauri (session applicative active tant que la fenêtre reste ouverte).
-    - Ajout d'une clé `last_auto_sync_attempt` dans `GlobalConfig` (SQLite) pour instaurer un cooldown intelligent persistant entre ouvertures/fermetures de l'app.
-    - Mode "Catch-Up" : ingestion atomique et triée chronologiquement des opérations lors d'une réouverture après absence prolongée.
-    - **Mise à niveau du Setup Wizard (`static/js/views/setup_wizard.js`)** :
-      * Étape 3/7 (Comptes) : Sélection du mode d'entrée ("📥 Importer un relevé CSV/Excel", "✍️ Saisie manuelle", ou "⚡ Synchroniser en ligne") et initialisation du compte principal (`1 500,00 €`).
-      * Étape 6/7 (IA & Automatisation) : Ajout du switch initial Auto-Pilote (`auto_pilot_enabled`, default: off) persisté via une méthode dédiée `_saveAutoPilotState` dans `setup_wizard.js`, de sorte que cliquer sur « Passer l'étape IA » ne désactive pas l'Auto-Pilote déterministe hors-ligne.
-    - **Clés i18n requises (Étape 1)** :
-      * `autopilot_switch_label`, `autopilot_switch_tooltip_disabled`, `autopilot_switch_tooltip_discovery`
-      * `autopilot_state_learning`, `autopilot_state_cruising`, `autopilot_state_disabled`
-      * `autopilot_wizard_intro_title`, `autopilot_wizard_intro_desc`
-      * `vault_sync_mode_immediate`, `vault_sync_mode_passive`, `vault_cooldown_remaining`
-    - *Bénéfice immédiat* : L'utilisateur choisit son mode de déverrouillage, aucun risque de spam bancaire, et le Wizard est prêt pour l'onboarding Auto-Pilote.
+1. **Étape 1 : Réactivité Déverrouillage Coffre, Option de Déverrouillage Passif, Cooldown Anti-Spam & Tri Chronologique** — `✅ TERMINÉE (100%)`
+    - [x] **Jalon 1.1 : Branchement de l'événement `on_vault_unlocked` configurable** : paramètre `bank_sync_on_vault_unlock` (`sync_on_vault_unlock: bool`) permettant soit un rafraîchissement réactif immédiat, soit un déverrouillage passif silencieux (clé en RAM et relevé délégué au planificateur).
+    - [x] **Jalon 1.2 : Option UI dans les Réglages Bancaires & Modale de Déverrouillage** : Case à cocher bilingue permettant à l'utilisateur de choisir son comportement : *"Synchroniser immédiatement au déverrouillage"* (défaut) vs *"Déverrouillage passif silencieux"*.
+    - [x] **Jalon 1.3 : Déclenchement réactif via `trigger_manual_auto_sync` enrichi** : Réutilisation directe de la tâche de fond dans [`app/services/bank_sync_scheduler.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py), complétée du cooldown persistant (`last_auto_sync_attempt` dans `GlobalConfig`, délai minimal de 3 heures) pour éliminer le spam lors de déverrouillages rapprochés.
+    - [x] **Jalon 1.4 : Garantie d'Étanchéité UI (Zéro Fausse Promesse)** : Le flag `auto_pilot_enabled` reste strictement interne au backend, aucun switch prématuré n'est exposé à l'utilisateur avant l'Étape 6.
+    - [x] **Jalon 1.5 : Tri chronologique strict de `history_raw` et `coming_raw`** : Correction de l'antéchronologie native Woob par tri croissant via `sort(key=lambda x: x["tx_date_obj"])`.
+    - [x] **Jalon 1.6 : Prise en charge des deux cycles de vie** : Docker 24/7 (conservation session coffre en RAM selon TTL) et Desktop Tauri (session applicative active en mémoire vive).
+    - [x] **Jalon 1.7 : Cooldown persistant et mode Catch-Up** : Clé `last_auto_sync_attempt` en base SQLite et ingestion atomique ordonnée après absence prolongée.
+    - [x] **Jalon 1.8 : Clés i18n bilingues et Pack de test 1 validé** : Synchronisation complète FR/EN et 7/7 tests unitaires du Pack de Test 1 passés avec succès (`tests/test_bank_sync_step1.py`).
+    - *Bénéfice immédiat* : L'utilisateur maîtrise son mode de déverrouillage, aucun risque de spam ou de ban bancaire, et les écritures sont rigoureusement ordonnées dans le temps.
 
 2. **Étape 2 : Moteur d'Orchestration d'Ingestion, Auto-Rapprochement & Modèle DecisionLog**
     - **Création du service d'orchestration unifié `app/services/autopilot_service.py`** (`process_incoming_transactions_batch`) appelé à la fois par `bank_sync_scheduler.py` (Woob) et `csv_manager.py` (fichiers). Le service reçoit systématiquement le `profile_id` courant et invalide le cache via `stats_cache.invalidate(profile_id)`.
@@ -556,9 +549,9 @@ graph TD
     - **Déclencheurs Périodiques & Rattrapage au Démarrage (`lifespan`)** : vérification dans `bank_sync_scheduler_loop` ET lors de l'initialisation applicative dans `app/main.py` (`lifespan`) de la clé `last_budget_recalibration_period` (format `YYYY-MM`). Ainsi, les utilisateurs Desktop ouvrant l'application ponctuellement bénéficient du recalibrage mensuel immédiat dès le premier lancement du mois (règle anti-thrashing).
     - **Clés i18n requises (Étape 5)** :
       * `autopilot_decision_budget_recalibration`, `autopilot_budget_protected`, `autopilot_budget_recalibrated_toast`
-    - *Bénéfice immédiat* : Des budgets stables, réalistes et non pollués par les dépenses ponctuelles, fonctionnels sur toute machine sans IA.
+      - *Bénéfice immédiat* : Des budgets stables, réalistes et non pollués par les dépenses ponctuelles, fonctionnels sur toute machine sans IA.
 
-6. **Étape 6 : Page Dédiée « Centre de Contrôle Auto-Pilote » & Finitions Desktop**
+6. **Étape 6 : Page Dédiée « Centre de Contrôle Auto-Pilote », Activation UI & Finitions Desktop**
     - Développement de la vue dédiée `static/js/views/autopilot_view.js` (`AutopilotView`) avec les 4 panneaux : Cockpit & KPIs, Decision Feed chronologique avec filtres, Leviers de rétroaction 1-clic (Dépointer, Rectifier catégorie, Rollback de cycle, Verrouillage budget), et Atelier des règles (`BankLabelMapping`).
     - Création du routeur backend `app/routers/autopilot.py` (`/api/autopilot/decisions`, `/api/autopilot/override`, `/api/autopilot/rollback-cycle`) et son enregistrement explicite dans `app/main.py` via `app.include_router(autopilot.router)`. Réutilisation intégrale de [`app/routers/smart_labels.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/smart_labels.py) pour la gestion des correspondances marchand (`/api/smart-labels/mappings`).
     - **Mécanisme de Rollback Global de Cycle Sémantique** : exploitation du `batch_id`, `conn_id`, `account_id` et du `raw_snapshot` de `AutopilotDecisionLog` pour identifier toutes les décisions d'un même cycle :
@@ -567,7 +560,8 @@ graph TD
       * Pour `recurrence_promotion` : clôture ou suppression du template créé.
       * Marquage de toutes les décisions du lot à `is_undone = True` (`undone_at = now()`).
       * Reconstitution fidèle du lot structuré dans le Sas `_PENDING_SYNC_DATA`.
-    - **Intégration Frontend Complète (`static/index.html` & `static/js/app.js`)** :
+    - **Intégration Frontend & Intronisation du Switch (`static/index.html`, `app.js` & `setup_wizard.js`)** :
+      * **Exposition de l'Interrupteur Maître** : Ajout du switch officiel d'activation Auto-Pilote dans les Réglages, dans le Setup Wizard (Étape 6/7) et dans le Centre de Contrôle, désormais adossé à l'ensemble du moteur validé.
       * Ajout du bouton de navigation `🤖 Auto-Pilote` (`data-view="autopilot"`) dans la barre desktop `.main-nav` ET dans le tiroir mobile `.mobile-nav`.
       * Ajout de la pastille d'état interactive `#autopilotHeaderBadge` dans `.header-actions` (à côté de la cloche des notifications).
       * Inclusion du script `<script src="/static/js/views/autopilot_view.js"></script>` dans `static/index.html`.
@@ -575,7 +569,8 @@ graph TD
       * Styles CSS dédiés aux 4 panneaux et au badge dans `static/css/style.css`.
     - **Bouclier de Fermeture Sécurisée & Fermeture Automatique (Tauri)** : Interception événementielle conjointe au niveau natif Rust dans `src-tauri/src/main.rs` (`WindowEvent::CloseRequested`) et webview (`tauri://close-requested`), consultation de l'état de synchronisation en cours via l'API `/api/bank-sync/status`, avec écran d'attente bref et fermeture automatique (`getCurrentWindow().destroy()`) dès validation du commit.
     - **Option System Tray** : Possibilité de minimiser OmniBank dans la barre des tâches près de l'horloge au lieu de quitter (couche native Tauri 2.x).
-    - **Clés i18n requises (Étape 6)** — Liste exhaustive pour le Centre de Contrôle :
+    - **Clés i18n requises (Étape 6)** — Liste exhaustive pour le Centre de Contrôle & Switch :
+      * Activation & États : `autopilot_switch_label`, `autopilot_switch_tooltip_disabled`, `autopilot_switch_tooltip_discovery`, `autopilot_state_learning`, `autopilot_state_cruising`, `autopilot_state_disabled`, `autopilot_wizard_intro_title`, `autopilot_wizard_intro_desc`
       * Navigation & Header : `nav_autopilot`, `autopilot_badge_active`, `autopilot_badge_learning`, `autopilot_badge_count`
       * Panneau Cockpit : `autopilot_kpi_operations_managed`, `autopilot_kpi_precision`, `autopilot_kpi_anomalies`, `autopilot_kpi_clicks_saved`
       * Decision Feed : `autopilot_feed_title`, `autopilot_feed_filter_all`, `autopilot_feed_filter_reconciliations`, `autopilot_feed_filter_categories`, `autopilot_feed_filter_recurrences`

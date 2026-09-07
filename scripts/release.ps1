@@ -181,9 +181,17 @@ Write-Host "`n[8/8] Creating GitHub release..." -ForegroundColor Yellow
 # Delete existing release/tag if exists
 gh release delete "v$Version" -y 2>&1 | Out-Null
 
-gh release create "v$Version" $msiPath `
-    --title "OmniBank v$Version" `
-    --notes $Notes
+$notesFilePath = Join-Path $ProjectRoot "scratch\release_notes_v$Version.md"
+if (Test-Path $notesFilePath) {
+    Write-Host "  Using rich release notes from: $notesFilePath" -ForegroundColor Cyan
+    gh release create "v$Version" $msiPath `
+        --title "OmniBank v$Version" `
+        --notes-file $notesFilePath
+} else {
+    gh release create "v$Version" $msiPath `
+        --title "OmniBank v$Version" `
+        --notes $Notes
+}
 
 # --- Step 9: Docker Hub Release ---
 Write-Host "`n[9/9] Building and pushing Docker image..." -ForegroundColor Yellow

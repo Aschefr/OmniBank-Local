@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDh1amh5UGcyL0hyUXRKSnh5Z3pmTTdkYlZlTi9QSVVKNDNpcVdGdDh6QTB6Ymw4OUhDcDEraUVjemdjSEpsOVBTR2ZIVVgwZDRZdERlbVd4dDZDc1FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4NzIyOTc5CWZpbGU6T21uaUJhbmtfMS4xLjNfeDY0X2ZyLUZSLm1zaQpRVjg4dmNpbVVwM2p0VTFTTlI2ZVBPV0xqcElQSXEvTFMvbDB2ZVl1OGdpOVFMUkU1cWN1RmxZUDMxNW5oZkFYSUEvNU5BSDZDbXZhMk1CNDEyd3NCZz09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.3/OmniBank_1.1.3_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDE1Ui9ZQTAwamd6OXpkSGFlL2ZHb0VFTGQraUhUS25GWVhwOWs0L05DNmVaLzlnYkhhN2JmSEdlWWZpR1FXTmc0Z2N6QXZOMEdCWnlQL2NhNlRaZkFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4ODA1NTE4CWZpbGU6T21uaUJhbmtfMS4xLjRfeDY0X2ZyLUZSLm1zaQpZOGdGU3Rrdy83eXYveWliNlJvRUNMUHRxUFVGN2xIUW1ncG80VllQeDFSdUFxeHE2N3NLd2ZBdHZsZzE2YUVhUmU4R2lwUHJxSUtJV3pzeUhLVUVCQT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.4/OmniBank_1.1.4_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-09-06T19:29:39Z",
-    "version":  "1.1.3",
-    "notes":  "Unified bank feed and statement import, persistent staging review cockpit, responsive accounts table, and startup freeze fix"
+    "pub_date":  "2026-09-07T18:25:18Z",
+    "version":  "1.1.4",
+    "notes":  "v1.1.4: Reactive bank sync on vault unlock, passive unlock mode, 3h anti-spam cooldown, strict Woob sorting, mobile responsive layout \u0026 i18n polish"
 }

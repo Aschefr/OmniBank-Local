@@ -145,10 +145,10 @@ Object.assign(window.BankSyncView, {
                 this.vaultStatus = { is_unlocked: false, remaining_days: 0 };
                 this.renderVaultStatusBar();
                 this.setButtonsState('idle');
-                this.showToast(err.detail || 'Session expirée. Veuillez ressaisir votre mot de passe maître.', 'info');
+                this.showToast(err.detail || (window.i18n ? window.i18n.t('bank_sync_toast_session_expired') : 'Session expirée. Veuillez ressaisir votre mot de passe maître.'), 'info');
                 const retryPw = await this.promptMasterPassword(
-                    'Relevé en arrière-plan',
-                    'Veuillez déverrouiller le coffre avec votre mot de passe maître :'
+                    window.i18n ? window.i18n.t('bank_sync_run_background_btn') : 'Relevé en arrière-plan',
+                    window.i18n ? window.i18n.t('bank_sync_vault_prompt_msg') : 'Veuillez déverrouiller le coffre avec votre mot de passe maître :'
                 );
                 if (retryPw) {
                     return this.triggerBackgroundSyncNow();
@@ -270,8 +270,8 @@ Object.assign(window.BankSyncView, {
             pw = "__USE_VAULT_TOKEN__";
         } else {
             pw = await this.promptMasterPassword(
-                'Synchronisation bancaire',
-                'Entrez votre mot de passe maître pour synchroniser vos comptes :'
+                window.i18n ? window.i18n.t('bank_sync_modal_title') : 'Synchronisation bancaire',
+                window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître pour synchroniser vos comptes :'
             );
         }
         if (!pw) return;
