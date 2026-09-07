@@ -1524,7 +1524,7 @@ body.privacy-mode #valNextPayAmount:hover {
     }
 
     .mobile-nav .nav-btn {
-        display: flex !important;
+        display: flex;
         align-items: center;
         gap: 10px;
         padding: 9px 12px !important;
@@ -1539,6 +1539,13 @@ body.privacy-mode #valNextPayAmount:hover {
         width: 100%;
         text-align: left;
         transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .mobile-nav .nav-btn[style*="display: none"],
+    .mobile-nav .nav-btn[style*="display:none"],
+    .mobile-nav .nav-btn.is-hidden,
+    .nav-btn.is-hidden {
+        display: none !important;
     }
 
     .mobile-nav .nav-btn:hover {
@@ -13532,10 +13539,233 @@ body.theme-titanium-light .notif-card.unread {
         max-height: 36px !important;
         font-size: 12.5px !important;
         border-radius: 8px !important;
-        box-sizing: border-box !important;
     }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   7.17 CONNEXIONS BANCAIRES : GRILLE RESPONSIVE ET CARTES HARMONISÉES
+   ═══════════════════════════════════════════════════════════════════════════ */
+.bank-connections-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+    gap: 14px;
+    width: 100%;
+    box-sizing: border-box;
+}
 
+.bank-connection-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+}
 
+.bank-connection-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
 
+.bank-connection-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.bank-connection-content {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.bank-connection-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+.bank-connection-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-main);
+    word-break: break-word;
+}
+
+.bank-connection-status-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.bank-connection-status-badge.is-error {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.bank-connection-status-badge.is-connected {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.bank-connection-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    line-height: 1.4;
+}
+
+.bank-backend-tag {
+    background: rgba(255, 255, 255, 0.06);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.bank-sync-count-tag {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+}
+
+.bank-connection-error-box {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.22);
+    border-radius: 8px;
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: #ef4444;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.bank-connection-error-text {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.bank-connection-diag-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-diag-action {
+    font-size: 11px !important;
+    padding: 2px 8px !important;
+    height: 26px !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+}
+
+.bank-connection-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.bank-conn-btn {
+    height: 34px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+}
+
+.bank-conn-btn.btn-delete {
+    padding: 0 10px !important;
+    color: #ef4444 !important;
+}
+
+/* ── RESPONSIVE MOBILE ET PETITS ÉCRANS (< 768px) ── */
+@media (max-width: 768px) {
+    .bank-connections-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .bank-connection-item {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 14px !important;
+        padding: 14px 14px !important;
+    }
+
+    .bank-connection-body {
+        width: 100% !important;
+    }
+
+    .bank-connection-actions {
+        width: 100% !important;
+        border-top: 1px solid var(--border-color) !important;
+        padding-top: 10px !important;
+        margin-top: 2px !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        justify-content: stretch !important;
+    }
+
+    .bank-connection-actions .bank-conn-btn {
+        flex: 1 1 auto !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        font-size: 12.5px !important;
+    }
+
+    .bank-connection-actions .bank-conn-btn.btn-delete {
+        flex: 0 0 40px !important;
+        width: 40px !important;
+    }
+}

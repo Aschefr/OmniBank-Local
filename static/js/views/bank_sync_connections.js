@@ -13,13 +13,17 @@ Object.assign(window.BankSyncView, {
         const isServerUnlockedWithoutToken = !!(this.vaultStatus?.is_unlocked && !token);
         const defaultTitle = isServerUnlockedWithoutToken
             ? (window.i18n ? window.i18n.t('bank_sync_auth_device_title') || 'Autoriser cet appareil' : 'Autoriser cet appareil')
-            : (window.i18n ? window.i18n.t('bank_sync_master_pw_modal_title') || 'Déverrouillage sécurisé' : 'Déverrouillage sécurisé');
+            : (window.i18n ? window.i18n.t('bank_sync_vault_unlock_modal_title') || window.i18n.t('bank_sync_master_pw_modal_title') || 'Déverrouillage sécurisé' : 'Déverrouillage sécurisé');
+        const defaultMessage = window.i18n ? window.i18n.t('bank_sync_vault_unlock_modal_msg') || window.i18n.t('bank_sync_master_pw_modal_msg') || 'Entrez votre mot de passe maître pour déverrouiller le coffre en mémoire :' : 'Entrez votre mot de passe maître pour déverrouiller le coffre en mémoire :';
         const effectiveTitle = title || defaultTitle;
-        const effectiveMessage = message || (window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître :');
+        const effectiveMessage = message || defaultMessage;
 
         return new Promise((resolve) => {
             this._pwResolve = resolve;
             const modal = document.getElementById('masterPasswordModal');
+            if (modal && window.i18n && typeof window.i18n.translateDOM === 'function') {
+                window.i18n.translateDOM(modal);
+            }
             const titleEl = document.getElementById('masterPwModalTitle');
             const msgEl = document.getElementById('masterPwModalMsg');
             const input = document.getElementById('masterPwModalInput');
@@ -28,9 +32,19 @@ Object.assign(window.BankSyncView, {
 
             if (titleEl) titleEl.innerText = effectiveTitle;
             if (msgEl) msgEl.innerText = effectiveMessage;
-            if (input) input.value = '';
+            if (input) {
+                input.value = '';
+                if (window.i18n) {
+                    input.placeholder = window.i18n.t('bank_sync_master_pw_modal_placeholder');
+                }
+            }
             if (errEl) errEl.style.display = 'none';
             if (noticeEl) noticeEl.style.display = isServerUnlockedWithoutToken ? 'block' : 'none';
+
+            const syncCheck = document.getElementById('masterPwSyncOnUnlockCheck');
+            if (syncCheck) {
+                syncCheck.checked = this.autoSyncSettings ? this.autoSyncSettings.sync_on_vault_unlock !== false : true;
+            }
 
             if (modal) {
                 modal.style.display = 'flex';
@@ -53,8 +67,14 @@ Object.assign(window.BankSyncView, {
 
         const rememberCheck = document.getElementById('masterPwRememberCheck');
         const rememberDaysSel = document.getElementById('masterPwRememberDays');
+        const syncCheck = document.getElementById('masterPwSyncOnUnlockCheck');
         const shouldRemember = rememberCheck ? rememberCheck.checked : true;
         const days = shouldRemember ? (rememberDaysSel ? parseInt(rememberDaysSel.value) : 7) : 1;
+        const shouldSyncOnUnlock = syncCheck ? syncCheck.checked : true;
+
+        if (this.autoSyncSettings && this.autoSyncSettings.sync_on_vault_unlock !== shouldSyncOnUnlock) {
+            this.toggleSyncOnVaultUnlock(shouldSyncOnUnlock);
+        }
 
         try {
             const res = await API.post('/api/bank-sync/vault/unlock', {
@@ -68,6 +88,17 @@ Object.assign(window.BankSyncView, {
                 this.vaultStatus = res;
                 this.renderVaultStatusBar();
                 await this.loadConnections();
+
+                if (res.reactive_sync) {
+                    if (res.reactive_sync.cooldown_active) {
+                        this.showToast(res.reactive_sync.message, 'info');
+                        this._vaultUnlockToastShown = true;
+                    } else if (res.reactive_sync.ok && !res.reactive_sync.skipped_passive_mode) {
+                        const startedMsg = window.i18n ? window.i18n.t('bank_sync_bg_started', 'Coffre déverrouillé : relevé bancaire en cours en arrière-plan...') : 'Coffre déverrouillé : relevé bancaire en cours en arrière-plan...';
+                        this.showToast(startedMsg, 'info');
+                        this._vaultUnlockToastShown = true;
+                    }
+                }
             }
         } catch (unlockErr) {
             console.warn('[BankSync] Erreur validation mot de passe maître:', unlockErr);
@@ -181,7 +212,7 @@ Object.assign(window.BankSyncView, {
         }
 
         container.innerHTML = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 14px;">
+        <div class="bank-connections-grid">
             ${this.connections.map(conn => {
                 const lastSyncText = conn.last_sync_at 
                     ? new Date(conn.last_sync_at).toLocaleString() 
@@ -192,8 +223,8 @@ Object.assign(window.BankSyncView, {
                 const effectiveError = isStalePasswordError ? null : (conn.last_error && conn.last_error.trim() ? conn.last_error.trim() : null);
                 const isError = !isStalePasswordError && (conn.last_sync_status === 'error' || conn.last_sync_status === 'auto_error' || Boolean(effectiveError));
                 const statusBadge = isError 
-                    ? `<span class="bank-connection-status-badge" style="background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🔴</span> <span>${window.i18n.t('bank_sync_status_error')}</span></span>`
-                    : `<span class="bank-connection-status-badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;"><span>🟢</span> <span>${window.i18n.t('bank_sync_status_connected')}</span></span>`;
+                    ? `<span class="bank-connection-status-badge is-error"><span>🔴</span> <span>${window.i18n.t('bank_sync_status_error')}</span></span>`
+                    : `<span class="bank-connection-status-badge is-connected"><span>🟢</span> <span>${window.i18n.t('bank_sync_status_connected')}</span></span>`;
 
                 let localizedError = effectiveError;
                 if (effectiveError && (effectiveError.includes('Erreur lors de la synchronisation') || effectiveError.includes('Erreur de synchronisation'))) {
@@ -203,54 +234,56 @@ Object.assign(window.BankSyncView, {
 
                 const cachedPreview = this.getCachedPreview(conn.id);
                 const cachedBtn = cachedPreview ? `
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.openCachedPreviewDirectly(${conn.id})" style="padding: 0 10px; border-radius: 8px; font-size: 12px; height: 32px; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" title="${window.i18n.t('bank_sync_cached_preview_tooltip')}">
+                    <button class="btn btn-secondary bank-conn-btn" onclick="window.BankSyncView.openCachedPreviewDirectly(${conn.id})" title="${window.i18n.t('bank_sync_cached_preview_tooltip')}">
                         <span>📋</span> <span data-i18n="bank_sync_cached_preview_btn">${window.i18n.t('bank_sync_cached_preview_btn')}</span>
                     </button>
                 ` : '';
 
                 return `
-                <div class="bank-connection-item" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px; box-shadow: var(--shadow-sm); transition: border-color 0.2s ease;">
-                    <div style="display: flex; align-items: center; gap: 14px; min-width: 0;">
-                        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
+                <div class="bank-connection-item">
+                    <div class="bank-connection-body">
+                        <div class="bank-connection-icon">
                             🏦
                         </div>
-                        <div style="min-width: 0;">
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
-                                <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-main); white-space: nowrap;">${conn.label}</h4>
+                        <div class="bank-connection-content">
+                            <div class="bank-connection-header">
+                                <h4 class="bank-connection-title">${conn.label}</h4>
                                 ${statusBadge}
                             </div>
-                            <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                <span style="background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; color: var(--text-main); font-weight: 600;">${conn.backend}</span>
+                            <div class="bank-connection-meta">
+                                <span class="bank-backend-tag">${conn.backend}</span>
                                 <span>•</span>
                                 <span>${lastSyncText}</span>
-                                ${conn.last_sync_count ? `<span class="bank-sync-count-tag" style="background: rgba(16,185,129,0.12); color: #10b981; font-weight: 700; padding: 1px 8px; border-radius: 6px; font-size: 11px;">+${conn.last_sync_count} op.</span>` : ''}
+                                ${conn.last_sync_count ? `<span class="bank-sync-count-tag">+${conn.last_sync_count} op.</span>` : ''}
                             </div>
                             ${displayError ? `
-                                <div style="font-size: 11px; color: #ef4444; margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                    <span>⚠️ ${displayError}</span>
-                                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur connexion bancaire: ${conn.backend || conn.id} - ${displayError.replace(/'/g, "\\'")}');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="${window.i18n.t('diag_btn_copy_tooltip')}">
-                                        📋 ${window.i18n.t('diag_btn_copy')}
-                                    </button>
-                                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur connexion bancaire: ${conn.backend || conn.id}');" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="${window.i18n.t('diag_btn_issue_tooltip')}">
-                                        🐙 ${window.i18n.t('diag_btn_issue')}
-                                    </button>
-                                    <button class="btn btn-secondary" onclick="if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="${window.i18n.t('diag_btn_diag_tooltip')}">
-                                        ⚙️ ${window.i18n.t('diag_btn_diag')}
-                                    </button>
+                                <div class="bank-connection-error-box">
+                                    <div class="bank-connection-error-text">⚠️ ${displayError}</div>
+                                    <div class="bank-connection-diag-actions">
+                                        <button class="btn btn-secondary btn-diag-action" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur connexion bancaire: ${conn.backend || conn.id} - ${displayError.replace(/'/g, "\\'")}');" title="${window.i18n.t('diag_btn_copy_tooltip')}">
+                                            📋 <span>${window.i18n.t('diag_btn_copy')}</span>
+                                        </button>
+                                        <button class="btn btn-secondary btn-diag-action" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur connexion bancaire: ${conn.backend || conn.id}');" title="${window.i18n.t('diag_btn_issue_tooltip')}">
+                                            🐙 <span>${window.i18n.t('diag_btn_issue')}</span>
+                                        </button>
+                                        <button class="btn btn-secondary btn-diag-action" onclick="if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" title="${window.i18n.t('diag_btn_diag_tooltip')}">
+                                            ⚙️ <span>${window.i18n.t('diag_btn_diag')}</span>
+                                        </button>
+                                    </div>
                                 </div>
                             ` : ''}
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                    <div class="bank-connection-actions">
                         ${cachedBtn}
-                        <button class="btn btn-primary" onclick="window.BankSyncView.promptAndSync(${conn.id})" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; padding: 0 14px; border-radius: 8px; font-size: 12px; height: 32px; box-sizing: border-box;" title="${window.i18n.t('bank_sync_sync_btn_tooltip')}">
+                        <button class="btn btn-primary bank-conn-btn" onclick="window.BankSyncView.promptAndSync(${conn.id})" title="${window.i18n.t('bank_sync_sync_btn_tooltip')}">
                             <span>🔄</span> <span data-i18n="bank_sync_sync_btn">${window.i18n.t('bank_sync_sync_btn')}</span>
                         </button>
-                        <button class="btn btn-secondary" onclick="window.BankSyncView.openMappingModal(${conn.id})" style="padding: 0 12px; border-radius: 8px; font-size: 12px; height: 32px; display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; font-weight: 600;" title="${window.i18n.t('bank_sync_edit_mapping_btn')}">
+                        <button class="btn btn-secondary bank-conn-btn" onclick="window.BankSyncView.openMappingModal(${conn.id})" title="${window.i18n.t('bank_sync_edit_mapping_btn')}">
                             <span>🔗</span> <span data-i18n="bank_sync_mapping_btn">${window.i18n.t('bank_sync_mapping_btn')}</span>
                         </button>
-                        <button class="btn btn-secondary" onclick="window.BankSyncView.deleteConnection(${conn.id})" style="padding: 0 10px; border-radius: 8px; color: #ef4444; height: 32px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;" title="${window.i18n.t('bank_sync_delete_btn')}">
+                        <button class="btn btn-secondary bank-conn-btn btn-delete" onclick="window.BankSyncView.deleteConnection(${conn.id})" title="${window.i18n.t('bank_sync_delete_btn')}">
                             🗑️
                         </button>
                     </div>
@@ -590,8 +623,8 @@ Object.assign(window.BankSyncView, {
             pw = "__USE_VAULT_TOKEN__";
         } else {
             pw = await this.promptMasterPassword(
-                'Association des comptes',
-                'Entrez votre mot de passe maître pour interroger votre banque :'
+                window.i18n ? window.i18n.t('bank_sync_map_btn', 'Association des comptes') : 'Association des comptes',
+                window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître :'
             );
         }
 

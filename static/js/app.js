@@ -354,20 +354,9 @@ class App {
             });
         }
         
-        // AI Features Visibility
-        document.querySelectorAll('.nav-btn[data-view="chat"]').forEach(btn => {
-            btn.style.display = this.config.enable_ai === 'true' ? '' : 'none';
-        });
+        // Feature Toggles Nav Visibility
+        this.updateNavToggles();
 
-        // Overview Features Visibility
-        document.querySelectorAll('.nav-btn[data-view="overview"]').forEach(btn => {
-            btn.style.display = this.config.enable_overview === 'true' ? '' : 'none';
-        });
-
-        // Simulator Features Visibility
-        document.querySelectorAll('.nav-btn[data-view="simulator"]').forEach(btn => {
-            btn.style.display = this.config.enable_simulator !== 'false' ? '' : 'none';
-        });
 
 
         // Navigation
@@ -1447,6 +1436,26 @@ class App {
                     }, 300);
                 });
             });
+        });
+    }
+
+    updateNavToggles() {
+        const isAiEnabled = Boolean(this.config && (this.config.enable_ai === 'true' || this.config.enable_ai === true));
+        document.querySelectorAll('.nav-btn[data-view="chat"]').forEach(btn => {
+            btn.style.display = isAiEnabled ? '' : 'none';
+            btn.classList.toggle('is-hidden', !isAiEnabled);
+        });
+
+        const isOverviewEnabled = Boolean(this.config && (this.config.enable_overview === 'true' || this.config.enable_overview === true));
+        document.querySelectorAll('.nav-btn[data-view="overview"]').forEach(btn => {
+            btn.style.display = isOverviewEnabled ? '' : 'none';
+            btn.classList.toggle('is-hidden', !isOverviewEnabled);
+        });
+
+        const isSimEnabled = !this.config || (this.config.enable_simulator !== 'false' && this.config.enable_simulator !== false);
+        document.querySelectorAll('.nav-btn[data-view="simulator"]').forEach(btn => {
+            btn.style.display = isSimEnabled ? '' : 'none';
+            btn.classList.toggle('is-hidden', !isSimEnabled);
         });
     }
 

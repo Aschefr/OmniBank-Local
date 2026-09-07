@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.3-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.4-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,18 +110,18 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.1.3)
+## 🆕 Nouveautés (v1.1.4)
+
+* **🔓 Synchronisation Bancaire Réactive au Déverrouillage** : Le déverrouillage du coffre-fort d'identifiants déclenche automatiquement une synchronisation d'arrière-plan sans attendre la boucle périodique.
+* **🛡️ Option de Déverrouillage Passif Silencieux** : Choix explicite dans les réglages et la modale pour charger les clés en RAM sans initier d'appel réseau bancaire à T0.
+* **⏱️ Cooldown Anti-Spam Persistant (3 Heures)** : Protection par horodatage persistant en base SQLite empêchant les requêtes abusives rapprochées tout en préservant le bouton de synchronisation forcée.
+* **📅 Tri Chronologique Strict des Écritures Woob** : Ingestion strictement ascendante des opérations et des prévisions pour une réconciliation multi-passes déterministe.
+* **📱 Cartes de Connexions Bancaires & Tiroir Mobile Responsives** : Grille adaptative sur petits écrans avec bannières d'erreur pleine largeur, boutons tactiles 36px et respect strict des fonctionnalités désactivées dans les menus mobiles.
+
+## 📦 Historique Récent (v1.1.3)
 
 * **🔄 Fusion UX Synchronisation & Relevés de Compte** : Connexion bancaire directe (Woob) et import de relevés de compte (CSV, Excel) unifiés au sein d'une même modale fluide avec un sas d'attente partagé (Cockpit de revue).
-* **📥 Action d'Import Dédiée par Compte** : Bouton d'import de fichier accessible directement depuis le tableau pour l'ensemble des comptes (en ligne, relevé ou manuel).
-* **📊 Badges de Sous-Comptes dans le Sas** : Affichage dynamique du nombre d'opérations en attente par onglet de sous-compte lors de la revue.
-* **🛡️ Filtrage Intelligent des Soldes de Relevé** : Détection et exclusion automatique des lignes de solde bancaire (« Solde au DD/MM/YYYY ») du flux d'opérations pour éliminer les opérations fantômes.
 * **🖥️ Tableau des Comptes Compact & 6 Colonnes** : Organisation en 6 colonnes (`NOM`, `TYPE`, `ALIMENTATION`, `SOLDE INITIAL`, `SOLDE ACTUEL`, `ACTIONS`) avec pastille de couleur intégrée et boutons d'actions ultra-compacts 24px pour un affichage parfait sans aucun débordement.
-
-## 📦 Historique Récent (v1.1.2)
-
-* **💾 Persistance du Sas d'Attente & Cockpit de Synchronisation** : Les opérations bancaires en attente de validation (synchronisation en ligne, imports CSV, Excel ou relevés IA) sont désormais conservées de manière robuste et persistante entre les redémarrages de l'application (Tauri et Docker).
-* **💡 Rétablissement du Revenu Attendu dans le Reste à Vivre** : Correction de l'indicateur des revenus prévus sous la carte « Reste à vivre » sur la vue Synthèse, garantissant une parfaite cohérence avec la barre latérale quel que soit le compte sélectionné.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -129,7 +129,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.1.3-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.1.4-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -229,18 +229,18 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.1.3)
+## 🆕 What's New (v1.1.4)
+
+* **🔓 Reactive Bank Sync on Vault Unlock**: Unlocking the credential vault immediately launches a background bank synchronization when enabled.
+* **🛡️ Passive Vault Unlock Option**: Explicit toggle in settings and master password prompt to load credentials in RAM without firing network requests at T0.
+* **⏱️ Persistent 3-Hour Anti-Spam Cooldown**: SQLite-persisted timestamp guard preventing rapid banking server queries while keeping manual force-sync intact.
+* **📅 Strict Chronological Woob Transaction Sorting**: Ascending chronological order for transactions and upcoming movements, ensuring robust multi-pass reconciliation.
+* **📱 Mobile-Responsive Connection Cards & Navigation Drawer**: Adaptive layout for small viewports with full-width error banners, comfortable 36px touch targets, and strict feature toggle parity in the mobile drawer.
+
+## 📦 Recent History (v1.1.3)
 
 * **🔄 Unified Banking Sync & Statement Import**: Integrated online bank connections (Woob) and bank statement file imports (CSV, Excel) into a single unified workflow with a shared, persistent staging queue (Review Cockpit).
-* **📥 Direct Per-Account Statement Import Action**: Dedicated import trigger button available on every account row in the accounts table regardless of feed type.
-* **📊 Sub-Account Staging Badges**: Dynamic pending transaction counters displayed on individual sub-account tabs in the Review Cockpit.
-* **🛡️ Smart Statement Balance Row Filtering**: Automated detection and exclusion of bank summary balance lines (e.g. "Solde au DD/MM/YYYY") to prevent ghost transactions.
 * **🖥️ Streamlined 6-Column Accounts Table**: Redesigned accounts layout with 6 clear columns (`NOM`, `TYPE`, `ALIMENTATION`, `SOLDE INITIAL`, `SOLDE ACTUEL`, `ACTIONS`), inline interactive color dot, and compact 24px action buttons for zero overflow on constrained viewports.
-
-## 📦 Recent History (v1.1.2)
-
-* **💾 Persistent Staging Area & Review Cockpit**: Pending operations from bank synchronizations and imported statements (CSV, Excel, AI) now persist reliably across application restarts in both Tauri desktop and Docker environments.
-* **💡 Overview Planned Income Mention**: Restored the expected income indicator under "Reste à vivre" on the Overview summary card, maintaining full consistency with the sidebar regardless of account selection.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

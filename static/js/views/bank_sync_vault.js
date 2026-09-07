@@ -286,12 +286,13 @@ Object.assign(window.BankSyncView, {
     },
 
     async unlockVaultManually() {
-        const pw = await this.promptMasterPassword(
-            'Déverrouillage du coffre',
-            'Entrez votre mot de passe maître pour déverrouiller le coffre en mémoire :'
-        );
+        this._vaultUnlockToastShown = false;
+        const pw = await this.promptMasterPassword();
         if (!pw) return;
-        this.showToast('Coffre déverrouillé avec succès !', 'success');
+        if (!this._vaultUnlockToastShown) {
+            this.showToast(window.i18n ? window.i18n.t('bank_sync_toast_vault_unlocked', 'Coffre déverrouillé avec succès !') : 'Coffre déverrouillé avec succès !', 'success');
+        }
+        this._vaultUnlockToastShown = false;
         await this.loadVaultStatus();
         await this.loadPendingSync();
         await this.loadConnections();
@@ -307,7 +308,7 @@ Object.assign(window.BankSyncView, {
         this.vaultStatus = { is_unlocked: false, remaining_days: 0, remaining_seconds: 0 };
         this.renderVaultStatusBar();
         await this.loadConnections();
-        this.showToast('Coffre-fort verrouillé (mémoire purgée).', 'info');
+        this.showToast(window.i18n ? window.i18n.t('bank_sync_toast_vault_locked') : 'Coffre-fort verrouillé (mémoire purgée).', 'info');
     },
 
     async resetVault() {
@@ -356,10 +357,26 @@ Object.assign(window.BankSyncView, {
     async loadAutoSyncSettings() {
         try {
             const data = await API.get('/api/bank-sync/settings/auto-sync');
-            this.autoSyncSettings = data || { enabled: false, interval_hours: 24 };
+            this.autoSyncSettings = data || { enabled: false, interval_hours: 24, sync_on_vault_unlock: true };
             this.renderVaultStatusBar();
         } catch (e) {
             console.warn('[BankSync] Erreur settings auto-sync:', e);
+        }
+    },
+
+    async toggleSyncOnVaultUnlock(enabled) {
+        if (!this.autoSyncSettings) {
+            this.autoSyncSettings = { enabled: false, interval_hours: 24, sync_on_vault_unlock: true };
+        }
+        this.autoSyncSettings.sync_on_vault_unlock = enabled;
+        try {
+            await API.post('/api/bank-sync/settings/auto-sync', {
+                enabled: this.autoSyncSettings.enabled,
+                interval_hours: this.autoSyncSettings.interval_hours,
+                sync_on_vault_unlock: enabled
+            });
+        } catch (err) {
+            console.warn('[BankSync] Erreur toggleSyncOnVaultUnlock:', err);
         }
     },
 
@@ -369,12 +386,13 @@ Object.assign(window.BankSyncView, {
         try {
             await API.post('/api/bank-sync/settings/auto-sync', {
                 enabled: enabled,
-                interval_hours: this.autoSyncSettings.interval_hours
+                interval_hours: this.autoSyncSettings.interval_hours,
+                sync_on_vault_unlock: this.autoSyncSettings.sync_on_vault_unlock !== false
             });
             if (enabled && !this.vaultStatus?.is_unlocked) {
-                this.showToast('Relevé auto activé. Note : le coffre doit être déverrouillé pour fonctionner.', 'warning');
+                this.showToast(window.i18n ? window.i18n.t('bank_sync_toast_auto_sync_enabled_warn') : 'Relevé auto activé. Note : le coffre doit être déverrouillé pour fonctionner.', 'warning');
             } else {
-                this.showToast(enabled ? 'Relevé automatique activé !' : 'Relevé automatique désactivé.', 'info');
+                this.showToast(enabled ? (window.i18n ? window.i18n.t('bank_sync_toast_auto_sync_enabled') : 'Relevé automatique activé !') : (window.i18n ? window.i18n.t('bank_sync_toast_auto_sync_disabled') : 'Relevé automatique désactivé.'), 'info');
             }
         } catch (err) {
             this.showToast('Erreur : ' + (err.detail || err.message), 'error');
@@ -387,9 +405,11 @@ Object.assign(window.BankSyncView, {
         try {
             await API.post('/api/bank-sync/settings/auto-sync', {
                 enabled: this.autoSyncSettings.enabled,
-                interval_hours: this.autoSyncSettings.interval_hours
+                interval_hours: this.autoSyncSettings.interval_hours,
+                sync_on_vault_unlock: this.autoSyncSettings.sync_on_vault_unlock !== false
             });
-            this.showToast(`Fréquence ajustée : ${interval} heures.`, 'info');
+            const toastMsg = window.i18n ? window.i18n.tp('bank_sync_toast_interval_changed', { interval }) || `Fréquence ajustée : ${interval} heures.` : `Fréquence ajustée : ${interval} heures.`;
+            this.showToast(toastMsg, 'info');
         } catch (err) {
             this.showToast('Erreur : ' + (err.detail || err.message), 'error');
         }
