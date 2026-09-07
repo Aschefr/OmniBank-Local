@@ -763,6 +763,25 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             // Sync to window.app.config immediately
             if (window.app) {
                 window.app.config = { ...window.app.config, ...data };
+                if (window.app.updateNavToggles) {
+                    window.app.updateNavToggles();
+                } else {
+                    const isAiEnabled = (data.enable_ai === 'true' || data.enable_ai === true);
+                    document.querySelectorAll('.nav-btn[data-view="chat"]').forEach(btn => {
+                        btn.style.display = isAiEnabled ? '' : 'none';
+                        btn.classList.toggle('is-hidden', !isAiEnabled);
+                    });
+                    const isOverviewEnabled = (data.enable_overview === 'true' || data.enable_overview === true);
+                    document.querySelectorAll('.nav-btn[data-view="overview"]').forEach(btn => {
+                        btn.style.display = isOverviewEnabled ? '' : 'none';
+                        btn.classList.toggle('is-hidden', !isOverviewEnabled);
+                    });
+                    const isSimEnabled = (data.enable_simulator !== 'false' && data.enable_simulator !== false);
+                    document.querySelectorAll('.nav-btn[data-view="simulator"]').forEach(btn => {
+                        btn.style.display = isSimEnabled ? '' : 'none';
+                        btn.classList.toggle('is-hidden', !isSimEnabled);
+                    });
+                }
                 if (window.app.refreshSidebar) window.app.refreshSidebar();
                 if (window.TimelineView && window.app.currentView === 'dashboard') {
                     // Update filters visibility without full refresh if possible, or just render
@@ -770,16 +789,6 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     if (main) main.innerHTML = window.TimelineView.render();
                     window.TimelineView.init();
                 }
-                // Update nav button visibility for toggled features
-                document.querySelectorAll('.nav-btn[data-view="chat"]').forEach(btn => {
-                    btn.style.display = data.enable_ai === 'true' ? '' : 'none';
-                });
-                document.querySelectorAll('.nav-btn[data-view="overview"]').forEach(btn => {
-                    btn.style.display = data.enable_overview === 'true' ? '' : 'none';
-                });
-                document.querySelectorAll('.nav-btn[data-view="simulator"]').forEach(btn => {
-                    btn.style.display = data.enable_simulator === 'true' ? '' : 'none';
-                });
             }
             
             await API.post('/api/config/', data);

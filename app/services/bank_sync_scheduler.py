@@ -749,6 +749,43 @@ async def bank_sync_scheduler_loop():
         await asyncio.sleep(60)
 
 
+AUTO_SYNC_COOLDOWN_SECONDS = 3 * 3600  # 3 heures de cooldown anti-spam
+
+
+def get_auto_sync_cooldown_status(db: Session, profile_id: Optional[str] = None) -> Dict[str, Any]:
+    """Retourne l'état du cooldown anti-spam persistant pour un profil donné."""
+    pid = _resolve_profile_id(profile_id)
+    last_attempt_str = _get_config_value(db, "last_auto_sync_attempt", "")
+    if not last_attempt_str:
+        return {
+            "cooldown_active": False,
+            "last_attempt_iso": None,
+            "elapsed_seconds": None,
+            "remaining_seconds": 0
+        }
+    try:
+        last_attempt = datetime.fromisoformat(last_attempt_str)
+        if last_attempt.tzinfo is None:
+            last_attempt = last_attempt.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        elapsed = int((now - last_attempt).total_seconds())
+        remaining = max(0, AUTO_SYNC_COOLDOWN_SECONDS - elapsed)
+        return {
+            "cooldown_active": remaining > 0,
+            "last_attempt_iso": last_attempt_str,
+            "elapsed_seconds": elapsed,
+            "remaining_seconds": remaining
+        }
+    except Exception as e:
+        logger.warning(f"[BankScheduler] Erreur parsing last_auto_sync_attempt ('{last_attempt_str}'): {e}")
+        return {
+            "cooldown_active": False,
+            "last_attempt_iso": None,
+            "elapsed_seconds": None,
+            "remaining_seconds": 0
+        }
+
+
 _ACTIVE_BACKGROUND_SYNCS: set = set()
 
 
@@ -761,10 +798,13 @@ def is_background_sync_running(profile_id: Optional[str] = None) -> bool:
 def trigger_manual_auto_sync(
     master_password: Optional[str] = None,
     vault_token: Optional[str] = None,
-    profile_id: Optional[str] = None
+    profile_id: Optional[str] = None,
+    force: bool = False,
+    db: Optional[Session] = None
 ) -> Dict[str, Any]:
     """
-    Déclenche immédiatement un relevé automatique en arrière-plan pour toutes les connexions actives d'un profil.
+    Déclenche un relevé automatique en arrière-plan pour toutes les connexions actives d'un profil.
+    Si force=False, respecte le cooldown anti-spam persistant de 3h (GlobalConfig.last_auto_sync_attempt).
     """
     pid = _resolve_profile_id(profile_id)
     pw = master_password or (VaultSessionManager.get_password(vault_token, profile_id=pid) if vault_token else None) or VaultSessionManager.get_password(profile_id=pid)
@@ -774,25 +814,55 @@ def trigger_manual_auto_sync(
             "detail": "Coffre-fort verrouillé. Veuillez d'abord déverrouiller le coffre pour lancer le relevé."
         }
 
+    from app.database import get_engine
+    from sqlalchemy.orm import sessionmaker
+    engine = get_engine(pid)
+    SessionProf = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    # Vérification du cooldown persistant
+    if not force:
+        db_check = db or SessionProf()
+        try:
+            cooldown = get_auto_sync_cooldown_status(db_check, pid)
+            if cooldown.get("cooldown_active"):
+                remaining = cooldown.get("remaining_seconds", 0)
+                rem_min = remaining // 60
+                logger.info(f"[BankScheduler] Relevé réactif ignoré par cooldown anti-spam (reste {rem_min} min, profil={pid})")
+                return {
+                    "ok": True,
+                    "cooldown_active": True,
+                    "remaining_seconds": remaining,
+                    "elapsed_seconds": cooldown.get("elapsed_seconds"),
+                    "message": f"Relevé récent effectué il y a moins de 3h. Prochain relevé auto disponible dans {rem_min} min."
+                }
+        finally:
+            if not db:
+                db_check.close()
+
+    # Mettre à jour immédiatement last_auto_sync_attempt pour bloquer tout appel concurrent
+    now_iso = datetime.now(timezone.utc).isoformat()
+    db_init = db or SessionProf()
+    try:
+        _set_config_value(db_init, "last_auto_sync_attempt", now_iso)
+    finally:
+        if not db:
+            db_init.close()
+
     _ACTIVE_BACKGROUND_SYNCS.add(pid)
 
     def _worker():
         import time
-        from app.database import get_engine
-        from sqlalchemy.orm import sessionmaker
-        engine = get_engine(pid)
-        SessionProf = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         worker_db = SessionProf()
         try:
             active_conns = worker_db.query(BankConnection).filter(
                 BankConnection.is_active == True
             ).all()
-            logger.info(f"[BankScheduler] Relevé manuel en arrière-plan démarré pour {len(active_conns)} connexion(s) (profil={pid})")
+            logger.info(f"[BankScheduler] Relevé en arrière-plan démarré pour {len(active_conns)} connexion(s) (profil={pid}, force={force})")
             for conn in active_conns:
                 execute_auto_sync_for_connection(worker_db, conn, pw, profile_id=pid)
                 time.sleep(2)
         except Exception as e:
-            logger.error(f"[BankScheduler] Erreur lors du relevé manuel d'arrière-plan (profil={pid}): {e}")
+            logger.error(f"[BankScheduler] Erreur lors du relevé d'arrière-plan (profil={pid}): {e}")
         finally:
             _ACTIVE_BACKGROUND_SYNCS.discard(pid)
             worker_db.close()
@@ -803,6 +873,7 @@ def trigger_manual_auto_sync(
 
     return {
         "ok": True,
+        "cooldown_active": False,
         "message": "Relevé automatique en arrière-plan démarré avec succès."
     }
 

@@ -896,6 +896,10 @@ class BankSyncService:
 
             parsed_txs = []
 
+            # Tri chronologique strict (du plus ancien au plus récent) pour ingestion ordonnée
+            history_raw.sort(key=lambda x: x.get("tx_date_obj") or date.min)
+            coming_raw.sort(key=lambda x: x.get("tx_date_obj") or date.min)
+
             # ── PASSE 1 : Matching des opérations confirmées (historique) en priorité ──
             for item in history_raw:
                 tx_date = item["tx_date_obj"]

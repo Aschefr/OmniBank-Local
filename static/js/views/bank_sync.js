@@ -730,11 +730,11 @@ window.BankSyncView = {
         <div id="masterPasswordModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10200; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 440px; padding: 24px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
                 <div style="font-size: 40px; margin-bottom: 12px;">🔐</div>
-                <h3 id="masterPwModalTitle" style="margin: 0 0 8px 0; font-size: 18px; font-weight: 700; color: var(--text-main);" data-i18n="bank_sync_master_pw_modal_title">
-                    ${window.i18n.t('bank_sync_master_pw_modal_title')}
+                <h3 id="masterPwModalTitle" style="margin: 0 0 8px 0; font-size: 18px; font-weight: 700; color: var(--text-main);" data-i18n="bank_sync_vault_unlock_modal_title">
+                    ${window.i18n ? window.i18n.t('bank_sync_vault_unlock_modal_title') : 'Déverrouillage du coffre'}
                 </h3>
-                <p id="masterPwModalMsg" style="font-size: 13px; color: var(--text-muted); line-height: 1.4; margin: 0 0 16px 0;" data-i18n="bank_sync_master_pw_modal_msg">
-                    ${window.i18n.t('bank_sync_master_pw_modal_msg')}
+                <p id="masterPwModalMsg" style="font-size: 13px; color: var(--text-muted); line-height: 1.4; margin: 0 0 16px 0;" data-i18n="bank_sync_vault_unlock_modal_msg">
+                    ${window.i18n ? window.i18n.t('bank_sync_vault_unlock_modal_msg') : 'Entrez votre mot de passe maître pour déverrouiller le coffre en mémoire :'}
                 </p>
 
                 <!-- Information contextuelle si le coffre est déjà actif sur le serveur (autre PC / Docker) -->
@@ -747,21 +747,30 @@ window.BankSyncView = {
                     </div>
                 </div>
                 <div style="margin-bottom: 14px;">
-                    <input type="password" id="masterPwModalInput" class="input-styled" style="width: 100%; text-align: center; font-size: 16px; padding: 10px;" placeholder="${window.i18n.t('bank_sync_master_pw_modal_placeholder')}" onkeydown="if(event.key==='Enter') window.BankSyncView._submitMasterPw()" autocomplete="current-password" />
+                    <input type="password" id="masterPwModalInput" class="input-styled" style="width: 100%; text-align: center; font-size: 16px; padding: 10px;" placeholder="${window.i18n ? window.i18n.t('bank_sync_master_pw_modal_placeholder') : 'Mot de passe maître'}" data-i18n-placeholder="bank_sync_master_pw_modal_placeholder" onkeydown="if(event.key==='Enter') window.BankSyncView._submitMasterPw()" autocomplete="current-password" />
                 </div>
 
                 <!-- Option de Mémorisation en Mémoire (RAM TTL) -->
-                <div style="margin-bottom: 18px; padding: 10px 14px; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; text-align: left;">
+                <div style="margin-bottom: 10px; padding: 10px 14px; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; text-align: left;">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text-main); margin: 0;">
                         <input type="checkbox" id="masterPwRememberCheck" checked />
-                        <span data-i18n="bank_vault_remember_label">${window.i18n.t('bank_vault_remember_label')}</span>
+                        <span data-i18n="bank_vault_remember_label">${window.i18n ? window.i18n.t('bank_vault_remember_label') : 'Mémoriser sur cet appareil pendant :'}</span>
                     </label>
                     <select id="masterPwRememberDays" class="input-styled" style="padding: 2px 6px; font-size: 11px; border-radius: 6px;">
-                        <option value="3">${window.i18n.t('bank_vault_remember_days_3')}</option>
-                        <option value="7" selected>${window.i18n.t('bank_vault_remember_days_7')}</option>
-                        <option value="14">${window.i18n.t('bank_vault_remember_days_14')}</option>
-                        <option value="30">${window.i18n.t('bank_vault_remember_days_30')}</option>
+                        <option value="3" data-i18n="bank_vault_remember_days_3">${window.i18n ? window.i18n.t('bank_vault_remember_days_3') : '3 jours'}</option>
+                        <option value="7" selected data-i18n="bank_vault_remember_days_7">${window.i18n ? window.i18n.t('bank_vault_remember_days_7') : '7 jours'}</option>
+                        <option value="14" data-i18n="bank_vault_remember_days_14">${window.i18n ? window.i18n.t('bank_vault_remember_days_14') : '14 jours'}</option>
+                        <option value="30" data-i18n="bank_vault_remember_days_30">${window.i18n ? window.i18n.t('bank_vault_remember_days_30') : '30 jours'}</option>
                     </select>
+                </div>
+
+                <!-- Option de Synchronisation Immédiate au Déverrouillage -->
+                <div style="margin-bottom: 18px; padding: 10px 14px; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text-main); margin: 0;" data-i18n-title="bank_sync_on_unlock_tooltip" title="${window.i18n ? window.i18n.t('bank_sync_on_unlock_tooltip') : 'Déclenche automatiquement un relevé dès que le coffre est déverrouillé (respecte un délai de 3h entre deux relevés)'}">
+                        <input type="checkbox" id="masterPwSyncOnUnlockCheck" checked />
+                        <span data-i18n="bank_sync_on_unlock_label">${window.i18n ? window.i18n.t('bank_sync_on_unlock_label') : 'Synchro au déverrouillage'}</span>
+                    </label>
+                    <span style="font-size: 11px; color: var(--accent); font-weight: 600;" data-i18n="bank_sync_on_unlock_badge">${window.i18n ? window.i18n.t('bank_sync_on_unlock_badge') : '⚡ Relevé immédiat'}</span>
                 </div>
 
                 <div id="masterPwModalError" style="display: none; color: #ef4444; font-size: 12px; margin-bottom: 14px; background: rgba(239,68,68,0.1); padding: 8px; border-radius: 8px;"></div>

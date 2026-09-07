@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+## [1.1.4] - 2026-09-07
+
+### Added & Improved
+- **Reactive Bank Synchronization on Vault Unlock 🔓**: Unlocking the credential vault now immediately triggers an automated bank sync in the background when enabled.
+- **Passive Vault Unlock Option 🛡️**: Users can opt to unlock the vault without initiating network requests, providing complete control over when banking servers are contacted.
+- **Persistent 3-Hour Anti-Spam Cooldown ⏱️**: Added a persistent cooldown guard across application restarts to prevent rapid polling of banking servers while preserving manual force-sync capabilities.
+- **Strict Chronological Woob Transaction Sorting 📅**: Ensured raw bank transactions and upcoming movements are sorted chronologically ascending prior to multi-pass reconciliation.
+- **Mobile-Responsive Bank Connection Cards 📱**: Redesigned bank connection cards with a flexible layout that prevents content squishing and text overlapping on mobile displays, providing dedicated full-width error banners and 36px touch-friendly actions.
+
+### Fixed
+- **Mobile Navigation Drawer Feature Toggles 📱**: Fixed an issue where feature buttons (Simulateur, Vue d'ensemble, Chat IA) remained visible in the mobile navigation drawer even when disabled in settings due to CSS `!important` overriding inline style rules.
+
 ## [1.1.3] - 2026-09-06
 
 ### Added & Improved
