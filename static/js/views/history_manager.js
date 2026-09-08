@@ -94,7 +94,8 @@ window.HistoryView = {
             "budget_allocation": "history_entity_budget_allocation",
             "recurrence_template": "history_entity_recurrence_template",
             "org_user": "history_entity_org_user",
-            "paycheck_override": "history_entity_paycheck_override"
+            "paycheck_override": "history_entity_paycheck_override",
+            "bank_label_mapping": "history_entity_bank_label_mapping"
         };
 
         tbody.innerHTML = this.actions.map(act => {
@@ -127,6 +128,12 @@ window.HistoryView = {
                         detail = `${name || 'Modèle'}${amtStr}`;
                     } else if (act.entity_type === 'budget') {
                         detail = `${name || 'Sans nom'}${amtStr}`;
+                    } else if (act.entity_type === 'bank_label_mapping') {
+                        const raw = state.raw_pattern || '';
+                        const clean = state.clean_description || raw;
+                        const cat = state.is_multi_category ? 'Multi' : (state.category || 'Sans cat');
+                        const mode = state.is_manual ? 'Manuelle' : 'Auto';
+                        detail = `${raw} → ${clean} (${cat}, ${mode})`;
                     } else {
                         detail = `${name || 'ID: ' + act.entity_id}${amtStr}`;
                     }

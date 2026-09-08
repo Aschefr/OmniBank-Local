@@ -315,6 +315,9 @@ class BankLabelMapping(Base):
     clean_description = Column(String, nullable=True)                     # Nom propre choisi (ex: "Fulli - Péages", "Assurance Téléphone")
     category = Column(String, nullable=True)                              # Catégorie associée (ex: "Transports", "Assurances")
     is_ignored = Column(Boolean, default=False, nullable=False)          # Si True, ne jamais suggérer automatiquement pour ce motif
+    is_manual = Column(Boolean, default=False, nullable=False)           # Si True, règle sanctuarisée créée/éditée manuellement par l'utilisateur
+    is_multi_category = Column(Boolean, default=False, nullable=False)   # Si True, marchand caméléon (nom nettoyé sans catégorie imposée)
+    category_counts = Column(Text, nullable=True)                        # Distribution JSON des catégories {cat: count} pour apprentissage progressif
     match_count = Column(Integer, default=1)                              # Compteur de renforcement / fréquence
     last_used_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
     created_at = Column(DateTime, default=_utcnow)

@@ -203,6 +203,7 @@ def test_vault_unlock_reactive_sync(client_step1, step1_db):
         call_kwargs = mock_sync.call_args.kwargs
         assert call_kwargs["master_password"] == "MonSuperPass123!"
         assert call_kwargs["force"] is False
+        assert call_kwargs["trigger_source"] == "vault_unlock"
 
 
 def test_vault_unlock_passive_mode(client_step1, step1_db):
@@ -248,3 +249,56 @@ def test_woob_transactions_chronological_sorting():
     expected_ids = ["t0", "t1", "t2", "t3"]
     assert [x["id"] for x in history_raw] == expected_ids
     assert history_raw[-1]["tx_date_obj"] == date(2026, 9, 10)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. Tests Traçabilité du Déclenchement & Dédoublonnage des Notifications
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_execute_auto_sync_notification_trigger_source_and_deduplication(step1_db):
+    """Vérifie que la notification d'échec contient la source de déclenchement et ne se duplique pas."""
+    import json
+    from app.services.bank_sync_scheduler import execute_auto_sync_for_connection
+    from app.models import Notification
+
+    conn = BankConnection(id=42, label="Banque Test Source", backend="cragr", is_active=True)
+    step1_db.add(conn)
+    step1_db.commit()
+
+    # 1. Premier échec au déverrouillage du coffre
+    execute_auto_sync_for_connection(step1_db, conn, "BadPassword", profile_id="default", trigger_source="vault_unlock")
+
+    notifs = step1_db.query(Notification).filter(Notification.type == "bank_sync_error").all()
+    assert len(notifs) == 1
+    n1 = notifs[0]
+    assert "au déverrouillage du coffre" in n1.content
+    link_data = json.loads(n1.link_data)
+    assert link_data.get("trigger_source") == "vault_unlock"
+    first_created_at = n1.created_at
+
+    # 2. Deuxième échec consécutif : doit mettre à jour la notification existante au lieu de créer un doublon
+    execute_auto_sync_for_connection(step1_db, conn, "BadPassword", profile_id="default", trigger_source="scheduled")
+
+    notifs_after = step1_db.query(Notification).filter(Notification.type == "bank_sync_error").all()
+    assert len(notifs_after) == 1  # Pas de doublon !
+    n2 = notifs_after[0]
+    assert "planification automatique" in n2.content
+    link_data_2 = json.loads(n2.link_data)
+    assert link_data_2.get("trigger_source") == "scheduled"
+
+
+def test_trigger_auto_sync_endpoint_force_default_false(client_step1, step1_db):
+    """Vérifie que l'endpoint /trigger-auto-sync applique force=False par défaut et trigger_source='manual'."""
+    from unittest.mock import patch
+
+    with patch("app.services.bank_sync_scheduler.trigger_manual_auto_sync") as mock_sync:
+        mock_sync.return_value = {"ok": True, "cooldown_active": False}
+        res = client_step1.post("/api/bank-sync/trigger-auto-sync", json={
+            "master_password": "MyPass"
+        })
+        assert res.status_code == 200
+        assert mock_sync.called
+        kwargs = mock_sync.call_args.kwargs
+        assert kwargs["force"] is False
+        assert kwargs["trigger_source"] == "manual"
+

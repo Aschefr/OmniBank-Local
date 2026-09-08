@@ -443,7 +443,7 @@ function formatDate(dateString, overrideFormat) {
  * @param {'success'|'error'|'info'} type - Visual style
  * @param {number} duration - Auto-dismiss in ms (default 3000)
  */
-function showToast(message, type = 'success', duration = 3000) {
+function showToast(message, type = 'success', duration = 3000, options = null) {
     const colors = {
         success: { bg: 'rgba(16,185,129,0.15)', border: '#10b981', text: '#10b981', icon: '✅' },
         error:   { bg: 'rgba(255,86,48,0.15)',   border: '#ff5630', text: '#ff5630', icon: '❌' },
@@ -474,6 +474,37 @@ function showToast(message, type = 'success', duration = 3000) {
     const msgSpan = document.createElement('span');
     msgSpan.innerHTML = `<span style="font-size:16px;">${c.icon}</span> ${message}`;
     toast.appendChild(msgSpan);
+
+    if (options && options.action) {
+        const actionBtn = document.createElement('button');
+        actionBtn.style.cssText = `
+            margin-left: auto;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid currentColor;
+            color: inherit;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: background 0.15s ease, transform 0.1s ease;
+        `;
+        actionBtn.textContent = options.action.text || '↩️ Annuler';
+        actionBtn.onmouseover = () => { actionBtn.style.background = 'rgba(255, 255, 255, 0.3)'; };
+        actionBtn.onmouseout = () => { actionBtn.style.background = 'rgba(255, 255, 255, 0.18)'; };
+        actionBtn.onclick = (e) => {
+            e.stopPropagation();
+            dismiss();
+            if (typeof options.action.callback === 'function') {
+                options.action.callback();
+            }
+        };
+        toast.appendChild(actionBtn);
+    }
 
     if (type === 'error') {
         const reportBtn = document.createElement('button');

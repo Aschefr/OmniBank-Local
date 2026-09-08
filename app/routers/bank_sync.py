@@ -206,7 +206,8 @@ def unlock_vault(req: VaultUnlockRequest, db: Session = Depends(get_db)):
             vault_token=token,
             profile_id=active_pid,
             force=False,
-            db=db
+            db=db,
+            trigger_source="vault_unlock"
         )
 
     return {
@@ -299,13 +300,20 @@ def update_auto_sync_settings(data: Dict[str, Any], db: Session = Depends(get_db
 
 @router.post("/trigger-auto-sync")
 def run_manual_auto_sync(data: Optional[Dict[str, Any]] = None):
-    """Déclenche immédiatement un relevé automatique en arrière-plan."""
+    """Déclenche un relevé automatique en arrière-plan."""
     from app.services.bank_sync_scheduler import trigger_manual_auto_sync
     active_pid = get_active_profile().get("id", "default")
     master_password = data.get("master_password") if data else None
     vault_token = data.get("vault_token") if data else None
-    force = bool(data.get("force", True)) if data else True
-    res = trigger_manual_auto_sync(master_password=master_password, vault_token=vault_token, profile_id=active_pid, force=force)
+    force = bool(data.get("force", False)) if data else False
+    trigger_source = data.get("trigger_source", "manual") if data else "manual"
+    res = trigger_manual_auto_sync(
+        master_password=master_password,
+        vault_token=vault_token,
+        profile_id=active_pid,
+        force=force,
+        trigger_source=trigger_source
+    )
     if not res.get("ok"):
         raise HTTPException(status_code=401, detail=res.get("detail", "Coffre verrouillé"))
     return res
@@ -357,10 +365,14 @@ def get_pending_sync_summary(db: Session = Depends(get_db)):
                     tx["raw_description"] = raw_desc
                     if raw_desc in smart_resolutions:
                         res = smart_resolutions[raw_desc]
-                        if res.get("source") in ("rule", "history"):
+                        if res.get("source") in ("rule", "history", "multi_category"):
                             tx["description"] = res["description"]
                             tx["smart_suggested"] = True
-                            tx["smart_source"] = res["source"]
+                            tx["smart_source"] = res.get("source")
+                            tx["smart_is_manual"] = res.get("is_manual", False)
+                            tx["smart_is_provisional"] = res.get("is_provisional", False)
+                            tx["smart_is_multi_category"] = res.get("is_multi_category", False)
+                            tx["smart_confidence"] = res.get("confidence", 0.0)
                             if not tx.get("category") and res.get("category"):
                                 tx["category"] = res["category"]
 

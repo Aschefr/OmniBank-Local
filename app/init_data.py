@@ -8,12 +8,12 @@ def init_db(target_engine=None):
     from sqlalchemy import text
     eng = target_engine or get_engine()
 
-    # Fast-path : si la base est déjà initialisée et au schéma cible (v24),
+    # Fast-path : si la base est déjà initialisée et au schéma cible (v25),
     # éviter l'introspection complète de toutes les tables SQLAlchemy lors de chaque switch de profil
     try:
         with eng.connect() as conn:
             row = conn.execute(text("SELECT value FROM global_config WHERE key = 'schema_version'")).fetchone()
-            if row and row[0] and str(row[0]).isdigit() and int(row[0]) >= 24:
+            if row and row[0] and str(row[0]).isdigit() and int(row[0]) >= 25:
                 return
     except Exception:
         pass
@@ -629,6 +629,23 @@ def init_db(target_engine=None):
                 pass
             try:
                 conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '24')"))
+            except Exception:
+                pass
+            conn.commit()
+
+        if schema_version < 25:
+            # Schema v25: Smart Label Engine reliability (is_manual, is_multi_category, category_counts)
+            for col, col_type in [
+                ("is_manual", "BOOLEAN DEFAULT 0"),
+                ("is_multi_category", "BOOLEAN DEFAULT 0"),
+                ("category_counts", "TEXT")
+            ]:
+                try:
+                    conn.execute(text(f"ALTER TABLE bank_label_mappings ADD COLUMN {col} {col_type}"))
+                except Exception:
+                    pass
+            try:
+                conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '25')"))
             except Exception:
                 pass
             conn.commit()

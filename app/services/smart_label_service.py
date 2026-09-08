@@ -5,6 +5,7 @@ et l'apprentissage automatique des correspondances lors des validations utilisat
 """
 
 import difflib
+import json
 import logging
 import re
 from collections import Counter
@@ -17,6 +18,27 @@ from sqlalchemy import func
 from app.models import BankLabelMapping, Transaction
 
 logger = logging.getLogger(__name__)
+
+# Marchands caméléons par nature (généralistes multi-catégories)
+# Pour ces enseignes, le nom est nettoyé mais aucune catégorie fixe n'est imposée par défaut
+_MULTI_CATEGORY_MERCHANTS = {
+    'AMAZON', 'PAYPAL', 'CARREFOUR', 'LECLERC', 'AUCHAN', 'MONOPRIX',
+    'FNAC', 'LIDL', 'INTERMARCHE', 'ALDI', 'CORA', 'SYSTEME U', 'SUPER U', 'HYPER U',
+    'CASINO', 'TABAC', 'RELAY', 'TOTAL', 'ESSO', 'BP', 'SHELL', 'ENI', 'ALIEXPRESS'
+}
+
+
+def is_multi_category_merchant(pattern: str) -> bool:
+    """Détecte si un motif normalisé correspond à une enseigne généraliste multi-catégories."""
+    if not pattern:
+        return False
+    pat = pattern.upper().strip()
+    if pat in _MULTI_CATEGORY_MERCHANTS:
+        return True
+    tokens = pat.split()
+    if tokens and tokens[0] in _MULTI_CATEGORY_MERCHANTS:
+        return True
+    return False
 
 # Mots-clés et préfixes bancaires techniques à nettoyer
 _BANK_NOISE_REGEX = re.compile(
@@ -202,12 +224,14 @@ def _compute_match_score(pattern: str, candidate: str) -> float:
     return _compute_match_score_precomputed(pat_clean, pat_tokens, sig_pat, cand_clean, cand_tokens, sig_cand)
 
 
-def resolve_smart_label(db: Session, raw_label: str) -> Dict[str, Any]:
+def resolve_smart_label(db: Session, raw_label: str, use_ai_fallback: bool = False) -> Dict[str, Any]:
     """
-    Résout un libellé bancaire brut via le pipeline à 3 niveaux :
-    1. Règle apprise dans BankLabelMapping (100% certitude, ou ignorée)
-    2. Fuzzy match sur l'historique des transactions réelles avec détection d'ambiguïté (>= 75% confiance)
-    3. Sans correspondance (fallback brut)
+    Résout un libellé bancaire brut via le pipeline :
+    1. Règle dans BankLabelMapping (manuelle sanctuarisée 100%, multi-catégories nom seul, ou auto confirmée/provisoire)
+    2. Détection marchand caméléon natif (nom propre sans catégorie figée)
+    3. Fuzzy match sur l'historique des transactions réelles avec détection d'ambiguïté (>= 75% confiance)
+    4. Étage 3 (Optionnel) : Fallback IA local Ollama groupé par lot
+    5. Sans correspondance (fallback brut)
     """
     if not raw_label or not str(raw_label).strip():
         return {
@@ -215,14 +239,16 @@ def resolve_smart_label(db: Session, raw_label: str) -> Dict[str, Any]:
             "category": None,
             "source": "none",
             "confidence": 0.0,
-            "mapping_id": None
+            "mapping_id": None,
+            "is_manual": False,
+            "is_multi_category": False
         }
 
     raw_str = str(raw_label).strip()
     pattern = normalize_raw_label(raw_str)
 
     # ---------------------------------------------------------
-    # NIVEAU 1 : Base de règles apprises (BankLabelMapping)
+    # NIVEAU 1 : Base de règles (BankLabelMapping)
     # ---------------------------------------------------------
     # 1.1 Match exact sur raw_pattern
     exact_rule = db.query(BankLabelMapping).filter(BankLabelMapping.raw_pattern == pattern).first()
@@ -233,14 +259,48 @@ def resolve_smart_label(db: Session, raw_label: str) -> Dict[str, Any]:
                 "category": None,
                 "source": "ignored",
                 "confidence": 0.0,
-                "mapping_id": exact_rule.id
+                "mapping_id": exact_rule.id,
+                "is_manual": bool(exact_rule.is_manual),
+                "is_multi_category": False
             }
+
+        # Marchand multi-catégories configuré explicitement ou marchand caméléon sans catégorie manuelle
+        if exact_rule.is_multi_category or (not exact_rule.is_manual and is_multi_category_merchant(pattern) and not exact_rule.category):
+            return {
+                "description": exact_rule.clean_description or pattern.title(),
+                "category": None,
+                "source": "multi_category",
+                "confidence": 1.0,
+                "mapping_id": exact_rule.id,
+                "is_manual": bool(exact_rule.is_manual),
+                "is_multi_category": True
+            }
+
+        # Règle manuelle sanctuarisée
+        if exact_rule.is_manual:
+            return {
+                "description": exact_rule.clean_description or raw_str,
+                "category": exact_rule.category,
+                "source": "rule",
+                "confidence": 1.0,
+                "mapping_id": exact_rule.id,
+                "is_manual": True,
+                "is_multi_category": False
+            }
+
+        # Règle auto-apprise : apprentissage progressif (seuil N >= 2)
+        match_count = exact_rule.match_count or 1
+        is_provisional = match_count < 2
+        confidence = 0.60 if is_provisional else 1.0
         return {
             "description": exact_rule.clean_description or raw_str,
             "category": exact_rule.category,
             "source": "rule",
-            "confidence": 1.0,
-            "mapping_id": exact_rule.id
+            "confidence": confidence,
+            "mapping_id": exact_rule.id,
+            "is_manual": False,
+            "is_provisional": is_provisional,
+            "is_multi_category": False
         }
 
     # 1.2 Match partiel sur l'ensemble des règles
@@ -261,14 +321,59 @@ def resolve_smart_label(db: Session, raw_label: str) -> Dict[str, Any]:
                 "category": None,
                 "source": "ignored",
                 "confidence": 0.0,
-                "mapping_id": best_rule.id
+                "mapping_id": best_rule.id,
+                "is_manual": bool(best_rule.is_manual),
+                "is_multi_category": False
             }
+
+        if best_rule.is_multi_category or (not best_rule.is_manual and is_multi_category_merchant(pattern) and not best_rule.category):
+            return {
+                "description": best_rule.clean_description or pattern.title(),
+                "category": None,
+                "source": "multi_category",
+                "confidence": round(best_rule_score, 2),
+                "mapping_id": best_rule.id,
+                "is_manual": bool(best_rule.is_manual),
+                "is_multi_category": True
+            }
+
+        if best_rule.is_manual:
+            return {
+                "description": best_rule.clean_description or raw_str,
+                "category": best_rule.category,
+                "source": "rule",
+                "confidence": round(best_rule_score, 2),
+                "mapping_id": best_rule.id,
+                "is_manual": True,
+                "is_multi_category": False
+            }
+
+        match_count = best_rule.match_count or 1
+        is_provisional = match_count < 2
+        confidence = min(0.60, round(best_rule_score, 2)) if is_provisional else round(best_rule_score, 2)
         return {
             "description": best_rule.clean_description or raw_str,
             "category": best_rule.category,
             "source": "rule",
-            "confidence": round(best_rule_score, 2),
-            "mapping_id": best_rule.id
+            "confidence": confidence,
+            "mapping_id": best_rule.id,
+            "is_manual": False,
+            "is_provisional": is_provisional,
+            "is_multi_category": False
+        }
+
+    # ---------------------------------------------------------
+    # NIVEAU 1.5 : Marchand caméléon natif sans règle enregistrée
+    # ---------------------------------------------------------
+    if is_multi_category_merchant(pattern):
+        return {
+            "description": pattern.title(),
+            "category": None,
+            "source": "multi_category",
+            "confidence": 1.0,
+            "mapping_id": None,
+            "is_manual": False,
+            "is_multi_category": True
         }
 
     # ---------------------------------------------------------
@@ -324,7 +429,9 @@ def resolve_smart_label(db: Session, raw_label: str) -> Dict[str, Any]:
                     "category": None,
                     "source": "ambiguous",
                     "confidence": 0.0,
-                    "mapping_id": None
+                    "mapping_id": None,
+                    "is_manual": False,
+                    "is_multi_category": False
                 }
 
         return {
@@ -332,25 +439,35 @@ def resolve_smart_label(db: Session, raw_label: str) -> Dict[str, Any]:
             "category": best_tx.category,
             "source": "history",
             "confidence": min(1.0, round(best_tx_score, 2)),
-            "mapping_id": None
+            "mapping_id": None,
+            "is_manual": False,
+            "is_multi_category": False
         }
 
     # ---------------------------------------------------------
-    # NIVEAU 3 : Aucun match mathématique
+    # NIVEAU 3 : Aucun match mathématique -> Étage 3 IA ou fallback brut
     # ---------------------------------------------------------
+    if use_ai_fallback:
+        batch_res = resolve_smart_labels_batch(db, [raw_str], use_ai_fallback=True)
+        if raw_str in batch_res:
+            return batch_res[raw_str]
+
     return {
         "description": raw_str,
         "category": None,
         "source": "none",
         "confidence": 0.0,
-        "mapping_id": None
+        "mapping_id": None,
+        "is_manual": False,
+        "is_multi_category": False
     }
 
 
-def resolve_smart_labels_batch(db: Session, raw_labels: List[str]) -> Dict[str, Dict[str, Any]]:
+def resolve_smart_labels_batch(db: Session, raw_labels: List[str], use_ai_fallback: bool = False) -> Dict[str, Dict[str, Any]]:
     """
     Résolution groupée ultra-performante pour un lot de libellés bancaires.
     Pré-charge les règles et l'historique en mémoire pour un traitement O(N).
+    Si use_ai_fallback=True et Ollama est actif, transmet les libellés inconnus en 1 seule requête groupée.
     """
     if not raw_labels:
         return {}
@@ -419,15 +536,43 @@ def resolve_smart_labels_batch(db: Session, raw_labels: List[str]) -> Dict[str, 
                     "category": None,
                     "source": "ignored",
                     "confidence": 0.0,
-                    "mapping_id": r.id
+                    "mapping_id": r.id,
+                    "is_manual": bool(r.is_manual),
+                    "is_multi_category": False
                 }
-            else:
+            elif r.is_multi_category or (not r.is_manual and is_multi_category_merchant(pattern) and not r.category):
+                results[raw_str] = {
+                    "description": r.clean_description or pattern.title(),
+                    "category": None,
+                    "source": "multi_category",
+                    "confidence": 1.0,
+                    "mapping_id": r.id,
+                    "is_manual": bool(r.is_manual),
+                    "is_multi_category": True
+                }
+            elif r.is_manual:
                 results[raw_str] = {
                     "description": r.clean_description or raw_str,
                     "category": r.category,
                     "source": "rule",
                     "confidence": 1.0,
-                    "mapping_id": r.id
+                    "mapping_id": r.id,
+                    "is_manual": True,
+                    "is_multi_category": False
+                }
+            else:
+                match_count = r.match_count or 1
+                is_provisional = match_count < 2
+                confidence = 0.60 if is_provisional else 1.0
+                results[raw_str] = {
+                    "description": r.clean_description or raw_str,
+                    "category": r.category,
+                    "source": "rule",
+                    "confidence": confidence,
+                    "mapping_id": r.id,
+                    "is_manual": False,
+                    "is_provisional": is_provisional,
+                    "is_multi_category": False
                 }
             continue
 
@@ -447,16 +592,57 @@ def resolve_smart_labels_batch(db: Session, raw_labels: List[str]) -> Dict[str, 
                     "category": None,
                     "source": "ignored",
                     "confidence": 0.0,
-                    "mapping_id": best_rule.id
+                    "mapping_id": best_rule.id,
+                    "is_manual": bool(best_rule.is_manual),
+                    "is_multi_category": False
                 }
-            else:
+            elif best_rule.is_multi_category or (not best_rule.is_manual and is_multi_category_merchant(pattern) and not best_rule.category):
+                results[raw_str] = {
+                    "description": best_rule.clean_description or pattern.title(),
+                    "category": None,
+                    "source": "multi_category",
+                    "confidence": round(best_rule_score, 2),
+                    "mapping_id": best_rule.id,
+                    "is_manual": bool(best_rule.is_manual),
+                    "is_multi_category": True
+                }
+            elif best_rule.is_manual:
                 results[raw_str] = {
                     "description": best_rule.clean_description or raw_str,
                     "category": best_rule.category,
                     "source": "rule",
                     "confidence": round(best_rule_score, 2),
-                    "mapping_id": best_rule.id
+                    "mapping_id": best_rule.id,
+                    "is_manual": True,
+                    "is_multi_category": False
                 }
+            else:
+                match_count = best_rule.match_count or 1
+                is_provisional = match_count < 2
+                confidence = min(0.60, round(best_rule_score, 2)) if is_provisional else round(best_rule_score, 2)
+                results[raw_str] = {
+                    "description": best_rule.clean_description or raw_str,
+                    "category": best_rule.category,
+                    "source": "rule",
+                    "confidence": confidence,
+                    "mapping_id": best_rule.id,
+                    "is_manual": False,
+                    "is_provisional": is_provisional,
+                    "is_multi_category": False
+                }
+            continue
+
+        # 2.5 Marchand caméléon natif sans règle
+        if is_multi_category_merchant(pattern):
+            results[raw_str] = {
+                "description": pattern.title(),
+                "category": None,
+                "source": "multi_category",
+                "confidence": 1.0,
+                "mapping_id": None,
+                "is_manual": False,
+                "is_multi_category": True
+            }
             continue
 
         # 3. Match historique (uniquement variables / recettes)
@@ -504,6 +690,53 @@ def resolve_smart_labels_batch(db: Session, raw_labels: List[str]) -> Dict[str, 
             "mapping_id": None
         }
 
+    # ---------------------------------------------------------
+    # ÉTAGE 3 : Fallback IA local Ollama Groupé par Lot (Batch Prompting)
+    # ---------------------------------------------------------
+    if use_ai_fallback:
+        unresolved_by_clean: Dict[str, List[str]] = {}
+        for raw, res in results.items():
+            if (
+                res.get("category") is None
+                and res.get("source") in ("none", "ambiguous")
+                and not res.get("is_multi_category")
+                and res.get("source") != "ignored"
+            ):
+                clean_desc = normalize_raw_label(raw).title()
+                if not clean_desc or len(clean_desc) < 2:
+                    clean_desc = raw.strip()
+                unresolved_by_clean.setdefault(clean_desc, []).append(raw)
+
+        if unresolved_by_clean:
+            try:
+                from app.services.chat.ollama_client import get_ollama_config, call_ollama_batch
+                cfg = get_ollama_config(db)
+                if cfg and cfg.get("enabled"):
+                    from app.models import Category
+                    active_cats = [
+                        c.name for c in db.query(Category.name).filter(
+                            (Category.is_closed == False) | (Category.is_closed == None)
+                        ).all()
+                        if c and c.name
+                    ]
+                    if active_cats:
+                        clean_descs = list(unresolved_by_clean.keys())
+                        ai_categorizations = call_ollama_batch(
+                            descriptions=clean_descs,
+                            categories=active_cats,
+                            cfg=cfg
+                        )
+                        for clean_d, assigned_cat in ai_categorizations.items():
+                            if assigned_cat:
+                                for raw in unresolved_by_clean.get(clean_d, []):
+                                    results[raw]["category"] = assigned_cat
+                                    results[raw]["source"] = "ai"
+                                    results[raw]["confidence"] = 0.85
+                                    if results[raw]["description"] == raw:
+                                        results[raw]["description"] = clean_d
+            except Exception as e:
+                logger.warning(f"[SmartLabel] Échec silencieux du fallback IA par lot : {e}")
+
     return results
 
 
@@ -512,11 +745,16 @@ def learn_label_mapping(
     raw_label: str,
     clean_description: Optional[str] = None,
     category: Optional[str] = None,
-    is_ignored: bool = False
+    is_ignored: bool = False,
+    is_manual: bool = True,
+    is_multi_category: bool = False
 ) -> Optional[BankLabelMapping]:
     """
     Mémorise ou met à jour une correspondance dans la base de connaissances.
-    Appelé automatiquement lors de la validation ou correction d'une opération par l'utilisateur.
+    Paramètres :
+      - is_manual : True si l'action émane d'une saisie/édition explicite utilisateur (sanctuarisée).
+                    False si issue de l'ingestion automatique (CSV ou synchro bancaire).
+      - is_multi_category : True pour activer le mode Marchand Caméléon (nom propre sans catégorie figée).
     """
     if not raw_label:
         return None
@@ -534,39 +772,94 @@ def learn_label_mapping(
 
     now = datetime.now(timezone.utc)
 
+    # Détection automatique de marchand caméléon natif si auto-appris
+    if not is_manual and is_multi_category_merchant(pattern):
+        is_multi_category = True
+        category = None
+
     # Chercher si une règle existe déjà pour ce motif
     existing = db.query(BankLabelMapping).filter(BankLabelMapping.raw_pattern == pattern).first()
     if existing:
-        # Si la règle existante a été explicitement marquée comme "ignorée",
-        # et que l'appel provient d'un auto-apprentissage automatique sans flag is_ignored explicite,
-        # on protège le choix manuel de l'utilisateur en ne l'écrasant pas.
+        # 1. Règle d'exclusion manuelle protégée contre l'écrasement auto
         if existing.is_ignored and not is_ignored:
-            logger.info(f"[SmartLabel] Règle d'exclusion protégée pour '{pattern}' (non écrasée par l'apprentissage auto)")
+            logger.info(f"[SmartLabel] Règle d'exclusion protégée pour '{pattern}'")
             return existing
 
-        existing.is_ignored = is_ignored
-        if is_ignored:
-            existing.clean_description = clean_str
-            existing.category = category
-        else:
-            existing.clean_description = clean_str
+        # 2. Règle manuelle sanctuarisée protégée contre l'écrasement auto
+        if existing.is_manual and not is_manual:
+            existing.match_count = (existing.match_count or 0) + 1
+            existing.last_used_at = now
             if category:
+                try:
+                    counts = json.loads(existing.category_counts) if existing.category_counts else {}
+                except Exception:
+                    counts = {}
+                counts[category] = counts.get(category, 0) + 1
+                existing.category_counts = json.dumps(counts)
+            db.commit()
+            logger.info(f"[SmartLabel] Règle manuelle sanctuarisée préservée pour '{pattern}'")
+            return existing
+
+        # Mise à jour de category_counts
+        counts = {}
+        if existing.category_counts:
+            try:
+                counts = json.loads(existing.category_counts)
+            except Exception:
+                counts = {}
+        if category:
+            counts[category] = counts.get(category, 0) + 1
+        existing.category_counts = json.dumps(counts) if counts else None
+
+        existing.is_ignored = is_ignored
+        if is_manual:
+            existing.is_manual = True
+            existing.is_multi_category = is_multi_category
+            existing.clean_description = clean_str
+            existing.category = None if is_multi_category else category
+        else:
+            # Auto-apprentissage
+            if is_multi_category:
+                existing.is_multi_category = True
+                existing.category = None
+            elif len(counts) >= 2:
+                # Détection de dispersion : si aucune catégorie dominante à >= 60%
+                top_cat, top_count = max(counts.items(), key=lambda x: x[1])
+                total_votes = sum(counts.values())
+                if (top_count / total_votes) < 0.60:
+                    existing.is_multi_category = True
+                    existing.category = None
+                    logger.info(f"[SmartLabel] Dispersion de catégories détectée pour '{pattern}' ({counts}) -> Bascule en multi-catégories")
+                else:
+                    existing.category = top_cat
+            elif category:
                 existing.category = category
+
+            if clean_str:
+                existing.clean_description = clean_str
 
         existing.match_count = (existing.match_count or 0) + 1
         existing.last_used_at = now
         db.commit()
         db.refresh(existing)
-        status_txt = "Ignorée" if is_ignored else f"'{clean_str}' (Catégorie: {category})"
+        status_txt = "Ignorée" if is_ignored else ("Multi-catégories" if existing.is_multi_category else f"'{existing.clean_description}' (Catégorie: {existing.category})")
         logger.info(f"[SmartLabel] Règle mise à jour : '{pattern}' -> {status_txt}")
         return existing
     else:
         # Création d'une nouvelle règle
+        counts = {}
+        if category:
+            counts[category] = 1
+
+        effective_cat = None if is_multi_category else category
         new_mapping = BankLabelMapping(
             raw_pattern=pattern,
-            clean_description=clean_str,
-            category=category,
+            clean_description=clean_str if not is_ignored else None,
+            category=effective_cat if not is_ignored else None,
             is_ignored=is_ignored,
+            is_manual=is_manual,
+            is_multi_category=is_multi_category,
+            category_counts=json.dumps(counts) if counts else None,
             match_count=1,
             created_at=now,
             last_used_at=now
@@ -574,7 +867,7 @@ def learn_label_mapping(
         db.add(new_mapping)
         db.commit()
         db.refresh(new_mapping)
-        status_txt = "Ignorée" if is_ignored else f"'{clean_str}' (Catégorie: {category})"
+        status_txt = "Ignorée" if is_ignored else ("Multi-catégories" if is_multi_category else f"'{clean_str}' (Catégorie: {effective_cat})")
         logger.info(f"[SmartLabel] Nouvelle règle apprise : '{pattern}' -> {status_txt}")
         return new_mapping
 
