@@ -48,6 +48,33 @@ window.ImportWizard = {
 
     // ── Adaptateur CSV → previewData → Cockpit Unifié ──────────────────
     openReviewFromCSV(result, accountId) {
+        // Jalon 3.9 : Si l'Auto-Pilote a traité 100% des opérations en amont (pending === 0)
+        const autoSummary = result._autopilot_summary;
+        if (autoSummary && autoSummary.status === 'completed' && autoSummary.pending === 0 && autoSummary.total > 0) {
+            // Fermer le pré-wizard d'import sans ouvrir de modale de revue vide
+            const modalEl = document.getElementById('importDataModal');
+            if (modalEl) modalEl.style.display = 'none';
+
+            // Toast informatif bilingue avec bilan chiffré
+            const rawToast = window.i18n?.t('autopilot_import_complete_toast') || '🎉 Auto-Pilote : {total} opérations importées et traitées avec succès ({reconciled} rapprochées, {committed} enregistrées).';
+            const toastMsg = rawToast
+                .replace('{total}', autoSummary.total)
+                .replace('{reconciled}', autoSummary.auto_reconciled)
+                .replace('{committed}', autoSummary.auto_committed);
+
+            if (typeof showToast === 'function') {
+                showToast(toastMsg, 'success', 5000);
+            }
+
+            // Rafraîchir immédiatement les vues actives pour refléter soldes et écritures
+            if (window.BankSyncView && typeof window.BankSyncView.refreshActiveViews === 'function') {
+                window.BankSyncView.refreshActiveViews();
+            } else if (window.app && typeof window.app.loadView === 'function') {
+                window.app.loadView(window.app.currentView || 'operations');
+            }
+            return;
+        }
+
         let previewData;
         if (result.accounts && Array.isArray(result.accounts)) {
             // Nouveau format multi-comptes direct depuis /import_to_pending

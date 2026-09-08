@@ -84,6 +84,45 @@ def process_incoming_batch(
     batch_id = str(uuid.uuid4())
     logger.info(f"[AutoPilot] Début du cycle d'ingestion autonome (lot {batch_id}, connexion={conn_id}, profil={pid})")
 
+    # 2. Enrichissement Smart Labels si non déjà appliqué
+    try:
+        unresolved_labels = []
+        for acc in preview_data.get("accounts", []):
+            for tx in acc.get("transactions", []):
+                if not tx.get("is_reconciled") and not tx.get("smart_suggested"):
+                    raw = tx.get("raw_description") or tx.get("description") or ""
+                    if raw:
+                        unresolved_labels.append(raw)
+
+        if unresolved_labels:
+            from app.services.smart_label_service import resolve_smart_labels_batch
+            resolutions = resolve_smart_labels_batch(db, unresolved_labels)
+            for acc in preview_data.get("accounts", []):
+                for tx in acc.get("transactions", []):
+                    if not tx.get("is_reconciled") and not tx.get("smart_suggested"):
+                        raw = tx.get("raw_description") or tx.get("description") or ""
+                        if raw in resolutions:
+                            res = resolutions[raw]
+                            if res.get("description"):
+                                tx["description"] = res["description"]
+                            if res.get("category"):
+                                tx["category"] = res["category"]
+                            tx["smart_suggested"] = True
+                            tx["smart_source"] = res.get("source")
+                            tx["smart_is_manual"] = res.get("is_manual", False)
+                            tx["smart_is_provisional"] = res.get("is_provisional", False)
+                            tx["smart_is_multi_category"] = res.get("is_multi_category", False)
+                            tx["smart_confidence"] = res.get("confidence", 0.0)
+    except Exception as sl_err:
+        logger.warning(f"[AutoPilot] Avertissement lors de la résolution smart labels du lot: {sl_err}")
+
+    # 3. Indexer les csv_id existants en base et les catégories valides
+    from app.models import Category
+    existing_csv_ids = set(
+        row[0] for row in db.query(Transaction.csv_id).filter(Transaction.csv_id.isnot(None)).all()
+    )
+    valid_categories = {c.name for c in db.query(Category.name).all() if c.name}
+
     auto_reconciled_count = 0
     auto_committed_count = 0
     pending_count = 0
@@ -107,8 +146,7 @@ def process_incoming_batch(
                 collision_detected = bool(tx.get("collision_detected", False))
                 is_coming = bool(tx.get("is_coming", False))
 
-                # Critère d'auto-rapprochement haute certitude :
-                # Score >= 85, non déjà rapproché, sans ambiguïté homonyme, et opération confirmée (non coming)
+                # Critère 1 : Auto-rapprochement haute certitude (Score >= 85, sans collision, non venant)
                 is_eligible_reconciliation = (
                     is_rec
                     and not already_rec
@@ -171,10 +209,124 @@ def process_incoming_batch(
                         # Transaction cible introuvable ou déjà réconciliée -> maintien dans le Sas
                         residual_txs.append(tx)
                         pending_count += 1
-                else:
-                    # Rapprochement suggéré (60 <= score < 85), collision, ou nouvelle transaction non rapprochée
-                    residual_txs.append(tx)
-                    pending_count += 1
+                        continue
+
+                # Critère 2 : Auto-commit des nouvelles dépenses courantes non ambiguës (Jalon 3.8)
+                # Non rapprochée, non venant, compte cible identifié, non doublon csv_id,
+                # catégorie valide présente, non caméléon (multi-catégories), non provisoire (N=1),
+                # non ignorée, et confiance >= 85%
+                csv_id = tx.get("csv_id")
+                is_duplicate = bool(csv_id and csv_id in existing_csv_ids)
+                category = tx.get("category")
+                has_valid_category = bool(category and category in valid_categories)
+                is_multi_cat = bool(tx.get("smart_is_multi_category", False))
+                is_provisional = bool(tx.get("smart_is_provisional", False))
+                is_ignored = tx.get("smart_source") == "ignored" or tx.get("is_ignored", False)
+                confidence = float(tx.get("smart_confidence") or 0.0)
+
+                is_eligible_new_entry = (
+                    not is_rec
+                    and matched_id is None
+                    and not is_coming
+                    and bool(acc_id)
+                    and not is_duplicate
+                    and has_valid_category
+                    and not is_multi_cat
+                    and not is_provisional
+                    and not is_ignored
+                    and confidence >= 0.85
+                )
+
+                if is_eligible_new_entry:
+                    raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
+                    amt = abs(float(tx.get("amount", 0.0) or raw_amt))
+                    t_type = "expense_var" if raw_amt < 0 else "income"
+                    from_acc = acc_id if raw_amt < 0 else None
+                    to_acc = acc_id if raw_amt >= 0 else None
+
+                    op_date_str = tx.get("date_operation") or tx.get("date")
+                    try:
+                        op_date = datetime.strptime(str(op_date_str)[:10], "%Y-%m-%d").date()
+                    except Exception:
+                        op_date = date.today()
+
+                    new_tx = Transaction(
+                        csv_id=csv_id,
+                        date_saisie=date.today(),
+                        date_operation=op_date,
+                        description=tx.get("description") or "Opération bancaire",
+                        amount=amt,
+                        type=t_type,
+                        category=category,
+                        reconciliation_date=date.today(),
+                        from_account_id=from_acc,
+                        to_account_id=to_acc,
+                        attachments=tx.get("attachments"),
+                        check_slip_number=tx.get("check_slip_number"),
+                        created_by="Auto-Pilote (Écriture)"
+                    )
+                    db.add(new_tx)
+                    db.flush()
+                    if csv_id:
+                        existing_csv_ids.add(csv_id)
+
+                    # Historisation Undo/Redo
+                    record_action(
+                        db,
+                        "transaction",
+                        new_tx.id,
+                        "CREATE",
+                        None,
+                        snapshot_entity(new_tx),
+                        user_name="Auto-Pilote"
+                    )
+
+                    # Journalisation de la décision Auto-Pilote
+                    snap_payload = {
+                        "bank_tx": {
+                            k: v for k, v in tx.items()
+                            if not k.startswith("_") and not isinstance(v, (datetime, date))
+                        },
+                        "created_tx_id": new_tx.id,
+                        "before": None,
+                        "after": snapshot_entity(new_tx)
+                    }
+
+                    decision = AutopilotDecisionLog(
+                        batch_id=batch_id,
+                        decision_type="new_entry",
+                        action="AUTO_COMMIT",
+                        entity_type="transaction",
+                        entity_id=new_tx.id,
+                        conn_id=conn_id if conn_id != CSV_IMPORT_CONN_ID else None,
+                        account_id=acc_id,
+                        raw_snapshot=json.dumps(snap_payload, default=str),
+                        confidence_score=round(confidence * 100, 1) if confidence <= 1.0 else confidence,
+                        is_undone=False
+                    )
+                    db.add(decision)
+                    auto_committed_count += 1
+
+                    # Auto-apprentissage transparent pour conforter la règle
+                    raw_lbl = tx.get("raw_description") or tx.get("raw_label") or tx.get("description")
+                    if raw_lbl and new_tx.description:
+                        try:
+                            from app.services.smart_label_service import learn_label_mapping
+                            learn_label_mapping(
+                                db,
+                                raw_label=raw_lbl,
+                                clean_description=new_tx.description,
+                                category=new_tx.category,
+                                is_manual=False
+                            )
+                        except Exception as ex_learn:
+                            logger.debug(f"[AutoPilot] Ignoré échec apprentissage: {ex_learn}")
+
+                    continue
+
+                # Critère 3 : Opération en zone d'arbitrage ou à venir -> maintien dans le Sas
+                residual_txs.append(tx)
+                pending_count += 1
 
             residual_acc = dict(acc)
             residual_acc["transactions"] = residual_txs
@@ -193,7 +345,7 @@ def process_incoming_batch(
         stats_cache.invalidate(pid)
         logger.info(
             f"[AutoPilot] Lot {batch_id} validé avec succès : "
-            f"{auto_reconciled_count} auto-rapprochées, {pending_count} en attente (total {total_count})."
+            f"{auto_reconciled_count} auto-rapprochées, {auto_committed_count} créées, {pending_count} en attente (total {total_count})."
         )
 
         return {
