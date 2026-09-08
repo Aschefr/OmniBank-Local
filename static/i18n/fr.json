@@ -2502,5 +2502,9 @@
   "smart_label_sandbox_res_name": "Nom retenu",
   "smart_label_sandbox_res_cat": "Catégorie déduite",
   "smart_label_sandbox_res_source": "Source d'analyse",
-  "smart_label_sandbox_res_explanation": "Diagnostic"
+  "smart_label_sandbox_res_explanation": "Diagnostic",
+  "autopilot_import_complete_toast": "🎉 Auto-Pilote : {total} opérations importées et traitées avec succès ({reconciled} rapprochées, {committed} enregistrées).",
+  "autopilot_batch_categorized": "{count} opération(s) catégorisée(s) automatiquement",
+  "autopilot_uncategorized_fallback": "Libellé inconnu sans correspondance sûre (laissé à votre arbitrage)",
+  "autopilot_ai_batch_failed": "L'analyse IA locale n'a pas pu classer ce lot, repli déterministe appliqué"
 }

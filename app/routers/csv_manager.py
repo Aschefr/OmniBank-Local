@@ -486,6 +486,7 @@ async def import_to_pending(
 
         total_txs = sum(len(a.get("transactions", [])) for a in accounts_out)
         auto_reconciled = auto_summary.get("auto_reconciled", 0) if auto_summary else 0
+        auto_committed = auto_summary.get("auto_committed", 0) if auto_summary else 0
         matches = 0
         new_txs = 0
 
@@ -507,6 +508,10 @@ async def import_to_pending(
             details_list.append("🤖 1 opération rapprochée automatiquement")
         elif auto_reconciled > 1:
             details_list.append(f"🤖 {auto_reconciled} opérations rapprochées automatiquement")
+        if auto_committed == 1:
+            details_list.append("✨ 1 écriture enregistrée automatiquement")
+        elif auto_committed > 1:
+            details_list.append(f"✨ {auto_committed} écritures enregistrées automatiquement")
         if matches == 1:
             details_list.append("1 opération à rapprocher")
         elif matches > 1:
