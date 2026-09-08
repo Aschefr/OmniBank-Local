@@ -2486,5 +2486,21 @@
   "smart_label_edit_cat_selection": "Sélection :",
   "smart_label_edit_cat_clear_btn": "-- Sans catégorie --",
   "smart_label_edit_cat_no_match": "Aucune catégorie trouvée",
-  "smart_label_edit_cat_matches": "{count} catégorie(s)"
+  "smart_label_edit_cat_matches": "{count} catégorie(s)",
+  "smart_label_ai_classify_btn": "Nommer et classifier avec l'IA",
+  "smart_label_ai_classify_tooltip": "Nommer et classifier avec l'IA",
+  "smart_label_ai_classified_toast": "✨ Nommé '{name}' et classé dans '{category}'",
+  "smart_label_sandbox_title": "Banc d'Essai & Simulation Smart Label",
+  "smart_label_sandbox_desc": "Testez en direct la normalisation, l'application de vos règles, la détection d'habitudes et le fallback IA sur un libellé brut.",
+  "smart_label_sandbox_placeholder": "Ex: CB LEROY MERLIN BRICOLAGE 7501...",
+  "smart_label_sandbox_btn": "Tester le Smart Label",
+  "smart_label_sandbox_testing": "Simulation en cours...",
+  "smart_label_sandbox_save_rule": "Enregistrer comme règle permanente",
+  "smart_label_sandbox_saved_toast": "Règle mémorisée avec succès !",
+  "smart_label_sandbox_close": "Fermer",
+  "smart_label_sandbox_res_raw": "Libellé brut analysé",
+  "smart_label_sandbox_res_name": "Nom retenu",
+  "smart_label_sandbox_res_cat": "Catégorie déduite",
+  "smart_label_sandbox_res_source": "Source d'analyse",
+  "smart_label_sandbox_res_explanation": "Diagnostic"
 }

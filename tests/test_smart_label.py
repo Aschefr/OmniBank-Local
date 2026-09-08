@@ -651,5 +651,105 @@ def test_ai_helpers_categorize_batch_endpoint(client, db_session):
         assert res.json() == {"categories": {"BOULANGERIE": "Alimentation"}}
 
 
+# ── TEST 17 : Garde-Fou Anti-Déchets IA & Ancrage dans les Habitudes ─────────────
+def test_validate_ai_suggested_name_guardrail():
+    from app.services.smart_label_service import validate_ai_suggested_name
+
+    raw = "CB LEROY MERLIN BRICOLAGE 7501"
+    clean = "LEROY MERLIN BRICOLAGE"
+    habits = ["Amazon - Matériel divers", "Courses Monoprix", "Essence Total"]
+
+    # 1. Nom propre ancré dans le commerçant réel -> Validé
+    assert validate_ai_suggested_name("Leroy Merlin", raw, clean, habits) == "Leroy Merlin"
+
+    # 2. Nom ancré dans les habitudes utilisateur -> Validé
+    assert validate_ai_suggested_name("Amazon - Matériel divers", "CB AMZN MKTP 8492", "AMZN MKTP", habits) == "Amazon - Matériel divers"
+
+    # 3. Hallucination totale non ancrée -> Rejetée (None)
+    assert validate_ai_suggested_name("SpaceX Starlink Internet", raw, clean, habits) is None
+
+    # 4. Mots parasites / génériques -> Rejetés (None)
+    assert validate_ai_suggested_name("Achat", raw, clean, habits) is None
+    assert validate_ai_suggested_name("Inconnu", raw, clean, habits) is None
+    assert validate_ai_suggested_name("Paiement CB", raw, clean, habits) is None
+
+    # 5. Phrases conversationnelles résiduelles de LLM -> Rejetées (None)
+    assert validate_ai_suggested_name("Voici le nom : Leroy Merlin", raw, clean, habits) is None
+    assert validate_ai_suggested_name("Je pense que c'est Leroy", raw, clean, habits) is None
+
+    # 6. Caractères de syntaxe / balisage / trop long ou trop court -> Rejetés (None)
+    assert validate_ai_suggested_name("{'name': 'Leroy'}", raw, clean, habits) is None
+    assert validate_ai_suggested_name("A", raw, clean, habits) is None
+    assert validate_ai_suggested_name("X" * 70, raw, clean, habits) is None
+
+
+# ── TEST 18 : Endpoint API /api/smart-labels/simulate (Règle, Caméléon & IA) ─────
+def test_simulate_smart_label_endpoint_with_rule(client, db_session):
+    learn_label_mapping(
+        db=db_session,
+        raw_label="CB MONOPRIX NATION 75",
+        clean_description="Monoprix Nation",
+        category="Alimentation",
+        is_manual=True
+    )
+
+    res = client.post("/api/smart-labels/simulate", json={"raw_label": "CB MONOPRIX NATION 75"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["source"] == "rule"
+    assert data["description"] == "Monoprix Nation"
+    assert data["category"] == "Alimentation"
+    assert data["is_manual"] is True
+    assert "Correspondance trouvée" in data["explanation"]
+
+
+def test_simulate_smart_label_endpoint_chameleon(client, db_session):
+    res = client.post("/api/smart-labels/simulate", json={"raw_label": "CB AMAZON EU 1234 PARIS"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["source"] == "multi_category"
+    assert data["is_multi_category"] is True
+    assert data["category"] is None
+    assert "multi-catégories" in data["explanation"]
+
+
+def test_simulate_smart_label_endpoint_with_ai(client, db_session):
+    from unittest.mock import patch, MagicMock
+    from app.models import Category, GlobalConfig
+    import json
+
+    db_session.add(Category(name="Logement & Maison", type="expense_var"))
+    db_session.add(GlobalConfig(key="enable_ai", value="true"))
+    db_session.add(GlobalConfig(key="ollama_url", value="http://localhost:11434"))
+    db_session.add(GlobalConfig(key="ollama_model", value="mistral"))
+    db_session.commit()
+
+    raw_label = "CB BRICORAMA BASTILLE 75011"
+
+    mock_resp_content = json.dumps({
+        "Bricorama Bastille": {
+            "name": "Bricorama",
+            "category": "Logement & Maison"
+        }
+    })
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"message": {"content": mock_resp_content}}
+
+    with patch("httpx.post", return_value=mock_resp):
+        res = client.post("/api/smart-labels/simulate", json={
+            "raw_label": raw_label,
+            "use_ai_fallback": True
+        })
+        assert res.status_code == 200
+        data = res.json()
+        assert data["source"] == "ai"
+        assert data["description"] == "Bricorama"
+        assert data["category"] == "Logement & Maison"
+        assert data["confidence"] == 0.85
+        assert "modèle d'IA locale" in data["explanation"]
+
+
+
 
 

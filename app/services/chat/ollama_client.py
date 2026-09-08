@@ -3,6 +3,7 @@ app/services/chat/ollama_client.py — Helpers d'appel au serveur Ollama local.
 Fournit la configuration et les méthodes d'appel bloquant (sync) et non-bloquant (async).
 """
 import logging
+from typing import Any, Optional, Dict, List
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 import httpx
@@ -153,18 +154,37 @@ BATCH_CATEGORIZATION_SYSTEM_PROMPT = (
     '{"LEROY MERLIN": "Logement & Maison", "UNKNOWN SHOP": null}'
 )
 
+BATCH_SMART_LABEL_SYSTEM_PROMPT = (
+    "You are an expert expense classifier and merchant identifier for personal finance.\n"
+    "You will receive a list of transaction descriptions, a list of authorized categories, and optionally a list of the user's typical transaction naming habits.\n"
+    "For each transaction description, your task is to return:\n"
+    "1. 'name': A clean commercial merchant name or a matching user habit name (e.g. 'Leroy Merlin', 'Spotify', 'Amazon - Matériel divers'). Do NOT add conversational filler or emojis. If unsure, return null.\n"
+    "2. 'category': The single most appropriate category chosen STRICTLY from the authorized categories list. If none fits well, return null.\n"
+    "Rules:\n"
+    "- Use ONLY categories present in the provided categories list. Do NOT invent new categories.\n"
+    "- Return ONLY a valid JSON object mapping each transaction description to {'name': ..., 'category': ...}.\n"
+    "Example format:\n"
+    '{"LEROY MERLIN BRICOLAGE 7501": {"name": "Leroy Merlin", "category": "Logement & Maison"}, "UNKNOWN TRANSACTION": {"name": null, "category": null}}'
+)
+
 
 def _parse_and_validate_batch_response(
     raw_content: str,
     descriptions: list[str],
-    categories: list[str]
-) -> dict[str, str | None]:
+    categories: list[str],
+    suggest_names: bool = False
+) -> dict[str, Any]:
     """Parse la réponse JSON renvoyée par Ollama et valide les catégories par rapport à la liste autorisée.
-    Rejette toute hallucination en la forçant à None (garde-fou anti-prolifération)."""
+    Rejette toute hallucination en la forçant à None (garde-fou anti-prolifération).
+    Si suggest_names=True, renvoie {desc: {'name': str|None, 'category': str|None}}, sinon {desc: str|None}."""
     import json
     import re
 
-    result: dict[str, str | None] = {d: None for d in descriptions}
+    if suggest_names:
+        result: dict[str, Any] = {d: {"name": None, "category": None} for d in descriptions}
+    else:
+        result: dict[str, Any] = {d: None for d in descriptions}
+
     if not raw_content or not raw_content.strip():
         return result
 
@@ -202,23 +222,40 @@ def _parse_and_validate_batch_response(
         if not canonical_desc:
             continue
 
-        if val is None:
-            result[canonical_desc] = None
-            continue
+        raw_cat = None
+        raw_name = None
 
-        val_str = str(val).strip()
-        if not val_str:
-            result[canonical_desc] = None
-            continue
+        if isinstance(val, dict):
+            raw_cat = val.get("category")
+            raw_name = val.get("name")
+        elif val is not None:
+            raw_cat = val
 
-        # Vérification d'appartenance à la liste autorisée
-        if val_str in valid_exact:
-            result[canonical_desc] = val_str
-        elif val_str.lower() in valid_lower:
-            result[canonical_desc] = valid_lower[val_str.lower()]
+        # 1. Validation de la catégorie
+        validated_cat = None
+        if raw_cat is not None:
+            cat_str = str(raw_cat).strip()
+            if cat_str in valid_exact:
+                validated_cat = cat_str
+            elif cat_str.lower() in valid_lower:
+                validated_cat = valid_lower[cat_str.lower()]
+            else:
+                logger.info(f"[OllamaBatch] Catégorie hallucinée '{cat_str}' rejetée pour '{canonical_desc}' -> Forcée à None")
+
+        # 2. Nettoyage préliminaire du nom proposé
+        validated_name = None
+        if raw_name is not None:
+            clean_n = str(raw_name).strip().strip('"\'`*')
+            if clean_n and clean_n.lower() not in ("null", "none", "n/a", "unknown", "inconnu"):
+                validated_name = clean_n
+
+        if suggest_names:
+            result[canonical_desc] = {
+                "name": validated_name,
+                "category": validated_cat
+            }
         else:
-            logger.info(f"[OllamaBatch] Catégorie hallucinée '{val_str}' rejetée pour '{canonical_desc}' -> Forcée à None")
-            result[canonical_desc] = None
+            result[canonical_desc] = validated_cat
 
     return result
 
@@ -228,26 +265,30 @@ def call_ollama_batch(
     categories: list[str],
     cfg: dict = None,
     db: Session = None,
-    extra_options: dict = None
-) -> dict[str, str | None]:
+    extra_options: dict = None,
+    user_habits: list[str] = None,
+    suggest_names: bool = False
+) -> dict[str, Any]:
     """Catégorise un lot de descriptions en une seule requête JSON groupée vers Ollama (bloquante/sync).
-    Ne lève JAMAIS d'HTTPException et retourne {d: None} si Ollama est indisponible ou désactivé.
+    Ne lève JAMAIS d'HTTPException et retourne {d: None} (ou {d: {'name': None, 'category': None}}) si Ollama est indisponible ou désactivé.
     Garantit le respect strict des catégories existantes (zéro création de catégorie sauvage)."""
     import json
 
     if not descriptions:
         return {}
 
+    fallback_empty = {d: {"name": None, "category": None} if suggest_names else None for d in descriptions}
+
     if cfg is None and db is not None:
         cfg = get_ollama_config(db)
 
     if not cfg or not cfg.get("enabled"):
-        return {d: None for d in descriptions}
+        return fallback_empty
 
     url = (cfg.get("url") or "").rstrip("/")
     model = cfg.get("model") or ""
     if not url or not model:
-        return {d: None for d in descriptions}
+        return fallback_empty
 
     options = {
         "temperature": 0.1,  # Déterminisme maximal pour la classification
@@ -260,11 +301,15 @@ def call_ollama_batch(
         "categories": categories,
         "transactions": descriptions
     }
+    if user_habits:
+        user_payload["user_habits"] = user_habits[:35]
+
+    sys_prompt = BATCH_SMART_LABEL_SYSTEM_PROMPT if suggest_names else BATCH_CATEGORIZATION_SYSTEM_PROMPT
 
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": BATCH_CATEGORIZATION_SYSTEM_PROMPT},
+            {"role": "system", "content": sys_prompt},
             {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}
         ],
         "stream": False,
@@ -280,14 +325,14 @@ def call_ollama_batch(
         )
         if resp.status_code != 200:
             logger.warning(f"[OllamaBatch] Erreur HTTP Ollama ({resp.status_code}) : {resp.text[:200]}")
-            return {d: None for d in descriptions}
+            return fallback_empty
 
         res_json = resp.json()
         content = res_json.get("message", {}).get("content", "")
-        return _parse_and_validate_batch_response(content, descriptions, categories)
+        return _parse_and_validate_batch_response(content, descriptions, categories, suggest_names=suggest_names)
     except Exception as exc:
         logger.warning(f"[OllamaBatch] Échec de l'appel LLM par lot : {exc}")
-        return {d: None for d in descriptions}
+        return fallback_empty
 
 
 async def call_ollama_batch_async(
@@ -295,24 +340,28 @@ async def call_ollama_batch_async(
     categories: list[str],
     cfg: dict = None,
     db: Session = None,
-    extra_options: dict = None
-) -> dict[str, str | None]:
+    extra_options: dict = None,
+    user_habits: list[str] = None,
+    suggest_names: bool = False
+) -> dict[str, Any]:
     """Version asynchrone non-bloquante de call_ollama_batch pour les routeurs FastAPI."""
     import json
 
     if not descriptions:
         return {}
 
+    fallback_empty = {d: {"name": None, "category": None} if suggest_names else None for d in descriptions}
+
     if cfg is None and db is not None:
         cfg = get_ollama_config(db)
 
     if not cfg or not cfg.get("enabled"):
-        return {d: None for d in descriptions}
+        return fallback_empty
 
     url = (cfg.get("url") or "").rstrip("/")
     model = cfg.get("model") or ""
     if not url or not model:
-        return {d: None for d in descriptions}
+        return fallback_empty
 
     options = {
         "temperature": 0.1,
@@ -325,11 +374,15 @@ async def call_ollama_batch_async(
         "categories": categories,
         "transactions": descriptions
     }
+    if user_habits:
+        user_payload["user_habits"] = user_habits[:35]
+
+    sys_prompt = BATCH_SMART_LABEL_SYSTEM_PROMPT if suggest_names else BATCH_CATEGORIZATION_SYSTEM_PROMPT
 
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": BATCH_CATEGORIZATION_SYSTEM_PROMPT},
+            {"role": "system", "content": sys_prompt},
             {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}
         ],
         "stream": False,
@@ -342,12 +395,12 @@ async def call_ollama_batch_async(
             resp = await client.post(f"{url}/api/chat", json=payload)
         if resp.status_code != 200:
             logger.warning(f"[OllamaBatch] Erreur HTTP Ollama asynchrone ({resp.status_code}) : {resp.text[:200]}")
-            return {d: None for d in descriptions}
+            return fallback_empty
 
         res_json = resp.json()
         content = res_json.get("message", {}).get("content", "")
-        return _parse_and_validate_batch_response(content, descriptions, categories)
+        return _parse_and_validate_batch_response(content, descriptions, categories, suggest_names=suggest_names)
     except Exception as exc:
         logger.warning(f"[OllamaBatch] Échec de l'appel LLM asynchrone par lot : {exc}")
-        return {d: None for d in descriptions}
+        return fallback_empty
 
