@@ -325,3 +325,331 @@ def test_api_toggle_and_update_mapping(client, db_session):
     assert data_ign["category"] == "Abonnements"
 
 
+# ── TEST 7 : Sanctuarisation des règles manuelles (Protection anti-écrasement) ──
+def test_manual_rule_protection_against_auto_learning(db_session):
+    # 1. L'utilisateur crée une règle manuelle
+    rule = learn_label_mapping(
+        db=db_session,
+        raw_label="PRLV SPB MOBILE",
+        clean_description="Assurance Téléphone Perso",
+        category="Assurances",
+        is_manual=True
+    )
+    assert rule.is_manual is True
+    assert rule.category == "Assurances"
+
+    # 2. Un import automatique tente d'écraser la règle avec une autre catégorie
+    auto_learned = learn_label_mapping(
+        db=db_session,
+        raw_label="PRLV SPB MOBILE",
+        clean_description="Autre Description",
+        category="Loisirs",
+        is_manual=False
+    )
+    assert auto_learned.id == rule.id
+    # La règle manuelle est sanctuarisée : nom et catégorie intacts
+    assert auto_learned.clean_description == "Assurance Téléphone Perso"
+    assert auto_learned.category == "Assurances"
+    assert auto_learned.is_manual is True
+    assert auto_learned.match_count == 2
+
+
+# ── TEST 8 : Apprentissage progressif & Seuil de confirmation (N >= 2) ──
+def test_progressive_learning_threshold(db_session):
+    # 1ère occurrence automatique (N=1)
+    rule = learn_label_mapping(
+        db=db_session,
+        raw_label="CB BOULANGERIE DU PARC 92",
+        clean_description="Boulangerie Du Parc",
+        category="Alimentation",
+        is_manual=False
+    )
+    assert rule.is_manual is False
+    assert rule.match_count == 1
+
+    # Lors de la résolution, la règle doit être provisoire (confiance 0.60)
+    resolved_1 = resolve_smart_label(db_session, "CB BOULANGERIE DU PARC 92")
+    assert resolved_1["source"] == "rule"
+    assert resolved_1["is_provisional"] is True
+    assert resolved_1["confidence"] == 0.60
+    assert resolved_1["category"] == "Alimentation"
+
+    # 2ème occurrence automatique concordante (N=2)
+    learn_label_mapping(
+        db=db_session,
+        raw_label="CB BOULANGERIE DU PARC 92",
+        clean_description="Boulangerie Du Parc",
+        category="Alimentation",
+        is_manual=False
+    )
+    # Règle confirmée (confiance 1.0)
+    resolved_2 = resolve_smart_label(db_session, "CB BOULANGERIE DU PARC 92")
+    assert resolved_2["is_provisional"] is False
+    assert resolved_2["confidence"] == 1.0
+
+
+# ── TEST 9 : Marchands Caméléons Natifs (Amazon, Carrefour, Total...) ──
+def test_multi_category_merchant_native_resolution(db_session):
+    # Aucune règle en base, libellé Amazon brut
+    resolved = resolve_smart_label(db_session, "CB AMAZON EU 1234 PARIS")
+    assert resolved["source"] == "multi_category"
+    assert resolved["is_multi_category"] is True
+    assert resolved["description"] == "Amazon Eu Paris"
+    assert resolved["category"] is None
+
+    # Batch resolution avec un marchand caméléon
+    batch = resolve_smart_labels_batch(db_session, ["CB AMAZON EU 1234 PARIS", "CB TOTAL ACCESS"])
+    assert batch["CB AMAZON EU 1234 PARIS"]["source"] == "multi_category"
+    assert batch["CB AMAZON EU 1234 PARIS"]["category"] is None
+    assert batch["CB TOTAL ACCESS"]["source"] == "multi_category"
+    assert batch["CB TOTAL ACCESS"]["category"] is None
+
+
+# ── TEST 10 : Détection de Dispersion Statistique (Bascule en Multi-Catégories) ──
+def test_category_dispersion_detection(db_session):
+    # Marchand non caméléon natif
+    raw = "CB BAZAR CENTRAL 75"
+    
+    # Vote 1 : Loisirs
+    learn_label_mapping(db_session, raw, "Bazar Central", "Loisirs", is_manual=False)
+    # Vote 2 : Maison
+    learn_label_mapping(db_session, raw, "Bazar Central", "Maison", is_manual=False)
+
+    rule = db_session.query(BankLabelMapping).filter(BankLabelMapping.raw_pattern == "BAZAR CENTRAL").first()
+    # Aucune catégorie dominante (50% / 50% < 60%) -> Bascule automatique en multi-catégories
+    assert rule.is_multi_category is True
+    assert rule.category is None
+
+    resolved = resolve_smart_label(db_session, raw)
+    assert resolved["source"] == "multi_category"
+    assert resolved["category"] is None
+
+
+# ── TEST 11 : Endpoints API Bidirectional Toggle Manual & Toggle Multi ───────────
+def test_api_promote_and_toggle_multi(client, db_session):
+    # Créer une règle auto avec historique de catégorie
+    learn_label_mapping(db_session, "CB TEST AUTO PROMO", "Test Auto", "Divers", is_manual=False)
+    rule = db_session.query(BankLabelMapping).filter(BankLabelMapping.raw_pattern == "TEST AUTO PROMO").first()
+    assert rule is not None
+    assert rule.is_manual is False
+
+    # 1. Sanctuariser via l'API (promote-manual / toggle-manual)
+    res_promote = client.post(f"/api/smart-labels/mappings/{rule.id}/toggle-manual")
+    assert res_promote.status_code == 200
+    assert res_promote.json()["is_manual"] is True
+
+    db_session.refresh(rule)
+    assert rule.is_manual is True
+
+    # 2. Revenir en arrière : repasser en auto-apprentissage (toggle-manual)
+    res_demote = client.post(f"/api/smart-labels/mappings/{rule.id}/toggle-manual")
+    assert res_demote.status_code == 200
+    assert res_demote.json()["is_manual"] is False
+
+    db_session.refresh(rule)
+    assert rule.is_manual is False
+
+    # 3. Basculer en multi-catégorie via l'API
+    res_toggle_multi = client.post(f"/api/smart-labels/mappings/{rule.id}/toggle-multi")
+    assert res_toggle_multi.status_code == 200
+    assert res_toggle_multi.json()["is_multi_category"] is True
+
+    db_session.refresh(rule)
+    assert rule.is_multi_category is True
+    assert rule.category is None
+
+    # 4. Revenir en arrière : repasser en mode avec catégorie (restaure "Divers")
+    res_unmulti = client.post(f"/api/smart-labels/mappings/{rule.id}/toggle-multi")
+    assert res_unmulti.status_code == 200
+    assert res_unmulti.json()["is_multi_category"] is False
+    assert res_unmulti.json()["category"] == "Divers"
+
+    db_session.refresh(rule)
+    assert rule.is_multi_category is False
+    assert rule.category == "Divers"
+
+
+# ── TEST 12 : ActionHistory & Global Undo for BankLabelMapping ───────────────────
+def test_smart_label_history_and_undo(client, db_session):
+    from app.models import ActionHistory
+    from app.services.history_service import undo_action
+
+    # 1. Créer une règle via l'API
+    res = client.post("/api/smart-labels/mappings", json={
+        "raw_pattern": "MONOPRIX PARIS 11",
+        "clean_description": "Monoprix",
+        "category": "Alimentation"
+    })
+    assert res.status_code == 200
+    mapping_id = res.json()["id"]
+
+    # Vérifier l'enregistrement dans ActionHistory
+    act_create = db_session.query(ActionHistory).filter(
+        ActionHistory.entity_type == "bank_label_mapping",
+        ActionHistory.entity_id == mapping_id,
+        ActionHistory.action_type == "CREATE"
+    ).first()
+    assert act_create is not None
+
+    # 2. Modifier la règle (ex: passer en multi)
+    res_multi = client.post(f"/api/smart-labels/mappings/{mapping_id}/toggle-multi")
+    assert res_multi.status_code == 200
+
+    act_update = db_session.query(ActionHistory).filter(
+        ActionHistory.entity_type == "bank_label_mapping",
+        ActionHistory.entity_id == mapping_id,
+        ActionHistory.action_type == "UPDATE"
+    ).order_by(ActionHistory.id.desc()).first()
+    assert act_update is not None
+
+    rule = db_session.query(BankLabelMapping).filter(BankLabelMapping.id == mapping_id).first()
+    assert rule.is_multi_category is True
+
+    # 3. Exécuter l'annulation globale (undo) de cette modification
+    ok, err = undo_action(db_session, act_update)
+    assert ok is True
+    assert err is None
+    db_session.commit()
+
+    db_session.refresh(rule)
+    assert rule.is_multi_category is False
+    assert rule.category == "Alimentation"
+
+
+# ── TEST 13 (T3.10) : Fallback IA Ollama Groupé par Lot (call_ollama_batch) ─────
+def test_call_ollama_batch_success():
+    from unittest.mock import patch, MagicMock
+    from app.services.chat.ollama_client import call_ollama_batch
+    import json
+
+    cfg = {"enabled": True, "url": "http://localhost:11434", "model": "mistral"}
+    categories = ["Alimentation", "Logement & Maison", "Sport & Loisirs"]
+    descriptions = ["LEROY MERLIN", "DECATHLON", "BOUTIQUE INCONNUE"]
+
+    mock_resp_content = json.dumps({
+        "LEROY MERLIN": "Logement & Maison",
+        "DECATHLON": "Sport & Loisirs",
+        "BOUTIQUE INCONNUE": None
+    })
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"message": {"content": mock_resp_content}}
+
+    with patch("httpx.post", return_value=mock_resp) as mock_post:
+        result = call_ollama_batch(descriptions, categories, cfg)
+        assert mock_post.called
+        assert result["LEROY MERLIN"] == "Logement & Maison"
+        assert result["DECATHLON"] == "Sport & Loisirs"
+        assert result["BOUTIQUE INCONNUE"] is None
+
+
+def test_call_ollama_batch_hallucination_discarded():
+    from unittest.mock import patch, MagicMock
+    from app.services.chat.ollama_client import call_ollama_batch
+    import json
+
+    cfg = {"enabled": True, "url": "http://localhost:11434", "model": "mistral"}
+    categories = ["Alimentation", "Santé"]
+    descriptions = ["MAGASIN BRICOLAGE", "PHARMACIE"]
+
+    # Le LLM hallucine "Bricolage Fantaisiste" qui n'existe pas dans categories
+    mock_resp_content = json.dumps({
+        "MAGASIN BRICOLAGE": "Bricolage Fantaisiste",
+        "PHARMACIE": "Santé"
+    })
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"message": {"content": mock_resp_content}}
+
+    with patch("httpx.post", return_value=mock_resp):
+        result = call_ollama_batch(descriptions, categories, cfg)
+        # La catégorie hallucinée doit être immédiatement neutralisée à None
+        assert result["MAGASIN BRICOLAGE"] is None
+        assert result["PHARMACIE"] == "Santé"
+
+
+def test_call_ollama_batch_offline_and_disabled_safety():
+    from unittest.mock import patch
+    import httpx
+    from app.services.chat.ollama_client import call_ollama_batch
+
+    descriptions = ["LEROY MERLIN"]
+    categories = ["Logement & Maison"]
+
+    # 1. IA désactivée -> 0 appel réseau
+    with patch("httpx.post") as mock_post:
+        res = call_ollama_batch(descriptions, categories, cfg={"enabled": False})
+        assert mock_post.called is False
+        assert res == {"LEROY MERLIN": None}
+
+    # 2. IA activée mais serveur Ollama inaccessible / Timeout
+    cfg = {"enabled": True, "url": "http://localhost:11434", "model": "mistral"}
+    with patch("httpx.post", side_effect=httpx.ConnectError("Connection refused")):
+        res = call_ollama_batch(descriptions, categories, cfg)
+        # Ne doit JAMAIS lever d'exception
+        assert res == {"LEROY MERLIN": None}
+
+
+def test_t3_10_smart_label_batch_with_ai_fallback_integration(db_session):
+    """Test officiel du Cahier de Recette T3.10 :
+    Libellé brut : CB LEROY MERLIN BRICOLAGE (Marchand inconnu, IA Ollama connectée).
+    Résolution avec fallback IA local groupé (call_ollama_batch).
+    Prompt JSON strict envoyé à Ollama avec les catégories existantes.
+    Catégorie choisie = 'Logement & Maison' en 1 seul batch."""
+    from unittest.mock import patch, MagicMock
+    from app.models import Category, GlobalConfig
+    import json
+
+    # 1. Initialiser les catégories dans la base SQLite
+    db_session.add(Category(name="Alimentation", type="expense_var"))
+    db_session.add(Category(name="Logement & Maison", type="expense_var"))
+    db_session.add(Category(name="Santé", type="expense_var"))
+    # Activer l'IA dans GlobalConfig
+    db_session.add(GlobalConfig(key="enable_ai", value="true"))
+    db_session.add(GlobalConfig(key="ollama_url", value="http://localhost:11434"))
+    db_session.add(GlobalConfig(key="ollama_model", value="mistral"))
+    db_session.commit()
+
+    raw_label = "CB LEROY MERLIN BRICOLAGE 7501"
+
+    mock_resp_content = json.dumps({
+        "Leroy Merlin Bricolage": "Logement & Maison"
+    })
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"message": {"content": mock_resp_content}}
+
+    with patch("httpx.post", return_value=mock_resp):
+        # Appel du pipeline avec use_ai_fallback=True
+        results = resolve_smart_labels_batch(db_session, [raw_label], use_ai_fallback=True)
+
+        assert raw_label in results
+        entry = results[raw_label]
+        assert entry["source"] == "ai"
+        assert entry["category"] == "Logement & Maison"
+        assert entry["confidence"] == 0.85
+        assert entry["description"] == "Leroy Merlin Bricolage"
+
+        # Résolution unitaire
+        single = resolve_smart_label(db_session, raw_label, use_ai_fallback=True)
+        assert single["source"] == "ai"
+        assert single["category"] == "Logement & Maison"
+        assert single["confidence"] == 0.85
+
+
+def test_ai_helpers_categorize_batch_endpoint(client, db_session):
+    from unittest.mock import patch
+    from app.models import Category
+
+    db_session.add(Category(name="Alimentation", type="expense_var"))
+    db_session.commit()
+
+    with patch("app.services.chat.ollama_client.call_ollama_batch_async") as mock_async_batch:
+        mock_async_batch.return_value = {"BOULANGERIE": "Alimentation"}
+        res = client.post("/api/ai/categorize_batch", json={"descriptions": ["BOULANGERIE"]})
+        assert res.status_code == 200
+        assert res.json() == {"categories": {"BOULANGERIE": "Alimentation"}}
+
+
+
+

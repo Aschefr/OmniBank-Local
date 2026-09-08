@@ -111,12 +111,18 @@ Object.assign(window.BankSyncView, {
                         t.raw_description = raw;
                         if (smartRes.results[raw]) {
                             const r = smartRes.results[raw];
-                            if (r.source === 'rule' || r.source === 'history') {
+                            if (r.source === 'rule' || r.source === 'history' || r.source === 'multi_category') {
                                 t.description = r.description;
                                 if (r.category && !t.category) {
                                     t.category = r.category;
                                 }
                                 t.smart_suggested = true;
+                                t.smart_source = r.source;
+                                t.smart_is_manual = !!r.is_manual;
+                                t.smart_is_provisional = !!r.is_provisional;
+                                t.smart_is_multi_category = !!r.is_multi_category;
+                                t.smart_confidence = r.confidence ?? 1.0;
+                                t.smart_mapping_id = r.mapping_id || null;
                             }
                         }
                     });
@@ -356,6 +362,77 @@ Object.assign(window.BankSyncView, {
         this.renderReviewTable();
     },
 
+    _renderSmartBadge(tx) {
+        if (!tx || !tx.smart_suggested) return '';
+
+        const conf = typeof tx.smart_confidence === 'number' ? Math.round(tx.smart_confidence * 100) : 100;
+        let badgeText = '';
+        let badgeTip = '';
+        let badgeBg = '';
+        let badgeColor = '';
+        let badgeBorder = '';
+
+        if (tx.smart_is_manual) {
+            badgeText = (window.i18n && window.i18n.t('smart_review_badge_manual')) || '🛡️ Règle manuelle';
+            badgeTip = (window.i18n && window.i18n.t('smart_review_badge_manual_tip')) || 
+                "🏷️ Règle manuelle sanctuarisée\n• Logique : Nom et catégorie appliqués selon vos réglages personnalisés.\n• En cas d'erreur : Modifiez ou supprimez cette règle dans Paramètres > IA & Automatisation > Règles de correspondance.";
+            badgeBg = 'rgba(16, 185, 129, 0.12)';
+            badgeColor = '#10b981';
+            badgeBorder = 'rgba(16, 185, 129, 0.35)';
+        } else if (tx.smart_is_multi_category || tx.smart_source === 'multi_category') {
+            badgeText = (window.i18n && window.i18n.t('smart_review_badge_multi')) || '🔀 Multi-catégories';
+            badgeTip = (window.i18n && window.i18n.t('smart_review_badge_multi_tip')) || 
+                "🔀 Marchand multi-catégories\n• Logique : Commerçant caméléon reconnu (supermarché, Amazon, etc.). Le nom est nettoyé mais aucune catégorie n'est imposée pour éviter les erreurs d'affectation.\n• Action : Sélectionnez simplement la catégorie appropriée ci-contre pour cet achat.";
+            badgeBg = 'rgba(168, 85, 247, 0.12)';
+            badgeColor = '#a855f7';
+            badgeBorder = 'rgba(168, 85, 247, 0.35)';
+        } else if (tx.smart_is_provisional) {
+            badgeText = (window.i18n && window.i18n.t('smart_review_badge_provisional')) || '⚠️ Provisoire (1ère fois)';
+            badgeTip = (window.i18n && window.i18n.t('smart_review_badge_provisional_tip')) || 
+                "⚠️ Suggestion provisoire (confiance 60%)\n• Logique : Déduite d'une seule occurrence passée.\n• En cas d'erreur : Choisissez une autre catégorie ci-contre pour corriger immédiatement sans polluer vos règles, ou validez pour confirmer définitivement.";
+            badgeBg = 'rgba(245, 158, 11, 0.12)';
+            badgeColor = '#d97706';
+            badgeBorder = 'rgba(245, 158, 11, 0.35)';
+        } else if (tx.smart_source === 'rule') {
+            badgeText = (window.i18n && window.i18n.t('smart_review_badge_learned')) || '🤖 Règle apprise';
+            badgeTip = (window.i18n && window.i18n.t('smart_review_badge_learned_tip')) || 
+                "🤖 Règle auto-apprise\n• Logique : Confirmée automatiquement après plusieurs validations identiques pour ce marchand.\n• En cas d'erreur : Changez la catégorie ci-contre (le système réapprendra lors de la validation), ou gérez vos règles dans Paramètres > IA.";
+            badgeBg = 'rgba(99, 102, 241, 0.12)';
+            badgeColor = '#6366f1';
+            badgeBorder = 'rgba(99, 102, 241, 0.35)';
+        } else if (tx.smart_source === 'history') {
+            badgeText = (window.i18n && window.i18n.tp) 
+                ? window.i18n.tp('smart_review_badge_history', { confidence: conf }) 
+                : `🕒 Historique (${conf}%)`;
+            badgeTip = (window.i18n && window.i18n.tp)
+                ? window.i18n.tp('smart_review_badge_history_tip', { confidence: conf })
+                : `🕒 Déduit de l'historique (${conf}%)\n• Logique : Correspondance statistique trouvée dans vos transactions passées similaires.\n• En cas d'erreur : Choisissez la bonne catégorie ci-contre (la validation créera une nouvelle règle propre).`;
+            badgeBg = 'rgba(14, 165, 233, 0.12)';
+            badgeColor = '#0ea5e9';
+            badgeBorder = 'rgba(14, 165, 233, 0.35)';
+        } else {
+            badgeText = (window.i18n && window.i18n.tp)
+                ? window.i18n.tp('smart_review_badge_fallback', { confidence: conf })
+                : `💡 Suggéré (${conf}%)`;
+            badgeTip = (window.i18n && window.i18n.t('smart_review_badge_fallback_tip')) ||
+                "💡 Suggestion automatique\n• Logique : Déduite de vos opérations passées.\n• En cas d'erreur : Modifiez le nom ou la catégorie ci-contre.";
+            badgeBg = 'rgba(107, 114, 128, 0.12)';
+            badgeColor = 'var(--text-muted, #9ca3af)';
+            badgeBorder = 'rgba(107, 114, 128, 0.3)';
+        }
+
+        const tipSafe = badgeTip.replace(/"/g, '&quot;');
+        return `<span class="badge smart-label-origin-badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder};" title="${tipSafe}" onclick="window.BankSyncView && window.BankSyncView.onSmartBadgeClick && window.BankSyncView.onSmartBadgeClick('${tx.csv_id}')"><span>${badgeText}</span></span>`;
+    },
+
+    onSmartBadgeClick(csvId) {
+        const toastMsg = (window.i18n ? window.i18n.t('smart_review_badge_toast_help') : null) || 
+            "💡 Suggestion intelligente : Vous pouvez ajuster la catégorie directement ci-contre (l'apprentissage s'adaptera lors de la validation), ou gérer vos règles permanentes dans Paramètres > IA & Automatisation.";
+        if (this.showToast) {
+            this.showToast(toastMsg, 'info');
+        }
+    },
+
     renderReviewTable() {
         const tbody = document.getElementById('bankSyncReviewBody');
         if (!tbody || !this.previewData || !this.previewData.accounts) return;
@@ -494,17 +571,30 @@ Object.assign(window.BankSyncView, {
             }
 
             const showRaw = tx.raw_description && tx.raw_description !== tx.description;
-            const tipSuggested = (window.i18n ? window.i18n.t('smart_label_suggested_tooltip') || window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique / règles' : 'Suggéré d’après votre historique / règles').replace(/"/g, '&quot;');
-            const rawSubHtml = showRaw 
-                ? `<div class="review-raw-desc" style="font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 3px; font-weight: normal; opacity: 0.85; display: flex; align-items: center; gap: 4px;"><span>🏛️</span> <span>${window.escapeHtml ? window.escapeHtml(tx.raw_description) : tx.raw_description}</span> ${tx.smart_suggested ? `<span title="${tipSuggested}" style="cursor:help; font-size:11px;">💡</span>` : ''}</div>` 
-                : '';
+            const smartBadgeHtml = this._renderSmartBadge(tx);
+            let descSublineHtml = '';
+            if (showRaw || smartBadgeHtml) {
+                const rawLabelEscaped = window.escapeHtml ? window.escapeHtml(tx.raw_description) : (tx.raw_description || '');
+                const rawTip = (window.i18n ? window.i18n.t('bank_raw_label_tooltip') || 'Libellé brut d\'origine transmis par votre banque' : 'Libellé brut d\'origine transmis par votre banque').replace(/"/g, '&quot;');
+                descSublineHtml = `
+                    <div class="review-desc-subline" style="font-size: 11px; margin-top: 4px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                        ${showRaw ? `
+                            <div class="review-raw-desc" style="color: var(--text-muted); font-style: italic; opacity: 0.85; display: inline-flex; align-items: center; gap: 4px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${rawTip} : ${(tx.raw_description || '').replace(/"/g, '&quot;')}">
+                                <span>🏛️</span> <span>${rawLabelEscaped}</span>
+                            </div>
+                        ` : '<span></span>'}
+                        ${smartBadgeHtml ? `<div class="review-smart-badge-wrap">${smartBadgeHtml}</div>` : ''}
+                    </div>
+                `;
+            }
+
             const dbDesc = (tx.db_description && tx.db_description !== tx.description) 
                 ? `<div class="review-db-desc" style="font-size: 11px; color: var(--text-muted); margin-bottom: 3px;">${lblInDb} ${window.escapeHtml ? window.escapeHtml(tx.db_description) : tx.db_description}</div>` 
                 : '';
 
             const descInput = isRec 
-                ? `${dbDesc}<input type="text" class="sync-desc input-styled" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; border: 1px solid transparent; background: transparent; padding: 4px; color: var(--text-muted);" readonly>${rawSubHtml}` 
-                : `${dbDesc}<input type="text" class="sync-desc input-styled" list="bankSyncDescList" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; padding: 4px;" oninput="window.BankSyncView.onSyncDescInput(${this.currentAccountIndex}, '${tx.csv_id}', this)" onchange="window.BankSyncView.updateTxDesc(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">${rawSubHtml}`;
+                ? `${dbDesc}<input type="text" class="sync-desc input-styled" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; border: 1px solid transparent; background: transparent; padding: 4px; color: var(--text-muted);" readonly>${descSublineHtml}` 
+                : `${dbDesc}<input type="text" class="sync-desc input-styled" list="bankSyncDescList" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; padding: 4px;" oninput="window.BankSyncView.onSyncDescInput(${this.currentAccountIndex}, '${tx.csv_id}', this)" onchange="window.BankSyncView.updateTxDesc(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">${descSublineHtml}`;
 
             const catOptions = `<option value="">${lblSelectCat}</option>` + categories.filter(c => !c.is_closed).map(c => 
                 `<option value="${c.name.replace(/"/g, '&quot;')}" ${tx.category === c.name ? 'selected' : ''}>${c.name}</option>`

@@ -4,7 +4,7 @@ from sqlalchemy import Date, DateTime, desc
 from app.models import (
     ActionHistory, Transaction, Account, Category, Budget,
     BudgetCategory, BudgetAllocation, RecurrenceTemplate, OrgUser,
-    GlobalConfig, AIFact
+    GlobalConfig, AIFact, BankLabelMapping
 )
 
 MODEL_MAPPING = {
@@ -15,7 +15,8 @@ MODEL_MAPPING = {
     "budget_allocation": BudgetAllocation,
     "recurrence_template": RecurrenceTemplate,
     "org_user": OrgUser,
-    "ai_fact": AIFact
+    "ai_fact": AIFact,
+    "bank_label_mapping": BankLabelMapping,
 }
 
 
