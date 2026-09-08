@@ -27,6 +27,7 @@ router = APIRouter(prefix="/api/smart-labels", tags=["smart-labels"])
 
 class ResolveBatchRequest(BaseModel):
     labels: List[str]
+    use_ai_fallback: Optional[bool] = False
 
 
 class LearnRequest(BaseModel):
@@ -78,11 +79,68 @@ class MappingOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SimulateRequest(BaseModel):
+    raw_label: str
+    use_ai_fallback: Optional[bool] = True
+
+
 @router.post("/resolve-batch")
 def resolve_batch(req: ResolveBatchRequest, db: Session = Depends(get_db)):
     """Résout un lot de libellés bancaires bruts via les 3 niveaux (règles, fuzzy historique, brut)."""
-    results = resolve_smart_labels_batch(db, req.labels)
+    results = resolve_smart_labels_batch(db, req.labels, use_ai_fallback=bool(req.use_ai_fallback))
     return {"results": results}
+
+
+@router.post("/simulate")
+def simulate_smart_label(req: SimulateRequest, db: Session = Depends(get_db)):
+    """
+    Simule la résolution complète d'un libellé brut bancaire via le pipeline Smart Label
+    (Règles déterministes -> Historique -> Fallback IA avec habitudes et garde-fous).
+    Permet à l'utilisateur de tester en direct ou de déclencher à la demande une classification unitaire.
+    """
+    raw_label = (req.raw_label or "").strip()
+    if not raw_label:
+        raise HTTPException(status_code=400, detail="Le libellé brut ne peut pas être vide")
+
+    res = resolve_smart_label(db, raw_label, use_ai_fallback=bool(req.use_ai_fallback))
+
+    source = res.get("source", "none")
+    category = res.get("category")
+    description = res.get("description", raw_label)
+    is_multi = bool(res.get("is_multi_category", False))
+    is_man = bool(res.get("is_manual", False))
+    confidence = float(res.get("confidence", 0.0))
+
+    # Diagnostic pédagogique pour l'utilisateur
+    if source == "rule":
+        if is_man:
+            explanation = "Correspondance trouvée dans vos règles manuelles sanctuarisées."
+        else:
+            explanation = "Correspondance trouvée dans vos règles apprises de libellés."
+    elif source == "multi_category":
+        explanation = "Enseigne multi-catégories détectée : libellé propre extrait, catégorie laissée libre."
+    elif source == "history":
+        explanation = "Correspondance sémantique déduite de votre historique de transactions réelles."
+    elif source == "ai":
+        explanation = "Nommé et classé par inférence de votre modèle d'IA locale selon vos habitudes."
+    elif source == "ambiguous":
+        explanation = "Historique dispersé entre plusieurs catégories sans consensus net (arbitrage requis)."
+    elif source == "ignored":
+        explanation = "Ce motif bancaire est marqué comme exclu/ignoré de la catégorisation."
+    else:
+        explanation = "Aucune correspondance mathématique trouvée dans les règles ou l'historique."
+
+    return {
+        "raw_label": raw_label,
+        "description": description,
+        "category": category,
+        "source": source,
+        "confidence": confidence,
+        "is_manual": is_man,
+        "is_multi_category": is_multi,
+        "explanation": explanation,
+        "mapping_id": res.get("mapping_id")
+    }
 
 
 @router.get("/mappings")

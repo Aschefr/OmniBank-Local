@@ -25,6 +25,59 @@ window.ConfigSmartLabels = {
                     ${window.i18n?.t('smart_label_section_desc') || 'OmniBank apprend automatiquement vos habitudes de nommage et vos catégories à chaque fois que vous enregistrez une opération bancaire. Vous pouvez consulter, ajouter ou supprimer vos correspondances ci-dessous.'}
                 </p>
 
+                <!-- 🧪 Banc d'Essai & Simulation Smart Label (Atelier Smart Labels) -->
+                <div id="smartLabelSandbox" class="smart-label-sandbox-box" style="margin-bottom: 18px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 14px 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="font-weight: 700; font-size: 13px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                            <span>🧪</span> <span>${window.i18n?.t('smart_label_sandbox_title') || 'Banc d\'Essai & Simulation Smart Label'}</span>
+                        </span>
+                        <span class="badge" style="font-size: 10px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); padding: 2px 6px; border-radius: 6px;">Pipeline Temps Réel</span>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 10px 0; line-height: 1.35;">
+                        ${window.i18n?.t('smart_label_sandbox_desc') || 'Testez en direct la normalisation, l\'application de vos règles, la détection d\'habitudes et le fallback IA sur un libellé brut.'}
+                    </p>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="sandboxRawInput" class="inline-input" placeholder="${window.i18n?.t('smart_label_sandbox_placeholder') || 'Ex: CB LEROY MERLIN BRICOLAGE 7501...'}" style="flex: 1; min-width: 220px; font-size: 12px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-surface);" onkeydown="if(event.key === 'Enter') window.ConfigSmartLabels.runSandboxTest();" />
+                        <button id="btnRunSandboxTest" class="btn btn-secondary" onclick="window.ConfigSmartLabels.runSandboxTest()" style="min-width: 195px; justify-content: center; font-size: 12px; padding: 8px 14px; border-radius: 6px; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; border-color: var(--accent); color: var(--accent);">
+                            <span>🧪</span> <span>${window.i18n?.t('smart_label_sandbox_btn') || 'Tester le Smart Label'}</span>
+                        </button>
+                    </div>
+
+                    <!-- Carte de diagnostic visuelle (masquée par défaut) -->
+                    <div id="sandboxResultCard" style="display: none; margin-top: 12px; padding: 12px 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow-sm);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <strong style="font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                <span>📋</span> <span>Résultat du Diagnostic :</span>
+                            </strong>
+                            <button type="button" onclick="window.ConfigSmartLabels.closeSandboxResult()" style="background: none; border: none; font-size: 14px; color: var(--text-muted); cursor: pointer; padding: 0 4px;" title="Fermer">✕</button>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 12px; margin-bottom: 10px;">
+                            <div style="background: var(--bg-base); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+                                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_raw') || 'Libellé brut analysé'}</div>
+                                <div id="sandboxResRaw" style="font-family: monospace; font-weight: 600; color: var(--text-main); word-break: break-all; margin-top: 2px;"></div>
+                            </div>
+                            <div style="background: var(--bg-base); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+                                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_name') || 'Nom retenu'}</div>
+                                <div id="sandboxResName" style="font-weight: 700; color: var(--accent); margin-top: 2px;"></div>
+                            </div>
+                            <div style="background: var(--bg-base); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+                                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_cat') || 'Catégorie déduite'}</div>
+                                <div id="sandboxResCat" style="font-weight: 600; color: var(--text-main); margin-top: 2px;"></div>
+                            </div>
+                            <div style="background: var(--bg-base); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+                                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_source') || 'Source d\'analyse'}</div>
+                                <div id="sandboxResSource" style="margin-top: 2px;"></div>
+                            </div>
+                        </div>
+                        <div id="sandboxResExplanation" style="font-size: 11px; color: var(--text-muted); font-style: italic; margin-bottom: 12px; padding: 4px 8px; background: rgba(99, 102, 241, 0.04); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0;"></div>
+                        <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+                            <button id="btnSaveSandboxRule" class="btn btn-primary" onclick="window.ConfigSmartLabels.saveSandboxAsRule()" style="font-size: 11px; padding: 6px 12px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                                <span>💾</span> <span>${window.i18n?.t('smart_label_sandbox_save_rule') || 'Enregistrer comme règle permanente'}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Formulaire d'ajout rapide -->
                 <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; background: var(--bg-base); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color);">
                     <select id="smart_label_action_select" class="inline-input" style="min-width: 170px; font-size: 12px; padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-weight: 600;" onchange="window.ConfigSmartLabels.toggleActionType()">
@@ -808,6 +861,157 @@ window.ConfigSmartLabels = {
             console.error('[SmartLabels] Erreur suppression règle:', e);
             if (typeof showInlineMessage === 'function') {
                 showInlineMessage('Erreur', e.detail || e.message || 'Impossible de supprimer la règle');
+            }
+        }
+    },
+
+    // ── BANC D'ESSAI & SIMULATION IA ─────────────────────────────────
+    _lastSandboxResult: null,
+
+    async runSandboxTest() {
+        const inputEl = document.getElementById('sandboxRawInput');
+        const btn = document.getElementById('btnRunSandboxTest');
+        const card = document.getElementById('sandboxResultCard');
+        if (!inputEl || !btn) return;
+
+        const raw = inputEl.value.trim();
+        if (!raw) {
+            inputEl.focus();
+            return;
+        }
+
+        // 1. Masquer immédiatement le précédent résultat pour une UX réactive et nette
+        if (card) {
+            card.style.display = 'none';
+        }
+        this._lastSandboxResult = null;
+
+        // 2. État visuel de chargement avec largeur stable (évite tout saut ou clignotement)
+        const origHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> <span>' + (window.i18n?.t('smart_label_sandbox_testing') || 'Simulation en cours...') + '</span>';
+
+        const startTime = Date.now();
+
+        try {
+            const res = await API.post('/api/smart-labels/simulate', {
+                raw_label: raw,
+                use_ai_fallback: true
+            });
+
+            // Plancher de 250ms pour que l'utilisateur perçoive nettement la transition même si la réponse SQLite est quasi-instantanée
+            const elapsed = Date.now() - startTime;
+            if (elapsed < 250) {
+                await new Promise(r => setTimeout(r, 250 - elapsed));
+            }
+
+            if (res) {
+                this._lastSandboxResult = { raw: raw, result: res };
+
+                const rawEl = document.getElementById('sandboxResRaw');
+                const nameEl = document.getElementById('sandboxResName');
+                const catEl = document.getElementById('sandboxResCat');
+                const sourceEl = document.getElementById('sandboxResSource');
+                const explEl = document.getElementById('sandboxResExplanation');
+
+                if (rawEl) rawEl.textContent = res.raw_label || raw;
+                if (nameEl) nameEl.textContent = res.description || raw;
+                if (catEl) {
+                    if (res.is_multi_category) {
+                        catEl.innerHTML = '<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #a855f7; font-weight: 700;">🔀 Multi-catégories</span>';
+                    } else if (res.category) {
+                        catEl.innerHTML = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700;">🏷️ ${window.escapeHtml ? window.escapeHtml(res.category) : res.category}</span>`;
+                    } else {
+                        catEl.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">-- Non catégorisé --</span>';
+                    }
+                }
+
+                if (sourceEl) {
+                    const conf = Math.round((res.confidence ?? 0) * 100);
+                    let badgeBg = 'rgba(99, 102, 241, 0.12)';
+                    let badgeColor = 'var(--accent)';
+                    let badgeText = `${res.source} (${conf}%)`;
+
+                    if (res.source === 'rule') {
+                        badgeText = res.is_manual ? '🛡️ Règle manuelle' : '🤖 Règle apprise';
+                        badgeBg = res.is_manual ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.15)';
+                        badgeColor = res.is_manual ? '#10b981' : '#6366f1';
+                    } else if (res.source === 'history') {
+                        badgeText = `🕒 Historique (${conf}%)`;
+                        badgeBg = 'rgba(14, 165, 233, 0.15)';
+                        badgeColor = '#0ea5e9';
+                    } else if (res.source === 'ai') {
+                        badgeText = `🤖 Inférence IA (${conf}%)`;
+                        badgeBg = 'rgba(236, 72, 153, 0.15)';
+                        badgeColor = '#ec4899';
+                    } else if (res.source === 'multi_category') {
+                        badgeText = '🔀 Caméléon natif';
+                        badgeBg = 'rgba(168, 85, 247, 0.15)';
+                        badgeColor = '#a855f7';
+                    } else if (res.source === 'ignored') {
+                        badgeText = '🚫 Motif ignoré';
+                        badgeBg = 'rgba(239, 68, 68, 0.15)';
+                        badgeColor = '#ef4444';
+                    } else {
+                        badgeText = '❓ Aucun match (0%)';
+                        badgeBg = 'rgba(107, 114, 128, 0.15)';
+                        badgeColor = 'var(--text-muted)';
+                    }
+                    sourceEl.innerHTML = `<span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; font-weight: 700;">${badgeText}</span>`;
+                }
+
+                if (explEl) {
+                    explEl.textContent = res.explanation || '';
+                }
+
+                if (card) {
+                    card.style.display = 'block';
+                    card.style.animation = 'configFadeIn 0.25s ease-out';
+                }
+            }
+        } catch (e) {
+            console.error('[SmartLabels] Erreur test banc d\'essai:', e);
+            if (typeof showToast === 'function') {
+                showToast('Erreur test simulation : ' + (e.detail || e.message), 'error');
+            }
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    },
+
+    closeSandboxResult() {
+        const card = document.getElementById('sandboxResultCard');
+        if (card) card.style.display = 'none';
+        this._lastSandboxResult = null;
+    },
+
+    async saveSandboxAsRule() {
+        if (!this._lastSandboxResult) return;
+        const { raw, result } = this._lastSandboxResult;
+
+        try {
+            const payload = {
+                raw_pattern: raw,
+                clean_description: result.description || null,
+                category: result.is_multi_category ? null : (result.category || null),
+                is_manual: true,
+                is_multi_category: !!result.is_multi_category,
+                is_ignored: result.source === 'ignored'
+            };
+
+            await API.post('/api/smart-labels/mappings', payload);
+            await this.loadMappings();
+
+            const toastMsg = window.i18n?.t('smart_label_sandbox_saved_toast') || 'Règle mémorisée avec succès !';
+            if (typeof showToast === 'function') {
+                showToast(toastMsg, 'success');
+            }
+            this.closeSandboxResult();
+        } catch (e) {
+            console.error('[SmartLabels] Erreur sauvegarde règle sandbox:', e);
+            if (typeof showToast === 'function') {
+                showToast('Erreur enregistrement règle : ' + (e.detail || e.message), 'error');
             }
         }
     }

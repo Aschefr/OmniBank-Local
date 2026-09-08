@@ -2486,5 +2486,21 @@
   "smart_label_edit_cat_selection": "Selection:",
   "smart_label_edit_cat_clear_btn": "-- No category --",
   "smart_label_edit_cat_no_match": "No category found",
-  "smart_label_edit_cat_matches": "{count} category(ies)"
+  "smart_label_edit_cat_matches": "{count} category(ies)",
+  "smart_label_ai_classify_btn": "Name and categorize with AI",
+  "smart_label_ai_classify_tooltip": "Name and categorize with AI",
+  "smart_label_ai_classified_toast": "✨ Named '{name}' and categorized under '{category}'",
+  "smart_label_sandbox_title": "Smart Label Test Sandbox",
+  "smart_label_sandbox_desc": "Test raw label normalization, rule matching, habit detection, and AI fallback live.",
+  "smart_label_sandbox_placeholder": "e.g. CB LEROY MERLIN BRICOLAGE 7501...",
+  "smart_label_sandbox_btn": "Test Smart Label",
+  "smart_label_sandbox_testing": "Simulating...",
+  "smart_label_sandbox_save_rule": "Save as permanent rule",
+  "smart_label_sandbox_saved_toast": "Rule saved successfully!",
+  "smart_label_sandbox_close": "Close",
+  "smart_label_sandbox_res_raw": "Raw analyzed label",
+  "smart_label_sandbox_res_name": "Retained name",
+  "smart_label_sandbox_res_cat": "Inferred category",
+  "smart_label_sandbox_res_source": "Analysis source",
+  "smart_label_sandbox_res_explanation": "Diagnostic"
 }
