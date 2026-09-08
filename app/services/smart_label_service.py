@@ -98,8 +98,8 @@ def normalize_raw_label(raw: str) -> str:
 
 
 def _tokenize(text: str) -> Set[str]:
-    """Extrait les tokens signifiants (>= 2 caractères)."""
-    return {t for t in re.split(r'\s+', text.upper()) if len(t) >= 2}
+    """Extrait les tokens signifiants (alphanumériques)."""
+    return {t for t in re.split(r'\s+', text.upper()) if t and t.isalnum()}
 
 
 def _compute_match_score_precomputed(
@@ -127,16 +127,36 @@ def _compute_match_score_precomputed(
     if not pat_tokens or not cand_tokens:
         return 0.0
 
+    # Correspondances de tokens : exacts ou abréviations préfixes (>= 3 lettres)
+    matched_pat = set()
+    matched_cand = set()
+    for pt in pat_tokens:
+        for ct in cand_tokens:
+            if pt == ct:
+                matched_pat.add(pt)
+                matched_cand.add(ct)
+            elif len(pt) >= 3 and ct.startswith(pt):
+                matched_pat.add(pt)
+                matched_cand.add(ct)
+            elif len(ct) >= 3 and pt.startswith(ct):
+                matched_pat.add(pt)
+                matched_cand.add(ct)
+
+    ratio = difflib.SequenceMatcher(None, pat_clean, cand_clean).ratio()
+
+    # Si tous les tokens du motif sont couverts (exactement ou par préfixe/abréviation)
+    if matched_pat and len(matched_pat) == len(pat_tokens):
+        jaccard = len(matched_pat) / max(len(pat_tokens.union(cand_tokens)), 1)
+        return min(1.0, 0.75 + 0.15 * jaccard + 0.10 * ratio)
+
     # Tokens signifiants (hors stop-words génériques)
     common_sig = sig_pat.intersection(sig_cand)
     strong_matches = [t for t in common_sig if len(t) >= 4]
 
     # Filtre rapide : si aucun token en commun et longueurs très divergentes, le ratio ne peut atteindre 0.75
     intersection = pat_tokens.intersection(cand_tokens)
-    if not intersection and not strong_matches and abs(len(pat_clean) - len(cand_clean)) > 4:
+    if not intersection and not matched_pat and not strong_matches and abs(len(pat_clean) - len(cand_clean)) > 4:
         return 0.0
-
-    ratio = difflib.SequenceMatcher(None, pat_clean, cand_clean).ratio()
 
     if strong_matches:
         jaccard = len(common_sig) / max(len(sig_pat.union(sig_cand)), 1)

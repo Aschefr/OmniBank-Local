@@ -129,32 +129,20 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - [`app/services/credential_vault.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/credential_vault.py) (`CredentialVault`, `VaultSessionManager`)
   - [`app/services/bank_sync_scheduler.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py) (`bank_sync_scheduler_loop`, `trigger_manual_auto_sync`)
   - [`app/routers/bank_sync.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/bank_sync.py) (`/vault/unlock`)
-* **État d'avancement actuel : 80%**
+* **État d'avancement actuel : 100% — ✅ LIVRÉ (v1.1.4 / Étape 1)**
   - ✅ Chiffrement Fernet + dérivation PBKDF2-HMAC-SHA256 (480 000 itérations).
   - ✅ Gestion de session en mémoire vive avec TTL (jours) scopée par profil (`VaultSessionManager`).
   - ✅ Boucle planifiée d'arrière-plan (`bank_sync_scheduler_loop`) vérifiant toutes les 60s si le mot de passe maître est présent en RAM.
-* **Ce qu'il reste à faire** :
-  1. **Interrupteur Maître & Clé de Configuration (`auto_pilot_enabled`)** :
-     - Ajouter la clé `auto_pilot_enabled` (bool, default: `"false"`) dans `GlobalConfig` dès l'Étape 1 pour que le mode manuel classique soit rigoureusement protégé et que les briques suivantes puissent s'activer sous condition sans régression.
-  2. **Hook réactif et paramétrable `on_vault_unlocked` (Synchro Immédiate vs Déverrouillage Passif)** :
-     - Ajouter un paramètre utilisateur `bank_sync_on_vault_unlock` (bool, mémorisé dans `GlobalConfig`, avec case à cocher dans les réglages de synchronisation et optionnellement dans la modale de déverrouillage) :
-       * **Mode A — Déverrouillage avec Synchro Immédiate (`sync_on_vault_unlock = true`, par défaut)** :
-         Lors de l'appel `/vault/unlock`, le mot de passe maître est chargé en RAM et l'application appelle immédiatement la fonction d'arrière-plan existante `trigger_manual_auto_sync(profile_id=active_pid, vault_token=token)` de [`app/services/bank_sync_scheduler.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py). Cette fonction est enrichie d'une **garde de cooldown anti-spam** (vérifiant `last_auto_sync_attempt` dans `GlobalConfig`, minimum 3 heures). Si le cooldown n'est pas expiré, `trigger_manual_auto_sync` s'abstient d'émettre des requêtes vers la banque et retourne le temps restant sans bloquer le retour HTTP ($< 200$ ms).
-       * **Mode B — Déverrouillage Passif Silencieux (`sync_on_vault_unlock = false`)** :
-         L'utilisateur déverrouille son coffre uniquement pour placer la clé de déchiffrement en mémoire vive (`VaultSessionManager`) pour la durée demandée (`remember_days` : 3, 7, 14, 30 jours, ou session active). **Aucun appel réseau vers la banque n'est émis à l'instant T**. C'est le planificateur automatique d'arrière-plan (`bank_sync_scheduler_loop`), calé sur l'intervalle coché (12h, 24h ou 48h), qui effectuera les relevés au fil de l'eau.
-     - **Prise en compte des deux profils d'exécution** :
-       * **Mode Serveur / Conteneur Docker (24h/24)** : L'application tourne en tâche de fond continue. L'utilisateur déverrouille une fois avec `remember_days = 14` ou `30` jours en mode passif. Aucun appel réseau vers la banque n'est émis à l'instant T. C'est le planificateur automatique d'arrière-plan (`bank_sync_scheduler_loop`), calé sur l'intervalle coché (12h, 24h ou 48h), qui effectuera les relevés au fil de l'eau sans re-demander de mot de passe.
-       * **Mode Desktop Tauri (Windows / Mac / Linux)** : La clé reste en RAM durant toute la session applicative (tant que la fenêtre de l'application reste ouverte, ou jusqu'à fermeture / expiration TTL). L'utilisateur peut consulter ses comptes hors-ligne sans subir d'appel réseau intempestif, tandis que le relevé 12h/24h/48h prend le relais en arrière-plan tant que l'application reste en cours d'exécution.
-  3. **Régulateur de Fréquence Persistant (Cooldown Policy & Distinction Manuel / Auto)** :
-      - Mémoriser le timestamp du dernier relevé dans la table `GlobalConfig` (`last_auto_sync_attempt`).
-      - Si l'utilisateur quitte et relance l'application de façon répétée, le système refuse de re-solliciter les serveurs bancaires tant que le cooldown (ex: 3 heures) n'est pas expiré.
-      - **Distinction claire** : Le hook réactif au déverrouillage (`on_vault_unlocked`) respecte strictement le cooldown anti-spam. En revanche, le bouton explicite *"Synchroniser maintenant"* permet de forcer le relevé immédiat (`force=True`) tout en prévenant si une synchro s'est terminée il y a moins de 10 minutes.
-   4. **Isolation de Session SQLAlchemy & Concurrence Thread-Safe** :
-      - `execute_auto_sync_for_connection` instancie et ferme sa propre session `SessionProf` au sein de chaque thread worker dans l'executor (comme le fait déjà `trigger_manual_auto_sync`), évitant tout partage de session non thread-safe entre la boucle asyncio et les threads d'arrière-plan.
-   5. **Mode Catch-Up (Rattrapage Multi-Jours & Tri Chronologique Woob)** :
-      - Les modules Woob (`iter_history`) retournant les opérations par défaut dans l'ordre antéchronologique (du plus récent au plus ancien), un tri chronologique strict `history_raw.sort(key=lambda x: x["tx_date_obj"])` est impérativement appliqué avant tout traitement.
-      - L'Auto-Pilote ingère le lot d'opérations accumulées de façon ordonnée et atomique (mise à jour séquentielle du solde et pointage en un seul commit sans inversion temporelle).
-   6. **Gestion asynchrone non-bloquante du 2FA** : Si une banque requiert une validation mobile (SCA / AppValidation), le scheduler ne doit pas se bloquer : il émet une notification in-app claire et met la connexion en attente.
+  - ✅ **Interrupteur Maître & Clé de Configuration (`auto_pilot_enabled`)** : Clé technique interne initialisée à `"false"` dans `GlobalConfig` (SQLite v24) garantissant le mode manuel classique par défaut.
+  - ✅ **Hook réactif et paramétrable `on_vault_unlocked`** : Paramètre utilisateur `sync_on_vault_unlock` (géré en base et dans les réglages/modale) permettant la bascule entre le Mode A (Relevé immédiat au déverrouillage, `< 200 ms`) et le Mode B (Déverrouillage passif silencieux en RAM sans requête réseau bancaire à T0).
+  - ✅ **Prise en charge des deux cycles de vie** : Conteneur Docker 24/7 (maintien de session selon TTL) et Desktop Tauri (session en mémoire vive active).
+  - ✅ **Régulateur de Fréquence Persistant (Cooldown Policy 3h)** : Clé `GlobalConfig.last_auto_sync_attempt` protégeant les serveurs bancaires lors d'ouvertures/fermetures répétées, avec maintien du forçage manuel immédiat (`force=True`).
+  - ✅ **Isolation de Session SQLAlchemy & Concurrence Thread-Safe** : Sessions dédiées `SessionProf` au sein de chaque thread worker, et verrou d'exécution anti-collision `_ACTIVE_BACKGROUND_THREADS` avec vérification `t.is_alive()` éliminant les doubles relevés et doubles notifications.
+  - ✅ **Horodatage ISO UTC & Affichage Heure Locale** : Suffixe standard `Z` sur les dates de notifications (`app/routers/notifications.py`) et helper de normalisation `_parseNotifDate` (`app.js`) garantissant une restitution fidèle au fuseau local de l'utilisateur.
+  - ✅ **Rafraîchissement Réactif Global en Temps Réel** : Branchement de `BankSyncView.refreshActiveViews()` dès la fin du relevé en tâche de fond ou la réception de notification bancaire (actualisation immédiate de l'Overview, Dashboard/Timeline, Opérations, Comptes et soldes sans F5).
+  - ✅ **Mode Catch-Up & Tri Chronologique Strict** : Tri croissant systématique `history_raw.sort(key=lambda x: x["tx_date_obj"])` et `coming_raw` éliminant l'antéchronologie Woob.
+  - ✅ **Gestion asynchrone non-bloquante du 2FA** : Notifications in-app dédiées et attente sans thread bloqué.
+  - ✅ **Suite de tests unitaires et d'intégration validée** : 100% de succès sur le Pack de Test 1 (T1.1 à T1.5 dans `tests/test_bank_sync_step1.py`).
 
 > [!NOTE]
 > **Périmètre Desktop (Tauri Rust) vs Backend (Brique 1)** :
@@ -197,7 +185,7 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 > **Dette Technique Soldée — Refactoring `check_reconciliation` (Étape 0)** :
 > La fonction `check_reconciliation` a été extraite avec succès depuis le routeur `csv_parser.py` vers son module dédié [`app/services/reconciliation_engine.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/reconciliation_engine.py) (Jalon 0.1), éliminant la dépendance inversée et préparant l'orchestration par `AutoPilotService`.
 
-* **État d'avancement actuel : 85%**
+* **État d'avancement actuel : 100% — ✅ LIVRÉ (Étape 2)**
   - ✅ Score composite de matching (0 à 100 points) :
     - Empreinte bancaire unique (`csv_id`) : 100 pts.
     - Montant exact ($\pm 0.01$ €) : 40 pts.
@@ -207,14 +195,13 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - ✅ Distinction nette entre opérations confirmées et opérations à venir (`is_coming`).
   - ✅ Empreinte idempotente des fichiers (`csv_id` déterministe SHA-256 + index intra-lot dans `csv_parser.py` — Jalon 0.3).
   - ✅ Modèle de traçabilité `AutopilotDecisionLog` dans `app/models.py`, schéma v24 SQLite et DTO Pydantic `AutopilotDecisionLogOut` (Jalons 0.4, 0.5, 0.6).
-* **Ce qu'il reste à faire** :
-  1. **Séparation Stricte : Évaluation Pure vs Mutation Orchestrée (Étape 2)** :
-     - `check_reconciliation` (dans `reconciliation_engine.py`) demeure une fonction d'évaluation pure (0 à 100 points) sans effet de bord ni commit DB. Elle renvoie toutes les correspondances candidates éligibles (score $\ge 60$ pts pour alimenter les suggestions du cockpit manuel).
-     - C'est l'orchestrateur partagé `AutoPilotService` qui, lorsque `auto_pilot_enabled == True`, applique le rapprochement automatique en base uniquement pour les scores en **Zone Verte ($\ge 85$ pts)** et inscrit la décision dans `AutopilotDecisionLog` avec horodatage, score, `batch_id` (identifiant de cycle) et snapshot.
-  2. **Politique d'Auto-Validation (Auto-Commit Threshold)** :
-     - **Zone Verte ($\ge 85$ pts ou `csv_id` identique)** : Rapprochement automatique immédiat en base de données.
-     - **Zone Orange ($60 \le \text{Score} < 85$ pts)** : Maintien dans le Sas d'attente (Cockpit) avec statut *"Rapprochement suggéré"* pour validation manuelle.
-     - **Zone Rouge ($< 60$ pts)** : Traitée comme nouvelle opération distincte (aucun rapprochement forcé).
+  - ✅ **Séparation Stricte : Évaluation Pure vs Mutation Orchestrée** : `check_reconciliation` (`reconciliation_engine.py`) reste une fonction pure d'évaluation sans mutation, tandis que `AutoPilotService.process_incoming_batch()` (`autopilot_service.py`) orchestre l'auto-commit DB, le journal de bord `AutopilotDecisionLog`, la traçabilité Undo/Redo `ActionHistory` et l'invalidation du cache de statistiques.
+  - ✅ **Politique d'Auto-Validation (Auto-Commit Threshold)** :
+    - **Zone Verte ($\ge 85$ pts ou `csv_id` identique sans collision)** : Rapprochement automatique instantané en base.
+    - **Zone Orange ($60 \le \text{Score} < 85$ pts)** : Maintien dans le Sas d'attente (Cockpit) avec statut *"Rapprochement suggéré"*.
+    - **Zone Rouge ($< 60$ pts)** : Traitée comme nouvelle opération distincte.
+  - ✅ **Détection Anti-Collision sur Montants Homonymes** : Si plusieurs prévisions concordent au centime près, l'arbitrage textuel départage les candidats ; en l'absence de discriminant, `collision_detected = True` neutralise l'auto-commit et bascule l'opération dans le sas d'attente pour arbitrage humain.
+  - ✅ **Suite de tests unitaires et d'intégration validée** : 100% de succès sur le Pack de Test 2 (T2.1 à T2.8 dans `tests/test_autopilot_step2.py`).
 
 ### Brique 4 : Détection & Promotion des Récurrences (Anticipation Reste à Vivre)
 *Détecter automatiquement les opérations répétées pour affiner le Reste à Vivre sans polluer la base de données.*
@@ -284,17 +271,15 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - [`app/services/bank_sync_scheduler.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py) (`save_pending_sync_data`, `_PENDING_SYNC_DATA`)
   - [`app/routers/csv_manager.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/csv_manager.py) (`import_to_pending`)
   - [`app/routers/bank_sync.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/bank_sync.py)
-* **État d'avancement actuel : 90%**
+* **État d'avancement actuel : 95%**
   - ✅ Sas d'attente persistant (RAM + `GlobalConfig`).
   - ✅ Déduplication automatique entre imports de fichiers CSV et connexions bancaires en ligne.
   - ✅ Cockpit visuel ergonomique permettant d'ignorer, modifier ou valider les opérations.
   - ✅ Support multi-onglets XLSX & multi-sections CSV avec mémorisation de mapping par compte (`GlobalConfig.file_account_mapping`) et ré-évaluation dynamique instantanée du rapprochement (Phase B / v1.1.3).
-* **Ce qu'il reste à faire** :
-  1. **Unification du Pipeline d'Ingestion & Routage Dynamique** :
-     - Les relevés Woob (`execute_auto_sync_for_connection`) et les imports de fichiers (`import_to_pending`) transitent par la même méthode `AutoPilotService.process_incoming_batch()`.
-     - **Mode Auto-Pilote DÉSACTIVÉ** : 100% des opérations vont dans le Sas (comportement manuel classique rigoureusement inchangé).
-     - **Mode Auto-Pilote ACTIVÉ** : Les opérations à haute certitude court-circuitent le Sas et sont écrites directement en DB avec enregistrement d'un `raw_snapshot` dans `AutopilotDecisionLog` ; seules les anomalies et doutes sont dirigés vers le Sas pour arbitrage humain.
-  2. **Notification d'Arbitrage Épurée** : L'utilisateur n'est notifié que s'il y a des opérations nécessitant un arbitrage humain dans le Sas.
+  - ✅ **Unification du Pipeline d'Ingestion & Routage Dynamique** : Les relevés Woob (`execute_auto_sync_for_connection`) et les imports de fichiers (`import_to_pending`) transitent désormais par le point d'entrée unique `AutoPilotService.process_incoming_batch()`.
+  - ✅ **Routage Conditionnel Transparent** : Si l'Auto-Pilote est désactivé, 100% des opérations vont dans le Sas (comportement manuel classique 100% intact). S'il est activé, les rapprochements à haute certitude court-circuitent le Sas avec audit et notification enrichie.
+* **Ce qu'il reste à faire (Étape 3)** :
+  1. **Adaptation Dropzone CSV / Excel (`import_wizard.js`)** : Fermeture automatique de la modale avec toast de confirmation lorsque 100% des opérations d'un lot sont traitées de manière autonome (`pending === 0`), sans ouvrir de modale de revue vide.
 
 ---
 
@@ -466,8 +451,8 @@ La transition vers l'Auto-Pilote s'effectuera en **7 étapes autonomes**, chacun
 
 ```mermaid
 graph TD
-    Z["Étape 0 : Fondations & Pré-requis Techniques<br/>Migration DB, Refactoring check_reconciliation, Init GlobalConfig"] --> A["Étape 1 : Réactivité Déverrouillage + Cooldown<br/>Modes Immédiat / Passif & Tri Chrono"]
-    A --> B["Étape 2 : Orchestrateur AutoPilotService<br/>Auto-Rapprochement & Modèle DecisionLog"]
+    Z["Étape 0 : Fondations & Pré-requis Techniques<br/>✅ 100% (v1.1.3)"] --> A["Étape 1 : Réactivité Déverrouillage + Cooldown<br/>✅ 100% (v1.1.4)"]
+    A --> B["Étape 2 : Orchestrateur AutoPilotService<br/>Auto-Rapprochement & Modèle DecisionLog<br/>✅ 100% PASS"]
     B --> C["Étape 3 : Ingestion Autonome des Écritures<br/>Smart Labels & Fallback Ollama par lot"]
     C --> D["Étape 4 : Détection & Promotion Récurrences<br/>Charges Candidates Dynamiques (Reste à Vivre)"]
     D --> E["Étape 5 : Lissage Budgétaire EMA Déterministe<br/>(budget_service.py 100% Offline)"]
@@ -501,19 +486,14 @@ graph TD
     - [x] **Jalon 1.8 : Clés i18n bilingues et Pack de test 1 validé** : Synchronisation complète FR/EN et 7/7 tests unitaires du Pack de Test 1 passés avec succès (`tests/test_bank_sync_step1.py`).
     - *Bénéfice immédiat* : L'utilisateur maîtrise son mode de déverrouillage, aucun risque de spam ou de ban bancaire, et les écritures sont rigoureusement ordonnées dans le temps.
 
-2. **Étape 2 : Moteur d'Orchestration d'Ingestion, Auto-Rapprochement & Modèle DecisionLog**
-    - **Création du service d'orchestration unifié `app/services/autopilot_service.py`** (`process_incoming_transactions_batch`) appelé à la fois par `bank_sync_scheduler.py` (Woob) et `csv_manager.py` (fichiers). Le service reçoit systématiquement le `profile_id` courant et invalide le cache via `stats_cache.invalidate(profile_id)`.
-    - **Création du modèle SQLAlchemy `AutopilotDecisionLog`** dans `app/models.py` avec `batch_id` (UUID v4), `conn_id` (Integer nullable), `account_id` (Integer nullable), `is_undone` (BOOLEAN default False) et `undone_at` (DATETIME nullable) pour journaliser dès cette étape chaque décision et archiver le `raw_snapshot` garantissant la réversibilité et le rollback sémantique par cycle.
-    - **Liaison avec le Système Global d'Actions & Undo/Redo (`app.services.history_service`)** : En plus du journal `AutopilotDecisionLog`, chaque écriture ou rapprochement automatique appelle `record_action(db, "transaction", tx.id, "CREATE"|"UPDATE", before_snap, snapshot_entity(tx), user_name="Auto-Pilote")`, assurant la cohérence parfaite des flèches Undo/Redo du header (`updateHeaderHistoryState()`) et de l'onglet "Actions".
-    - **Points d'insertion dans le code existant** : Les branchements conditionnels `if auto_pilot_enabled` seront insérés dans :
-      * [`bank_sync_scheduler.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py) — au point où `save_pending_sync_data()` est appelé (ligne ~544), pour router vers `AutoPilotService.process_incoming_batch()` si actif.
-      * [`csv_manager.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/csv_manager.py) — au point `import_to_pending` (ligne ~423), même logique de routage conditionnel.
-    - **Double échelle d'évaluation dans `reconciliation_engine.py`** : la fonction `check_reconciliation` calcule le score composite pur (0-100 pts) ; un score $\ge 60$ qualifie l'opération comme *« Rapprochement suggéré »* pour revue humaine dans le Cockpit, tandis que `AutoPilotService` n'applique l'auto-commit direct en base qu'à partir du seuil de haute certitude ($\ge 85$ pts).
-    - **Anti-Collision sur Montants Homonymes** : détection des conflits de score et orientation vers le Sas avec `collision_detected = True`.
-    - Option *"Rapprocher automatiquement les correspondances parfaites"* dans la page Comptes.
-    - **Clés i18n requises (Étape 2)** :
-      * `autopilot_decision_reconciliation`, `autopilot_decision_new_entry`, `autopilot_decision_categorization`
-      * `autopilot_collision_detected`, `autopilot_suggested_match`, `autopilot_auto_committed`
+2. **Étape 2 : Moteur d'Orchestration d'Ingestion, Auto-Rapprochement & Modèle DecisionLog** — `✅ 100% PASS`
+    - [x] **Jalon 2.0 : Initialisation des clés `GlobalConfig`** : Ajout des clés `auto_pilot_enabled` ('false'), `bank_sync_on_vault_unlock` ('true') et `last_auto_sync_attempt` ('') dans `app/init_data.py` (bloc `schema_version < 24`) avec protection `INSERT OR IGNORE`.
+    - [x] **Jalon 2.1 : Enrichissement de `reconciliation_engine.py`** : Double échelle d'évaluation (score $\ge 60$ suggéré vs $\ge 85$ auto-commit direct) et détection anti-collision sur montants homonymes (`collision_detected = True`).
+    - [x] **Jalon 2.2 : Création du service d'orchestration unifié `app/services/autopilot_service.py`** (`process_incoming_batch`) appelé à la fois par `bank_sync_scheduler.py` (Woob) et `csv_manager.py` (fichiers). Inscription dans `AutopilotDecisionLog`, traçabilité Undo/Redo dans `ActionHistory` et invalidation de `stats_cache.invalidate(profile_id)`.
+    - [x] **Jalon 2.3 : Branchement conditionnel dans `bank_sync_scheduler.py`** : Routage transparent si actif, maintien 100% intact du Sas si inactif, notifications enrichies.
+    - [x] **Jalon 2.4 : Branchement conditionnel dans `csv_manager.py`** : Routage sous `@router.post("/import_to_pending")` (L471) avec réinjection de `_autopilot_summary`.
+    - [x] **Jalon 2.5 : Clés i18n bilingues (FR/EN)** : 6 clés ajoutées avec encodage strict UTF-8 BOM (`utf-8-sig`) dans `fr.json` et `en.json`.
+    - [x] **Jalon 2.6 : Pack de Test 2 validé** : 8 tests unitaires complets passés avec succès (`tests/test_autopilot_step2.py`).
     - *Bénéfice immédiat* : Réduction de 80% des clics de validation dans le cockpit, avec traçabilité complète dès la première décision.
 
 3. **Étape 3 : Enregistrement Autonome des Nouvelles Écritures, Fallback Ollama Groupé & Dropzone UI**
@@ -586,25 +566,30 @@ graph TD
 
 Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant déploiement. Le tableau ci-dessous établit **à l'avance** le résultat exact attendu (au centime et à la milliseconde près) et le compare aux conditions réelles pour statuer objectivement sur le succès (**PASS**) ou l'échec (**FAIL**).
 
-### Pack de Test 1 : Réactivité Déverrouillage, Cooldown & Cycle de Vie (Étape 1)
+### Pack de Test 1 : Réactivité Déverrouillage, Cooldown & Cycle de Vie (Étape 1) — `✅ 100% PASS (v1.1.4)`
 
-| Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Critère d'Échec (FAIL) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **T1.1** | Coffre verrouillé, banque configurée, dernier relevé > 3h, `sync_on_vault_unlock = true`. | Appel `/api/bank-sync/vault/unlock` avec mot de passe valide. | Synchronisation démarrée en tâche de fond dans un délai $< 200$ ms (sans attendre la boucle de 60s). | `last_auto_sync_attempt` mis à jour en DB, log backend `[AutoPilot] Sync réactive déclenchée`. | Attente $> 1$s, ou absence de déclenchement avant la boucle périodique. |
-| **T1.2** | Application déverrouillée et synchronisée il y a 2 minutes (`cooldown = 3h`). | L'utilisateur verrouille puis re-déverrouille son coffre immédiatement. | Aucune requête HTTP vers la banque. Notification/infobulle : *"Prochain relevé dans 2h58"*. | 0 appel réseau vers Woob, zéro challenge 2FA déclenché. | Appel réseau envoyé à la banque malgré le délai $< 3$h (risque de ban). |
-| **T1.3** | Application fermée pendant 15 jours (35 opérations en attente côté banque). | Déverrouillage après 15 jours d'absence (Mode Catch-Up). | Ingestion ordonnée chronologiquement de la plus ancienne à la plus récente. | Solde final calculé identique au centime près au solde bancaire officiel en 1 seul commit. | Désynchronisation de solde, inversion chronologique ou doublons. |
-| **T1.4** | Déverrouillage passif : Coffre verrouillé, `sync_on_vault_unlock = false`, relevé auto coché (intervalle 24h, TTL = 14j sur Docker ou session Tauri). | Appel `/api/bank-sync/vault/unlock` avec mot de passe valide. | Clé chargée en mémoire vive (`is_unlocked = True`), **0 requête réseau bancaire émise à T0**. Le planificateur périodique prend le relais et planifie le relevé à l'échéance programmée (24h). | Clé en RAM, 0 appel Woob émis au déverrouillage, prochain relevé programmé avec succès. | Requête réseau bancaire déclenchée au déverrouillage malgré l'option désactivée. |
-| **T1.5** | Banque déclenchant un challenge 2FA / SCA mobile pendant le relevé périodique. | Cycle de relevé automatique exécuté en arrière-plan. | Le scheduler n'interrompt ni ne bloque le backend. Il émet un événement/notification *"Validation 2FA requise"* et met la session bancaire en attente. | Pas de thread bloqué, UI réactive avec pastille d'alerte claire. | Crash du thread scheduler ou boucle infinie d'attente bloquante. |
+| Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Statut |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **T1.1** | Coffre verrouillé, banque configurée, dernier relevé > 3h, `sync_on_vault_unlock = true`. | Appel `/api/bank-sync/vault/unlock` avec mot de passe valide. | Synchronisation démarrée en tâche de fond dans un délai $< 200$ ms (sans attendre la boucle de 60s). | `last_auto_sync_attempt` mis à jour en DB, log backend `[AutoPilot] Sync réactive déclenchée`. | ✅ **PASS** |
+| **T1.2** | Application déverrouillée et synchronisée il y a 2 minutes (`cooldown = 3h`). | L'utilisateur verrouille puis re-déverrouille son coffre immédiatement. | Aucune requête HTTP vers la banque. Notification/infobulle : *"Prochain relevé dans 2h58"*. | 0 appel réseau vers Woob, zéro challenge 2FA déclenché. | ✅ **PASS** |
+| **T1.3** | Application fermée pendant 15 jours (35 opérations en attente côté banque). | Déverrouillage après 15 jours d'absence (Mode Catch-Up). | Ingestion ordonnée chronologiquement de la plus ancienne à la plus récente. | Solde final calculé identique au centime près au solde bancaire officiel en 1 seul commit. | ✅ **PASS** |
+| **T1.4** | Déverrouillage passif : Coffre verrouillé, `sync_on_vault_unlock = false`, relevé auto coché (intervalle 24h, TTL = 14j sur Docker ou session Tauri). | Appel `/api/bank-sync/vault/unlock` avec mot de passe valide. | Clé chargée en mémoire vive (`is_unlocked = True`), **0 requête réseau bancaire émise à T0**. Le planificateur périodique prend le relais et planifie le relevé à l'échéance programmée (24h). | Clé en RAM, 0 appel Woob émis au déverrouillage, prochain relevé programmé avec succès. | ✅ **PASS** |
+| **T1.5** | Banque déclenchant un challenge 2FA / SCA mobile pendant le relevé périodique. | Cycle de relevé automatique exécuté en arrière-plan. | Le scheduler n'interrompt ni ne bloque le backend. Il émet un événement/notification *"Validation 2FA requise"* et met la session bancaire en attente. | Pas de thread bloqué, UI réactive avec pastille d'alerte claire. | ✅ **PASS** |
 
 ---
 
-### Pack de Test 2 : Auto-Rapprochement Haute Certitude vs Zone d'Arbitrage (Étape 2)
+### Pack de Test 2 : Auto-Rapprochement Haute Certitude vs Zone d'Arbitrage (Étape 2) — `✅ 100% PASS`
 
-| Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Critère d'Échec (FAIL) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **T2.1** | Prévision existante : Loyer 750,00 € au 01/10. Relevé bancaire : Débit 750,00 € "PRLV LOYER" le 02/10. | Exécution du moteur de rapprochement Auto-Pilote. | Score composite $\ge 90$ pts. Rapprochement automatique instantané en base (`reconciliation_date` renseigné). | L'opération est pointée, statut "Rapproché" vert, 0 clic utilisateur requis. | Opération laissée en attente dans le Sas ou non liée à la prévision. |
-| **T2.2** | Prévision existante : Retrait DAB 40,00 € au 05/10. Relevé : Débit 40,00 € "RETRAIT DAB" le 18/10 (écart de 13 jours). | Exécution du moteur de rapprochement. | Score composite calculé : 65 pts ($60 \le \text{Score} < 85$). | L'opération est maintenue dans le Sas d'attente avec statut *"Rapprochement suggéré"*. | Rapprochement forcé à tort en base malgré l'écart de 13 jours. |
-| **T2.3** | Deux prévisions identiques : Abonnement A (15,00 €) et Abonnement B (15,00 €). Débit bancaire : 15,00 € "ABO A". | Exécution du moteur avec détection d'anti-collision. | Rapprochement sur la prévision A grâce à la similarité textuelle. La prévision B reste ouverte. | Prévision A pointée, Prévision B intacte. | Les deux prévisions fusionnées ou pointage aléatoire sur B. |
+| Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Statut |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **T2.1** | Prévision existante : Loyer 750,00 € au 01/10. Relevé bancaire : Débit 750,00 € "PRLV LOYER" le 02/10. | Exécution du moteur de rapprochement Auto-Pilote. | Score composite $\ge 90$ pts. Rapprochement automatique instantané en base (`reconciliation_date` renseigné). | L'opération est pointée, statut "Rapproché" vert, 0 clic utilisateur requis. | ✅ **PASS** |
+| **T2.2** | Prévision existante : Retrait DAB 40,00 € au 05/10. Relevé : Débit 40,00 € "RETRAIT DAB" le 18/10 (écart de 13 jours). | Exécution du moteur de rapprochement. | Score composite calculé : 65 pts ($60 \le \text{Score} < 85$). | L'opération est maintenue dans le Sas d'attente avec statut *"Rapprochement suggéré"*. | ✅ **PASS** |
+| **T2.3** | Deux prévisions identiques : Abonnement A (15,00 €) et Abonnement B (15,00 €). Débit bancaire : 15,00 € "ABO A". | Exécution du moteur avec détection d'anti-collision. | Rapprochement sur la prévision A grâce à la similarité textuelle. La prévision B reste ouverte. | Prévision A pointée, Prévision B intacte. | ✅ **PASS** |
+| **T2.4** | Deux prévisions identiques : 25,00 € sans indice textuel. Débit bancaire : 25,00 € "DEBIT RETRAIT". | Exécution du moteur sans discriminant textuel. | Détection de collision homonyme : aucune prévision n'est auto-pointée, opération basculée dans le Sas d'attente. | `collision_detected = True`, décision laissée à l'arbitrage humain. | ✅ **PASS** |
+| **T2.5** | Mode Auto-Pilote inactif (`auto_pilot_enabled = "false"`), correspondance parfaite (100 pts). | Ingestion d'un relevé bancaire. | Zéro auto-commit en base, 100% des opérations envoyées dans le Sas d'attente. | Workflow manuel classique rigoureusement préservé sans régression. | ✅ **PASS** |
+| **T2.6** | Une opération a été auto-rapprochée en base avec traçabilité `ActionHistory`. | Déclenchement d'un Undo puis d'un Redo. | Undo : `reconciliation_date` repasse à `NULL`, solde et cache recalculés. Redo : pointage ré-appliqué. | Réversibilité comptable totale au centime près. | ✅ **PASS** |
+| **T2.7** | Une décision d'auto-rapprochement est enregistrée par `AutoPilotService`. | Inspection de la table `AutopilotDecisionLog`. | Enregistrement structuré avec `batch_id`, `raw_snapshot` (JSON `before`/`after`), score $\ge 85$. | Auditabilité et traçabilité complètes de la décision robotique. | ✅ **PASS** |
+| **T2.8** | Import d'un fichier de relevé via `/api/csv/import_to_pending` avec Auto-Pilote activé. | Ingestion du fichier CSV. | Le backend applique l'auto-rapprochement et renvoie le résumé `_autopilot_summary`. | `_autopilot_summary` injecté dans la réponse avec le décompte des auto-rapprochements. | ✅ **PASS** |
 
 ---
 

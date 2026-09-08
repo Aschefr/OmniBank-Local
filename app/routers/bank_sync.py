@@ -637,11 +637,10 @@ def test_existing_connection(conn_id: int, req: SyncConnectionRequest, db: Sessi
         )
         conn.last_error = None
         conn.last_sync_at = datetime.now(timezone.utc)
-        if conn.last_sync_status in ("auto_error", "error"):
-            conn.last_sync_status = "success"
+        conn.last_sync_status = "success"
         from app.models import Notification
         db.query(Notification).filter(
-            Notification.type == "bank_sync_error",
+            Notification.type.in_(["bank_sync_error", "bank_sync_2fa"]),
             Notification.link_data.like(f'%"conn_id": {conn.id}%')
         ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
         db.commit()
@@ -703,10 +702,9 @@ async def test_connection_stream(
                 if worker_conn:
                     worker_conn.last_error = None
                     worker_conn.last_sync_at = datetime.now(timezone.utc)
-                    if worker_conn.last_sync_status in ("auto_error", "error"):
-                        worker_conn.last_sync_status = "success"
+                    worker_conn.last_sync_status = "success"
                     worker_db.query(Notification).filter(
-                        Notification.type == "bank_sync_error",
+                        Notification.type.in_(["bank_sync_error", "bank_sync_2fa"]),
                         Notification.link_data.like(f'%"conn_id": {conn_id}%')
                     ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
                     worker_db.commit()
@@ -766,6 +764,16 @@ def fetch_preview(conn_id: int, req: SyncConnectionRequest, db: Session = Depend
             master_password=pw,
             since_days=req.since_days or 90
         )
+        conn.last_error = None
+        conn.last_sync_status = "success"
+        conn.last_sync_at = datetime.now(timezone.utc)
+        from app.models import Notification
+        db.query(Notification).filter(
+            Notification.type.in_(["bank_sync_error", "bank_sync_2fa"]),
+            Notification.link_data.like(f'%"conn_id": {conn.id}%')
+        ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
+        db.commit()
+
         from app.services.bank_sync_scheduler import save_pending_sync_data
         save_pending_sync_data(db, conn.id, preview)
         return preview
@@ -785,6 +793,20 @@ def commit_reviewed_sync(conn_id: int, data: Dict[str, Any], db: Session = Depen
             connection_id=conn_id,
             transactions_data=txs
         )
+        if conn_id > 0:
+            conn = db.query(BankConnection).filter(BankConnection.id == conn_id).first()
+            if conn:
+                conn.last_error = None
+                conn.last_sync_status = "success"
+                conn.last_sync_at = datetime.now(timezone.utc)
+                conn.last_sync_count = res.get("imported", 0) + res.get("reconciled", 0)
+                from app.models import Notification
+                db.query(Notification).filter(
+                    Notification.type.in_(["bank_sync_error", "bank_sync_2fa"]),
+                    Notification.link_data.like(f'%"conn_id": {conn_id}%')
+                ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
+                db.commit()
+
         from app.services.bank_sync_scheduler import remove_committed_from_pending
         # Ne purger du sas que les opérations confirmées (les opérations en attente/à venir restent dans le sas)
         committed_csv_ids = [t.get("csv_id") for t in txs if t.get("csv_id") and not t.get("is_coming")]
@@ -857,11 +879,10 @@ async def sync_connection_stream(
             if worker_conn:
                 worker_conn.last_error = None
                 worker_conn.last_sync_at = datetime.now(timezone.utc)
-                if worker_conn.last_sync_status in ("auto_error", "error"):
-                    worker_conn.last_sync_status = "success"
+                worker_conn.last_sync_status = "success"
                 from app.models import Notification
                 worker_db.query(Notification).filter(
-                    Notification.type == "bank_sync_error",
+                    Notification.type.in_(["bank_sync_error", "bank_sync_2fa"]),
                     Notification.link_data.like(f'%"conn_id": {conn_id}%')
                 ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
                 worker_db.commit()

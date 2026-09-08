@@ -22,8 +22,33 @@ def list_notifications(archived: bool = False, db: Session = Depends(get_db)):
     """List notifications (active by default, or archived) sorted by newest first."""
     query = db.query(Notification).filter(Notification.is_archived == archived)
     if archived:
-        return query.order_by(Notification.archived_at.desc(), Notification.created_at.desc()).all()
-    return query.order_by(Notification.created_at.desc()).all()
+        notifs = query.order_by(Notification.archived_at.desc(), Notification.created_at.desc()).all()
+    else:
+        notifs = query.order_by(Notification.created_at.desc()).all()
+
+    def _fmt_dt(dt):
+        if not dt:
+            return None
+        s = dt.isoformat()
+        if not s.endswith("Z") and "+" not in s and "-" not in s[-6:]:
+            return s + "Z"
+        return s
+
+    return [
+        {
+            "id": n.id,
+            "type": n.type,
+            "title": n.title,
+            "content": n.content,
+            "detailed_content": n.detailed_content,
+            "link_data": n.link_data,
+            "is_read": n.is_read,
+            "is_archived": n.is_archived,
+            "archived_at": _fmt_dt(n.archived_at),
+            "created_at": _fmt_dt(n.created_at)
+        }
+        for n in notifs
+    ]
 
 @router.get("/counts")
 def get_notification_counts(db: Session = Depends(get_db)):

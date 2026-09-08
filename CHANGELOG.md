@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Improved
+- **Bank 2FA Requalification & Smartphone Validation 📱**: Bank connections requiring two-factor authentication (such as Crédit Mutuel mobile validation) now display an amber warning badge (`2FA Required`) with a contextual `"Validate on smartphone"` action, eliminating misleading critical red error boxes and developer issue buttons.
+- **2FA In-App Notifications & Direct Resolution 🔐**: Background sync attempts encountering 2FA challenges now create dedicated informative notifications allowing immediate 1-click mobile validation.
+- **Automatic Error Status Cleanup on Sync Success 🔄**: Successful bank preview, sync, or commit operations now immediately reset connection error states and archive associated 2FA and error notifications.
+- **Smart Auto-Pilot Stage 2 Foundation 🤖**: Implemented high-confidence automated reconciliation engine with collision prevention, audit trail logging, and complete reversibility.
+
 ## [1.1.4] - 2026-09-07
 
 ### Added & Improved

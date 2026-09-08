@@ -467,8 +467,16 @@ async def import_to_pending(
         "accounts": accounts_out
     }
 
-    # Inject into pending sync sas
-    save_pending_sync_data(db, CSV_IMPORT_CONN_ID, preview_data)
+    # Inject into pending sync sas or process through Auto-Pilot if enabled
+    from app.services.autopilot_service import process_incoming_batch, is_autopilot_enabled
+
+    autopilot_active = is_autopilot_enabled(db)
+    auto_summary = None
+    if autopilot_active:
+        auto_summary = process_incoming_batch(db, CSV_IMPORT_CONN_ID, preview_data)
+        preview_data["_autopilot_summary"] = auto_summary
+    else:
+        save_pending_sync_data(db, CSV_IMPORT_CONN_ID, preview_data)
 
     # Créer une notification in-app d'import de fichier
     try:
@@ -477,9 +485,17 @@ async def import_to_pending(
         import json
 
         total_txs = sum(len(a.get("transactions", [])) for a in accounts_out)
+        auto_reconciled = auto_summary.get("auto_reconciled", 0) if auto_summary else 0
         matches = 0
         new_txs = 0
-        for a in accounts_out:
+
+        if autopilot_active and auto_summary:
+            from app.services.bank_sync_scheduler import _PENDING_SYNC_DATA
+            pending_accounts = _PENDING_SYNC_DATA.get("default", {}).get(CSV_IMPORT_CONN_ID, {}).get("accounts", [])
+        else:
+            pending_accounts = accounts_out
+
+        for a in pending_accounts:
             for tx in a.get("transactions", []):
                 if tx.get("is_reconciled") and not tx.get("already_reconciled"):
                     matches += 1
@@ -487,6 +503,10 @@ async def import_to_pending(
                     new_txs += 1
 
         details_list = []
+        if auto_reconciled == 1:
+            details_list.append("🤖 1 opération rapprochée automatiquement")
+        elif auto_reconciled > 1:
+            details_list.append(f"🤖 {auto_reconciled} opérations rapprochées automatiquement")
         if matches == 1:
             details_list.append("1 opération à rapprocher")
         elif matches > 1:
@@ -496,7 +516,7 @@ async def import_to_pending(
         elif new_txs > 1:
             details_list.append(f"{new_txs} nouvelles opérations")
         if not details_list:
-            details_list.append(f"{total_txs} opération(s) lue(s)")
+            details_list.append(f"{total_txs} opération(s) traitée(s)")
 
         fname = file.filename or "relevé.csv"
         notif = Notification(
