@@ -9,6 +9,7 @@ services:
       - ./data:/app/data
       - ./static:/app/static
       - ./scratch:/app/scratch
+      - ./tests:/app/tests
       - ./package.json:/app/package.json
       - ./CHANGELOG.md:/app/CHANGELOG.md
     environment:

@@ -400,6 +400,12 @@ Object.assign(window.BankSyncView, {
             badgeBg = 'rgba(99, 102, 241, 0.12)';
             badgeColor = '#6366f1';
             badgeBorder = 'rgba(99, 102, 241, 0.35)';
+        } else if (tx.smart_source === 'ai') {
+            badgeText = `🤖 Suggestion IA (${conf}%)`;
+            badgeTip = `🤖 Nommé et classé par l'IA locale (${conf}%)\n• Logique : L'IA locale a analysé le libellé brut et déduit le commerçant et la catégorie selon vos habitudes.\n• En cas d'erreur : Modifiez le nom ou la catégorie à tout moment.`;
+            badgeBg = 'rgba(236, 72, 153, 0.12)';
+            badgeColor = '#ec4899';
+            badgeBorder = 'rgba(236, 72, 153, 0.35)';
         } else if (tx.smart_source === 'history') {
             badgeText = (window.i18n && window.i18n.tp) 
                 ? window.i18n.tp('smart_review_badge_history', { confidence: conf }) 
@@ -601,7 +607,7 @@ Object.assign(window.BankSyncView, {
             ).join('');
 
             const aiButtonHtml = (!isRec && aiEnabled) ? `
-                <button class="btn btn-secondary review-ai-btn" style="padding: 3px 6px; font-size: 11px; border-radius: 6px;" onclick="window.BankSyncView.categorizeRowAI('${tx.csv_id}', this)" title="${window.i18n.t('bank_categorize_ai_tooltip')}">🧠</button>
+                <button class="btn btn-secondary review-ai-btn" style="padding: 3px 6px; font-size: 11px; border-radius: 6px;" onclick="window.BankSyncView.classifyRowWithAI('${tx.csv_id}', this)" title="${(window.i18n ? window.i18n.t('smart_label_ai_classify_tooltip') || 'Nommer et classifier avec l\'IA' : 'Nommer et classifier avec l\'IA').replace(/"/g, '&quot;')}">✨</button>
             ` : '';
 
             const catSelect = isRec 
@@ -1007,8 +1013,8 @@ Object.assign(window.BankSyncView, {
         }
     },
 
-    // ── AUTO-CATÉGORISATION IA (Conditionnelle) ──────────────────────
-    async categorizeRowAI(csvId, btnEl) {
+    // ── AUTO-CATÉGORISATION & NOMMAGE IA (Conditionnelle) ───────────
+    async classifyRowWithAI(csvId, btnEl) {
         if (!this.isAIEnabled()) return;
 
         const currentAcc = this.previewData.accounts[this.currentAccountIndex];
@@ -1020,12 +1026,34 @@ Object.assign(window.BankSyncView, {
         btnEl.disabled = true;
 
         try {
-            const res = await API.post('/api/ai/categorize', { description: tx.description });
-            if (res && res.category) {
-                tx.category = res.category;
-                const sel = document.getElementById(`catSel_${csvId}`);
-                if (sel) sel.value = res.category;
-                this.showToast(`Catégorie suggérée : ${res.category}`, 'success');
+            const rawLabel = tx.raw_description || tx.description;
+            const res = await API.post('/api/smart-labels/simulate', { 
+                raw_label: rawLabel,
+                use_ai_fallback: true 
+            });
+
+            if (res) {
+                if (res.description) {
+                    tx.description = res.description;
+                }
+                if (res.category) {
+                    tx.category = res.category;
+                }
+                tx.smart_suggested = true;
+                tx.smart_source = res.source;
+                tx.smart_confidence = res.confidence ?? 0.85;
+                tx.smart_is_manual = !!res.is_manual;
+                tx.smart_is_multi_category = !!res.is_multi_category;
+                if (res.mapping_id) {
+                    tx.smart_mapping_id = res.mapping_id;
+                }
+
+                this.renderReviewTable();
+
+                const catName = res.category || (window.i18n ? window.i18n.t('uncategorized') || 'Non catégorisé' : 'Non catégorisé');
+                const toastTpl = window.i18n ? window.i18n.t('smart_label_ai_classified_toast') : "✨ Nommé '{name}' et classé dans '{category}'";
+                const toastMsg = (toastTpl || "✨ Nommé '{name}' et classé dans '{category}'").replace('{name}', res.description).replace('{category}', catName);
+                this.showToast(toastMsg, 'success');
             }
         } catch (err) {
             this.showToast('Erreur IA : ' + (err.detail || err.message), 'error');
@@ -1033,6 +1061,10 @@ Object.assign(window.BankSyncView, {
             btnEl.innerText = originalText;
             btnEl.disabled = false;
         }
+    },
+
+    categorizeRowAI(csvId, btnEl) {
+        return this.classifyRowWithAI(csvId, btnEl);
     },
 
     async categorizeAllNewAI() {
@@ -1050,24 +1082,45 @@ Object.assign(window.BankSyncView, {
         const btn = document.getElementById('btnSyncCategorizeAllAI');
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<span>⏳</span> <span>Catégorisation IA en cours...</span>';
+            btn.innerHTML = '<span>⏳</span> <span>Nommage et classification IA...</span>';
         }
 
         try {
-            const descriptions = uncatTxs.map(t => t.description);
-            const res = await API.post('/api/ai/categorize_batch', { descriptions });
-            if (res && res.categories) {
-                uncatTxs.forEach((tx, idx) => {
-                    const assigned = res.categories[idx];
-                    if (assigned) {
-                        tx.category = assigned;
+            const rawLabels = Array.from(new Set(uncatTxs.map(t => t.raw_description || t.description)));
+            const res = await API.post('/api/smart-labels/resolve-batch', { 
+                labels: rawLabels,
+                use_ai_fallback: true
+            });
+
+            if (res && res.results) {
+                let updatedCount = 0;
+                uncatTxs.forEach(tx => {
+                    const raw = tx.raw_description || tx.description;
+                    const match = res.results[raw];
+                    if (match) {
+                        if (match.description && match.description !== raw) {
+                            tx.description = match.description;
+                        }
+                        if (match.category) {
+                            tx.category = match.category;
+                        }
+                        tx.smart_suggested = true;
+                        tx.smart_source = match.source;
+                        tx.smart_confidence = match.confidence ?? 0.85;
+                        tx.smart_is_manual = !!match.is_manual;
+                        tx.smart_is_multi_category = !!match.is_multi_category;
+                        if (match.mapping_id) {
+                            tx.smart_mapping_id = match.mapping_id;
+                        }
+                        updatedCount++;
                     }
                 });
+
                 this.renderReviewTable();
-                this.showToast(`${uncatTxs.length} opération(s) catégorisée(s) par l'IA !`, 'success');
+                this.showToast(`${updatedCount} opération(s) traitée(s) par le pipeline IA !`, 'success');
             }
         } catch (err) {
-            this.showToast('Erreur catégorisation IA en lot : ' + (err.detail || err.message), 'error');
+            this.showToast('Erreur IA en lot : ' + (err.detail || err.message), 'error');
         } finally {
             if (btn) {
                 btn.disabled = false;

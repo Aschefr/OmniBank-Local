@@ -118,6 +118,135 @@ def normalize_raw_label(raw: str) -> str:
     return cleaned
 
 
+# Tokens et mots parasites rejetés pour les propositions de nom de l'IA (garde-fou anti-déchets)
+_BANNED_AI_NAME_TOKENS = {
+    "unknown", "inconnu", "achat", "paiement", "cb", "prlv", "virement", "vir",
+    "transaction", "operation", "autre", "none", "null", "n/a", "sans nom",
+    "depense", "facture", "prelevement", "carte", "carte bancaire"
+}
+
+
+def validate_ai_suggested_name(
+    suggested_name: Optional[str],
+    raw_label: str,
+    clean_label: str,
+    user_habits: Optional[List[str]] = None
+) -> Optional[str]:
+    """
+    Garde-fou anti-déchets pour les noms d'opérations proposés par l'IA.
+    Vérifie 4 verrous stricts :
+    1. Forme : non-vide, 2 <= longueur <= 60, sans balisage markdown ni ponctuations anormales.
+    2. Mots parasites / hallucinations génériques (ex: 'Inconnu', 'Achat', 'Paiement').
+    3. Ancrage (Grounding) obligatoire :
+       - Soit le nom correspond (ou ressemble à >= 80%) à une habitude enregistrée de l'utilisateur.
+       - Soit le nom conserve la racine/token distinctif du commerçant présent dans le libellé brut/nettoyé.
+    4. En cas de doute ou de rejet, retourne None (ce qui déclenche le repli sur le nom nettoyé par regex).
+    """
+    if not suggested_name:
+        return None
+
+    name = str(suggested_name).strip().strip('"\'`*')
+    # 1. Verrou de forme
+    if len(name) < 2 or len(name) > 60:
+        return None
+
+    # Rejet des artefacts de syntaxe ou balisage
+    if any(ch in name for ch in ('{', '}', '[', ']', '<', '>', '\\')):
+        return None
+
+    name_lower = name.lower()
+
+    # 2. Filtrage des mots parasites
+    if name_lower in _BANNED_AI_NAME_TOKENS:
+        return None
+
+    # Rejet des phrases conversationnelles de LLM
+    if any(prefix in name_lower for prefix in ("voici", "nom :", "marchand :", "je pense", "here is", "name:", "merchant:")):
+        return None
+
+    # 3. Verrou d'ancrage (Grounding)
+    clean_lower = clean_label.lower() if clean_label else ""
+    raw_lower = raw_label.lower() if raw_label else ""
+
+    # a) Ancré dans les habitudes de l'utilisateur ?
+    if user_habits:
+        for habit in user_habits:
+            if not habit:
+                continue
+            h_lower = habit.strip().lower()
+            if name_lower == h_lower:
+                return name
+            if len(h_lower) >= 4 and (name_lower in h_lower or h_lower in name_lower):
+                return name
+            if difflib.SequenceMatcher(None, name_lower, h_lower).ratio() >= 0.80:
+                return name
+
+    # b) Ancré dans le commerçant réel (clean_label ou raw_label) ?
+    # Vérifie si au moins un token signifiant (>= 3 lettres non générique) du nom suggéré se trouve dans raw ou clean
+    suggested_tokens = {t for t in re.split(r'\s+', name_lower) if len(t) >= 3 and t not in _GENERIC_TOKENS}
+    reference_text = f"{clean_lower} {raw_lower}"
+
+    for t in suggested_tokens:
+        if t in reference_text:
+            return name
+
+    # Aucun ancrage valide -> déchet ou hallucination potentielle
+    logger.info(f"[SmartLabel] Nom suggéré par IA '{name}' rejeté par manque d'ancrage pour '{clean_label}' -> Repli sur libellé nettoyé")
+    return None
+
+
+def get_user_habit_descriptions(db: Session, limit: int = 35) -> List[str]:
+    """
+    Extrait les descriptions les plus représentatives des habitudes de l'utilisateur
+    (combinaison des règles BankLabelMapping et des transactions fréquentes).
+    Fournit un contexte few-shot à l'IA pour reproduire le style de nommage de l'utilisateur.
+    """
+    habits: List[str] = []
+    seen: Set[str] = set()
+
+    # 1. Règles utilisateur existantes
+    try:
+        rules = db.query(BankLabelMapping.clean_description).filter(
+            BankLabelMapping.clean_description.isnot(None),
+            BankLabelMapping.is_ignored == False
+        ).order_by(BankLabelMapping.match_count.desc()).limit(limit).all()
+        for (r_desc,) in rules:
+            if r_desc and r_desc.strip():
+                clean = r_desc.strip()
+                if clean.lower() not in seen:
+                    seen.add(clean.lower())
+                    habits.append(clean)
+    except Exception as e:
+        logger.debug(f"[SmartLabel] Erreur récupération règles habitudes : {e}")
+
+    # 2. Transactions fréquentes de l'historique
+    try:
+        remaining = limit - len(habits)
+        if remaining > 0:
+            top_txs = db.query(
+                Transaction.description,
+                func.count(Transaction.id).label('cnt')
+            ).filter(
+                Transaction.description.isnot(None)
+            ).group_by(
+                Transaction.description
+            ).order_by(
+                func.count(Transaction.id).desc()
+            ).limit(remaining * 2).all()
+
+            for (desc, _) in top_txs:
+                if desc and desc.strip():
+                    clean = desc.strip()
+                    if clean.lower() not in seen and len(clean) >= 3:
+                        seen.add(clean.lower())
+                        habits.append(clean)
+                        if len(habits) >= limit:
+                            break
+    except Exception as e:
+        logger.debug(f"[SmartLabel] Erreur récupération transactions habitudes : {e}")
+
+    return habits
+
 
 def _tokenize(text: str) -> Set[str]:
     """Extrait les tokens signifiants (alphanumériques)."""
@@ -463,7 +592,12 @@ def resolve_smart_label(db: Session, raw_label: str, use_ai_fallback: bool = Fal
     }
 
 
-def resolve_smart_labels_batch(db: Session, raw_labels: List[str], use_ai_fallback: bool = False) -> Dict[str, Dict[str, Any]]:
+def resolve_smart_labels_batch(
+    db: Session,
+    raw_labels: List[str],
+    use_ai_fallback: bool = False,
+    include_user_habits: bool = True
+) -> Dict[str, Dict[str, Any]]:
     """
     Résolution groupée ultra-performante pour un lot de libellés bancaires.
     Pré-charge les règles et l'historique en mémoire pour un traitement O(N).
@@ -720,20 +854,45 @@ def resolve_smart_labels_batch(db: Session, raw_labels: List[str], use_ai_fallba
                         if c and c.name
                     ]
                     if active_cats:
+                        user_habits = get_user_habit_descriptions(db, limit=35) if include_user_habits else None
                         clean_descs = list(unresolved_by_clean.keys())
-                        ai_categorizations = call_ollama_batch(
+                        ai_results = call_ollama_batch(
                             descriptions=clean_descs,
                             categories=active_cats,
-                            cfg=cfg
+                            cfg=cfg,
+                            user_habits=user_habits,
+                            suggest_names=True
                         )
-                        for clean_d, assigned_cat in ai_categorizations.items():
-                            if assigned_cat:
-                                for raw in unresolved_by_clean.get(clean_d, []):
-                                    results[raw]["category"] = assigned_cat
+                        for clean_d, ai_data in ai_results.items():
+                            candidate_cat = None
+                            candidate_name = None
+                            if isinstance(ai_data, dict):
+                                candidate_cat = ai_data.get("category")
+                                candidate_name = ai_data.get("name")
+                            elif ai_data:
+                                candidate_cat = ai_data
+
+                            for raw in unresolved_by_clean.get(clean_d, []):
+                                # 1. Évaluation du nom proposé par l'IA via le garde-fou anti-déchets
+                                if candidate_name:
+                                    validated_name = validate_ai_suggested_name(
+                                        candidate_name,
+                                        raw_label=raw,
+                                        clean_label=clean_d,
+                                        user_habits=user_habits
+                                    )
+                                    if validated_name:
+                                        results[raw]["description"] = validated_name
+                                    elif results[raw]["description"] == raw:
+                                        results[raw]["description"] = clean_d
+                                elif results[raw]["description"] == raw:
+                                    results[raw]["description"] = clean_d
+
+                                # 2. Affectation de la catégorie validée
+                                if candidate_cat:
+                                    results[raw]["category"] = candidate_cat
                                     results[raw]["source"] = "ai"
                                     results[raw]["confidence"] = 0.85
-                                    if results[raw]["description"] == raw:
-                                        results[raw]["description"] = clean_d
             except Exception as e:
                 logger.warning(f"[SmartLabel] Échec silencieux du fallback IA par lot : {e}")
 
