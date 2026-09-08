@@ -13627,6 +13627,11 @@ body.theme-titanium-light .notif-card.unread {
     color: #ef4444;
     border: 1px solid rgba(239, 68, 68, 0.25);
 }
+.bank-connection-status-badge.is-warning {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.30);
+}
 .bank-connection-status-badge.is-connected {
     background: rgba(16, 185, 129, 0.12);
     color: #10b981;
@@ -13673,6 +13678,27 @@ body.theme-titanium-light .notif-card.unread {
     color: #ef4444;
     width: 100%;
     box-sizing: border-box;
+}
+
+.bank-connection-warning-box {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: 8px;
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: #d97706;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.bank-connection-warning-text {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    color: var(--text-main);
+    font-weight: 500;
 }
 
 .bank-connection-error-text {

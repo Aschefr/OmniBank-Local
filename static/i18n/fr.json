@@ -2429,5 +2429,16 @@
   "wizard_welcome_title": "Bienvenue sur OmniBank !",
   "bank_sync_bg_started": "Coffre déverrouillé : relevé bancaire en cours en arrière-plan...",
   "bank_sync_map_btn": "Association des comptes",
-  "error_loading": "Erreur de chargement"
+  "error_loading": "Erreur de chargement",
+  "autopilot_decision_reconciliation": "Rapprochement automatique",
+  "autopilot_decision_new_entry": "Nouvelle écriture enregistrée",
+  "autopilot_decision_categorization": "Catégorisation intelligente",
+  "autopilot_collision_detected": "Collision détectée (montants homonymes)",
+  "autopilot_suggested_match": "Rapprochement suggéré (arbitrage requis)",
+  "autopilot_auto_committed": "Rapproché automatiquement (haute certitude)",
+  "bank_sync_status_2fa_required": "2FA Requis",
+  "bank_sync_btn_validate_2fa": "Valider sur smartphone",
+  "bank_sync_2fa_box_desc": "Authentification 2FA requise par votre banque (validation sur application mobile ou code de sécurité).",
+  "notif_bank_sync_2fa_title": "Validation 2FA requise : {label}",
+  "notif_bank_sync_2fa_content": "Votre banque ({label}) requiert une validation 2FA sur votre smartphone pour synchroniser vos comptes."
 }

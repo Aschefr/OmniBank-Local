@@ -97,6 +97,15 @@ Object.assign(window.BankSyncView, {
                         const startedMsg = window.i18n ? window.i18n.t('bank_sync_bg_started', 'Coffre déverrouillé : relevé bancaire en cours en arrière-plan...') : 'Coffre déverrouillé : relevé bancaire en cours en arrière-plan...';
                         this.showToast(startedMsg, 'info');
                         this._vaultUnlockToastShown = true;
+                        if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+                            window.app.setFastNotificationsPolling(true);
+                        }
+                        if (typeof this.setButtonsState === 'function') {
+                            this.setButtonsState('syncing');
+                        }
+                        if (typeof this._startSyncPollingTracker === 'function') {
+                            this._startSyncPollingTracker();
+                        }
                     }
                 }
             }
@@ -221,21 +230,72 @@ Object.assign(window.BankSyncView, {
                 const isVaultUnlocked = Boolean(this.vaultStatus && this.vaultStatus.is_unlocked);
                 const isStalePasswordError = isVaultUnlocked && conn.last_error && (conn.last_error.toLowerCase().includes('mot de passe') || conn.last_error.toLowerCase().includes('coffre'));
                 const effectiveError = isStalePasswordError ? null : (conn.last_error && conn.last_error.trim() ? conn.last_error.trim() : null);
-                const isError = !isStalePasswordError && (conn.last_sync_status === 'error' || conn.last_sync_status === 'auto_error' || Boolean(effectiveError));
-                const statusBadge = isError 
-                    ? `<span class="bank-connection-status-badge is-error"><span>🔴</span> <span>${window.i18n.t('bank_sync_status_error')}</span></span>`
-                    : `<span class="bank-connection-status-badge is-connected"><span>🟢</span> <span>${window.i18n.t('bank_sync_status_connected')}</span></span>`;
+
+                const errLower = (effectiveError || '').toLowerCase();
+                const is2FA = conn.last_sync_status === '2fa_required' ||
+                    errLower.includes('2fa') ||
+                    errLower.includes('authentification interactive') ||
+                    errLower.includes('authentification mobile') ||
+                    errLower.includes('validation mobile') ||
+                    errLower.includes('sca');
+
+                const isError = !isStalePasswordError && !is2FA && (conn.last_sync_status === 'error' || conn.last_sync_status === 'auto_error' || Boolean(effectiveError));
+
+                let statusBadge = '';
+                if (is2FA) {
+                    const badgeLbl = window.i18n ? window.i18n.t('bank_sync_status_2fa_required') || '2FA Requis' : '2FA Requis';
+                    statusBadge = `<span class="bank-connection-status-badge is-warning"><span>🟡</span> <span>${badgeLbl}</span></span>`;
+                } else if (isError) {
+                    const badgeLbl = window.i18n ? window.i18n.t('bank_sync_status_error') || 'Erreur' : 'Erreur';
+                    statusBadge = `<span class="bank-connection-status-badge is-error"><span>🔴</span> <span>${badgeLbl}</span></span>`;
+                } else {
+                    const badgeLbl = window.i18n ? window.i18n.t('bank_sync_status_connected') || 'Connecté' : 'Connecté';
+                    statusBadge = `<span class="bank-connection-status-badge is-connected"><span>🟢</span> <span>${badgeLbl}</span></span>`;
+                }
 
                 let localizedError = effectiveError;
                 if (effectiveError && (effectiveError.includes('Erreur lors de la synchronisation') || effectiveError.includes('Erreur de synchronisation'))) {
-                    localizedError = window.i18n.t('bank_sync_error_default');
+                    localizedError = window.i18n ? window.i18n.t('bank_sync_error_default') : 'Erreur lors de la synchronisation bancaire.';
                 }
-                const displayError = isError ? (localizedError || window.i18n.t('bank_sync_error_default')) : null;
+                const displayError = isError ? (localizedError || (window.i18n ? window.i18n.t('bank_sync_error_default') : 'Erreur lors de la synchronisation bancaire.')) : null;
 
-                const cachedPreview = this.getCachedPreview(conn.id);
+                let alertBoxHtml = '';
+                if (is2FA) {
+                    const desc2FA = window.i18n ? window.i18n.t('bank_sync_2fa_box_desc') || 'Authentification 2FA requise par votre banque (validation sur application mobile ou code de sécurité).' : 'Authentification 2FA requise par votre banque (validation sur application mobile ou code de sécurité).';
+                    const btn2FALbl = window.i18n ? window.i18n.t('bank_sync_btn_validate_2fa') || 'Valider sur smartphone' : 'Valider sur smartphone';
+                    alertBoxHtml = `
+                        <div class="bank-connection-warning-box">
+                            <div class="bank-connection-warning-text">📱 ${desc2FA}</div>
+                            <div class="bank-connection-diag-actions">
+                                <button class="btn btn-primary btn-diag-action" onclick="window.BankSyncView.promptAndSync(${conn.id})" style="background: linear-gradient(135deg, #f59e0b, #d97706); border: none; color: #fff; font-weight: 600;" title="${btn2FALbl}">
+                                    <span>📱</span> <span>${btn2FALbl}</span>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else if (displayError) {
+                    alertBoxHtml = `
+                        <div class="bank-connection-error-box">
+                            <div class="bank-connection-error-text">⚠️ ${displayError}</div>
+                            <div class="bank-connection-diag-actions">
+                                <button class="btn btn-secondary btn-diag-action" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur connexion bancaire: ${conn.backend || conn.id} - ${displayError.replace(/'/g, "\\'")}');" title="${window.i18n ? window.i18n.t('diag_btn_copy_tooltip') : 'Copier'}">
+                                    📋 <span>${window.i18n ? window.i18n.t('diag_btn_copy') : 'Copier'}</span>
+                                </button>
+                                <button class="btn btn-secondary btn-diag-action" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur connexion bancaire: ${conn.backend || conn.id}');" title="${window.i18n ? window.i18n.t('diag_btn_issue_tooltip') : 'Issue'}">
+                                    🐙 <span>${window.i18n ? window.i18n.t('diag_btn_issue') : 'Issue'}</span>
+                                </button>
+                                <button class="btn btn-secondary btn-diag-action" onclick="if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" title="${window.i18n ? window.i18n.t('diag_btn_diag_tooltip') : 'Diag'}">
+                                    ⚙️ <span>${window.i18n ? window.i18n.t('diag_btn_diag') : 'Diag'}</span>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const cachedPreview = this.getCachedPreview ? this.getCachedPreview(conn.id) : null;
                 const cachedBtn = cachedPreview ? `
-                    <button class="btn btn-secondary bank-conn-btn" onclick="window.BankSyncView.openCachedPreviewDirectly(${conn.id})" title="${window.i18n.t('bank_sync_cached_preview_tooltip')}">
-                        <span>📋</span> <span data-i18n="bank_sync_cached_preview_btn">${window.i18n.t('bank_sync_cached_preview_btn')}</span>
+                    <button class="btn btn-secondary bank-conn-btn" onclick="window.BankSyncView.openCachedPreviewDirectly(${conn.id})" title="${window.i18n ? window.i18n.t('bank_sync_cached_preview_tooltip') : 'Dernier aperçu'}">
+                        <span>📋</span> <span data-i18n="bank_sync_cached_preview_btn">${window.i18n ? window.i18n.t('bank_sync_cached_preview_btn') : 'Dernier aperçu'}</span>
                     </button>
                 ` : '';
 
@@ -256,34 +316,19 @@ Object.assign(window.BankSyncView, {
                                 <span>${lastSyncText}</span>
                                 ${conn.last_sync_count ? `<span class="bank-sync-count-tag">+${conn.last_sync_count} op.</span>` : ''}
                             </div>
-                            ${displayError ? `
-                                <div class="bank-connection-error-box">
-                                    <div class="bank-connection-error-text">⚠️ ${displayError}</div>
-                                    <div class="bank-connection-diag-actions">
-                                        <button class="btn btn-secondary btn-diag-action" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur connexion bancaire: ${conn.backend || conn.id} - ${displayError.replace(/'/g, "\\'")}');" title="${window.i18n.t('diag_btn_copy_tooltip')}">
-                                            📋 <span>${window.i18n.t('diag_btn_copy')}</span>
-                                        </button>
-                                        <button class="btn btn-secondary btn-diag-action" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur connexion bancaire: ${conn.backend || conn.id}');" title="${window.i18n.t('diag_btn_issue_tooltip')}">
-                                            🐙 <span>${window.i18n.t('diag_btn_issue')}</span>
-                                        </button>
-                                        <button class="btn btn-secondary btn-diag-action" onclick="if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" title="${window.i18n.t('diag_btn_diag_tooltip')}">
-                                            ⚙️ <span>${window.i18n.t('diag_btn_diag')}</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            ` : ''}
+                            ${alertBoxHtml}
                         </div>
                     </div>
 
                     <div class="bank-connection-actions">
                         ${cachedBtn}
-                        <button class="btn btn-primary bank-conn-btn" onclick="window.BankSyncView.promptAndSync(${conn.id})" title="${window.i18n.t('bank_sync_sync_btn_tooltip')}">
-                            <span>🔄</span> <span data-i18n="bank_sync_sync_btn">${window.i18n.t('bank_sync_sync_btn')}</span>
+                        <button class="btn btn-primary bank-conn-btn" onclick="window.BankSyncView.promptAndSync(${conn.id})" title="${window.i18n ? window.i18n.t('bank_sync_sync_btn_tooltip') : 'Synchroniser'}">
+                            <span>🔄</span> <span data-i18n="bank_sync_sync_btn">${window.i18n ? window.i18n.t('bank_sync_sync_btn') : 'Synchroniser'}</span>
                         </button>
-                        <button class="btn btn-secondary bank-conn-btn" onclick="window.BankSyncView.openMappingModal(${conn.id})" title="${window.i18n.t('bank_sync_edit_mapping_btn')}">
-                            <span>🔗</span> <span data-i18n="bank_sync_mapping_btn">${window.i18n.t('bank_sync_mapping_btn')}</span>
+                        <button class="btn btn-secondary bank-conn-btn" onclick="window.BankSyncView.openMappingModal(${conn.id})" title="${window.i18n ? window.i18n.t('bank_sync_edit_mapping_btn') : 'Associer'}">
+                            <span>🔗</span> <span data-i18n="bank_sync_mapping_btn">${window.i18n ? window.i18n.t('bank_sync_mapping_btn') : 'Associer'}</span>
                         </button>
-                        <button class="btn btn-secondary bank-conn-btn btn-delete" onclick="window.BankSyncView.deleteConnection(${conn.id})" title="${window.i18n.t('bank_sync_delete_btn')}">
+                        <button class="btn btn-secondary bank-conn-btn btn-delete" onclick="window.BankSyncView.deleteConnection(${conn.id})" title="${window.i18n ? window.i18n.t('bank_sync_delete_btn') : 'Supprimer'}">
                             🗑️
                         </button>
                     </div>

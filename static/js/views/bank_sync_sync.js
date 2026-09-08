@@ -118,6 +118,17 @@ Object.assign(window.BankSyncView, {
                 return;
             }
             token = this.getVaultToken();
+
+            // Si le déverrouillage réactif vient déjà de lancer la synchronisation en tâche de fond,
+            // ne pas déclencher un second relevé concurrent identique :
+            if (this.vaultStatus?.reactive_sync?.ok && !this.vaultStatus.reactive_sync.skipped_passive_mode && !this.vaultStatus.reactive_sync.cooldown_active) {
+                this.setButtonsState('syncing');
+                if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+                    window.app.setFastNotificationsPolling(true);
+                }
+                this._startSyncPollingTracker();
+                return;
+            }
         }
 
         // Lancer l'animation de progression sur le fond du bouton
@@ -323,7 +334,7 @@ Object.assign(window.BankSyncView, {
             setTimeout(() => {
                 progressModal.style.display = 'none';
                 this.openReviewModal(connId, previewData);
-                this.renderConnectionsList();
+                this.loadConnections();
             }, 500);
         });
 

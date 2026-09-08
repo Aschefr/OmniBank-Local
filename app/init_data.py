@@ -622,6 +622,12 @@ def init_db(target_engine=None):
             except Exception:
                 pass
             try:
+                conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('auto_pilot_enabled', 'false')"))
+                conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('bank_sync_on_vault_unlock', 'true')"))
+                conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('last_auto_sync_attempt', '')"))
+            except Exception:
+                pass
+            try:
                 conn.execute(text("INSERT OR REPLACE INTO global_config (key, value) VALUES ('schema_version', '24')"))
             except Exception:
                 pass

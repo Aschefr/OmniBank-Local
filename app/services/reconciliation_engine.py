@@ -64,17 +64,20 @@ def evaluate_candidate(candidate_tx: Transaction, target_dt, bank_label: Optiona
     return amt_score + temp_score + text_score
 
 
-def best_scored_tx(candidates: List[Transaction], target_dt, bank_label: Optional[str]) -> Tuple[Optional[Transaction], int]:
-    """Sélectionne le meilleur candidat parmi une liste avec tri score décroissant puis proximité date."""
+def best_scored_tx(candidates: List[Transaction], target_dt, bank_label: Optional[str]) -> Tuple[Optional[Transaction], int, bool]:
+    """
+    Sélectionne le meilleur candidat parmi une liste avec tri score décroissant puis proximité date.
+    Retourne (best_candidate, best_score, collision_detected).
+    """
     if not candidates:
-        return None, 0
+        return None, 0, False
     scored = []
     for c in candidates:
         s = evaluate_candidate(c, target_dt, bank_label)
         if s >= 40:
             scored.append((s, c))
     if not scored:
-        return None, 0
+        return None, 0, False
     # Trier par score décroissant, puis par proximité de date la plus faible
     scored.sort(
         key=lambda item: (
@@ -84,7 +87,16 @@ def best_scored_tx(candidates: List[Transaction], target_dt, bank_label: Optiona
         reverse=True
     )
     best_score, best_candidate = scored[0]
-    return best_candidate, best_score
+
+    # Anti-collision : conflit si au moins 2 candidats ont un score éligible (>= 60)
+    # et que la marge discriminante est insuffisante (< 10 pts ou égalité)
+    collision_detected = False
+    if len(scored) > 1:
+        second_score, _ = scored[1]
+        if second_score >= 60 and (best_score - second_score) < 10:
+            collision_detected = True
+
+    return best_candidate, best_score, collision_detected
 
 
 def check_reconciliation(
@@ -103,7 +115,8 @@ def check_reconciliation(
       - Montant exact (+/- 0.01 €) : 40 pts
       - Proximité temporelle (delta asymétrique) : 0 à 35 pts
       - Similarité textuelle marchand (SmartLabelService) : 0 à 25 pts
-    Gère également les virements internes inter-comptes et la détection d'orphelins.
+    Gère également la double échelle (suggéré >= 60 vs auto-commit >= 85),
+    l'anti-collision sur montants homonymes, les virements internes et orphelins.
     """
     if tx_date is None or tx_amount is None:
         return None
@@ -147,11 +160,15 @@ def check_reconciliation(
             )
         exact_csv_match = csv_query.first()
         if exact_csv_match:
+            is_already = bool(exact_csv_match.reconciliation_date)
             return {
                 "id": exact_csv_match.id,
                 "description": exact_csv_match.description,
-                "already_reconciled": bool(exact_csv_match.reconciliation_date),
-                "match_score": 100
+                "already_reconciled": is_already,
+                "match_score": 100,
+                "collision_detected": False,
+                "suggested_match": False,
+                "auto_committed": not is_already
             }
 
     target_dt = tx_date.date() if hasattr(tx_date, "date") and callable(tx_date.date) else tx_date
@@ -200,13 +217,16 @@ def check_reconciliation(
         else:
             recon_query_filtered = recon_query
 
-        recon_match, recon_score = best_scored_tx(recon_query_filtered.all(), target_dt, bank_label)
+        recon_match, recon_score, recon_collision = best_scored_tx(recon_query_filtered.all(), target_dt, bank_label)
         if recon_match:
             return {
                 "id": recon_match.id,
                 "description": recon_match.description,
                 "already_reconciled": True,
-                "match_score": recon_score
+                "match_score": recon_score,
+                "collision_detected": recon_collision,
+                "suggested_match": (60 <= recon_score < 85) or recon_collision,
+                "auto_committed": False
             }
         return None
 
@@ -233,13 +253,16 @@ def check_reconciliation(
         if matched_ids:
             available_op_query = op_query.filter(Transaction.id.notin_(matched_ids))
 
-        op_match, op_score = best_scored_tx(available_op_query.all(), target_dt, bank_label)
+        op_match, op_score, op_collision = best_scored_tx(available_op_query.all(), target_dt, bank_label)
         if op_match:
             return {
                 "id": op_match.id,
                 "description": op_match.description,
                 "already_reconciled": False,
-                "match_score": op_score
+                "match_score": op_score,
+                "collision_detected": op_collision,
+                "suggested_match": (60 <= op_score < 85) or op_collision,
+                "auto_committed": op_score >= 85 and not op_collision
             }
         return None
 
@@ -280,14 +303,17 @@ def check_reconciliation(
                 and_(Transaction.from_account_id.isnot(None), Transaction.to_account_id.isnot(None))
             )
         )
-        mirror_match, mirror_score = best_scored_tx(mirror_query.all(), target_dt, bank_label)
+        mirror_match, mirror_score, mirror_collision = best_scored_tx(mirror_query.all(), target_dt, bank_label)
         if mirror_match:
             return {
                 "id": mirror_match.id,
                 "description": mirror_match.description,
                 "already_reconciled": True,
                 "is_mirror_transfer": True,
-                "match_score": mirror_score
+                "match_score": mirror_score,
+                "collision_detected": mirror_collision,
+                "suggested_match": False,
+                "auto_committed": False
             }
 
     # 3. Recherche d'un virement orphelin inter-comptes (Auto-linking)
@@ -320,7 +346,7 @@ def check_reconciliation(
         if matched_ids:
             orphan_q = orphan_q.filter(Transaction.id.notin_(matched_ids))
 
-        orphan_match, orphan_score = best_scored_tx(orphan_q.all(), target_dt, bank_label)
+        orphan_match, orphan_score, orphan_collision = best_scored_tx(orphan_q.all(), target_dt, bank_label)
         if orphan_match:
             other_acc_id = orphan_match.to_account_id if raw_num < 0 else orphan_match.from_account_id
             other_acc = db.query(Account).filter(Account.id == other_acc_id).first()
@@ -333,7 +359,10 @@ def check_reconciliation(
                 "is_orphan_transfer_link": True,
                 "orphan_account_id": other_acc_id,
                 "orphan_account_name": other_acc_name,
-                "match_score": orphan_score
+                "match_score": orphan_score,
+                "collision_detected": orphan_collision,
+                "suggested_match": (60 <= orphan_score < 85) or orphan_collision,
+                "auto_committed": orphan_score >= 85 and not orphan_collision
             }
 
     return None
