@@ -80,41 +80,33 @@ async def call_ollama(db: Session, prompt: str, sys_prompt: str, format_json: bo
 @router.post("/categorize")
 async def categorize_transaction(data: dict, db: Session = Depends(get_db)):
     description = data.get("description", "")
-    if not description: return {"category": None}
-    
+    if not description:
+        return {"category": None}
+
     cats = db.query(Category).all()
-    cat_names = [c.name for c in cats]
-    
-    sys_prompt = load_sys_prompt('sys_prompt_categorizer')
-    prompt = f"Catégories disponibles: {json.dumps(cat_names, ensure_ascii=False)}\nTransaction: {description}"
-    
+    cat_names = [c.name for c in cats if c.name]
+
+    from app.services.chat.ollama_client import call_ollama_batch_async
     try:
-        res = await call_ollama(db, prompt, sys_prompt, format_json=True)
-        res_json = json.loads(res)
-        return {"category": res_json.get("category")}
+        res_map = await call_ollama_batch_async([description], cat_names, db=db)
+        return {"category": res_map.get(description)}
     except Exception as e:
         return {"category": None, "error": str(e)}
+
 
 @router.post("/categorize_batch")
 async def categorize_batch(data: dict, db: Session = Depends(get_db)):
     descriptions = data.get("descriptions", [])
-    if not descriptions: return {"categories": {}}
-    
+    if not descriptions:
+        return {"categories": {}}
+
     cats = db.query(Category).all()
-    cat_names = [c.name for c in cats]
-    
-    sys_prompt = load_sys_prompt('sys_prompt_categorizer_batch')
-    if not sys_prompt:
-        sys_prompt = "Tu es un assistant bancaire. Tu dois catégoriser chaque transaction parmi les catégories fournies. Renvoie uniquement un objet JSON avec les descriptions en clé et la catégorie en valeur. Si aucune ne correspond bien, renvoie null pour cette ligne."
-        
-    prompt = f"Catégories: {json.dumps(cat_names, ensure_ascii=False)}\nTransactions:\n"
-    for d in descriptions:
-        prompt += f"- {d}\n"
-        
+    cat_names = [c.name for c in cats if c.name]
+
+    from app.services.chat.ollama_client import call_ollama_batch_async
     try:
-        res = await call_ollama(db, prompt, sys_prompt, format_json=True)
-        res_json = json.loads(res)
-        return {"categories": res_json}
+        categories_map = await call_ollama_batch_async(descriptions, cat_names, db=db)
+        return {"categories": categories_map}
     except Exception as e:
         return {"categories": {}, "error": str(e)}
 

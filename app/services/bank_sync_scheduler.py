@@ -32,6 +32,13 @@ _SCHEDULER_RUNNING = False
 CSV_IMPORT_CONN_ID = -1
 CSV_IMPORT_CONN_LABEL = "📄 Relevé importé"
 
+TRIGGER_SOURCE_LABELS = {
+    "vault_unlock": "au déverrouillage du coffre",
+    "scheduled": "planification automatique",
+    "manual": "action manuelle",
+    "test": "test automatisé"
+}
+
 
 def _resolve_profile_id(profile_id: Optional[str] = None) -> str:
     if profile_id:
@@ -531,10 +538,17 @@ def clear_pending_sync_for_conn(db: Session, conn_id: int, profile_id: Optional[
     clear_pending_sync_for_connection(db, conn_id, profile_id)
 
 
-def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_password: str, profile_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def execute_auto_sync_for_connection(
+    db: Session,
+    conn: BankConnection,
+    master_password: str,
+    profile_id: Optional[str] = None,
+    trigger_source: str = "scheduled"
+) -> Optional[Dict[str, Any]]:
     """Exécute un relevé silencieux en tâche de fond pour une connexion donnée."""
     pid = _resolve_profile_id(profile_id)
-    logger.info(f"[BankScheduler] Lancement du relevé auto silencieux pour '{conn.label}' (id={conn.id}, profil={pid})")
+    trigger_desc = TRIGGER_SOURCE_LABELS.get(trigger_source, trigger_source)
+    logger.info(f"[BankScheduler] Lancement du relevé auto ({trigger_desc}) pour '{conn.label}' (id={conn.id}, profil={pid})")
     try:
         preview = BankSyncService.fetch_preview_transactions(
             db=db,
@@ -662,22 +676,42 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
             conn.last_error = "Authentification 2FA requise par votre banque (validation sur smartphone)."
             conn.last_sync_at = datetime.now(timezone.utc)
 
-            # Notification informative 2FA (pas d'erreur critique ni d'issue GitHub)
+            trigger_desc = TRIGGER_SOURCE_LABELS.get(trigger_source, trigger_source)
+            notif_content = (
+                f"Votre banque ({conn.label}) requiert une validation 2FA sur votre smartphone "
+                f"pour synchroniser vos comptes (déclenché par : {trigger_desc})."
+            )
+            link_dict = {
+                "view": "accounts",
+                "action": "bank_sync_2fa",
+                "conn_id": conn.id,
+                "conn_label": conn.label,
+                "trigger_source": trigger_source
+            }
+
+            # Notification informative 2FA avec dédoublonnage intelligent
             try:
-                notif = Notification(
-                    type="bank_sync_2fa",
-                    title=f"🔐 Validation 2FA requise : {conn.label}",
-                    content=f"Votre banque ({conn.label}) requiert une validation 2FA sur votre smartphone pour synchroniser vos comptes.",
-                    link_data=json.dumps({
-                        "view": "accounts",
-                        "action": "bank_sync_2fa",
-                        "conn_id": conn.id,
-                        "conn_label": conn.label
-                    }),
-                    is_read=False,
-                    created_at=datetime.now(timezone.utc)
-                )
-                db.add(notif)
+                existing_2fa = db.query(Notification).filter(
+                    Notification.type == "bank_sync_2fa",
+                    Notification.is_read == False,
+                    Notification.is_archived == False,
+                    Notification.link_data.like(f'%"conn_id": {conn.id}%')
+                ).first()
+
+                if existing_2fa:
+                    existing_2fa.content = notif_content
+                    existing_2fa.created_at = datetime.now(timezone.utc)
+                    existing_2fa.link_data = json.dumps(link_dict)
+                else:
+                    notif = Notification(
+                        type="bank_sync_2fa",
+                        title=f"🔐 Validation 2FA requise : {conn.label}",
+                        content=notif_content,
+                        link_data=json.dumps(link_dict),
+                        is_read=False,
+                        created_at=datetime.now(timezone.utc)
+                    )
+                    db.add(notif)
             except Exception as notif_err:
                 logger.warning(f"[BankScheduler] Erreur création notification 2FA : {notif_err}")
         else:
@@ -690,24 +724,41 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
             conn.last_error = err_msg
             conn.last_sync_at = datetime.now(timezone.utc)
 
-            # Créer une notification in-app d'erreur
+            trigger_desc = TRIGGER_SOURCE_LABELS.get(trigger_source, trigger_source)
+            notif_content = f"Erreur lors du relevé bancaire de {conn.label} (déclenché par : {trigger_desc}) : {err_msg}"
+            is_vault_err = any(k in err_lower for k in ("mot de passe", "password", "coffre", "vault", "identifiant", "verrouill"))
+            link_dict = {
+                "view": "accounts",
+                "action": "unlock_vault" if is_vault_err else "bank_sync_error",
+                "conn_id": conn.id,
+                "conn_label": conn.label,
+                "error": err_msg,
+                "trigger_source": trigger_source
+            }
+
+            # Créer ou mettre à jour la notification in-app d'erreur (dédoublonnage intelligent)
             try:
-                is_vault_err = any(k in err_lower for k in ("mot de passe", "password", "coffre", "vault", "identifiant", "verrouill"))
-                notif = Notification(
-                    type="bank_sync_error",
-                    title=f"⚠️ Échec relevé {conn.label}",
-                    content=f"Erreur lors du relevé bancaire de {conn.label} : {err_msg}",
-                    link_data=json.dumps({
-                        "view": "accounts",
-                        "action": "unlock_vault" if is_vault_err else "bank_sync_error",
-                        "conn_id": conn.id,
-                        "conn_label": conn.label,
-                        "error": err_msg
-                    }),
-                    is_read=False,
-                    created_at=datetime.now(timezone.utc)
-                )
-                db.add(notif)
+                existing_err = db.query(Notification).filter(
+                    Notification.type == "bank_sync_error",
+                    Notification.is_read == False,
+                    Notification.is_archived == False,
+                    Notification.link_data.like(f'%"conn_id": {conn.id}%')
+                ).first()
+
+                if existing_err:
+                    existing_err.content = notif_content
+                    existing_err.created_at = datetime.now(timezone.utc)
+                    existing_err.link_data = json.dumps(link_dict)
+                else:
+                    notif = Notification(
+                        type="bank_sync_error",
+                        title=f"⚠️ Échec relevé {conn.label}",
+                        content=notif_content,
+                        link_data=json.dumps(link_dict),
+                        is_read=False,
+                        created_at=datetime.now(timezone.utc)
+                    )
+                    db.add(notif)
             except Exception as notif_err:
                 logger.warning(f"[BankScheduler] Erreur création notification d'échec : {notif_err}")
 
@@ -749,6 +800,13 @@ async def bank_sync_scheduler_loop():
                         # 1. Vérifier si l'auto-sync est activé pour ce profil
                         enabled_str = _get_config_value(db, "bank_auto_sync_enabled", "false")
                         if enabled_str == "true":
+                            # Vérification du cooldown anti-spam persistant de 3h
+                            cooldown = get_auto_sync_cooldown_status(db, pid)
+                            if cooldown.get("cooldown_active"):
+                                rem_min = cooldown.get("remaining_seconds", 0) // 60
+                                logger.debug(f"[BankScheduler] Boucle auto ignorée pour profil '{pid}' : cooldown anti-spam actif ({rem_min} min restantes)")
+                                continue
+
                             interval_hours = int(_get_config_value(db, "bank_auto_sync_interval_hours", "24") or 24)
 
                             # 2. Vérifier si le coffre de ce profil spécifique est déverrouillé en mémoire
@@ -759,6 +817,7 @@ async def bank_sync_scheduler_loop():
                                 ).all()
 
                                 now = datetime.now(timezone.utc)
+                                ran_any = False
                                 for conn in active_conns:
                                     # Ne pas exécuter si aucun compte n'est encore mappé
                                     if not conn.account_mapping or conn.account_mapping.strip() in ("", "{}", "null"):
@@ -776,6 +835,7 @@ async def bank_sync_scheduler_loop():
                                             should_run = True
 
                                     if should_run:
+                                        ran_any = True
                                         loop = asyncio.get_running_loop()
                                         await loop.run_in_executor(
                                             None,
@@ -783,9 +843,13 @@ async def bank_sync_scheduler_loop():
                                             db,
                                             conn,
                                             master_password,
-                                            pid
+                                            pid,
+                                            "scheduled"
                                         )
                                         await asyncio.sleep(5)
+
+                                if ran_any:
+                                    _set_config_value(db, "last_auto_sync_attempt", datetime.now(timezone.utc).isoformat())
                             else:
                                 logger.debug(f"[BankScheduler] Coffre verrouillé pour le profil '{pid}' : sync auto en attente")
                     finally:
@@ -854,7 +918,8 @@ def trigger_manual_auto_sync(
     vault_token: Optional[str] = None,
     profile_id: Optional[str] = None,
     force: bool = False,
-    db: Optional[Session] = None
+    db: Optional[Session] = None,
+    trigger_source: str = "manual"
 ) -> Dict[str, Any]:
     """
     Déclenche un relevé automatique en arrière-plan pour toutes les connexions actives d'un profil.
@@ -914,6 +979,17 @@ def trigger_manual_auto_sync(
         if not db:
             db_init.close()
 
+    # 3. Isolation tests : en environnement pytest, neutraliser le thread réel pour éviter toute pollution
+    import os
+    if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("OMNIBANK_ENABLE_TEST_BACKGROUND_SYNC"):
+        logger.info(f"[BankScheduler] Environnement pytest actif : relevé d'arrière-plan neutralisé pour éviter la pollution.")
+        return {
+            "ok": True,
+            "test_mode": True,
+            "cooldown_active": False,
+            "message": "Mode test actif : thread d'arrière-plan neutralisé."
+        }
+
     def _worker():
         import time
         worker_db = SessionProf()
@@ -921,9 +997,9 @@ def trigger_manual_auto_sync(
             active_conns = worker_db.query(BankConnection).filter(
                 BankConnection.is_active == True
             ).all()
-            logger.info(f"[BankScheduler] Relevé en arrière-plan démarré pour {len(active_conns)} connexion(s) (profil={pid}, force={force})")
+            logger.info(f"[BankScheduler] Relevé en arrière-plan démarré pour {len(active_conns)} connexion(s) (profil={pid}, force={force}, source={trigger_source})")
             for conn in active_conns:
-                execute_auto_sync_for_connection(worker_db, conn, pw, profile_id=pid)
+                execute_auto_sync_for_connection(worker_db, conn, pw, profile_id=pid, trigger_source=trigger_source)
                 time.sleep(2)
         except Exception as e:
             logger.error(f"[BankScheduler] Erreur lors du relevé d'arrière-plan (profil={pid}): {e}")

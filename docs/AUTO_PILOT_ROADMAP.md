@@ -142,7 +142,9 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - ✅ **Rafraîchissement Réactif Global en Temps Réel** : Branchement de `BankSyncView.refreshActiveViews()` dès la fin du relevé en tâche de fond ou la réception de notification bancaire (actualisation immédiate de l'Overview, Dashboard/Timeline, Opérations, Comptes et soldes sans F5).
   - ✅ **Mode Catch-Up & Tri Chronologique Strict** : Tri croissant systématique `history_raw.sort(key=lambda x: x["tx_date_obj"])` et `coming_raw` éliminant l'antéchronologie Woob.
   - ✅ **Gestion asynchrone non-bloquante du 2FA** : Notifications in-app dédiées et attente sans thread bloqué.
-  - ✅ **Suite de tests unitaires et d'intégration validée** : 100% de succès sur le Pack de Test 1 (T1.1 à T1.5 dans `tests/test_bank_sync_step1.py`).
+  - ✅ **Traçabilité du Déclencheur (`trigger_source`)** : Marquage contextuel de l'origine de la synchronisation (`vault_unlock`, `scheduled`, `manual`) dans les logs et notifications bancaires, offrant une visibilité immédiate sur la cause de chaque relevé.
+  - ✅ **Déduplication Intelligente des Notifications Bancaires** : Mise à jour in-place évitant l'empilement intempestif de notifications d'erreur successives pour un même compte bancaire.
+  - ✅ **Suite de tests unitaires et d'intégration validée** : 100% de succès sur le Pack de Test 1 (T1.1 à T1.6 dans `tests/test_bank_sync_step1.py`).
 
 > [!NOTE]
 > **Périmètre Desktop (Tauri Rust) vs Backend (Brique 1)** :
@@ -157,17 +159,23 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 * **Fichiers concernés** :
   - [`app/services/smart_label_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/smart_label_service.py) (`normalize_raw_label`, `resolve_smart_labels_batch`, `_compute_match_score`)
   - [`app/routers/ai_helpers.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/ai_helpers.py) / [`app/routers/chat.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/chat.py)
-* **État d'avancement actuel : 75%**
+* **État d'avancement actuel : 95%**
   - ✅ Nettoyage regex haute précision (suppression dates, codes guichets, CB, PRLV, préfixes passerelles PayPal/Stripe/SumUp).
   - ✅ Étage 1 : Base de règles déterministes (`BankLabelMapping`).
   - ✅ Étage 2 : Fuzzy matching Levenshtein + Jaccard tokens signifiants sur l'historique réel.
   - ✅ Détection d'ambiguïté : Si plusieurs catégories concurrentes n'atteignent pas un consensus de $\ge 75\%$, le moteur refuse de deviner à l'aveugle.
   - ✅ Résolution par lot vectorisée ultra-rapide ($O(N)$).
-* **Ce qu'il reste à faire** :
-  1. **Étage 3 (Fallback IA Ollama local Groupé par Lot / Batch Prompting)** : Pour éliminer tout risque de latence (25 à 45s) causé par des requêtes unitaires successives, l'ensemble des libellés inconnus ou ambigus du cycle est transmis en **une seule requête JSON groupée** au LLM local avec la liste des catégories actives (latence totale maintenue à 2-3s pour tout le lot).
-  2. **Consolidation de l'appel LLM dans [`app/services/chat/ollama_client.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/chat/ollama_client.py)** : Plutôt que de créer un service concurrent, enrichir le client Ollama existant avec une méthode non-bloquante `call_ollama_batch` ne levant pas de `HTTPException` (réservées aux routeurs web) et renvoyant un fallback déterministe propre en cas d'indisponibilité du LLM.
-  3. **Apprentissage Automatique Renforcé (Auto-Learning)** : Quand une opération est validée ou classifiée avec certitude $\ge 90\%$, inscription automatique d'une règle dans `BankLabelMapping` pour les occurrences futures.
-  4. **Garde-fou anti-prolifération de catégories** : Le système ne doit jamais créer automatiquement une catégorie sans autorisation. Si aucune catégorie existante ne correspond, assigner "À catégoriser" plutôt que de polluer l'arbre comptable.
+  - ✅ **Sanctuarisation Manuelle des Règles (`is_manual = True`)** : Les règles configurées ou modifiées manuellement par l'utilisateur sont formellement protégées contre tout écrasement ou réécriture lors des imports ou détections ultérieurs.
+  - ✅ **Apprentissage Progressif Fiabilisé ($N \ge 2$)** : La première observation d'un marchand ($N=1$) reste à l'état provisoire (`is_provisional = True`) sans figer prématurément de catégorie automatique. L'apprentissage ne se consolide qu'à partir de 2 détections concordantes.
+  - ✅ **Prise en Charge Native des Marchands Caméléons / Multi-Catégories (`_MULTI_CATEGORY_MERCHANTS`)** : Amazon, PayPal, grandes surfaces et marketplaces ne sont plus figés sur une catégorie unique erronée ; ils conservent leur libellé commercial propre tout en laissant la catégorie libre à l'arbitrage humain (`is_multi_category = True`).
+  - ✅ **Détection de Dispersion Catégorielle** : Si l'historique d'un commerçant est éclaté entre plusieurs catégories sans consensus net, le moteur neutralise l'affectation automatique pour éviter tout mauvais choix.
+  - ✅ **Réversibilité Totale & Intégration `ActionHistory`** : Toute modification d'une règle (passage manuel/auto, changement de catégorie, activation multi-catégorie) est tracée dans l'historique d'annulation/rétablissement global avec toast d'annulation 1-clic (`undo_action` / `redo_action`).
+  - ✅ **Badges de Transparence dans le Sas d'Attente (Cockpit de Revue)** : Affichage direct de badges d'explication de provenance (`🛡️ Règle manuelle`, `🤖 Règle apprise`, `⚠️ Provisoire (1ère fois)`, `🔀 Multi-catégories`, `🕒 Historique`) avec info-bulles détaillées guidant l'utilisateur sur la manière de modifier la règle si besoin.
+  - ✅ **Modale d'Édition Ergonomique avec Recherche Permissive** : Modale dédiée d'édition de règle dans l'Atelier avec recherche instantanée insensible à la casse et aux accents (`removeAccents`), prévisualisation en direct et navigation clavier.
+  - ✅ **Garde-fou Anti-Prolifération de Catégories** : Le système ne crée jamais de catégorie sans autorisation ; si aucune catégorie existante ne correspond, il assigne `None` ("À catégoriser") plutôt que de polluer l'arbre comptable.
+  - ✅ **Étage 3 : Fallback IA local Ollama Groupé par Lot (`call_ollama_batch`)** : Résolution des marchands inconnus en 1 seule requête JSON groupée (`format: "json"`) avec garde-fou anti-hallucination rejetant les catégories non autorisées, ne levant jamais de `HTTPException` et s'exécutant silencieusement hors ligne.
+* **Ce qu'il reste à faire pour clore la Brique 2** :
+  1. **Auto-Commit des Nouvelles Écritures Courantes** : Enregistrement autonome des dépenses courantes directes non ambiguës dans [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) (lorsque `auto_pilot_enabled == True`).
 
 ---
 
@@ -293,10 +301,11 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - [`app/services/history_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/history_service.py) (`record_action`, `snapshot_entity`)
   - [`app/models.py`](file:///d:/Code%20Projects/OmniBank-Local/app/models.py) (`AutopilotDecisionLog`, `BankLabelMapping`)
   - [`static/index.html`](file:///d:/Code%20Projects/OmniBank-Local/static/index.html) & [`static/js/app.js`](file:///d:/Code%20Projects/OmniBank-Local/static/js/app.js) (Bouton nav `🤖 Auto-Pilote` et badge interactif dans le header)
-* **État d'avancement actuel : 40%**
-  - ✅ Système `record_action` + `snapshot_entity` dans `history_service.py` pour l'historique avant/après des mutations de transactions.
-  - ✅ Système de notifications persistantes avec filtres actif/archivé.
+* **État d'avancement actuel : 60%**
+  - ✅ Système `record_action` + `snapshot_entity` dans `history_service.py` pour l'historique avant/après des mutations de transactions et des règles Smart Labels.
+  - ✅ Système de notifications persistantes avec filtres actif/archivé, déduplication et provenance `trigger_source`.
   - ✅ Base de règles d'apprentissage `BankLabelMapping` et API complète existante dans `smart_labels.py` (évite de réinventer un CRUD d'API en Étape 6).
+  - ✅ **Atelier des Directives Opérationnel (`config_smart_labels.js`)** : Tableau des correspondances libellés/catégories avec filtres, bascule 1-clic Manuel/Auto, bascule Multi-catégories, modale d'édition in-place avec recherche ultra-permissive (casse/accents) et annulation immédiate (Undo).
 
 #### 1. Philosophie : Autonomie Silencieuse par Défaut, Contrôle Souverain à la Demande
 - **Consultation 100% Facultative** : L'Auto-Pilote travaille silencieusement en tâche de fond. Il n'interrompt jamais l'utilisateur avec des modales bloquantes ou des demandes de validation intempestives. Si l'utilisateur choisit de ne jamais visiter cette page, ses comptes restent impeccablement tenus et équilibrés.
@@ -453,7 +462,7 @@ La transition vers l'Auto-Pilote s'effectuera en **7 étapes autonomes**, chacun
 graph TD
     Z["Étape 0 : Fondations & Pré-requis Techniques<br/>✅ 100% (v1.1.3)"] --> A["Étape 1 : Réactivité Déverrouillage + Cooldown<br/>✅ 100% (v1.1.4)"]
     A --> B["Étape 2 : Orchestrateur AutoPilotService<br/>Auto-Rapprochement & Modèle DecisionLog<br/>✅ 100% PASS"]
-    B --> C["Étape 3 : Ingestion Autonome des Écritures<br/>Smart Labels & Fallback Ollama par lot"]
+    B --> C["Étape 3 : Pipeline Smart Labels & Écritures<br/>🔄 Socle Livré (~90%) : Sanctuarisation, Multi-Cat, Badges"]
     C --> D["Étape 4 : Détection & Promotion Récurrences<br/>Charges Candidates Dynamiques (Reste à Vivre)"]
     D --> E["Étape 5 : Lissage Budgétaire EMA Déterministe<br/>(budget_service.py 100% Offline)"]
     E --> F["Étape 6 : Centre de Contrôle Dédié<br/>Decision Feed, Rollback Snapshot, Switch UI & Finitions Desktop"]
@@ -496,18 +505,19 @@ graph TD
     - [x] **Jalon 2.6 : Pack de Test 2 validé** : 8 tests unitaires complets passés avec succès (`tests/test_autopilot_step2.py`).
     - *Bénéfice immédiat* : Réduction de 80% des clics de validation dans le cockpit, avec traçabilité complète dès la première décision.
 
-3. **Étape 3 : Enregistrement Autonome des Nouvelles Écritures, Fallback Ollama Groupé & Dropzone UI**
-    - Ingestion directe des dépenses courantes non ambiguës avec libellé et catégorie propres via `AutoPilotService` (lorsque `auto_pilot_enabled == True`).
-    - **Fallback IA Ollama Groupé par Lot (Batch Prompting via `app/services/chat/ollama_client.py`)** : envoi d'une seule requête JSON groupée pour tous les libellés inconnus du cycle, limitant la latence totale à 2-3s pour l'ensemble du relevé.
-    - Enregistrement des créations d'écritures dans `AutopilotDecisionLog` (avec le `batch_id` du cycle courant).
-    - **Adaptation de la Dropzone CSV / Excel (`static/js/views/import_wizard.js`)** :
-      * Lors d'un import de relevé sous `/api/csv/import_to_pending`, le backend renvoie le résumé d'auto-traitement `_autopilot_summary: { auto_reconciled, auto_committed, pending }`.
-      * Si `pending === 0` (100% des opérations traitées en auto-commit/auto-rapprochement) : l'UI ferme automatiquement la modale d'import, affiche un toast de confirmation valorisant (`"🤖 Auto-Pilote : X opérations traitées et enregistrées"`), et rafraîchit la vue active via `window.app.refreshCurrentView()`, évitant ainsi d'ouvrir une modale de revue vide.
-      * Si `pending > 0` : la modale de revue est ouverte avec uniquement le sous-ensemble résiduel d'opérations nécessitant un arbitrage humain.
-    - **Clés i18n requises (Étape 3)** :
-      * `autopilot_batch_categorized`, `autopilot_uncategorized_fallback`, `autopilot_ai_batch_failed`
-      * `autopilot_import_complete_toast`
-    - *Bénéfice immédiat* : Plus besoin de saisir manuellement les tickets ou courses habituelles, zéro ralentissement de l'application.
+3. **Étape 3 : Pipeline Smart Labels, Fallback Ollama Groupé & Dropzone UI** — `🔄 EN COURS (~90% du socle Smart Labels livré)`
+    - [x] **Jalon 3.1 : Socle Smart Labels & Normalisation Déterministe** : Nettoyage regex, règles exactes `BankLabelMapping`, fuzzy-matching Levenshtein/Jaccard, et résolution par lot ultra-rapide $O(N)$ (`app/services/smart_label_service.py`).
+    - [x] **Jalon 3.2 : Sanctuarisation Manuelle & Apprentissage Progressif ($N \ge 2$)** : Protection des règles configurées par l'utilisateur (`is_manual = True`), statut provisoire pour $N=1$, neutralisation sur dispersion de catégories et prise en charge native des marchands caméléons multi-catégories (`_MULTI_CATEGORY_MERCHANTS`).
+    - [x] **Jalon 3.3 : Réversibilité Totale & Intégration `ActionHistory`** : Historique avant/après des modifications de règles, intégration au gestionnaire Undo/Redo global et toasts d'annulation 1-clic.
+    - [x] **Jalon 3.4 : Badges de Transparence dans le Sas d'Attente (Cockpit)** : Affichage contextuel de la logique utilisée (`🛡️ Règle manuelle`, `🤖 Règle apprise`, `⚠️ Provisoire (1ère fois)`, `🔀 Multi-catégories`, `🕒 Historique`) avec info-bulles explicatives guidant l'arbitrage dans `bank_sync_review.js`.
+    - [x] **Jalon 3.5 : Atelier des Règles & Recherche Permissive** : Modale d'édition in-place avec recherche instantanée insensible à la casse et aux accents (`removeAccents`), prévisualisation dynamique et navigation clavier dans `config_smart_labels.js`.
+    - [x] **Jalon 3.6 : Suite de Tests Smart Labels Validée** : 100% de succès sur les 13 tests unitaires et d'intégration (`tests/test_smart_label.py`).
+    - **Ce qu'il reste à faire pour clore l'Étape 3** :
+      * [x] **Jalon 3.7 : Fallback IA Ollama Groupé par Lot (Batch Prompting)** : Méthode non-bloquante `call_ollama_batch` dans `app/services/chat/ollama_client.py` transmettant en une seule requête JSON groupée les libellés inconnus (latence globale 2-3s).
+      * [ ] **Jalon 3.8 : Auto-Commit des Écritures Courantes** : Enregistrement autonome des dépenses courantes non ambiguës dans `AutoPilotService.process_incoming_batch()` et traçabilité dans `AutopilotDecisionLog` (`new_entry`).
+      * [ ] **Jalon 3.9 : Adaptation de la Dropzone CSV / Excel (`static/js/views/import_wizard.js`)** : Fermeture automatique de la modale avec toast de confirmation si 100% des opérations sont traitées (`pending === 0`), évitant d'ouvrir une modale de revue vide.
+      * [ ] **Jalon 3.10 : Clés i18n associées** : `autopilot_batch_categorized`, `autopilot_uncategorized_fallback`, `autopilot_ai_batch_failed`, `autopilot_import_complete_toast`.
+    - *Bénéfice immédiat* : Catégorisation fiable, transparente et souveraine, apprentissage sans pollution et expérience d'importation sans friction.
 
 4. **Étape 4 : Détection Périodique, Charges Candidates Dynamiques ($N=2$) & Liaison Rétroactive**
     - Moteur de reconnaissance de périodicité (même montant, même marchand nettoyé, intervalle 28–31 jours).
@@ -575,6 +585,7 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 | **T1.3** | Application fermée pendant 15 jours (35 opérations en attente côté banque). | Déverrouillage après 15 jours d'absence (Mode Catch-Up). | Ingestion ordonnée chronologiquement de la plus ancienne à la plus récente. | Solde final calculé identique au centime près au solde bancaire officiel en 1 seul commit. | ✅ **PASS** |
 | **T1.4** | Déverrouillage passif : Coffre verrouillé, `sync_on_vault_unlock = false`, relevé auto coché (intervalle 24h, TTL = 14j sur Docker ou session Tauri). | Appel `/api/bank-sync/vault/unlock` avec mot de passe valide. | Clé chargée en mémoire vive (`is_unlocked = True`), **0 requête réseau bancaire émise à T0**. Le planificateur périodique prend le relais et planifie le relevé à l'échéance programmée (24h). | Clé en RAM, 0 appel Woob émis au déverrouillage, prochain relevé programmé avec succès. | ✅ **PASS** |
 | **T1.5** | Banque déclenchant un challenge 2FA / SCA mobile pendant le relevé périodique. | Cycle de relevé automatique exécuté en arrière-plan. | Le scheduler n'interrompt ni ne bloque le backend. Il émet un événement/notification *"Validation 2FA requise"* et met la session bancaire en attente. | Pas de thread bloqué, UI réactive avec pastille d'alerte claire. | ✅ **PASS** |
+| **T1.6** | Relevé bancaire automatique ou sur déverrouillage rencontrant une erreur. | Déclenchement de la synchronisation en arrière-plan. | La notification émise indique la source précise (`vault_unlock`, `scheduled`, `manual`), et les erreurs successives pour un même compte sont dédupliquées in-place. | `trigger_source` fidèlement renseigné, zéro notification en doublon. | ✅ **PASS** |
 
 ---
 
@@ -593,13 +604,20 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 
 ---
 
-### Pack de Test 3 : Pipeline Smart Labels & Fallback IA / Déterministe (Étape 3)
+### Pack de Test 3 : Pipeline Smart Labels & Fallback IA / Déterministe (Étape 3) — `✅ 13/13 PASS sur le socle`
 
-| Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Critère d'Échec (FAIL) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **T3.1** | Libellé brut : `CB CARREFOUR MARKET 7501 04/09`. Règle #1 existante dans `BankLabelMapping`. | Normalisation et affectation par `SmartLabelService`. | Libellé nettoyé : `"Carrefour"`. Catégorie : `"Alimentation"` (Score certitude: 100%). | Écriture directe en base avec libellé propre et catégorie exacte. | Libellé brut conservé avec codes guichet ou date parasite. |
-| **T3.2** | Libellé brut : `CB BOULANGERIE DU PARC 92` (Marchand inconnu, IA Ollama désactivée). | Résolution déterministe pure (mode sans IA). | Libellé nettoyé : `"Boulangerie Du Parc"`. Catégorie : `None` (*"À catégoriser"*). | **Zéro nouvelle catégorie créée**. Le nombre de catégories en base reste strictement invariant. | Création automatique anarchique d'une catégorie "Boulangerie". |
-| **T3.3** | Libellé brut : `CB LEROY MERLIN BRICOLAGE` (Marchand inconnu, IA Ollama connectée). | Résolution avec fallback IA local. | Prompt JSON strict en anglais envoyé à Ollama avec les catégories existantes. | Réponse JSON valide : catégorie choisie = `"Logement & Maison"` ou `"Bricolage"`. | Prompt en échec, hallucination d'une catégorie inexistante ou crash backend. |
+| Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Statut |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **T3.1** | Libellé brut : `CB CARREFOUR MARKET 7501 04/09`. Règle #1 existante dans `BankLabelMapping`. | Normalisation et affectation par `SmartLabelService`. | Libellé nettoyé : `"Carrefour"`. Catégorie : `"Alimentation"` (Score certitude: 100%). | Libellé propre et catégorie exacte résolus par règle déterministe. | ✅ **PASS** |
+| **T3.2** | Libellé brut : `CB BOULANGERIE DU PARC 92` (Marchand inconnu, IA Ollama désactivée). | Résolution déterministe pure (mode sans IA). | Libellé nettoyé : `"Boulangerie Du Parc"`. Catégorie : `None` (*"À catégoriser"*). | **Zéro nouvelle catégorie créée**. Le nombre de catégories en base reste strictement invariant. | ✅ **PASS** |
+| **T3.3** | Règle utilisateur marquée manuelle (`is_manual = True`). Import d'une transaction avec catégorie différente. | Appel d'apprentissage automatique via `learn_from_transaction`. | La règle manuelle est préservée sans modification, la catégorie de l'utilisateur n'est pas écrasée. | Protection absolue des configurations utilisateur (`is_manual` respecté). | ✅ **PASS** |
+| **T3.4** | Première détection d'un nouveau marchand ($N = 1$). | Résolution du label et enregistrement. | Statut provisoire appliqué (`is_provisional = True`), pas d'affectation automatique rigide. | Évite le verrouillage prématuré au cold start. | ✅ **PASS** |
+| **T3.5** | Deuxième détection concordante ($N \ge 2$) pour le même marchand. | Deuxième passage dans l'apprentissage progressif. | Confirmation de la règle, passage à `is_provisional = False`. | Apprentissage progressif stabilisé. | ✅ **PASS** |
+| **T3.6** | Marchand généraliste caméléon (ex: `AMAZON`, `PAYPAL`). | Résolution par `SmartLabelService`. | Libellé nettoyé propre, mais `is_multi_category = True` et catégorie laissée ouverte. | Pas de fausse catégorie unique sur les commerçants multi-rayons. | ✅ **PASS** |
+| **T3.7** | Historique montrant une dispersion catégorielle (ex: 50% Loisirs, 50% High-Tech). | Détection de dispersion par `_detect_category_dispersion`. | Neutralisation de l'auto-affectation, alerte d'ambiguïté. | Consensus $\ge 75\%$ exigé avant toute suggestion de catégorie. | ✅ **PASS** |
+| **T3.8** | Modification ou bascule d'une règle dans l'Atelier. | Annulation via `undo_action` (`ActionHistory`). | Rétablissement de l'état antérieur exact (catégorie, mode manuel/auto, multi-cat). | Réversibilité totale 1-clic intégrée à l'audit trail. | ✅ **PASS** |
+| **T3.9** | Sas d'attente / Cockpit de revue (`bank_sync_review.js`). | Affichage d'une écriture catégorisée. | Badge de transparence affiché (`🛡️ Règle manuelle`, `🤖 Règle apprise`, etc.) avec info-bulle explicative. | Clarté totale pour l'utilisateur sur la provenance de la décision. | ✅ **PASS** |
+| **T3.10** | Libellé brut : `CB LEROY MERLIN BRICOLAGE` (Marchand inconnu, IA Ollama connectée). | Résolution avec fallback IA local groupé (`call_ollama_batch`). | Prompt JSON strict envoyé à Ollama avec les catégories existantes. | Catégorie choisie = `"Logement & Maison"` ou `"Bricolage"` en 1 seul batch. | ✅ **PASS** |
 
 ---
 

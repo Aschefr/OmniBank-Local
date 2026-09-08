@@ -806,7 +806,7 @@ async def save_batch(data: dict, db: Session = Depends(get_db)):
         if raw_lbl and clean_lbl:
             try:
                 from app.services.smart_label_service import learn_label_mapping
-                learn_label_mapping(db, raw_label=raw_lbl, clean_description=clean_lbl, category=cat_name)
+                learn_label_mapping(db, raw_label=raw_lbl, clean_description=clean_lbl, category=cat_name, is_manual=False)
             except Exception:
                 pass
         

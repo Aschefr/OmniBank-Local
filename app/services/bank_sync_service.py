@@ -1050,11 +1050,16 @@ class BankSyncService:
                             raw = tx.get("raw_description") or tx.get("description") or ""
                             if raw in resolutions:
                                 res = resolutions[raw]
-                                if res.get("source") in ("rule", "history"):
+                                if res.get("source") in ("rule", "history", "multi_category"):
                                     tx["description"] = res["description"]
                                     if res.get("category"):
                                         tx["category"] = res["category"]
                                     tx["smart_suggested"] = True
+                                    tx["smart_source"] = res.get("source")
+                                    tx["smart_is_manual"] = res.get("is_manual", False)
+                                    tx["smart_is_provisional"] = res.get("is_provisional", False)
+                                    tx["smart_is_multi_category"] = res.get("is_multi_category", False)
+                                    tx["smart_confidence"] = res.get("confidence", 0.0)
         except Exception as sl_err:
             logger.warning(f"[BankSync] Erreur résolution smart labels: {sl_err}")
 
@@ -1228,9 +1233,7 @@ class BankSyncService:
             if raw_lbl and clean_lbl:
                 try:
                     from app.services.smart_label_service import learn_label_mapping
-                    learn_label_mapping(db, raw_label=raw_lbl, clean_description=clean_lbl, category=item.get("category"))
-                except Exception as ex_learn:
-                    logger.debug(f"[BankSync] Ignoré échec apprentissage smart label: {ex_learn}")
+                    learn_label_mapping(db, raw_label=raw_lbl, clean_description=clean_lbl, category=item.get("category"), is_manual=False)
                 except Exception as ex_learn:
                     logger.debug(f"[BankSync] Ignoré échec apprentissage smart label: {ex_learn}")
 
@@ -1521,10 +1524,14 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
                         tx["raw_description"] = raw_desc
                         if raw_desc in smart_resolutions:
                             res = smart_resolutions[raw_desc]
-                            if res.get("source") in ("rule", "history"):
+                            if res.get("source") in ("rule", "history", "multi_category"):
                                 tx["description"] = res["description"]
                                 tx["smart_suggested"] = True
-                                tx["smart_source"] = res["source"]
+                                tx["smart_source"] = res.get("source")
+                                tx["smart_is_manual"] = res.get("is_manual", False)
+                                tx["smart_is_provisional"] = res.get("is_provisional", False)
+                                tx["smart_is_multi_category"] = res.get("is_multi_category", False)
+                                tx["smart_confidence"] = res.get("confidence", 0.0)
                                 if not tx.get("category") and res.get("category"):
                                     tx["category"] = res["category"]
         except Exception as e:
