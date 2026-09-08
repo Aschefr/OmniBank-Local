@@ -629,8 +629,12 @@ class App {
                 });
                 if (foundNew) {
                     showToast(window.i18n ? window.i18n.t('notif_new_received') || "Nouvelle notification reçue" : "Nouvelle notification reçue", 'info');
-                    if (hasBankSyncNotif && window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') {
-                        window.BankSyncView.loadPendingSync();
+                    if (hasBankSyncNotif) {
+                        if (window.BankSyncView && typeof window.BankSyncView.refreshActiveViews === 'function') {
+                            window.BankSyncView.refreshActiveViews();
+                        } else if (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') {
+                            window.BankSyncView.loadPendingSync();
+                        }
                     }
                     this.setFastNotificationsPolling(false);
                 }
@@ -696,8 +700,14 @@ class App {
             } catch (_) {}
         }
 
-        // 1. Notification d'échec de relevé bancaire
-        if (n.type === 'bank_sync_error' || title.includes('Échec relevé') || title.includes('Sync failed')) {
+        // 1. Notification de 2FA requis
+        if (n.type === 'bank_sync_2fa' || title.includes('Validation 2FA requise') || title.includes('2FA validation required')) {
+            const connLabel = linkMeta.conn_label || title.replace(/^🔐\s*(?:Validation 2FA requise\s*:|2FA validation required\s*:)\s*/i, '').trim();
+            title = `🔐 ${window.i18n ? window.i18n.tp('notif_bank_sync_2fa_title', { label: connLabel }) : title}`;
+            content = window.i18n ? window.i18n.tp('notif_bank_sync_2fa_content', { label: connLabel }) : content;
+        }
+        // 2. Notification d'échec de relevé bancaire
+        else if (n.type === 'bank_sync_error' || title.includes('Échec relevé') || title.includes('Sync failed')) {
             const connLabel = linkMeta.conn_label || title.replace(/^⚠️\s*(?:Échec relevé|Sync failed for|Sync failed)\s*/i, '').trim();
             title = `⚠️ ${window.i18n ? window.i18n.tp('notif_bank_sync_failed_title', { label: connLabel }) : title}`;
             
@@ -910,6 +920,21 @@ class App {
         container.innerHTML = html;
     }
 
+    _parseNotifDate(dateVal) {
+        if (!dateVal) return new Date();
+        if (dateVal instanceof Date) return dateVal;
+        if (typeof dateVal === 'string') {
+            let clean = dateVal.trim();
+            // If the datetime string has no timezone offset or Z suffix, treat it as UTC
+            if (!clean.endsWith('Z') && !clean.includes('+') && !clean.match(/-\d{2}:\d{2}$/)) {
+                clean = clean.replace(' ', 'T') + 'Z';
+            }
+            const parsed = new Date(clean);
+            if (!isNaN(parsed.getTime())) return parsed;
+        }
+        return new Date(dateVal);
+    }
+
     _groupNotifications(notifs, groupBy) {
         if (groupBy === 'type') {
             const groupMap = {
@@ -988,7 +1013,7 @@ class App {
         };
 
         notifs.forEach(n => {
-            const itemDate = new Date(n.created_at || Date.now()).getTime();
+            const itemDate = this._parseNotifDate(n.created_at).getTime();
             if (itemDate >= startOfToday) {
                 dateGroups.today.items.push(n);
             } else if (itemDate >= startOfYesterday) {
@@ -1007,7 +1032,7 @@ class App {
 
     _renderSingleNotificationCard(n, isArchived) {
         const lang = (window.i18n && window.i18n.lang) || 'fr';
-        const dateStr = new Date(n.created_at).toLocaleString(lang, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const dateStr = this._parseNotifDate(n.created_at).toLocaleString(lang, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         const unreadClass = (!n.is_read && !isArchived) ? 'unread' : '';
         const isReport = n.type === 'ai_report';
         const clickCallback = (!n.is_read && !isArchived) 
@@ -1049,9 +1074,13 @@ class App {
                         errStr.includes('identifiant')
                     ));
 
+                const is2FA = n.type === 'bank_sync_2fa' || linkObj.action === 'bank_sync_2fa';
                 if (linkObj.session_id) {
                     const lblChat = window.i18n ? window.i18n.t('notif_btn_open_chat') || 'Ouvrir la discussion' : 'Ouvrir la discussion';
                     contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifAction(${n.id})">💬 ${lblChat}</button>`;
+                } else if (is2FA) {
+                    const lbl2FA = window.i18n ? window.i18n.t('bank_sync_btn_validate_2fa') || 'Valider sur smartphone' : 'Valider sur smartphone';
+                    contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" style="background: linear-gradient(135deg, #f59e0b, #d97706); border: none; color: #fff; font-weight: 600;" onclick="event.stopPropagation(); window.app.handleNotifAction(${n.id})">📱 ${lbl2FA}</button>`;
                 } else if (isVaultOrPasswordIssue) {
                     const lblVault = window.i18n ? window.i18n.t('notif_btn_unlock_vault') || 'Déverrouiller le coffre' : 'Déverrouiller le coffre';
                     contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifAction(${n.id})">🔐 ${lblVault}</button>`;
@@ -1079,7 +1108,7 @@ class App {
             const deleteLabel = window.i18n ? window.i18n.t('notif_btn_delete_perm') || 'Supprimer' : 'Supprimer';
             
             if (n.archived_at) {
-                const archDateStr = new Date(n.archived_at).toLocaleDateString(lang, { month: 'short', day: 'numeric' });
+                const archDateStr = this._parseNotifDate(n.archived_at).toLocaleDateString(lang, { month: 'short', day: 'numeric' });
                 archivedMeta = `<span class="notif-card-archived-meta">${window.i18n ? window.i18n.tp('notif_archived_on', { date: archDateStr }) : `Archivé le ${archDateStr}`}</span>`;
             }
 
@@ -1145,6 +1174,7 @@ class App {
                         errStr.includes('identifiant')
                     ));
 
+                const is2FA = n.type === 'bank_sync_2fa' || linkObj.action === 'bank_sync_2fa';
                 if (linkObj.session_id) {
                     sessionStorage.setItem('chatActiveSessionId', linkObj.session_id);
                     if (window.ChatView) {
@@ -1152,6 +1182,14 @@ class App {
                     }
                     if (notifMenu) notifMenu.style.display = 'none';
                     this.loadView('chat');
+                } else if (is2FA) {
+                    if (notifMenu) notifMenu.style.display = 'none';
+                    if (this.currentView !== 'accounts') {
+                        await this.loadView('accounts');
+                    }
+                    if (linkObj.conn_id && window.BankSyncView && typeof window.BankSyncView.promptAndSync === 'function') {
+                        window.BankSyncView.promptAndSync(linkObj.conn_id);
+                    }
                 } else if (isVaultOrPasswordIssue) {
                     if (notifMenu) notifMenu.style.display = 'none';
                     if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') {

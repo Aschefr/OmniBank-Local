@@ -8,6 +8,7 @@ et l'émission de notifications in-app.
 import asyncio
 import json
 import logging
+import threading
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -541,13 +542,23 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
             master_password=master_password,
             since_days=30
         )
-        save_pending_sync_data(db, conn.id, preview, profile_id=pid)
+        from app.services.autopilot_service import process_incoming_batch, is_autopilot_enabled
+
+        autopilot_active = is_autopilot_enabled(db)
+        auto_res = {}
+        if autopilot_active:
+            auto_res = process_incoming_batch(db, conn.id, preview, profile_id=pid)
+        else:
+            save_pending_sync_data(db, conn.id, preview, profile_id=pid)
 
         # Calculer le nombre de correspondances (confirmées / en attente) et nouvelles lignes
         matches = 0
         coming_matches = 0
         new_txs = 0
-        for acc in preview.get("accounts", []):
+        auto_reconciled = auto_res.get("auto_reconciled", 0) if autopilot_active else 0
+
+        pending_entry = _PENDING_SYNC_DATA.get(pid, {}).get(conn.id, {}) if autopilot_active else preview
+        for acc in pending_entry.get("accounts", []):
             for tx in acc.get("transactions", []):
                 if tx.get("is_reconciled") and not tx.get("already_reconciled") and tx.get("matched_db_id"):
                     if tx.get("is_coming"):
@@ -560,8 +571,12 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
                     new_txs += 1
 
         # Créer une notification in-app pour informer l'utilisateur du résultat
-        if matches > 0 or coming_matches > 0 or new_txs > 0:
+        if auto_reconciled > 0 or matches > 0 or coming_matches > 0 or new_txs > 0:
             notif_msg = []
+            if auto_reconciled == 1:
+                notif_msg.append("🤖 1 opération rapprochée automatiquement")
+            elif auto_reconciled > 1:
+                notif_msg.append(f"🤖 {auto_reconciled} opérations rapprochées automatiquement")
             if matches == 1:
                 notif_msg.append("1 opération à rapprocher")
             elif matches > 1:
@@ -625,38 +640,76 @@ def execute_auto_sync_for_connection(db: Session, conn: BankConnection, master_p
         return preview
     except Exception as e:
         from app.services.bank_sync_service import clean_error_message
-        from app.services.diagnostic_service import record_backend_exception
 
         raw_err = str(e)
         err_msg = clean_error_message(e)
-        logger.warning(f"[BankScheduler] Échec du relevé auto pour '{conn.label}' (profil={pid}) : {raw_err}")
-        record_backend_exception(e, context=f"BankScheduler relevé auto '{conn.label}' ({conn.backend})")
+        err_lower = raw_err.lower()
+        exc_type = type(e).__name__
+        is_2fa = (
+            exc_type in ("NeedInteractiveFor2FA", "AppValidation")
+            or "2fa" in err_lower
+            or "authentification interactive" in err_lower
+            or "authentification mobile" in err_lower
+            or "validation mobile" in err_lower
+            or "sca" in err_lower
+            or "needinteractive" in err_lower
+            or "appvalidation" in err_lower
+        )
 
-        conn.last_sync_status = "auto_error"
-        conn.last_error = err_msg
-        conn.last_sync_at = datetime.now(timezone.utc)
+        if is_2fa:
+            logger.info(f"[BankScheduler] Authentification 2FA requise par la banque pour '{conn.label}' (profil={pid})")
+            conn.last_sync_status = "2fa_required"
+            conn.last_error = "Authentification 2FA requise par votre banque (validation sur smartphone)."
+            conn.last_sync_at = datetime.now(timezone.utc)
 
-        # Créer une notification in-app d'erreur
-        try:
-            err_lower = raw_err.lower()
-            is_vault_err = any(k in err_lower for k in ("mot de passe", "password", "coffre", "vault", "identifiant", "verrouill"))
-            notif = Notification(
-                type="bank_sync_error",
-                title=f"⚠️ Échec relevé {conn.label}",
-                content=f"Erreur lors du relevé bancaire de {conn.label} : {err_msg}",
-                link_data=json.dumps({
-                    "view": "accounts",
-                    "action": "unlock_vault" if is_vault_err else "bank_sync_error",
-                    "conn_id": conn.id,
-                    "conn_label": conn.label,
-                    "error": err_msg
-                }),
-                is_read=False,
-                created_at=datetime.now(timezone.utc)
-            )
-            db.add(notif)
-        except Exception as notif_err:
-            logger.warning(f"[BankScheduler] Erreur création notification d'échec : {notif_err}")
+            # Notification informative 2FA (pas d'erreur critique ni d'issue GitHub)
+            try:
+                notif = Notification(
+                    type="bank_sync_2fa",
+                    title=f"🔐 Validation 2FA requise : {conn.label}",
+                    content=f"Votre banque ({conn.label}) requiert une validation 2FA sur votre smartphone pour synchroniser vos comptes.",
+                    link_data=json.dumps({
+                        "view": "accounts",
+                        "action": "bank_sync_2fa",
+                        "conn_id": conn.id,
+                        "conn_label": conn.label
+                    }),
+                    is_read=False,
+                    created_at=datetime.now(timezone.utc)
+                )
+                db.add(notif)
+            except Exception as notif_err:
+                logger.warning(f"[BankScheduler] Erreur création notification 2FA : {notif_err}")
+        else:
+            from app.services.diagnostic_service import record_backend_exception
+
+            logger.warning(f"[BankScheduler] Échec du relevé auto pour '{conn.label}' (profil={pid}) : {raw_err}")
+            record_backend_exception(e, context=f"BankScheduler relevé auto '{conn.label}' ({conn.backend})")
+
+            conn.last_sync_status = "auto_error"
+            conn.last_error = err_msg
+            conn.last_sync_at = datetime.now(timezone.utc)
+
+            # Créer une notification in-app d'erreur
+            try:
+                is_vault_err = any(k in err_lower for k in ("mot de passe", "password", "coffre", "vault", "identifiant", "verrouill"))
+                notif = Notification(
+                    type="bank_sync_error",
+                    title=f"⚠️ Échec relevé {conn.label}",
+                    content=f"Erreur lors du relevé bancaire de {conn.label} : {err_msg}",
+                    link_data=json.dumps({
+                        "view": "accounts",
+                        "action": "unlock_vault" if is_vault_err else "bank_sync_error",
+                        "conn_id": conn.id,
+                        "conn_label": conn.label,
+                        "error": err_msg
+                    }),
+                    is_read=False,
+                    created_at=datetime.now(timezone.utc)
+                )
+                db.add(notif)
+            except Exception as notif_err:
+                logger.warning(f"[BankScheduler] Erreur création notification d'échec : {notif_err}")
 
         db.commit()
         return None
@@ -786,13 +839,14 @@ def get_auto_sync_cooldown_status(db: Session, profile_id: Optional[str] = None)
         }
 
 
-_ACTIVE_BACKGROUND_SYNCS: set = set()
+_ACTIVE_BACKGROUND_THREADS: Dict[str, threading.Thread] = {}
 
 
 def is_background_sync_running(profile_id: Optional[str] = None) -> bool:
     """Retourne True si un relevé en arrière-plan est actuellement en cours d'exécution."""
     pid = _resolve_profile_id(profile_id)
-    return pid in _ACTIVE_BACKGROUND_SYNCS
+    t = _ACTIVE_BACKGROUND_THREADS.get(pid)
+    return bool(t and t.is_alive())
 
 
 def trigger_manual_auto_sync(
@@ -807,6 +861,7 @@ def trigger_manual_auto_sync(
     Si force=False, respecte le cooldown anti-spam persistant de 3h (GlobalConfig.last_auto_sync_attempt).
     """
     pid = _resolve_profile_id(profile_id)
+
     pw = master_password or (VaultSessionManager.get_password(vault_token, profile_id=pid) if vault_token else None) or VaultSessionManager.get_password(profile_id=pid)
     if not pw:
         return {
@@ -819,7 +874,7 @@ def trigger_manual_auto_sync(
     engine = get_engine(pid)
     SessionProf = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-    # Vérification du cooldown persistant
+    # 1. Vérification du cooldown persistant (si non forcé)
     if not force:
         db_check = db or SessionProf()
         try:
@@ -839,6 +894,17 @@ def trigger_manual_auto_sync(
             if not db:
                 db_check.close()
 
+    # 2. Verrou anti-concurrence : empêcher deux threads de relevé simultanés sur le même profil
+    active_t = _ACTIVE_BACKGROUND_THREADS.get(pid)
+    if active_t and active_t.is_alive():
+        logger.info(f"[BankScheduler] Relevé déjà en cours d'exécution pour le profil '{pid}', nouvel appel concurrent ignoré.")
+        return {
+            "ok": True,
+            "already_running": True,
+            "cooldown_active": False,
+            "message": "Un relevé automatique est déjà en cours d'exécution pour ce profil."
+        }
+
     # Mettre à jour immédiatement last_auto_sync_attempt pour bloquer tout appel concurrent
     now_iso = datetime.now(timezone.utc).isoformat()
     db_init = db or SessionProf()
@@ -847,8 +913,6 @@ def trigger_manual_auto_sync(
     finally:
         if not db:
             db_init.close()
-
-    _ACTIVE_BACKGROUND_SYNCS.add(pid)
 
     def _worker():
         import time
@@ -864,11 +928,10 @@ def trigger_manual_auto_sync(
         except Exception as e:
             logger.error(f"[BankScheduler] Erreur lors du relevé d'arrière-plan (profil={pid}): {e}")
         finally:
-            _ACTIVE_BACKGROUND_SYNCS.discard(pid)
             worker_db.close()
 
-    import threading
     t = threading.Thread(target=_worker, daemon=True)
+    _ACTIVE_BACKGROUND_THREADS[pid] = t
     t.start()
 
     return {

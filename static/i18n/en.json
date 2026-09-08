@@ -2429,5 +2429,16 @@
   "wizard_welcome_title": "Welcome to OmniBank!",
   "bank_sync_bg_started": "Vault unlocked: bank sync running in the background...",
   "bank_sync_map_btn": "Account Mapping",
-  "error_loading": "Loading error"
+  "error_loading": "Loading error",
+  "autopilot_decision_reconciliation": "Automatic reconciliation",
+  "autopilot_decision_new_entry": "New entry recorded",
+  "autopilot_decision_categorization": "Smart categorization",
+  "autopilot_collision_detected": "Collision detected (homonymous amounts)",
+  "autopilot_suggested_match": "Suggested match (arbitration required)",
+  "autopilot_auto_committed": "Automatically reconciled (high confidence)",
+  "bank_sync_status_2fa_required": "2FA Required",
+  "bank_sync_btn_validate_2fa": "Validate on smartphone",
+  "bank_sync_2fa_box_desc": "2FA authentication required by your bank (mobile app validation or security code).",
+  "notif_bank_sync_2fa_title": "2FA validation required: {label}",
+  "notif_bank_sync_2fa_content": "Your bank ({label}) requires 2FA validation on your smartphone to sync your accounts."
 }
