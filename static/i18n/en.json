@@ -2502,5 +2502,9 @@
   "smart_label_sandbox_res_name": "Retained name",
   "smart_label_sandbox_res_cat": "Inferred category",
   "smart_label_sandbox_res_source": "Analysis source",
-  "smart_label_sandbox_res_explanation": "Diagnostic"
+  "smart_label_sandbox_res_explanation": "Diagnostic",
+  "autopilot_import_complete_toast": "🎉 Auto-Pilot: {total} transactions successfully imported and processed ({reconciled} reconciled, {committed} recorded).",
+  "autopilot_batch_categorized": "{count} transaction(s) automatically categorized",
+  "autopilot_uncategorized_fallback": "Unknown merchant with no confident match (left for your review)",
+  "autopilot_ai_batch_failed": "Local AI analysis could not classify this batch, deterministic fallback applied"
 }

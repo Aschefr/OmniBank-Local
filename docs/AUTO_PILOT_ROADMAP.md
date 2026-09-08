@@ -159,7 +159,7 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 * **Fichiers concernés** :
   - [`app/services/smart_label_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/smart_label_service.py) (`normalize_raw_label`, `resolve_smart_labels_batch`, `_compute_match_score`)
   - [`app/routers/ai_helpers.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/ai_helpers.py) / [`app/routers/chat.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/chat.py)
-* **État d'avancement actuel : 95%**
+* **État d'avancement actuel : 100% — ✅ LIVRÉ (Étape 3)**
   - ✅ Nettoyage regex haute précision (suppression dates, codes guichets, CB, PRLV, préfixes passerelles PayPal/Stripe/SumUp).
   - ✅ Étage 1 : Base de règles déterministes (`BankLabelMapping`).
   - ✅ Étage 2 : Fuzzy matching Levenshtein + Jaccard tokens signifiants sur l'historique réel.
@@ -174,8 +174,8 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - ✅ **Modale d'Édition Ergonomique avec Recherche Permissive** : Modale dédiée d'édition de règle dans l'Atelier avec recherche instantanée insensible à la casse et aux accents (`removeAccents`), prévisualisation en direct et navigation clavier.
   - ✅ **Garde-fou Anti-Prolifération de Catégories** : Le système ne crée jamais de catégorie sans autorisation ; si aucune catégorie existante ne correspond, il assigne `None` ("À catégoriser") plutôt que de polluer l'arbre comptable.
   - ✅ **Étage 3 : Fallback IA local Ollama Groupé par Lot (`call_ollama_batch`)** : Résolution des marchands inconnus en 1 seule requête JSON groupée (`format: "json"`) avec garde-fou anti-hallucination rejetant les catégories non autorisées, ne levant jamais de `HTTPException` et s'exécutant silencieusement hors ligne.
-* **Ce qu'il reste à faire pour clore la Brique 2** :
-  1. **Auto-Commit des Nouvelles Écritures Courantes** : Enregistrement autonome des dépenses courantes directes non ambiguës dans [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) (lorsque `auto_pilot_enabled == True`).
+  - ✅ **Banc d'Essai & Simulation Smart Label** : Atelier interactif de test de la cascade décisionnelle en direct avec sauvegarde 1-clic en règle permanente et plancher de fluidité UX.
+  - ✅ **Auto-Commit des Nouvelles Écritures Courantes** : Enregistrement autonome des dépenses courantes directes non ambiguës dans [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) avec traçabilité complète `AutopilotDecisionLog` (`new_entry`) lorsque `auto_pilot_enabled == True`.
 
 ---
 
@@ -462,7 +462,7 @@ La transition vers l'Auto-Pilote s'effectuera en **7 étapes autonomes**, chacun
 graph TD
     Z["Étape 0 : Fondations & Pré-requis Techniques<br/>✅ 100% (v1.1.3)"] --> A["Étape 1 : Réactivité Déverrouillage + Cooldown<br/>✅ 100% (v1.1.4)"]
     A --> B["Étape 2 : Orchestrateur AutoPilotService<br/>Auto-Rapprochement & Modèle DecisionLog<br/>✅ 100% PASS"]
-    B --> C["Étape 3 : Pipeline Smart Labels & Écritures<br/>🔄 Socle Livré (~90%) : Sanctuarisation, Multi-Cat, Badges"]
+    B --> C["Étape 3 : Pipeline Smart Labels & Écritures<br/>Auto-Commit Écritures & Fallback IA<br/>✅ 100% PASS"]
     C --> D["Étape 4 : Détection & Promotion Récurrences<br/>Charges Candidates Dynamiques (Reste à Vivre)"]
     D --> E["Étape 5 : Lissage Budgétaire EMA Déterministe<br/>(budget_service.py 100% Offline)"]
     E --> F["Étape 6 : Centre de Contrôle Dédié<br/>Decision Feed, Rollback Snapshot, Switch UI & Finitions Desktop"]
@@ -505,19 +505,18 @@ graph TD
     - [x] **Jalon 2.6 : Pack de Test 2 validé** : 8 tests unitaires complets passés avec succès (`tests/test_autopilot_step2.py`).
     - *Bénéfice immédiat* : Réduction de 80% des clics de validation dans le cockpit, avec traçabilité complète dès la première décision.
 
-3. **Étape 3 : Pipeline Smart Labels, Fallback Ollama Groupé & Dropzone UI** — `🔄 EN COURS (~90% du socle Smart Labels livré)`
+3. **Étape 3 : Pipeline Smart Labels, Fallback Ollama Groupé & Dropzone UI** — `✅ TERMINÉE (100%)`
     - [x] **Jalon 3.1 : Socle Smart Labels & Normalisation Déterministe** : Nettoyage regex, règles exactes `BankLabelMapping`, fuzzy-matching Levenshtein/Jaccard, et résolution par lot ultra-rapide $O(N)$ (`app/services/smart_label_service.py`).
     - [x] **Jalon 3.2 : Sanctuarisation Manuelle & Apprentissage Progressif ($N \ge 2$)** : Protection des règles configurées par l'utilisateur (`is_manual = True`), statut provisoire pour $N=1$, neutralisation sur dispersion de catégories et prise en charge native des marchands caméléons multi-catégories (`_MULTI_CATEGORY_MERCHANTS`).
     - [x] **Jalon 3.3 : Réversibilité Totale & Intégration `ActionHistory`** : Historique avant/après des modifications de règles, intégration au gestionnaire Undo/Redo global et toasts d'annulation 1-clic.
     - [x] **Jalon 3.4 : Badges de Transparence dans le Sas d'Attente (Cockpit)** : Affichage contextuel de la logique utilisée (`🛡️ Règle manuelle`, `🤖 Règle apprise`, `⚠️ Provisoire (1ère fois)`, `🔀 Multi-catégories`, `🕒 Historique`) avec info-bulles explicatives guidant l'arbitrage dans `bank_sync_review.js`.
     - [x] **Jalon 3.5 : Atelier des Règles & Recherche Permissive** : Modale d'édition in-place avec recherche instantanée insensible à la casse et aux accents (`removeAccents`), prévisualisation dynamique et navigation clavier dans `config_smart_labels.js`.
-    - [x] **Jalon 3.6 : Suite de Tests Smart Labels Validée** : 100% de succès sur les 13 tests unitaires et d'intégration (`tests/test_smart_label.py`).
-    - **Ce qu'il reste à faire pour clore l'Étape 3** :
-      * [x] **Jalon 3.7 : Fallback IA Ollama Groupé par Lot (Batch Prompting)** : Méthode non-bloquante `call_ollama_batch` dans `app/services/chat/ollama_client.py` transmettant en une seule requête JSON groupée les libellés inconnus (latence globale 2-3s).
-      * [ ] **Jalon 3.8 : Auto-Commit des Écritures Courantes** : Enregistrement autonome des dépenses courantes non ambiguës dans `AutoPilotService.process_incoming_batch()` et traçabilité dans `AutopilotDecisionLog` (`new_entry`).
-      * [ ] **Jalon 3.9 : Adaptation de la Dropzone CSV / Excel (`static/js/views/import_wizard.js`)** : Fermeture automatique de la modale avec toast de confirmation si 100% des opérations sont traitées (`pending === 0`), évitant d'ouvrir une modale de revue vide.
-      * [ ] **Jalon 3.10 : Clés i18n associées** : `autopilot_batch_categorized`, `autopilot_uncategorized_fallback`, `autopilot_ai_batch_failed`, `autopilot_import_complete_toast`.
-    - *Bénéfice immédiat* : Catégorisation fiable, transparente et souveraine, apprentissage sans pollution et expérience d'importation sans friction.
+    - [x] **Jalon 3.6 : Suite de Tests Smart Labels Validée** : 100% de succès sur les 25 tests unitaires et d'intégration (`tests/test_smart_label.py`).
+    - [x] **Jalon 3.7 : Fallback IA Ollama Groupé par Lot (Batch Prompting) & Détective d'Habitudes Anti-Hallucination** : Méthode non-bloquante `call_ollama_batch` dans `app/services/chat/ollama_client.py` et détective de nommage d'habitudes avec garde-fous stricts rejetant les hallucinations.
+    - [x] **Jalon 3.8 : Auto-Commit des Écritures Courantes** : Enregistrement autonome des dépenses courantes directes non ambiguës ($\ge 85\%$, non caméléon, non provisoire) dans `AutoPilotService.process_incoming_batch()` et traçabilité dans `AutopilotDecisionLog` (`new_entry`).
+    - [x] **Jalon 3.9 : Adaptation de la Dropzone CSV / Excel (`static/js/views/import_wizard.js`)** : Fermeture automatique de la modale avec toast de confirmation si 100% des opérations sont traitées (`pending === 0`), évitant d'ouvrir une modale de revue vide.
+    - [x] **Jalon 3.10 : Clés i18n associées** : `autopilot_batch_categorized`, `autopilot_uncategorized_fallback`, `autopilot_ai_batch_failed`, `autopilot_import_complete_toast` synchronisées en FR et EN.
+    - *Bénéfice immédiat* : Catégorisation fiable, transparente et souveraine, apprentissage sans pollution, auto-commit transparent des dépenses courantes non ambiguës et expérience d'importation sans friction.
 
 4. **Étape 4 : Détection Périodique, Charges Candidates Dynamiques ($N=2$) & Liaison Rétroactive**
     - Moteur de reconnaissance de périodicité (même montant, même marchand nettoyé, intervalle 28–31 jours).
@@ -604,7 +603,7 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 
 ---
 
-### Pack de Test 3 : Pipeline Smart Labels & Fallback IA / Déterministe (Étape 3) — `✅ 13/13 PASS sur le socle`
+### Pack de Test 3 : Pipeline Smart Labels & Fallback IA / Déterministe (Étape 3) — `✅ 25/25 PASS (100%)`
 
 | Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Statut |
 | :--- | :--- | :--- | :--- | :--- | :---: |
@@ -618,6 +617,9 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 | **T3.8** | Modification ou bascule d'une règle dans l'Atelier. | Annulation via `undo_action` (`ActionHistory`). | Rétablissement de l'état antérieur exact (catégorie, mode manuel/auto, multi-cat). | Réversibilité totale 1-clic intégrée à l'audit trail. | ✅ **PASS** |
 | **T3.9** | Sas d'attente / Cockpit de revue (`bank_sync_review.js`). | Affichage d'une écriture catégorisée. | Badge de transparence affiché (`🛡️ Règle manuelle`, `🤖 Règle apprise`, etc.) avec info-bulle explicative. | Clarté totale pour l'utilisateur sur la provenance de la décision. | ✅ **PASS** |
 | **T3.10** | Libellé brut : `CB LEROY MERLIN BRICOLAGE` (Marchand inconnu, IA Ollama connectée). | Résolution avec fallback IA local groupé (`call_ollama_batch`). | Prompt JSON strict envoyé à Ollama avec les catégories existantes. | Catégorie choisie = `"Logement & Maison"` ou `"Bricolage"` en 1 seul batch. | ✅ **PASS** |
+| **T3.11** | Dépense courante non ambiguë avec règle sanctuarisée ou certifiée ($\ge 85\%$) en mode Auto-Pilote. | Ingestion du lot par `process_incoming_batch`. | Enregistrement direct en base dans `Transaction` (`reconciliation_date`, `created_by="Auto-Pilote (Écriture)"`), log dans `AutopilotDecisionLog` (`new_entry`). | Écriture enregistrée sans clic, traçabilité `ActionHistory` et rollback opérationnels. | ✅ **PASS** |
+| **T3.12** | Dépense caméléon multi-catégories (ex: Amazon) ou règle provisoire ($N=1$). | Ingestion du lot par `process_incoming_batch`. | Neutralisation de l'auto-commit direct, maintien de l'opération dans `residual_txs` (`pending_count > 0`). | Maintien strict de la zone d'arbitrage humain dans le Sas d'attente. | ✅ **PASS** |
+| **T3.13** | Ingestion d'un fichier via la Dropzone avec 100% des écritures auto-traitées (`pending === 0`). | Réception du bilan par `openReviewFromCSV` (`import_wizard.js`). | Fermeture immédiate de la modale d'import, émission d'un toast récapitulatif enrichi (`autopilot_import_complete_toast`), actualisation des soldes. | Zéro ouverture de Sas vide, expérience utilisateur fluide et sans friction. | ✅ **PASS** |
 
 ---
 

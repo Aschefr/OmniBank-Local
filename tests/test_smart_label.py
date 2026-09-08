@@ -750,6 +750,189 @@ def test_simulate_smart_label_endpoint_with_ai(client, db_session):
         assert "modèle d'IA locale" in data["explanation"]
 
 
+# ── TEST 25 : Jalon 3.8 Auto-Commit des nouvelles écritures courantes non ambiguës ──
+def test_autopilot_auto_commit_unambiguous_new_entry(db_session):
+    from datetime import date
+    from app.models import Account, Category, BankLabelMapping, Transaction, AutopilotDecisionLog, GlobalConfig
+    from app.services.autopilot_service import process_incoming_batch
+
+    # 1. Configurer l'Auto-Pilote actif et un compte avec catégorie
+    db_session.query(GlobalConfig).filter(GlobalConfig.key == "auto_pilot_enabled").delete()
+    db_session.add(GlobalConfig(key="auto_pilot_enabled", value="true"))
+
+    acc = Account(name="Compte Courant Test", type="checking", initial_balance=1000.0)
+    db_session.add(acc)
+    db_session.add(Category(name="Alimentation", type="expense_var"))
+    db_session.commit()
+
+    # 2. Règle manuelle sanctuarisée
+    db_session.add(BankLabelMapping(
+        raw_pattern="MONOPRIX NATION",
+        clean_description="Monoprix",
+        category="Alimentation",
+        is_manual=True,
+        is_multi_category=False,
+        match_count=5
+    ))
+    db_session.commit()
+
+    # 3. Lot d'ingestion avec une dépense courante directe
+    preview = {
+        "accounts": [{
+            "account_id": acc.id,
+            "account_name": acc.name,
+            "transactions": [{
+                "csv_id": "csv_tx_monoprix_01",
+                "date_operation": "2026-09-08",
+                "raw_description": "CB MONOPRIX NATION 75012",
+                "description": "CB MONOPRIX NATION 75012",
+                "raw_amount": -38.50,
+                "amount": 38.50,
+                "is_reconciled": False,
+                "matched_db_id": None,
+                "is_coming": False
+            }]
+        }]
+    }
+
+    res = process_incoming_batch(db_session, 1, preview)
+
+    assert res["status"] == "completed"
+    assert res["auto_committed"] == 1
+    assert res["auto_reconciled"] == 0
+    assert res["pending"] == 0
+    assert res["total"] == 1
+
+    # Vérifier l'écriture en base
+    created_tx = db_session.query(Transaction).filter(Transaction.csv_id == "csv_tx_monoprix_01").first()
+    assert created_tx is not None
+    assert created_tx.description == "Monoprix"
+    assert created_tx.category == "Alimentation"
+    assert created_tx.amount == 38.50
+    assert created_tx.type == "expense_var"
+    assert created_tx.from_account_id == acc.id
+    assert created_tx.reconciliation_date == date.today()
+    assert "Auto-Pilote" in created_tx.created_by
+
+    # Vérifier la trace dans AutopilotDecisionLog
+    decision = db_session.query(AutopilotDecisionLog).filter(
+        AutopilotDecisionLog.entity_id == created_tx.id,
+        AutopilotDecisionLog.decision_type == "new_entry"
+    ).first()
+    assert decision is not None
+    assert decision.action == "AUTO_COMMIT"
+    assert decision.confidence_score >= 85.0
+    assert decision.is_undone is False
+
+
+# ── TEST 26 : Préservation de la zone d'arbitrage (Caméléon et Provisoire) ──
+def test_autopilot_leaves_chameleon_and_provisional_in_pending(db_session):
+    from app.models import Account, Category, BankLabelMapping, Transaction, GlobalConfig
+    from app.services.autopilot_service import process_incoming_batch
+
+    db_session.query(GlobalConfig).filter(GlobalConfig.key == "auto_pilot_enabled").delete()
+    db_session.add(GlobalConfig(key="auto_pilot_enabled", value="true"))
+
+    acc = Account(name="Compte Courant Test 2", type="checking", initial_balance=1500.0)
+    db_session.add(acc)
+    db_session.add(Category(name="Loisirs", type="expense_var"))
+    db_session.commit()
+
+    # Règle caméléon (Amazon)
+    db_session.add(BankLabelMapping(
+        raw_pattern="AMAZON EU",
+        clean_description="Amazon",
+        category=None,
+        is_manual=True,
+        is_multi_category=True
+    ))
+    # Règle auto provisoire (N=1)
+    db_session.add(BankLabelMapping(
+        raw_pattern="KILOSHOP VINTAGE",
+        clean_description="Kilo Shop",
+        category="Loisirs",
+        is_manual=False,
+        is_multi_category=False,
+        match_count=1
+    ))
+    db_session.commit()
+
+    preview = {
+        "accounts": [{
+            "account_id": acc.id,
+            "account_name": acc.name,
+            "transactions": [
+                {
+                    "csv_id": "csv_tx_amazon_01",
+                    "date_operation": "2026-09-08",
+                    "raw_description": "CB AMAZON EU SARL",
+                    "raw_amount": -45.00,
+                    "is_reconciled": False,
+                    "matched_db_id": None,
+                    "is_coming": False
+                },
+                {
+                    "csv_id": "csv_tx_kiloshop_01",
+                    "date_operation": "2026-09-08",
+                    "raw_description": "CB KILOSHOP VINTAGE PARIS",
+                    "raw_amount": -22.00,
+                    "is_reconciled": False,
+                    "matched_db_id": None,
+                    "is_coming": False
+                }
+            ]
+        }]
+    }
+
+    res = process_incoming_batch(db_session, 1, preview)
+
+    # Doivent rester dans le Sas d'attente pour arbitrage humain
+    assert res["status"] == "completed"
+    assert res["auto_committed"] == 0
+    assert res["pending"] == 2
+
+    # Zéro transaction créée en base
+    assert db_session.query(Transaction).filter(Transaction.csv_id.in_(["csv_tx_amazon_01", "csv_tx_kiloshop_01"])).count() == 0
+
+
+# ── TEST 27 : Auto-Pilote inactif -> Délégation intégrale au Sas ──
+def test_autopilot_disabled_delegates_everything_to_sas(db_session):
+    from app.models import Account, GlobalConfig
+    from app.services.autopilot_service import process_incoming_batch
+
+    db_session.query(GlobalConfig).filter(GlobalConfig.key == "auto_pilot_enabled").delete()
+    db_session.add(GlobalConfig(key="auto_pilot_enabled", value="false"))
+    db_session.commit()
+
+    acc = Account(name="Compte Test 3", type="checking", initial_balance=500.0)
+    db_session.add(acc)
+    db_session.commit()
+
+    preview = {
+        "accounts": [{
+            "account_id": acc.id,
+            "account_name": acc.name,
+            "transactions": [{
+                "csv_id": "csv_tx_off_01",
+                "date_operation": "2026-09-08",
+                "raw_description": "CB TEST",
+                "raw_amount": -10.00,
+                "is_reconciled": False,
+                "matched_db_id": None,
+                "is_coming": False
+            }]
+        }]
+    }
+
+    res = process_incoming_batch(db_session, 1, preview)
+
+    assert res["status"] == "delegated_to_sas"
+    assert res["auto_committed"] == 0
+    assert res["auto_reconciled"] == 0
+    assert res["pending"] == 1
+
+
+
 
 
 
