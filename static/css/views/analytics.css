@@ -1,0 +1,25 @@
+/**
+ * OmniBank Local - views/analytics.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Analytics category column resize handle (Lines 4097-4114) ─── */
+/* ── Analytics category column resize handle ──────────────────────── */
+.col-resize-handle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    z-index: 30;
+    background: transparent;
+    transition: background 0.15s;
+}
+
+.col-resize-handle:hover,
+.col-resize-handle.resizing {
+    background: rgba(99, 102, 241, 0.4);
+}
+
+

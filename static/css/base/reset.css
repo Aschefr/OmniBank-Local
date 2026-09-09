@@ -1,0 +1,126 @@
+/**
+ * OmniBank Local - base/reset.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Scrollbars, native inputs styling (Lines 181-238) ─── */
+/* Global scrollbar styling for webkit (Chrome/Edge/Tauri/Safari) */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(145, 158, 171, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(145, 158, 171, 0.5);
+}
+
+.theme-dark ::-webkit-scrollbar-thumb,
+body.theme-dark ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.theme-dark ::-webkit-scrollbar-thumb:hover,
+body.theme-dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.32);
+}
+
+.theme-dark ::-webkit-scrollbar-track,
+body.theme-dark ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Dark mode: make native date/time picker icons visible */
+.theme-dark input[type="date"]::-webkit-calendar-picker-indicator,
+.theme-dark input[type="month"]::-webkit-calendar-picker-indicator,
+.theme-dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+    cursor: pointer;
+}
+
+/* Hide native number input spin buttons globally for financial accuracy & cleaner UI */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+input[type="number"]:not([disabled]):hover {
+    border-color: var(--accent);
+}
+
+
+/* ─── Section: Universal box-sizing, html & body reset (Lines 315-347) ─── */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(145, 158, 171, 0.3) transparent;
+}
+
+.theme-dark *,
+body.theme-dark * {
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+html {
+    max-width: 100vw;
+    overflow-x: hidden;
+    height: 100%;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    max-width: 100vw;
+    width: 100%;
+    height: 100%;
+    transition: background-color 0.3s ease;
+}
+
+
+/* ─── Section: Privacy mode blur & reveal utilities (Lines 1340-1363) ─── */
+/* Privacy Mode */
+body.privacy-mode .stat-value,
+body.privacy-mode .amount-cell,
+body.privacy-mode .account-item strong,
+body.privacy-mode .privacy-blur,
+body.privacy-mode #valNetWorth,
+body.privacy-mode #valRestToLive,
+body.privacy-mode #valNextPayAmount {
+    filter: blur(5px);
+    opacity: 0.7;
+    transition: filter 0.3s, opacity 0.3s;
+}
+
+body.privacy-mode .stat-value:hover,
+body.privacy-mode .amount-cell:hover,
+body.privacy-mode .account-item strong:hover,
+body.privacy-mode .privacy-blur:hover,
+body.privacy-mode #valNetWorth:hover,
+body.privacy-mode #valRestToLive:hover,
+body.privacy-mode #valNextPayAmount:hover {
+    filter: blur(0px);
+    opacity: 1;
+}
+
+

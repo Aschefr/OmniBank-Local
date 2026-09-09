@@ -1,0 +1,1935 @@
+/**
+ * OmniBank Local - themes/executive_overrides.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Executive Themes advanced structural styling v1.1.0 (Lines 10099-12026) ─── */
+/* ── EXECUTIVE THEMES ADVANCED STRUCTURAL STYLING (v1.1.0)                ── */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* ── EXECUTIVE THEMES ADVANCED STRUCTURAL STYLING (v1.1.0)                ── */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Executive Header & Precision Navigation ── */
+body.theme-titanium-dark .app-header,
+body.theme-titanium-light .app-header {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03), var(--shadow-sm);
+    padding: 0 20px;
+    min-height: 58px;
+}
+
+body.theme-titanium-dark .main-nav,
+body.theme-titanium-light .main-nav {
+    background: var(--bg-base);
+    padding: 2px 3px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+    gap: 1px;
+    align-items: center;
+}
+
+body.theme-titanium-dark .main-nav .nav-btn,
+body.theme-titanium-light .main-nav .nav-btn {
+    border-radius: 4px;
+    padding: 5px 11px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: all 0.12s ease;
+    border: 1px solid transparent;
+}
+
+body.theme-titanium-dark .main-nav .nav-btn:hover,
+body.theme-titanium-light .main-nav .nav-btn:hover {
+    color: var(--text-main);
+    background: var(--bg-surface-hover);
+}
+
+body.theme-titanium-dark .main-nav .nav-btn.active,
+body.theme-titanium-light .main-nav .nav-btn.active {
+    background: var(--bg-surface);
+    color: var(--accent) !important;
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+    border-bottom: 2px solid var(--accent) !important;
+    box-shadow: var(--shadow-sm);
+}
+
+body.theme-titanium-dark .header-actions button:not(#notifMenu *):not(#themeMenu *):not(#langMenu *):not(.user-switcher-btn):not(.profile-badge):not(#profileBtn):not(#langToggleBtn),
+body.theme-titanium-light .header-actions button:not(#notifMenu *):not(#themeMenu *):not(#langMenu *):not(.user-switcher-btn):not(.profile-badge):not(#profileBtn):not(#langToggleBtn) {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    box-shadow: none;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s ease;
+}
+
+body.theme-titanium-dark .header-actions button:not(#notifMenu *):not(#themeMenu *):not(#langMenu *):not(.user-switcher-btn):not(.profile-badge):not(#profileBtn):not(#langToggleBtn):hover,
+body.theme-titanium-light .header-actions button:not(#notifMenu *):not(#themeMenu *):not(#langMenu *):not(.user-switcher-btn):not(.profile-badge):not(#profileBtn):not(#langToggleBtn):hover {
+    color: var(--text-main);
+    border-color: var(--accent-border);
+    background: var(--bg-surface-hover);
+}
+
+/* ── 2. Executive Sidebar & Bento Financial Cards ── */
+body.theme-titanium-dark .app-sidebar,
+body.theme-titanium-light .app-sidebar {
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border-color);
+    padding: 16px 14px;
+    gap: 10px;
+}
+
+body.theme-titanium-dark .account-item,
+body.theme-titanium-light .account-item {
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed var(--border-color);
+    box-shadow: none;
+    border-radius: 0;
+    padding: 6px 2px;
+    margin-bottom: 0;
+    transition: background 0.12s ease;
+}
+
+body.theme-titanium-dark .account-item:hover,
+body.theme-titanium-light .account-item:hover {
+    background: var(--bg-surface-hover);
+    border-color: var(--border-color);
+    transform: none;
+    box-shadow: none;
+}
+
+body.theme-titanium-dark .account-item .account-name,
+body.theme-titanium-light .account-item .account-name {
+    font-size: 13px !important;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+body.theme-titanium-dark .account-item .account-balance,
+body.theme-titanium-light .account-item .account-balance {
+    font-size: 13.5px !important;
+    font-weight: 700;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+}
+
+body.theme-titanium-dark .sidebar-accounts-card #sidebarAccountsTitle,
+body.theme-titanium-light .sidebar-accounts-card #sidebarAccountsTitle,
+body.theme-titanium-dark .sidebar-accounts-card #sidebarAccountsLabel,
+body.theme-titanium-light .sidebar-accounts-card #sidebarAccountsLabel {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+}
+
+body.theme-titanium-dark .sidebar-accounts-card h3,
+body.theme-titanium-light .sidebar-accounts-card h3 {
+    margin-bottom: 6px !important;
+}
+
+body.theme-titanium-dark .sidebar-accounts-card div[style*="border-top"],
+body.theme-titanium-light .sidebar-accounts-card div[style*="border-top"] {
+    padding-top: 8px !important;
+    margin-top: 6px !important;
+}
+
+/* Bento Hero KPI Stat Boxes (Overview, Dashboard Hero) */
+body.theme-titanium-dark .overview-kpi-card,
+body.theme-titanium-dark .stat-box,
+body.theme-titanium-light .overview-kpi-card,
+body.theme-titanium-light .stat-box {
+    border-radius: 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    transition: all 0.12s ease;
+}
+
+body.theme-titanium-dark .overview-kpi-card:hover,
+body.theme-titanium-dark .stat-box:hover,
+body.theme-titanium-light .overview-kpi-card:hover,
+body.theme-titanium-light .stat-box:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--accent-border);
+}
+
+/* Overview Main View Hero KPI Values */
+body.theme-titanium-dark .overview-kpi-card .stat-value,
+body.theme-titanium-light .overview-kpi-card .stat-value,
+body.theme-titanium-dark .overview-hero-card .stat-value,
+body.theme-titanium-light .overview-hero-card .stat-value,
+body.theme-titanium-dark #overviewValNetWorth,
+body.theme-titanium-light #overviewValNetWorth {
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px;
+    font-variant-numeric: tabular-nums !important;
+}
+
+/* Sidebar Specific Dimensions & Typography (Executive Themes Only) */
+body.theme-titanium-dark .app-sidebar .account-item .account-name,
+body.theme-titanium-light .app-sidebar .account-item .account-name {
+    font-size: 13px !important;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+body.theme-titanium-dark .app-sidebar .account-item .account-balance,
+body.theme-titanium-light .app-sidebar .account-item .account-balance {
+    font-size: 13.5px !important;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+body.theme-titanium-dark .app-sidebar #sidebarTotalLabel,
+body.theme-titanium-light .app-sidebar #sidebarTotalLabel {
+    font-size: 13px !important;
+    font-weight: 600;
+}
+
+body.theme-titanium-dark .app-sidebar #valNetWorth,
+body.theme-titanium-light .app-sidebar #valNetWorth {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    font-variant-numeric: tabular-nums !important;
+}
+
+body.theme-titanium-dark .app-sidebar .stat-box,
+body.theme-titanium-light .app-sidebar .stat-box {
+    padding: 10px 13px !important;
+    margin-bottom: 10px !important;
+    border-radius: 8px !important;
+    box-shadow: var(--shadow-sm);
+}
+
+body.theme-titanium-dark .stat-box.highlight,
+body.theme-titanium-light .stat-box.highlight {
+    border-color: rgba(54, 179, 126, 0.3) !important;
+    background-color: rgba(54, 179, 126, 0.08) !important;
+}
+
+body.theme-titanium-dark .stat-box.warning,
+body.theme-titanium-light .stat-box.warning {
+    border-color: rgba(255, 86, 48, 0.3) !important;
+    background-color: rgba(255, 86, 48, 0.08) !important;
+}
+
+body.theme-titanium-dark .stat-box.highlight:hover,
+body.theme-titanium-light .stat-box.highlight:hover {
+    border-color: rgba(54, 179, 126, 0.5) !important;
+}
+
+body.theme-titanium-dark .stat-box.warning:hover,
+body.theme-titanium-light .stat-box.warning:hover {
+    border-color: rgba(255, 86, 48, 0.5) !important;
+}
+
+body.theme-titanium-dark .app-sidebar .stat-label,
+body.theme-titanium-light .app-sidebar .stat-label {
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px !important;
+    margin-bottom: 4px !important;
+    display: block;
+}
+
+body.theme-titanium-dark .app-sidebar .stat-value,
+body.theme-titanium-dark .app-sidebar #valUnreconciled,
+body.theme-titanium-dark .app-sidebar #valPlannedExpenses,
+body.theme-titanium-dark .app-sidebar #valRestToLive,
+body.theme-titanium-dark .app-sidebar #valNextPayAmount,
+body.theme-titanium-dark .app-sidebar #valOverdraft,
+body.theme-titanium-light .app-sidebar .stat-value,
+body.theme-titanium-light .app-sidebar #valUnreconciled,
+body.theme-titanium-light .app-sidebar #valPlannedExpenses,
+body.theme-titanium-light .app-sidebar #valRestToLive,
+body.theme-titanium-light .app-sidebar #valNextPayAmount,
+body.theme-titanium-light .app-sidebar #valOverdraft {
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.3px !important;
+    margin-top: 2px !important;
+    font-variant-numeric: tabular-nums !important;
+}
+
+body.theme-titanium-dark .app-sidebar .stat-subtext,
+body.theme-titanium-dark .app-sidebar #valRestToLiveSub,
+body.theme-titanium-dark .app-sidebar #valNextPayDate,
+body.theme-titanium-dark .app-sidebar #valOverdraftDate,
+body.theme-titanium-light .app-sidebar .stat-subtext,
+body.theme-titanium-light .app-sidebar #valRestToLiveSub,
+body.theme-titanium-light .app-sidebar #valNextPayDate,
+body.theme-titanium-light .app-sidebar #valOverdraftDate {
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    margin-top: 3px !important;
+}
+
+body.theme-titanium-dark .app-sidebar #valOverdraftExplanation,
+body.theme-titanium-light .app-sidebar #valOverdraftExplanation {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+    margin-top: 5px !important;
+    padding-top: 5px !important;
+}
+
+/* Sidebar Budget Bars & Tirelires Progress Optimization (Executive Themes Only) */
+body.theme-titanium-dark .app-sidebar #sidebarBudgetBars .stat-box > div[style*="position:relative"],
+body.theme-titanium-light .app-sidebar #sidebarBudgetBars .stat-box > div[style*="position:relative"] {
+    margin: 6px 0 !important;
+    height: 6px !important;
+}
+
+body.theme-titanium-dark #quickSettingsBox,
+body.theme-titanium-light #quickSettingsBox {
+    padding: 12px 14px !important;
+    margin-top: 8px !important;
+    border-radius: 8px !important;
+}
+
+body.theme-titanium-dark #quickSettingsBox h3,
+body.theme-titanium-light #quickSettingsBox h3 {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    margin-bottom: 8px !important;
+}
+
+body.theme-titanium-dark #quickSettingsBox span,
+body.theme-titanium-light #quickSettingsBox span {
+    font-size: 12.5px !important;
+}
+
+body.theme-titanium-dark #quickSettingsBox select,
+body.theme-titanium-dark #quickSettingsBox input,
+body.theme-titanium-light #quickSettingsBox select,
+body.theme-titanium-light #quickSettingsBox input {
+    font-size: 12.5px !important;
+}
+
+body.theme-titanium-dark #quickSettingsBox p,
+body.theme-titanium-light #quickSettingsBox p {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+    margin-top: 8px !important;
+}
+
+body.theme-titanium-dark #quickPayContainer,
+body.theme-titanium-light #quickPayContainer {
+    gap: 7px;
+}
+
+/* ── 3. Executive Data Table & Precision Rows ── */
+body.theme-titanium-dark .data-table,
+body.theme-titanium-light .data-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+body.theme-titanium-dark .data-table thead th,
+body.theme-titanium-light .data-table thead th {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 14.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    color: var(--text-muted);
+    padding: 8px 10px;
+    z-index: 10;
+}
+
+body.theme-titanium-dark .data-table thead th:first-child,
+body.theme-titanium-light .data-table thead th:first-child,
+body.theme-titanium-dark .data-table thead th:last-child,
+body.theme-titanium-light .data-table thead th:last-child {
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
+}
+
+body.theme-titanium-dark .data-table tbody tr,
+body.theme-titanium-light .data-table tbody tr {
+    transition: background 0.12s ease;
+}
+
+body.theme-titanium-dark .data-table tbody tr:hover {
+    background: rgba(96, 165, 250, 0.05) !important;
+}
+
+body.theme-titanium-light .data-table tbody tr:hover {
+    background: rgba(194, 94, 0, 0.035) !important;
+}
+
+body.theme-titanium-dark .data-table tbody td,
+body.theme-titanium-light .data-table tbody td {
+    padding: 7px 10px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── 4. Executive Precision Buttons ── */
+body.theme-titanium-dark .btn-primary,
+body.theme-titanium-light .btn-primary {
+    background: var(--accent);
+    color: #ffffff;
+    border-radius: 6px;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.20);
+    transition: all 0.12s ease;
+}
+
+body.theme-titanium-dark .btn-primary {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+body.theme-titanium-dark .btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 2px 6px var(--accent-glow);
+    transform: translateY(-1px);
+}
+
+body.theme-titanium-light .btn-primary {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+body.theme-titanium-light .btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 2px 6px var(--accent-glow);
+    transform: translateY(-1px);
+}
+
+body.theme-titanium-dark .recon-btn-unmatched,
+body.theme-titanium-dark .overview-recon-action-btn,
+body.theme-titanium-light .recon-btn-unmatched,
+body.theme-titanium-light .overview-recon-action-btn {
+    background: var(--accent-subtle);
+    border: 1px solid var(--accent-border);
+    box-shadow: none;
+    color: var(--accent);
+    font-weight: 600;
+    border-radius: 6px;
+    height: 26px;
+    min-height: 26px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+    padding: 0 8px;
+    font-size: 11.5px;
+    transition: all 0.12s ease;
+}
+
+body.theme-titanium-dark .recon-btn-unmatched:hover,
+body.theme-titanium-dark .overview-recon-action-btn:hover,
+body.theme-titanium-light .recon-btn-unmatched:hover,
+body.theme-titanium-light .overview-recon-action-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+body.theme-titanium-dark .recon-date-link,
+body.theme-titanium-light .recon-date-link {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    border-radius: 6px;
+    padding: 0 8px;
+    height: 26px;
+    color: var(--text-muted);
+}
+
+body.theme-titanium-dark .recon-date-link:hover,
+body.theme-titanium-light .recon-date-link:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-main);
+}
+
+/* ── 5. Executive Budget Envelopes ── */
+body.theme-titanium-dark .budget-envelope-card,
+body.theme-titanium-light .budget-envelope-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    border-radius: 8px;
+    padding: 14px;
+    transition: all 0.12s ease;
+}
+
+body.theme-titanium-dark .budget-envelope-card:hover,
+body.theme-titanium-light .budget-envelope-card:hover {
+    border-color: var(--accent-border);
+    box-shadow: var(--shadow-md);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   6. EXECUTIVE OVERVIEW : NÉO-BRUTALISME & CHROME ARCHITECTURAL
+   Strictement scopé à Titanium Sombre & Albâtre Clair — Aucun impact thèmes classiques
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 6.1 Top Bar & Header Controls ── */
+body.theme-titanium-dark .overview-health-badge,
+body.theme-titanium-light .overview-health-badge {
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px;
+    padding: 3px 10px !important;
+}
+
+body.theme-titanium-dark .overview-acc-trigger,
+body.theme-titanium-light .overview-acc-trigger {
+    border-radius: 6px !important;
+    border: 1px solid var(--border-color) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    padding: 6px 12px !important;
+    transition: all 0.15s ease;
+}
+
+body.theme-titanium-dark .overview-acc-trigger {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.theme-titanium-light .overview-acc-trigger {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.theme-titanium-dark .overview-acc-trigger:hover,
+body.theme-titanium-light .overview-acc-trigger:hover {
+    border-color: var(--accent) !important;
+}
+
+body.theme-titanium-dark .overview-bank-sync-btn,
+body.theme-titanium-light .overview-bank-sync-btn {
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    height: 34px !important;
+}
+
+body.theme-titanium-dark .overview-add-btn,
+body.theme-titanium-light .overview-add-btn {
+    border-radius: 6px !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    height: 34px !important;
+    box-shadow: 0 2px 8px var(--accent-subtle) !important;
+}
+
+/* ── 6.2 Hero KPI Cards (Angles 6px, Double Hairline, Liserêts Métalliques) ── */
+body.theme-titanium-dark .overview-hero,
+body.theme-titanium-light .overview-hero {
+    gap: 12px !important;
+    margin-bottom: 18px !important;
+}
+
+body.theme-titanium-dark .overview-hero-card,
+body.theme-titanium-light .overview-hero-card {
+    border-radius: 6px !important;
+    position: relative;
+    padding: 14px 16px !important;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+body.theme-titanium-dark .overview-hero-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+body.theme-titanium-light .overview-hero-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.06) !important;
+}
+
+body.theme-titanium-dark .overview-hero-card:hover,
+body.theme-titanium-light .overview-hero-card:hover {
+    transform: translateY(-2px) !important;
+    border-color: var(--accent) !important;
+}
+
+/* Liseret supérieur continu de 2px (Néo-Brutalisme) */
+body.theme-titanium-dark .overview-hero-card::before,
+body.theme-titanium-light .overview-hero-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+    opacity: 0.95;
+}
+
+/* Trésorerie (Net Worth) */
+body.theme-titanium-dark .overview-hero-networth::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light .overview-hero-networth::before {
+    background: var(--accent-gradient);
+}
+
+/* Reste à Vivre */
+body.theme-titanium-dark .overview-hero-rav::before {
+    background: linear-gradient(90deg, #ef4444 0%, #f87171 50%, #fecaca 100%);
+}
+body.theme-titanium-light .overview-hero-rav::before {
+    background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #fca5a5 100%);
+}
+
+/* Projection Fin de Mois */
+body.theme-titanium-dark .overview-hero-projection::before {
+    background: linear-gradient(90deg, #8b5cf6 0%, #a78bfa 50%, #ede9fe 100%);
+}
+body.theme-titanium-light .overview-hero-projection::before {
+    background: linear-gradient(90deg, #7c3aed 0%, #8b5cf6 50%, #ddd6fe 100%);
+}
+
+/* Prochaine Paie */
+body.theme-titanium-dark .overview-hero-pay::before {
+    background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 50%, #dbeafe 100%);
+}
+body.theme-titanium-light .overview-hero-pay::before {
+    background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #bfdbfe 100%);
+}
+
+/* Risque Découvert */
+body.theme-titanium-dark .overview-hero-overdraft::before {
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #fef3c7 100%);
+}
+body.theme-titanium-light .overview-hero-overdraft::before {
+    background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #fde68a 100%);
+}
+
+/* Org User */
+body.theme-titanium-dark .overview-hero-orguser::before {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #a7f3d0 100%);
+}
+body.theme-titanium-light .overview-hero-orguser::before {
+    background: linear-gradient(90deg, #059669 0%, #10b981 50%, #6ee7b7 100%);
+}
+
+body.theme-titanium-dark .overview-hero-icon,
+body.theme-titanium-light .overview-hero-icon {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 4px !important;
+    font-size: 19px !important;
+    border: 1px solid var(--border-subtle);
+}
+
+body.theme-titanium-dark .overview-hero-label,
+body.theme-titanium-light .overview-hero-label {
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px;
+}
+
+body.theme-titanium-dark .overview-hero-value,
+body.theme-titanium-light .overview-hero-value {
+    font-size: 20px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+body.theme-titanium-dark .overview-hero-sub,
+body.theme-titanium-light .overview-hero-sub {
+    font-size: 11px !important;
+}
+
+body.theme-titanium-dark .overview-hero-switch-btn,
+body.theme-titanium-light .overview-hero-switch-btn {
+    border-radius: 4px !important;
+}
+
+/* ── 6.3 Ticker HUD Rythme & Moyennes ── */
+body.theme-titanium-dark .overview-rhythm-strip,
+body.theme-titanium-light .overview-rhythm-strip {
+    border-radius: 6px !important;
+    padding: 10px 16px !important;
+    margin-bottom: 18px !important;
+    position: relative;
+}
+
+body.theme-titanium-dark .overview-rhythm-strip {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.theme-titanium-light .overview-rhythm-strip {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 4px rgba(60, 45, 30, 0.05) !important;
+}
+
+body.theme-titanium-dark .overview-rhythm-segmented,
+body.theme-titanium-light .overview-rhythm-segmented {
+    border-radius: 4px !important;
+    padding: 2px !important;
+    border: 1px solid var(--border-color) !important;
+    gap: 2px;
+}
+
+body.theme-titanium-dark .ov-seg-btn,
+body.theme-titanium-light .ov-seg-btn {
+    border-radius: 4px !important;
+    padding: 2.5px 7px !important;
+    font-size: 10.5px !important;
+    font-weight: 600 !important;
+    transition: all 0.12s ease;
+}
+
+body.theme-titanium-dark .ov-seg-btn.active,
+body.theme-titanium-light .ov-seg-btn.active {
+    background: var(--accent) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.theme-titanium-dark .overview-rhythm-badges,
+body.theme-titanium-light .overview-rhythm-badges {
+    gap: 8px !important;
+}
+
+body.theme-titanium-dark .overview-rhythm-badge,
+body.theme-titanium-light .overview-rhythm-badge {
+    border-radius: 4px !important;
+    padding: 7px 11px !important;
+    border: 1px solid var(--border-subtle) !important;
+}
+
+body.theme-titanium-dark .overview-badge-dot,
+body.theme-titanium-light .overview-badge-dot {
+    border-radius: 2px !important;
+    width: 6px !important;
+    height: 6px !important;
+}
+
+body.theme-titanium-dark .overview-badge-value,
+body.theme-titanium-light .overview-badge-value {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── 6.4 Central Main Card & Table Opérations à Rapprocher ── */
+body.theme-titanium-dark .overview-main-card,
+body.theme-titanium-light .overview-main-card {
+    border-radius: 6px !important;
+    position: relative;
+    padding: 20px 22px !important;
+    margin-bottom: 22px !important;
+}
+
+body.theme-titanium-dark .overview-main-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+}
+
+body.theme-titanium-light .overview-main-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 8px rgba(60, 45, 30, 0.06) !important;
+}
+
+/* Liseret supérieur continu sur la carte principale */
+body.theme-titanium-dark .overview-main-card::before,
+body.theme-titanium-light .overview-main-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+}
+
+body.theme-titanium-dark .overview-main-card::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-light .overview-main-card::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .overview-card-header,
+body.theme-titanium-light .overview-card-header {
+    margin-bottom: 14px !important;
+}
+
+body.theme-titanium-dark .overview-card-header h3,
+body.theme-titanium-light .overview-card-header h3 {
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+body.theme-titanium-dark .overview-count-pill,
+body.theme-titanium-light .overview-count-pill {
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    padding: 2px 7px !important;
+}
+
+body.theme-titanium-dark .overview-search-input,
+body.theme-titanium-light .overview-search-input {
+    border-radius: 4px !important;
+    padding: 5px 10px !important;
+    font-size: 12px !important;
+}
+
+body.theme-titanium-dark .overview-bulk-btn,
+body.theme-titanium-light .overview-bulk-btn {
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+}
+
+/* Onglets de filtrage et sélecteur d'horizon */
+body.theme-titanium-dark .overview-tabs-bar,
+body.theme-titanium-light .overview-tabs-bar {
+    margin-bottom: 12px !important;
+}
+
+body.theme-titanium-dark .overview-tab,
+body.theme-titanium-light .overview-tab {
+    border-radius: 4px !important;
+    padding: 4px 10px !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    border: 1px solid transparent;
+    transition: all 0.12s ease;
+}
+
+body.theme-titanium-dark .overview-tab.active,
+body.theme-titanium-light .overview-tab.active {
+    background: var(--bg-base) !important;
+    border-color: var(--border-color) !important;
+    color: var(--accent) !important;
+    font-weight: 700 !important;
+}
+
+body.theme-titanium-dark .ov-horizon-btn,
+body.theme-titanium-light .ov-horizon-btn {
+    border-radius: 4px !important;
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    transition: all 0.12s ease;
+}
+
+body.theme-titanium-dark .ov-horizon-btn.active,
+body.theme-titanium-light .ov-horizon-btn.active {
+    background: var(--accent) !important;
+    color: #ffffff !important;
+    border-color: var(--accent) !important;
+    font-weight: 700 !important;
+}
+
+/* Tableau d'opérations Néo-Brutaliste */
+body.theme-titanium-dark .overview-ops-table,
+body.theme-titanium-light .overview-ops-table {
+    border-collapse: collapse;
+}
+
+body.theme-titanium-dark .overview-ops-table th,
+body.theme-titanium-light .overview-ops-table th {
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 8px 12px !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    background: var(--bg-surface) !important;
+}
+
+body.theme-titanium-dark .overview-op-tr,
+body.theme-titanium-light .overview-op-tr {
+    border-bottom: 1px solid var(--border-subtle) !important;
+    transition: background 0.12s ease !important;
+}
+
+body.theme-titanium-dark .overview-op-tr:hover {
+    background: rgba(96, 165, 250, 0.05) !important;
+    box-shadow: inset 2px 0 0 var(--accent);
+}
+
+body.theme-titanium-light .overview-op-tr:hover {
+    background: rgba(194, 94, 0, 0.04) !important;
+    box-shadow: inset 2px 0 0 var(--accent);
+}
+
+body.theme-titanium-dark .overview-op-tr.ghost-row,
+body.theme-titanium-light .overview-op-tr.ghost-row {
+    border-left: 3px solid #f59e0b !important;
+}
+
+body.theme-titanium-dark .overview-ops-table td,
+body.theme-titanium-light .overview-ops-table td {
+    padding: 9px 12px !important;
+    font-size: 12.5px !important;
+    font-variant-numeric: tabular-nums;
+}
+
+body.theme-titanium-dark .ov-td-desc,
+body.theme-titanium-light .ov-td-desc {
+    font-weight: 600 !important;
+}
+
+body.theme-titanium-dark .ov-td-amt,
+body.theme-titanium-light .ov-td-amt {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+}
+
+body.theme-titanium-dark .overview-cat-badge,
+body.theme-titanium-light .overview-cat-badge {
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    padding: 2px 8px !important;
+    border: 1px solid var(--border-subtle);
+}
+
+body.theme-titanium-dark .account-badge,
+body.theme-titanium-light .account-badge {
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    padding: 2px 8px !important;
+}
+
+body.theme-titanium-dark .overview-author-badge,
+body.theme-titanium-light .overview-author-badge {
+    border-radius: 4px !important;
+    font-size: 11px !important;
+}
+
+@media (min-width: 1025px) {
+    body.theme-titanium-dark .overview-recon-action-btn,
+    body.theme-titanium-light .overview-recon-action-btn {
+        border-radius: 4px !important;
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        height: 26px !important;
+        min-height: 26px !important;
+        padding: 0 12px !important;
+    }
+
+    body.theme-titanium-dark .ov-action-menu-trigger,
+    body.theme-titanium-light .ov-action-menu-trigger {
+        border-radius: 4px !important;
+        height: 25px !important;
+        width: 25px !important;
+        padding: 0 !important;
+        font-size: 13px !important;
+    }
+}
+
+/* ── 6.5 Grille Inférieure (Tendance, Top 6, Budgets & Épargne) ── */
+body.theme-titanium-dark .overview-bottom-grid,
+body.theme-titanium-light .overview-bottom-grid {
+    gap: 14px !important;
+}
+
+body.theme-titanium-dark .overview-card,
+body.theme-titanium-light .overview-card {
+    border-radius: 6px !important;
+    position: relative;
+    padding: 16px 18px !important;
+}
+
+body.theme-titanium-dark .overview-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+body.theme-titanium-light .overview-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.06) !important;
+}
+
+/* Liserets supérieurs différenciés sur les 3 colonnes inférieures */
+body.theme-titanium-dark .overview-card-trend::before,
+body.theme-titanium-light .overview-card-trend::before,
+body.theme-titanium-dark .overview-card-top3::before,
+body.theme-titanium-light .overview-card-top3::before,
+body.theme-titanium-dark .overview-card-budgets-savings::before,
+body.theme-titanium-light .overview-card-budgets-savings::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+}
+
+/* Tendance 6M (Bleu Acier / Cuivre) */
+body.theme-titanium-dark .overview-card-trend::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light .overview-card-trend::before {
+    background: var(--accent-gradient);
+}
+
+/* Top 6 Dépenses (Corail / Rubis) */
+body.theme-titanium-dark .overview-card-top3::before {
+    background: linear-gradient(90deg, #ef4444 0%, #f87171 50%, #fecaca 100%);
+}
+body.theme-titanium-light .overview-card-top3::before {
+    background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #fca5a5 100%);
+}
+
+/* Budgets & Épargne (Émeraude) */
+body.theme-titanium-dark .overview-card-budgets-savings::before {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #a7f3d0 100%);
+}
+body.theme-titanium-light .overview-card-budgets-savings::before {
+    background: linear-gradient(90deg, #059669 0%, #10b981 50%, #6ee7b7 100%);
+}
+
+/* Boutons de mode dans la grille inférieure */
+body.theme-titanium-dark .ov-mode-btn,
+body.theme-titanium-light .ov-mode-btn {
+    border-radius: 4px !important;
+    padding: 2.5px 7px !important;
+    font-size: 10.5px !important;
+    font-weight: 600 !important;
+    transition: all 0.12s ease;
+}
+
+body.theme-titanium-dark .ov-mode-btn.active,
+body.theme-titanium-light .ov-mode-btn.active {
+    background: var(--accent) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.theme-titanium-dark .overview-top3-item,
+body.theme-titanium-light .overview-top3-item {
+    border-radius: 4px !important;
+    border: 1px solid var(--border-subtle) !important;
+    padding: 6px 10px !important;
+    margin-bottom: 6px !important;
+}
+
+body.theme-titanium-dark .budget-envelope-item,
+body.theme-titanium-light .budget-envelope-item {
+    border-radius: 4px !important;
+}
+
+body.theme-titanium-dark .progress-bar,
+body.theme-titanium-light .progress-bar {
+    border-radius: 3px !important;
+}
+
+body.theme-titanium-dark .progress-fill,
+body.theme-titanium-light .progress-fill {
+    border-radius: 3px !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   7. EXECUTIVE GLOBAL DESIGN SYSTEM : NÉO-BRUTALISME & CHROME ARCHITECTURAL
+   Généralisation à toute l'application (Dashboard, Modales, Synthèse, Budgets,
+   Tendances, Chat IA, Récurrences, Catégories, Comptes, Configuration)
+   Strictement scopé à Titanium Sombre & Albâtre Clair — Zéro impact thèmes classiques
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 7.1 En-tête Global, Navigation & Boutons Système ── */
+body.theme-titanium-dark .app-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04), 0 2px 10px rgba(0, 0, 0, 0.25) !important;
+}
+body.theme-titanium-light .app-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.9), 0 1px 4px rgba(60, 45, 30, 0.05) !important;
+}
+
+body.theme-titanium-dark .main-nav,
+body.theme-titanium-light .main-nav {
+    border-radius: 6px !important;
+}
+
+body.theme-titanium-dark .main-nav .nav-btn,
+body.theme-titanium-light .main-nav .nav-btn {
+    border-radius: 4px !important;
+    font-size: 12.5px !important;
+}
+
+body.theme-titanium-dark .main-nav .nav-btn.active,
+body.theme-titanium-light .main-nav .nav-btn.active {
+    border-radius: 4px !important;
+}
+
+body.theme-titanium-dark #headerUndoBtn,
+body.theme-titanium-dark #headerRedoBtn,
+body.theme-titanium-dark #notifBellBtn,
+body.theme-titanium-dark #compactToggle,
+body.theme-titanium-dark #privacyToggle,
+body.theme-titanium-dark #themeToggle,
+body.theme-titanium-dark #langToggleBtn,
+body.theme-titanium-dark .profile-badge,
+body.theme-titanium-dark .user-switcher-btn,
+body.theme-titanium-light #headerUndoBtn,
+body.theme-titanium-light #headerRedoBtn,
+body.theme-titanium-light #notifBellBtn,
+body.theme-titanium-light #compactToggle,
+body.theme-titanium-light #privacyToggle,
+body.theme-titanium-light #themeToggle,
+body.theme-titanium-light #langToggleBtn,
+body.theme-titanium-light .profile-badge,
+body.theme-titanium-light .user-switcher-btn {
+    border-radius: 4px !important;
+}
+
+/* ── 7.2 Sidebar KPI Stat Boxes & Comptes (avec Liserêts Sémantiques) ── */
+body.theme-titanium-dark .sidebar-accounts-card,
+body.theme-titanium-light .sidebar-accounts-card {
+    border-radius: 8px !important;
+    padding: 12px 14px !important;
+    margin-bottom: 12px !important;
+    position: relative;
+}
+
+body.theme-titanium-dark .sidebar-accounts-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.theme-titanium-light .sidebar-accounts-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 4px rgba(60, 45, 30, 0.05) !important;
+}
+
+body.theme-titanium-dark .sidebar-accounts-card::before,
+body.theme-titanium-light .sidebar-accounts-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+}
+
+body.theme-titanium-dark .sidebar-accounts-card::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light .sidebar-accounts-card::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .app-sidebar .stat-box,
+body.theme-titanium-dark #trendsStatsGrid .stat-box,
+body.theme-titanium-light .app-sidebar .stat-box,
+body.theme-titanium-light #trendsStatsGrid .stat-box {
+    border-radius: 8px !important;
+    position: relative;
+}
+
+body.theme-titanium-dark .app-sidebar .stat-box,
+body.theme-titanium-dark #trendsStatsGrid .stat-box {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body.theme-titanium-light .app-sidebar .stat-box,
+body.theme-titanium-light #trendsStatsGrid .stat-box {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 3px rgba(60, 45, 30, 0.04) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+body.theme-titanium-dark .app-sidebar .stat-box::before,
+body.theme-titanium-dark #trendsStatsGrid .stat-box::before,
+body.theme-titanium-light .app-sidebar .stat-box::before,
+body.theme-titanium-light #trendsStatsGrid .stat-box::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+}
+
+body.theme-titanium-dark #trendsStatsGrid .stat-box::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light #trendsStatsGrid .stat-box::before {
+    background: var(--accent-gradient);
+}
+
+/* Reste à Vivre (Émeraude / Vert) */
+body.theme-titanium-dark #restToLiveBox::before {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #a7f3d0 100%);
+}
+body.theme-titanium-light #restToLiveBox::before {
+    background: linear-gradient(90deg, #059669 0%, #10b981 50%, #6ee7b7 100%);
+}
+
+/* Dépenses non rapprochées (Or ambré) */
+body.theme-titanium-dark #unreconciledBox::before {
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #fef3c7 100%);
+}
+body.theme-titanium-light #unreconciledBox::before {
+    background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #fde68a 100%);
+}
+
+/* Prochaine Paie (Bleu saphir) */
+body.theme-titanium-dark #nextPayBox::before {
+    background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 50%, #dbeafe 100%);
+}
+body.theme-titanium-light #nextPayBox::before {
+    background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #bfdbfe 100%);
+}
+
+/* Risque Découvert (Rubis / Rouge) */
+body.theme-titanium-dark #overdraftBox::before {
+    background: linear-gradient(90deg, #ef4444 0%, #f87171 50%, #fecaca 100%);
+}
+body.theme-titanium-light #overdraftBox::before {
+    background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #fca5a5 100%);
+}
+
+/* Quick Settings Box (Jour de paie) */
+body.theme-titanium-dark #quickSettingsBox,
+body.theme-titanium-light #quickSettingsBox {
+    border-radius: 6px !important;
+    position: relative;
+}
+
+body.theme-titanium-dark #quickSettingsBox {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.theme-titanium-light #quickSettingsBox {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 3px rgba(60, 45, 30, 0.04) !important;
+}
+
+body.theme-titanium-dark #quickSettingsBox::before,
+body.theme-titanium-light #quickSettingsBox::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+}
+
+body.theme-titanium-dark #quickSettingsBox::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light #quickSettingsBox::before {
+    background: var(--accent-gradient);
+}
+
+/* ── 7.3 Modales Globales & Menus Déroulants Flottants ── */
+body.theme-titanium-dark .modal,
+body.theme-titanium-dark .pay-modal-card,
+body.theme-titanium-dark .bv-modal-panel,
+body.theme-titanium-dark .bv-wizard-panel,
+body.theme-titanium-dark .budget-unified-panel,
+body.theme-titanium-dark .user-picker-container,
+body.theme-titanium-light .modal,
+body.theme-titanium-light .pay-modal-card,
+body.theme-titanium-light .bv-modal-panel,
+body.theme-titanium-light .bv-wizard-panel,
+body.theme-titanium-light .budget-unified-panel,
+body.theme-titanium-light .user-picker-container {
+    border-radius: 6px !important;
+    position: relative;
+    overflow: hidden !important;
+}
+
+body.theme-titanium-dark .modal,
+body.theme-titanium-dark .pay-modal-card,
+body.theme-titanium-dark .bv-modal-panel,
+body.theme-titanium-dark .bv-wizard-panel,
+body.theme-titanium-dark .budget-unified-panel,
+body.theme-titanium-dark .user-picker-container {
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 25px 60px -12px rgba(0, 0, 0, 0.7) !important;
+}
+
+body.theme-titanium-light .modal,
+body.theme-titanium-light .pay-modal-card,
+body.theme-titanium-light .bv-modal-panel,
+body.theme-titanium-light .bv-wizard-panel,
+body.theme-titanium-light .budget-unified-panel,
+body.theme-titanium-light .user-picker-container {
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 20px 45px -10px rgba(60, 45, 30, 0.2) !important;
+}
+
+body.theme-titanium-dark .user-picker-container,
+body.theme-titanium-light .user-picker-container {
+    background: var(--bg-surface) !important;
+    padding: 36px 32px 32px 32px !important;
+    box-sizing: border-box !important;
+}
+
+body.theme-titanium-dark .user-picker-badge {
+    background: var(--bg-input) !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+}
+
+body.theme-titanium-light .user-picker-badge {
+    background: var(--bg-input) !important;
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+}
+
+body.theme-titanium-dark .user-picker-badge:hover {
+    border-color: var(--accent) !important;
+    background: rgba(var(--accent-rgb), 0.12) !important;
+    box-shadow: 0 4px 16px var(--accent-glow) !important;
+}
+
+body.theme-titanium-light .user-picker-badge:hover {
+    border-color: var(--accent) !important;
+    background: rgba(var(--accent-rgb), 0.08) !important;
+    box-shadow: 0 4px 16px var(--accent-glow) !important;
+}
+
+
+body.theme-titanium-dark .modal::before,
+body.theme-titanium-dark .pay-modal-card::before,
+body.theme-titanium-dark .bv-modal-panel::before,
+body.theme-titanium-dark .bv-wizard-panel::before,
+body.theme-titanium-dark .budget-unified-panel::before,
+body.theme-titanium-dark .user-picker-container::before,
+body.theme-titanium-light .modal::before,
+body.theme-titanium-light .pay-modal-card::before,
+body.theme-titanium-light .bv-modal-panel::before,
+body.theme-titanium-light .bv-wizard-panel::before,
+body.theme-titanium-light .budget-unified-panel::before,
+body.theme-titanium-light .user-picker-container::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 100;
+}
+
+body.theme-titanium-dark .modal::before,
+body.theme-titanium-dark .pay-modal-card::before,
+body.theme-titanium-dark .bv-modal-panel::before,
+body.theme-titanium-dark .bv-wizard-panel::before,
+body.theme-titanium-dark .budget-unified-panel::before,
+body.theme-titanium-dark .user-picker-container::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-light .modal::before,
+body.theme-titanium-light .pay-modal-card::before,
+body.theme-titanium-light .bv-modal-panel::before,
+body.theme-titanium-light .bv-wizard-panel::before,
+body.theme-titanium-light .budget-unified-panel::before,
+body.theme-titanium-light .user-picker-container::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .modal .inline-input,
+body.theme-titanium-dark .modal input,
+body.theme-titanium-dark .modal select,
+body.theme-titanium-dark .modal textarea,
+body.theme-titanium-light .modal .inline-input,
+body.theme-titanium-light .modal input,
+body.theme-titanium-light .modal select,
+body.theme-titanium-light .modal textarea {
+    border-radius: 4px !important;
+}
+
+/* Popovers & Menus Flottants */
+body.theme-titanium-dark #notifMenu,
+body.theme-titanium-dark #themeMenu,
+body.theme-titanium-dark #langMenu,
+body.theme-titanium-dark #profileDropdown,
+body.theme-titanium-dark #userSwitcherMenu,
+body.theme-titanium-dark #aiEntityPopover,
+body.theme-titanium-dark .years-popover,
+body.theme-titanium-light #notifMenu,
+body.theme-titanium-light #themeMenu,
+body.theme-titanium-light #langMenu,
+body.theme-titanium-light #profileDropdown,
+body.theme-titanium-light #userSwitcherMenu,
+body.theme-titanium-light #aiEntityPopover,
+body.theme-titanium-light .years-popover {
+    border-radius: 6px !important;
+    position: absolute;
+    overflow: hidden;
+}
+
+body.theme-titanium-dark #notifMenu,
+body.theme-titanium-dark #themeMenu,
+body.theme-titanium-dark #langMenu,
+body.theme-titanium-dark #profileDropdown,
+body.theme-titanium-dark #userSwitcherMenu,
+body.theme-titanium-dark #aiEntityPopover,
+body.theme-titanium-dark .years-popover {
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+body.theme-titanium-light #notifMenu,
+body.theme-titanium-light #themeMenu,
+body.theme-titanium-light #langMenu,
+body.theme-titanium-light #profileDropdown,
+body.theme-titanium-light #userSwitcherMenu,
+body.theme-titanium-light #aiEntityPopover,
+body.theme-titanium-light .years-popover {
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 10px 25px rgba(60, 45, 30, 0.15) !important;
+}
+
+body.theme-titanium-dark #notifMenu::before,
+body.theme-titanium-dark #themeMenu::before,
+body.theme-titanium-dark #langMenu::before,
+body.theme-titanium-dark #profileDropdown::before,
+body.theme-titanium-dark #userSwitcherMenu::before,
+body.theme-titanium-dark #aiEntityPopover::before,
+body.theme-titanium-dark .years-popover::before,
+body.theme-titanium-light #notifMenu::before,
+body.theme-titanium-light #themeMenu::before,
+body.theme-titanium-light #langMenu::before,
+body.theme-titanium-light #profileDropdown::before,
+body.theme-titanium-light #userSwitcherMenu::before,
+body.theme-titanium-light #aiEntityPopover::before,
+body.theme-titanium-light .years-popover::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 10;
+}
+
+body.theme-titanium-dark #notifMenu::before,
+body.theme-titanium-dark #themeMenu::before,
+body.theme-titanium-dark #langMenu::before,
+body.theme-titanium-dark #profileDropdown::before,
+body.theme-titanium-dark #userSwitcherMenu::before,
+body.theme-titanium-dark #aiEntityPopover::before,
+body.theme-titanium-dark .years-popover::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-light #notifMenu::before,
+body.theme-titanium-light #themeMenu::before,
+body.theme-titanium-light #langMenu::before,
+body.theme-titanium-light #profileDropdown::before,
+body.theme-titanium-light #userSwitcherMenu::before,
+body.theme-titanium-light #aiEntityPopover::before,
+body.theme-titanium-light .years-popover::before {
+    background: var(--accent-gradient);
+}
+
+/* ── 7.4 Tableaux de Données Système & Lignes de Données ── */
+body.theme-titanium-dark .data-table thead th,
+body.theme-titanium-light .data-table thead th {
+    font-size: 14.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+    padding: 8px 10px !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+body.theme-titanium-dark .data-table tbody tr {
+    transition: background 0.12s ease !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+}
+body.theme-titanium-dark .data-table tbody tr:hover {
+    background: rgba(96, 165, 250, 0.05) !important;
+    box-shadow: inset 2px 0 0 var(--accent) !important;
+}
+
+body.theme-titanium-light .data-table tbody tr {
+    transition: background 0.12s ease !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+}
+body.theme-titanium-light .data-table tbody tr:hover {
+    background: rgba(194, 94, 0, 0.04) !important;
+    box-shadow: inset 2px 0 0 var(--accent) !important;
+}
+
+body.theme-titanium-dark .category-badge,
+body.theme-titanium-dark .cat-badge,
+body.theme-titanium-dark .bv-tag,
+body.theme-titanium-dark .ai-entity-badge,
+body.theme-titanium-light .category-badge,
+body.theme-titanium-light .cat-badge,
+body.theme-titanium-light .bv-tag,
+body.theme-titanium-light .ai-entity-badge {
+    border-radius: 4px !important;
+}
+
+body.theme-titanium-dark .data-table tbody td,
+body.theme-titanium-light .data-table tbody td {
+    padding: 7px 10px !important;
+    font-size: 12.5px !important;
+    font-variant-numeric: tabular-nums !important;
+}
+
+/* ── 7.5 Dashboard, Historique, Barres d'outils & Bandeau de Période ── */
+body.theme-titanium-dark .view-header-bar,
+body.theme-titanium-light .view-header-bar {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+}
+
+body.theme-titanium-dark .filter-pill,
+body.theme-titanium-light .filter-pill {
+    border-radius: 4px !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 3px 8px !important;
+}
+
+body.theme-titanium-dark .filter-pill-select,
+body.theme-titanium-light .filter-pill-select {
+    border-radius: 4px !important;
+    font-size: 11.5px !important;
+}
+
+body.theme-titanium-dark #periodBanner,
+body.theme-titanium-dark .dashboard-period-banner,
+body.theme-titanium-light #periodBanner,
+body.theme-titanium-light .dashboard-period-banner {
+    border-radius: 6px !important;
+    position: relative;
+}
+
+body.theme-titanium-dark #periodBanner,
+body.theme-titanium-dark .dashboard-period-banner {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.theme-titanium-light #periodBanner,
+body.theme-titanium-light .dashboard-period-banner {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 4px rgba(60, 45, 30, 0.05) !important;
+}
+
+body.theme-titanium-dark #periodBanner::before,
+body.theme-titanium-dark .dashboard-period-banner::before,
+body.theme-titanium-light #periodBanner::before,
+body.theme-titanium-light .dashboard-period-banner::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+}
+
+body.theme-titanium-dark #periodBanner::before,
+body.theme-titanium-dark .dashboard-period-banner::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-light #periodBanner::before,
+body.theme-titanium-light .dashboard-period-banner::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .table-container,
+body.theme-titanium-light .table-container {
+    border-radius: 6px !important;
+    border: 1px solid var(--border-color) !important;
+    position: relative;
+}
+
+body.theme-titanium-dark .table-container::before,
+body.theme-titanium-light .table-container::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 25;
+}
+
+body.theme-titanium-dark .table-container::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-light .table-container::before {
+    background: var(--accent-gradient);
+}
+
+/* ── 7.6 Synthèse (Analytics) Heatmap Containers ── */
+body.theme-titanium-dark #analyticsContainer > div[data-type],
+body.theme-titanium-light #analyticsContainer > div[data-type] {
+    border-radius: 6px !important;
+    position: relative;
+    overflow: hidden !important;
+}
+
+body.theme-titanium-dark #analyticsContainer > div[data-type] {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.theme-titanium-light #analyticsContainer > div[data-type] {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.06) !important;
+}
+
+body.theme-titanium-dark #analyticsContainer > div[data-type]::before,
+body.theme-titanium-light #analyticsContainer > div[data-type]::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 30;
+}
+
+/* Dépenses Fixes (Corail) */
+body.theme-titanium-dark #analyticsContainer > div[data-type="expense_fixed"]::before {
+    background: linear-gradient(90deg, #ef4444 0%, #f87171 50%, #fecaca 100%);
+}
+body.theme-titanium-light #analyticsContainer > div[data-type="expense_fixed"]::before {
+    background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #fca5a5 100%);
+}
+
+/* Dépenses Variables (Ambre) */
+body.theme-titanium-dark #analyticsContainer > div[data-type="expense_var"]::before {
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #fef3c7 100%);
+}
+body.theme-titanium-light #analyticsContainer > div[data-type="expense_var"]::before {
+    background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #fde68a 100%);
+}
+
+/* Recettes (Émeraude) */
+body.theme-titanium-dark #analyticsContainer > div[data-type="income"]::before {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #a7f3d0 100%);
+}
+body.theme-titanium-light #analyticsContainer > div[data-type="income"]::before {
+    background: linear-gradient(90deg, #059669 0%, #10b981 50%, #6ee7b7 100%);
+}
+
+/* Transferts (Bleu) */
+body.theme-titanium-dark #analyticsContainer > div[data-type="transfer"]::before {
+    background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 50%, #dbeafe 100%);
+}
+body.theme-titanium-light #analyticsContainer > div[data-type="transfer"]::before {
+    background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #bfdbfe 100%);
+}
+
+/* ── 7.7 Budgets, Enveloppes & Panneaux ── */
+body.theme-titanium-dark .budget-envelope-card,
+body.theme-titanium-light .budget-envelope-card {
+    border-radius: 6px !important;
+    position: relative;
+    padding: 14px 16px !important;
+}
+
+body.theme-titanium-dark .budget-envelope-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.theme-titanium-light .budget-envelope-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.06) !important;
+}
+
+body.theme-titanium-dark .budget-envelope-card::before,
+body.theme-titanium-light .budget-envelope-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+}
+
+body.theme-titanium-dark .budget-envelope-card::before {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #a7f3d0 100%);
+}
+body.theme-titanium-dark .budget-envelope-card.over-budget::before {
+    background: linear-gradient(90deg, #ef4444 0%, #f87171 50%, #fecaca 100%);
+}
+
+body.theme-titanium-light .budget-envelope-card::before {
+    background: linear-gradient(90deg, #059669 0%, #10b981 50%, #6ee7b7 100%);
+}
+body.theme-titanium-light .budget-envelope-card.over-budget::before {
+    background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #fca5a5 100%);
+}
+
+body.theme-titanium-dark .bv-capacity-panel,
+body.theme-titanium-dark .bv-summary-bar,
+body.theme-titanium-light .bv-capacity-panel,
+body.theme-titanium-light .bv-summary-bar {
+    border-radius: 6px !important;
+    position: relative;
+}
+
+body.theme-titanium-dark .bv-capacity-panel,
+body.theme-titanium-dark .bv-summary-bar {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 10px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.theme-titanium-light .bv-capacity-panel,
+body.theme-titanium-light .bv-summary-bar {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 4px rgba(60, 45, 30, 0.05) !important;
+}
+
+body.theme-titanium-dark .bv-summary-bar::before,
+body.theme-titanium-light .bv-summary-bar::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+}
+
+body.theme-titanium-dark .bv-summary-bar::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light .bv-summary-bar::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .bv-progress-track,
+body.theme-titanium-dark .bv-progress-bar,
+body.theme-titanium-light .bv-progress-track,
+body.theme-titanium-light .bv-progress-bar {
+    border-radius: 3px !important;
+}
+
+/* ── 7.8 Tendances (Trends) & Graphiques ── */
+body.theme-titanium-dark .trends-chart-pane,
+body.theme-titanium-dark .trends-table-pane,
+body.theme-titanium-dark #trendsYearsSelectorContainer,
+body.theme-titanium-light .trends-chart-pane,
+body.theme-titanium-light .trends-table-pane,
+body.theme-titanium-light #trendsYearsSelectorContainer {
+    border-radius: 6px !important;
+    position: relative;
+}
+
+body.theme-titanium-dark .trends-chart-pane,
+body.theme-titanium-dark .trends-table-pane,
+body.theme-titanium-dark #trendsYearsSelectorContainer {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+body.theme-titanium-light .trends-chart-pane,
+body.theme-titanium-light .trends-table-pane,
+body.theme-titanium-light #trendsYearsSelectorContainer {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.06) !important;
+}
+
+body.theme-titanium-dark .trends-chart-pane::before,
+body.theme-titanium-dark .trends-table-pane::before,
+body.theme-titanium-light .trends-chart-pane::before,
+body.theme-titanium-light .trends-table-pane::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+}
+
+body.theme-titanium-dark .trends-chart-pane::before,
+body.theme-titanium-dark .trends-table-pane::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-light .trends-chart-pane::before,
+body.theme-titanium-light .trends-table-pane::before {
+    background: var(--accent-gradient);
+}
+
+/* ── 7.9 Chat IA ── */
+body.theme-titanium-dark .chat-wrapper,
+body.theme-titanium-light .chat-wrapper {
+    border-radius: 6px !important;
+    position: relative;
+}
+
+body.theme-titanium-dark .chat-wrapper {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.theme-titanium-light .chat-wrapper {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 8px rgba(60, 45, 30, 0.08) !important;
+}
+
+body.theme-titanium-dark .chat-wrapper::before,
+body.theme-titanium-light .chat-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 20;
+}
+
+body.theme-titanium-dark .chat-wrapper::before {
+    background: linear-gradient(90deg, #8b5cf6 0%, #a78bfa 50%, #ede9fe 100%);
+}
+
+body.theme-titanium-light .chat-wrapper::before {
+    background: linear-gradient(90deg, #7c3aed 0%, #8b5cf6 50%, #ddd6fe 100%);
+}
+
+body.theme-titanium-dark .chat-session-item,
+body.theme-titanium-light .chat-session-item {
+    border-radius: 4px !important;
+}
+
+/* ── 7.10 Récurrences, Catégories, Comptes & Configuration ── */
+body.theme-titanium-dark .btn-filter,
+body.theme-titanium-dark .btn-view-toggle,
+body.theme-titanium-light .btn-filter,
+body.theme-titanium-light .btn-view-toggle {
+    border-radius: 4px !important;
+}
+
+body.theme-titanium-dark .theme-card,
+body.theme-titanium-light .theme-card {
+    border-radius: 6px !important;
+}
+
+/* Boutons Précision & Contrôles Formulaire Globaux */
+body.theme-titanium-dark .btn,
+body.theme-titanium-light .btn {
+    border-radius: 4px !important;
+}
+
+body.theme-titanium-dark .inline-input,
+body.theme-titanium-dark input[type="text"],
+body.theme-titanium-dark input[type="number"],
+body.theme-titanium-dark input[type="date"],
+body.theme-titanium-dark input[type="month"],
+body.theme-titanium-dark select,
+body.theme-titanium-light .inline-input,
+body.theme-titanium-light input[type="text"],
+body.theme-titanium-light input[type="number"],
+body.theme-titanium-light input[type="date"],
+body.theme-titanium-light input[type="month"],
+body.theme-titanium-light select {
+    border-radius: 4px !important;
+}
+
+/* ── 7.11 Executive Compact Mode Overrides ── */
+body.theme-titanium-dark #compactToggle.toggle-active,
+body.theme-titanium-light #compactToggle.toggle-active {
+    background: var(--accent-subtle) !important;
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
+/* Dashboard & Historique tables (mode compact standard) */
+body.theme-titanium-dark.compact-mode .data-table thead th,
+body.theme-titanium-light.compact-mode .data-table thead th {
+    padding: 6px 10px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
+}
+
+body.theme-titanium-dark.compact-mode .data-table tbody td,
+body.theme-titanium-light.compact-mode .data-table tbody td {
+    padding: 3px 8px !important;
+    font-size: 11.5px !important;
+    line-height: 1.25 !important;
+}
+
+/* Vue d'ensemble (compact modéré : garde du padding et du confort visuel, sans écrasement) */
+body.theme-titanium-dark.compact-mode .overview-ops-table thead th,
+body.theme-titanium-light.compact-mode .overview-ops-table thead th {
+    padding: 6px 12px !important;
+    font-size: 11.5px !important;
+}
+
+body.theme-titanium-dark.compact-mode .overview-ops-table td,
+body.theme-titanium-light.compact-mode .overview-ops-table td {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+}
+
+
+
+body.theme-titanium-dark.compact-mode .category-badge,
+body.theme-titanium-dark.compact-mode .account-badge,
+body.theme-titanium-dark.compact-mode .overview-cat-badge,
+body.theme-titanium-dark.compact-mode .cat-badge,
+body.theme-titanium-light.compact-mode .category-badge,
+body.theme-titanium-light.compact-mode .account-badge,
+body.theme-titanium-light.compact-mode .overview-cat-badge,
+body.theme-titanium-light.compact-mode .cat-badge {
+    padding: 1px 5px !important;
+    font-size: 10px !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   7.12 EXECUTIVE HARMONIZATION : RÉCURRENCES, CATÉGORIES, COMPTES,
+          ACTIONS & CONFIGURATION (TITANIUM SOMBRE & ALBÂTRE CLAIR)
+   ══════════════════════════════════════════════════════════════════════ */
+
+

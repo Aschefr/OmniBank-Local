@@ -1,0 +1,161 @@
+/**
+ * OmniBank Local - responsive/print.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Print & PDF export media queries and styles (Lines 2481-2634) ─── */
+/* Print / PDF Export Styles */
+@media print {
+    /* Reset html and body to allow natural multi-page document pagination */
+    html,
+    body {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+
+    /* Force Light Theme */
+    :root, .theme-dark, body {
+        --bg-base: #f4f6f8 !important;
+        --bg-surface: #ffffff !important;
+        --bg-input: #f0f2f5 !important;
+        --bg-sidebar: #ffffff !important;
+        --text-main: #212b36 !important;
+        --text-muted: #637381 !important;
+        --border-color: #dfe3e8 !important;
+    }
+
+    @page {
+        margin: 10mm;
+    }
+
+    /* Hide everything on body except #printContainer when printing */
+    body > *:not(#printContainer),
+    .app-sidebar,
+    .app-header,
+    #analyticsPeriod,
+    #analyticsReconciled,
+    .btn,
+    .modal-overlay,
+    .header-actions,
+    .app-toast,
+    .toast,
+    [class*="toast"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* Expand main content */
+    .app-container,
+    .app-body,
+    .app-main {
+        display: none !important;
+    }
+
+    #printContainer {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    .print-hide {
+        display: none !important;
+    }
+
+    /* Bug #6 & #7 : Deux classes de saut de page
+       - print-page-break-forced : saut de page après (uniquement entre tableaux, jamais sur le dernier)
+       - print-page-break-auto   : le navigateur décide — évite la page vide en fin de document */
+    .print-page-break-forced {
+        page-break-after: always !important;
+        break-after: page !important;
+        display: block !important;
+    }
+
+    .print-page-break-before-forced {
+        page-break-before: always !important;
+        break-before: page !important;
+        display: block !important;
+    }
+
+    .print-page-break-auto {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    /* Rétro-compatibilité — ancienne classe (non utilisée pour les nouveaux exports) */
+    .print-page-break {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    /* Force background colors to print */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Basic typography adjustments for print */
+    body {
+        background-color: white !important;
+        color: black !important;
+        font-size: 10pt;
+    }
+
+    /* Keep table formatting clean, force compact and fit width */
+    .data-table {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        page-break-inside: auto;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    #printContainer div {
+        overflow: visible !important;
+        max-height: none !important;
+    }
+
+    #printContainer [data-type] {
+        display: block !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+    }
+
+    #printContainer .data-table {
+        min-width: 0 !important;
+    }
+
+    #printContainer .data-table th,
+    #printContainer .data-table td {
+        min-width: 0 !important;
+        white-space: normal !important;
+        font-size: 10px !important;
+        padding: 4px 4px !important;
+    }
+
+    .data-table tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    /* Compact padding and smaller font to fit landscape width */
+    .data-table th,
+    .data-table td {
+        border-bottom: 1px solid #ddd !important;
+        padding: 4px 6px !important;
+        font-size: 11px !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Utilitaires d'impression dynamique */
+    .no-print {
+        display: none !important;
+    }
+}
+
+

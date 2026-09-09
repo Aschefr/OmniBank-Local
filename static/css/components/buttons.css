@@ -1,0 +1,133 @@
+/**
+ * OmniBank Local - components/buttons.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Standard buttons: .btn, .btn-primary, .btn-secondary, .btn-danger (Lines 1172-1215) ─── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: #ffffff;
+    box-shadow: 0 8px 16px 0 rgba(51, 102, 255, 0.24);
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: none;
+}
+
+.btn-secondary {
+    background: rgba(145, 158, 171, 0.08);
+    color: var(--text-main);
+}
+
+.btn-secondary:hover {
+    background: rgba(145, 158, 171, 0.16);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: #ffffff;
+    box-shadow: 0 8px 16px 0 rgba(255, 86, 48, 0.24);
+}
+
+.btn-danger:hover {
+    background: #b71d18;
+    box-shadow: none;
+}
+
+
+/* ─── Section: Compact mode button & table sizing overrides (Lines 2635-2707) ─── */
+/* ── Compact Mode (All Themes: Classic, Executive Titanium & Albâtre) ── */
+.year-br { display: block; }
+body.compact-mode .year-br { display: inline; }
+body.compact-mode .year-br::before { content: " "; }
+body.compact-mode th[data-col-type="year"] {
+    white-space: nowrap !important;
+    text-overflow: clip !important;
+}
+
+body.compact-mode .data-table th,
+body.compact-mode .data-table td {
+    padding: 3px 8px !important;
+    font-size: 11.5px !important;
+    line-height: 1.25 !important;
+}
+
+body.compact-mode .data-table thead th {
+    padding: 6px 10px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
+}
+
+body.compact-mode #recurrencesTableContainer .data-table th,
+body.compact-mode #recurrencesTableContainer .data-table td {
+    padding: 3px 8px !important;
+}
+
+body.compact-mode .data-table td strong {
+    font-weight: 600;
+}
+
+body.compact-mode #recurrencesTableContainer .data-table .btn {
+    padding: 2px 6px !important;
+    font-size: 10px !important;
+}
+
+body.compact-mode #recurrencesTableContainer .data-table select {
+    padding: 2px 6px !important;
+    font-size: 11px !important;
+}
+
+
+
+body.compact-mode .category-badge,
+body.compact-mode .account-badge,
+body.compact-mode .overview-cat-badge,
+body.compact-mode .cat-badge {
+    padding: 1px 5px !important;
+    font-size: 10px !important;
+}
+
+/* Recurrence details compact mode overrides */
+body.compact-mode .rec-instance-row {
+    padding: 4px 8px !important;
+}
+
+body.compact-mode .rec-instance-row input {
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    height: 28px !important;
+}
+
+body.compact-mode .data-table .btn[id^="save_btn_"] {
+    padding: 4px 10px !important;
+    font-size: 12px !important;
+}
+
+body.compact-mode .rec-instance-row .btn {
+    padding: 3px 6px !important;
+    font-size: 11px !important;
+}
+
+
+/* ─── Section: Table row aligned action buttons (Lines 7994-7998) ─── */
+/* ── Table Row Actions (Aligned & Solid) ── */
+.timeline-table-container {
+    width: 100%;
+}
+
+
