@@ -4,6 +4,7 @@ Zéro pollution DB : calculs en mémoire à partir des soldes réels, récurrenc
 Inclut : projection dépenses variables, saisonnalité, inflation, bandes de confiance ±1σ.
 """
 import logging
+import json
 import math
 from datetime import date, datetime
 from typing import List, Dict, Any, Optional
@@ -14,196 +15,15 @@ from app.models import Account, Transaction, RecurrenceTemplate, Scenario, Scena
 from app.services.finance_engine import calculate_balances, get_main_account
 
 logger = logging.getLogger(__name__)
+import os as _os
 
+def _load_presets():
+    """Charge les modèles de simulation prédéfinis depuis le fichier JSON externe."""
+    _path = _os.path.join(_os.path.dirname(__file__), "simulator_presets.json")
+    with open(_path, "r", encoding="utf-8") as _f:
+        return json.load(_f)
 
-PRESET_TEMPLATES = [
-    {
-        "id": "vehicle_project",
-        "i18n_key": "sim_preset_vehicle",
-        "name": "Achat Véhicule",
-        "name_fr": "Achat Véhicule",
-        "name_en": "Vehicle Purchase",
-        "description": "Apport initial + Mensualité crédit auto + Assurance",
-        "desc_fr": "Apport initial + Mensualité crédit auto + Assurance",
-        "desc_en": "Initial down payment + Auto loan monthly + Insurance",
-        "color": "#3b82f6",
-        "events": [
-            {
-                "label": "Apport personnel véhicule",
-                "label_fr": "Apport personnel véhicule",
-                "label_en": "Vehicle Down Payment",
-                "event_type": "one_off_expense",
-                "amount": 5000.0,
-                "duration_months": 1,
-                "notes": "Paiement comptant ou apport concessionnaire",
-                "notes_fr": "Paiement comptant ou apport concessionnaire",
-                "notes_en": "Cash payment or dealer down payment"
-            },
-            {
-                "label": "Mensualité crédit auto",
-                "label_fr": "Mensualité crédit auto",
-                "label_en": "Auto Loan Monthly Payment",
-                "event_type": "recurring_expense",
-                "amount": 260.0,
-                "duration_months": 24,
-                "notes": "Remboursement prêt auto sur 2 ans",
-                "notes_fr": "Remboursement prêt auto sur 2 ans",
-                "notes_en": "Auto loan repayment over 2 years"
-            },
-            {
-                "label": "Assurance tous risques additionnelle",
-                "label_fr": "Assurance tous risques additionnelle",
-                "label_en": "Additional Comprehensive Insurance",
-                "event_type": "recurring_expense",
-                "amount": 45.0,
-                "duration_months": 24,
-                "notes": "Surcoût assurance mensuelle",
-                "notes_fr": "Surcoût assurance mensuelle",
-                "notes_en": "Additional monthly insurance cost"
-            }
-        ]
-    },
-    {
-        "id": "renovation_project",
-        "i18n_key": "sim_preset_renovation",
-        "name": "Travaux & Rénovation",
-        "name_fr": "Travaux & Rénovation",
-        "name_en": "Home Renovations",
-        "description": "Acompte + Solde fin de chantier + Mensualité prêt travaux",
-        "desc_fr": "Acompte + Solde fin de chantier + Mensualité prêt travaux",
-        "desc_en": "Deposit + Final payment + Home improvement loan",
-        "color": "#f59e0b",
-        "events": [
-            {
-                "label": "Acompte signature devis",
-                "label_fr": "Acompte signature devis",
-                "label_en": "Initial Quote Deposit",
-                "event_type": "one_off_expense",
-                "amount": 3000.0,
-                "duration_months": 1,
-                "notes": "Premier versement 30%",
-                "notes_fr": "Premier versement 30%",
-                "notes_en": "Initial 30% deposit"
-            },
-            {
-                "label": "Solde fin de travaux",
-                "label_fr": "Solde fin de travaux",
-                "label_en": "Final Work Payment",
-                "event_type": "one_off_expense",
-                "amount": 4000.0,
-                "duration_months": 1,
-                "notes": "Règlement final à la livraison",
-                "notes_fr": "Règlement final à la livraison",
-                "notes_en": "Final balance upon completion"
-            },
-            {
-                "label": "Mensualité prêt travaux",
-                "label_fr": "Mensualité prêt travaux",
-                "label_en": "Home Improvement Loan",
-                "event_type": "recurring_expense",
-                "amount": 180.0,
-                "duration_months": 36,
-                "notes": "Prêt rénovation sur 3 ans",
-                "notes_fr": "Prêt rénovation sur 3 ans",
-                "notes_en": "Home improvement loan over 3 years"
-            }
-        ]
-    },
-    {
-        "id": "sabbatical_project",
-        "i18n_key": "sim_preset_sabbatical",
-        "name": "Congé Sabbatique / Parental",
-        "name_fr": "Congé Sabbatique / Parental",
-        "name_en": "Sabbatical / Parental Leave",
-        "description": "Baisse temporaire de salaire avec réduction des dépenses",
-        "desc_fr": "Baisse temporaire de salaire avec réduction des dépenses",
-        "desc_en": "Temporary income drop with spending reductions",
-        "color": "#10b981",
-        "events": [
-            {
-                "label": "Baisse de revenu mensuel",
-                "label_fr": "Baisse de revenu mensuel",
-                "label_en": "Monthly Income Reduction",
-                "event_type": "recurring_expense",
-                "amount": 1200.0,
-                "duration_months": 6,
-                "notes": "Perte nette de revenu d'activité pendant 6 mois",
-                "notes_fr": "Perte nette de revenu d'activité pendant 6 mois",
-                "notes_en": "Net loss of employment income for 6 months"
-            },
-            {
-                "label": "Réduction budget sorties/transport",
-                "label_fr": "Réduction budget sorties/transport",
-                "label_en": "Reduced Transport & Leisure Budget",
-                "event_type": "recurring_income",
-                "amount": 350.0,
-                "duration_months": 6,
-                "notes": "Économies sur carburant, cantine et loisirs",
-                "notes_fr": "Économies sur carburant, cantine et loisirs",
-                "notes_en": "Savings on fuel, commute and dining out"
-            }
-        ]
-    },
-    {
-        "id": "real_estate_project",
-        "i18n_key": "sim_preset_real_estate",
-        "name": "Achat Immobilier",
-        "name_fr": "Achat Immobilier",
-        "name_en": "Real Estate Purchase",
-        "description": "Frais de notaire + Mensualité crédit immobilier",
-        "desc_fr": "Frais de notaire + Mensualité crédit immobilier",
-        "desc_en": "Closing costs / down payment + Mortgage loan",
-        "color": "#8b5cf6",
-        "events": [
-            {
-                "label": "Apport personnel & Notaire",
-                "label_fr": "Apport personnel & Notaire",
-                "label_en": "Down Payment & Closing Costs",
-                "event_type": "one_off_expense",
-                "amount": 20000.0,
-                "duration_months": 1,
-                "notes": "Apport versé lors de la signature de l'acte authentique",
-                "notes_fr": "Apport versé lors de la signature de l'acte authentique",
-                "notes_en": "Down payment and notary fees upon signing"
-            },
-            {
-                "label": "Mensualité crédit immobilier",
-                "label_fr": "Mensualité crédit immobilier",
-                "label_en": "Monthly Mortgage Payment",
-                "event_type": "recurring_expense",
-                "amount": 1050.0,
-                "duration_months": 36,
-                "notes": "Mensualité projetée assurance comprise",
-                "notes_fr": "Mensualité projetée assurance comprise",
-                "notes_en": "Projected mortgage payment including insurance"
-            }
-        ]
-    },
-    {
-        "id": "inflation_project",
-        "i18n_key": "sim_preset_inflation",
-        "name": "Hausse Coût de la Vie",
-        "name_fr": "Hausse Coût de la Vie",
-        "name_en": "Cost of Living Increase",
-        "description": "Inflation des charges fixes (énergie, alimentation)",
-        "desc_fr": "Inflation des charges fixes (énergie, alimentation)",
-        "desc_en": "Inflation on fixed costs (utilities, groceries)",
-        "color": "#ef4444",
-        "events": [
-            {
-                "label": "Hausse énergie & alimentation",
-                "label_fr": "Hausse énergie & alimentation",
-                "label_en": "Utilities & Groceries Increase",
-                "event_type": "recurring_expense",
-                "amount": 120.0,
-                "duration_months": 24,
-                "notes": "Augmentation moyenne estimée des dépenses courantes",
-                "notes_fr": "Augmentation moyenne estimée des dépenses courantes",
-                "notes_en": "Estimated average increase on living expenses"
-            }
-        ]
-    }
-]
+PRESET_TEMPLATES = _load_presets()
 
 
 def get_simulator_presets() -> List[Dict[str, Any]]:
@@ -349,6 +169,7 @@ def run_simulation(
     is_current_month_pay_received = False
     historical_salary_by_month = {}
     seasonal_salary_by_calendar_month = {}
+    salary_history_ids = set()
 
     try:
         from app.services.finance_engine import predict_next_paycheck
@@ -356,6 +177,7 @@ def run_simulation(
         if pay_info and pay_info.get("amount"):
             predicted_salary = float(pay_info.get("amount") or 0.0)
             history = pay_info.get("history") or []
+            salary_history_ids = {h.get("id") for h in history if h.get("id")}
             current_period_str = f"{today.year:04d}-{today.month:02d}"
             current_entry = next((h for h in history if h.get("logical_period") == current_period_str), None)
             if current_entry and current_entry.get("amount") is not None and not current_entry.get("is_placeholder"):
@@ -583,12 +405,29 @@ def run_simulation(
             filtered_inc_txs = []
             for t in real_inc_txs:
                 amt = abs(t.amount)
-                # Outlier si dépasse le seuil statistique 3×IQR, supérieur à 1000€ et > 2.5× la médiane
-                is_outlier = (
-                    amt > upper_fence_inc
-                    and amt > 1000.0
-                    and (amt > 2.5 * median_inc or (predicted_salary > 0 and amt > 2.5 * predicted_salary))
-                )
+                # Une transaction explicitement marquée salaire ou rattachée à une récurrence n'est jamais un outlier
+                if getattr(t, 'is_salary', False) or t.recurrence_id is not None:
+                    filtered_inc_txs.append(t)
+                    continue
+
+                # Si la transaction fait partie de l'historique détecté de paie ET reste cohérente avec la paie attendue (<= 1.8x)
+                if t.id and t.id in salary_history_ids and (predicted_salary == 0 or amt <= 1.8 * predicted_salary):
+                    filtered_inc_txs.append(t)
+                    continue
+
+                if predicted_salary > 0:
+                    is_outlier = (
+                        amt > upper_fence_inc
+                        and amt > 1000.0
+                        and amt > 1.8 * predicted_salary
+                    )
+                else:
+                    is_outlier = (
+                        amt > upper_fence_inc
+                        and amt > 1000.0
+                        and amt > 4.0 * median_inc
+                    )
+
                 if is_outlier:
                     excluded_inc_outliers.append(t)
                     logger.info(
@@ -793,23 +632,38 @@ def run_simulation(
 
         if income_mode in ("historical_n1", "auto"):
             # 1. Recettes réelles de l'année précédente (saisonnier mois par mois)
-            real_salary_ref = seasonal_real_income_by_calendar_month.get(m, historical_real_income_avg if historical_real_income_avg > 0 else predicted_salary_for_account)
+            if predicted_salary_for_account > 0:
+                real_salary_ref = seasonal_salary_by_calendar_month.get(m, predicted_salary_for_account)
+            else:
+                real_salary_ref = seasonal_real_income_by_calendar_month.get(m, historical_real_income_avg)
             blended_salary = (1.0 - conservative_weight) * real_salary_ref + conservative_weight * cons_salary_ref
-            has_main_salary = existing_income_total >= (0.6 * blended_salary) if blended_salary > 0 else False
-            if not (m_offset == 0 and is_current_month_pay_received) and not has_main_salary:
+            has_main_salary = any(
+                t.type == "income" and abs(t.amount) >= (0.6 * blended_salary)
+                for t in existing_txs
+                if (not target_acc_ids or t.to_account_id in target_acc_ids)
+            ) if blended_salary > 0 else False
+            if not is_salary_in_recurrence and not (m_offset == 0 and is_current_month_pay_received) and not has_main_salary:
                 baseline_income += blended_salary
         elif income_mode in ("average", "historical_avg"):
             # 2. Recettes moyennes (moyenne mensuelle sur les 12 derniers mois ou mois existants)
-            avg_salary_ref = historical_real_income_avg if historical_real_income_avg > 0 else predicted_salary_for_account
+            avg_salary_ref = predicted_salary_for_account if predicted_salary_for_account > 0 else historical_real_income_avg
             blended_salary = (1.0 - conservative_weight) * avg_salary_ref + conservative_weight * cons_salary_ref
-            has_main_salary = existing_income_total >= (0.6 * blended_salary) if blended_salary > 0 else False
-            if not (m_offset == 0 and is_current_month_pay_received) and not has_main_salary:
+            has_main_salary = any(
+                t.type == "income" and abs(t.amount) >= (0.6 * blended_salary)
+                for t in existing_txs
+                if (not target_acc_ids or t.to_account_id in target_acc_ids)
+            ) if blended_salary > 0 else False
+            if not is_salary_in_recurrence and not (m_offset == 0 and is_current_month_pay_received) and not has_main_salary:
                 baseline_income += blended_salary
         elif income_mode == "custom":
             # 3. Montant personnalisé
             custom_val = float(custom_income_amount or 0.0)
-            has_main_salary = existing_income_total >= (0.6 * custom_val) if custom_val > 0 else False
-            if not (m_offset == 0 and is_current_month_pay_received) and not has_main_salary:
+            has_main_salary = any(
+                t.type == "income" and abs(t.amount) >= (0.6 * custom_val)
+                for t in existing_txs
+                if (not target_acc_ids or t.to_account_id in target_acc_ids)
+            ) if custom_val > 0 else False
+            if not is_salary_in_recurrence and not (m_offset == 0 and is_current_month_pay_received) and not has_main_salary:
                 baseline_income += custom_val
         elif income_mode == "none":
             # 4. Désactivé (Scénario zéro salaire)

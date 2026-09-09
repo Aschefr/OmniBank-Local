@@ -4,6 +4,7 @@ Invalidé explicitement à chaque écriture de données (transactions, budgets, 
 """
 import time
 import logging
+import functools
 
 logger = logging.getLogger(__name__)
 
@@ -54,3 +55,22 @@ def invalidate(profile_id: str = None):
             del _cache[k]
         if keys_to_remove:
             logger.debug(f"[Cache] Invalidation profil={profile_id} ({len(keys_to_remove)} entrées supprimées)")
+
+
+def invalidates_cache(fn):
+    """Décorateur pour invalider automatiquement le cache après une mutation réussie.
+
+    Usage :
+        @invalidates_cache
+        def create_transaction(...):
+            ...
+
+    Note : L'invalidation est globale (tous profils). Pour une invalidation ciblée
+    par profil, utiliser `invalidate(profile_id=...)` manuellement.
+    """
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        result = fn(*args, **kwargs)
+        invalidate()
+        return result
+    return wrapper

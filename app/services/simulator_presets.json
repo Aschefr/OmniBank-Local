@@ -1,0 +1,188 @@
+[
+    {
+        "id": "vehicle_project",
+        "i18n_key": "sim_preset_vehicle",
+        "name": "Achat Véhicule",
+        "name_fr": "Achat Véhicule",
+        "name_en": "Vehicle Purchase",
+        "description": "Apport initial + Mensualité crédit auto + Assurance",
+        "desc_fr": "Apport initial + Mensualité crédit auto + Assurance",
+        "desc_en": "Initial down payment + Auto loan monthly + Insurance",
+        "color": "#3b82f6",
+        "events": [
+            {
+                "label": "Apport personnel véhicule",
+                "label_fr": "Apport personnel véhicule",
+                "label_en": "Vehicle Down Payment",
+                "event_type": "one_off_expense",
+                "amount": 5000.0,
+                "duration_months": 1,
+                "notes": "Paiement comptant ou apport concessionnaire",
+                "notes_fr": "Paiement comptant ou apport concessionnaire",
+                "notes_en": "Cash payment or dealer down payment"
+            },
+            {
+                "label": "Mensualité crédit auto",
+                "label_fr": "Mensualité crédit auto",
+                "label_en": "Auto Loan Monthly Payment",
+                "event_type": "recurring_expense",
+                "amount": 260.0,
+                "duration_months": 24,
+                "notes": "Remboursement prêt auto sur 2 ans",
+                "notes_fr": "Remboursement prêt auto sur 2 ans",
+                "notes_en": "Auto loan repayment over 2 years"
+            },
+            {
+                "label": "Assurance tous risques additionnelle",
+                "label_fr": "Assurance tous risques additionnelle",
+                "label_en": "Additional Comprehensive Insurance",
+                "event_type": "recurring_expense",
+                "amount": 45.0,
+                "duration_months": 24,
+                "notes": "Surcoût assurance mensuelle",
+                "notes_fr": "Surcoût assurance mensuelle",
+                "notes_en": "Additional monthly insurance cost"
+            }
+        ]
+    },
+    {
+        "id": "renovation_project",
+        "i18n_key": "sim_preset_renovation",
+        "name": "Travaux & Rénovation",
+        "name_fr": "Travaux & Rénovation",
+        "name_en": "Home Renovations",
+        "description": "Acompte + Solde fin de chantier + Mensualité prêt travaux",
+        "desc_fr": "Acompte + Solde fin de chantier + Mensualité prêt travaux",
+        "desc_en": "Deposit + Final payment + Home improvement loan",
+        "color": "#f59e0b",
+        "events": [
+            {
+                "label": "Acompte signature devis",
+                "label_fr": "Acompte signature devis",
+                "label_en": "Initial Quote Deposit",
+                "event_type": "one_off_expense",
+                "amount": 3000.0,
+                "duration_months": 1,
+                "notes": "Premier versement 30%",
+                "notes_fr": "Premier versement 30%",
+                "notes_en": "Initial 30% deposit"
+            },
+            {
+                "label": "Solde fin de travaux",
+                "label_fr": "Solde fin de travaux",
+                "label_en": "Final Work Payment",
+                "event_type": "one_off_expense",
+                "amount": 4000.0,
+                "duration_months": 1,
+                "notes": "Règlement final à la livraison",
+                "notes_fr": "Règlement final à la livraison",
+                "notes_en": "Final balance upon completion"
+            },
+            {
+                "label": "Mensualité prêt travaux",
+                "label_fr": "Mensualité prêt travaux",
+                "label_en": "Home Improvement Loan",
+                "event_type": "recurring_expense",
+                "amount": 180.0,
+                "duration_months": 36,
+                "notes": "Prêt rénovation sur 3 ans",
+                "notes_fr": "Prêt rénovation sur 3 ans",
+                "notes_en": "Home improvement loan over 3 years"
+            }
+        ]
+    },
+    {
+        "id": "sabbatical_project",
+        "i18n_key": "sim_preset_sabbatical",
+        "name": "Congé Sabbatique / Parental",
+        "name_fr": "Congé Sabbatique / Parental",
+        "name_en": "Sabbatical / Parental Leave",
+        "description": "Baisse temporaire de salaire avec réduction des dépenses",
+        "desc_fr": "Baisse temporaire de salaire avec réduction des dépenses",
+        "desc_en": "Temporary income drop with spending reductions",
+        "color": "#10b981",
+        "events": [
+            {
+                "label": "Baisse de revenu mensuel",
+                "label_fr": "Baisse de revenu mensuel",
+                "label_en": "Monthly Income Reduction",
+                "event_type": "recurring_expense",
+                "amount": 1200.0,
+                "duration_months": 6,
+                "notes": "Perte nette de revenu d'activité pendant 6 mois",
+                "notes_fr": "Perte nette de revenu d'activité pendant 6 mois",
+                "notes_en": "Net loss of employment income for 6 months"
+            },
+            {
+                "label": "Réduction budget sorties/transport",
+                "label_fr": "Réduction budget sorties/transport",
+                "label_en": "Reduced Transport & Leisure Budget",
+                "event_type": "recurring_income",
+                "amount": 350.0,
+                "duration_months": 6,
+                "notes": "Économies sur carburant, cantine et loisirs",
+                "notes_fr": "Économies sur carburant, cantine et loisirs",
+                "notes_en": "Savings on fuel, commute and dining out"
+            }
+        ]
+    },
+    {
+        "id": "real_estate_project",
+        "i18n_key": "sim_preset_real_estate",
+        "name": "Achat Immobilier",
+        "name_fr": "Achat Immobilier",
+        "name_en": "Real Estate Purchase",
+        "description": "Frais de notaire + Mensualité crédit immobilier",
+        "desc_fr": "Frais de notaire + Mensualité crédit immobilier",
+        "desc_en": "Closing costs / down payment + Mortgage loan",
+        "color": "#8b5cf6",
+        "events": [
+            {
+                "label": "Apport personnel & Notaire",
+                "label_fr": "Apport personnel & Notaire",
+                "label_en": "Down Payment & Closing Costs",
+                "event_type": "one_off_expense",
+                "amount": 20000.0,
+                "duration_months": 1,
+                "notes": "Apport versé lors de la signature de l'acte authentique",
+                "notes_fr": "Apport versé lors de la signature de l'acte authentique",
+                "notes_en": "Down payment and notary fees upon signing"
+            },
+            {
+                "label": "Mensualité crédit immobilier",
+                "label_fr": "Mensualité crédit immobilier",
+                "label_en": "Monthly Mortgage Payment",
+                "event_type": "recurring_expense",
+                "amount": 1050.0,
+                "duration_months": 36,
+                "notes": "Mensualité projetée assurance comprise",
+                "notes_fr": "Mensualité projetée assurance comprise",
+                "notes_en": "Projected mortgage payment including insurance"
+            }
+        ]
+    },
+    {
+        "id": "inflation_project",
+        "i18n_key": "sim_preset_inflation",
+        "name": "Hausse Coût de la Vie",
+        "name_fr": "Hausse Coût de la Vie",
+        "name_en": "Cost of Living Increase",
+        "description": "Inflation des charges fixes (énergie, alimentation)",
+        "desc_fr": "Inflation des charges fixes (énergie, alimentation)",
+        "desc_en": "Inflation on fixed costs (utilities, groceries)",
+        "color": "#ef4444",
+        "events": [
+            {
+                "label": "Hausse énergie & alimentation",
+                "label_fr": "Hausse énergie & alimentation",
+                "label_en": "Utilities & Groceries Increase",
+                "event_type": "recurring_expense",
+                "amount": 120.0,
+                "duration_months": 24,
+                "notes": "Augmentation moyenne estimée des dépenses courantes",
+                "notes_fr": "Augmentation moyenne estimée des dépenses courantes",
+                "notes_en": "Estimated average increase on living expenses"
+            }
+        ]
+    }
+]

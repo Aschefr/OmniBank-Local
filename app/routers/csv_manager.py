@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from app.database import get_db
 from app.models import Transaction, Account, Category, RecurrenceTemplate
 from app.services import stats_cache
-from app.routers.csv_parser import (
+from app.services.csv_parser import (
     heuristic_parse,
     check_reconciliation,
     check_import_alerts,

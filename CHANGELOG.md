@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.6] - 2026-09-09
+
+### Added & Improved
+- **Modularized AI Chat Tools 🧩**: Deconstructed the monolithic AI chat tools into dedicated domain modules (`read_tools`, `write_tools`, `analysis_tools`, `simulation_tools`) with clean registry and re-exports for enhanced maintainability.
+- **Simulator Presets Externalization ⚙️**: Extracted static scenario presets from engine source into a decoupled JSON configuration (`simulator_presets.json`).
+- **Centralized Safe Date Parsing 📅**: Unified date parsing across backend services into a robust shared utility (`date_utils.py`) with strict error handling and invalid date resilience.
+- **Automated Cache Invalidation ⚡**: Added `@invalidates_cache` decorator support across core reporting services for automated cache eviction on data updates.
+
+### Fixed
+- **Chat AI Action JSON Leaks & Interactive Correction 💬**: Eliminated raw JSON leaks in chat assistant messages by introducing a balanced-bracket parser for nested action payloads. Added full interactive review and execution support for AI transaction corrections (`apply_transaction_correction`).
+- **Simulator Revenue Projection & Salary Seasonality 📈**: Corrected an aggressive revenue outlier filter that was erroneously filtering out regular monthly salaries, restoring accurate cash flow projections and seasonal bonus tracking.
+
 ## [1.1.5] - 2026-09-09
 
 ### Added & Improved
