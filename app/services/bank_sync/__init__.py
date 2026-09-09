@@ -1,14 +1,14 @@
 """
-OmniBank-Local — Service de Synchronisation Bancaire Universelle (Woob).
-Façade de rétrocompatibilité préservant l'API historique et les mocks de tests.
-Les composants modulaires sont situés dans le package app.services.bank_sync.* :
-  - app.services.bank_sync.twofa_manager
-  - app.services.bank_sync.woob_adapter
-  - app.services.bank_sync.import_engine
-  - app.services.bank_sync.sync_service
+OmniBank-Local — Package de Synchronisation Bancaire Universelle (Woob).
+Modularisation propre par sous-domaines :
+- twofa_manager : Sessions et flux 2FA interactifs
+- woob_adapter : Connexion Woob, découverte des banques et hotfixes
+- import_engine : Ré-évaluation dynamique, déduplication et smart labels
+- sync_service : Service d'orchestration BankSyncService
 """
 
-# 1. Objets de synchronisation et d'état 2FA
+from app.services.bank_sync.import_engine import re_evaluate_preview_data
+from app.services.bank_sync.sync_service import BankSyncService
 from app.services.bank_sync.twofa_manager import (
     _TWOFA_LOCK,
     _TWOFA_SESSIONS,
@@ -17,8 +17,6 @@ from app.services.bank_sync.twofa_manager import (
     register_2fa_session,
     unregister_2fa_session,
 )
-
-# 2. Adaptateur Woob et hotfixes
 from app.services.bank_sync.woob_adapter import (
     ACCOUNT_TYPE_LABELS,
     CRAGR_CAISSES_CHOICES,
@@ -31,12 +29,6 @@ from app.services.bank_sync.woob_adapter import (
     get_woob,
     init_known_bank_hotfixes,
 )
-
-# 3. Service principal d'orchestration
-from app.services.bank_sync.sync_service import BankSyncService
-
-# 4. Moteur d'importation et ré-évaluation dynamique
-from app.services.bank_sync.import_engine import re_evaluate_preview_data
 
 __all__ = [
     "BankSyncService",
