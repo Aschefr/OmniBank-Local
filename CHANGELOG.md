@@ -12,7 +12,8 @@ All notable changes to this project will be documented in this file.
 - **100% Offline Zero-Cloud Asset Bundling 📦**: Bundled all external CDN libraries (Chart.js, KaTeX, Marked.js, DOMPurify, Inter font, Flag icons) directly under `/static/vendor/`, eliminating third-party network requests and ensuring seamless offline operation.
 - **Live AI Processing Animations in Review Cockpit 🧠✨**: Transactions undergoing local AI background classification now pulse with a subtle purple shimmer and an active analysis badge (`🧠 Analyse IA...`). Once resolved, affected rows smoothly flash green to highlight newly populated labels and categories before settling.
 - **Single-Pass Staging AI Analysis 🛡️**: The review cockpit now runs automatic local AI classification strictly once per staging batch upon initial discovery, tracking analyzed batch signatures across modal re-openings to preserve user edits and prevent repeated mutations, while remaining available on-demand via the global and per-row buttons.
-
+- **Backend Exception Traceability & Robustness 🛡️**: Replaced silent exception swallowing in financial calculation engines and SQLite connection pragma configuration with typed exceptions and structured logging.
+- **Isolated Test Execution Fixtures 🧪**: Resolved dependency override leakage across automated test suites, ensuring isolated database sessions during full-suite test runs.
 ### Fixed
 - **Chat AI Action JSON Leaks & Interactive Correction 💬**: Eliminated raw JSON leaks in chat assistant messages by introducing a balanced-bracket parser for nested action payloads. Added full interactive review and execution support for AI transaction corrections (`apply_transaction_correction`).
 - **Simulator Revenue Projection & Salary Seasonality 📈**: Corrected an aggressive revenue outlier filter that was erroneously filtering out regular monthly salaries, restoring accurate cash flow projections and seasonal bonus tracking.
