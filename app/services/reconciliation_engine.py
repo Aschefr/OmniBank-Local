@@ -51,7 +51,8 @@ def compute_text_score(candidate_desc: Optional[str], raw_bank_label: Optional[s
         from app.services.smart_label_service import _compute_match_score
         ratio = _compute_match_score(raw_bank_label, candidate_desc)
         return round(ratio * 25)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"[Reconciliation] Erreur calcul score textuel: {e}")
         return 0
 
 

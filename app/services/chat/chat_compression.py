@@ -154,7 +154,7 @@ NOW GENERATE THE TITLE:"""
             if db is not None:
                 try:
                     db.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"[Chat] Erreur lors de la fermeture de session DB: {e}")
 
     print(f"[Chat] All title generation attempts failed for session {session_id}")

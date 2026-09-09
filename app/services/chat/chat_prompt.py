@@ -1,9 +1,12 @@
 """
 app/services/chat/chat_prompt.py — Générateur de prompts système pour le RAG Chat IA.
 """
+import logging
 from datetime import date
 from typing import List, Optional
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.models import AIFact, OrgUser, Account
 
@@ -96,8 +99,8 @@ Always be concise, human, and directly helpful."""
             briefing_text = generate_financial_briefing(db, role=role, user_name=user_name, session_id=session_id)
             if briefing_text:
                 prompt += f"\n\n{briefing_text}"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Erreur lors de la génération du briefing financier pour le prompt IA: {e}")
 
     today_dt = date.today()
     today_str = today_dt.isoformat()

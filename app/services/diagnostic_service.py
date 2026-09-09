@@ -110,8 +110,8 @@ def get_system_diagnostics(db_session=None) -> Dict[str, Any]:
         if os.path.exists(pkg_path):
             with open(pkg_path, 'r', encoding='utf-8') as f:
                 app_version = json.load(f).get('version', app_version)
-    except Exception:
-        pass
+    except (OSError, json.JSONDecodeError) as e:
+        logger.debug(f"[Diagnostics] Impossible de lire version package.json: {e}")
 
     # Execution Mode Detection
     exec_mode = "Local Python (Uvicorn)"
@@ -139,11 +139,13 @@ def get_system_diagnostics(db_session=None) -> Dict[str, Any]:
     is_bank_sync_enabled = False
 
     try:
-        db_path = os.path.join(DATA_DIR, "bank.db")
+        db_path = os.path.join(DATA_DIR, "omnibank.db")
+        if not os.path.exists(db_path):
+            db_path = os.path.join(DATA_DIR, "bank.db")
         if os.path.exists(db_path):
             db_size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
-    except Exception:
-        pass
+    except OSError as e:
+        logger.debug(f"[Diagnostics] Impossible d'estimer la taille de la base SQLite: {e}")
 
     if db_session:
         try:
@@ -171,8 +173,8 @@ def get_system_diagnostics(db_session=None) -> Dict[str, Any]:
             conn_count = db_session.query(BankConnection).count()
             if conn_count > 0:
                 is_bank_sync_enabled = True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[Diagnostics] Erreur lors de la collecte des métriques DB: {e}")
 
     return {
         "app_version": app_version,
