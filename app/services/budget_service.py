@@ -38,21 +38,10 @@ def _accumulate_tx(txs, match_fn=None):
 
 def safe_parse_budget_date(s: str, field_name: str) -> Optional[date]:
     """Parse une date YYYY-MM-DD pour les budgets — HTTPException 400 si invalide."""
+    from app.utils.date_utils import require_date
     if not s:
         return None
-    try:
-        d = date.fromisoformat(s.strip())
-        if d.year < 1900 or d.year > 2200:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Champ '{field_name}' invalide : année hors plage (1900-2200)."
-            )
-        return d
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Champ '{field_name}' invalide : '{s}'. Format attendu YYYY-MM-DD."
-        )
+    return require_date(s.strip(), field_name)
 
 def parse_account_ids(raw: str) -> list:
     """Parse JSON string of account IDs from DB column."""

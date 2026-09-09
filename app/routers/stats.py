@@ -13,31 +13,7 @@ from app.profile_manager import get_active_profile
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
 
-def _safe_date(s: str, fallback: date = None) -> date:
-    """Parse une date YYYY-MM-DD en toute sécurité.
-    Si la chaîne est invalide ou absurde, retourne `fallback`.
-    En contexte API, appeler avec raise_on_error=True pour renvoyer un 400 propre.
-    """
-    if not s:
-        return fallback
-    try:
-        d = date.fromisoformat(s.strip())
-        if d.year < 1900 or d.year > 2200:
-            return fallback
-        return d
-    except (ValueError, AttributeError):
-        return fallback
-
-
-def _require_date(s: str, param_name: str) -> date:
-    """Parse une date et lève HTTPException 400 si invalide."""
-    d = _safe_date(s)
-    if d is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Paramètre '{param_name}' invalide : '{s}'. Format attendu : YYYY-MM-DD (ex: 2025-01-15)."
-        )
-    return d
+from app.utils.date_utils import safe_parse_date as _safe_date, require_date as _require_date
 
 @router.get("/accounts")
 def get_accounts(db: Session = Depends(get_db)):

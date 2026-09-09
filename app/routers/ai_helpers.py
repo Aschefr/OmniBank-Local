@@ -7,7 +7,7 @@ from datetime import date
 
 from app.database import get_db
 from app.models import GlobalConfig, Category, Transaction, Account
-from app.routers.csv_parser import check_import_alerts, extract_account_block
+from app.services.csv_parser import check_import_alerts, extract_account_block
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 

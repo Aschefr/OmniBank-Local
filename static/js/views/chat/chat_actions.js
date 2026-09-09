@@ -20,6 +20,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 delete_category: window.i18n.t('tool_delete_category_title') || 'Suppression d\'une catégorie',
                 set_predicted_paycheck: window.i18n.t('tool_set_predicted_paycheck_title') || 'Définition du salaire prévisionnel',
                 delete_transaction: window.i18n.t('tool_delete_transaction_title') || 'Suppression d\'une opération',
+                apply_transaction_correction: window.i18n.t('tool_apply_transaction_correction_title') || 'Correction d\'une opération',
                 store_financial_fact: window.i18n.t('tool_store_financial_fact_title') || 'Mémorisation d\'une information',
                 forget_financial_fact: window.i18n.t('tool_forget_financial_fact_title') || 'Oubli d\'une information'
             };
@@ -45,7 +46,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         currentEntityState = list.find(tpl => tpl.id === tid);
                     }
                 } catch(e) {}
-            } else if (actionObj.action === 'delete_transaction') {
+            } else if (actionObj.action === 'delete_transaction' || actionObj.action === 'apply_transaction_correction') {
                 try {
                     const tid = parseInt(actionObj.params.transaction_id || actionObj.params.id);
                     const r = await fetch(`/api/transactions/${tid}`);
@@ -155,7 +156,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     if (Array.isArray(oldVal)) oldVal = oldVal.join(', ');
                     oldVal = translateVal(oldVal);
                     
-                    const isIdKey = key === 'id' || key === 'budget_id' || key === 'template_id';
+                    const isIdKey = key === 'id' || key === 'budget_id' || key === 'template_id' || key === 'transaction_id';
                     const hasChanged = String(oldVal) !== String(displayVal);
                     const strikeStyle = (isIdKey || !hasChanged) ? 'none' : 'line-through';
                     

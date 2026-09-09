@@ -2518,5 +2518,7 @@
   "smart_review_ai_banner_success": "AI categorization complete: {count} transaction(s) analyzed",
   "smart_review_ai_banner_idle": "AI ready",
   "smart_review_row_ai_pending": "⏳ Querying AI...",
-  "smart_review_ai_btn_running": "Local AI analyzing..."
+  "smart_review_ai_btn_running": "Local AI analyzing...",
+  "tool_apply_transaction_correction_title": "Transaction Correction",
+  "chat_action_propose_apply_correction": "Proposes to correct transaction <strong>#{id}</strong> ({fields})"
 }

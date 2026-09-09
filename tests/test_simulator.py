@@ -459,3 +459,61 @@ def test_simulation_continuous_prudence_slider():
     assert res_50["simulated_final_balance"] >= res_100["simulated_final_balance"]
 
 
+def test_salary_not_excluded_as_income_outlier():
+    """Vérifie que les salaires réguliers ne sont pas éliminés par le filtre d'outliers de recettes."""
+    db = TestingSessionLocal()
+    from datetime import date
+    from app.services.simulator_engine import _add_months
+
+    today = date.today()
+    # Insérer 6 mois de salaires réels (2200€) et plusieurs petits remboursements (10€, 15€, 20€)
+    for m_back in range(1, 7):
+        d = _add_months(date(today.year, today.month, 1), -m_back)
+        db.add(Transaction(
+            date_saisie=d,
+            date_operation=d,
+            description="Salaire",
+            amount=2200.0,
+            type="income",
+            category="Salaire",
+            is_salary=True,
+            to_account_id=1,
+            reconciliation_date=d
+        ))
+        # Petits remboursements qui abaissent la médiane
+        for small_amt in [10.0, 15.0, 20.0]:
+            db.add(Transaction(
+                date_saisie=d,
+                date_operation=d,
+                description="Remboursement divers",
+                amount=small_amt,
+                type="income",
+                to_account_id=1,
+                reconciliation_date=d
+            ))
+    # Ajouter un vrai outlier exceptionnel (10 000€)
+    d_outlier = _add_months(date(today.year, today.month, 1), -3)
+    db.add(Transaction(
+        date_saisie=d_outlier,
+        date_operation=d_outlier,
+        description="Crédit conso versement",
+        amount=10000.0,
+        type="income",
+        to_account_id=1,
+        reconciliation_date=d_outlier
+    ))
+    db.commit()
+
+    res = run_simulation(db=db, horizon_months=6, account_id=1)
+    db.close()
+
+    # Le vrai outlier exceptionnel de 10k€ doit être exclu
+    assert res["excluded_income_outliers_count"] >= 1
+    # Les salaires ne doivent PAS être exclus : le revenu moyen réel doit être d'au moins 2200€
+    assert res["historical_real_income_avg"] >= 2200.0
+    # Dans les mois futurs projetés, le revenu de base doit être au moins égal au salaire (2200€)
+    for m_data in res["monthly_data"][1:]:
+        assert m_data["baseline_income"] >= 2200.0
+
+
+

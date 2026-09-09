@@ -172,7 +172,7 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - ✅ **Réversibilité Totale & Intégration `ActionHistory`** : Toute modification d'une règle (passage manuel/auto, changement de catégorie, activation multi-catégorie) est tracée dans l'historique d'annulation/rétablissement global avec toast d'annulation 1-clic (`undo_action` / `redo_action`).
   - ✅ **Badges de Transparence dans le Sas d'Attente (Cockpit de Revue)** : Affichage direct de badges d'explication de provenance (`🛡️ Règle manuelle`, `🤖 Règle apprise`, `⚠️ Provisoire (1ère fois)`, `🔀 Multi-catégories`, `🕒 Historique`) avec info-bulles détaillées guidant l'utilisateur sur la manière de modifier la règle si besoin.
   - ✅ **Modale d'Édition Ergonomique avec Recherche Permissive** : Modale dédiée d'édition de règle dans l'Atelier avec recherche instantanée insensible à la casse et aux accents (`removeAccents`), prévisualisation en direct et navigation clavier.
-  - ✅ **Garde-fou Anti-Prolifération, Filet de Sécurité Déterministe & Revue Manuelle IA (Étape 3.5)** : Attribution d'une catégorie fourre-tout intelligente (`"Dépenses diverses"` / `"Revenus divers"`) pour 100% des opérations inconnues afin de garantir un Sas propre, proposition automatique IA dès la synchronisation manuelle et à l'ouverture de revue avec badges explicatifs (`🤖 Suggestion IA`, `✨ Nouvelle catégorie`, `🛡️ Fourre-tout`), quota maximal de 2 nouvelles catégories par lot d'import IA, fusion lexicale ($\ge 80\%$) et création différée en base au moment du commit.
+  - ✅ **Garde-fou Anti-Prolifération, Filet de Sécurité Déterministe & Revue Manuelle IA (Étape 3.5)** : Attribution d'une catégorie fourre-tout intelligente (`"Dépenses diverses"` / `"Revenus divers"`) pour 100% des opérations inconnues afin de garantir un Sas propre, proposition automatique IA dès la synchronisation manuelle et à l'ouverture de revue avec badges explicatifs (`🤖 Suggestion IA`, `✨ Nouvelle catégorie`, `🛡️ Fourre-tout`), quota maximal de 2 nouvelles catégories par lot d'import IA, fusion lexicale (≥ 80%) et création différée en base au moment du commit.
   - ✅ **Étage 3 : Fallback IA local Ollama Groupé par Lot (`call_ollama_batch`)** : Résolution des marchands inconnus en 1 seule requête JSON groupée (`format: "json"`) avec garde-fou anti-hallucination, validation linguistique anti-déchet et proposition contrôlée de nouvelles catégories.
   - ✅ **Banc d'Essai & Simulation Smart Label** : Atelier interactif de test de la cascade décisionnelle en direct avec sauvegarde 1-clic en règle permanente et plancher de fluidité UX.
   - ✅ **Auto-Commit des Nouvelles Écritures Courantes & Marchands Caméléons** : Enregistrement autonome des dépenses courantes directes non ambiguës dans [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) avec traçabilité complète `AutopilotDecisionLog` (`new_entry`) lorsque `auto_pilot_enabled == True`, incluant les marchands caméléons par défaut.
@@ -471,130 +471,130 @@ graph TD
 
 ### Détail des Étapes de Livraison :
 
-0. **Étape 0 : Fondations Techniques & Pré-requis (Zéro Fonctionnalité Visible, 100% Étanchéité)** — `✅ TERMINÉE (100%)`
-    - [x] **Jalon 0.1 : Refactoring `check_reconciliation`** : Extraction de la fonction depuis `app/routers/csv_parser.py` vers un nouveau module dédié `app/services/reconciliation_engine.py`. Mise à jour de tous les points d'import (`bank_sync_service.py`, `bank_sync_scheduler.py`, `csv_manager.py`, `ai_helpers.py`). Objectif : éliminer la dépendance inversée routeur→service et préparer l'orchestration par `AutoPilotService`.
-    - [x] **Jalon 0.2 : Consolidation du client Ollama via `app/services/chat/ollama_client.py`** : Réutilisation et extension du client asynchrone existant (`call_ollama_safe` et `call_ollama_safe_async`) afin de fournir des appels LLM directs et sécurisés sans lever de `HTTPException` (FastAPI) dans les tâches d'arrière-plan, prêt pour le batch prompting d'ingestion.
-    - [x] **Jalon 0.3 : Empreinte Idempotente des Fichiers (`csv_id` Déterministe)** : Remplacement de l'horodatage volatile de `csv_parser.py` par un hash SHA-256 déterministe combiné à un index ordinal intra-batch (`f"{sha256}_{idx}"`) garantissant des identifiants distincts même pour plusieurs écritures identiques au sein d'un même relevé et une déduplication rigoureuse lors des ré-imports CSV.
-    - [x] **Jalon 0.4 : Modèle `AutopilotDecisionLog` et champ `is_locked`** : Ajout du modèle SQLAlchemy dans `app/models.py` et de la colonne `is_locked` sur `Budget`.
-    - [x] **Jalon 0.5 : Script de migration & Schéma SQLite v24** : Création de `migrations/migrate_autopilot.py` (itérant sur tous les profils existants) et enrichissement de `app/init_data.py` sous le bloc `if schema_version < 24:` pour initialiser la table `autopilot_decision_log`, la colonne `budgets.is_locked` et les clés `GlobalConfig` avec `schema_version = "24"`.
-    - [x] **Jalon 0.6 : Schémas API & DTOs Pydantic** :
-      * Définition de `AutopilotDecisionLogOut` dans `app/schemas/api_schemas.py`.
-      * Ajout du champ `is_locked: Optional[bool] = None` dans `BudgetCreate` et `BudgetUpdate` (`app/routers/budgets.py`).
-      * Sérialisation du champ `is_locked` dans `budget_to_dict`, `get_all_budgets`, `create_new_budget` et `update_budget` (`app/services/budget_service.py`).
-    - [x] **Jalon 0.7 : Extraction du Winsorizing** : Refactoring du filtre d'écrêtage statistique depuis `budget_ai_service.py` vers une fonction utilitaire partagée dans `app/services/stats_utils.py` (re-exportée dans `budget_service.py`), pour que le Winsorizing soit disponible **100% offline sans Ollama**.
-    - [x] **Jalon 0.8 : Validation automatisée** : Exécution de la suite de tests unitaires et de non-régression (`185 passed, 0 failed` sous `pytest`).
-    - *Bénéfice immédiat* : Aucun changement fonctionnel visible, base de code prête pour les étapes suivantes, zéro risque de régression.
+#### Étape 0 : Fondations Techniques & Pré-requis (Zéro Fonctionnalité Visible, 100% Étanchéité) — `✅ TERMINÉE (100%)`
+- [x] **Jalon 0.1 : Refactoring `check_reconciliation`** : Extraction de la fonction depuis `app/routers/csv_parser.py` vers un nouveau module dédié `app/services/reconciliation_engine.py`. Mise à jour de tous les points d'import (`bank_sync_service.py`, `bank_sync_scheduler.py`, `csv_manager.py`, `ai_helpers.py`). Objectif : éliminer la dépendance inversée routeur→service et préparer l'orchestration par `AutoPilotService`.
+- [x] **Jalon 0.2 : Consolidation du client Ollama via `app/services/chat/ollama_client.py`** : Réutilisation et extension du client asynchrone existant (`call_ollama_safe` et `call_ollama_safe_async`) afin de fournir des appels LLM directs et sécurisés sans lever de `HTTPException` (FastAPI) dans les tâches d'arrière-plan, prêt pour le batch prompting d'ingestion.
+- [x] **Jalon 0.3 : Empreinte Idempotente des Fichiers (`csv_id` Déterministe)** : Remplacement de l'horodatage volatile de `csv_parser.py` par un hash SHA-256 déterministe combiné à un index ordinal intra-batch (`f"{sha256}_{idx}"`) garantissant des identifiants distincts même pour plusieurs écritures identiques au sein d'un même relevé et une déduplication rigoureuse lors des ré-imports CSV.
+- [x] **Jalon 0.4 : Modèle `AutopilotDecisionLog` et champ `is_locked`** : Ajout du modèle SQLAlchemy dans `app/models.py` et de la colonne `is_locked` sur `Budget`.
+- [x] **Jalon 0.5 : Script de migration & Schéma SQLite v24** : Création de `migrations/migrate_autopilot.py` (itérant sur tous les profils existants) et enrichissement de `app/init_data.py` sous le bloc `if schema_version < 24:` pour initialiser la table `autopilot_decision_log`, la colonne `budgets.is_locked` et les clés `GlobalConfig` avec `schema_version = "24"`.
+- [x] **Jalon 0.6 : Schémas API & DTOs Pydantic** :
+  - Définition de `AutopilotDecisionLogOut` dans `app/schemas/api_schemas.py`.
+  - Ajout du champ `is_locked: Optional[bool] = None` dans `BudgetCreate` et `BudgetUpdate` (`app/routers/budgets.py`).
+  - Sérialisation du champ `is_locked` dans `budget_to_dict`, `get_all_budgets`, `create_new_budget` et `update_budget` (`app/services/budget_service.py`).
+- [x] **Jalon 0.7 : Extraction du Winsorizing** : Refactoring du filtre d'écrêtage statistique depuis `budget_ai_service.py` vers une fonction utilitaire partagée dans `app/services/stats_utils.py` (re-exportée dans `budget_service.py`), pour que le Winsorizing soit disponible **100% offline sans Ollama**.
+- [x] **Jalon 0.8 : Validation automatisée** : Exécution de la suite de tests unitaires et de non-régression (`185 passed, 0 failed` sous `pytest`).
+- *Bénéfice immédiat* : Aucun changement fonctionnel visible, base de code prête pour les étapes suivantes, zéro risque de régression.
 
-1. **Étape 1 : Réactivité Déverrouillage Coffre, Option de Déverrouillage Passif, Cooldown Anti-Spam & Tri Chronologique** — `✅ TERMINÉE (100%)`
-    - [x] **Jalon 1.1 : Branchement de l'événement `on_vault_unlocked` configurable** : paramètre `bank_sync_on_vault_unlock` (`sync_on_vault_unlock: bool`) permettant soit un rafraîchissement réactif immédiat, soit un déverrouillage passif silencieux (clé en RAM et relevé délégué au planificateur).
-    - [x] **Jalon 1.2 : Option UI dans les Réglages Bancaires & Modale de Déverrouillage** : Case à cocher bilingue permettant à l'utilisateur de choisir son comportement : *"Synchroniser immédiatement au déverrouillage"* (défaut) vs *"Déverrouillage passif silencieux"*.
-    - [x] **Jalon 1.3 : Déclenchement réactif via `trigger_manual_auto_sync` enrichi** : Réutilisation directe de la tâche de fond dans [`app/services/bank_sync_scheduler.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py), complétée du cooldown persistant (`last_auto_sync_attempt` dans `GlobalConfig`, délai minimal de 3 heures) pour éliminer le spam lors de déverrouillages rapprochés.
-    - [x] **Jalon 1.4 : Garantie d'Étanchéité UI (Zéro Fausse Promesse)** : Le flag `auto_pilot_enabled` reste strictement interne au backend, aucun switch prématuré n'est exposé à l'utilisateur avant l'Étape 6.
-    - [x] **Jalon 1.5 : Tri chronologique strict de `history_raw` et `coming_raw`** : Correction de l'antéchronologie native Woob par tri croissant via `sort(key=lambda x: x["tx_date_obj"])`.
-    - [x] **Jalon 1.6 : Prise en charge des deux cycles de vie** : Docker 24/7 (conservation session coffre en RAM selon TTL) et Desktop Tauri (session applicative active en mémoire vive).
-    - [x] **Jalon 1.7 : Cooldown persistant et mode Catch-Up** : Clé `last_auto_sync_attempt` en base SQLite et ingestion atomique ordonnée après absence prolongée.
-    - [x] **Jalon 1.8 : Clés i18n bilingues et Pack de test 1 validé** : Synchronisation complète FR/EN et 7/7 tests unitaires du Pack de Test 1 passés avec succès (`tests/test_bank_sync_step1.py`).
-    - *Bénéfice immédiat* : L'utilisateur maîtrise son mode de déverrouillage, aucun risque de spam ou de ban bancaire, et les écritures sont rigoureusement ordonnées dans le temps.
+#### Étape 1 : Réactivité Déverrouillage Coffre, Option de Déverrouillage Passif, Cooldown Anti-Spam & Tri Chronologique — `✅ TERMINÉE (100%)`
+- [x] **Jalon 1.1 : Branchement de l'événement `on_vault_unlocked` configurable** : paramètre `bank_sync_on_vault_unlock` (`sync_on_vault_unlock: bool`) permettant soit un rafraîchissement réactif immédiat, soit un déverrouillage passif silencieux (clé en RAM et relevé délégué au planificateur).
+- [x] **Jalon 1.2 : Option UI dans les Réglages Bancaires & Modale de Déverrouillage** : Case à cocher bilingue permettant à l'utilisateur de choisir son comportement : *"Synchroniser immédiatement au déverrouillage"* (défaut) vs *"Déverrouillage passif silencieux"*.
+- [x] **Jalon 1.3 : Déclenchement réactif via `trigger_manual_auto_sync` enrichi** : Réutilisation directe de la tâche de fond dans [`app/services/bank_sync_scheduler.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py), complétée du cooldown persistant (`last_auto_sync_attempt` dans `GlobalConfig`, délai minimal de 3 heures) pour éliminer le spam lors de déverrouillages rapprochés.
+- [x] **Jalon 1.4 : Garantie d'Étanchéité UI (Zéro Fausse Promesse)** : Le flag `auto_pilot_enabled` reste strictement interne au backend, aucun switch prématuré n'est exposé à l'utilisateur avant l'Étape 6.
+- [x] **Jalon 1.5 : Tri chronologique strict de `history_raw` et `coming_raw`** : Correction de l'antéchronologie native Woob par tri croissant via `sort(key=lambda x: x["tx_date_obj"])`.
+- [x] **Jalon 1.6 : Prise en charge des deux cycles de vie** : Docker 24/7 (conservation session coffre en RAM selon TTL) et Desktop Tauri (session applicative active en mémoire vive).
+- [x] **Jalon 1.7 : Cooldown persistant et mode Catch-Up** : Clé `last_auto_sync_attempt` en base SQLite et ingestion atomique ordonnée après absence prolongée.
+- [x] **Jalon 1.8 : Clés i18n bilingues et Pack de test 1 validé** : Synchronisation complète FR/EN et 7/7 tests unitaires du Pack de Test 1 passés avec succès (`tests/test_bank_sync_step1.py`).
+- *Bénéfice immédiat* : L'utilisateur maîtrise son mode de déverrouillage, aucun risque de spam ou de ban bancaire, et les écritures sont rigoureusement ordonnées dans le temps.
 
-2. **Étape 2 : Moteur d'Orchestration d'Ingestion, Auto-Rapprochement & Modèle DecisionLog** — `✅ 100% PASS`
-    - [x] **Jalon 2.0 : Initialisation des clés `GlobalConfig`** : Ajout des clés `auto_pilot_enabled` ('false'), `bank_sync_on_vault_unlock` ('true') et `last_auto_sync_attempt` ('') dans `app/init_data.py` (bloc `schema_version < 24`) avec protection `INSERT OR IGNORE`.
-    - [x] **Jalon 2.1 : Enrichissement de `reconciliation_engine.py`** : Double échelle d'évaluation (score $\ge 60$ suggéré vs $\ge 85$ auto-commit direct) et détection anti-collision sur montants homonymes (`collision_detected = True`).
-    - [x] **Jalon 2.2 : Création du service d'orchestration unifié `app/services/autopilot_service.py`** (`process_incoming_batch`) appelé à la fois par `bank_sync_scheduler.py` (Woob) et `csv_manager.py` (fichiers). Inscription dans `AutopilotDecisionLog`, traçabilité Undo/Redo dans `ActionHistory` et invalidation de `stats_cache.invalidate(profile_id)`.
-    - [x] **Jalon 2.3 : Branchement conditionnel dans `bank_sync_scheduler.py`** : Routage transparent si actif, maintien 100% intact du Sas si inactif, notifications enrichies.
-    - [x] **Jalon 2.4 : Branchement conditionnel dans `csv_manager.py`** : Routage sous `@router.post("/import_to_pending")` (L471) avec réinjection de `_autopilot_summary`.
-    - [x] **Jalon 2.5 : Clés i18n bilingues (FR/EN)** : 6 clés ajoutées avec encodage strict UTF-8 BOM (`utf-8-sig`) dans `fr.json` et `en.json`.
-    - [x] **Jalon 2.6 : Pack de Test 2 validé** : 8 tests unitaires complets passés avec succès (`tests/test_autopilot_step2.py`).
-    - *Bénéfice immédiat* : Réduction de 80% des clics de validation dans le cockpit, avec traçabilité complète dès la première décision.
+#### Étape 2 : Moteur d'Orchestration d'Ingestion, Auto-Rapprochement & Modèle DecisionLog — `✅ 100% PASS`
+- [x] **Jalon 2.0 : Initialisation des clés `GlobalConfig`** : Ajout des clés `auto_pilot_enabled` ('false'), `bank_sync_on_vault_unlock` ('true') et `last_auto_sync_attempt` ('') dans `app/init_data.py` (bloc `schema_version < 24`) avec protection `INSERT OR IGNORE`.
+- [x] **Jalon 2.1 : Enrichissement de `reconciliation_engine.py`** : Double échelle d'évaluation (score ≥ 60 suggéré vs ≥ 85 auto-commit direct) et détection anti-collision sur montants homonymes (`collision_detected = True`).
+- [x] **Jalon 2.2 : Création du service d'orchestration unifié `app/services/autopilot_service.py`** (`process_incoming_batch`) appelé à la fois par `bank_sync_scheduler.py` (Woob) et `csv_manager.py` (fichiers). Inscription dans `AutopilotDecisionLog`, traçabilité Undo/Redo dans `ActionHistory` et invalidation de `stats_cache.invalidate(profile_id)`.
+- [x] **Jalon 2.3 : Branchement conditionnel dans `bank_sync_scheduler.py`** : Routage transparent si actif, maintien 100% intact du Sas si inactif, notifications enrichies.
+- [x] **Jalon 2.4 : Branchement conditionnel dans `csv_manager.py`** : Routage sous `@router.post("/import_to_pending")` (L471) avec réinjection de `_autopilot_summary`.
+- [x] **Jalon 2.5 : Clés i18n bilingues (FR/EN)** : 6 clés ajoutées avec encodage strict UTF-8 BOM (`utf-8-sig`) dans `fr.json` et `en.json`.
+- [x] **Jalon 2.6 : Pack de Test 2 validé** : 8 tests unitaires complets passés avec succès (`tests/test_autopilot_step2.py`).
+- *Bénéfice immédiat* : Réduction de 80% des clics de validation dans le cockpit, avec traçabilité complète dès la première décision.
 
-3. **Étape 3 : Pipeline Smart Labels, Fallback Ollama Groupé & Dropzone UI** — `✅ TERMINÉE (100%)`
-    - [x] **Jalon 3.1 : Socle Smart Labels & Normalisation Déterministe** : Nettoyage regex, règles exactes `BankLabelMapping`, fuzzy-matching Levenshtein/Jaccard, et résolution par lot ultra-rapide $O(N)$ (`app/services/smart_label_service.py`).
-    - [x] **Jalon 3.2 : Sanctuarisation Manuelle & Apprentissage Progressif ($N \ge 2$)** : Protection des règles configurées par l'utilisateur (`is_manual = True`), statut provisoire pour $N=1$, neutralisation sur dispersion de catégories et prise en charge native des marchands caméléons multi-catégories (`_MULTI_CATEGORY_MERCHANTS`).
-    - [x] **Jalon 3.3 : Réversibilité Totale & Intégration `ActionHistory`** : Historique avant/après des modifications de règles, intégration au gestionnaire Undo/Redo global et toasts d'annulation 1-clic.
-    - [x] **Jalon 3.4 : Badges de Transparence dans le Sas d'Attente (Cockpit)** : Affichage contextuel de la logique utilisée (`🛡️ Règle manuelle`, `🤖 Règle apprise`, `⚠️ Provisoire (1ère fois)`, `🔀 Multi-catégories`, `🕒 Historique`) avec info-bulles explicatives guidant l'arbitrage dans `bank_sync_review.js`.
-    - [x] **Jalon 3.5 : Atelier des Règles & Recherche Permissive** : Modale d'édition in-place avec recherche instantanée insensible à la casse et aux accents (`removeAccents`), prévisualisation dynamique et navigation clavier dans `config_smart_labels.js`.
-    - [x] **Jalon 3.6 : Suite de Tests Smart Labels Validée** : 100% de succès sur les 25 tests unitaires et d'intégration (`tests/test_smart_label.py`).
-    - [x] **Jalon 3.7 : Fallback IA Ollama Groupé par Lot (Batch Prompting) & Détective d'Habitudes Anti-Hallucination** : Méthode non-bloquante `call_ollama_batch` dans `app/services/chat/ollama_client.py` et détective de nommage d'habitudes avec garde-fous stricts rejetant les hallucinations.
-    - [x] **Jalon 3.8 : Auto-Commit des Écritures Courantes** : Enregistrement autonome des dépenses courantes directes non ambiguës ($\ge 85\%$, non caméléon, non provisoire) dans `AutoPilotService.process_incoming_batch()` et traçabilité dans `AutopilotDecisionLog` (`new_entry`).
-    - [x] **Jalon 3.9 : Adaptation de la Dropzone CSV / Excel (`static/js/views/import_wizard.js`)** : Fermeture automatique de la modale avec toast de confirmation si 100% des opérations sont traitées (`pending === 0`), évitant d'ouvrir une modale de revue vide.
-    - [x] **Jalon 3.10 : Clés i18n associées** : `autopilot_batch_categorized`, `autopilot_uncategorized_fallback`, `autopilot_ai_batch_failed`, `autopilot_import_complete_toast` synchronisées en FR et EN.
-    - *Bénéfice immédiat* : Catégorisation fiable, transparente et souveraine, apprentissage sans pollution, auto-commit transparent des dépenses courantes non ambiguës et expérience d'importation sans friction.
+#### Étape 3 : Pipeline Smart Labels, Fallback Ollama Groupé & Dropzone UI — `✅ TERMINÉE (100%)`
+- [x] **Jalon 3.1 : Socle Smart Labels & Normalisation Déterministe** : Nettoyage regex, règles exactes `BankLabelMapping`, fuzzy-matching Levenshtein/Jaccard, et résolution par lot ultra-rapide $O(N)$ (`app/services/smart_label_service.py`).
+- [x] **Jalon 3.2 : Sanctuarisation Manuelle & Apprentissage Progressif ($N \ge 2$)** : Protection des règles configurées par l'utilisateur (`is_manual = True`), statut provisoire pour $N=1$, neutralisation sur dispersion de catégories et prise en charge native des marchands caméléons multi-catégories (`_MULTI_CATEGORY_MERCHANTS`).
+- [x] **Jalon 3.3 : Réversibilité Totale & Intégration `ActionHistory`** : Historique avant/après des modifications de règles, intégration au gestionnaire Undo/Redo global et toasts d'annulation 1-clic.
+- [x] **Jalon 3.4 : Badges de Transparence dans le Sas d'Attente (Cockpit)** : Affichage contextuel de la logique utilisée (`🛡️ Règle manuelle`, `🤖 Règle apprise`, `⚠️ Provisoire (1ère fois)`, `🔀 Multi-catégories`, `🕒 Historique`) avec info-bulles explicatives guidant l'arbitrage dans `bank_sync_review.js`.
+- [x] **Jalon 3.5 : Atelier des Règles & Recherche Permissive** : Modale d'édition in-place avec recherche instantanée insensible à la casse et aux accents (`removeAccents`), prévisualisation dynamique et navigation clavier dans `config_smart_labels.js`.
+- [x] **Jalon 3.6 : Suite de Tests Smart Labels Validée** : 100% de succès sur les 25 tests unitaires et d'intégration (`tests/test_smart_label.py`).
+- [x] **Jalon 3.7 : Fallback IA Ollama Groupé par Lot (Batch Prompting) & Détective d'Habitudes Anti-Hallucination** : Méthode non-bloquante `call_ollama_batch` dans `app/services/chat/ollama_client.py` et détective de nommage d'habitudes avec garde-fous stricts rejetant les hallucinations.
+- [x] **Jalon 3.8 : Auto-Commit des Écritures Courantes** : Enregistrement autonome des dépenses courantes directes non ambiguës (≥ 85%, non caméléon, non provisoire) dans `AutoPilotService.process_incoming_batch()` et traçabilité dans `AutopilotDecisionLog` (`new_entry`).
+- [x] **Jalon 3.9 : Adaptation de la Dropzone CSV / Excel (`static/js/views/import_wizard.js`)** : Fermeture automatique de la modale avec toast de confirmation si 100% des opérations sont traitées (`pending === 0`), évitant d'ouvrir une modale de revue vide.
+- [x] **Jalon 3.10 : Clés i18n associées** : `autopilot_batch_categorized`, `autopilot_uncategorized_fallback`, `autopilot_ai_batch_failed`, `autopilot_import_complete_toast` synchronisées en FR et EN.
+- *Bénéfice immédiat* : Catégorisation fiable, transparente et souveraine, apprentissage sans pollution, auto-commit transparent des dépenses courantes non ambiguës et expérience d'importation sans friction.
 
-3.5. **Étape 3.5 : Filet de Sécurité Déterministe (Catégories Fourre-tout) & Catégorisation IA Augmentée avec Garde-fous Anti-Prolifération** — `✅ TERMINÉE (100%)`
-    - [x] **Jalon 3.5.1 : Filet de Sécurité Déterministe (`resolve_fallback_category`)** :
-      * Détection intelligente des synonymes existants en base : `"Dépenses diverses"`, `"Autres dépenses"`, `"Dépenses imprévues"`, `"Achats divers"` pour les débits variables (`expense_var`) ; `"Revenus divers"`, `"Autres revenus"`, `"Virements reçus"` pour les crédits (`income`).
-      * Création/sélection du nom canonique sans insertion prématurée dans la table `categories`.
-      * Garantie mathématique : 100% des opérations courantes ont une destination claire, éliminant les lignes `-- Catégorie --` dans le Sas.
-    - [x] **Jalon 3.5.2 : Prise en Charge Fluide des Marchands Caméléons (Amazon, PayPal...)** :
-      * Attribution par défaut de la catégorie fourre-tout dépenses pour les marchands caméléons natifs tout en conservant `smart_is_multi_category = True` et le badge `[🤖 Caméléon]`.
-      * Préservation stricte des marchands caméléons manuellement sanctuarisés (`is_manual=True`) dans le Sas pour arbitrage humain.
-      * Autorisation d'auto-commit sous Auto-Pilote avec raison explicite `decision_reason="chameleon_default"`, débloquant la fermeture automatique du Sas.
-    - [x] **Jalon 3.5.3 : Catégorisation IA Augmentée & Garde-fous Anti-Déchet / Anti-Prolifération** :
-      * Enrichissement de `_parse_and_validate_batch_response` dans `ollama_client.py` : priorité stricte aux catégories existantes, avec autorisation de proposer une nouvelle catégorie concise si aucune ne convient.
-      * Garde-fou Anti-Déchet linguistique : longueur (3-35 car), exclusion des artefacts JSON/syntaxe (`{}[]<>\;:"*_|:`), exclusion des préfixes conversationnels et tokens génériques interdits (`inconnu`, `null`, `dépense`), Title Case.
-      * Garde-fou Proximité Lexicale : fusion automatique vers la catégorie existante si $\ge 80\%$ de similarité (ex: `"Alimentations"` $\to$ `"Alimentation"`).
-      * Garde-fou Anti-Prolifération (Seuil par lot) : quota maximal de **2 nouvelles catégories distinctes par lot d'import** ; repli automatique déterministe sur le filet de sécurité au-delà.
-    - [x] **Jalon 3.5.4 : Création Différée en Base (`ensure_category_exists`) & Non-Pollution de l'Apprentissage** :
-      * Aucune nouvelle catégorie n'est insérée dans SQLite lors de la simple revue ou prévisualisation ; l'insertion `Category(name=..., type=...)` n'a lieu qu'au moment du commit effectif (dans `commit_reviewed_transactions` ou `AutoPilotService`).
-      * `learn_label_mapping` ignore les catégories fourre-tout pour ne jamais figer un commerçant sur `"Dépenses diverses"` de façon permanente.
-    - [x] **Jalon 3.5.5 : Auto-Commit Élargi & Sas Vide** :
-      * Ajustement d'`is_eligible_new_entry` dans `autopilot_service.py` pour auto-committer les opérations munies d'une catégorie fourre-tout ou nouvelle IA validée.
-      * Résultat : Sas d'attente vide (`pending = 0`) et dropzone fermée avec toast de célébration pour les imports réguliers.
-    - [x] **Jalon 3.5.6 : Clés i18n & Badges UI (`bank_sync_review.js`)** :
-      * Badges contextuels `🛡️ Fourre-tout` et `✨ Nouvelle catégorie` à côté du sélecteur de catégorie.
-      * Injection dynamique de la nouvelle catégorie dans le menu déroulant `<select>` si absente des catégories de base.
-      * Clés i18n associées en FR et EN (`utf-8-sig`).
-    - *Bénéfice immédiat* : Élimination totale des blocages de saisie dans le Sas d'attente, sas propre par défaut, et mode Auto-Pilote à supervision zéro véritablement opérationnel.
+#### Étape 3.5 : Filet de Sécurité Déterministe (Catégories Fourre-tout) & Catégorisation IA Augmentée avec Garde-fous Anti-Prolifération — `✅ TERMINÉE (100%)`
+- [x] **Jalon 3.5.1 : Filet de Sécurité Déterministe (`resolve_fallback_category`)** :
+  - Détection intelligente des synonymes existants en base : `"Dépenses diverses"`, `"Autres dépenses"`, `"Dépenses imprévues"`, `"Achats divers"` pour les débits variables (`expense_var`) ; `"Revenus divers"`, `"Autres revenus"`, `"Virements reçus"` pour les crédits (`income`).
+  - Détermination du nom canonique sans insertion prématurée dans la table `categories`.
+  - Garantie comptable : 100% des opérations courantes ont une destination claire, éliminant les lignes `-- Catégorie --` orphelines dans le Sas.
+- [x] **Jalon 3.5.2 : Prise en Charge Fluide des Marchands Caméléons (Amazon, PayPal...)** :
+  - Attribution par défaut de la catégorie fourre-tout dépenses pour les marchands caméléons natifs tout en conservant `smart_is_multi_category = True` et le badge `[🤖 Caméléon]`.
+  - Préservation stricte des marchands caméléons manuellement sanctuarisés (`is_manual = True`) dans le Sas pour arbitrage humain.
+  - Autorisation d'auto-commit sous Auto-Pilote avec raison explicite `decision_reason = "chameleon_default"`, débloquant la fermeture automatique du Sas.
+- [x] **Jalon 3.5.3 : Catégorisation IA Augmentée & Garde-fous Anti-Déchet / Anti-Prolifération** :
+  - Enrichissement de `_parse_and_validate_batch_response` dans `ollama_client.py` : priorité stricte aux catégories existantes, avec autorisation de proposer une nouvelle catégorie concise si aucune ne convient.
+  - Garde-fou anti-déchet linguistique : longueur (3-35 caractères), exclusion des artefacts JSON et caractères interdits (`{}[]<>\;:"*_|:`), exclusion des préfixes conversationnels et tokens génériques interdits (`inconnu`, `null`, `dépense`), formatage automatique en Title Case.
+  - Garde-fou proximité lexicale : fusion automatique vers la catégorie existante si similarité ≥ 80% (ex: `"Alimentations"` → `"Alimentation"`).
+  - Garde-fou anti-prolifération (seuil par lot) : quota maximal de **2 nouvelles catégories distinctes par lot d'import** ; repli automatique déterministe sur le filet de sécurité au-delà.
+- [x] **Jalon 3.5.4 : Création Différée en Base (`ensure_category_exists`) & Non-Pollution de l'Apprentissage** :
+  - Aucune nouvelle catégorie n'est insérée dans SQLite lors de la simple revue ou prévisualisation ; l'insertion `Category(name=..., type=...)` n'a lieu qu'au moment du commit effectif (dans `commit_reviewed_transactions` ou `AutoPilotService`).
+  - `learn_label_mapping` ignore formellement les catégories fourre-tout pour ne jamais figer un commerçant sur `"Dépenses diverses"` de façon permanente.
+- [x] **Jalon 3.5.5 : Auto-Commit Élargi & Sas Vide** :
+  - Ajustement d'`is_eligible_new_entry` dans `autopilot_service.py` pour auto-committer les opérations munies d'une catégorie fourre-tout ou nouvelle IA validée.
+  - Résultat : Sas d'attente vide (`pending = 0`) et dropzone fermée avec toast de célébration pour les imports réguliers.
+- [x] **Jalon 3.5.6 : Clés i18n & Badges UI (`bank_sync_review.js`)** :
+  - Badges contextuels `🛡️ Fourre-tout` et `✨ Nouvelle catégorie` à côté du sélecteur de catégorie.
+  - Injection dynamique de la nouvelle catégorie dans le menu déroulant `<select>` si absente des catégories de base.
+  - Clés i18n associées synchronisées en FR et EN (`utf-8-sig`).
+- *Bénéfice immédiat* : Élimination totale des blocages de saisie dans le Sas d'attente, sas propre par défaut, et mode Auto-Pilote à supervision zéro véritablement opérationnel.
 
-4. **Étape 4 : Détection Périodique, Charges Candidates Dynamiques ($N=2$) & Liaison Rétroactive**
-    - Moteur de reconnaissance de périodicité (même montant, même marchand nettoyé, intervalle 28–31 jours).
-    - **Intégration dynamique déterministe au Reste à Vivre (Niveau 1)** : calcul à la volée dans `calculate_rest_to_live` (`finance_engine.py`) avec mise en cache courte par signature dans `stats_cache.py` (sans état global volatile en RAM), avec filtre anti-doublon (la charge candidate n'est déduite que si aucune écriture réelle n'a déjà été débitée dans le cycle de paie en cours).
-    - Badge d'officialisation 1-clic (Niveau 2).
-    - En mode Full-Auto : officialisation automatique en `RecurrenceTemplate` après 3 mois consécutifs ($N \ge 3$).
-    - **Gestion des paiements fractionnés (Alma / Klarna / Oney)** via regex `M/N` : création d'un `RecurrenceTemplate` avec `max_occurrences = N` et **liaison rétroactive immédiate** des $M$ écritures déjà débitées (`tx.recurrence_id = tpl.id`). Lorsque l'échéance finale est atteinte ($M = N$, ex: Alma 3/3), le template passe automatiquement à `is_closed = True`, garantissant qu'au Mois 3 il reste exactement 4 templates actifs en base et que la génération future s'arrête à l'extinction du contrat ($N - M$ prélèvements restants).
-    - **Clés i18n requises (Étape 4)** :
-      * `autopilot_recurrence_candidate`, `autopilot_recurrence_promoted`, `autopilot_recurrence_fractional`
-      * `autopilot_rav_anticipated_charges`, `autopilot_promote_template_badge`
-    - *Bénéfice immédiat* : Le Reste à Vivre anticipe les charges fixes dès le 1er du mois sans attendre les prélèvements ni polluer la base.
+#### Étape 4 : Détection Périodique, Charges Candidates Dynamiques ($N=2$) & Liaison Rétroactive
+- Moteur de reconnaissance de périodicité (même montant, même marchand nettoyé, intervalle 28–31 jours).
+- **Intégration dynamique déterministe au Reste à Vivre (Niveau 1)** : calcul à la volée dans `calculate_rest_to_live` (`finance_engine.py`) avec mise en cache courte par signature dans `stats_cache.py` (sans état global volatile en RAM), avec filtre anti-doublon (la charge candidate n'est déduite que si aucune écriture réelle n'a déjà été débitée dans le cycle de paie en cours).
+- Badge d'officialisation 1-clic (Niveau 2).
+- En mode Full-Auto : officialisation automatique en `RecurrenceTemplate` après 3 mois consécutifs ($N \ge 3$).
+- **Gestion des paiements fractionnés (Alma / Klarna / Oney)** via regex `M/N` : création d'un `RecurrenceTemplate` avec `max_occurrences = N` et **liaison rétroactive immédiate** des $M$ écritures déjà débitées (`tx.recurrence_id = tpl.id`). Lorsque l'échéance finale est atteinte ($M = N$, ex: Alma 3/3), le template passe automatiquement à `is_closed = True`, garantissant qu'au Mois 3 il reste exactement 4 templates actifs en base et que la génération future s'arrête à l'extinction du contrat ($N - M$ prélèvements restants).
+- **Clés i18n requises (Étape 4)** :
+  - `autopilot_recurrence_candidate`, `autopilot_recurrence_promoted`, `autopilot_recurrence_fractional`
+  - `autopilot_rav_anticipated_charges`, `autopilot_promote_template_badge`
+- *Bénéfice immédiat* : Le Reste à Vivre anticipe les charges fixes dès le 1er du mois sans attendre les prélèvements ni polluer la base.
 
-5. **Étape 5 : Lissage & Stabilisation des Enveloppes Budgétaires (100% Déterministe Offline)**
-    - Implémentation du filtre EMA 3–6 mois directement dans `app/services/budget_service.py` (**sans aucune dépendance à Ollama**).
-    - Ajout de l'heuristique de démarrage à froid (*Cold Start Dampening*) et écrêtage Winsorizing.
-    - Plafond de dérive mensuelle borné à $\pm 10\%$.
-    - Prise en compte du cadenas `Budget.is_locked` : exclusion stricte des enveloppes protégées lors du recalibrage automatique.
-    - **Filtre strict d'éligibilité des enveloppes** : application exclusive aux dépenses mensuelles opérationnelles (`Budget.envelope_type == 'spending' and not Budget.is_project and not Budget.is_closed and not Budget.is_locked and Budget.period == 'monthly'`), exclusion formelle des tirelires d'épargne et projets.
-    - **Déclencheurs Périodiques & Rattrapage au Démarrage (`lifespan`)** : vérification dans `bank_sync_scheduler_loop` ET lors de l'initialisation applicative dans `app/main.py` (`lifespan`) de la clé `last_budget_recalibration_period` (format `YYYY-MM`). Ainsi, les utilisateurs Desktop ouvrant l'application ponctuellement bénéficient du recalibrage mensuel immédiat dès le premier lancement du mois (règle anti-thrashing).
-    - **Clés i18n requises (Étape 5)** :
-      * `autopilot_decision_budget_recalibration`, `autopilot_budget_protected`, `autopilot_budget_recalibrated_toast`
-      - *Bénéfice immédiat* : Des budgets stables, réalistes et non pollués par les dépenses ponctuelles, fonctionnels sur toute machine sans IA.
+#### Étape 5 : Lissage & Stabilisation des Enveloppes Budgétaires (100% Déterministe Offline)
+- Implémentation du filtre EMA 3–6 mois directement dans `app/services/budget_service.py` (**sans aucune dépendance à Ollama**).
+- Ajout de l'heuristique de démarrage à froid (*Cold Start Dampening*) et écrêtage Winsorizing.
+- Plafond de dérive mensuelle borné à ± 10%.
+- Prise en compte du cadenas `Budget.is_locked` : exclusion stricte des enveloppes protégées lors du recalibrage automatique.
+- **Filtre strict d'éligibilité des enveloppes** : application exclusive aux dépenses mensuelles opérationnelles (`Budget.envelope_type == 'spending' and not Budget.is_project and not Budget.is_closed and not Budget.is_locked and Budget.period == 'monthly'`), exclusion formelle des tirelires d'épargne et projets.
+- **Déclencheurs Périodiques & Rattrapage au Démarrage (`lifespan`)** : vérification dans `bank_sync_scheduler_loop` ET lors de l'initialisation applicative dans `app/main.py` (`lifespan`) de la clé `last_budget_recalibration_period` (format `YYYY-MM`). Ainsi, les utilisateurs Desktop ouvrant l'application ponctuellement bénéficient du recalibrage mensuel immédiat dès le premier lancement du mois (règle anti-thrashing).
+- **Clés i18n requises (Étape 5)** :
+  - `autopilot_decision_budget_recalibration`, `autopilot_budget_protected`, `autopilot_budget_recalibrated_toast`
+- *Bénéfice immédiat* : Des budgets stables, réalistes et non pollués par les dépenses ponctuelles, fonctionnels sur toute machine sans IA.
 
-6. **Étape 6 : Page Dédiée « Centre de Contrôle Auto-Pilote », Activation UI & Finitions Desktop**
-    - Développement de la vue dédiée `static/js/views/autopilot_view.js` (`AutopilotView`) avec les 4 panneaux : Cockpit & KPIs, Decision Feed chronologique avec filtres, Leviers de rétroaction 1-clic (Dépointer, Rectifier catégorie, Rollback de cycle, Verrouillage budget), et Atelier des règles (`BankLabelMapping`).
-    - Création du routeur backend `app/routers/autopilot.py` (`/api/autopilot/decisions`, `/api/autopilot/override`, `/api/autopilot/rollback-cycle`) et son enregistrement explicite dans `app/main.py` via `app.include_router(autopilot.router)`. Réutilisation intégrale de [`app/routers/smart_labels.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/smart_labels.py) pour la gestion des correspondances marchand (`/api/smart-labels/mappings`).
-    - **Mécanisme de Rollback Global de Cycle Sémantique** : exploitation du `batch_id`, `conn_id`, `account_id` et du `raw_snapshot` de `AutopilotDecisionLog` pour identifier toutes les décisions d'un même cycle :
-      * Pour `new_entry` : suppression physique des écritures ajoutées de la table `Transaction`.
-      * Pour `reconciliation` : dissociation sans suppression (`reconciliation_date = NULL` et restauration snapshot) des prévisions pré-existantes (**ne supprime jamais les prévisions de l'utilisateur**).
-      * Pour `recurrence_promotion` : clôture ou suppression du template créé.
-      * Marquage de toutes les décisions du lot à `is_undone = True` (`undone_at = now()`).
-      * Reconstitution fidèle du lot structuré dans le Sas `_PENDING_SYNC_DATA`.
-    - **Intégration Frontend & Intronisation du Switch (`static/index.html`, `app.js` & `setup_wizard.js`)** :
-      * **Exposition de l'Interrupteur Maître** : Ajout du switch officiel d'activation Auto-Pilote dans les Réglages, dans le Setup Wizard (Étape 6/7) et dans le Centre de Contrôle, désormais adossé à l'ensemble du moteur validé.
-      * Ajout du bouton de navigation `🤖 Auto-Pilote` (`data-view="autopilot"`) dans la barre desktop `.main-nav` ET dans le tiroir mobile `.mobile-nav`.
-      * Ajout de la pastille d'état interactive `#autopilotHeaderBadge` dans `.header-actions` (à côté de la cloche des notifications).
-      * Inclusion du script `<script src="/static/js/views/autopilot_view.js"></script>` dans `static/index.html`.
-      * Routage dans `static/js/app.js` (`loadView('autopilot')`).
-      * Styles CSS dédiés aux 4 panneaux et au badge dans `static/css/style.css`.
-    - **Bouclier de Fermeture Sécurisée & Fermeture Automatique (Tauri)** : Interception événementielle conjointe au niveau natif Rust dans `src-tauri/src/main.rs` (`WindowEvent::CloseRequested`) et webview (`tauri://close-requested`), consultation de l'état de synchronisation en cours via l'API `/api/bank-sync/status`, avec écran d'attente bref et fermeture automatique (`getCurrentWindow().destroy()`) dès validation du commit.
-    - **Option System Tray** : Possibilité de minimiser OmniBank dans la barre des tâches près de l'horloge au lieu de quitter (couche native Tauri 2.x).
-    - **Clés i18n requises (Étape 6)** — Liste exhaustive pour le Centre de Contrôle & Switch :
-      * Activation & États : `autopilot_switch_label`, `autopilot_switch_tooltip_disabled`, `autopilot_switch_tooltip_discovery`, `autopilot_state_learning`, `autopilot_state_cruising`, `autopilot_state_disabled`, `autopilot_wizard_intro_title`, `autopilot_wizard_intro_desc`
-      * Navigation & Header : `nav_autopilot`, `autopilot_badge_active`, `autopilot_badge_learning`, `autopilot_badge_count`
-      * Panneau Cockpit : `autopilot_kpi_operations_managed`, `autopilot_kpi_precision`, `autopilot_kpi_anomalies`, `autopilot_kpi_clicks_saved`
-      * Decision Feed : `autopilot_feed_title`, `autopilot_feed_filter_all`, `autopilot_feed_filter_reconciliations`, `autopilot_feed_filter_categories`, `autopilot_feed_filter_recurrences`
-      * Actions : `autopilot_action_unpoint`, `autopilot_action_change_category`, `autopilot_action_rollback_cycle`, `autopilot_action_memorize_rule`, `autopilot_action_blacklist_merchant`, `autopilot_action_lock_budget`
-      * Atelier : `autopilot_rules_title`, `autopilot_rules_merchants_tab`, `autopilot_rules_excluded_tab`, `autopilot_rules_budgets_tab`
-      * Modales : `autopilot_confirm_rollback`, `autopilot_confirm_memorize`, `autopilot_tauri_closing_wait`
-    - Synchronisation bilingue des clés i18n (`fr.json` et `en.json` via script Python `utf-8-sig`).
-    - *Bénéfice immédiat* : L'utilisateur gagne une visibilité limpide, un contrôle absolu et une réversibilité totale à tout moment.
+#### Étape 6 : Page Dédiée « Centre de Contrôle Auto-Pilote », Activation UI & Finitions Desktop
+- Développement de la vue dédiée `static/js/views/autopilot_view.js` (`AutopilotView`) avec les 4 panneaux : Cockpit & KPIs, Decision Feed chronologique avec filtres, Leviers de rétroaction 1-clic (Dépointer, Rectifier catégorie, Rollback de cycle, Verrouillage budget), et Atelier des règles (`BankLabelMapping`).
+- Création du routeur backend `app/routers/autopilot.py` (`/api/autopilot/decisions`, `/api/autopilot/override`, `/api/autopilot/rollback-cycle`) et son enregistrement explicite dans `app/main.py` via `app.include_router(autopilot.router)`. Réutilisation intégrale de [`app/routers/smart_labels.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/smart_labels.py) pour la gestion des correspondances marchand (`/api/smart-labels/mappings`).
+- **Mécanisme de Rollback Global de Cycle Sémantique** : exploitation du `batch_id`, `conn_id`, `account_id` et du `raw_snapshot` de `AutopilotDecisionLog` pour identifier toutes les décisions d'un même cycle :
+  - Pour `new_entry` : suppression physique des écritures ajoutées de la table `Transaction`.
+  - Pour `reconciliation` : dissociation sans suppression (`reconciliation_date = NULL` et restauration snapshot) des prévisions pré-existantes (**ne supprime jamais les prévisions de l'utilisateur**).
+  - Pour `recurrence_promotion` : clôture ou suppression du template créé.
+  - Marquage de toutes les décisions du lot à `is_undone = True` (`undone_at = now()`).
+  - Reconstitution fidèle du lot structuré dans le Sas `_PENDING_SYNC_DATA`.
+- **Intégration Frontend & Intronisation du Switch (`static/index.html`, `app.js` & `setup_wizard.js`)** :
+  - **Exposition de l'Interrupteur Maître** : Ajout du switch officiel d'activation Auto-Pilote dans les Réglages, dans le Setup Wizard (Étape 6/7) et dans le Centre de Contrôle, désormais adossé à l'ensemble du moteur validé.
+  - Ajout du bouton de navigation `🤖 Auto-Pilote` (`data-view="autopilot"`) dans la barre desktop `.main-nav` ET dans le tiroir mobile `.mobile-nav`.
+  - Ajout de la pastille d'état interactive `#autopilotHeaderBadge` dans `.header-actions` (à côté de la cloche des notifications).
+  - Inclusion du script `<script src="/static/js/views/autopilot_view.js"></script>` dans `static/index.html`.
+  - Routage dans `static/js/app.js` (`loadView('autopilot')`).
+  - Styles CSS dédiés aux 4 panneaux et au badge dans `static/css/style.css`.
+- **Bouclier de Fermeture Sécurisée & Fermeture Automatique (Tauri)** : Interception événementielle conjointe au niveau natif Rust dans `src-tauri/src/main.rs` (`WindowEvent::CloseRequested`) et webview (`tauri://close-requested`), consultation de l'état de synchronisation en cours via l'API `/api/bank-sync/status`, avec écran d'attente bref et fermeture automatique (`getCurrentWindow().destroy()`) dès validation du commit.
+- **Option System Tray** : Possibilité de minimiser OmniBank dans la barre des tâches près de l'horloge au lieu de quitter (couche native Tauri 2.x).
+- **Clés i18n requises (Étape 6)** — Liste exhaustive pour le Centre de Contrôle & Switch :
+  - Activation & États : `autopilot_switch_label`, `autopilot_switch_tooltip_disabled`, `autopilot_switch_tooltip_discovery`, `autopilot_state_learning`, `autopilot_state_cruising`, `autopilot_state_disabled`, `autopilot_wizard_intro_title`, `autopilot_wizard_intro_desc`
+  - Navigation & Header : `nav_autopilot`, `autopilot_badge_active`, `autopilot_badge_learning`, `autopilot_badge_count`
+  - Panneau Cockpit : `autopilot_kpi_operations_managed`, `autopilot_kpi_precision`, `autopilot_kpi_anomalies`, `autopilot_kpi_clicks_saved`
+  - Decision Feed : `autopilot_feed_title`, `autopilot_feed_filter_all`, `autopilot_feed_filter_reconciliations`, `autopilot_feed_filter_categories`, `autopilot_feed_filter_recurrences`
+  - Actions : `autopilot_action_unpoint`, `autopilot_action_change_category`, `autopilot_action_rollback_cycle`, `autopilot_action_memorize_rule`, `autopilot_action_blacklist_merchant`, `autopilot_action_lock_budget`
+  - Atelier : `autopilot_rules_title`, `autopilot_rules_merchants_tab`, `autopilot_rules_excluded_tab`, `autopilot_rules_budgets_tab`
+  - Modales : `autopilot_confirm_rollback`, `autopilot_confirm_memorize`, `autopilot_tauri_closing_wait`
+- Synchronisation bilingue des clés i18n (`fr.json` et `en.json` via script Python `utf-8-sig`).
+- *Bénéfice immédiat* : L'utilisateur gagne une visibilité limpide, un contrôle absolu et une réversibilité totale à tout moment.
 
 ---
 
@@ -658,11 +658,11 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 | **T3.5.2** | Recette inconnue sans IA (`VIR INST MLLE MARINE PLAZA`). | Résolution par `resolve_smart_labels_batch`. | Libellé propre, Catégorie `"Revenus divers"` (type `income`). | Catégorie recette assignée, pas d'insertion DB prématurée. | ✅ **PASS** |
 | **T3.5.3** | Marchand caméléon sans règle manuelle (`AMAZON PAYMENTS`). Mode sans IA. | Résolution par `resolve_smart_labels_batch`. | Description `"Amazon"`, Catégorie `"Dépenses diverses"`, `is_multi_category = True`. | Catégorie fourre-tout renseignée, drapeau caméléon préservé. | ✅ **PASS** |
 | **T3.5.4** | Nouvelle catégorie IA valide proposée (`"Jardinage"` pour `CB TRUFFAUT`). | Ingestion avec `call_ollama_batch`. | Catégorie acceptée (longueur valide, pas d'artefact, pas de syntaxe). `category_is_new = True`. | Catégorie validée en mémoire, différée jusqu'au commit. | ✅ **PASS** |
-| **T3.5.5** | Déchet ou hallucination IA (`"Voici la catégorie : {Boutique}"`). | Filtrage par `validate_ai_suggested_category`. | Déchet rejeté par le garde-fou anti-déchet $\to$ Repli déterministe sur `"Dépenses diverses"`. | Hallucination neutralisée, filet de sécurité activé. | ✅ **PASS** |
+| **T3.5.5** | Déchet ou hallucination IA (`"Voici la catégorie : {Boutique}"`). | Filtrage par `validate_ai_suggested_category`. | Déchet rejeté par le garde-fou anti-déchet → Repli déterministe sur `"Dépenses diverses"`. | Hallucination neutralisée, filet de sécurité activé. | ✅ **PASS** |
 | **T3.5.6** | Garde-fou anti-prolifération : Lot avec 5 propositions de nouvelles catégories. | Analyse du lot par `_parse_and_validate_batch_response`. | Maximum 2 nouvelles catégories acceptées dans le lot. Les 3 suivantes basculent sur le filet de sécurité. | Seuil de saturation respecté (max 2), pas d'explosion de l'arbre. | ✅ **PASS** |
-| **T3.5.7** | Proximité lexicale : IA propose `"Alimentations"` alors qu'`"Alimentation"` existe. | Test de similarité Levenshtein/Jaccard. | Détection de proximité $\ge 80\% \to$ Fusion automatique sur la catégorie existante `"Alimentation"`. | Pas de doublon singulier/pluriel créé. | ✅ **PASS** |
+| **T3.5.7** | Proximité lexicale : IA propose `"Alimentations"` alors qu'`"Alimentation"` existe. | Test de similarité Levenshtein/Jaccard. | Détection de proximité ≥ 80% → Fusion automatique sur la catégorie existante `"Alimentation"`. | Pas de doublon singulier/pluriel créé. | ✅ **PASS** |
 | **T3.5.8** | Auto-commit Auto-Pilote sur lot mixte (Amazon + virement + commerçant) avec Auto-Pilote actif. | Ingestion du lot par `AutoPilotService.process_incoming_batch()`. | 100% des opérations insérées en base, Sas d'attente vide (`pending = 0`), notification et fermeture dropzone. | Zéro opération résiduelle dans le Sas d'attente. | ✅ **PASS** |
-| **T3.5.9** | Validation manuelle Sas (`commit_reviewed_transactions`). | Commit de transactions avec catégories fourre-tout et nouvelle IA. | Appel de `ensure_category_exists` $\to$ Les catégories manquantes sont insérées dans `Category` avec le bon type. | Intégrité relationnelle parfaite, catégories persistées en base. | ✅ **PASS** |
+| **T3.5.9** | Validation manuelle Sas (`commit_reviewed_transactions`). | Commit de transactions avec catégories fourre-tout et nouvelle IA. | Appel de `ensure_category_exists` → Les catégories manquantes sont insérées dans `Category` avec le bon type. | Intégrité relationnelle parfaite, catégories persistées en base. | ✅ **PASS** |
 | **T3.5.10** | Protection de l'apprentissage sur les catégories fourre-tout. | Ingestion d'une écriture affectée à `"Dépenses diverses"`. | `learn_label_mapping` n'enregistre aucune règle automatique associant le marchand à `"Dépenses diverses"`. | Marchand non pollué, règle non dénaturée pour les futurs imports. | ✅ **PASS** |
 
 ---

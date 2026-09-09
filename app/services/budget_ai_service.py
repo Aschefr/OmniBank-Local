@@ -15,7 +15,7 @@ from sqlalchemy import or_
 from fastapi import HTTPException
 
 from app.models import Budget, BudgetCategory, Transaction, Category, RecurrenceTemplate
-from app.routers.chat import get_ollama_config, call_ollama_sync, call_ollama_async
+from app.services.chat.ollama_client import get_ollama_config, call_ollama_sync, call_ollama_async
 from app.services.finance_engine import predict_next_paycheck
 
 logger = logging.getLogger(__name__)

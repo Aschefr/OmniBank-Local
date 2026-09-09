@@ -195,7 +195,7 @@ def generate_ai_report_task(db_session_factory, force: bool = False):
                     return
 
         # Gather financial data
-        from app.routers.chat import get_financial_summary_tool, forecast_balances_history_tool, detect_anomalies_and_subscriptions_tool
+        from app.services.chat.chat_tools import get_financial_summary_tool, forecast_balances_history_tool, detect_anomalies_and_subscriptions_tool
         
         # Get Ollama configuration directly from DB
         ollama_url = get_config_val(db, "ollama_url", "http://127.0.0.1:11434")
