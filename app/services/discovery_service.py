@@ -22,8 +22,8 @@ def start_discovery_listener(http_port: int = DEFAULT_HTTP_PORT):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        except Exception:
-            pass
+        except OSError as e:
+            logger.debug(f"[Discovery] SO_REUSEADDR non supporté: {e}")
 
         try:
             import os
@@ -34,8 +34,8 @@ def start_discovery_listener(http_port: int = DEFAULT_HTTP_PORT):
             try:
                 from app.routers.shared_mode import _get_shared_status
                 is_shared = _get_shared_status().get("active", False)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[Discovery] Impossible de lire le statut partagé: {e}")
 
             bind_ip = '0.0.0.0' if (IS_DOCKER or is_shared or enable_discovery) else '127.0.0.1'
             sock.bind((bind_ip, UDP_PORT))

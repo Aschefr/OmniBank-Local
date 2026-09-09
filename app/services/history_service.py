@@ -77,7 +77,8 @@ def check_undo_safety(db, action: ActionHistory) -> dict:
             try:
                 state = json.loads(action.new_state) if action.new_state else {}
                 cat_name = state.get("name", "")
-            except Exception:
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"[History] Impossible de décoder le snapshot catégorie pour l'action {action.id}: {e}")
                 cat_name = ""
 
             if cat_name:
@@ -255,8 +256,8 @@ def undo_action(db, action: ActionHistory):
                                     if st.get("recurrence_id") == recurrence_id:
                                         has_older = True
                                         break
-                                except Exception:
-                                    pass
+                                except (json.JSONDecodeError, TypeError) as e:
+                                    logger.debug(f"[History] Action {old_act.id} new_state JSON invalide: {e}")
 
                             if not has_older:
                                 # Sibling creation action exists, is close, and this is the first transaction.

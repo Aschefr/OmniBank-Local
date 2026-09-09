@@ -133,7 +133,7 @@ def run_simulation(
                 if isinstance(st_date, str):
                     try:
                         st_date = datetime.strptime(st_date, "%Y-%m-%d").date()
-                    except Exception:
+                    except (ValueError, TypeError):
                         st_date = today
                 elif not isinstance(st_date, date):
                     st_date = today
@@ -142,7 +142,7 @@ def run_simulation(
                 if isinstance(end_d, str):
                     try:
                         end_d = datetime.strptime(end_d, "%Y-%m-%d").date()
-                    except Exception:
+                    except (ValueError, TypeError):
                         end_d = None
 
                 events_to_apply.append({
@@ -196,8 +196,8 @@ def run_simulation(
                             # Mémoriser la saisonnalité par mois calendaire (1..12) pour répétition pluriannuelle
                             if hm not in seasonal_salary_by_calendar_month:
                                 seasonal_salary_by_calendar_month[hm] = amt
-                        except Exception:
-                            pass
+                        except (ValueError, TypeError) as e:
+                            logger.debug(f"[Simulateur] Période ou montant historique invalide dans pay_info: {e}")
     except Exception as e:
         logger.warning(f"[Simulateur] Impossible d'estimer la paie automatique: {e}")
 
