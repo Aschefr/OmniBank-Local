@@ -2480,6 +2480,19 @@ select.inline-input:focus option:checked {
 
 /* Print / PDF Export Styles */
 @media print {
+    /* Reset html and body to allow natural multi-page document pagination */
+    html,
+    body {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+
     /* Force Light Theme */
     :root, .theme-dark, body {
         --bg-base: #f4f6f8 !important;
@@ -2495,36 +2508,33 @@ select.inline-input:focus option:checked {
         margin: 10mm;
     }
 
-    /* Hide non-essential UI elements */
+    /* Hide everything on body except #printContainer when printing */
+    body > *:not(#printContainer),
     .app-sidebar,
     .app-header,
     #analyticsPeriod,
     #analyticsReconciled,
     .btn,
     .modal-overlay,
-    .header-actions {
+    .header-actions,
+    .app-toast,
+    .toast,
+    [class*="toast"] {
         display: none !important;
+        visibility: hidden !important;
     }
 
     /* Expand main content */
     .app-container,
     .app-body,
     .app-main {
-        display: block;
-        height: auto;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: visible;
-        background: white !important;
-    }
-
-    body.printing-offline .app-container {
         display: none !important;
     }
 
     #printContainer {
         display: block !important;
+        height: auto !important;
+        overflow: visible !important;
     }
 
     .print-hide {
@@ -2582,6 +2592,12 @@ select.inline-input:focus option:checked {
     #printContainer div {
         overflow: visible !important;
         max-height: none !important;
+    }
+
+    #printContainer [data-type] {
+        display: block !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
     }
 
     #printContainer .data-table {
@@ -5365,7 +5381,7 @@ input[type="range"]::-moz-range-thumb:hover {
     margin-bottom: 20px;
     position: sticky;
     top: -32px;
-    z-index: 20;
+    z-index: 500;
     background: var(--bg-base);
     padding: 24px 0 12px 0;
     margin-top: -32px;
