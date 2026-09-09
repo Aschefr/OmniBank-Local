@@ -1,7 +1,10 @@
+import logging
 from datetime import date
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models import Account, Transaction, GlobalConfig, ExchangeRate
+
+logger = logging.getLogger(__name__)
 
 def get_base_currency(db: Session) -> str:
     conf = db.query(GlobalConfig).filter(GlobalConfig.key == "base_currency").first()
@@ -129,8 +132,10 @@ def get_main_account(db: Session):
             acc = db.query(Account).filter(Account.id == int(conf.value)).first()
             if acc:
                 return acc
-        except Exception:
-            pass
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Configuration 'main_account_id' invalide ('{conf.value}'): {e}")
+        except Exception as e:
+            logger.error(f"Erreur inattendue lors de la récupération du compte principal: {e}", exc_info=True)
     # Auto-detect: account with most outgoing transactions
     from sqlalchemy import func as sqlfunc
     result = db.query(
@@ -370,7 +375,8 @@ def predict_next_paycheck(db: Session):
     try:
         from app.profile_manager import get_active_profile
         active_prof = get_active_profile()
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Impossible de récupérer le profil actif pour le cycle de paie: {e}")
         active_prof = None
 
     if active_prof and active_prof.get("pay_cycle_day"):
@@ -516,14 +522,22 @@ def predict_next_paycheck(db: Session):
                     o_date = date.fromisoformat(o_date_str)
                     if o_date <= today:
                         current_month_received = True
-                except Exception:
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Date d'override de salaire invalide '{o_date_str}': {e}")
+                    current_month_received = True
+                except Exception as e:
+                    logger.error(f"Erreur inattendue lors de la vérification de l'override '{o_date_str}': {e}")
                     current_month_received = True
             o_amount = float(override_amount_conf.value) if override_amount_conf and override_amount_conf.value else 0.0
             historical_amounts.append(o_amount)
             
             try:
                 historical_days.append(date.fromisoformat(o_date_str).day)
-            except Exception:
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Format de date d'override de salaire invalide '{o_date_str}': {e}")
+                historical_days.append(base_pay_day)
+            except Exception as e:
+                logger.error(f"Erreur inattendue lors de l'extraction du jour d'override '{o_date_str}': {e}")
                 historical_days.append(base_pay_day)
                 
             history_records.append({
@@ -638,8 +652,10 @@ def predict_next_paycheck(db: Session):
                     "history": history_records,
                     "logical_period": logical_period_str
                 }
-        except Exception:
-            pass
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Configuration d'override de salaire invalide: {e}")
+        except Exception as e:
+            logger.error(f"Erreur inattendue lors de l'application de l'override de salaire: {e}", exc_info=True)
             
     try:
         next_pay_date = date(logical_y, logical_m, predicted_day)

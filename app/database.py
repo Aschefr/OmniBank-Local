@@ -73,14 +73,14 @@ def _configure_sqlite_pragmas(target_engine: Engine):
         old_isolation = getattr(dbapi_connection, "isolation_level", None)
         try:
             dbapi_connection.isolation_level = None  # Autocommit mode to prevent PRAGMAs from opening an uncommitted transaction
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[DB] Impossible de définir isolation_level=None: {e}")
 
         cursor = dbapi_connection.cursor()
         try:
             cursor.execute("PRAGMA busy_timeout=30000")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[DB] PRAGMA busy_timeout=30000 échoué: {e}")
 
         # Mode journal SQLite adapté à l'environnement :
         # - En mode Desktop natif packagé (Tauri / PyInstaller dans %APPDATA%) : WAL pour performances maximales et lectures concurrentes.
@@ -99,29 +99,29 @@ def _configure_sqlite_pragmas(target_engine: Engine):
             logger.warning(f"[DB] PRAGMA journal_mode={target_journal_mode} failed, falling back: {e}")
             try:
                 cursor.execute("PRAGMA journal_mode=DELETE" if target_journal_mode == "WAL" else "PRAGMA journal_mode=MEMORY")
-            except Exception:
-                pass
+            except Exception as e_fallback:
+                logger.error(f"[DB] Échec du repli journal_mode: {e_fallback}")
 
         try:
             cursor.execute("PRAGMA synchronous=NORMAL")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[DB] PRAGMA synchronous=NORMAL échoué: {e}")
 
         try:
             cursor.execute("PRAGMA cache_size=-20000")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[DB] PRAGMA cache_size=-20000 échoué: {e}")
 
         if not IS_DOCKER:
             try:
                 cursor.execute("PRAGMA mmap_size=268435456")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"[DB] PRAGMA mmap_size=268435456 échoué: {e}")
 
         try:
             cursor.execute("PRAGMA temp_store=MEMORY")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[DB] PRAGMA temp_store=MEMORY échoué: {e}")
 
         # Fonction SQL personnalisée pour les recherches permissives (insensibles aux accents et à la casse)
         try:
@@ -132,14 +132,14 @@ def _configure_sqlite_pragmas(target_engine: Engine):
                 return "".join(c for c in unicodedata.normalize('NFD', str(text)) if unicodedata.category(c) != 'Mn').lower()
 
             dbapi_connection.create_function("UNACCENT", 1, _sqlite_unaccent)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[DB] Enregistrement de la fonction SQLite UNACCENT échoué: {e}")
 
         cursor.close()
         try:
             dbapi_connection.isolation_level = old_isolation
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[DB] Impossible de restaurer isolation_level: {e}")
 
 
 def get_engine(profile_id: str = None) -> Engine:
