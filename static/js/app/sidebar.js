@@ -50,7 +50,7 @@ window.AppModules.sidebar = {
 
         const activeAccounts = accounts.filter(a => !a.is_closed);
         const liquidAccounts = activeAccounts.filter(a => !a.is_loan);
-        const loanAccounts = activeAccounts.filter(a => !a.is_loan);
+        const loanAccounts = activeAccounts.filter(a => Boolean(a.is_loan));
 
         const nav = document.getElementById('sidebarAccountsNav');
         const badge = document.getElementById('sidebarAccModeBadge');
@@ -68,6 +68,7 @@ window.AppModules.sidebar = {
         } else {
             if (nav) nav.style.display = 'none';
             this.sidebarAccountMode = 'liquid';
+            localStorage.setItem('omnibank_sidebar_acc_mode', 'liquid');
         }
 
         if (this.sidebarAccountMode === 'loans' && loanAccounts.length > 0) {

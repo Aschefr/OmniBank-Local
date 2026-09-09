@@ -1,0 +1,174 @@
+/**
+ * OmniBank Local - views/recurrences.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Vue Récurrences (timeline, wizard, details) (Lines 12027-12193) ─── */
+/* ── A. VUE RÉCURRENCES ── */
+/* 1. Barre de filtres & recherche */
+body.theme-titanium-dark .rec-filter-bar,
+body.theme-titanium-light .rec-filter-bar {
+    border-radius: 6px !important;
+    position: relative;
+}
+body.theme-titanium-dark .rec-filter-bar {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+body.theme-titanium-light .rec-filter-bar {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.05) !important;
+}
+body.theme-titanium-dark .rec-filter-bar::before,
+body.theme-titanium-light .rec-filter-bar::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 2;
+}
+body.theme-titanium-dark .rec-filter-bar::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light .rec-filter-bar::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .btn-filter,
+body.theme-titanium-light .btn-filter {
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    padding: 4px 10px !important;
+    letter-spacing: 0.2px;
+}
+body.theme-titanium-dark .btn-filter.btn-filter-duration.active {
+    background: #8b5cf6 !important;
+    border-color: #a78bfa !important;
+}
+body.theme-titanium-light .btn-filter.btn-filter-duration.active {
+    background: #7c3aed !important;
+    border-color: #6d28d9 !important;
+}
+body.theme-titanium-dark .btn-filter.btn-filter-period.active,
+body.theme-titanium-dark .btn-filter.btn-filter-reset.active,
+body.theme-titanium-light .btn-filter.btn-filter-period.active,
+body.theme-titanium-light .btn-filter.btn-filter-reset.active {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #ffffff !important;
+}
+
+/* 2. Cartes KPI du haut (Stats récurrences) */
+body.theme-titanium-dark #recurrenceStatsGrid .stat-box,
+body.theme-titanium-light #recurrenceStatsGrid .stat-box {
+    border-radius: 6px !important;
+    position: relative;
+    overflow: hidden !important;
+}
+body.theme-titanium-dark #recurrenceStatsGrid .stat-box {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 10px rgba(0, 0, 0, 0.25) !important;
+}
+body.theme-titanium-light #recurrenceStatsGrid .stat-box {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.05) !important;
+}
+body.theme-titanium-dark #recurrenceStatsGrid .stat-box::before,
+body.theme-titanium-light #recurrenceStatsGrid .stat-box::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+}
+/* Total annuel planifié */
+body.theme-titanium-dark #recurrenceStatsGrid .stat-box:nth-child(1)::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light #recurrenceStatsGrid .stat-box:nth-child(1)::before {
+    background: var(--accent-gradient);
+}
+/* Moyenne mensuelle */
+body.theme-titanium-dark #recurrenceStatsGrid .stat-box:nth-child(2)::before {
+    background: linear-gradient(90deg, #38bdf8 0%, #7dd3fc 50%, #e0f2fe 100%);
+}
+body.theme-titanium-light #recurrenceStatsGrid .stat-box:nth-child(2)::before {
+    background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #fde68a 100%);
+}
+/* Récurrences actives */
+body.theme-titanium-dark #recurrenceStatsGrid .stat-box:nth-child(3)::before {
+    background: linear-gradient(90deg, #8b5cf6 0%, #a78bfa 50%, #ede9fe 100%);
+}
+body.theme-titanium-light #recurrenceStatsGrid .stat-box:nth-child(3)::before {
+    background: linear-gradient(90deg, #7c3aed 0%, #8b5cf6 50%, #ddd6fe 100%);
+}
+/* Taux de rapprochement */
+body.theme-titanium-dark #recurrenceStatsGrid .stat-box:nth-child(4)::before {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #a7f3d0 100%);
+}
+body.theme-titanium-light #recurrenceStatsGrid .stat-box:nth-child(4)::before {
+    background: linear-gradient(90deg, #059669 0%, #10b981 50%, #6ee7b7 100%);
+}
+
+/* 3. Panneau principal & table de récurrences */
+body.theme-titanium-dark .recurrences-main-card,
+body.theme-titanium-light .recurrences-main-card {
+    border-radius: 6px !important;
+    position: relative;
+}
+body.theme-titanium-dark .recurrences-main-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 12px rgba(0, 0, 0, 0.3) !important;
+}
+body.theme-titanium-light .recurrences-main-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.06) !important;
+}
+body.theme-titanium-dark .recurrences-main-card::before,
+body.theme-titanium-light .recurrences-main-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 2;
+}
+body.theme-titanium-dark .recurrences-main-card::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light .recurrences-main-card::before {
+    background: var(--accent-gradient);
+}
+
+/* En-tête table et Gantt */
+body.theme-titanium-dark #recurrencesTableContainer .data-table th,
+body.theme-titanium-dark .gantt-header {
+    background: #1e232b !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+    font-size: 11px !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+body.theme-titanium-light #recurrencesTableContainer .data-table th,
+body.theme-titanium-light .gantt-header {
+    background: #ede9e0 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.10) !important;
+    font-size: 11px !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+body.theme-titanium-dark .gantt-popover,
+body.theme-titanium-light .gantt-popover {
+    border-radius: 6px !important;
+}
+
+
+

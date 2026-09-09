@@ -1,0 +1,59 @@
+/**
+ * OmniBank Local - components/badges.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Badges génériques et spécifiques dans toute l'application (Lines 12605-12656) ─── */
+/* Badges génériques et spécifiques dans toute l'application (Dashboard, Vue d'ensemble, Synthèse, Recurrences, etc.) */
+body.theme-titanium-dark .badge,
+body.theme-titanium-light .badge,
+body.theme-titanium-dark .coming-badge,
+body.theme-titanium-light .coming-badge,
+body.theme-titanium-dark .resolves-badge,
+body.theme-titanium-light .resolves-badge,
+body.theme-titanium-dark .ghost-badge,
+body.theme-titanium-light .ghost-badge,
+body.theme-titanium-dark .overview-org-tag,
+body.theme-titanium-light .overview-org-tag,
+body.theme-titanium-dark .overview-health-badge,
+body.theme-titanium-light .overview-health-badge,
+body.theme-titanium-dark .overview-count-pill,
+body.theme-titanium-light .overview-count-pill,
+body.theme-titanium-dark .review-filter-pill,
+body.theme-titanium-light .review-filter-pill,
+body.theme-titanium-dark .license-badge,
+body.theme-titanium-light .license-badge,
+body.theme-titanium-dark .user-picker-badge,
+body.theme-titanium-light .user-picker-badge,
+body.theme-titanium-dark .wizard-type-tag,
+body.theme-titanium-light .wizard-type-tag,
+body.theme-titanium-dark .notif-tab-badge,
+body.theme-titanium-light .notif-tab-badge,
+body.theme-titanium-dark #appVersionBadge,
+body.theme-titanium-light #appVersionBadge,
+body.theme-titanium-dark .op-inferred-type-badge,
+body.theme-titanium-light .op-inferred-type-badge,
+body.theme-titanium-dark #op_inferred_type_display,
+body.theme-titanium-light #op_inferred_type_display,
+body.theme-titanium-dark #op_clear_after_save_container,
+body.theme-titanium-light #op_clear_after_save_container,
+body.theme-titanium-dark .btn-filter,
+body.theme-titanium-light .btn-filter,
+body.theme-titanium-dark .recon-btn,
+body.theme-titanium-light .recon-btn,
+body.theme-titanium-dark #op_rec_limit_badge,
+body.theme-titanium-light #op_rec_limit_badge {
+    border-radius: 4px !important;
+}
+
+/* Bascule dans la modale d'opération */
+body.theme-titanium-dark #op_is_recurrent ~ .slider,
+body.theme-titanium-light #op_is_recurrent ~ .slider {
+    border-radius: 4px !important;
+}
+body.theme-titanium-dark #op_is_recurrent ~ .slider-knob,
+body.theme-titanium-light #op_is_recurrent ~ .slider-knob {
+    border-radius: 3px !important;
+}
+
+

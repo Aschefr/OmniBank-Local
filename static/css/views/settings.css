@@ -1,0 +1,809 @@
+/**
+ * OmniBank Local - views/settings.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Tableau des comptes - affichage restreint (Lines 3998-4084) ─── */
+/* ── Tableau des comptes - Optimisation affichage restreint ── */
+.accounts-data-table {
+    table-layout: auto !important;
+    width: 100% !important;
+}
+
+.accounts-data-table th,
+.accounts-data-table td {
+    padding: 8px 10px !important;
+    vertical-align: middle;
+}
+
+.accounts-data-table th.acc-col-name,
+.accounts-data-table td.acc-col-name {
+    width: auto;
+    min-width: 130px;
+}
+
+.accounts-data-table th.acc-col-type,
+.accounts-data-table td.acc-col-type {
+    width: 1%;
+    white-space: nowrap !important;
+    min-width: 95px;
+}
+
+.accounts-data-table th.acc-col-feed,
+.accounts-data-table td.acc-col-feed {
+    width: 1%;
+    white-space: nowrap !important;
+    min-width: 115px;
+}
+
+.accounts-data-table th.acc-col-init,
+.accounts-data-table td.acc-col-init {
+    width: 1%;
+    white-space: nowrap !important;
+    text-align: right !important;
+    min-width: 80px;
+    font-size: 12px;
+}
+
+.accounts-data-table th.acc-col-curr,
+.accounts-data-table td.acc-col-curr {
+    width: 1%;
+    white-space: nowrap !important;
+    text-align: right !important;
+    min-width: 85px;
+    font-size: 12px;
+}
+
+.accounts-data-table th.acc-col-actions,
+.accounts-data-table td.acc-col-actions {
+    width: 1%;
+    white-space: nowrap !important;
+    text-align: right !important;
+    min-width: 175px;
+    overflow: visible !important;
+    text-overflow: clip;
+}
+
+.acc-actions-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    white-space: nowrap;
+}
+
+.acc-actions-wrap .acc-action-btn {
+    margin-right: 0 !important;
+}
+
+@media (max-width: 768px) {
+    .accounts-data-table th,
+    .accounts-data-table td {
+        padding: 6px 8px !important;
+    }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(2px); }
+}
+
+
+/* ─── Section: Phase 9: Config user management panel (Lines 4296-4325) ─── */
+/* ── Phase 9: Config user management panel ────────────────────────── */
+.org-user-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--bg-base);
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+.org-user-row .org-user-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: 13px;
+}
+.org-user-row .org-user-status {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+.org-user-row .org-user-status.active {
+    background: rgba(54, 179, 126, 0.15);
+    color: var(--success);
+}
+.org-user-row .org-user-status.inactive {
+    background: rgba(255, 86, 48, 0.15);
+    color: var(--danger);
+}
+
+
+/* ─── Section: Theme manager popover menu & config cards (Lines 9437-9698) ─── */
+/* ── Theme Manager Popover Menu & Config Components ── */
+#themeMenuWrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+#themeMenu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 250px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    padding: 8px;
+    z-index: 2500;
+    display: none;
+    user-select: none;
+}
+
+.theme-menu-header {
+    padding: 6px 8px 8px 8px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 6px;
+}
+
+.theme-menu-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.theme-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.theme-menu-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+    color: var(--text-main);
+}
+
+.theme-menu-option:hover {
+    background: var(--bg-surface-hover);
+}
+
+.theme-menu-option.active {
+    background: var(--accent-subtle);
+    border-color: var(--accent-border);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* ── Language Dropdown Menu ── */
+#langMenu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 145px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    padding: 6px;
+    z-index: 2500;
+    display: none;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.lang-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-main);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+    box-sizing: border-box;
+    text-align: left;
+}
+
+.lang-option:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-main);
+}
+
+.lang-option.active {
+    background: var(--accent-subtle);
+    border-color: var(--accent-border);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.lang-option-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lang-option .fi {
+    font-size: 16px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    line-height: 1;
+}
+
+.lang-option .lang-check {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-left: auto;
+}
+
+.theme-option-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.theme-option-icon {
+    font-size: 15px;
+}
+
+.theme-option-name {
+    font-size: 12.5px;
+}
+
+.theme-option-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.theme-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.theme-swatch-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.theme-check {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-left: auto;
+}
+
+/* ── Theme Configuration Cards in Settings ── */
+.theme-config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 14px;
+}
+
+.theme-card {
+    background: var(--bg-surface);
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    user-select: none;
+}
+
+.theme-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.theme-card.active {
+    border-color: var(--accent);
+    background: var(--accent-subtle);
+    box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm);
+}
+
+.theme-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.theme-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 13.5px;
+    color: var(--text-main);
+}
+
+.theme-card-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.theme-card-radio {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    background: transparent;
+    flex-shrink: 0;
+}
+
+.theme-card-radio.active {
+    border-color: var(--accent);
+    background: var(--accent);
+}
+
+.theme-card-radio-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: none;
+}
+
+.theme-card-radio.active .theme-card-radio-dot {
+    display: block;
+}
+
+
+/* ─── Section: Vue Catégories (Lines 12194-12360) ─── */
+/* ── B. VUE CATÉGORIES ── */
+/* 1. Cartes personnalisation & ajout */
+body.theme-titanium-dark .categories-type-card,
+body.theme-titanium-dark .categories-add-card,
+body.theme-titanium-light .categories-type-card,
+body.theme-titanium-light .categories-add-card {
+    border-radius: 6px !important;
+    position: relative;
+}
+body.theme-titanium-dark .categories-type-card,
+body.theme-titanium-dark .categories-add-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 10px rgba(0, 0, 0, 0.25) !important;
+}
+body.theme-titanium-light .categories-type-card,
+body.theme-titanium-light .categories-add-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.05) !important;
+}
+body.theme-titanium-dark .categories-type-card::before,
+body.theme-titanium-dark .categories-add-card::before,
+body.theme-titanium-light .categories-type-card::before,
+body.theme-titanium-light .categories-add-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 2;
+}
+body.theme-titanium-dark .categories-type-card::before,
+body.theme-titanium-dark .categories-add-card::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light .categories-type-card::before,
+body.theme-titanium-light .categories-add-card::before {
+    background: var(--accent-gradient);
+}
+
+/* 2. Les 5 Cartes de Groupes Thématiques avec Liserés Sémantiques */
+body.theme-titanium-dark .category-group-card,
+body.theme-titanium-light .category-group-card {
+    border-radius: 6px !important;
+    position: relative;
+    overflow: hidden !important;
+}
+body.theme-titanium-dark .category-group-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 12px rgba(0, 0, 0, 0.3) !important;
+}
+body.theme-titanium-light .category-group-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.06) !important;
+}
+body.theme-titanium-dark .category-group-card::before,
+body.theme-titanium-light .category-group-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 3;
+}
+
+/* Dépenses fixes : Corail / Rouge */
+body.theme-titanium-dark .category-group-card[data-cat-type="expense_fixed"]::before {
+    background: linear-gradient(90deg, #ef4444 0%, #f87171 50%, #fecaca 100%);
+}
+body.theme-titanium-light .category-group-card[data-cat-type="expense_fixed"]::before {
+    background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #fca5a5 100%);
+}
+body.theme-titanium-dark .category-group-card[data-cat-type="expense_fixed"] .category-group-badge {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #f87171 !important;
+    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+body.theme-titanium-light .category-group-card[data-cat-type="expense_fixed"] .category-group-badge {
+    background: rgba(220, 38, 38, 0.12) !important;
+    color: #b91c1c !important;
+    border: 1px solid rgba(220, 38, 38, 0.25) !important;
+}
+
+/* Dépenses variables : Ambre / Jaune */
+body.theme-titanium-dark .category-group-card[data-cat-type="expense_var"]::before {
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #fef3c7 100%);
+}
+body.theme-titanium-light .category-group-card[data-cat-type="expense_var"]::before {
+    background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #fde68a 100%);
+}
+body.theme-titanium-dark .category-group-card[data-cat-type="expense_var"] .category-group-badge {
+    background: rgba(245, 158, 11, 0.15) !important;
+    color: #fbbf24 !important;
+    border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+body.theme-titanium-light .category-group-card[data-cat-type="expense_var"] .category-group-badge {
+    background: rgba(217, 119, 6, 0.12) !important;
+    color: #b45309 !important;
+    border: 1px solid rgba(217, 119, 6, 0.25) !important;
+}
+
+/* Recettes : Émeraude / Vert */
+body.theme-titanium-dark .category-group-card[data-cat-type="income"]::before {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #a7f3d0 100%);
+}
+body.theme-titanium-light .category-group-card[data-cat-type="income"]::before {
+    background: linear-gradient(90deg, #059669 0%, #10b981 50%, #6ee7b7 100%);
+}
+body.theme-titanium-dark .category-group-card[data-cat-type="income"] .category-group-badge {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #34d399 !important;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+body.theme-titanium-light .category-group-card[data-cat-type="income"] .category-group-badge {
+    background: rgba(5, 150, 105, 0.12) !important;
+    color: #047857 !important;
+    border: 1px solid rgba(5, 150, 105, 0.25) !important;
+}
+
+/* Transferts : Bleu Saphir */
+body.theme-titanium-dark .category-group-card[data-cat-type="transfer"]::before {
+    background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 50%, #dbeafe 100%);
+}
+body.theme-titanium-light .category-group-card[data-cat-type="transfer"]::before {
+    background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #bfdbfe 100%);
+}
+body.theme-titanium-dark .category-group-card[data-cat-type="transfer"] .category-group-badge {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #60a5fa !important;
+    border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+body.theme-titanium-light .category-group-card[data-cat-type="transfer"] .category-group-badge {
+    background: rgba(37, 99, 235, 0.12) !important;
+    color: #1d4ed8 !important;
+    border: 1px solid rgba(37, 99, 235, 0.25) !important;
+}
+
+/* Neutre : Ardoise / Titane */
+body.theme-titanium-dark .category-group-card[data-cat-type="neutral"]::before {
+    background: linear-gradient(90deg, #94a3b8 0%, #cbd5e1 50%, #f1f5f9 100%);
+}
+body.theme-titanium-light .category-group-card[data-cat-type="neutral"]::before {
+    background: linear-gradient(90deg, #78716c 0%, #a8a29e 50%, #e7e5e4 100%);
+}
+body.theme-titanium-dark .category-group-card[data-cat-type="neutral"] .category-group-badge {
+    background: rgba(148, 163, 184, 0.15) !important;
+    color: #cbd5e1 !important;
+    border: 1px solid rgba(148, 163, 184, 0.3) !important;
+}
+body.theme-titanium-light .category-group-card[data-cat-type="neutral"] .category-group-badge {
+    background: rgba(120, 113, 108, 0.12) !important;
+    color: #57534e !important;
+    border: 1px solid rgba(120, 113, 108, 0.25) !important;
+}
+
+body.theme-titanium-dark .category-group-badge,
+body.theme-titanium-light .category-group-badge {
+    border-radius: 4px !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px;
+}
+
+
+
+/* ─── Section: Vue Comptes (Lines 12361-12451) ─── */
+/* ── C. VUE COMPTES ── */
+/* 1. Carte Synchronisation Bancaire & Ajout */
+body.theme-titanium-dark #bankSyncRoot.bank-sync-unified-card,
+body.theme-titanium-dark .accounts-add-card,
+body.theme-titanium-light #bankSyncRoot.bank-sync-unified-card,
+body.theme-titanium-light .accounts-add-card {
+    border-radius: 6px !important;
+    position: relative;
+}
+body.theme-titanium-dark #bankSyncRoot.bank-sync-unified-card,
+body.theme-titanium-dark .accounts-add-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 12px rgba(0, 0, 0, 0.3) !important;
+}
+body.theme-titanium-light #bankSyncRoot.bank-sync-unified-card,
+body.theme-titanium-light .accounts-add-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.06) !important;
+}
+body.theme-titanium-dark #bankSyncRoot.bank-sync-unified-card::before,
+body.theme-titanium-dark .accounts-add-card::before,
+body.theme-titanium-light #bankSyncRoot.bank-sync-unified-card::before,
+body.theme-titanium-light .accounts-add-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 2;
+}
+body.theme-titanium-dark #bankSyncRoot.bank-sync-unified-card::before,
+body.theme-titanium-dark .accounts-add-card::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light #bankSyncRoot.bank-sync-unified-card::before,
+body.theme-titanium-light .accounts-add-card::before {
+    background: var(--accent-gradient);
+}
+
+/* 2. Tableau des comptes */
+body.theme-titanium-dark .accounts-table-card,
+body.theme-titanium-light .accounts-table-card {
+    border-radius: 6px !important;
+    position: relative;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+}
+body.theme-titanium-dark .accounts-table-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 12px rgba(0, 0, 0, 0.3) !important;
+}
+body.theme-titanium-light .accounts-table-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.06) !important;
+}
+body.theme-titanium-dark .accounts-table-card::before,
+body.theme-titanium-light .accounts-table-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 2;
+}
+body.theme-titanium-dark .accounts-table-card::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light .accounts-table-card::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .accounts-table-card .data-table th {
+    background: #1e232b !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+    font-size: 11px !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+body.theme-titanium-light .accounts-table-card .data-table th {
+    background: #ede9e0 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.10) !important;
+    font-size: 11px !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+
+
+/* ─── Section: Vue Actions (Audit) (Lines 12452-12513) ─── */
+/* ── D. VUE ACTIONS (HISTORIQUE D'AUDIT) ── */
+body.theme-titanium-dark .history-table-card,
+body.theme-titanium-light .history-table-card {
+    border-radius: 6px !important;
+    position: relative;
+    overflow: hidden !important;
+}
+body.theme-titanium-dark .history-table-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 12px rgba(0, 0, 0, 0.3) !important;
+}
+body.theme-titanium-light .history-table-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.06) !important;
+}
+body.theme-titanium-dark .history-table-card::before,
+body.theme-titanium-light .history-table-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 2;
+}
+body.theme-titanium-dark .history-table-card::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light .history-table-card::before {
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .history-table-card .data-table th {
+    background: #1e232b !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+    font-size: 14.5px !important;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+}
+body.theme-titanium-light .history-table-card .data-table th {
+    background: #ede9e0 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.10) !important;
+    font-size: 14.5px !important;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+}
+
+body.theme-titanium-dark .history-table-card .badge-success,
+body.theme-titanium-dark .history-table-card .badge-warning,
+body.theme-titanium-dark .history-table-card .badge-danger,
+body.theme-titanium-light .history-table-card .badge-success,
+body.theme-titanium-light .history-table-card .badge-warning,
+body.theme-titanium-light .history-table-card .badge-danger {
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px;
+    padding: 2px 7px !important;
+}
+
+
+
+/* ─── Section: Vue Configuration (Lines 12514-12604) ─── */
+/* ── E. VUE CONFIGURATION ── */
+body.theme-titanium-dark .config-card,
+body.theme-titanium-light .config-card {
+    border-radius: 6px !important;
+    position: relative;
+    overflow: hidden !important;
+}
+body.theme-titanium-dark .config-card {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 12px rgba(0, 0, 0, 0.25) !important;
+}
+body.theme-titanium-light .config-card {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.05) !important;
+}
+body.theme-titanium-dark .config-card::before,
+body.theme-titanium-light .config-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 2;
+}
+body.theme-titanium-dark .config-card::before {
+    background: var(--accent-gradient);
+}
+body.theme-titanium-light .config-card::before {
+    background: var(--accent-gradient);
+}
+
+/* Carte Ollama IA (Liseré Violet) */
+body.theme-titanium-dark .config-ai-card::before {
+    background: linear-gradient(90deg, #8b5cf6 0%, #a78bfa 50%, #ede9fe 100%) !important;
+}
+body.theme-titanium-light .config-ai-card::before {
+    background: linear-gradient(90deg, #7c3aed 0%, #8b5cf6 50%, #ddd6fe 100%) !important;
+}
+
+/* Switchs bascules de précision sous thèmes modernes */
+body.theme-titanium-dark .global-toggle ~ .slider,
+body.theme-titanium-light .global-toggle ~ .slider,
+body.theme-titanium-dark .toggle-switch .slider,
+body.theme-titanium-light .toggle-switch .slider {
+    border-radius: 4px !important;
+}
+body.theme-titanium-dark .global-toggle ~ .slider-knob,
+body.theme-titanium-light .global-toggle ~ .slider-knob,
+body.theme-titanium-dark .toggle-switch .slider::before,
+body.theme-titanium-light .toggle-switch .slider::before {
+    border-radius: 3px !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   7.13 HARMONISATION GLOBALE DES BADGES & PILLS EXECUTIVE (RAYON NET 4px)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Badges du module Synchronisation Bancaire */
+body.theme-titanium-dark .bank-sync-secure-badge,
+body.theme-titanium-light .bank-sync-secure-badge,
+body.theme-titanium-dark .bank-sync-vault-pill,
+body.theme-titanium-light .bank-sync-vault-pill,
+body.theme-titanium-dark #bankSyncVaultPillBtn,
+body.theme-titanium-light #bankSyncVaultPillBtn,
+body.theme-titanium-dark #bankSyncVaultLockedPill,
+body.theme-titanium-light #bankSyncVaultLockedPill,
+body.theme-titanium-dark #bankSyncVaultPill span,
+body.theme-titanium-light #bankSyncVaultPill span,
+body.theme-titanium-dark .bank-connection-status-badge,
+body.theme-titanium-light .bank-connection-status-badge,
+body.theme-titanium-dark .bank-sync-count-tag,
+body.theme-titanium-light .bank-sync-count-tag,
+body.theme-titanium-dark .bank-sync-auto-sync-widget,
+body.theme-titanium-light .bank-sync-auto-sync-widget,
+body.theme-titanium-dark #btnHeaderBgSync,
+body.theme-titanium-light #btnHeaderBgSync {
+    border-radius: 4px !important;
+}
+
+/* Encadrés de connexion bancaire bento */
+body.theme-titanium-dark .bank-connection-item,
+body.theme-titanium-light .bank-connection-item {
+    border-radius: 6px !important;
+}
+body.theme-titanium-dark .bank-connection-item > div > div:first-child,
+body.theme-titanium-light .bank-connection-item > div > div:first-child {
+    border-radius: 4px !important;
+}
+
+

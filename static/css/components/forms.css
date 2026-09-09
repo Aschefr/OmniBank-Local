@@ -1,0 +1,346 @@
+/**
+ * OmniBank Local - components/forms.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Select option styling & custom chevron (Lines 239-314) ─── */
+/* Global select option dropdown contrast fixes */
+select option {
+    background-color: var(--bg-surface) !important;
+    color: var(--text-main) !important;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+select option:disabled {
+    color: var(--text-muted) !important;
+    background-color: var(--bg-base) !important;
+}
+
+select optgroup {
+    background-color: var(--bg-surface) !important;
+    color: var(--accent-light, #818cf8) !important;
+    font-weight: 700;
+    font-size: 11px;
+    font-style: normal;
+    padding: 8px 10px 4px 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.theme-dark select optgroup,
+body.theme-dark select optgroup {
+    background-color: var(--bg-surface, #1e293b) !important;
+    color: var(--accent-light, #a5b4fc) !important;
+}
+
+.theme-dark select option,
+body.theme-dark select option {
+    background-color: var(--bg-surface, #1e293b) !important;
+    color: var(--text-main, #f8fafc) !important;
+}
+
+/* ─── Global Modern Select Styling with Custom Chevron ─────────────────────── */
+select:not([size]):not([multiple]),
+select[size="1"] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: var(--bg-input);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding-right: 28px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    background-size: 11px 11px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+select:not([size]):not([multiple]):hover,
+select[size="1"]:hover {
+    border-color: var(--text-muted);
+    background-color: var(--bg-surface);
+}
+
+select:not([size]):not([multiple]):focus,
+select[size="1"]:focus {
+    border-color: var(--accent);
+    background-color: var(--bg-surface);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+    outline: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+select[multiple],
+select[size]:not([size="1"]) {
+    background-image: none !important;
+    padding-right: 6px !important;
+}
+
+
+/* ─── Section: Excel-like inputs, toggle switch compact (36x20) (Lines 1004-1133) ─── */
+/* Excel-like inputs */
+.inline-input {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 13px;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.inline-input:hover {
+    background-color: var(--bg-surface);
+    border-color: var(--text-muted);
+}
+
+.inline-input:focus {
+    background: var(--bg-surface);
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 0 3px rgba(51, 102, 255, 0.16);
+    outline: none;
+}
+
+/* ── Custom Styled Inputs for Modals & Dialogs (Bank Sync, Vault, etc.) ── */
+.input-styled {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 8px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    outline: none;
+}
+
+.input-styled:hover {
+    background-color: var(--bg-surface);
+    border-color: var(--text-muted);
+}
+
+.input-styled:focus {
+    background-color: var(--bg-surface);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.input-styled::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+select.input-styled {
+    cursor: pointer;
+    background-color: var(--bg-input);
+    color: var(--text-main);
+    padding: 8px 12px;
+}
+
+select.input-styled option {
+    background-color: var(--bg-surface);
+    color: var(--text-main);
+    padding: 8px 10px;
+}
+
+.backend-card {
+    transition: all 0.2s ease;
+}
+
+.backend-card:hover {
+    border-color: var(--accent) !important;
+    background: var(--bg-surface) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Toggle Switch (Compact 36x20) */
+.toggle-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 36px;
+    height: 20px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.toggle-switch .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: var(--border-color);
+    transition: background-color .3s, border-color .3s;
+    border-radius: 20px;
+    box-sizing: border-box;
+}
+
+.toggle-switch .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    top: 3px;
+    background-color: white;
+    transition: transform .3s ease;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.toggle-switch input:checked + .slider {
+    background-color: var(--accent);
+}
+
+.toggle-switch input:checked + .slider:before {
+    transform: translateX(16px);
+}
+
+
+/* ─── Section: Keep-open save confirmation animation (Lines 4085-4096) ─── */
+/* ── Keep-open save confirmation animation ────────────────────────── */
+@keyframes saveConfirm {
+    0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); background: var(--accent); }
+    30%  { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.3); background: #10b981; }
+    60%  { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15); background: #10b981; }
+    100% { box-shadow: 0 4px 14px rgba(0, 112, 243, 0.4); background: var(--accent); }
+}
+
+.btn-save-confirm {
+    animation: saveConfirm 0.7s ease forwards;
+}
+
+
+/* ─── Section: Global toggle switch (Lines 4115-4122) ─── */
+/* ── Global toggle switch ─────────────────────────────────────────── */
+.global-toggle:checked ~ .slider {
+    background-color: var(--accent) !important;
+}
+.global-toggle:checked ~ .slider-knob {
+    transform: translateX(16px);
+}
+
+
+/* ─── Section: Multi-select dropdown component (Lines 4392-4496) ─── */
+/* ─── Multi-select dropdown component ─────────────────────────────────────── */
+.multi-select {
+    position: relative;
+    min-width: 140px;
+    flex: 1;
+    max-width: 220px;
+}
+.multi-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: border-color 0.2s;
+    user-select: none;
+    min-height: 32px;
+}
+.multi-select-trigger:hover {
+    border-color: var(--accent);
+}
+.multi-select-trigger .ms-arrow {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+}
+.multi-select.open .ms-arrow {
+    transform: rotate(180deg);
+}
+.multi-select-trigger .ms-badge {
+    background: var(--accent);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+.multi-select-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    min-width: 220px;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: var(--shadow-md);
+    z-index: 999;
+    padding: 4px;
+}
+.multi-select.open .multi-select-dropdown {
+    display: block;
+}
+.multi-select-dropdown .ms-search {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    margin-bottom: 4px;
+    outline: none;
+}
+.multi-select-dropdown .ms-search:focus {
+    border-color: var(--accent);
+}
+.multi-select-dropdown .ms-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: var(--text-main);
+}
+.multi-select-dropdown .ms-item:hover {
+    background: var(--bg-input);
+}
+.multi-select-dropdown .ms-item input[type="checkbox"] {
+    accent-color: var(--accent);
+    flex-shrink: 0;
+}
+.multi-select-dropdown .ms-item.ms-all {
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 2px;
+    padding-bottom: 6px;
+}
+
+

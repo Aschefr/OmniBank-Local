@@ -1,0 +1,111 @@
+/**
+ * OmniBank Local - themes/titanium.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Executive Titanium (dark) & Albâtre (light) palette variables & color schemes (Lines 77-180) ─── */
+
+/* ── Executive Titanium (Dark) — Gun Metal Satin & Crisp Steel ── */
+.theme-titanium-dark,
+body.theme-titanium-dark {
+    --bg-base: #1c2026;
+    --bg-surface: #232832;
+    --bg-card: #232832;
+    --bg-input: #181c22;
+    --bg-sidebar: #191d24;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: #333c4a;
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --bg-surface-hover: rgba(255, 255, 255, 0.04);
+    --bg-card-hover: #29303c;
+
+    --accent: #60a5fa;
+    --accent-hover: #3b82f6;
+    --accent-rgb: 96, 165, 250;
+    --accent-subtle: rgba(96, 165, 250, 0.12);
+    --accent-border: rgba(96, 165, 250, 0.35);
+    --accent-glow: rgba(96, 165, 250, 0.20);
+    --accent-gradient: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+
+    --metal-bevel: none;
+    --metal-bevel-strong: none;
+    --metal-border: #3b4554;
+    --metal-border-light: #526074;
+    --metal-gunmetal: #232832;
+    --metal-gunmetal-card: #232832;
+
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+
+    --color-expense-fixed: #ef4444;
+    --color-expense-var: #f97316;
+    --color-income: #10b981;
+    --color-transfer: #06b6d4;
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.20);
+    --shadow-md: 0 4px 12px 0 rgba(0, 0, 0, 0.25);
+
+    --bg-reconciled: #1a1e25;
+    --text-reconciled: #718096;
+}
+
+/* ── Executive Albâtre (Light) — Ivoire Lin Chaud & Bronze Ambré ── */
+.theme-titanium-light,
+body.theme-titanium-light {
+    --bg-base: #f7f5f0;
+    --bg-surface: #ffffff;
+    --bg-card: #ffffff;
+    --bg-input: #eeeae2;
+    --bg-sidebar: #efebe4;
+    --text-main: #1c1917;
+    --text-muted: #78716c;
+    --border-color: #e2ddd5;
+    --border-subtle: rgba(0, 0, 0, 0.05);
+    --bg-surface-hover: rgba(194, 94, 0, 0.03);
+    --bg-card-hover: #faf8f5;
+
+    --accent: #c25e00;
+    --accent-hover: #9a4700;
+    --accent-rgb: 194, 94, 0;
+    --accent-subtle: rgba(194, 94, 0, 0.10);
+    --accent-border: rgba(194, 94, 0, 0.30);
+    --accent-glow: rgba(194, 94, 0, 0.18);
+    --accent-gradient: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+
+    --metal-bevel: none;
+    --metal-bevel-strong: none;
+    --metal-border: #d6cfc4;
+    --metal-border-light: #bcb2a4;
+    --metal-gunmetal: #ffffff;
+
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+
+    --color-expense-fixed: #ef4444;
+    --color-expense-var: #f97316;
+    --color-income: #10b981;
+    --color-transfer: #06b6d4;
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 3px 8px 0 rgba(0, 0, 0, 0.06);
+
+    --bg-reconciled: #f8fafc;
+    --text-reconciled: #94a3b8;
+}
+
+:root,
+body.theme-classic-light,
+body.theme-titanium-light {
+    color-scheme: light;
+}
+
+body.theme-dark,
+body.theme-classic-dark,
+body.theme-titanium-dark {
+    color-scheme: dark;
+}
+
+
