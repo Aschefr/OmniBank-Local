@@ -524,6 +524,40 @@ Object.assign(window.BankSyncView, {
         }
     },
 
+    _renderSmartOriginIcon(g) {
+        if (!g || !g.smart_suggested) return '';
+        const conf = typeof g.smart_confidence === 'number' ? Math.round(g.smart_confidence * 100) : 85;
+        let icon = '💡';
+        let tip = window.i18n ? window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique' : 'Suggéré d’après votre historique';
+
+        if (g.smart_source === 'ai') {
+            icon = '✨';
+            tip = (window.i18n && window.i18n.tp)
+                ? window.i18n.tp('smart_review_badge_ai_tip', { confidence: conf })
+                : `🤖 Nommé et classé par l'IA locale (${conf}%)`;
+        } else if (g.smart_is_manual) {
+            icon = '🛡️';
+            tip = (window.i18n && window.i18n.t('smart_review_badge_manual_tip')) || '🏷️ Règle manuelle sanctuarisée';
+        } else if (g.smart_source === 'rule') {
+            icon = '🤖';
+            tip = (window.i18n && window.i18n.t('smart_review_badge_learned_tip')) || '🤖 Règle auto-apprise';
+        } else if (g.smart_source === 'history') {
+            icon = '🕒';
+            tip = (window.i18n && window.i18n.tp)
+                ? window.i18n.tp('smart_review_badge_history_tip', { confidence: conf })
+                : `🕒 Déduit de l'historique (${conf}%)`;
+        } else if (g.smart_is_multi_category || g.smart_source === 'multi_category') {
+            icon = '🔀';
+            tip = (window.i18n && window.i18n.t('smart_review_badge_multi_tip')) || '🔀 Marchand multi-catégories';
+        } else if (g.smart_is_fallback || g.smart_source === 'fallback') {
+            icon = '🛡️';
+            tip = (window.i18n && window.i18n.t('smart_review_badge_fallback_cat_tip')) || '🛡️ Catégorie filet de sécurité (Fourre-tout)';
+        }
+
+        const safeTip = (tip || '').replace(/"/g, '&quot;');
+        return `<span class="smart-origin-icon" title="${safeTip}" style="cursor:help; font-size: 11px; margin-left: 2px;">${icon}</span>`;
+    },
+
     renderGhostBox(container, accountFilter = null) {
         let box = document.getElementById('ghostRowsBox');
         if (!box) {
@@ -674,7 +708,7 @@ Object.assign(window.BankSyncView, {
                 <td style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--text-main);">
                     <div style="display: inline-flex; align-items: center; gap: 4px;">
                         <span>${window.escapeHtml ? window.escapeHtml(g.description) : g.description}</span>
-                        ${isSuggested ? `<span title="${suggestedTip}" style="cursor:help; font-size: 11px;">💡</span>` : ''}
+                        ${this._renderSmartOriginIcon(g)}
                     </div>
                     ${rawSubHtml}
                 </td>
@@ -744,7 +778,7 @@ Object.assign(window.BankSyncView, {
                 <div style="font-size: 13px; font-weight: 600; color: var(--text-main); line-height: 1.3;">
                     <div style="display: flex; align-items: center; gap: 4px;">
                         <span>${window.escapeHtml ? window.escapeHtml(g.description) : g.description}</span>
-                        ${isSuggested ? `<span title="${suggestedTip}" style="cursor:help; font-size: 11px;">💡</span>` : ''}
+                        ${this._renderSmartOriginIcon(g)}
                     </div>
                     ${rawSubHtml}
                 </div>

@@ -932,6 +932,88 @@ def test_autopilot_disabled_delegates_everything_to_sas(db_session):
     assert res["pending"] == 1
 
 
+def test_wero_transfer_not_confused_with_ca_refund(db_session):
+    """
+    Vérifie qu'un virement Wero personnel (ex: 'VIR INST WERO de YOANN VILACA') ne match pas
+    abusivement une écriture 'CA Remboursement Cotisation carte' par inclusion erronée de 'CA' dans 'VILACA'.
+    """
+    import datetime
+    hist_tx = Transaction(
+        description="CA Remboursement Cotisation carte",
+        category="Remboursement",
+        amount=10.15,
+        type="income",
+        date_operation=datetime.date(2026, 8, 1)
+    )
+    db_session.add(hist_tx)
+    db_session.commit()
+
+    raw_label = "VIR INST WERO de YOANN VILACA"
+    res = resolve_smart_label(db_session, raw_label, use_ai_fallback=False, auto_fallback_category=True)
+
+    assert res["description"] != "CA Remboursement Cotisation carte"
+    assert res["category"] != "Remboursement"
+    assert res["source"] == "fallback"
+    assert res["category"] == "Revenus divers"
+
+
+def test_wero_standalone_name_rejected_by_validator():
+    """
+    Vérifie qu'une proposition de nom générique d'application de paiement (ex: 'Wero', 'Paylib', 'Lydia')
+    est strictement rejetée par le garde-fou validate_ai_suggested_name afin de ne pas masquer le vrai destinataire.
+    """
+    from app.services.smart_label_service import validate_ai_suggested_name
+    assert validate_ai_suggested_name("Wero", raw_label="VIR INST WERO de YOANN VILACA", clean_label="WERO DE YOANN VILACA") is None
+    assert validate_ai_suggested_name("Paylib", raw_label="VIR PAYLIB DE DUPONT", clean_label="PAYLIB DUPONT") is None
+    assert validate_ai_suggested_name("Lydia", raw_label="LYDIA REMBOURSEMENT PIERRE", clean_label="LYDIA PIERRE") is None
+    # En revanche, un nom complet contenant le destinataire est accepté
+    assert validate_ai_suggested_name("Yoann Vilaca", raw_label="VIR INST WERO de YOANN VILACA", clean_label="WERO DE YOANN VILACA") == "Yoann Vilaca"
+
+
+def test_pending_sync_smart_source_ai_anti_demotion(db_session):
+    """
+    Vérifie qu'une transaction enrichie par l'IA (smart_source='ai') ou manuellement
+    n'est jamais rétrogradée en 'fallback' (Fourre-tout) lors de la re-évaluation ou de la réouverture du sas.
+    """
+    from app.services.bank_sync_service import re_evaluate_preview_data
+    preview_data = {
+        "accounts": [
+            {
+                "account_id": 1,
+                "account_name": "Compte Courant",
+                "transactions": [
+                    {
+                        "csv_id": "tx_wero_ai_1",
+                        "date_operation": "2026-09-09",
+                        "raw_description": "VIR INST WERO de YOANN VILACA",
+                        "description": "Wero - Yoann Vilaca",
+                        "category": "Transfert",
+                        "amount": 10.15,
+                        "raw_amount": 10.15,
+                        "is_reconciled": False,
+                        "smart_suggested": True,
+                        "smart_source": "ai",
+                        "smart_confidence": 0.85,
+                        "smart_is_fallback": False
+                    }
+                ]
+            }
+        ]
+    }
+    # Exécution de la réévaluation déterministe (sans appel IA)
+    res = re_evaluate_preview_data(db_session, preview_data, use_ai_fallback=False)
+    tx_res = res["accounts"][0]["transactions"][0]
+
+    # Doit rester strictement enrichi par l'IA, sans écrasement par le fallback
+    assert tx_res["smart_source"] == "ai"
+    assert tx_res["category"] == "Transfert"
+    assert tx_res["description"] == "Wero - Yoann Vilaca"
+    assert tx_res["smart_is_fallback"] is False
+
+
+
+
+
 
 
 

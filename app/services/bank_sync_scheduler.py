@@ -468,6 +468,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
         "accounts": accounts_list,
         "matches_by_tx_id": matches_by_tx_id,
         "discrepancies_by_tx_id": discrepancies_by_tx_id,
+        "_ai_analyzed": any(isinstance(v, dict) and v.get("_ai_analyzed") for v in prof_data.values()),
         "vault_unlocked": VaultSessionManager.get_status(profile_id=pid).get("is_unlocked", False)
     }
 
@@ -522,7 +523,8 @@ def save_pending_sync_data(db: Session, conn_id: int, preview_data: Dict[str, An
         # Pour une connexion bancaire en ligne, remplacer intégralement ses comptes par le nouveau relevé
         _PENDING_SYNC_DATA[pid][conn_id] = {
             "updated_at": current_time,
-            "accounts": new_accounts
+            "accounts": new_accounts,
+            "_ai_analyzed": bool(preview_data.get("_ai_analyzed", False))
         }
 
     try:

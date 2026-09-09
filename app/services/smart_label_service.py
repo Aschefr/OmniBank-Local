@@ -122,7 +122,8 @@ def normalize_raw_label(raw: str) -> str:
 _BANNED_AI_NAME_TOKENS = {
     "unknown", "inconnu", "achat", "paiement", "cb", "prlv", "virement", "vir",
     "transaction", "operation", "autre", "none", "null", "n/a", "sans nom",
-    "depense", "facture", "prelevement", "carte", "carte bancaire"
+    "depense", "facture", "prelevement", "carte", "carte bancaire",
+    "wero", "paylib", "lydia"
 }
 
 
@@ -142,7 +143,7 @@ DEFAULT_FALLBACK_EXPENSE_CATEGORY = "Dépenses diverses"
 DEFAULT_FALLBACK_INCOME_CATEGORY = "Revenus divers"
 
 _INCOME_LABEL_REGEX = re.compile(
-    r'\b(VIR(EMENT)?\s+(INST(ANTANE)?)?\s+(DE|RECU)|REMISE\s+CHQ|SALAIRE|CAF|CPAM|AVOIR|REMBOURSEMENT)\b',
+    r'\b(VIR(EMENT)?\s+(INST(ANTANE)?)?(\s+WERO)?\s+(DE|RECU)|WERO\s+(DE|RECU)|REMISE\s+CHQ|SALAIRE|CAF|CPAM|AVOIR|REMBOURSEMENT)\b',
     re.IGNORECASE
 )
 
@@ -358,11 +359,19 @@ def _compute_match_score_precomputed(
     if pat_clean == cand_clean:
         return 1.0
 
-    # Inclusion stricte
-    if pat_clean in cand_clean or cand_clean in pat_clean:
-        min_len = min(len(pat_clean), len(cand_clean))
-        max_len = max(len(pat_clean), len(cand_clean))
-        return 0.85 + 0.15 * (min_len / max_len)
+    # Inclusion stricte au niveau mot / token (mots entiers, pas de sous-chaîne arbitraire interne)
+    # Ex: "NETFLIX" dans "NETFLIX COM", "CARREFOUR" dans "CARREFOUR MARKET"
+    # Ne doit JAMAIS matcher un sous-acronyme bruité (ex: "CA" dans "VILACA" ou "OR" dans "DECATHLON")
+    min_len = min(len(pat_clean), len(cand_clean))
+    max_len = max(len(pat_clean), len(cand_clean))
+    len_ratio = min_len / max_len
+
+    if pat_tokens and cand_tokens:
+        is_token_subset = pat_tokens.issubset(cand_tokens) or cand_tokens.issubset(pat_tokens)
+        if is_token_subset and min_len >= 4 and len_ratio >= 0.35:
+            common = pat_tokens.intersection(cand_tokens)
+            if sig_pat.intersection(sig_cand) or not _GENERIC_TOKENS.issuperset(common):
+                return min(1.0, 0.80 + 0.20 * len_ratio)
 
     if not pat_tokens or not cand_tokens:
         return 0.0

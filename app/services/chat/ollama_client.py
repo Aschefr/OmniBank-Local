@@ -159,12 +159,14 @@ BATCH_SMART_LABEL_SYSTEM_PROMPT = (
     "You are an expert expense classifier and merchant identifier for personal finance.\n"
     "You will receive a list of transaction descriptions, a list of authorized categories, and optionally a list of the user's typical transaction naming habits.\n"
     "For each transaction description, your task is to return:\n"
-    "1. 'name': A clean commercial merchant name or a matching user habit name (e.g. 'Leroy Merlin', 'Spotify', 'Amazon'). Do NOT add conversational filler, sentence output, or emojis. If unsure, return null.\n"
+    "1. 'name': A clean commercial merchant name or a matching user habit name (e.g. 'Leroy Merlin', 'Spotify', 'Amazon'). "
+    "For person-to-person transfers or payment apps (Wero, Paylib, Lydia, Virement), preserve the person's name or full transfer intent (e.g. 'Wero - Yoann Vilaca' or 'Yoann Vilaca'), NEVER output just the standalone app name like 'Wero' or 'Paylib'. "
+    "Do NOT add conversational filler, sentence output, or emojis. If unsure, return null.\n"
     "2. 'category': The single most appropriate category. PREFER categories from the authorized list. If none truly fits, you may propose a concise new category name (2-3 words max, Capitalized, e.g. 'Jardinage', 'Animaux'). Do NOT use generic words like 'Achat', 'Dépense', 'Autre', 'Inconnu'. If totally unsure, return null.\n"
     "Rules:\n"
     "- Return ONLY a valid JSON object mapping each transaction description to {'name': ..., 'category': ...}.\n"
     "Example format:\n"
-    '{"LEROY MERLIN BRICOLAGE 7501": {"name": "Leroy Merlin", "category": "Logement & Maison"}, "TRUFFAUT 92": {"name": "Truffaut", "category": "Jardinage"}, "UNKNOWN": {"name": null, "category": null}}'
+    '{"LEROY MERLIN BRICOLAGE 7501": {"name": "Leroy Merlin", "category": "Logement & Maison"}, "TRUFFAUT 92": {"name": "Truffaut", "category": "Jardinage"}, "VIR INST WERO DE DUPONT": {"name": "Wero - Dupont", "category": "Revenus divers"}, "UNKNOWN": {"name": null, "category": null}}'
 )
 
 _BANNED_AI_CATEGORY_TOKENS = {
