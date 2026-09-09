@@ -75,6 +75,7 @@ if (-not $SkipBuild) {
         --hidden-import "app.database" `
         --hidden-import "app.models" `
         --hidden-import "app.init_data" `
+        --hidden-import "app.migrations" `
         --hidden-import "app.profile_manager" `
         --hidden-import "app.routers.transactions" `
         --hidden-import "app.routers.categories" `
@@ -168,6 +169,7 @@ if (-not $SkipBuild) {
         --hidden-import "app.database" `
         --hidden-import "app.models" `
         --hidden-import "app.init_data" `
+        --hidden-import "app.migrations" `
         --hidden-import "app.profile_manager" `
         --hidden-import "app.routers.transactions" `
         --hidden-import "app.routers.categories" `
