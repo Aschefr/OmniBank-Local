@@ -28,6 +28,8 @@ router = APIRouter(prefix="/api/smart-labels", tags=["smart-labels"])
 class ResolveBatchRequest(BaseModel):
     labels: List[str]
     use_ai_fallback: Optional[bool] = False
+    auto_fallback_category: Optional[bool] = False
+    tx_types: Optional[Dict[str, str]] = None
 
 
 class LearnRequest(BaseModel):
@@ -82,12 +84,19 @@ class MappingOut(BaseModel):
 class SimulateRequest(BaseModel):
     raw_label: str
     use_ai_fallback: Optional[bool] = True
+    auto_fallback_category: Optional[bool] = False
 
 
 @router.post("/resolve-batch")
 def resolve_batch(req: ResolveBatchRequest, db: Session = Depends(get_db)):
-    """Résout un lot de libellés bancaires bruts via les 3 niveaux (règles, fuzzy historique, brut)."""
-    results = resolve_smart_labels_batch(db, req.labels, use_ai_fallback=bool(req.use_ai_fallback))
+    """Résout un lot de libellés bancaires bruts via les 4 niveaux (règles, fuzzy historique, IA, fourre-tout)."""
+    results = resolve_smart_labels_batch(
+        db,
+        req.labels,
+        use_ai_fallback=bool(req.use_ai_fallback),
+        tx_types=req.tx_types,
+        auto_fallback_category=bool(req.auto_fallback_category)
+    )
     return {"results": results}
 
 
@@ -102,7 +111,12 @@ def simulate_smart_label(req: SimulateRequest, db: Session = Depends(get_db)):
     if not raw_label:
         raise HTTPException(status_code=400, detail="Le libellé brut ne peut pas être vide")
 
-    res = resolve_smart_label(db, raw_label, use_ai_fallback=bool(req.use_ai_fallback))
+    res = resolve_smart_label(
+        db,
+        raw_label,
+        use_ai_fallback=bool(req.use_ai_fallback),
+        auto_fallback_category=bool(req.auto_fallback_category)
+    )
 
     source = res.get("source", "none")
     category = res.get("category")
@@ -127,6 +141,8 @@ def simulate_smart_label(req: SimulateRequest, db: Session = Depends(get_db)):
         explanation = "Historique dispersé entre plusieurs catégories sans consensus net (arbitrage requis)."
     elif source == "ignored":
         explanation = "Ce motif bancaire est marqué comme exclu/ignoré de la catégorisation."
+    elif source == "fallback":
+        explanation = "Catégorie assignée par le filet de sécurité déterministe (Dépenses diverses / Revenus divers)."
     else:
         explanation = "Aucune correspondance mathématique trouvée dans les règles ou l'historique."
 
@@ -139,7 +155,9 @@ def simulate_smart_label(req: SimulateRequest, db: Session = Depends(get_db)):
         "is_manual": is_man,
         "is_multi_category": is_multi,
         "explanation": explanation,
-        "mapping_id": res.get("mapping_id")
+        "mapping_id": res.get("mapping_id"),
+        "smart_is_new_category": bool(res.get("smart_is_new_category", False)),
+        "smart_is_fallback": bool(res.get("smart_is_fallback", False))
     }
 
 

@@ -104,14 +104,25 @@ Object.assign(window.BankSyncView, {
 
             if (unrecTxs.length > 0) {
                 const rawLabels = Array.from(new Set(unrecTxs.map(t => t.raw_description || t.description)));
-                const smartRes = await API.post('/api/smart-labels/resolve-batch', { labels: rawLabels });
+                const txTypesMap = {};
+                unrecTxs.forEach(t => {
+                    const raw = t.raw_description || t.description;
+                    const rawAmt = typeof t.raw_amount !== 'undefined' ? parseFloat(t.raw_amount) : (parseFloat(t.amount) || 0);
+                    txTypesMap[raw] = rawAmt < 0 ? 'expense_var' : 'income';
+                });
+                const smartRes = await API.post('/api/smart-labels/resolve-batch', { 
+                    labels: rawLabels,
+                    use_ai_fallback: false,
+                    auto_fallback_category: true,
+                    tx_types: txTypesMap
+                });
                 if (smartRes && smartRes.results) {
                     unrecTxs.forEach(t => {
                         const raw = t.raw_description || t.description;
                         t.raw_description = raw;
                         if (smartRes.results[raw]) {
                             const r = smartRes.results[raw];
-                            if (r.source === 'rule' || r.source === 'history' || r.source === 'multi_category') {
+                            if (r.source === 'rule' || r.source === 'history' || r.source === 'multi_category' || r.source === 'ai' || r.source === 'fallback') {
                                 t.description = r.description;
                                 if (r.category && !t.category) {
                                     t.category = r.category;
@@ -121,6 +132,8 @@ Object.assign(window.BankSyncView, {
                                 t.smart_is_manual = !!r.is_manual;
                                 t.smart_is_provisional = !!r.is_provisional;
                                 t.smart_is_multi_category = !!r.is_multi_category;
+                                t.smart_is_fallback = !!r.smart_is_fallback;
+                                t.smart_is_new_category = !!r.smart_is_new_category;
                                 t.smart_confidence = r.confidence ?? 1.0;
                                 t.smart_mapping_id = r.mapping_id || null;
                             }
@@ -185,15 +198,154 @@ Object.assign(window.BankSyncView, {
 
         this.renderAccountTabs();
         this.setReviewFilter('pending');
+
+        // 2. Consultation asynchrone non-bloquante de l'IA locale avec retour visuel immédiat
+        if (this.isAIEnabled()) {
+            this.runAsyncAiClassification();
+        } else {
+            this.hideAiBanner();
+        }
     },
 
     closeReviewModal() {
         document.getElementById('bankSyncReviewModal').style.display = 'none';
+        this.hideAiBanner();
         this.previewData = null;
         this._reviewSource = 'bank_sync';
         // Masquer la barre CSV
         const csvBar = document.getElementById('reviewCsvBar');
         if (csvBar) csvBar.style.display = 'none';
+    },
+
+    showAiBanner(msg, isSuccess = false) {
+        const banner = document.getElementById('reviewAiStatusBanner');
+        const icon = document.getElementById('reviewAiStatusIcon');
+        const text = document.getElementById('reviewAiStatusText');
+        const spinner = document.getElementById('reviewAiSpinner');
+        if (!banner || !text) return;
+
+        if (isSuccess) {
+            banner.style.background = 'rgba(16, 185, 129, 0.12)';
+            banner.style.border = '1px solid rgba(16, 185, 129, 0.35)';
+            banner.style.color = '#10b981';
+            if (icon) icon.textContent = '✨';
+            if (spinner) spinner.style.display = 'none';
+            text.textContent = msg || ((window.i18n && window.i18n.t('smart_review_ai_banner_idle')) || 'Catégorisation IA terminée');
+            setTimeout(() => {
+                if (banner && banner.style.color === 'rgb(16, 185, 129)') {
+                    banner.style.display = 'none';
+                }
+            }, 3500);
+        } else {
+            banner.style.background = 'rgba(236, 72, 153, 0.12)';
+            banner.style.border = '1px solid rgba(236, 72, 153, 0.35)';
+            banner.style.color = '#ec4899';
+            if (icon) icon.textContent = '🧠';
+            if (spinner) spinner.style.display = 'inline-block';
+            text.textContent = msg || ((window.i18n && window.i18n.t('smart_review_ai_banner_processing')) || "Consultation de l'IA locale (Ollama) en cours pour la catégorisation intelligente...");
+        }
+        banner.style.display = 'flex';
+    },
+
+    hideAiBanner() {
+        const banner = document.getElementById('reviewAiStatusBanner');
+        if (banner) banner.style.display = 'none';
+    },
+
+    async runAsyncAiClassification() {
+        if (!this.previewData || !this.previewData.accounts) return;
+
+        // Identifier les opérations candidates à l'analyse IA (fourre-tout, sans catégorie, ou caméléon non sanctuarisé)
+        const candidates = [];
+        (this.previewData.accounts || []).forEach(acc => {
+            (acc.transactions || []).forEach(tx => {
+                if (!tx.is_reconciled && !tx.is_dismissed && !tx.is_auto_dismissed && !tx._excluded) {
+                    const isCandidate = !tx.category || tx.smart_is_fallback || tx.smart_source === 'fallback' || (tx.smart_source === 'multi_category' && !tx.smart_is_manual);
+                    if (isCandidate) {
+                        candidates.push(tx);
+                    }
+                }
+            });
+        });
+
+        if (candidates.length === 0) {
+            this.hideAiBanner();
+            return;
+        }
+
+        // Afficher immédiatement la bannière animée et désactiver le bouton IA
+        this.showAiBanner();
+        const aiBtn = document.getElementById('btnSyncCategorizeAllAI');
+        if (aiBtn) {
+            aiBtn.disabled = true;
+            aiBtn.innerHTML = `<span>⏳</span> <span>${(window.i18n && window.i18n.t('smart_review_ai_btn_running')) || 'Analyse IA locale...'}</span>`;
+        }
+
+        try {
+            const rawLabels = Array.from(new Set(candidates.map(t => t.raw_description || t.description)));
+            const txTypesMap = {};
+            candidates.forEach(t => {
+                const raw = t.raw_description || t.description;
+                const rawAmt = typeof t.raw_amount !== 'undefined' ? parseFloat(t.raw_amount) : (parseFloat(t.amount) || 0);
+                txTypesMap[raw] = rawAmt < 0 ? 'expense_var' : 'income';
+            });
+
+            const res = await API.post('/api/smart-labels/resolve-batch', {
+                labels: rawLabels,
+                use_ai_fallback: true,
+                auto_fallback_category: true,
+                tx_types: txTypesMap
+            });
+
+            if (res && res.results && this.previewData) {
+                let updatedCount = 0;
+                candidates.forEach(tx => {
+                    const raw = tx.raw_description || tx.description;
+                    const match = res.results[raw];
+                    if (match && (match.source === 'ai' || match.smart_is_new_category || (match.category && match.category !== tx.category))) {
+                        if (match.description && match.description !== raw) {
+                            tx.description = match.description;
+                        }
+                        if (match.category) {
+                            tx.category = match.category;
+                        }
+                        tx.smart_suggested = true;
+                        tx.smart_source = match.source;
+                        tx.smart_confidence = match.confidence ?? 0.85;
+                        tx.smart_is_manual = !!match.is_manual;
+                        tx.smart_is_multi_category = !!match.is_multi_category;
+                        tx.smart_is_fallback = !!match.smart_is_fallback;
+                        tx.smart_is_new_category = !!match.smart_is_new_category;
+                        if (match.mapping_id) {
+                            tx.smart_mapping_id = match.mapping_id;
+                        }
+                        updatedCount++;
+                    }
+                });
+
+                this.renderReviewTable();
+                this.updateReviewSummary();
+
+                if (updatedCount > 0) {
+                    const successMsg = (window.i18n && window.i18n.tp)
+                        ? window.i18n.tp('smart_review_ai_banner_success', { count: updatedCount })
+                        : `Catégorisation IA terminée : ${updatedCount} opération(s) analysée(s)`;
+                    this.showAiBanner(successMsg, true);
+                } else {
+                    this.hideAiBanner();
+                }
+            } else {
+                this.hideAiBanner();
+            }
+        } catch (err) {
+            console.warn('[BankSync] Échec résolution IA asynchrone dans review modal:', err);
+            this.hideAiBanner();
+        } finally {
+            if (aiBtn) {
+                aiBtn.disabled = false;
+                aiBtn.innerHTML = `<span>✨</span> <span>${window.i18n ? window.i18n.t('bank_categorize_all_ai') : 'Tout catégoriser par l\'IA'}</span>`;
+            }
+        }
     },
 
     async purgePendingAndClose() {
@@ -372,7 +524,21 @@ Object.assign(window.BankSyncView, {
         let badgeColor = '';
         let badgeBorder = '';
 
-        if (tx.smart_is_manual) {
+        if (tx.smart_is_new_category) {
+            badgeText = (window.i18n && window.i18n.t('smart_review_badge_new_cat')) || '✨ Nouvelle catégorie';
+            badgeTip = (window.i18n && window.i18n.t('smart_review_badge_new_cat_tip')) || 
+                "✨ Nouvelle catégorie proposée par l'IA\n• Logique : Aucune catégorie existante ne convenait. Cette catégorie sera créée en base lors de la validation.\n• En cas d'erreur : Modifiez la catégorie ci-contre avant de valider.";
+            badgeBg = 'rgba(236, 72, 153, 0.15)';
+            badgeColor = '#ec4899';
+            badgeBorder = 'rgba(236, 72, 153, 0.35)';
+        } else if (tx.smart_is_fallback || tx.smart_source === 'fallback') {
+            badgeText = (window.i18n && window.i18n.t('smart_review_badge_fallback_cat')) || '🛡️ Fourre-tout';
+            badgeTip = (window.i18n && window.i18n.t('smart_review_badge_fallback_cat_tip')) || 
+                "🛡️ Catégorie filet de sécurité\n• Logique : Opération courante non reconnue affectée par défaut au fourre-tout pour garantir un Sas fluide.\n• En cas d'erreur : Modifiez la catégorie ci-contre à tout moment.";
+            badgeBg = 'rgba(107, 114, 128, 0.15)';
+            badgeColor = 'var(--text-muted, #9ca3af)';
+            badgeBorder = 'rgba(107, 114, 128, 0.35)';
+        } else if (tx.smart_is_manual) {
             badgeText = (window.i18n && window.i18n.t('smart_review_badge_manual')) || '🛡️ Règle manuelle';
             badgeTip = (window.i18n && window.i18n.t('smart_review_badge_manual_tip')) || 
                 "🏷️ Règle manuelle sanctuarisée\n• Logique : Nom et catégorie appliqués selon vos réglages personnalisés.\n• En cas d'erreur : Modifiez ou supprimez cette règle dans Paramètres > IA & Automatisation > Règles de correspondance.";
@@ -401,8 +567,12 @@ Object.assign(window.BankSyncView, {
             badgeColor = '#6366f1';
             badgeBorder = 'rgba(99, 102, 241, 0.35)';
         } else if (tx.smart_source === 'ai') {
-            badgeText = `🤖 Suggestion IA (${conf}%)`;
-            badgeTip = `🤖 Nommé et classé par l'IA locale (${conf}%)\n• Logique : L'IA locale a analysé le libellé brut et déduit le commerçant et la catégorie selon vos habitudes.\n• En cas d'erreur : Modifiez le nom ou la catégorie à tout moment.`;
+            badgeText = (window.i18n && window.i18n.tp)
+                ? window.i18n.tp('smart_review_badge_ai', { confidence: conf })
+                : `🤖 Suggestion IA (${conf}%)`;
+            badgeTip = (window.i18n && window.i18n.tp)
+                ? window.i18n.tp('smart_review_badge_ai_tip', { confidence: conf })
+                : `🤖 Nommé et classé par l'IA locale (${conf}%)\n• Logique : L'IA locale a analysé le libellé brut et déduit le commerçant et la catégorie selon vos habitudes.\n• En cas d'erreur : Modifiez le nom ou la catégorie à tout moment.`;
             badgeBg = 'rgba(236, 72, 153, 0.12)';
             badgeColor = '#ec4899';
             badgeBorder = 'rgba(236, 72, 153, 0.35)';
@@ -602,9 +772,16 @@ Object.assign(window.BankSyncView, {
                 ? `${dbDesc}<input type="text" class="sync-desc input-styled" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; border: 1px solid transparent; background: transparent; padding: 4px; color: var(--text-muted);" readonly>${descSublineHtml}` 
                 : `${dbDesc}<input type="text" class="sync-desc input-styled" list="bankSyncDescList" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; padding: 4px;" oninput="window.BankSyncView.onSyncDescInput(${this.currentAccountIndex}, '${tx.csv_id}', this)" onchange="window.BankSyncView.updateTxDesc(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">${descSublineHtml}`;
 
-            const catOptions = `<option value="">${lblSelectCat}</option>` + categories.filter(c => !c.is_closed).map(c => 
-                `<option value="${c.name.replace(/"/g, '&quot;')}" ${tx.category === c.name ? 'selected' : ''}>${c.name}</option>`
-            ).join('');
+            const existingCatNames = new Set(categories.filter(c => !c.is_closed).map(c => (c.name || '').toLowerCase()));
+            const extraCatOption = (tx.category && !existingCatNames.has(tx.category.toLowerCase()))
+                ? `<option value="${tx.category.replace(/"/g, '&quot;')}" selected>${tx.category} ${tx.smart_is_new_category ? (window.i18n ? window.i18n.t('smart_badge_new_cat_inline') || '(Nouvelle)' : '(Nouvelle)') : ''}</option>`
+                : '';
+
+            const catOptions = `<option value="">${lblSelectCat}</option>` +
+                extraCatOption +
+                categories.filter(c => !c.is_closed).map(c => 
+                    `<option value="${c.name.replace(/"/g, '&quot;')}" ${(tx.category && tx.category.toLowerCase() === c.name.toLowerCase()) ? 'selected' : ''}>${c.name}</option>`
+                ).join('');
 
             const aiButtonHtml = (!isRec && aiEnabled) ? `
                 <button class="btn btn-secondary review-ai-btn" style="padding: 3px 6px; font-size: 11px; border-radius: 6px;" onclick="window.BankSyncView.classifyRowWithAI('${tx.csv_id}', this)" title="${(window.i18n ? window.i18n.t('smart_label_ai_classify_tooltip') || 'Nommer et classifier avec l\'IA' : 'Nommer et classifier avec l\'IA').replace(/"/g, '&quot;')}">✨</button>
@@ -1044,6 +1221,8 @@ Object.assign(window.BankSyncView, {
                 tx.smart_confidence = res.confidence ?? 0.85;
                 tx.smart_is_manual = !!res.is_manual;
                 tx.smart_is_multi_category = !!res.is_multi_category;
+                tx.smart_is_fallback = !!res.smart_is_fallback;
+                tx.smart_is_new_category = !!res.smart_is_new_category;
                 if (res.mapping_id) {
                     tx.smart_mapping_id = res.mapping_id;
                 }
@@ -1073,23 +1252,33 @@ Object.assign(window.BankSyncView, {
         const currentAcc = this.previewData.accounts[this.currentAccountIndex];
         if (!currentAcc || !currentAcc.transactions) return;
 
-        const uncatTxs = currentAcc.transactions.filter(t => !t.is_reconciled && !t.category);
+        const uncatTxs = currentAcc.transactions.filter(t => !t.is_reconciled && (!t.category || t.smart_is_fallback || (t.smart_source === 'multi_category' && !t.smart_is_manual)));
         if (uncatTxs.length === 0) {
             this.showToast('Toutes les nouvelles opérations sont déjà catégorisées.', 'info');
             return;
         }
 
+        this.showAiBanner();
         const btn = document.getElementById('btnSyncCategorizeAllAI');
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<span>⏳</span> <span>Nommage et classification IA...</span>';
+            btn.innerHTML = `<span>⏳</span> <span>${(window.i18n && window.i18n.t('smart_review_ai_btn_running')) || 'Analyse IA locale...'}</span>`;
         }
 
         try {
             const rawLabels = Array.from(new Set(uncatTxs.map(t => t.raw_description || t.description)));
+            const txTypesMap = {};
+            uncatTxs.forEach(t => {
+                const raw = t.raw_description || t.description;
+                const rawAmt = typeof t.raw_amount !== 'undefined' ? parseFloat(t.raw_amount) : (parseFloat(t.amount) || 0);
+                txTypesMap[raw] = rawAmt < 0 ? 'expense_var' : 'income';
+            });
+
             const res = await API.post('/api/smart-labels/resolve-batch', { 
                 labels: rawLabels,
-                use_ai_fallback: true
+                use_ai_fallback: true,
+                auto_fallback_category: true,
+                tx_types: txTypesMap
             });
 
             if (res && res.results) {
@@ -1109,6 +1298,8 @@ Object.assign(window.BankSyncView, {
                         tx.smart_confidence = match.confidence ?? 0.85;
                         tx.smart_is_manual = !!match.is_manual;
                         tx.smart_is_multi_category = !!match.is_multi_category;
+                        tx.smart_is_fallback = !!match.smart_is_fallback;
+                        tx.smart_is_new_category = !!match.smart_is_new_category;
                         if (match.mapping_id) {
                             tx.smart_mapping_id = match.mapping_id;
                         }
@@ -1117,9 +1308,22 @@ Object.assign(window.BankSyncView, {
                 });
 
                 this.renderReviewTable();
-                this.showToast(`${updatedCount} opération(s) traitée(s) par le pipeline IA !`, 'success');
+                this.updateReviewSummary();
+
+                if (updatedCount > 0) {
+                    const successMsg = (window.i18n && window.i18n.tp)
+                        ? window.i18n.tp('smart_review_ai_banner_success', { count: updatedCount })
+                        : `Catégorisation IA terminée : ${updatedCount} opération(s) analysée(s)`;
+                    this.showAiBanner(successMsg, true);
+                    this.showToast(`${updatedCount} opération(s) traitée(s) par le pipeline IA !`, 'success');
+                } else {
+                    this.hideAiBanner();
+                }
+            } else {
+                this.hideAiBanner();
             }
         } catch (err) {
+            this.hideAiBanner();
             this.showToast('Erreur IA en lot : ' + (err.detail || err.message), 'error');
         } finally {
             if (btn) {

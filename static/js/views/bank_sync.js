@@ -661,6 +661,14 @@ window.BankSyncView = {
                     </div>
                 </div>
 
+                <div id="reviewAiStatusBanner" style="display: none; margin: 0 0 10px 0; padding: 9px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; align-items: center; justify-content: space-between; gap: 10px; transition: all 0.3s ease;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="reviewAiStatusIcon">🧠</span>
+                        <span id="reviewAiStatusText">${window.i18n ? window.i18n.t('smart_review_ai_banner_processing') : 'Consultation de l\'IA locale (Ollama) en cours...'}</span>
+                    </div>
+                    <div id="reviewAiSpinner" class="spinner-border spinner-border-sm" style="width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                </div>
+
                 <div class="review-table-container">
                     <table class="review-table">
                         <thead class="review-thead">

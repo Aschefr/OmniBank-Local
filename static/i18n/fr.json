@@ -2506,5 +2506,17 @@
   "autopilot_import_complete_toast": "🎉 Auto-Pilote : {total} opérations importées et traitées avec succès ({reconciled} rapprochées, {committed} enregistrées).",
   "autopilot_batch_categorized": "{count} opération(s) catégorisée(s) automatiquement",
   "autopilot_uncategorized_fallback": "Libellé inconnu sans correspondance sûre (laissé à votre arbitrage)",
-  "autopilot_ai_batch_failed": "L'analyse IA locale n'a pas pu classer ce lot, repli déterministe appliqué"
+  "autopilot_ai_batch_failed": "L'analyse IA locale n'a pas pu classer ce lot, repli déterministe appliqué",
+  "smart_review_badge_new_cat": "✨ Nouvelle catégorie",
+  "smart_review_badge_new_cat_tip": "✨ Nouvelle catégorie proposée par l'IA : sera créée dans votre liste de catégories si vous validez l'opération.",
+  "smart_review_badge_fallback_cat": "🛡️ Fourre-tout",
+  "smart_review_badge_fallback_cat_tip": "🛡️ Catégorie filet de sécurité affectée automatiquement pour ne laisser aucune opération orpheline.",
+  "smart_badge_new_cat_inline": "(Nouvelle)",
+  "smart_review_badge_ai": "🤖 Suggestion IA ({confidence}%)",
+  "smart_review_badge_ai_tip": "🤖 Nommé et classé par l'IA locale ({confidence}%)\n• Logique : L'IA locale a analysé le libellé brut et déduit le commerçant et la catégorie selon vos habitudes.\n• En cas d'erreur : Modifiez le nom ou la catégorie à tout moment.",
+  "smart_review_ai_banner_processing": "Consultation de l'IA locale (Ollama) en cours pour la catégorisation intelligente...",
+  "smart_review_ai_banner_success": "Catégorisation IA terminée : {count} opération(s) analysée(s)",
+  "smart_review_ai_banner_idle": "IA prête",
+  "smart_review_row_ai_pending": "⏳ Consultation IA...",
+  "smart_review_ai_btn_running": "Analyse IA locale..."
 }

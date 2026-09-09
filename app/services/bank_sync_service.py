@@ -1033,24 +1033,39 @@ class BankSyncService:
                 "transactions": parsed_txs
             })
 
-        # Résolution automatique des libellés et catégories (Smart Label / Règles bancaires / Historique)
+        # Résolution automatique des libellés et catégories (Smart Label / Règles bancaires / Historique / IA)
         try:
             from app.services.smart_label_service import resolve_smart_labels_batch
+            from app.services.chat.ollama_client import get_ollama_config
+            cfg = get_ollama_config(db)
+            ai_active = bool(cfg and cfg.get("enabled"))
+
             all_raw_labels = []
+            tx_types_map = {}
             for acc in accounts_preview:
                 for tx in acc.get("transactions", []):
                     if not tx.get("is_reconciled"):
-                        all_raw_labels.append(tx.get("raw_description") or tx.get("description") or "")
+                        raw_lbl = tx.get("raw_description") or tx.get("description") or ""
+                        if raw_lbl:
+                            all_raw_labels.append(raw_lbl)
+                            raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
+                            tx_types_map[raw_lbl] = "expense_var" if raw_amt < 0 else "income"
 
             if all_raw_labels:
-                resolutions = resolve_smart_labels_batch(db, all_raw_labels)
+                resolutions = resolve_smart_labels_batch(
+                    db,
+                    all_raw_labels,
+                    use_ai_fallback=ai_active,
+                    tx_types=tx_types_map,
+                    auto_fallback_category=True
+                )
                 for acc in accounts_preview:
                     for tx in acc.get("transactions", []):
                         if not tx.get("is_reconciled"):
                             raw = tx.get("raw_description") or tx.get("description") or ""
                             if raw in resolutions:
                                 res = resolutions[raw]
-                                if res.get("source") in ("rule", "history", "multi_category"):
+                                if res.get("source") in ("rule", "history", "multi_category", "ai", "fallback"):
                                     tx["description"] = res["description"]
                                     if res.get("category"):
                                         tx["category"] = res["category"]
@@ -1059,6 +1074,8 @@ class BankSyncService:
                                     tx["smart_is_manual"] = res.get("is_manual", False)
                                     tx["smart_is_provisional"] = res.get("is_provisional", False)
                                     tx["smart_is_multi_category"] = res.get("is_multi_category", False)
+                                    tx["smart_is_fallback"] = res.get("smart_is_fallback", False)
+                                    tx["smart_is_new_category"] = res.get("smart_is_new_category", False)
                                     tx["smart_confidence"] = res.get("confidence", 0.0)
         except Exception as sl_err:
             logger.warning(f"[BankSync] Erreur résolution smart labels: {sl_err}")
@@ -1201,6 +1218,10 @@ class BankSyncService:
             elif not is_coming:
                 recon_date_val = date.today()
 
+            if item.get("category"):
+                from app.services.smart_label_service import ensure_category_exists
+                ensure_category_exists(db, item["category"], t_type)
+
             new_tx = Transaction(
                 csv_id=csv_id,
                 date_saisie=date.today(),
@@ -1338,7 +1359,7 @@ class BankSyncService:
         return preview
 
 
-def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[str, Any]:
+def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_fallback: bool = False) -> Dict[str, Any]:
     """
     Re-calcule dynamiquement en direct le statut de rapprochement (is_reconciled, already_reconciled,
     matched_db_id, solde pointé local, etc.) d'un aperçu bancaire par rapport à l'état actuel de la base SQLite.
@@ -1507,16 +1528,29 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
 
     # Résolution des libellés intelligents pour toutes les opérations qui ne sont plus rapprochées
     raw_labels = []
+    tx_types_map = {}
     for acc in preview_data.get("accounts", []):
         for tx in acc.get("transactions", []):
             if not tx.get("is_reconciled"):
                 raw_desc = tx.get("raw_description") or tx.get("description") or ""
                 if raw_desc:
                     raw_labels.append(raw_desc)
+                    raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
+                    tx_types_map[raw_desc] = "expense_var" if raw_amt < 0 else "income"
 
     if raw_labels:
         try:
-            smart_resolutions = resolve_smart_labels_batch(db, raw_labels)
+            from app.services.chat.ollama_client import get_ollama_config
+            cfg = get_ollama_config(db)
+            ai_active = bool(use_ai_fallback and cfg and cfg.get("enabled"))
+
+            smart_resolutions = resolve_smart_labels_batch(
+                db,
+                raw_labels,
+                use_ai_fallback=ai_active,
+                tx_types=tx_types_map,
+                auto_fallback_category=True
+            )
             for acc in preview_data.get("accounts", []):
                 for tx in acc.get("transactions", []):
                     if not tx.get("is_reconciled"):
@@ -1524,13 +1558,15 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any]) -> Dict[
                         tx["raw_description"] = raw_desc
                         if raw_desc in smart_resolutions:
                             res = smart_resolutions[raw_desc]
-                            if res.get("source") in ("rule", "history", "multi_category"):
+                            if res.get("source") in ("rule", "history", "multi_category", "ai", "fallback"):
                                 tx["description"] = res["description"]
                                 tx["smart_suggested"] = True
                                 tx["smart_source"] = res.get("source")
                                 tx["smart_is_manual"] = res.get("is_manual", False)
                                 tx["smart_is_provisional"] = res.get("is_provisional", False)
                                 tx["smart_is_multi_category"] = res.get("is_multi_category", False)
+                                tx["smart_is_fallback"] = res.get("smart_is_fallback", False)
+                                tx["smart_is_new_category"] = res.get("smart_is_new_category", False)
                                 tx["smart_confidence"] = res.get("confidence", 0.0)
                                 if not tx.get("category") and res.get("category"):
                                     tx["category"] = res["category"]
