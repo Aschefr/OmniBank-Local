@@ -1103,7 +1103,8 @@ def learn_label_mapping(
             if category:
                 try:
                     counts = json.loads(existing.category_counts) if existing.category_counts else {}
-                except Exception:
+                except (json.JSONDecodeError, TypeError) as e:
+                    logger.warning(f"[SmartLabel] JSON category_counts corrompu pour '{pattern}': {e}")
                     counts = {}
                 counts[category] = counts.get(category, 0) + 1
                 existing.category_counts = json.dumps(counts)
@@ -1116,7 +1117,8 @@ def learn_label_mapping(
         if existing.category_counts:
             try:
                 counts = json.loads(existing.category_counts)
-            except Exception:
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"[SmartLabel] JSON category_counts corrompu pour '{pattern}': {e}")
                 counts = {}
         if category:
             counts[category] = counts.get(category, 0) + 1

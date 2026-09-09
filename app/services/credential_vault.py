@@ -141,7 +141,8 @@ class VaultSessionManager:
         try:
             from app.profile_manager import get_active_profile
             return get_active_profile().get("id", "default")
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[Vault] Impossible de récupérer le profil actif, repli sur 'default': {e}")
             return "default"
 
     @classmethod

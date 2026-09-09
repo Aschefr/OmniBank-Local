@@ -25,7 +25,7 @@ def heuristic_parse(df):
                 
             if parsed.notna().sum() >= len(sample) * 0.8: # 80% success
                 date_col = col
-        except Exception:
+        except (ValueError, TypeError, KeyError):
             pass
 
     # 2. Find Amount Column(s)
@@ -50,7 +50,7 @@ def heuristic_parse(df):
             try:
                 float(x)
                 return True
-            except Exception:
+            except (ValueError, TypeError):
                 return False
                 
         col_lower = str(col).strip().lower()
@@ -72,7 +72,7 @@ def heuristic_parse(df):
                 if math.isnan(parsed) or math.isinf(parsed):
                     return 0.0
                 return parsed
-            except Exception:
+            except (ValueError, TypeError):
                 return 0.0
                 
         df['_merged_amount'] = 0.0
@@ -495,7 +495,7 @@ def extract_all_sections_parsed(
                             if not math.isnan(pot_amt):
                                 file_balance = pot_amt
                                 break
-                        except Exception:
+                        except (ValueError, TypeError):
                             pass
                     if file_balance is None:
                         for val in row:
@@ -506,7 +506,7 @@ def extract_all_sections_parsed(
                                     if pot_amt != 0 and not math.isnan(pot_amt):
                                         file_balance = pot_amt
                                         break
-                            except Exception:
+                            except (ValueError, TypeError):
                                 pass
                 if file_balance is not None:
                     break
@@ -520,7 +520,7 @@ def extract_all_sections_parsed(
                     pd.to_datetime(str(col), format='%d/%m/%Y', errors='raise')
                     is_data_row = True
                     break
-                except Exception:
+                except (ValueError, TypeError):
                     pass
 
         if is_data_row:
@@ -563,7 +563,7 @@ def extract_all_sections_parsed(
                 if math.isnan(v) or math.isinf(v):
                     return 0.0
                 return v
-            except Exception:
+            except (ValueError, TypeError):
                 return 0.0
 
         df['_parsed_amount'] = df[amount_col].apply(_clean_amount_val)
@@ -593,8 +593,10 @@ def extract_all_sections_parsed(
                         if found_acc:
                             target_account = found_acc
                             used_account_ids.add(found_acc.id)
-            except Exception:
-                pass
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                logger.warning(f"[CSVParser] Erreur lecture file_account_mapping: {e}")
+            except Exception as e:
+                logger.error(f"[CSVParser] Erreur inattendue file_account_mapping: {e}")
 
         if not target_account and db_accounts:
             best_acc = None

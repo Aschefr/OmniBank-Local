@@ -65,12 +65,23 @@ def simulate_financial_scenario_tool(db: Session, horizon_months: int = 12, proj
     
     try:
         horizon_months = max(3, min(int(horizon_months), 36))
-    except Exception:
+    except (ValueError, TypeError):
         horizon_months = 12
         
-    one_off = float(one_off_amount or 0.0)
-    rec_monthly = float(recurring_monthly_amount or 0.0)
-    rec_dur = max(1, min(int(recurring_duration_months or horizon_months), horizon_months))
+    try:
+        one_off = float(one_off_amount or 0.0)
+    except (ValueError, TypeError):
+        one_off = 0.0
+
+    try:
+        rec_monthly = float(recurring_monthly_amount or 0.0)
+    except (ValueError, TypeError):
+        rec_monthly = 0.0
+
+    try:
+        rec_dur = max(1, min(int(recurring_duration_months or horizon_months), horizon_months))
+    except (ValueError, TypeError):
+        rec_dur = horizon_months
     p_name = project_name or "Projet Simulé"
     
     custom_events = []

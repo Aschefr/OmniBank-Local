@@ -371,7 +371,8 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
     try:
         paycheck = predict_next_paycheck(db)
         salary = paycheck.get("amount", 0.0) if paycheck else 0.0
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Erreur lors de la prédiction du salaire dans get_budget_summary_tool: {e}")
         salary = 0.0
         
     reference_guidance = None
@@ -820,7 +821,8 @@ def calculate_daily_variable_spending_rate(db: Session, account_id: int, today: 
         paycheck = predict_next_paycheck(db)
         if paycheck and paycheck.get("amount"):
             salary_amount = float(paycheck.get("amount") or 0.0)
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Impossible d'obtenir le montant de paie pour l'étage prudentiel: {e}")
         salary_amount = 0.0
         
     if not salary_amount or salary_amount <= 0:
@@ -828,8 +830,8 @@ def calculate_daily_variable_spending_rate(db: Session, account_id: int, today: 
         if conf_sal and conf_sal.value:
             try:
                 salary_amount = float(conf_sal.value)
-            except Exception:
-                pass
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Valeur invalide pour override_paycheck_amount ('{conf_sal.value}'): {e}")
                 
     if not salary_amount or salary_amount <= 0:
         inc_tpl = db.query(RecurrenceTemplate).filter(
@@ -870,7 +872,7 @@ def forecast_balances_history_tool(db: Session, days: int = 30) -> dict:
     
     try:
         days = int(days)
-    except Exception:
+    except (ValueError, TypeError):
         days = 30
         
     today = date.today()
@@ -1175,7 +1177,8 @@ def get_saving_recommendations_tool(db: Session) -> dict:
             paycheck = predict_next_paycheck(db)
             if paycheck and paycheck.get("amount"):
                 sal = float(paycheck.get("amount") or 0.0)
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Impossible de récupérer le montant de salaire: {e}")
             sal = 0.0
             
         if not sal or sal <= 0:
@@ -1184,8 +1187,8 @@ def get_saving_recommendations_tool(db: Session) -> dict:
             if conf_sal and conf_sal.value:
                 try:
                     sal = float(conf_sal.value)
-                except Exception:
-                    pass
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Valeur invalide pour override_paycheck_amount ('{conf_sal.value}'): {e}")
                     
         if not sal or sal <= 0:
             inc_tpls = get_active_recurrence_templates(db, template_type="income")
