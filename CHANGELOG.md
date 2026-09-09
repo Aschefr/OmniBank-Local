@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - **Simulator Presets Externalization ⚙️**: Extracted static scenario presets from engine source into a decoupled JSON configuration (`simulator_presets.json`).
 - **Centralized Safe Date Parsing 📅**: Unified date parsing across backend services into a robust shared utility (`date_utils.py`) with strict error handling and invalid date resilience.
 - **Automated Cache Invalidation ⚡**: Added `@invalidates_cache` decorator support across core reporting services for automated cache eviction on data updates.
+- **100% Offline Zero-Cloud Asset Bundling 📦**: Bundled all external CDN libraries (Chart.js, KaTeX, Marked.js, DOMPurify, Inter font, Flag icons) directly under `/static/vendor/`, eliminating third-party network requests and ensuring seamless offline operation.
 
 ### Fixed
 - **Chat AI Action JSON Leaks & Interactive Correction 💬**: Eliminated raw JSON leaks in chat assistant messages by introducing a balanced-bracket parser for nested action payloads. Added full interactive review and execution support for AI transaction corrections (`apply_transaction_correction`).
