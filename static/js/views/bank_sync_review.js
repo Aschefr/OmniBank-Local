@@ -96,7 +96,8 @@ Object.assign(window.BankSyncView, {
             const unrecTxs = [];
             (this.previewData?.accounts || []).forEach(acc => {
                 (acc.transactions || []).forEach(t => {
-                    if (!t.is_reconciled) {
+                    const isAlreadyQualified = t.smart_is_manual || t.smart_source === 'ai' || t.smart_source === 'rule' || (t.category && !t.smart_is_fallback);
+                    if (!t.is_reconciled && !isAlreadyQualified) {
                         unrecTxs.push(t);
                     }
                 });
@@ -120,9 +121,28 @@ Object.assign(window.BankSyncView, {
                     unrecTxs.forEach(t => {
                         const raw = t.raw_description || t.description;
                         t.raw_description = raw;
+                        // Ne JAMAIS écraser une transaction déjà qualifiée par l'IA ou règle manuelle
+                        if (t.smart_source === 'ai' || t.smart_source === 'rule' || t.smart_is_manual) {
+                            return;
+                        }
                         if (smartRes.results[raw]) {
                             const r = smartRes.results[raw];
-                            if (r.source === 'rule' || r.source === 'history' || r.source === 'multi_category' || r.source === 'ai' || r.source === 'fallback') {
+                            if (r.source === 'fallback') {
+                                if (!t.category && r.category) {
+                                    t.category = r.category;
+                                }
+                                if (!t.description || t.description === raw) {
+                                    t.description = r.description;
+                                }
+                                if (!t.smart_source || t.smart_source === 'none') {
+                                    t.smart_suggested = true;
+                                    t.smart_source = 'fallback';
+                                    t.smart_is_fallback = true;
+                                    t.smart_confidence = r.confidence ?? 0.5;
+                                }
+                                return;
+                            }
+                            if (r.source === 'rule' || r.source === 'history' || r.source === 'multi_category' || r.source === 'ai') {
                                 t.description = r.description;
                                 if (r.category && !t.category) {
                                     t.category = r.category;
@@ -199,8 +219,14 @@ Object.assign(window.BankSyncView, {
         this.renderAccountTabs();
         this.setReviewFilter('pending');
 
-        // 2. Consultation asynchrone non-bloquante de l'IA locale avec retour visuel immédiat
-        if (this.isAIEnabled()) {
+        // 2. Consultation asynchrone non-bloquante de l'IA locale (une seule fois à la découverte du sas, puis à la demande)
+        const batchSig = this._getBatchSignature(previewData);
+        const alreadyAnalyzed = Boolean(
+            previewData?._ai_analyzed || 
+            (batchSig && this._isBatchAnalyzed(batchSig))
+        );
+
+        if (this.isAIEnabled() && !alreadyAnalyzed) {
             this.runAsyncAiClassification();
         } else {
             this.hideAiBanner();
@@ -215,6 +241,55 @@ Object.assign(window.BankSyncView, {
         // Masquer la barre CSV
         const csvBar = document.getElementById('reviewCsvBar');
         if (csvBar) csvBar.style.display = 'none';
+    },
+
+    _getBatchSignature(previewData) {
+        if (!previewData || !previewData.accounts) return '';
+        const ids = [];
+        previewData.accounts.forEach(acc => {
+            (acc.transactions || []).forEach(tx => {
+                ids.push(tx.csv_id || `${tx.date_operation}_${tx.amount}_${tx.raw_description || tx.description}`);
+            });
+        });
+        return ids.sort().join('|');
+    },
+
+    _isBatchAnalyzed(sig) {
+        if (!sig) return false;
+        try {
+            const raw = sessionStorage.getItem('omnibank_ai_analyzed_batches') || '[]';
+            const set = new Set(JSON.parse(raw));
+            return set.has(sig);
+        } catch (_) {
+            return false;
+        }
+    },
+
+    _markBatchAnalyzed(sig) {
+        if (!sig) return;
+        try {
+            const raw = sessionStorage.getItem('omnibank_ai_analyzed_batches') || '[]';
+            const set = new Set(JSON.parse(raw));
+            set.add(sig);
+            const arr = Array.from(set).slice(-30);
+            sessionStorage.setItem('omnibank_ai_analyzed_batches', JSON.stringify(arr));
+        } catch (_) {}
+    },
+
+    async persistPendingData() {
+        if (!this.previewData || !this.previewData.accounts) return;
+        const connId = this.activeConnId || this.previewData.connection_id || 1;
+        this.saveCachedPreview(connId, this.previewData);
+        try {
+            await API.post('/api/bank-sync/update-pending', {
+                connection_id: connId,
+                accounts: this.previewData.accounts,
+                _source: this._reviewSource,
+                _ai_analyzed: !!this.previewData._ai_analyzed
+            });
+        } catch (e) {
+            console.debug('[BankSync] Échec persistance sas vers backend:', e);
+        }
     },
 
     showAiBanner(msg, isSuccess = false) {
@@ -273,6 +348,12 @@ Object.assign(window.BankSyncView, {
             return;
         }
 
+        // Marquer immédiatement les opérations candidates pour activer l'animation visuelle en ligne
+        candidates.forEach(tx => {
+            tx._ai_analyzing = true;
+        });
+        this.renderReviewTable();
+
         // Afficher immédiatement la bannière animée et désactiver le bouton IA
         this.showAiBanner();
         const aiBtn = document.getElementById('btnSyncCategorizeAllAI');
@@ -300,6 +381,7 @@ Object.assign(window.BankSyncView, {
             if (res && res.results && this.previewData) {
                 let updatedCount = 0;
                 candidates.forEach(tx => {
+                    tx._ai_analyzing = false;
                     const raw = tx.raw_description || tx.description;
                     const match = res.results[raw];
                     if (match && (match.source === 'ai' || match.smart_is_new_category || (match.category && match.category !== tx.category))) {
@@ -319,12 +401,32 @@ Object.assign(window.BankSyncView, {
                         if (match.mapping_id) {
                             tx.smart_mapping_id = match.mapping_id;
                         }
+                        tx._ai_just_updated = true;
                         updatedCount++;
                     }
                 });
 
                 this.renderReviewTable();
                 this.updateReviewSummary();
+
+                if (this.previewData) {
+                    this.previewData._ai_analyzed = true;
+                }
+                const currentSig = this._getBatchSignature(this.previewData);
+                if (currentSig) {
+                    this._markBatchAnalyzed(currentSig);
+                }
+                this.persistPendingData();
+
+                // Estomper l'animation de succès après 3.5s
+                setTimeout(() => {
+                    candidates.forEach(tx => {
+                        delete tx._ai_just_updated;
+                    });
+                    document.querySelectorAll('.review-tx-row.is-ai-updated').forEach(el => {
+                        el.classList.remove('is-ai-updated');
+                    });
+                }, 3500);
 
                 if (updatedCount > 0) {
                     const successMsg = (window.i18n && window.i18n.tp)
@@ -335,10 +437,26 @@ Object.assign(window.BankSyncView, {
                     this.hideAiBanner();
                 }
             } else {
+                candidates.forEach(tx => {
+                    tx._ai_analyzing = false;
+                });
+                if (this.previewData) {
+                    this.previewData._ai_analyzed = true;
+                }
+                const currentSig = this._getBatchSignature(this.previewData);
+                if (currentSig) {
+                    this._markBatchAnalyzed(currentSig);
+                }
+                this.persistPendingData();
+                this.renderReviewTable();
                 this.hideAiBanner();
             }
         } catch (err) {
             console.warn('[BankSync] Échec résolution IA asynchrone dans review modal:', err);
+            candidates.forEach(tx => {
+                tx._ai_analyzing = false;
+            });
+            this.renderReviewTable();
             this.hideAiBanner();
         } finally {
             if (aiBtn) {
@@ -515,7 +633,13 @@ Object.assign(window.BankSyncView, {
     },
 
     _renderSmartBadge(tx) {
-        if (!tx || !tx.smart_suggested) return '';
+        if (!tx || (!tx.smart_suggested && !tx._ai_analyzing)) return '';
+
+        if (tx._ai_analyzing) {
+            const badgeText = (window.i18n && window.i18n.t('smart_review_badge_analyzing')) || '🧠 Analyse IA...';
+            const badgeTip = ((window.i18n && window.i18n.t('smart_review_badge_analyzing_tip')) || "🧠 Opération en cours d'analyse par l'IA locale (Ollama)...").replace(/"/g, '&quot;');
+            return `<span class="badge smart-label-origin-badge review-smart-badge-analyzing" style="background: rgba(236, 72, 153, 0.15); color: #ec4899; border: 1px solid rgba(236, 72, 153, 0.4);" title="${badgeTip}"><span>${badgeText}</span></span>`;
+        }
 
         const conf = typeof tx.smart_confidence === 'number' ? Math.round(tx.smart_confidence * 100) : 100;
         let badgeText = '';
@@ -803,7 +927,13 @@ Object.assign(window.BankSyncView, {
                 ? `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(tx.raw_amount < 0 ? '-' : '+')} ${tx.amount.toFixed(2)} €</span>`
                 : `<input type="number" step="0.01" class="input-styled review-amount-input" value="${tx.amount.toFixed(2)}" style="width: 80px; text-align: right; padding: 4px; font-weight: 700; color: ${amountColor};" onchange="window.BankSyncView.updateTxAmount(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">`;
 
-            let rowStyle = 'border-bottom: 1px solid var(--border-color); transition: opacity 0.2s ease, filter 0.2s ease;';
+            let rowStyle = 'border-bottom: 1px solid var(--border-color); transition: opacity 0.2s ease, filter 0.2s ease, background 0.3s ease;';
+            let extraClass = '';
+            if (tx._ai_analyzing) {
+                extraClass += ' is-ai-analyzing';
+            } else if (tx._ai_just_updated) {
+                extraClass += ' is-ai-updated';
+            }
             if (isExcluded || tx.is_dismissed || tx.is_auto_dismissed) {
                 rowStyle += ' opacity: 0.4; filter: grayscale(0.7);';
             } else if (tx.is_coming) {
@@ -851,7 +981,7 @@ Object.assign(window.BankSyncView, {
             }
 
             return `
-            <tr id="syncRow_${tx.csv_id}" class="review-tx-row ${isExcluded ? 'is-excluded' : ''} ${tx.is_coming ? 'is-coming' : ''} ${alreadyRec ? 'is-already-rec' : ''}" style="${rowStyle}">
+            <tr id="syncRow_${tx.csv_id}" class="review-tx-row ${isExcluded ? 'is-excluded' : ''} ${tx.is_coming ? 'is-coming' : ''} ${alreadyRec ? 'is-already-rec' : ''}${extraClass}" style="${rowStyle}">
                 <td class="review-cell-check" style="padding: 10px 14px; text-align: center;">
                     <input type="checkbox" class="sync-row-check" ${isExcluded ? '' : 'checked'} onchange="window.BankSyncView.toggleTxCheck(${this.currentAccountIndex}, '${tx.csv_id}', this.checked)" title="${lblRowCheck}" style="cursor: pointer; transform: scale(1.15);">
                 </td>
@@ -1000,9 +1130,7 @@ Object.assign(window.BankSyncView, {
         tx.orphan_account_id = null;
         tx.orphan_account_name = null;
 
-        if (this.activeConnId) {
-            this.saveCachedPreview(this.activeConnId, this.previewData);
-        }
+        this.persistPendingData();
 
         this.renderReviewTable();
         const msg = window.i18n ? window.i18n.t('bank_sync_unlink_success') || 'Rapprochement annulé — l\'opération est redevenue nouvelle' : 'Rapprochement annulé — l\'opération est redevenue nouvelle';
@@ -1133,17 +1261,27 @@ Object.assign(window.BankSyncView, {
 
     updateTxDesc(accIdx, csvId, newDesc) {
         const tx = this.previewData.accounts[accIdx]?.transactions.find(t => t.csv_id === csvId);
-        if (tx) tx.description = newDesc;
+        if (tx) {
+            tx.description = newDesc;
+            this.persistPendingData();
+        }
     },
 
     updateTxCat(accIdx, csvId, newCat) {
         const tx = this.previewData.accounts[accIdx]?.transactions.find(t => t.csv_id === csvId);
-        if (tx) tx.category = newCat || null;
+        if (tx) {
+            tx.category = newCat || null;
+            tx.smart_is_manual = true;
+            this.persistPendingData();
+        }
     },
 
     updateTxDate(accIdx, csvId, newDate) {
         const tx = this.previewData.accounts[accIdx]?.transactions.find(t => t.csv_id === csvId);
-        if (tx) tx.date_operation = newDate;
+        if (tx) {
+            tx.date_operation = newDate;
+            this.persistPendingData();
+        }
     },
 
     updateTxAmount(accIdx, csvId, newAmt) {
@@ -1152,6 +1290,7 @@ Object.assign(window.BankSyncView, {
             const val = parseFloat(newAmt) || 0;
             tx.amount = Math.abs(val);
             tx.raw_amount = tx.raw_amount < 0 ? -Math.abs(val) : Math.abs(val);
+            this.persistPendingData();
         }
     },
 
@@ -1198,9 +1337,14 @@ Object.assign(window.BankSyncView, {
         const tx = currentAcc?.transactions.find(t => t.csv_id === csvId);
         if (!tx) return;
 
-        const originalText = btnEl.innerText;
-        btnEl.innerText = '⏳';
-        btnEl.disabled = true;
+        const originalText = btnEl ? btnEl.innerText : '✨';
+        if (btnEl) {
+            btnEl.innerText = '⏳';
+            btnEl.disabled = true;
+        }
+
+        tx._ai_analyzing = true;
+        this.renderReviewTable();
 
         try {
             const rawLabel = tx.raw_description || tx.description;
@@ -1208,6 +1352,8 @@ Object.assign(window.BankSyncView, {
                 raw_label: rawLabel,
                 use_ai_fallback: true 
             });
+
+            tx._ai_analyzing = false;
 
             if (res) {
                 if (res.description) {
@@ -1226,19 +1372,33 @@ Object.assign(window.BankSyncView, {
                 if (res.mapping_id) {
                     tx.smart_mapping_id = res.mapping_id;
                 }
+                tx._ai_just_updated = true;
 
                 this.renderReviewTable();
+                this.persistPendingData();
+
+                setTimeout(() => {
+                    delete tx._ai_just_updated;
+                    const rowEl = document.getElementById(`syncRow_${tx.csv_id}`);
+                    if (rowEl) rowEl.classList.remove('is-ai-updated');
+                }, 3500);
 
                 const catName = res.category || (window.i18n ? window.i18n.t('uncategorized') || 'Non catégorisé' : 'Non catégorisé');
                 const toastTpl = window.i18n ? window.i18n.t('smart_label_ai_classified_toast') : "✨ Nommé '{name}' et classé dans '{category}'";
                 const toastMsg = (toastTpl || "✨ Nommé '{name}' et classé dans '{category}'").replace('{name}', res.description).replace('{category}', catName);
                 this.showToast(toastMsg, 'success');
+            } else {
+                this.renderReviewTable();
             }
         } catch (err) {
+            tx._ai_analyzing = false;
+            this.renderReviewTable();
             this.showToast('Erreur IA : ' + (err.detail || err.message), 'error');
         } finally {
-            btnEl.innerText = originalText;
-            btnEl.disabled = false;
+            if (btnEl) {
+                btnEl.innerText = originalText;
+                btnEl.disabled = false;
+            }
         }
     },
 
@@ -1257,6 +1417,12 @@ Object.assign(window.BankSyncView, {
             this.showToast('Toutes les nouvelles opérations sont déjà catégorisées.', 'info');
             return;
         }
+
+        // Marquer visuellement les lignes en cours d'analyse
+        uncatTxs.forEach(tx => {
+            tx._ai_analyzing = true;
+        });
+        this.renderReviewTable();
 
         this.showAiBanner();
         const btn = document.getElementById('btnSyncCategorizeAllAI');
@@ -1284,6 +1450,7 @@ Object.assign(window.BankSyncView, {
             if (res && res.results) {
                 let updatedCount = 0;
                 uncatTxs.forEach(tx => {
+                    tx._ai_analyzing = false;
                     const raw = tx.raw_description || tx.description;
                     const match = res.results[raw];
                     if (match) {
@@ -1303,12 +1470,32 @@ Object.assign(window.BankSyncView, {
                         if (match.mapping_id) {
                             tx.smart_mapping_id = match.mapping_id;
                         }
+                        tx._ai_just_updated = true;
                         updatedCount++;
                     }
                 });
 
                 this.renderReviewTable();
                 this.updateReviewSummary();
+
+                if (this.previewData) {
+                    this.previewData._ai_analyzed = true;
+                }
+                const currentSig = this._getBatchSignature(this.previewData);
+                if (currentSig) {
+                    this._markBatchAnalyzed(currentSig);
+                }
+                this.persistPendingData();
+
+                // Estomper l'animation de succès après 3.5s
+                setTimeout(() => {
+                    uncatTxs.forEach(tx => {
+                        delete tx._ai_just_updated;
+                    });
+                    document.querySelectorAll('.review-tx-row.is-ai-updated').forEach(el => {
+                        el.classList.remove('is-ai-updated');
+                    });
+                }, 3500);
 
                 if (updatedCount > 0) {
                     const successMsg = (window.i18n && window.i18n.tp)
@@ -1320,9 +1507,17 @@ Object.assign(window.BankSyncView, {
                     this.hideAiBanner();
                 }
             } else {
+                uncatTxs.forEach(tx => {
+                    tx._ai_analyzing = false;
+                });
+                this.renderReviewTable();
                 this.hideAiBanner();
             }
         } catch (err) {
+            uncatTxs.forEach(tx => {
+                tx._ai_analyzing = false;
+            });
+            this.renderReviewTable();
             this.hideAiBanner();
             this.showToast('Erreur IA en lot : ' + (err.detail || err.message), 'error');
         } finally {

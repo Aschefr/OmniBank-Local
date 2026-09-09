@@ -376,20 +376,46 @@ def get_pending_sync_summary(db: Session = Depends(get_db)):
                     if raw_desc in smart_resolutions:
                         res = smart_resolutions[raw_desc]
                         if res.get("source") in ("rule", "history", "multi_category", "ai", "fallback"):
-                            tx["description"] = res["description"]
-                            tx["smart_suggested"] = True
-                            tx["smart_source"] = res.get("source")
-                            tx["smart_is_manual"] = res.get("is_manual", False)
-                            tx["smart_is_provisional"] = res.get("is_provisional", False)
-                            tx["smart_is_multi_category"] = res.get("is_multi_category", False)
-                            tx["smart_is_fallback"] = res.get("smart_is_fallback", False)
-                            tx["smart_is_new_category"] = res.get("smart_is_new_category", False)
-                            tx["smart_confidence"] = res.get("confidence", 0.0)
+                            # Si l'opération a déjà été enrichie par l'IA ou règle manuelle, ne JAMAIS la rétrograder en fallback
+                            if tx.get("smart_source") in ("ai", "rule", "history") or tx.get("smart_is_manual"):
+                                continue
+                            if res.get("source") == "fallback":
+                                if tx.get("category"):
+                                    continue
+                                if tx.get("smart_source") and tx.get("smart_source") != "none":
+                                    continue
+                            if not tx.get("description") or tx.get("description") == raw_desc:
+                                tx["description"] = res["description"]
                             if not tx.get("category") and res.get("category"):
                                 tx["category"] = res["category"]
+                            if not tx.get("smart_source") or tx.get("smart_source") == "none":
+                                tx["smart_suggested"] = True
+                                tx["smart_source"] = res.get("source")
+                                tx["smart_is_manual"] = res.get("is_manual", False)
+                                tx["smart_is_provisional"] = res.get("is_provisional", False)
+                                tx["smart_is_multi_category"] = res.get("is_multi_category", False)
+                                tx["smart_is_fallback"] = res.get("smart_is_fallback", False)
+                                tx["smart_is_new_category"] = res.get("smart_is_new_category", False)
+                                tx["smart_confidence"] = res.get("confidence", 0.0)
 
     stats_cache.set(active_pid, "bank_pending_sync_summary", pending)
     return pending
+
+
+@router.post("/update-pending")
+def update_pending_sync_endpoint(data: Dict[str, Any], db: Session = Depends(get_db)):
+    """
+    Met à jour les données du sas (modifications manuelles de catégories, descriptions, enrichissements IA).
+    """
+    from app.services.bank_sync_scheduler import save_pending_sync_data, _resolve_profile_id
+    from app.services import stats_cache
+    active_pid = get_active_profile().get("id", "default")
+    conn_id = data.get("connection_id", 1)
+    if not data or "accounts" not in data:
+        raise HTTPException(status_code=400, detail="Données de sas requises")
+    save_pending_sync_data(db, conn_id, data, profile_id=active_pid)
+    stats_cache.invalidate(active_pid)
+    return {"ok": True}
 
 
 @router.post("/re-evaluate-preview")
