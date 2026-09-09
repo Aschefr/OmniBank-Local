@@ -13815,3 +13815,89 @@ body.theme-titanium-light .notif-card.unread {
         width: 40px !important;
     }
 }
+
+/* ── Animations IA Revue des opérations synchronisées ── */
+.review-tx-row.is-ai-analyzing {
+    background: rgba(236, 72, 153, 0.08) !important;
+    border-left: 3px solid #ec4899 !important;
+    animation: pulseRowAi 1.6s infinite ease-in-out;
+}
+
+@keyframes pulseRowAi {
+    0%, 100% {
+        background: rgba(236, 72, 153, 0.05);
+    }
+    50% {
+        background: rgba(236, 72, 153, 0.14);
+    }
+}
+
+.review-smart-badge-analyzing {
+    animation: pulseBadgeAi 1.2s infinite ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+}
+
+@keyframes pulseBadgeAi {
+    0%, 100% {
+        opacity: 0.75;
+        transform: scale(0.98);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.02);
+    }
+}
+
+.review-tx-row.is-ai-updated {
+    animation: flashRowUpdated 3s ease forwards;
+}
+
+@keyframes flashRowUpdated {
+    0% {
+        background: rgba(16, 185, 129, 0.28);
+        border-left: 3px solid #10b981;
+    }
+    30% {
+        background: rgba(16, 185, 129, 0.15);
+        border-left: 3px solid #10b981;
+    }
+    100% {
+        background: transparent;
+        border-left: 3px solid transparent;
+    }
+}
+
+.review-tx-row.is-ai-updated .sync-desc,
+.review-tx-row.is-ai-updated .sync-cat {
+    animation: glowInputUpdated 2s ease forwards;
+}
+
+@keyframes glowInputUpdated {
+    0% {
+        border-color: #10b981 !important;
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.4) !important;
+    }
+    100% {
+        border-color: var(--border-color, rgba(255, 255, 255, 0.1));
+        box-shadow: none;
+    }
+}
+
+.review-tx-row.is-ai-updated .review-smart-badge-wrap .badge {
+    animation: popInBadge 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popInBadge {
+    0% {
+        transform: scale(0.6);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+

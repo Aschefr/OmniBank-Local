@@ -2520,5 +2520,7 @@
   "smart_review_row_ai_pending": "⏳ Querying AI...",
   "smart_review_ai_btn_running": "Local AI analyzing...",
   "tool_apply_transaction_correction_title": "Transaction Correction",
-  "chat_action_propose_apply_correction": "Proposes to correct transaction <strong>#{id}</strong> ({fields})"
+  "chat_action_propose_apply_correction": "Proposes to correct transaction <strong>#{id}</strong> ({fields})",
+  "smart_review_badge_analyzing": "🧠 AI Analysis...",
+  "smart_review_badge_analyzing_tip": "🧠 Operation currently being analyzed by local AI (Ollama)..."
 }

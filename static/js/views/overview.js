@@ -1124,7 +1124,7 @@ window.OverviewView = {
                     <td class="ov-td-desc" title="${escapeHtml(g.description || '')}">
                         <div style="display: inline-flex; align-items: center; gap: 4px;">
                             <span>${escapeHtml(g.description || '—')}</span>
-                            ${g.smart_suggested ? `<span title="${window.i18n ? window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique' : 'Suggéré d’après votre historique'}" style="cursor:help; font-size:11px;">💡</span>` : ''}
+                            ${window.BankSyncView && typeof window.BankSyncView._renderSmartOriginIcon === 'function' ? window.BankSyncView._renderSmartOriginIcon(g) : (g.smart_suggested ? `<span title="${window.i18n ? window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique' : 'Suggéré d’après votre historique'}" style="cursor:help; font-size:11px;">💡</span>` : '')}
                         </div>
                         ${rawSubHtml}
                     </td>
