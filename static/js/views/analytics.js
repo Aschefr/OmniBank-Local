@@ -25,7 +25,7 @@ window.AnalyticsView = {
                     <h2 class="view-header-title">📊 <span data-i18n="analytics_title">${window.i18n.t('analytics_title')}</span></h2>
                 </div>
                 <div class="view-header-toolbar">
-                    <div class="filter-pill">
+                    <div id="analyticsPeriodWrapper" class="filter-pill">
                         <span class="filter-pill-label">📅 <span data-i18n="budget_label_period">${window.i18n.t('budget_label_period')}</span></span>
                         <select id="analyticsPeriod" class="filter-pill-select" style="min-width:140px;" onchange="window.AnalyticsView.changeFilter('period', this.value)">
                             <option value="m3" data-i18n="analytics_rolling_3m">${window.i18n.t('analytics_rolling_3m')}</option>
@@ -126,9 +126,11 @@ window.AnalyticsView = {
         const crToggle = document.getElementById('analyticsCustomRangeToggle');
         const crInputs = document.getElementById('analyticsCustomRangeInputs');
         const periodSel = document.getElementById('analyticsPeriod');
+        const periodWrapper = document.getElementById('analyticsPeriodWrapper') || periodSel?.closest('.filter-pill');
         if (crToggle && this.customRange.enabled) {
             crToggle.checked = true;
             if (crInputs) crInputs.style.display = 'flex';
+            if (periodWrapper) periodWrapper.style.display = 'none';
             if (periodSel) periodSel.disabled = true;
             if (this.customRange.start) document.getElementById('analyticsCustomStart').value = this.customRange.start;
             if (this.customRange.end) document.getElementById('analyticsCustomEnd').value = this.customRange.end;
@@ -250,7 +252,9 @@ window.AnalyticsView = {
         ProfileStorage.set('analytics_custom_range_enabled', enabled);
         const inputs = document.getElementById('analyticsCustomRangeInputs');
         const periodSel = document.getElementById('analyticsPeriod');
+        const periodWrapper = document.getElementById('analyticsPeriodWrapper') || periodSel?.closest('.filter-pill');
         if (inputs) inputs.style.display = enabled ? 'flex' : 'none';
+        if (periodWrapper) periodWrapper.style.display = enabled ? 'none' : 'flex';
         if (periodSel) periodSel.disabled = enabled;
 
         if (enabled) {
@@ -381,18 +385,18 @@ window.AnalyticsView = {
         const hasInactive = inactiveCatEntries.length > 0;
 
         const monthHeaders = months.map(mk =>
-            `<th data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;min-width:80px;white-space:nowrap;border-bottom:1px solid ${hbd};position:sticky;top:0;background:var(--bg-surface);z-index:20;">${this.formatShortMonth(mk)}</th>`
+            `<th data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;min-width:80px;white-space:nowrap;border-bottom:1px solid ${hbd};position:${forPrint ? 'static' : 'sticky'};top:0;background:var(--bg-surface);z-index:20;">${this.formatShortMonth(mk)}</th>`
         ).join('');
 
         const yearHeaders = displayYears.map(yr =>
-            `<th data-year="${yr}" data-col-type="year" style="text-align:right;min-width:90px;white-space:normal;line-height:1.2;padding-top:8px;padding-bottom:8px;border-left:${annualSep};border-bottom:1px solid ${hbd};color:var(--text-main);background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);">TOT.<span class="year-br"></span>${yr}</th>`
+            `<th data-year="${yr}" data-col-type="year" style="text-align:right;min-width:90px;white-space:normal;line-height:1.2;padding-top:8px;padding-bottom:8px;border-left:${annualSep};border-bottom:1px solid ${hbd};color:var(--text-main);background:${hb};position:${forPrint ? 'static' : 'sticky'};top:0;z-index:20;backdrop-filter:blur(5px);">TOT.<span class="year-br"></span>${yr}</th>`
         ).join('');
 
         const catW = this._catColWidth || 160;
-        const catStyle = `text-align:left;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:sticky;left:0;top:0;background:var(--bg-surface);z-index:20;box-shadow:3px 0 6px rgba(0,0,0,0.2);box-sizing:border-box;position:sticky;`;
+        const catStyle = `text-align:left;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:${forPrint ? 'static' : 'sticky'};left:0;top:0;background:var(--bg-surface);z-index:20;box-shadow:${forPrint ? 'none' : '3px 0 6px rgba(0,0,0,0.2)'};box-sizing:border-box;`;
 
         let html = `
-        <div data-type="${txType}" style="border:1px solid ${hbd};border-radius:12px;display:flex;flex-direction:column;${forPrint ? '' : 'max-height:75vh;'}">
+        <div data-type="${txType}" style="border:1px solid ${hbd};border-radius:12px;${forPrint ? 'display:block;page-break-inside:auto;break-inside:auto;margin-bottom:20px;' : 'display:flex;flex-direction:column;max-height:75vh;'}">
             <div style="background:${hb};padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${hbd};flex-shrink:0;flex-wrap:wrap;gap:8px;">
                 <span style="font-weight:700;font-size:15px;color:var(--text-main);">${cfg.emoji} ${translatedType}</span>
                 <div class="print-hide" style="display:flex;align-items:center;gap:18px;font-size:12px;color:var(--text-muted);user-select:none;">
@@ -417,7 +421,7 @@ window.AnalyticsView = {
                 <span class="privacy-blur" style="font-size:13px;font-weight:600;color:var(--text-main);">${window.i18n.t('analytics_total_period')} : ${cfg.sign}${formatCurrency(grand_total)}</span>
                 ${hasInactive ? `<button data-inactive-btn="${txType}" class="btn btn-secondary print-hide" style="font-size:11px;padding:3px 10px;opacity:0.7;border-style:dashed;" onclick="window.AnalyticsView.toggleInactiveRows('${txType}')" title="${window.i18n.t('analytics_inactive_cats_tooltip') || 'Catégories sans activité sur cette période — présentes dans l\'historique'}">👁 ${inactiveCatEntries.length} ${window.i18n.t('analytics_inactive_cats') || 'inactives'}</button>` : ''}
             </div>
-            <div style="${forPrint ? '' : 'overflow:auto;'}flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
+            <div style="${forPrint ? 'overflow:visible;' : 'overflow:auto;'}flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
             <table class="data-table" style="min-width:${220 + months.length * 80 + displayYears.length * 90}px;border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
             <thead><tr style="background:var(--bg-surface);">
                 <th data-col-type="cat" style="${catStyle}position:relative;" data-i18n="analytics_th_category">${window.i18n.t('analytics_th_category')}<span class="col-resize-handle" onmousedown="window.AnalyticsView._startResize(event)"></span></th>
@@ -456,9 +460,9 @@ window.AnalyticsView = {
             }).join('');
 
             html += `<tr data-category="${cat.replace(/"/g, '&quot;')}">
-                <td title="${cat.replace(/"/g, '&quot;')}" style="font-weight:500;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;z-index:5;
+                <td title="${cat.replace(/"/g, '&quot;')}" style="font-weight:500;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:${forPrint ? 'static' : 'sticky'};left:0;z-index:5;
                     background:var(--bg-surface);
-                    box-shadow:3px 0 8px rgba(0,0,0,0.25);">${cat}</td>
+                    box-shadow:${forPrint ? 'none' : '3px 0 8px rgba(0,0,0,0.25)'};">${cat}</td>
                 ${monthCells}
                 ${yearCells}
             </tr>`;
@@ -480,9 +484,9 @@ window.AnalyticsView = {
                 </td>`;
             }).join('');
             html += `<tr data-inactive="${txType}" data-category="${cat.replace(/"/g, '&quot;')}" style="display:${showInactive ? '' : 'none'};opacity:0.6;font-style:italic;">
-                <td title="${cat.replace(/"/g, '&quot;')}" style="font-weight:400;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;z-index:5;
+                <td title="${cat.replace(/"/g, '&quot;')}" style="font-weight:400;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:${forPrint ? 'static' : 'sticky'};left:0;z-index:5;
                     background:var(--bg-surface);color:var(--text-muted);
-                    box-shadow:3px 0 8px rgba(0,0,0,0.25);">${cat}</td>
+                    box-shadow:${forPrint ? 'none' : '3px 0 8px rgba(0,0,0,0.25)'};">${cat}</td>
                 ${monthCells}
                 ${yearCells}
             </tr>`;
@@ -491,18 +495,18 @@ window.AnalyticsView = {
         // Total row
         const totalMonthCells = months.map(mk => {
             const v = totals_per_month[mk] || 0;
-            return `<td data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;color:var(--text-main);background:${hb};position:sticky;bottom:0;z-index:20;border-top:2px solid ${hbd};backdrop-filter:blur(5px);"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
+            return `<td data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;color:var(--text-main);background:${hb};position:${forPrint ? 'static' : 'sticky'};bottom:0;z-index:20;border-top:2px solid ${hbd};${forPrint ? '' : 'backdrop-filter:blur(5px);'}"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
         }).join('');
 
         const totalYearCells = displayYears.map(yr => {
             const v = (annual_totals_per_year || {})[yr] || 0;
-            return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};color:var(--text-main);background:${hb};position:sticky;bottom:0;z-index:20;border-top:2px solid ${hbd};backdrop-filter:blur(5px);"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
+            return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};color:var(--text-main);background:${hb};position:${forPrint ? 'static' : 'sticky'};bottom:0;z-index:20;border-top:2px solid ${hbd};${forPrint ? '' : 'backdrop-filter:blur(5px);'}"><span class="privacy-blur">${v > 0 ? formatCurrency(v) : '—'}</span></td>`;
         }).join('');
 
         html += `<tr style="font-weight:700;">
-            <td style="color:var(--text-main);font-weight:700;position:sticky;left:0;bottom:0;z-index:25;padding-left:16px;
+            <td style="color:var(--text-main);font-weight:700;position:${forPrint ? 'static' : 'sticky'};left:0;bottom:0;z-index:25;padding-left:16px;
                 background:var(--bg-surface);border-top:2px solid ${hbd};
-                box-shadow:inset 0 0 0 999px ${hb}, 3px 0 8px rgba(0,0,0,0.3);width:${catW}px;">TOT. ${translatedType.toUpperCase()}</td>
+                box-shadow:${forPrint ? 'none' : `inset 0 0 0 999px ${hb}, 3px 0 8px rgba(0,0,0,0.3)`};width:${catW}px;">TOT. ${translatedType.toUpperCase()}</td>
             ${totalMonthCells}
             ${totalYearCells}
         </tr>`;
@@ -1636,9 +1640,32 @@ window.AnalyticsView = {
                     break-after: page !important;
                     display: block !important;
                 }
+                .print-page-break-before-forced {
+                    page-break-before: always !important;
+                    break-before: page !important;
+                    display: block !important;
+                }
                 .print-page-break-auto {
                     page-break-after: auto !important;
                     break-after: auto !important;
+                }
+                #printContainer [data-type] {
+                    display: block !important;
+                    page-break-inside: auto !important;
+                    break-inside: auto !important;
+                }
+                #printContainer .data-table {
+                    min-width: 0 !important;
+                    page-break-inside: auto !important;
+                    break-inside: auto !important;
+                }
+                #printContainer .data-table tr {
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                }
+                .app-toast, .toast, [class*="toast"] {
+                    display: none !important;
+                    visibility: hidden !important;
                 }
             </style>
         `;
@@ -1790,6 +1817,9 @@ window.AnalyticsView = {
                 }
             }
         });
+
+        // Dismiss any active toast notifications so they never pollute the print output
+        document.querySelectorAll('.app-toast').forEach(t => t.remove());
 
         // Print
         document.body.classList.add('printing-offline');
