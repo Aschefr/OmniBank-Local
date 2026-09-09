@@ -36,10 +36,9 @@ def override_get_db():
     finally:
         db.close()
 
-app.dependency_overrides[get_db] = override_get_db
-
 @pytest.fixture(autouse=True)
 def setup_and_teardown_db():
+    app.dependency_overrides[get_db] = override_get_db
     from app.database import _engines, _session_factories
     _engines['default'] = engine
     _session_factories['default'] = TestingSessionLocal
@@ -48,6 +47,7 @@ def setup_and_teardown_db():
     yield
     stats_cache.invalidate()
     engine.dispose()
+    app.dependency_overrides.pop(get_db, None)
 
 client = TestClient(app)
 
