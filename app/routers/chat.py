@@ -29,45 +29,8 @@ _notify_on_complete = set()
 from app.services.chat.ollama_client import (
     get_ollama_config, call_ollama_sync, call_ollama_async
 )
-from app.services.chat.chat_tools import (
-    TOOLS,
-    get_net_worth_tool,
-    get_balances_tool,
-    get_recent_transactions_tool,
-    search_transactions_tool,
-    get_spending_analytics_tool,
-    get_budgets_status_tool,
-    get_monthly_overview_tool,
-    get_recurrence_templates_tool,
-    get_net_worth_history_tool,
-    get_envelopes_impact_tool,
-    suggest_transaction_category_tool,
-    forecast_balances_history_tool,
-    detect_anomalies_and_subscriptions_tool,
-    apply_transaction_correction_tool,
-    create_budget_envelope_tool,
-    update_budget_envelope_tool,
-    delete_budget_envelope_tool,
-    allocate_savings_funds_tool,
-    create_recurrence_template_tool,
-    update_recurrence_template_tool,
-    delete_recurrence_template_tool,
-    create_category_tool,
-    delete_category_tool,
-    delete_transaction_tool,
-    set_predicted_paycheck_tool,
-    get_saving_recommendations_tool,
-    search_similar_past_spends_tool,
-    generate_csv_export_link_tool,
-    simulate_loan_amortization_tool,
-    get_financial_summary_tool,
-    get_spending_trends_tool,
-    get_dashboard_synthesis_tool,
-    store_financial_fact_tool,
-    forget_financial_fact_tool,
-    audit_transactions_integrity_tool,
-    simulate_financial_scenario_tool,
-)
+from app.services.chat.chat_tools import *  # noqa: F401,F403
+from app.services.chat.chat_tools import TOOLS  # noqa: F401
 from app.services.chat.chat_prompt import load_system_prompt
 from app.services.chat.chat_snapshot import build_entity_snapshots
 from app.services.chat.chat_compression import (
@@ -372,6 +335,26 @@ async def apply_chat_action(req: ChatApplyActionRequest, db: Session = Depends(g
         res = set_predicted_paycheck_tool(db, amount=params.get("amount"), day_of_month=params.get("day_of_month"), date_override=params.get("date_override"), force_write=True)
     elif action == "delete_transaction":
         res = delete_transaction_tool(db, transaction_id=params.get("transaction_id"), force_write=True)
+    elif action == "apply_transaction_correction":
+        t_id = params.get("transaction_id") or params.get("id")
+        updates = params.get("updates", {}) if isinstance(params.get("updates"), dict) else {}
+        cat = params.get("category") or updates.get("category")
+        if cat and isinstance(cat, str):
+            cat = cat.strip()
+        desc = params.get("description") or updates.get("description")
+        if desc and isinstance(desc, str):
+            desc = desc.strip()
+        amt = params.get("amount") if params.get("amount") is not None else updates.get("amount")
+        ttype = params.get("type") or updates.get("type")
+        res = apply_transaction_correction_tool(
+            db,
+            transaction_id=t_id,
+            category=cat,
+            description=desc,
+            amount=amt,
+            type=ttype,
+            force_write=True
+        )
     else:
         raise HTTPException(status_code=400, detail=f"Action '{action}' non reconnue")
         
@@ -623,7 +606,7 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
                     "create_budget_envelope", "update_budget_envelope", "delete_budget_envelope",
                     "allocate_savings_funds", "create_recurrence_template", "update_recurrence_template",
                     "delete_recurrence_template", "create_category", "delete_category", "set_predicted_paycheck",
-                    "delete_transaction"
+                    "delete_transaction", "apply_transaction_correction"
                 }
                 _CACHEABLE_READ_TOOLS = {
                     "get_financial_summary", "get_net_worth", "get_account_balances",

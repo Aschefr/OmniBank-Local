@@ -155,22 +155,22 @@ DUPLICATES & CORRECTIONS RULE:
 - To resolve or eliminate an unreconciled duplicate or unwanted transaction, you MUST call the `delete_transaction` tool (e.g. `delete_transaction(transaction_id=123)`). Never emit empty updates like `{"updates": {}}`.
 
 WRITE ACTIONS RULE (CRITICAL):
-- When you use any write action tools (like `create_budget_envelope`, `update_budget_envelope`, `delete_budget_envelope`, `allocate_savings_funds`, `create_recurrence_template`, `update_recurrence_template`, `delete_recurrence_template`, `create_category`, `delete_category`, `set_predicted_paycheck`, `delete_transaction`), these actions are NOT applied directly in the database.
+- When you use any write action tools (like `apply_transaction_correction`, `create_budget_envelope`, `update_budget_envelope`, `delete_budget_envelope`, `allocate_savings_funds`, `create_recurrence_template`, `update_recurrence_template`, `delete_recurrence_template`, `create_category`, `delete_category`, `set_predicted_paycheck`, `delete_transaction`), these actions are NOT applied directly in the database.
 - Instead, they are placed in a queue requiring user validation.
 - Therefore, in your response text, you MUST NOT say "J'ai mis à jour / créé / modifié / supprimé..." or "I have updated / created / modified / deleted...".
-- Instead, you MUST state that you have **prepared the proposed action** (e.g. prepared the paycheck forecast update or transaction deletion) and that the user must review and validate it.
-- Example (FR): "J'ai préparé la suppression de la saisie manuelle en doublon #123. Veuillez l'examiner et la valider ci-dessous."
-- Example (EN): "I have prepared the duplicate manual transaction deletion #123. Please review and validate it below."""
+- Instead, you MUST state that you have **prepared the proposed action** (e.g. prepared the paycheck forecast update, transaction recategorization or deletion) and that the user must review and validate it.
+- Example (FR): "J'ai préparé la modification de l'opération #123. Veuillez l'examiner et la valider ci-dessous."
+- Example (EN): "I have prepared the transaction modification #123. Please review and validate it below."""
 
     cat_list = ", ".join(f'"{c}"' for c in (categories or []))
     prompt += f"""
 
-IMPORTANT: If you suggest modifying or re-categorizing a transaction, you MUST call `apply_transaction_correction` or append this single-line JSON block immediately at the end of your explanation on its own line:
-{{"id": 123, "updates": {{"category": "New Category", "description": "New description", "amount": -20.5}}}}
-Replace 123 with the real transaction ID, and specify in "updates" the non-empty fields to modify.
-This JSON block will trigger an interactive human-in-the-loop review button in the UI for the user to confirm.
+IMPORTANT: If you suggest modifying or re-categorizing a transaction, you MUST call `apply_transaction_correction` (e.g. `apply_transaction_correction(transaction_id=123, category="Courses")`) or append this single-line JSON block on its own line:
+{{"action": "apply_transaction_correction", "params": {{"transaction_id": 123, "category": "New Category"}}}}
+Never put linebreaks or formatting inside parameter values.
+This action will trigger an interactive human-in-the-loop review button in the UI for the user to confirm.
 EXISTING CATEGORIES (prefer these): {cat_list}
-If none fits, propose a short and precise new category name. Only propose one JSON action at a time."""
+If none fits, propose a short and precise new category name. Only propose one action at a time."""
 
     if db:
         from app.models import AIFact, OrgUser

@@ -2518,5 +2518,7 @@
   "smart_review_ai_banner_success": "Catégorisation IA terminée : {count} opération(s) analysée(s)",
   "smart_review_ai_banner_idle": "IA prête",
   "smart_review_row_ai_pending": "⏳ Consultation IA...",
-  "smart_review_ai_btn_running": "Analyse IA locale..."
+  "smart_review_ai_btn_running": "Analyse IA locale...",
+  "tool_apply_transaction_correction_title": "Correction d'une opération",
+  "chat_action_propose_apply_correction": "Propose de corriger l'opération <strong>#{id}</strong> ({fields})"
 }

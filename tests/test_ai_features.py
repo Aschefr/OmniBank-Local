@@ -255,4 +255,46 @@ def test_detect_anomalies_and_duplicates_accounting_awareness(db_session):
     assert "Saisie manuelle" in dup_bistro["accounting_advice"]
 
 
+def test_apply_chat_action_transaction_correction(db_session):
+    from fastapi.testclient import TestClient
+    from datetime import date
+    from app.main import app
+    from app.database import get_db
+    from app.models import Transaction, Account
+
+    db = db_session
+    acc = Account(name="Compte Test", type="checking", initial_balance=1000.0)
+    db.add(acc)
+    db.commit()
+
+    tx = Transaction(date_operation=date.today(), description="Virement inconnu", amount=182.52, type="expense_var", category="Inconnu", from_account_id=acc.id)
+    db.add(tx)
+    db.commit()
+
+    def override_get_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        client = TestClient(app)
+        payload = {
+            "action": "apply_transaction_correction",
+            "params": {
+                "transaction_id": tx.id,
+                "updates": {
+                    "category": "Remboursement"
+                }
+            }
+        }
+        res = client.post("/api/chat/apply-action", json=payload)
+        assert res.status_code == 200
+        assert res.json()["success"] is True
+
+        db.refresh(tx)
+        assert tx.category == "Remboursement"
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
+
 

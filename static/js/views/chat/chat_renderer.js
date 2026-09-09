@@ -27,46 +27,121 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 }
             }
 
-            // Clean up any stray backtick wrappers
-            rawContent = rawContent.replace(/```(?:action|json)?\s*\n?/g, '').replace(/\n?\s*```/g, '');
-
             // Strip literal \n if present in raw string
             rawContent = rawContent.replace(/\\n/g, '\n');
 
             // Strip TOOLS_USED comment (badges are rendered in renderHistory meta-row)
             rawContent = rawContent.replace(/<!--\s*TOOLS_USED:\s*[^>]+?\s*-->\n?/, '');
-            
-            // Match signature {"id": 123, "updates": {...}} or {"id": 123, "updates": {}}
-            const actionRegex = /\{\s*"id"\s*:\s*\d+\s*,\s*"updates"\s*:\s*\{[^}]*\}\s*\}/g;
-            rawContent = rawContent.replace(actionRegex, (match) => {
-                try {
-                    let actionObj = JSON.parse(match);
-                    if (!actionObj.updates || Object.keys(actionObj.updates).length === 0) {
-                        actionObj = {
+
+            // Robust multi-pass action extractor (supports code-fenced blocks and balanced inline JSON with nested objects)
+            // 1. First, extract actions from ```action ... ``` or ```json ... ``` blocks
+            rawContent = rawContent.replace(/```(?:action|json)?\s*([\s\S]*?)\s*```/g, (match, code) => {
+                const trimmed = code.trim();
+                if (trimmed.startsWith('{') && (trimmed.includes('"action"') || trimmed.includes('"id"'))) {
+                    try {
+                        let sanitized = trimmed.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (m, strVal) => {
+                            return '"' + strVal.replace(/\r?\n/g, ' ').trim() + '"';
+                        });
+                        const parsed = JSON.parse(sanitized);
+                        if (parsed && (parsed.action || parsed.id !== undefined)) {
+                            actions.push(parsed);
+                            return '';
+                        }
+                    } catch(e) {}
+                }
+                return match;
+            });
+
+            // Clean up any stray backtick wrappers
+            rawContent = rawContent.replace(/```(?:action|json)?\s*\n?/g, '').replace(/\n?\s*```/g, '');
+
+            // 2. Scan for inline JSON objects starting with {"action" or {"id" with balanced braces
+            let scanIdx = 0;
+            while (scanIdx < rawContent.length) {
+                const matchPos = rawContent.slice(scanIdx).search(/\{\s*"(?:action|id)"\s*:/);
+                if (matchPos === -1) break;
+
+                const startIdx = scanIdx + matchPos;
+                let depth = 0;
+                let inStr = false;
+                let escape = false;
+                let endIdx = -1;
+
+                for (let j = startIdx; j < rawContent.length; j++) {
+                    const ch = rawContent[j];
+                    if (escape) {
+                        escape = false;
+                        continue;
+                    }
+                    if (ch === '\\') {
+                        escape = true;
+                        continue;
+                    }
+                    if (ch === '"') {
+                        inStr = !inStr;
+                        continue;
+                    }
+                    if (!inStr) {
+                        if (ch === '{') depth++;
+                        else if (ch === '}') {
+                            depth--;
+                            if (depth === 0) {
+                                endIdx = j;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (endIdx !== -1) {
+                    const candidate = rawContent.slice(startIdx, endIdx + 1);
+                    try {
+                        let sanitized = candidate.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (m, strVal) => {
+                            return '"' + strVal.replace(/\r?\n/g, ' ').trim() + '"';
+                        });
+                        const parsed = JSON.parse(sanitized);
+                        if (parsed && (parsed.action || parsed.id !== undefined)) {
+                            actions.push(parsed);
+                            rawContent = rawContent.slice(0, startIdx) + rawContent.slice(endIdx + 1);
+                            scanIdx = startIdx;
+                            continue;
+                        }
+                    } catch (e) {}
+                }
+                scanIdx = startIdx + 1;
+            }
+
+            // Normalize actions list (delete_transaction vs apply_transaction_correction)
+            for (let k = 0; k < actions.length; k++) {
+                let act = actions[k];
+                if (act.id !== undefined && !act.action) {
+                    if (!act.updates || Object.keys(act.updates).length === 0) {
+                        actions[k] = {
                             action: 'delete_transaction',
-                            params: { transaction_id: actionObj.id }
+                            params: { transaction_id: act.id }
+                        };
+                    } else {
+                        actions[k] = {
+                            action: 'apply_transaction_correction',
+                            params: { transaction_id: act.id, ...act.updates }
                         };
                     }
-                    actions.push(actionObj);
-                    return '';
-                } catch (e) {
-                    return match;
+                } else if (act.action === 'apply_transaction_correction' && act.params) {
+                    const p = act.params;
+                    if (p.updates && typeof p.updates === 'object') {
+                        if (p.updates.category && !p.category) p.category = p.updates.category;
+                        if (p.updates.description && !p.description) p.description = p.updates.description;
+                        if (p.updates.amount !== undefined && p.amount === undefined) p.amount = p.updates.amount;
+                        if (p.updates.type && !p.type) p.type = p.updates.type;
+                    }
+                    if (p.category && typeof p.category === 'string') {
+                        p.category = p.category.replace(/[\r\n]+/g, ' ').trim();
+                    }
+                    if (p.description && typeof p.description === 'string') {
+                        p.description = p.description.replace(/[\r\n]+/g, ' ').trim();
+                    }
                 }
-            });
-            
-            // Match signature {"action": "...", "params": {...}}
-            const genericActionRegex = /\{\s*"action"\s*:\s*"[^"]+"\s*,\s*"params"\s*:\s*\{[^}]*\}\s*\}/g;
-            rawContent = rawContent.replace(genericActionRegex, (match) => {
-                try {
-                    const actionObj = JSON.parse(match);
-                    actions.push(actionObj);
-                    return '';
-                } catch (e) {
-                    return match;
-                }
-            });
-            
-            rawContent = rawContent.replace(/```(?:action|json)?\s*```/g, '');
+            }
 
             // Check for thinking blocks - use placeholders to bypass DOMPurify stripping
             let hasThink = false;
@@ -153,6 +228,14 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                             desc = window.i18n.tp('chat_action_propose_set_paycheck', { amount: actionObj.params.amount, day: actionObj.params.day_of_month });
                         } else if (actionObj.action === 'delete_transaction') {
                             desc = window.i18n.tp('chat_action_propose_delete_transaction', { id: actionObj.params.transaction_id });
+                        } else if (actionObj.action === 'apply_transaction_correction') {
+                            const txId = actionObj.params.transaction_id || actionObj.params.id;
+                            const parts = [];
+                            if (actionObj.params.category) parts.push(`${window.i18n.t('field_label_category') || 'Catégorie'} : ${actionObj.params.category}`);
+                            if (actionObj.params.description) parts.push(`${window.i18n.t('field_label_description') || 'Libellé'} : ${actionObj.params.description}`);
+                            if (actionObj.params.amount !== undefined) parts.push(`${window.i18n.t('field_label_amount') || 'Montant'} : ${actionObj.params.amount} €`);
+                            const fieldsStr = parts.join(', ');
+                            desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_apply_correction', { id: txId, fields: fieldsStr }) : `Correction de l'opération #${txId} (${fieldsStr})`;
                         }
 
                         displayContent += `
