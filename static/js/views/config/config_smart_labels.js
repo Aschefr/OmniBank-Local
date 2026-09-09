@@ -952,6 +952,10 @@ window.ConfigSmartLabels = {
                         badgeText = '🚫 Motif ignoré';
                         badgeBg = 'rgba(239, 68, 68, 0.15)';
                         badgeColor = '#ef4444';
+                    } else if (res.source === 'fallback') {
+                        badgeText = `🛡️ Filet de sécurité (${conf}%)`;
+                        badgeBg = 'rgba(245, 158, 11, 0.15)';
+                        badgeColor = '#d97706';
                     } else {
                         badgeText = '❓ Aucun match (0%)';
                         badgeBg = 'rgba(107, 114, 128, 0.15)';

@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDE1Ui9ZQTAwamd6OXpkSGFlL2ZHb0VFTGQraUhUS25GWVhwOWs0L05DNmVaLzlnYkhhN2JmSEdlWWZpR1FXTmc0Z2N6QXZOMEdCWnlQL2NhNlRaZkFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4ODA1NTE4CWZpbGU6T21uaUJhbmtfMS4xLjRfeDY0X2ZyLUZSLm1zaQpZOGdGU3Rrdy83eXYveWliNlJvRUNMUHRxUFVGN2xIUW1ncG80VllQeDFSdUFxeHE2N3NLd2ZBdHZsZzE2YUVhUmU4R2lwUHJxSUtJV3pzeUhLVUVCQT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.4/OmniBank_1.1.4_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSCtXeERVbE1OQnA2WHV5bzhzT3pmbGNveHdZQ3Z3Y0Z0b1Bob1FZRUovSHFXNm1BL1NSajhzdFpLeHNmaXJBdXF5dVN4TWVQT09TSDc3Q1lVVTE5ZUF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTMzNDIyCWZpbGU6T21uaUJhbmtfMS4xLjVfeDY0X2ZyLUZSLm1zaQo5ZlBROFhSTW0vajZsMGw3Z08wYWhVNk10UzkzL1pUU2FiSFZrWWJGQUkyVG5VZk9vREJpdTNGcmxTZzJWcFZqZ0hOUlhySDNpMjF4c0s0RDZ4TXhEdz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.5/OmniBank_1.1.5_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-09-07T18:25:18Z",
-    "version":  "1.1.4",
-    "notes":  "v1.1.4: Reactive bank sync on vault unlock, passive unlock mode, 3h anti-spam cooldown, strict Woob sorting, mobile responsive layout \u0026 i18n polish"
+    "pub_date":  "2026-09-09T05:57:02Z",
+    "version":  "1.1.5",
+    "notes":  "Autonomous Auto-Commit, AI-Assisted Review \u0026 Smart Labels Sandbox"
 }

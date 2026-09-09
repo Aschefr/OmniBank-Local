@@ -347,17 +347,27 @@ def get_pending_sync_summary(db: Session = Depends(get_db)):
         stats_cache.set(active_pid, "bank_pending_sync_summary", pending)
         return pending
 
-    # Collecter tous les libellés bruts des transactions non rapprochées
+    # Collecter tous les libellés bruts des transactions non rapprochées et leurs types
     raw_labels = []
+    tx_types_map = {}
     for acc in pending.get("accounts", []):
         for tx in acc.get("transactions", []):
             if not tx.get("is_reconciled"):
                 raw_desc = tx.get("raw_description") or tx.get("description") or ""
                 if raw_desc:
                     raw_labels.append(raw_desc)
+                    raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
+                    tx_types_map[raw_desc] = "expense_var" if raw_amt < 0 else "income"
 
     if raw_labels:
-        smart_resolutions = resolve_smart_labels_batch(db, raw_labels)
+        # Résolution déterministe ultra-rapide (règles, historique, repli) sans appel bloquant IA au boot
+        smart_resolutions = resolve_smart_labels_batch(
+            db,
+            raw_labels,
+            use_ai_fallback=False,
+            tx_types=tx_types_map,
+            auto_fallback_category=True
+        )
         for acc in pending.get("accounts", []):
             for tx in acc.get("transactions", []):
                 if not tx.get("is_reconciled"):
@@ -365,13 +375,15 @@ def get_pending_sync_summary(db: Session = Depends(get_db)):
                     tx["raw_description"] = raw_desc
                     if raw_desc in smart_resolutions:
                         res = smart_resolutions[raw_desc]
-                        if res.get("source") in ("rule", "history", "multi_category"):
+                        if res.get("source") in ("rule", "history", "multi_category", "ai", "fallback"):
                             tx["description"] = res["description"]
                             tx["smart_suggested"] = True
                             tx["smart_source"] = res.get("source")
                             tx["smart_is_manual"] = res.get("is_manual", False)
                             tx["smart_is_provisional"] = res.get("is_provisional", False)
                             tx["smart_is_multi_category"] = res.get("is_multi_category", False)
+                            tx["smart_is_fallback"] = res.get("smart_is_fallback", False)
+                            tx["smart_is_new_category"] = res.get("smart_is_new_category", False)
                             tx["smart_confidence"] = res.get("confidence", 0.0)
                             if not tx.get("category") and res.get("category"):
                                 tx["category"] = res["category"]

@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.4-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.5-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,18 +110,21 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.1.4)
+## 🆕 Nouveautés (v1.1.5)
+
+* **🚀 Enregistrement Autonome Direct (Auto-Pilote Étape 3)** : Les dépenses et recettes sans ambiguïté et à haute confiance sont désormais enregistrées directement en compte avec traçabilité d'audit et annulation possible à tout moment.
+* **🧠 Revue Assistée par IA & Bandeau Dynamique** : Proposition automatique de catégories et de noms propres dans le sas de revue via l'IA locale Ollama, avec badges de provenance explicites (`Règle manuelle`, `Règle apprise`, `Historique`, `Suggestion IA`) et bandeau de suivi en direct.
+* **📥 Importation Directe de Relevés Sans Friction** : Les imports de relevés où 100% des opérations sont prises en charge par l'auto-pilote s'enregistrent instantanément sans modale superflue avec un toast récapitulatif festif.
+* **🧪 Banc d'Essai Smart Label & Règles Réversibles** : Simulation en temps réel de la reconnaissance des commerçants et du repli IA dans les Paramètres, avec gestion réversible des règles manuelles/caméléons et support d'annulation (Undo).
+* **📱 Requalification 2FA & Fluidité de Démarrage** : Notification dédiée et action contextuelle "Valider sur smartphone" pour la double authentification bancaire. Démarrage instantané de l'application avec temporisation des rapports IA d'arrière-plan.
+
+## 📦 Historique Récent (v1.1.4)
 
 * **🔓 Synchronisation Bancaire Réactive au Déverrouillage** : Le déverrouillage du coffre-fort d'identifiants déclenche automatiquement une synchronisation d'arrière-plan sans attendre la boucle périodique.
 * **🛡️ Option de Déverrouillage Passif Silencieux** : Choix explicite dans les réglages et la modale pour charger les clés en RAM sans initier d'appel réseau bancaire à T0.
 * **⏱️ Cooldown Anti-Spam Persistant (3 Heures)** : Protection par horodatage persistant en base SQLite empêchant les requêtes abusives rapprochées tout en préservant le bouton de synchronisation forcée.
 * **📅 Tri Chronologique Strict des Écritures Woob** : Ingestion strictement ascendante des opérations et des prévisions pour une réconciliation multi-passes déterministe.
-* **📱 Cartes de Connexions Bancaires & Tiroir Mobile Responsives** : Grille adaptative sur petits écrans avec bannières d'erreur pleine largeur, boutons tactiles 36px et respect strict des fonctionnalités désactivées dans les menus mobiles.
-
-## 📦 Historique Récent (v1.1.3)
-
-* **🔄 Fusion UX Synchronisation & Relevés de Compte** : Connexion bancaire directe (Woob) et import de relevés de compte (CSV, Excel) unifiés au sein d'une même modale fluide avec un sas d'attente partagé (Cockpit de revue).
-* **🖥️ Tableau des Comptes Compact & 6 Colonnes** : Organisation en 6 colonnes (`NOM`, `TYPE`, `ALIMENTATION`, `SOLDE INITIAL`, `SOLDE ACTUEL`, `ACTIONS`) avec pastille de couleur intégrée et boutons d'actions ultra-compacts 24px pour un affichage parfait sans aucun débordement.
+* **📱 Cartes de Connexions Bancaires & Tiroir Mobile Responsives** : Grille adaptative sur petits écrans avec bannières d'erreur pleine largeur et boutons tactiles 36px.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -129,7 +132,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.1.4-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.1.5-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -229,18 +232,21 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.1.4)
+## 🆕 What's New (v1.1.5)
+
+* **🚀 Autonomous Direct Expense Auto-Commit (Auto-Pilot Stage 3)**: Unambiguous incoming transactions with certified high confidence are automatically recorded directly to accounts with audit trail logging and instant rollback capability.
+* **🧠 AI-Assisted Review & Live Status Feedback**: The review cockpit automatically suggests smart categories and merchant names via local Ollama AI in the background, featuring explicit provenance badges (`Manual Rule`, `Learned Rule`, `History`, `AI Suggestion`) and a live status banner.
+* **📥 Frictionless Statement Import Dropzone**: Statement imports fully handled by Auto-Pilot now close automatically with a celebratory toast summary, eliminating empty review dialogs.
+* **🧪 Smart Label Simulation Sandbox & Reversible Rules**: Test merchant recognition and local AI fallback in real time directly within Settings. Manual rule protection and chameleon multi-category status are fully reversible with 1-click toggles and undo support.
+* **📱 Bank 2FA Requalification & Fast Startup**: Contextual "Validate on smartphone" actions and notifications for bank 2FA challenges. Decoupled background AI reporting ensures instant application boot.
+
+## 📦 Recent History (v1.1.4)
 
 * **🔓 Reactive Bank Sync on Vault Unlock**: Unlocking the credential vault immediately launches a background bank synchronization when enabled.
 * **🛡️ Passive Vault Unlock Option**: Explicit toggle in settings and master password prompt to load credentials in RAM without firing network requests at T0.
 * **⏱️ Persistent 3-Hour Anti-Spam Cooldown**: SQLite-persisted timestamp guard preventing rapid banking server queries while keeping manual force-sync intact.
 * **📅 Strict Chronological Woob Transaction Sorting**: Ascending chronological order for transactions and upcoming movements, ensuring robust multi-pass reconciliation.
-* **📱 Mobile-Responsive Connection Cards & Navigation Drawer**: Adaptive layout for small viewports with full-width error banners, comfortable 36px touch targets, and strict feature toggle parity in the mobile drawer.
-
-## 📦 Recent History (v1.1.3)
-
-* **🔄 Unified Banking Sync & Statement Import**: Integrated online bank connections (Woob) and bank statement file imports (CSV, Excel) into a single unified workflow with a shared, persistent staging queue (Review Cockpit).
-* **🖥️ Streamlined 6-Column Accounts Table**: Redesigned accounts layout with 6 clear columns (`NOM`, `TYPE`, `ALIMENTATION`, `SOLDE INITIAL`, `SOLDE ACTUEL`, `ACTIONS`), inline interactive color dot, and compact 24px action buttons for zero overflow on constrained viewports.
+* **📱 Mobile-Responsive Connection Cards & Navigation Drawer**: Adaptive layout for small viewports with full-width error banners and 36px touch targets.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

@@ -172,10 +172,10 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - ✅ **Réversibilité Totale & Intégration `ActionHistory`** : Toute modification d'une règle (passage manuel/auto, changement de catégorie, activation multi-catégorie) est tracée dans l'historique d'annulation/rétablissement global avec toast d'annulation 1-clic (`undo_action` / `redo_action`).
   - ✅ **Badges de Transparence dans le Sas d'Attente (Cockpit de Revue)** : Affichage direct de badges d'explication de provenance (`🛡️ Règle manuelle`, `🤖 Règle apprise`, `⚠️ Provisoire (1ère fois)`, `🔀 Multi-catégories`, `🕒 Historique`) avec info-bulles détaillées guidant l'utilisateur sur la manière de modifier la règle si besoin.
   - ✅ **Modale d'Édition Ergonomique avec Recherche Permissive** : Modale dédiée d'édition de règle dans l'Atelier avec recherche instantanée insensible à la casse et aux accents (`removeAccents`), prévisualisation en direct et navigation clavier.
-  - ✅ **Garde-fou Anti-Prolifération de Catégories** : Le système ne crée jamais de catégorie sans autorisation ; si aucune catégorie existante ne correspond, il assigne `None` ("À catégoriser") plutôt que de polluer l'arbre comptable.
-  - ✅ **Étage 3 : Fallback IA local Ollama Groupé par Lot (`call_ollama_batch`)** : Résolution des marchands inconnus en 1 seule requête JSON groupée (`format: "json"`) avec garde-fou anti-hallucination rejetant les catégories non autorisées, ne levant jamais de `HTTPException` et s'exécutant silencieusement hors ligne.
+  - ✅ **Garde-fou Anti-Prolifération, Filet de Sécurité Déterministe & Revue Manuelle IA (Étape 3.5)** : Attribution d'une catégorie fourre-tout intelligente (`"Dépenses diverses"` / `"Revenus divers"`) pour 100% des opérations inconnues afin de garantir un Sas propre, proposition automatique IA dès la synchronisation manuelle et à l'ouverture de revue avec badges explicatifs (`🤖 Suggestion IA`, `✨ Nouvelle catégorie`, `🛡️ Fourre-tout`), quota maximal de 2 nouvelles catégories par lot d'import IA, fusion lexicale ($\ge 80\%$) et création différée en base au moment du commit.
+  - ✅ **Étage 3 : Fallback IA local Ollama Groupé par Lot (`call_ollama_batch`)** : Résolution des marchands inconnus en 1 seule requête JSON groupée (`format: "json"`) avec garde-fou anti-hallucination, validation linguistique anti-déchet et proposition contrôlée de nouvelles catégories.
   - ✅ **Banc d'Essai & Simulation Smart Label** : Atelier interactif de test de la cascade décisionnelle en direct avec sauvegarde 1-clic en règle permanente et plancher de fluidité UX.
-  - ✅ **Auto-Commit des Nouvelles Écritures Courantes** : Enregistrement autonome des dépenses courantes directes non ambiguës dans [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) avec traçabilité complète `AutopilotDecisionLog` (`new_entry`) lorsque `auto_pilot_enabled == True`.
+  - ✅ **Auto-Commit des Nouvelles Écritures Courantes & Marchands Caméléons** : Enregistrement autonome des dépenses courantes directes non ambiguës dans [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) avec traçabilité complète `AutopilotDecisionLog` (`new_entry`) lorsque `auto_pilot_enabled == True`, incluant les marchands caméléons par défaut.
 
 ---
 
@@ -463,7 +463,8 @@ graph TD
     Z["Étape 0 : Fondations & Pré-requis Techniques<br/>✅ 100% (v1.1.3)"] --> A["Étape 1 : Réactivité Déverrouillage + Cooldown<br/>✅ 100% (v1.1.4)"]
     A --> B["Étape 2 : Orchestrateur AutoPilotService<br/>Auto-Rapprochement & Modèle DecisionLog<br/>✅ 100% PASS"]
     B --> C["Étape 3 : Pipeline Smart Labels & Écritures<br/>Auto-Commit Écritures & Fallback IA<br/>✅ 100% PASS"]
-    C --> D["Étape 4 : Détection & Promotion Récurrences<br/>Charges Candidates Dynamiques (Reste à Vivre)"]
+    C --> C1["Étape 3.5 : Filet de Sécurité & IA Augmentée<br/>Garde-fous Anti-Prolifération & Sas Propre<br/>✅ 100% PASS"]
+    C1 --> D["Étape 4 : Détection & Promotion Récurrences<br/>Charges Candidates Dynamiques (Reste à Vivre)"]
     D --> E["Étape 5 : Lissage Budgétaire EMA Déterministe<br/>(budget_service.py 100% Offline)"]
     E --> F["Étape 6 : Centre de Contrôle Dédié<br/>Decision Feed, Rollback Snapshot, Switch UI & Finitions Desktop"]
 ```
@@ -517,6 +518,32 @@ graph TD
     - [x] **Jalon 3.9 : Adaptation de la Dropzone CSV / Excel (`static/js/views/import_wizard.js`)** : Fermeture automatique de la modale avec toast de confirmation si 100% des opérations sont traitées (`pending === 0`), évitant d'ouvrir une modale de revue vide.
     - [x] **Jalon 3.10 : Clés i18n associées** : `autopilot_batch_categorized`, `autopilot_uncategorized_fallback`, `autopilot_ai_batch_failed`, `autopilot_import_complete_toast` synchronisées en FR et EN.
     - *Bénéfice immédiat* : Catégorisation fiable, transparente et souveraine, apprentissage sans pollution, auto-commit transparent des dépenses courantes non ambiguës et expérience d'importation sans friction.
+
+3.5. **Étape 3.5 : Filet de Sécurité Déterministe (Catégories Fourre-tout) & Catégorisation IA Augmentée avec Garde-fous Anti-Prolifération** — `✅ TERMINÉE (100%)`
+    - [x] **Jalon 3.5.1 : Filet de Sécurité Déterministe (`resolve_fallback_category`)** :
+      * Détection intelligente des synonymes existants en base : `"Dépenses diverses"`, `"Autres dépenses"`, `"Dépenses imprévues"`, `"Achats divers"` pour les débits variables (`expense_var`) ; `"Revenus divers"`, `"Autres revenus"`, `"Virements reçus"` pour les crédits (`income`).
+      * Création/sélection du nom canonique sans insertion prématurée dans la table `categories`.
+      * Garantie mathématique : 100% des opérations courantes ont une destination claire, éliminant les lignes `-- Catégorie --` dans le Sas.
+    - [x] **Jalon 3.5.2 : Prise en Charge Fluide des Marchands Caméléons (Amazon, PayPal...)** :
+      * Attribution par défaut de la catégorie fourre-tout dépenses pour les marchands caméléons natifs tout en conservant `smart_is_multi_category = True` et le badge `[🤖 Caméléon]`.
+      * Préservation stricte des marchands caméléons manuellement sanctuarisés (`is_manual=True`) dans le Sas pour arbitrage humain.
+      * Autorisation d'auto-commit sous Auto-Pilote avec raison explicite `decision_reason="chameleon_default"`, débloquant la fermeture automatique du Sas.
+    - [x] **Jalon 3.5.3 : Catégorisation IA Augmentée & Garde-fous Anti-Déchet / Anti-Prolifération** :
+      * Enrichissement de `_parse_and_validate_batch_response` dans `ollama_client.py` : priorité stricte aux catégories existantes, avec autorisation de proposer une nouvelle catégorie concise si aucune ne convient.
+      * Garde-fou Anti-Déchet linguistique : longueur (3-35 car), exclusion des artefacts JSON/syntaxe (`{}[]<>\;:"*_|:`), exclusion des préfixes conversationnels et tokens génériques interdits (`inconnu`, `null`, `dépense`), Title Case.
+      * Garde-fou Proximité Lexicale : fusion automatique vers la catégorie existante si $\ge 80\%$ de similarité (ex: `"Alimentations"` $\to$ `"Alimentation"`).
+      * Garde-fou Anti-Prolifération (Seuil par lot) : quota maximal de **2 nouvelles catégories distinctes par lot d'import** ; repli automatique déterministe sur le filet de sécurité au-delà.
+    - [x] **Jalon 3.5.4 : Création Différée en Base (`ensure_category_exists`) & Non-Pollution de l'Apprentissage** :
+      * Aucune nouvelle catégorie n'est insérée dans SQLite lors de la simple revue ou prévisualisation ; l'insertion `Category(name=..., type=...)` n'a lieu qu'au moment du commit effectif (dans `commit_reviewed_transactions` ou `AutoPilotService`).
+      * `learn_label_mapping` ignore les catégories fourre-tout pour ne jamais figer un commerçant sur `"Dépenses diverses"` de façon permanente.
+    - [x] **Jalon 3.5.5 : Auto-Commit Élargi & Sas Vide** :
+      * Ajustement d'`is_eligible_new_entry` dans `autopilot_service.py` pour auto-committer les opérations munies d'une catégorie fourre-tout ou nouvelle IA validée.
+      * Résultat : Sas d'attente vide (`pending = 0`) et dropzone fermée avec toast de célébration pour les imports réguliers.
+    - [x] **Jalon 3.5.6 : Clés i18n & Badges UI (`bank_sync_review.js`)** :
+      * Badges contextuels `🛡️ Fourre-tout` et `✨ Nouvelle catégorie` à côté du sélecteur de catégorie.
+      * Injection dynamique de la nouvelle catégorie dans le menu déroulant `<select>` si absente des catégories de base.
+      * Clés i18n associées en FR et EN (`utf-8-sig`).
+    - *Bénéfice immédiat* : Élimination totale des blocages de saisie dans le Sas d'attente, sas propre par défaut, et mode Auto-Pilote à supervision zéro véritablement opérationnel.
 
 4. **Étape 4 : Détection Périodique, Charges Candidates Dynamiques ($N=2$) & Liaison Rétroactive**
     - Moteur de reconnaissance de périodicité (même montant, même marchand nettoyé, intervalle 28–31 jours).
@@ -620,6 +647,23 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 | **T3.11** | Dépense courante non ambiguë avec règle sanctuarisée ou certifiée ($\ge 85\%$) en mode Auto-Pilote. | Ingestion du lot par `process_incoming_batch`. | Enregistrement direct en base dans `Transaction` (`reconciliation_date`, `created_by="Auto-Pilote (Écriture)"`), log dans `AutopilotDecisionLog` (`new_entry`). | Écriture enregistrée sans clic, traçabilité `ActionHistory` et rollback opérationnels. | ✅ **PASS** |
 | **T3.12** | Dépense caméléon multi-catégories (ex: Amazon) ou règle provisoire ($N=1$). | Ingestion du lot par `process_incoming_batch`. | Neutralisation de l'auto-commit direct, maintien de l'opération dans `residual_txs` (`pending_count > 0`). | Maintien strict de la zone d'arbitrage humain dans le Sas d'attente. | ✅ **PASS** |
 | **T3.13** | Ingestion d'un fichier via la Dropzone avec 100% des écritures auto-traitées (`pending === 0`). | Réception du bilan par `openReviewFromCSV` (`import_wizard.js`). | Fermeture immédiate de la modale d'import, émission d'un toast récapitulatif enrichi (`autopilot_import_complete_toast`), actualisation des soldes. | Zéro ouverture de Sas vide, expérience utilisateur fluide et sans friction. | ✅ **PASS** |
+
+---
+
+### Pack de Test 3.5 : Filet de Sécurité Déterministe & Catégorisation IA Augmentée (Étape 3.5) — `✅ 10/10 PASS (100%)`
+
+| Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Statut |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **T3.5.1** | Dépense inconnue sans IA (`CB FLEURISTE DU COIN`). Aucune règle existante. | Résolution par `resolve_smart_labels_batch`. | Libellé propre `"Fleuriste Du Coin"`, Catégorie `"Dépenses diverses"` (ou synonyme existant). Pas d'insertion immédiate dans `Category`. | Catégorie fourre-tout assignée en mémoire, table `Category` intacte. | ✅ **PASS** |
+| **T3.5.2** | Recette inconnue sans IA (`VIR INST MLLE MARINE PLAZA`). | Résolution par `resolve_smart_labels_batch`. | Libellé propre, Catégorie `"Revenus divers"` (type `income`). | Catégorie recette assignée, pas d'insertion DB prématurée. | ✅ **PASS** |
+| **T3.5.3** | Marchand caméléon sans règle manuelle (`AMAZON PAYMENTS`). Mode sans IA. | Résolution par `resolve_smart_labels_batch`. | Description `"Amazon"`, Catégorie `"Dépenses diverses"`, `is_multi_category = True`. | Catégorie fourre-tout renseignée, drapeau caméléon préservé. | ✅ **PASS** |
+| **T3.5.4** | Nouvelle catégorie IA valide proposée (`"Jardinage"` pour `CB TRUFFAUT`). | Ingestion avec `call_ollama_batch`. | Catégorie acceptée (longueur valide, pas d'artefact, pas de syntaxe). `category_is_new = True`. | Catégorie validée en mémoire, différée jusqu'au commit. | ✅ **PASS** |
+| **T3.5.5** | Déchet ou hallucination IA (`"Voici la catégorie : {Boutique}"`). | Filtrage par `validate_ai_suggested_category`. | Déchet rejeté par le garde-fou anti-déchet $\to$ Repli déterministe sur `"Dépenses diverses"`. | Hallucination neutralisée, filet de sécurité activé. | ✅ **PASS** |
+| **T3.5.6** | Garde-fou anti-prolifération : Lot avec 5 propositions de nouvelles catégories. | Analyse du lot par `_parse_and_validate_batch_response`. | Maximum 2 nouvelles catégories acceptées dans le lot. Les 3 suivantes basculent sur le filet de sécurité. | Seuil de saturation respecté (max 2), pas d'explosion de l'arbre. | ✅ **PASS** |
+| **T3.5.7** | Proximité lexicale : IA propose `"Alimentations"` alors qu'`"Alimentation"` existe. | Test de similarité Levenshtein/Jaccard. | Détection de proximité $\ge 80\% \to$ Fusion automatique sur la catégorie existante `"Alimentation"`. | Pas de doublon singulier/pluriel créé. | ✅ **PASS** |
+| **T3.5.8** | Auto-commit Auto-Pilote sur lot mixte (Amazon + virement + commerçant) avec Auto-Pilote actif. | Ingestion du lot par `AutoPilotService.process_incoming_batch()`. | 100% des opérations insérées en base, Sas d'attente vide (`pending = 0`), notification et fermeture dropzone. | Zéro opération résiduelle dans le Sas d'attente. | ✅ **PASS** |
+| **T3.5.9** | Validation manuelle Sas (`commit_reviewed_transactions`). | Commit de transactions avec catégories fourre-tout et nouvelle IA. | Appel de `ensure_category_exists` $\to$ Les catégories manquantes sont insérées dans `Category` avec le bon type. | Intégrité relationnelle parfaite, catégories persistées en base. | ✅ **PASS** |
+| **T3.5.10** | Protection de l'apprentissage sur les catégories fourre-tout. | Ingestion d'une écriture affectée à `"Dépenses diverses"`. | `learn_label_mapping` n'enregistre aucune règle automatique associant le marchand à `"Dépenses diverses"`. | Marchand non pollué, règle non dénaturée pour les futurs imports. | ✅ **PASS** |
 
 ---
 

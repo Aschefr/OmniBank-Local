@@ -126,6 +126,95 @@ _BANNED_AI_NAME_TOKENS = {
 }
 
 
+_FALLBACK_EXPENSE_SYNONYMS = {
+    "dépenses diverses", "depenses diverses", "autres dépenses", "autres depenses",
+    "dépenses imprévues", "depenses imprevues", "achats divers", "frais divers",
+    "dépense diverse", "depense diverse"
+}
+
+_FALLBACK_INCOME_SYNONYMS = {
+    "revenus divers", "autres revenus", "recettes diverses", "autres recettes",
+    "virements reçus", "virements recus", "remboursements", "remboursements reçus",
+    "rentrées diverses", "rentrees diverses"
+}
+
+DEFAULT_FALLBACK_EXPENSE_CATEGORY = "Dépenses diverses"
+DEFAULT_FALLBACK_INCOME_CATEGORY = "Revenus divers"
+
+_INCOME_LABEL_REGEX = re.compile(
+    r'\b(VIR(EMENT)?\s+(INST(ANTANE)?)?\s+(DE|RECU)|REMISE\s+CHQ|SALAIRE|CAF|CPAM|AVOIR|REMBOURSEMENT)\b',
+    re.IGNORECASE
+)
+
+
+def is_probable_income_label(raw_label: str) -> bool:
+    """Détecte par heuristique regex si un libellé bancaire brut correspond vraisemblablement à une recette."""
+    if not raw_label:
+        return False
+    return bool(_INCOME_LABEL_REGEX.search(str(raw_label)))
+
+
+def is_fallback_category(category_name: Optional[str]) -> bool:
+    """Indique si un nom de catégorie correspond à une catégorie fourre-tout."""
+    if not category_name:
+        return False
+    lower = str(category_name).strip().lower()
+    return lower in _FALLBACK_EXPENSE_SYNONYMS or lower in _FALLBACK_INCOME_SYNONYMS
+
+
+def resolve_fallback_category(db: Session, tx_type: str = "expense_var") -> str:
+    """
+    Détermine la catégorie filet de sécurité appropriée selon le type d'opération.
+    Recherche en priorité si l'utilisateur possède déjà une catégorie synonyme active dans sa base.
+    À défaut, renvoie le nom standard canonique ('Dépenses diverses' ou 'Revenus divers').
+    Ne crée aucune ligne dans SQLite (création différée au commit).
+    """
+    from app.models import Category
+    
+    is_income = (tx_type == "income")
+    synonyms = _FALLBACK_INCOME_SYNONYMS if is_income else _FALLBACK_EXPENSE_SYNONYMS
+    default_name = DEFAULT_FALLBACK_INCOME_CATEGORY if is_income else DEFAULT_FALLBACK_EXPENSE_CATEGORY
+    
+    try:
+        existing_cats = db.query(Category.name).filter(
+            (Category.is_closed == False) | (Category.is_closed == None)
+        ).all()
+        for (cat_name,) in existing_cats:
+            if cat_name and cat_name.strip().lower() in synonyms:
+                return cat_name.strip()
+    except Exception as e:
+        logger.debug(f"[SmartLabel] Erreur recherche catégorie fallback: {e}")
+        
+    return default_name
+
+
+def ensure_category_exists(db: Session, category_name: Optional[str], tx_type: str = "expense_var") -> Optional[Any]:
+    """
+    Garantit l'existence d'une catégorie en base SQLite lors du commit effectif.
+    Crée la catégorie si elle n'existe pas encore.
+    """
+    if not category_name or not category_name.strip():
+        return None
+    from app.models import Category
+    name_clean = category_name.strip()
+    cat = db.query(Category).filter(Category.name == name_clean).first()
+    if not cat:
+        valid_type = tx_type if tx_type in ("expense_fixed", "expense_var", "income", "transfer", "neutral") else "expense_var"
+        cat = Category(
+            name=name_clean,
+            type=valid_type,
+            is_closed=False
+        )
+        db.add(cat)
+        try:
+            db.flush()
+            logger.info(f"[SmartLabel] Nouvelle catégorie créée en base : '{name_clean}' (type: {valid_type})")
+        except Exception as e:
+            logger.debug(f"[SmartLabel] Flush catégorie '{name_clean}': {e}")
+    return cat
+
+
+
 def validate_ai_suggested_name(
     suggested_name: Optional[str],
     raw_label: str,
@@ -353,7 +442,12 @@ def _compute_match_score(pattern: str, candidate: str) -> float:
     return _compute_match_score_precomputed(pat_clean, pat_tokens, sig_pat, cand_clean, cand_tokens, sig_cand)
 
 
-def resolve_smart_label(db: Session, raw_label: str, use_ai_fallback: bool = False) -> Dict[str, Any]:
+def resolve_smart_label(
+    db: Session,
+    raw_label: str,
+    use_ai_fallback: bool = False,
+    auto_fallback_category: bool = False
+) -> Dict[str, Any]:
     """
     Résout un libellé bancaire brut via le pipeline :
     1. Règle dans BankLabelMapping (manuelle sanctuarisée 100%, multi-catégories nom seul, ou auto confirmée/provisoire)
@@ -576,8 +670,13 @@ def resolve_smart_label(db: Session, raw_label: str, use_ai_fallback: bool = Fal
     # ---------------------------------------------------------
     # NIVEAU 3 : Aucun match mathématique -> Étage 3 IA ou fallback brut
     # ---------------------------------------------------------
-    if use_ai_fallback:
-        batch_res = resolve_smart_labels_batch(db, [raw_str], use_ai_fallback=True)
+    if use_ai_fallback or auto_fallback_category:
+        batch_res = resolve_smart_labels_batch(
+            db,
+            [raw_str],
+            use_ai_fallback=use_ai_fallback,
+            auto_fallback_category=auto_fallback_category
+        )
         if raw_str in batch_res:
             return batch_res[raw_str]
 
@@ -596,12 +695,16 @@ def resolve_smart_labels_batch(
     db: Session,
     raw_labels: List[str],
     use_ai_fallback: bool = False,
-    include_user_habits: bool = True
+    include_user_habits: bool = True,
+    tx_types: Optional[Dict[str, str]] = None,
+    auto_fallback_category: bool = False
 ) -> Dict[str, Dict[str, Any]]:
     """
     Résolution groupée ultra-performante pour un lot de libellés bancaires.
     Pré-charge les règles et l'historique en mémoire pour un traitement O(N).
     Si use_ai_fallback=True et Ollama est actif, transmet les libellés inconnus en 1 seule requête groupée.
+    Si auto_fallback_category=True, applique le filet de sécurité déterministe ('Dépenses diverses' / 'Revenus divers')
+    pour toute opération restant sans catégorie.
     """
     if not raw_labels:
         return {}
@@ -832,8 +935,8 @@ def resolve_smart_labels_batch(
         for raw, res in results.items():
             if (
                 res.get("category") is None
-                and res.get("source") in ("none", "ambiguous")
-                and not res.get("is_multi_category")
+                and res.get("source") in ("none", "ambiguous", "multi_category")
+                and not res.get("is_manual")
                 and res.get("source") != "ignored"
             ):
                 clean_desc = normalize_raw_label(raw).title()
@@ -866,9 +969,11 @@ def resolve_smart_labels_batch(
                         for clean_d, ai_data in ai_results.items():
                             candidate_cat = None
                             candidate_name = None
+                            cat_is_new = False
                             if isinstance(ai_data, dict):
                                 candidate_cat = ai_data.get("category")
                                 candidate_name = ai_data.get("name")
+                                cat_is_new = bool(ai_data.get("category_is_new", False))
                             elif ai_data:
                                 candidate_cat = ai_data
 
@@ -893,8 +998,42 @@ def resolve_smart_labels_batch(
                                     results[raw]["category"] = candidate_cat
                                     results[raw]["source"] = "ai"
                                     results[raw]["confidence"] = 0.85
+                                    if cat_is_new:
+                                        results[raw]["smart_is_new_category"] = True
             except Exception as e:
                 logger.warning(f"[SmartLabel] Échec silencieux du fallback IA par lot : {e}")
+
+    # ---------------------------------------------------------
+    # ÉTAGE 4 : Filet de sécurité déterministe (Catégories Fourre-tout)
+    # ---------------------------------------------------------
+    if auto_fallback_category:
+        for raw, res in results.items():
+            if res.get("source") == "ignored":
+                continue
+            # Respect strict des règles manuelles où l'utilisateur a explicitement désactivé la catégorie
+            if res.get("is_manual") and res.get("is_multi_category") and res.get("category") is None:
+                continue
+            if res.get("category") is None:
+                inferred_type = "expense_var"
+                if tx_types and raw in tx_types:
+                    inferred_type = tx_types[raw]
+                elif is_probable_income_label(raw):
+                    inferred_type = "income"
+
+                fallback_cat = resolve_fallback_category(db, inferred_type)
+                res["category"] = fallback_cat
+                res["smart_is_fallback"] = True
+                res["smart_suggested"] = True
+                if res.get("source") == "none":
+                    res["source"] = "fallback"
+                    res["confidence"] = 0.85
+                    res["description"] = normalize_raw_label(raw).title()
+                elif res.get("source") in ("multi_category", "ambiguous"):
+                    res["confidence"] = 0.85
+
+    for res in results.values():
+        res.setdefault("smart_is_fallback", False)
+        res.setdefault("smart_is_new_category", False)
 
     return results
 
@@ -934,6 +1073,10 @@ def learn_label_mapping(
     # Détection automatique de marchand caméléon natif si auto-appris
     if not is_manual and is_multi_category_merchant(pattern):
         is_multi_category = True
+        category = None
+
+    # Protection anti-pollution : ne pas apprendre de règle automatique avec une catégorie fourre-tout
+    if not is_manual and is_fallback_category(category):
         category = None
 
     # Chercher si une règle existe déjà pour ce motif
@@ -1005,10 +1148,16 @@ def learn_label_mapping(
         logger.info(f"[SmartLabel] Règle mise à jour : '{pattern}' -> {status_txt}")
         return existing
     else:
+        # Protection anti-pollution : ne pas créer de règle automatique orpheline si pas de catégorie et pas caméléon et pas exclusion
+        if not is_manual and not is_ignored and not is_multi_category and not category:
+            logger.info(f"[SmartLabel] Opération sans catégorie ni marchand caméléon ignorée pour l'auto-apprentissage : '{pattern}'")
+            return None
+
         # Création d'une nouvelle règle
         counts = {}
         if category:
             counts[category] = 1
+
 
         effective_cat = None if is_multi_category else category
         new_mapping = BankLabelMapping(

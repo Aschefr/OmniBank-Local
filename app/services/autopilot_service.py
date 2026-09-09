@@ -87,16 +87,33 @@ def process_incoming_batch(
     # 2. Enrichissement Smart Labels si non déjà appliqué
     try:
         unresolved_labels = []
+        tx_types_map = {}
         for acc in preview_data.get("accounts", []):
             for tx in acc.get("transactions", []):
                 if not tx.get("is_reconciled") and not tx.get("smart_suggested"):
                     raw = tx.get("raw_description") or tx.get("description") or ""
                     if raw:
                         unresolved_labels.append(raw)
+                        raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
+                        tx_types_map[raw] = "expense_var" if raw_amt < 0 else "income"
+
+        use_ai = False
+        try:
+            from app.services.chat.ollama_client import get_ollama_config
+            cfg = get_ollama_config(db)
+            use_ai = bool(cfg and cfg.get("enabled"))
+        except Exception:
+            pass
 
         if unresolved_labels:
             from app.services.smart_label_service import resolve_smart_labels_batch
-            resolutions = resolve_smart_labels_batch(db, unresolved_labels)
+            resolutions = resolve_smart_labels_batch(
+                db,
+                unresolved_labels,
+                use_ai_fallback=use_ai,
+                tx_types=tx_types_map,
+                auto_fallback_category=True
+            )
             for acc in preview_data.get("accounts", []):
                 for tx in acc.get("transactions", []):
                     if not tx.get("is_reconciled") and not tx.get("smart_suggested"):
@@ -112,9 +129,28 @@ def process_incoming_batch(
                             tx["smart_is_manual"] = res.get("is_manual", False)
                             tx["smart_is_provisional"] = res.get("is_provisional", False)
                             tx["smart_is_multi_category"] = res.get("is_multi_category", False)
+                            tx["smart_is_fallback"] = res.get("smart_is_fallback", False)
+                            tx["smart_is_new_category"] = res.get("smart_is_new_category", False)
                             tx["smart_confidence"] = res.get("confidence", 0.0)
+
+        # Filet de sécurité supplémentaire : s'assurer qu'aucune opération non rapprochée ne reste sans catégorie
+        from app.services.smart_label_service import resolve_fallback_category
+        for acc in preview_data.get("accounts", []):
+            for tx in acc.get("transactions", []):
+                if not tx.get("is_reconciled") and not tx.get("category"):
+                    if tx.get("smart_is_manual") and tx.get("smart_is_multi_category"):
+                        continue
+                    raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
+                    t_type = "expense_var" if raw_amt < 0 else "income"
+                    tx["category"] = resolve_fallback_category(db, t_type)
+                    tx["smart_is_fallback"] = True
+                    tx["smart_suggested"] = True
+                    if not tx.get("smart_source"):
+                        tx["smart_source"] = "fallback"
+                    tx["smart_confidence"] = max(float(tx.get("smart_confidence") or 0.0), 0.85)
     except Exception as sl_err:
         logger.warning(f"[AutoPilot] Avertissement lors de la résolution smart labels du lot: {sl_err}")
+
 
     # 3. Indexer les csv_id existants en base et les catégories valides
     from app.models import Category
@@ -211,18 +247,35 @@ def process_incoming_batch(
                         pending_count += 1
                         continue
 
-                # Critère 2 : Auto-commit des nouvelles dépenses courantes non ambiguës (Jalon 3.8)
+                # Critère 2 : Auto-commit des nouvelles dépenses et recettes courantes (Jalons 3.8 & 3.5)
                 # Non rapprochée, non venant, compte cible identifié, non doublon csv_id,
-                # catégorie valide présente, non caméléon (multi-catégories), non provisoire (N=1),
-                # non ignorée, et confiance >= 85%
+                # catégorie valide présente (existante, fallback ou IA validée), non ignorée, et confiance >= 85%
                 csv_id = tx.get("csv_id")
                 is_duplicate = bool(csv_id and csv_id in existing_csv_ids)
                 category = tx.get("category")
-                has_valid_category = bool(category and category in valid_categories)
                 is_multi_cat = bool(tx.get("smart_is_multi_category", False))
                 is_provisional = bool(tx.get("smart_is_provisional", False))
                 is_ignored = tx.get("smart_source") == "ignored" or tx.get("is_ignored", False)
+                is_fallback = bool(tx.get("smart_is_fallback", False))
+                is_new_cat = bool(tx.get("smart_is_new_category", False))
                 confidence = float(tx.get("smart_confidence") or 0.0)
+
+                has_valid_category = bool(category and (category in valid_categories or is_fallback or is_new_cat))
+
+                # Déterminer la raison de la décision pour le Decision Feed
+                decision_reason = "rule"
+                if is_fallback:
+                    decision_reason = "chameleon_default" if is_multi_cat else "fallback_catchall"
+                elif is_new_cat:
+                    decision_reason = "chameleon_ai" if is_multi_cat else "ai_new_category"
+                elif tx.get("smart_source") == "ai":
+                    decision_reason = "chameleon_ai" if is_multi_cat else "ai_existing"
+                elif tx.get("smart_source") == "history":
+                    decision_reason = "history"
+                elif is_provisional:
+                    decision_reason = "provisional_auto_commit"
+                elif is_multi_cat:
+                    decision_reason = "chameleon_default"
 
                 is_eligible_new_entry = (
                     not is_rec
@@ -231,8 +284,6 @@ def process_incoming_batch(
                     and bool(acc_id)
                     and not is_duplicate
                     and has_valid_category
-                    and not is_multi_cat
-                    and not is_provisional
                     and not is_ignored
                     and confidence >= 0.85
                 )
@@ -243,6 +294,12 @@ def process_incoming_batch(
                     t_type = "expense_var" if raw_amt < 0 else "income"
                     from_acc = acc_id if raw_amt < 0 else None
                     to_acc = acc_id if raw_amt >= 0 else None
+
+                    # S'assurer de la présence de la catégorie en base SQLite
+                    from app.services.smart_label_service import ensure_category_exists
+                    if category:
+                        ensure_category_exists(db, category, t_type)
+                        valid_categories.add(category)
 
                     op_date_str = tx.get("date_operation") or tx.get("date")
                     try:
@@ -288,9 +345,11 @@ def process_incoming_batch(
                             if not k.startswith("_") and not isinstance(v, (datetime, date))
                         },
                         "created_tx_id": new_tx.id,
+                        "decision_reason": decision_reason,
                         "before": None,
                         "after": snapshot_entity(new_tx)
                     }
+
 
                     decision = AutopilotDecisionLog(
                         batch_id=batch_id,

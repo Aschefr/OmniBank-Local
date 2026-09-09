@@ -82,12 +82,19 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
         
-    # Check/Generate periodic AI financial report on startup in background
+    # Check/Generate periodic AI financial report on startup in background (avec temporisation de 30s)
     try:
         from app.routers.notifications import generate_ai_report_task, _active_report_thread
         import app.routers.notifications as notif_module
         import threading
-        t = threading.Thread(target=generate_ai_report_task, args=(SessionLocal, False), daemon=True)
+
+        def _delayed_startup_ai_report():
+            # Temporisation de 30s au démarrage pour libérer le boot et ne pas solliciter l'IA prématurément
+            if notif_module._shutdown_event.wait(30.0):
+                return
+            generate_ai_report_task(SessionLocal, False)
+
+        t = threading.Thread(target=_delayed_startup_ai_report, daemon=True)
         notif_module._active_report_thread = t
         t.start()
     except Exception as e:
