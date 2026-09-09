@@ -1,0 +1,366 @@
+/**
+ * OmniBank Local - themes/previews.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Rich mini UI mockup previews & theme cards (Lines 9699-10057) ─── */
+/* ── Rich Mini UI Mockup Preview for Themes ── */
+.theme-card-ui-mockup {
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 110px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    transition: transform 0.2s ease;
+}
+
+.theme-card:hover .theme-card-ui-mockup {
+    transform: scale(1.01);
+}
+
+.theme-mockup-header {
+    height: 22px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.theme-mockup-dots {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.theme-mockup-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.theme-mockup-badge {
+    font-size: 8.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+}
+
+.theme-mockup-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.theme-mockup-sidebar {
+    width: 32px;
+    padding: 6px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.theme-mockup-nav-item {
+    height: 5px;
+    border-radius: 3px;
+    opacity: 0.6;
+}
+
+.theme-mockup-nav-item.active {
+    opacity: 1;
+}
+
+.theme-mockup-main {
+    flex: 1;
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-mockup-card {
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: relative;
+}
+
+.theme-mockup-card-label {
+    font-size: 8px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.theme-mockup-card-val {
+    font-size: 11.5px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.2px;
+}
+
+.theme-mockup-card-sub {
+    margin-top: 1px;
+}
+
+.theme-mockup-pill {
+    display: inline-block;
+    font-size: 7.5px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 8px;
+    line-height: 1.2;
+}
+
+.theme-card-desc {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    line-height: 1.4;
+    margin: 0;
+}
+
+/* ── Theme-Specific Mockup Styling ── */
+
+/* 1. Classique Sombre */
+.theme-mockup-dark {
+    background: #161c24;
+    border-color: #2d3748;
+}
+.theme-mockup-dark .theme-mockup-header {
+    background: #1c232e;
+    border-bottom: 1px solid #2d3748;
+}
+.theme-mockup-dark .theme-mockup-badge {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 10px;
+}
+.theme-mockup-dark .theme-mockup-sidebar {
+    background: #1a202c;
+    border-right: 1px solid #2d3748;
+}
+.theme-mockup-dark .theme-mockup-nav-item {
+    background: #475569;
+}
+.theme-mockup-dark .theme-mockup-nav-item.active {
+    background: #6366f1;
+}
+.theme-mockup-dark .theme-mockup-card {
+    background: #212b36;
+    border: 1px solid #334155;
+    border-radius: 6px;
+}
+.theme-mockup-dark .theme-mockup-card-label {
+    color: #94a3b8;
+}
+.theme-mockup-dark .theme-mockup-card-val {
+    color: #f8fafc;
+}
+.theme-mockup-dark .theme-mockup-pill {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border-radius: 10px;
+}
+
+/* 2. Classique Clair */
+.theme-mockup-light {
+    background: #f4f6f8;
+    border-color: #e2e8f0;
+}
+.theme-mockup-light .theme-mockup-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+}
+.theme-mockup-light .theme-mockup-badge {
+    background: rgba(99, 102, 241, 0.12);
+    color: #4f46e5;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 10px;
+}
+.theme-mockup-light .theme-mockup-sidebar {
+    background: #ffffff;
+    border-right: 1px solid #e2e8f0;
+}
+.theme-mockup-light .theme-mockup-nav-item {
+    background: #cbd5e1;
+}
+.theme-mockup-light .theme-mockup-nav-item.active {
+    background: #6366f1;
+}
+.theme-mockup-light .theme-mockup-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.theme-mockup-light .theme-mockup-card-label {
+    color: #64748b;
+}
+.theme-mockup-light .theme-mockup-card-val {
+    color: #0f172a;
+}
+.theme-mockup-light .theme-mockup-pill {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    border-radius: 10px;
+}
+
+/* 3. Executive Titanium Sombre */
+.theme-mockup-titanium-dark {
+    background: #0f141c;
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+}
+.theme-mockup-titanium-dark::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 50%, #e2e8f0 100%);
+    z-index: 2;
+}
+.theme-mockup-titanium-dark .theme-mockup-header {
+    background: #161d27;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.theme-mockup-titanium-dark .theme-mockup-badge {
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(96, 165, 250, 0.35);
+    border-radius: 3px;
+    font-weight: 700;
+}
+.theme-mockup-titanium-dark .theme-mockup-sidebar {
+    background: #141a23;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+.theme-mockup-titanium-dark .theme-mockup-nav-item {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+.theme-mockup-titanium-dark .theme-mockup-nav-item.active {
+    background: #2563eb;
+    border-left: 2px solid #60a5fa;
+}
+.theme-mockup-titanium-dark .theme-mockup-card {
+    background: #1c232d;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 3px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    position: relative;
+    overflow: hidden;
+}
+.theme-mockup-titanium-dark .theme-mockup-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1.5px;
+    background: linear-gradient(90deg, #60a5fa, #93c5fd);
+}
+.theme-mockup-titanium-dark .theme-mockup-card-label {
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-size: 7.5px;
+    letter-spacing: 0.4px;
+    font-weight: 700;
+}
+.theme-mockup-titanium-dark .theme-mockup-card-val {
+    color: #ffffff;
+    font-weight: 800;
+}
+.theme-mockup-titanium-dark .theme-mockup-pill {
+    background: rgba(54, 179, 126, 0.15);
+    color: #36b37e;
+    border: 1px solid rgba(54, 179, 126, 0.3);
+    border-radius: 2px;
+}
+
+/* 4. Executive Albâtre Clair */
+.theme-mockup-titanium-light {
+    background: #f7f5f0;
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 3px 10px rgba(60, 45, 30, 0.08);
+}
+.theme-mockup-titanium-light::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #c25e00 0%, #ea580c 50%, #fed7aa 100%);
+    z-index: 2;
+}
+.theme-mockup-titanium-light .theme-mockup-header {
+    background: #ffffff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+.theme-mockup-titanium-light .theme-mockup-badge {
+    background: rgba(194, 94, 0, 0.12);
+    color: #c25e00;
+    border: 1px solid rgba(194, 94, 0, 0.25);
+    border-radius: 3px;
+    font-weight: 700;
+}
+.theme-mockup-titanium-light .theme-mockup-sidebar {
+    background: #f1ede4;
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+.theme-mockup-titanium-light .theme-mockup-nav-item {
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 2px;
+}
+.theme-mockup-titanium-light .theme-mockup-nav-item.active {
+    background: #c25e00;
+    border-left: 2px solid #ea580c;
+}
+.theme-mockup-titanium-light .theme-mockup-card {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.10);
+    border-radius: 3px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 3px rgba(60, 45, 30, 0.04);
+    position: relative;
+    overflow: hidden;
+}
+.theme-mockup-titanium-light .theme-mockup-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1.5px;
+    background: linear-gradient(90deg, #c25e00, #ea580c);
+}
+.theme-mockup-titanium-light .theme-mockup-card-label {
+    color: #78716c;
+    text-transform: uppercase;
+    font-size: 7.5px;
+    letter-spacing: 0.4px;
+    font-weight: 700;
+}
+.theme-mockup-titanium-light .theme-mockup-card-val {
+    color: #1c1917;
+    font-weight: 800;
+}
+.theme-mockup-titanium-light .theme-mockup-pill {
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 2px;
+}
+
+

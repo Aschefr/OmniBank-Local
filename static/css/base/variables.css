@@ -1,0 +1,83 @@
+/**
+ * OmniBank Local - base/variables.css
+ * Auto-modularized CSS component
+ */
+
+/* ─── Section: Classic light & dark root variables (Lines 1-76) ─── */
+:root {
+    /* Classic Light Theme */
+    --bg-base: #f4f6f8;
+    --bg-surface: #ffffff;
+    --bg-card: #ffffff;
+    --bg-input: #f0f2f5;
+    --bg-sidebar: #ffffff;
+    --text-main: #212b36;
+    --text-muted: #637381;
+    --border-color: #dfe3e8;
+    --border-subtle: rgba(0, 0, 0, 0.06);
+    --bg-surface-hover: rgba(0, 0, 0, 0.025);
+    --bg-card-hover: #f9fafb;
+
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --accent-rgb: 99, 102, 241;
+    --accent-subtle: rgba(99, 102, 241, 0.14);
+    --accent-border: rgba(99, 102, 241, 0.35);
+    --accent-glow: rgba(99, 102, 241, 0.25);
+    --accent-gradient: linear-gradient(90deg, #6366f1 0%, #a5b4fc 50%, #e0e7ff 100%);
+
+    --success: #36b37e;
+    --danger: #ff5630;
+    --warning: #ffab00;
+
+    --color-expense-fixed: #ff5630;
+    --color-expense-var: #ff8a65;
+    --color-income: #36b37e;
+    --color-transfer: #00b8d9;
+
+    --shadow-sm: 0 1px 2px 0 rgba(145, 158, 171, 0.16);
+    --shadow-md: 0 4px 8px 0 rgba(145, 158, 171, 0.16);
+
+    --bg-reconciled: #f1f3f5;
+    --text-reconciled: #9aa3af;
+}
+
+.theme-dark,
+body.theme-dark {
+    /* Classic Dark Theme */
+    --bg-base: #161c24;
+    --bg-surface: #212b36;
+    --bg-card: #212b36;
+    --bg-input: #1c2430;
+    --bg-sidebar: #1c252e;
+    --text-main: #f9fafb;
+    --text-muted: #919eab;
+    --border-color: #333d48;
+    --border-subtle: rgba(255, 255, 255, 0.07);
+    --bg-surface-hover: rgba(255, 255, 255, 0.035);
+    --bg-card-hover: #293544;
+
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --accent-rgb: 99, 102, 241;
+    --accent-subtle: rgba(99, 102, 241, 0.18);
+    --accent-border: rgba(99, 102, 241, 0.40);
+    --accent-glow: rgba(99, 102, 241, 0.30);
+    --accent-gradient: linear-gradient(90deg, #6366f1 0%, #a5b4fc 50%, #e0e7ff 100%);
+
+    --success: #36b37e;
+    --danger: #ff5630;
+    --warning: #ffab00;
+
+    --color-expense-fixed: #ff5630;
+    --color-expense-var: #ff8a65;
+    --color-income: #36b37e;
+    --color-transfer: #00b8d9;
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.24);
+    --shadow-md: 0 8px 16px 0 rgba(0, 0, 0, 0.24);
+
+    --bg-reconciled: #181f2a;
+    --text-reconciled: #6b7685;
+}
+
