@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added & Improved
 - **Modularized AI Chat Tools 🧩**: Deconstructed the monolithic AI chat tools into dedicated domain modules (`read_tools`, `write_tools`, `analysis_tools`, `simulation_tools`) with clean registry and re-exports for enhanced maintainability.
+- **Modularized Bank Sync Service 🏦**: Decoupled monolithic 1,587-line banking synchronization engine into dedicated sub-domain components under `app/services/bank_sync/` (`twofa_manager`, `woob_adapter`, `import_engine`, `sync_service`) while maintaining a 100% backward-compatible facade preserving all test mock bindings and zero regressions across 253 automated tests.
 - **Simulator Presets Externalization ⚙️**: Extracted static scenario presets from engine source into a decoupled JSON configuration (`simulator_presets.json`).
 - **Centralized Safe Date Parsing 📅**: Unified date parsing across backend services into a robust shared utility (`date_utils.py`) with strict error handling and invalid date resilience.
 - **Automated Cache Invalidation ⚡**: Added `@invalidates_cache` decorator support across core reporting services for automated cache eviction on data updates.
