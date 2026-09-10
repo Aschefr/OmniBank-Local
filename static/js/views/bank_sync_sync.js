@@ -51,14 +51,24 @@ Object.assign(window.BankSyncView, {
             } else if (this._syncState === 'syncing') {
                 this._stopSyncPollingTracker();
                 let hasError = false;
+                let conn2FA = null;
                 try {
                     const connsRes = await API.get('/api/bank-sync/connections');
                     if (Array.isArray(connsRes)) {
+                        this.connections = connsRes;
+                        conn2FA = connsRes.find(c => c.is_active && (c.last_sync_status === '2fa_required' || (c.last_error && c.last_error.toLowerCase().includes('2fa'))));
                         hasError = connsRes.some(c => c.is_active && (c.last_sync_status === 'auto_error' || c.last_sync_status === 'error'));
                     }
                 } catch (_) {}
-                this.setButtonsState(hasError ? 'error' : 'success');
-                setTimeout(() => this.setButtonsState('idle'), 3500);
+
+                if (conn2FA) {
+                    this.setButtonsState('idle');
+                    // Déclenchement automatique et direct de la modale 2FA pour cette banque
+                    await this.promptAndSync(conn2FA.id);
+                } else {
+                    this.setButtonsState(hasError ? 'error' : 'success');
+                    setTimeout(() => this.setButtonsState('idle'), 3500);
+                }
                 Promise.all([
                     (window.app && typeof window.app.loadNotifications === 'function') ? window.app.loadNotifications() : Promise.resolve(),
                     this.refreshActiveViews(),
@@ -77,14 +87,25 @@ Object.assign(window.BankSyncView, {
                 if (!isRunning) {
                     this._stopSyncPollingTracker();
                     let hasError = false;
+                    let conn2FA = null;
                     try {
                         const connsRes = await API.get('/api/bank-sync/connections');
                         if (Array.isArray(connsRes)) {
+                            this.connections = connsRes;
+                            conn2FA = connsRes.find(c => c.is_active && (c.last_sync_status === '2fa_required' || (c.last_error && c.last_error.toLowerCase().includes('2fa'))));
                             hasError = connsRes.some(c => c.is_active && (c.last_sync_status === 'auto_error' || c.last_sync_status === 'error'));
                         }
                     } catch (_) {}
-                    this.setButtonsState(hasError ? 'error' : 'success');
-                    setTimeout(() => this.setButtonsState('idle'), 3500);
+
+                    if (conn2FA) {
+                        this.setButtonsState('idle');
+                        // Déclenchement automatique et direct de la modale 2FA pour cette banque
+                        await this.promptAndSync(conn2FA.id);
+                    } else {
+                        this.setButtonsState(hasError ? 'error' : 'success');
+                        setTimeout(() => this.setButtonsState('idle'), 3500);
+                    }
+
                     if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
                         window.app.setFastNotificationsPolling(false);
                     }
@@ -143,6 +164,22 @@ Object.assign(window.BankSyncView, {
                 this._startSyncPollingTracker();
                 return;
             }
+        }
+
+        // Vérification préalable : si une connexion active est déjà en attente d'un 2FA smartphone
+        try {
+            if (!this.connections || this.connections.length === 0) {
+                this.connections = await API.get('/api/bank-sync/connections');
+            }
+        } catch (_) {}
+        const pending2FAConn = Array.isArray(this.connections)
+            ? this.connections.find(c => c.is_active && (c.last_sync_status === '2fa_required' || (c.last_error && c.last_error.toLowerCase().includes('2fa'))))
+            : null;
+
+        if (pending2FAConn) {
+            this.setButtonsState('idle');
+            await this.promptAndSync(pending2FAConn.id);
+            return;
         }
 
         // Lancer l'animation de progression sur le fond du bouton
@@ -215,8 +252,15 @@ Object.assign(window.BankSyncView, {
     },
 
     async promptAndSync(connId) {
+        this.ensureModalsExist();
         this.activeConnId = connId;
-        const conn = this.connections.find(c => c.id === connId);
+
+        if (!this.connections || this.connections.length === 0) {
+            try {
+                this.connections = await API.get('/api/bank-sync/connections');
+            } catch (_) {}
+        }
+        const conn = Array.isArray(this.connections) ? this.connections.find(c => c.id === connId) : null;
         const cached = this.getCachedPreview(connId);
 
         let lastTime = 0;
@@ -227,9 +271,10 @@ Object.assign(window.BankSyncView, {
         }
 
         const elapsedMs = Date.now() - lastTime;
+        const is2FA = conn && (conn.last_sync_status === '2fa_required' || (conn.last_error && conn.last_error.toLowerCase().includes('2fa')));
 
-        // Si la dernière synchronisation a eu lieu il y a moins de 5 minutes :
-        if (lastTime > 0 && elapsedMs < this.COOLDOWN_MS) {
+        // Si la dernière synchronisation a eu lieu il y a moins de 5 minutes (sauf si un 2FA est expressément requis) :
+        if (!is2FA && lastTime > 0 && elapsedMs < this.COOLDOWN_MS) {
             this.showCooldownModal(connId, elapsedMs, cached);
             return;
         }
@@ -391,6 +436,9 @@ Object.assign(window.BankSyncView, {
 
     // ── REVUE DES OPÉRATIONS (STYLE IMPORT CSV & IA CONDITIONNELLE) ──
     show2FAModal(type, message) {
+        const progressModal = document.getElementById('syncProgressModal');
+        if (progressModal) progressModal.style.display = 'none';
+
         const modal = document.getElementById('twoFAModal');
         const icon = document.getElementById('twoFAIcon');
         const title = document.getElementById('twoFATitle');

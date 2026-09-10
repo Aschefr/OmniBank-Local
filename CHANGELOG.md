@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Seamless Bank 2FA Auto-Prompt & Session Persistence 📱**: Clicking 'Relevé en ligne' now automatically surfaces the interactive 2FA modal when strong customer authentication is required (e.g. Crédit Mutuel) and auto-closes upon mobile approval. Added persistent Woob storage to preserve 90-day SCA session tokens.
 - **Desktop Startup Resilience & Packaging Diagnostics 🛡️**: Introduced an automated pre-release sidecar smoke test, added a startup failure screen with direct diagnostic logs and fallback release download link, and secured sidecar runtime assets in versioned packaging specs.
 
 ## [1.1.6] - 2026-09-09

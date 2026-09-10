@@ -32,6 +32,7 @@ data/uploads/
 data/backups/
 data/*.txt
 data/e2e_test_data/
+data/woob_storage.json
 export_omnibank*
 *.zip
 CA*.csv

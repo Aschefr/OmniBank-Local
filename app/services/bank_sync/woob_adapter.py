@@ -6,6 +6,7 @@ l'application des correctifs spécifiques (Crédit Agricole, BoursoBank) et le f
 
 import importlib
 import logging
+import os
 import pathlib
 import sys
 import threading
@@ -13,7 +14,9 @@ import time
 from typing import Any, List, Optional
 
 from woob.core import Woob
+from woob.tools.storage import StandardStorage
 
+from app.database import DATA_DIR
 from app.schemas.bank_sync_schemas import (
     BackendConfigField,
     BankBackendInfo,
@@ -21,8 +24,10 @@ from app.schemas.bank_sync_schemas import (
 
 logger = logging.getLogger(__name__)
 
-# Cache singleton pour l'instance Woob
+# Cache singleton pour l'instance Woob et son stockage persistant
 _WOOB_INSTANCE: Optional[Woob] = None
+_STORAGE_INSTANCE: Optional[StandardStorage] = None
+_STORAGE_LOCK = threading.Lock()
 _BACKENDS_CACHE: Optional[List[BankBackendInfo]] = None
 _CACHE_TIMESTAMP: float = 0
 
@@ -33,6 +38,16 @@ def get_woob() -> Woob:
     if _WOOB_INSTANCE is None:
         _WOOB_INSTANCE = Woob()
     return _WOOB_INSTANCE
+
+
+def get_woob_storage() -> StandardStorage:
+    """Retourne une instance StandardStorage persistante pour conserver les sessions et cookies 2FA (90 jours)."""
+    global _STORAGE_INSTANCE
+    with _STORAGE_LOCK:
+        if _STORAGE_INSTANCE is None:
+            storage_path = os.path.join(DATA_DIR, "woob_storage.json")
+            _STORAGE_INSTANCE = StandardStorage(storage_path)
+    return _STORAGE_INSTANCE
 
 
 def _apply_module_hotfixes(w: Woob, backend_name: str, backend: Any = None):

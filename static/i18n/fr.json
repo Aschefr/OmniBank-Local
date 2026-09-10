@@ -2525,7 +2525,7 @@
   "smart_review_badge_analyzing_tip": "🧠 Opération en cours d'analyse par l'IA locale (Ollama)...",
   "notif_toast_sync_failed": "Échec de la synchronisation bancaire : nouvelle notification reçue.",
   "notif_toast_sync_failed_conn": "Échec du relevé {label} : nouvelle notification reçue.",
-  "notif_toast_2fa_required": "Validation 2FA requise : nouvelle notification reçue.",
+  "notif_toast_2fa_required": "Validation 2FA requise sur votre smartphone.",
   "notif_toast_view": "Voir",
   "user_switcher_lock": "Verrouiller la session",
   "profiles_lock_session": "Verrouiller la session"
