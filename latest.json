@@ -1,11 +1,11 @@
 {
-  "version": "1.1.6",
-  "notes": "Architecture Modulaire, Zero-Cloud Offline & Robustesse IA",
-  "pub_date": "2026-09-10T10:38:00Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlIUkhVYklEYXFQelRXV1FqWUtsaytiUTFhYnA4U2d4WUdLUXVvRUUrbDZ1R2I4c0M1cEJvbXNnbkU5QStWVDFoY3Z3YnVoTEI0TnA1ckFtZTBNUEFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MDM2Njc1CWZpbGU6T21uaUJhbmtfMS4xLjZfeDY0X2ZyLUZSLm1zaQpOQmM4UUtLUDNvWmo1VlU2OU5OTXRJN3NTL3NVR2lhaGdJY0VjTm1QcXFPOFdPVTY0WG1aMFhQNDB0TkN6d0U0YjNxdG13Yml1dG9GeFVNcHJBNFhCQT09Cg==",
-      "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.6/OmniBank_1.1.6_x64_fr-FR.msi"
-    }
-  }
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDdYNHVXYUxQRHFNNCsrbFg4RHVSVk40QWhYNHZPbFEwQU02Zll0RE9lS2tlVWFJZEVJcmQxSnZ2WVlmWWJuS2FGeERCa0p1U2lyVDUvdmJoZGdBNXcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MDQ1MTMyCWZpbGU6T21uaUJhbmtfMS4xLjdfeDY0X2ZyLUZSLm1zaQpyT2hOZVFmVmF0ZnRYa3J1ZStXTnJ6UmVQNUVpVXAzUFUwTEk1TFBxNHZYSzkvV3ltWUtuM0Y2eklpRjQwTlV4aEtheFJ3MGlDcEVCRVkxL3NQRTVBZz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.7/OmniBank_1.1.7_x64_fr-FR.msi"
+                                         }
+                  },
+    "pub_date":  "2026-09-10T12:58:53Z",
+    "version":  "1.1.7",
+    "notes":  "Forçage Relevé Bancaire, 2FA Directe \u0026 Double Smoke Test MSI"
 }

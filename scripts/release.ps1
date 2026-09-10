@@ -167,6 +167,20 @@ if (-not (Test-Path $msiPath)) {
 $msiSize = [math]::Round((Get-Item $msiPath).Length / 1MB, 1)
 Write-Host "  MSI: $msiSize MB" -ForegroundColor Green
 
+# --- Step 3b: Validate MSI with Smoke Test ---
+Write-Host "`n[3b/8] Verifying packaged MSI (MSI Smoke Test)..." -ForegroundColor Yellow
+$msiSmokeScript = Join-Path $ProjectRoot "scripts\test_msi_smoke.ps1"
+if (-not (Test-Path $msiSmokeScript)) {
+    Write-Host "ERROR: MSI smoke test script not found at $msiSmokeScript" -ForegroundColor Red
+    exit 1
+}
+& powershell -ExecutionPolicy Bypass -File $msiSmokeScript -MsiPath $msiPath
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "CRITICAL ERROR: MSI Smoke Test failed! Packaged MSI is defective. Aborting release." -ForegroundColor Red
+    exit 1
+}
+Write-Host "  MSI package verified and certified healthy." -ForegroundColor Green
+
 # --- Step 4: Sign MSI ---
 Write-Host "`n[4/8] Signing MSI with gen-tauri-keys..." -ForegroundColor Yellow
 $signOutput = & $SignerExe sign $msiPath $PrivateKeyPath 2>&1
