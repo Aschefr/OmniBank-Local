@@ -180,11 +180,24 @@ window.AppModules.notifications = {
                             }
                         });
                     } else if (twofaNotif) {
-                        const msg = window.i18n ? window.i18n.t('notif_toast_2fa_required') || "Validation 2FA requise : nouvelle notification reçue." : "Validation 2FA requise : nouvelle notification reçue.";
-                        showToast(msg, 'info', 5000, {
+                        let connId = null;
+                        if (twofaNotif.link_data) {
+                            try {
+                                const ld = typeof twofaNotif.link_data === 'string' ? JSON.parse(twofaNotif.link_data) : twofaNotif.link_data;
+                                connId = ld.conn_id || null;
+                            } catch (_) {}
+                        }
+                        const msg = window.i18n ? window.i18n.t('notif_toast_2fa_required') || "Validation 2FA requise sur votre smartphone." : "Validation 2FA requise sur votre smartphone.";
+                        showToast(msg, 'info', 6000, {
                             action: {
-                                text: window.i18n ? window.i18n.t('notif_toast_view') || 'Voir' : 'Voir',
-                                callback: () => this.openNotificationsMenu()
+                                text: window.i18n ? window.i18n.t('bank_sync_btn_validate_2fa') || 'Valider' : 'Valider',
+                                callback: () => {
+                                    if (connId && window.BankSyncView && typeof window.BankSyncView.promptAndSync === 'function') {
+                                        window.BankSyncView.promptAndSync(connId);
+                                    } else {
+                                        this.openNotificationsMenu();
+                                    }
+                                }
                             }
                         });
                     } else {
