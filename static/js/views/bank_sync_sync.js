@@ -50,8 +50,15 @@ Object.assign(window.BankSyncView, {
                 }
             } else if (this._syncState === 'syncing') {
                 this._stopSyncPollingTracker();
-                this.setButtonsState('success');
-                setTimeout(() => this.setButtonsState('idle'), 3000);
+                let hasError = false;
+                try {
+                    const connsRes = await API.get('/api/bank-sync/connections');
+                    if (Array.isArray(connsRes)) {
+                        hasError = connsRes.some(c => c.is_active && (c.last_sync_status === 'auto_error' || c.last_sync_status === 'error'));
+                    }
+                } catch (_) {}
+                this.setButtonsState(hasError ? 'error' : 'success');
+                setTimeout(() => this.setButtonsState('idle'), 3500);
                 Promise.all([
                     (window.app && typeof window.app.loadNotifications === 'function') ? window.app.loadNotifications() : Promise.resolve(),
                     this.refreshActiveViews(),
@@ -69,8 +76,15 @@ Object.assign(window.BankSyncView, {
                 const isRunning = Boolean(statusRes && statusRes.is_running);
                 if (!isRunning) {
                     this._stopSyncPollingTracker();
-                    this.setButtonsState('success');
-                    setTimeout(() => this.setButtonsState('idle'), 3000);
+                    let hasError = false;
+                    try {
+                        const connsRes = await API.get('/api/bank-sync/connections');
+                        if (Array.isArray(connsRes)) {
+                            hasError = connsRes.some(c => c.is_active && (c.last_sync_status === 'auto_error' || c.last_sync_status === 'error'));
+                        }
+                    } catch (_) {}
+                    this.setButtonsState(hasError ? 'error' : 'success');
+                    setTimeout(() => this.setButtonsState('idle'), 3500);
                     if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
                         window.app.setFastNotificationsPolling(false);
                     }

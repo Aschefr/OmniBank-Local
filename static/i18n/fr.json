@@ -2522,5 +2522,9 @@
   "tool_apply_transaction_correction_title": "Correction d'une opération",
   "chat_action_propose_apply_correction": "Propose de corriger l'opération <strong>#{id}</strong> ({fields})",
   "smart_review_badge_analyzing": "🧠 Analyse IA...",
-  "smart_review_badge_analyzing_tip": "🧠 Opération en cours d'analyse par l'IA locale (Ollama)..."
+  "smart_review_badge_analyzing_tip": "🧠 Opération en cours d'analyse par l'IA locale (Ollama)...",
+  "notif_toast_sync_failed": "Échec de la synchronisation bancaire : nouvelle notification reçue.",
+  "notif_toast_sync_failed_conn": "Échec du relevé {label} : nouvelle notification reçue.",
+  "notif_toast_2fa_required": "Validation 2FA requise : nouvelle notification reçue.",
+  "notif_toast_view": "Voir"
 }
