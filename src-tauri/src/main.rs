@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::Manager;
-use tauri_plugin_shell::ShellExt;
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind, MessageDialogButtons};
 use std::time::Duration;
 use std::sync::Mutex;
@@ -177,6 +176,14 @@ fn main() {
             let sidecar_dir = resource_dir.join("resources").join("omnibank-api");
             let exe_path = sidecar_dir.join("omnibank-api.exe");
 
+            // Setup logs directory in %APPDATA%\OmniBank\logs\
+            let log_dir = match std::env::var("APPDATA") {
+                Ok(appdata) => PathBuf::from(appdata).join("OmniBank").join("logs"),
+                Err(_) => PathBuf::from("logs"),
+            };
+            let _ = std::fs::create_dir_all(&log_dir);
+            let log_file_path = log_dir.join("sidecar.log");
+
             // Nettoyage de l'ancienne structure imbriquée (pré-v1.0.87)
             // L'ancien build créait resources/omnibank-api/omnibank-api/ (doublon imbriqué).
             // L'auto-updater ne supprime pas ces résidus : on le fait ici avant le spawn.
@@ -203,30 +210,58 @@ fn main() {
                 pid: Mutex::new(Some(pid)),
             });
             
-            // Log sidecar output in a background thread
+            // Log sidecar output in background threads and write to sidecar.log
+            let log_path_clone1 = log_file_path.clone();
+            let log_path_clone2 = log_file_path.clone();
+
             std::thread::spawn(move || {
-                use std::io::{BufRead, BufReader};
+                use std::io::{BufRead, BufReader, Write};
+                let mut file = std::fs::OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(&log_path_clone1)
+                    .ok();
                 if let Some(out) = stdout {
                     let reader = BufReader::new(out);
                     for line in reader.lines() {
-                        if let Ok(l) = line { println!("[sidecar:out] {}", l); }
+                        if let Ok(l) = line {
+                            println!("[sidecar:out] {}", l);
+                            if let Some(ref mut f) = file {
+                                let _ = writeln!(f, "[out] {}", l);
+                                let _ = f.flush();
+                            }
+                        }
                     }
                 }
             });
             std::thread::spawn(move || {
-                use std::io::{BufRead, BufReader};
+                use std::io::{BufRead, BufReader, Write};
+                let mut file = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&log_path_clone2)
+                    .ok();
                 if let Some(err) = stderr {
                     let reader = BufReader::new(err);
                     for line in reader.lines() {
-                        if let Ok(l) = line { eprintln!("[sidecar:err] {}", l); }
+                        if let Ok(l) = line {
+                            eprintln!("[sidecar:err] {}", l);
+                            if let Some(ref mut f) = file {
+                                let _ = writeln!(f, "[err] {}", l);
+                                let _ = f.flush();
+                            }
+                        }
                     }
                 }
             });
 
             // Wait for the API server to become ready before showing the window
             let app_handle = app.handle().clone();
+            let log_path_for_health = log_file_path.clone();
+
             std::thread::spawn(move || {
-                for _ in 0..30 {
+                for _ in 0..75 {
                     if let Ok(resp) = reqwest::blocking::get("http://127.0.0.1:8434/api/health") {
                         if resp.status().is_success() {
                             // Server is ready — reload page (clears the ERR_CONNECTION_REFUSED) then show
@@ -268,12 +303,58 @@ fn main() {
                     }
                     std::thread::sleep(Duration::from_millis(200));
                 }
+
                 eprintln!("Warning: sidecar health check timed out after 15s");
-                // Show window anyway so the user can see an error
+                let log_str = log_path_for_health.to_string_lossy().to_string();
+                let escaped_log = log_str.replace('\\', "\\\\");
+
+                // Check if child process has exited (crashed)
+                let is_dead = if let Some(state) = app_handle.try_state::<SidecarState>() {
+                    if let Ok(mut guard) = state.child.lock() {
+                        if let Some(ref mut child) = *guard {
+                            child.try_wait().ok().flatten().is_some()
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                let err_detail = if is_dead {
+                    "Le moteur local s'est arr\u{00ea}t\u{00e9} de mani\u{00e8}re inattendue (crash)."
+                } else {
+                    "Le moteur local ne r\u{00e9}pond pas apr\u{00e8}s 15 secondes d'attente."
+                };
+
+                // Trigger fallback error view with download link on loading.html
                 if let Some(window) = app_handle.get_webview_window("main") {
-                    let _ = window.navigate("http://127.0.0.1:8434".parse().unwrap());
+                    let eval_code = format!(
+                        "if (window.showStartupError) {{ window.showStartupError('{}', '{}'); }}",
+                        err_detail,
+                        escaped_log
+                    );
+                    let _ = window.eval(&eval_code);
                     let _ = window.show();
                 }
+
+                // Also display a native error dialog
+                let dialog_app = app_handle.clone();
+                let dialog_msg = format!(
+                    "Échec du démarrage du moteur local OmniBank.\n\n{}\n\nJournal d'erreurs :\n{}\n\nUne version antérieure peut être téléchargée depuis les Releases GitHub (désinstallez simplement la version actuelle au préalable).",
+                    err_detail,
+                    log_str
+                );
+                std::thread::spawn(move || {
+                    dialog_app.dialog()
+                        .message(&dialog_msg)
+                        .title("OmniBank — Échec de démarrage")
+                        .kind(MessageDialogKind::Error)
+                        .buttons(MessageDialogButtons::Ok)
+                        .blocking_show();
+                });
             });
 
             Ok(())

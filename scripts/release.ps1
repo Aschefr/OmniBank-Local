@@ -106,6 +106,49 @@ if (-not $SkipSidecar) {
     Write-Host "`n[2/8] Skipping sidecar build (-SkipSidecar)" -ForegroundColor DarkGray
 }
 
+# --- Step 2b: Validate sidecar with smoke test ---
+Write-Host "`n[2b/8] Verifying sidecar health (Smoke Test)..." -ForegroundColor Yellow
+$sidecarExe = Join-Path $ProjectRoot "src-tauri\resources\omnibank-api\omnibank-api.exe"
+if (-not (Test-Path $sidecarExe)) {
+    Write-Host "ERROR: Sidecar executable not found at $sidecarExe" -ForegroundColor Red
+    exit 1
+}
+Get-Process "omnibank-api" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 300
+
+$smokeStderr = Join-Path $ProjectRoot "build\release_smoke_stderr.log"
+if (Test-Path $smokeStderr) { Remove-Item -Force $smokeStderr }
+$proc = Start-Process -FilePath $sidecarExe -RedirectStandardError $smokeStderr -PassThru -WindowStyle Hidden
+
+$healthy = $false
+for ($i = 0; $i -lt 16; $i++) {
+    Start-Sleep -Milliseconds 500
+    if ($proc.HasExited) { break }
+    try {
+        $resp = Invoke-RestMethod -Uri "http://127.0.0.1:8434/api/health" -Method Get -TimeoutSec 1 -ErrorAction Stop
+        if ($resp.status -eq "ok" -or $resp -match "ok") {
+            $healthy = $true
+            break
+        }
+    } catch {}
+}
+
+if (-not $proc.HasExited) {
+    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+}
+Get-Process "omnibank-api" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
+if (-not $healthy) {
+    Write-Host "CRITICAL ERROR: Sidecar Smoke Test failed! Aborting release build." -ForegroundColor Red
+    if (Test-Path $smokeStderr) {
+        Write-Host "`n--- Sidecar Stderr Output ---" -ForegroundColor Yellow
+        Get-Content $smokeStderr
+        Write-Host "-----------------------------" -ForegroundColor Yellow
+    }
+    exit 1
+}
+Write-Host "  Sidecar is healthy and ready for bundling." -ForegroundColor Green
+
 # --- Step 3: Build MSI ---
 Write-Host "`n[3/8] Building MSI (npx tauri build)..." -ForegroundColor Yellow
 $prevPref = $ErrorActionPreference
