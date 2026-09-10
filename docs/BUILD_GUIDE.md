@@ -92,8 +92,11 @@ OmniBank-Local/
 ├── package.json                  # Deps npm (Tauri CLI + plugins)
 ├── latest.json                   # Manifeste updater (GitHub)
 ├── scripts/
-│   ├── build_sidecar.ps1         # Script de build PyInstaller
-│   ├── release.ps1               # Script de release automatise (build+sign+push)
+│   ├── build_sidecar_onedir.ps1  # Script de build PyInstaller (--onedir spec)
+│   ├── test_msi_smoke.ps1        # Validation automatisee MSI par extraction administrative
+│   ├── release.ps1               # Script de release automatise (build+smoke tests+sign+push)
+│   ├── packaging/
+│   │   └── omnibank-api.spec     # Specification PyInstaller versionnee (assets & hidden imports)
 │   └── gen-keys/                 # Outil Rust de signature (remplace rsign2)
 │       ├── src/main.rs
 │       └── Cargo.toml
@@ -106,46 +109,35 @@ OmniBank-Local/
     ├── capabilities/
     │   └── default.json          # Permissions (shell, updater, app, dialog)
     ├── icons/                    # Icones (32px, 128px, 256px, ICO)
-    ├── bin/                      # Sidecar compile (gitignored)
-    │   └── omnibank-api-x86_64-pc-windows-msvc.exe
+    ├── resources/                # Sidecar et assets embarques (PyInstaller --onedir)
+    │   └── omnibank-api/
     ├── .tauri-private-key        # Cle privee updater (gitignored, NE PAS PERDRE)
     └── .tauri-public-key         # Cle publique updater
 ```
 
 ---
 
-## Étape 1 — Build du Sidecar (PyInstaller)
+## Étape 1 — Build du Sidecar (PyInstaller spec & --onedir)
 
-Le script `scripts/build_sidecar.ps1` automatise tout le processus :
+Le script `scripts/build_sidecar_onedir.ps1` utilise la spécification versionnée `scripts/packaging/omnibank-api.spec` :
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build_sidecar.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\build_sidecar_onedir.ps1
 ```
 
 ### Ce que fait le script :
 
-1. Appelle PyInstaller avec `--onefile` sur `run_server.py`
-2. Inclut les fichiers statiques (`--add-data "static;static"`)
-3. Déclare tous les hidden imports nécessaires (uvicorn, fastapi, starlette, etc.)
-4. Utilise `--collect-submodules` pour uvicorn, fastapi et starlette
-5. Copie le résultat dans `src-tauri/bin/` avec le nom attendu par Tauri
+1. Appelle PyInstaller avec le fichier spec versionné `scripts/packaging/omnibank-api.spec` en mode `--onedir`
+2. Inclut les fichiers statiques (`static/`) ainsi que les presets et templates critiques
+3. Déclare tous les imports dynamiques nécessaires (uvicorn, fastapi, starlette, sqlalchemy, etc.)
+4. Copie le dossier complet dans `src-tauri/resources/omnibank-api/`
+5. **Smoke Test Sidecar automatique (Étape 4/4)** : Démarre le sidecar compilé en arrière-plan, vérifie la réponse HTTP 200 sur `http://127.0.0.1:8434/api/health`, et stoppe le build en cas de crash ou d'erreur.
 
-### Nommage du sidecar (CRUCIAL)
-
-Tauri exige que le binaire sidecar soit nommé avec le **target triple** :
-
-```
-omnibank-api-x86_64-pc-windows-msvc.exe
-```
-
-Ce nom correspond à `"externalBin": ["bin/omnibank-api"]` dans `tauri.conf.json`.
-Tauri ajoute automatiquement `-{target_triple}.exe` au nom.
-
-### Vérification rapide du sidecar
+### Vérification manuelle du sidecar
 
 ```powershell
 # Lancer le sidecar manuellement
-.\src-tauri\bin\omnibank-api-x86_64-pc-windows-msvc.exe
+.\src-tauri\resources\omnibank-api\omnibank-api.exe
 
 # Dans un autre terminal, tester
 Invoke-WebRequest http://127.0.0.1:8434/api/health
@@ -163,9 +155,26 @@ npx tauri build
 ### Ce que fait la commande :
 
 1. Compile le code Rust (`src-tauri/src/main.rs`) en mode release
-2. Empaquette le sidecar + les fichiers statiques + les icônes
+2. Empaquette le dossier sidecar `src-tauri/resources/omnibank-api` + les icônes
 3. Génère le MSI via **WiX Toolset** (téléchargé automatiquement)
 4. Produit : `src-tauri/target/release/bundle/msi/OmniBank_X.Y.Z_x64_fr-FR.msi`
+
+---
+
+## Étape 2b — Smoke Test Automatisé du MSI (Extraction sans installation)
+
+Afin d'éviter tout binaire défectueux ou asset manquant dans l'archive WiX finale (incident 1.1.6), le script `scripts/test_msi_smoke.ps1` vérifie l'intégrité réelle du MSI :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test_msi_smoke.ps1 "src-tauri\target\release\bundle\msi\OmniBank_X.Y.Z_x64_fr-FR.msi"
+```
+
+### Ce que fait ce Smoke Test MSI :
+
+1. **Extraction administrative** : Décompresse le MSI dans un dossier temporaire via `msiexec /a ... /qn TARGETDIR=...` (sans nécessiter de droits administrateur ni installer l'app).
+2. **Exécution du binaire embarqué** : Démarre `omnibank-api.exe` directement depuis les fichiers extraits du MSI.
+3. **Health Check HTTP** : Interroge `http://127.0.0.1:8434/api/health`.
+4. **Verdict & Nettoyage** : Si le binaire extrait crashe ou timeout, le script affiche la stacktrace stderr et interrompt toute tentative de publication. Si le test réussit, il nettoie les fichiers temporaires et certifie le MSI à 100%.
 
 ### Résultat attendu
 
@@ -315,8 +324,10 @@ Le script `scripts/release.ps1` automatise les 8 etapes du process :
 Le script effectue dans l'ordre :
 1. Pre-flight checks (outils, cle privee, etc.)
 2. Bump version dans `package.json` + `tauri.conf.json` (via Python, regle G-07)
-3. Build sidecar PyInstaller (sauf `-SkipSidecar`)
+3. Build sidecar PyInstaller (`scripts/build_sidecar_onedir.ps1`, sauf `-SkipSidecar`)
+3b. **Smoke Test automatisé du sidecar** (`/api/health`)
 4. Build MSI via `npx tauri build`
+4b. **Smoke Test automatisé du MSI** (`scripts/test_msi_smoke.ps1` via extraction administrative)
 5. Signature MSI via `scripts/gen-keys`
 6. Mise a jour de `latest.json` avec la signature base64
 7. Git commit + tag + push
