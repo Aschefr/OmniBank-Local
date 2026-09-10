@@ -149,6 +149,68 @@
                 box-shadow: 0 0 16px 4px rgba(51, 102, 255, 0.15);
             }
         }
+
+        .startup-error-box {
+            margin-top: 18px;
+            padding: 16px;
+            border-radius: 12px;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            text-align: center;
+            max-width: 420px;
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .error-badge {
+            display: inline-block;
+            color: #ef4444;
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+        .error-msg {
+            color: #f1f5f9;
+            font-size: 13px;
+            margin: 4px 0 8px 0;
+            line-height: 1.4;
+        }
+        .error-log-info {
+            font-size: 11px;
+            color: #94a3b8;
+            margin: 6px 0 14px 0;
+            word-break: break-all;
+        }
+        .error-log-info code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #38bdf8;
+            font-size: 11px;
+        }
+        .btn-downgrade {
+            display: inline-block;
+            background: #2563eb;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 9px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn-downgrade:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+        .downgrade-hint {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 10px;
+            line-height: 1.3;
+        }
     </style>
 </head>
 <body class="theme-dark">
@@ -165,6 +227,19 @@
         </div>
         <div class="status-text" id="loading-status">
             Démarrage du moteur local...
+        </div>
+        <div id="startup-error-box" class="startup-error-box" style="display: none;">
+            <div class="error-badge" id="error-badge">⚠️ Échec du démarrage</div>
+            <p class="error-msg" id="error-message">Le moteur local ne répond pas ou a rencontré une erreur.</p>
+            <p class="error-log-info">Journal : <code id="error-log-path">%APPDATA%\OmniBank\logs\sidecar.log</code></p>
+            <div class="error-actions">
+                <a href="https://github.com/Aschefr/OmniBank-Local/releases" target="_blank" class="btn-downgrade" id="btn-downgrade">
+                    ⬇️ Télécharger une version précédente (Secours)
+                </a>
+            </div>
+            <p class="downgrade-hint" id="downgrade-hint">
+                Pour rétrograder : désinstallez l'application via Windows (vos données restent conservées), puis installez la version précédente.
+            </p>
         </div>
     </div>
 
@@ -183,18 +258,51 @@
             fr: {
                 title: "Démarrage d'OmniBank",
                 status: "Démarrage du moteur local...",
-                hint: "Connexion sécurisée en cours..."
+                hint: "Connexion sécurisée en cours...",
+                errorBadge: "⚠️ Échec du démarrage",
+                errorMsg: "Le moteur local ne répond pas ou a rencontré une erreur.",
+                downgradeBtn: "⬇️ Télécharger une version précédente (Secours)",
+                downgradeHint: "Pour rétrograder : désinstallez l'application via Windows (vos données restent conservées), puis installez la version précédente."
             },
             en: {
                 title: "Starting OmniBank",
                 status: "Starting local engine...",
-                hint: "Establishing secure connection..."
+                hint: "Establishing secure connection...",
+                errorBadge: "⚠️ Startup Failed",
+                errorMsg: "The local engine is not responding or crashed.",
+                downgradeBtn: "⬇️ Download Previous Version (Fallback)",
+                downgradeHint: "To downgrade: uninstall the application via Windows (your data is preserved), then install the previous version."
             }
         };
         const t = translations[lang] || translations['fr'];
         document.getElementById('loading-status').textContent = t.status;
         document.getElementById('loading-hint').textContent = t.hint;
+        document.getElementById('error-badge').textContent = t.errorBadge;
+        document.getElementById('error-message').textContent = t.errorMsg;
+        document.getElementById('btn-downgrade').textContent = t.downgradeBtn;
+        document.getElementById('downgrade-hint').textContent = t.downgradeHint;
         document.title = t.title;
+
+        // Function invoked by Tauri in case of engine timeout or crash
+        window.showStartupError = function(customMsg, logPath) {
+            const spinner = document.querySelector('.spinner-container');
+            if (spinner) spinner.style.display = 'none';
+            const status = document.getElementById('loading-status');
+            if (status) status.style.display = 'none';
+            const hint = document.getElementById('loading-hint');
+            if (hint) hint.style.display = 'none';
+
+            const errBox = document.getElementById('startup-error-box');
+            if (errBox) {
+                errBox.style.display = 'block';
+                if (customMsg) {
+                    document.getElementById('error-message').textContent = customMsg;
+                }
+                if (logPath) {
+                    document.getElementById('error-log-path').textContent = logPath;
+                }
+            }
+        };
     </script>
 </body>
 </html>

@@ -59,6 +59,7 @@ build/
 !build/omnibank-api.spec
 *.spec
 !build/*.spec
+!scripts/packaging/*.spec
 !e2e/*.spec.js
 
 # Tauri
