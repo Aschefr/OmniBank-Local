@@ -1,11 +1,11 @@
 {
-    "platforms":  {
-                      "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDNlSkw2U3pRZzJMT3phWHNsVndWaG1xTlFuVnozT2RTWUNYNWorWGVDWHdLOURydVlFU2FuaEI0VFNSR1hFY04ybUNqNHVIblUvTTEwZkZBU2o2Q1F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MDE5OTMyCWZpbGU6T21uaUJhbmtfMS4xLjZfeDY0X2ZyLUZSLm1zaQpyOTlNNVJ2bzVaalAwc1BlakVjVTlaelBUSGJwanY5dzM0bER1bkdiMUg0aG1VOFE2clZIU0huVWpTa1ZtbGNmaXJJdXdKTUR5b0JLQ3JkdjNCYm5BUT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.6/OmniBank_1.1.6_x64_fr-FR.msi"
-                                         }
-                  },
-    "pub_date":  "2026-09-10T05:58:53Z",
-    "version":  "1.1.6",
-    "notes":  "Architecture Modulaire, Zero-Cloud Offline \u0026 Robustesse IA"
+  "version": "1.1.6",
+  "notes": "Architecture Modulaire, Zero-Cloud Offline & Robustesse IA",
+  "pub_date": "2026-09-10T10:38:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlIUkhVYklEYXFQelRXV1FqWUtsaytiUTFhYnA4U2d4WUdLUXVvRUUrbDZ1R2I4c0M1cEJvbXNnbkU5QStWVDFoY3Z3YnVoTEI0TnA1ckFtZTBNUEFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MDM2Njc1CWZpbGU6T21uaUJhbmtfMS4xLjZfeDY0X2ZyLUZSLm1zaQpOQmM4UUtLUDNvWmo1VlU2OU5OTXRJN3NTL3NVR2lhaGdJY0VjTm1QcXFPOFdPVTY0WG1aMFhQNDB0TkN6d0U0YjNxdG13Yml1dG9GeFVNcHJBNFhCQT09Cg==",
+      "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.6/OmniBank_1.1.6_x64_fr-FR.msi"
+    }
+  }
 }
