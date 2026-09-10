@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.6-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.7-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,7 +110,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.1.6)
+## 🆕 Nouveautés (v1.1.7)
+
+* **📱 Forçage Manuel & Modale 2FA Directe** : Le bouton « Relevé en ligne » force désormais instantanément la synchronisation avec la banque (court-circuitant le délai de sécurité automatique de 3h). Déclenchement automatique de la modale 2FA interactive lors des validations smartphone requises (Crédit Mutuel, Crédit Agricole) et fermeture automatique dès validation mobile. Persistance des sessions Woob pour conserver les jetons SCA 90 jours.
+* **🛡️ Résilience Desktop & Double Smoke Test de Packaging** : Intégration de tests de fumée automatisés à 2 niveaux (test de santé `/api/health` du sidecar + extraction administrative `msiexec /a` du paquet MSI compilé avant toute publication). Écran de repli automatique avec diagnostic et téléchargement de version précédente en cas d'anomalie au lancement.
+
+## 📦 Historique Récent (v1.1.6)
 
 * **🏛️ Moteur de Migrations SQLite Incrémental & Modulaire** : Déconstruction d'`init_data.py` en 24 modules de versions numérotées sous `app/migrations/` avec runner transactionnel atomique, utilitaire idempotent `safe_add_column` et fast-path (<1ms) au démarrage.
 * **🎨 Architecture CSS Modulaire & Design System Thématique** : Découpage de `style.css` (13 919 lignes) en 21 feuilles de style structurées dans 5 répertoires sémantiques (`base/`, `themes/`, `components/`, `views/`, `responsive/`) orchestrées sans dépendance de compilation.
@@ -133,7 +138,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.1.6-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.1.7-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -233,7 +238,12 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.1.6)
+## 🆕 What's New (v1.1.7)
+
+* **📱 Forced Manual Bank Sync & Direct 2FA Auto-Prompt**: Manual clicks on 'Relevé en ligne' now immediately force online synchronization (bypassing the 3-hour automated background cooldown). Automatically surfaces the interactive 2FA modal when strong customer authentication is required (Crédit Mutuel, Crédit Agricole) and auto-closes upon mobile approval. Added persistent Woob storage to preserve 90-day SCA session tokens.
+* **🛡️ Desktop Startup Resilience & Dual Packaging Smoke Tests**: Added automated dual-stage smoke tests (sidecar `/api/health` validation + post-build administrative MSI extraction test) to guarantee 100% functional release bundles. Added a startup failure fallback screen with direct diagnostic logs and previous version download link.
+
+## 📦 Recent History (v1.1.6)
 
 * **🏛️ Modular Incremental SQLite Migration Engine**: Refactored monolithic `init_data.py` into 24 sequential version modules under `app/migrations/` with an atomic transactional runner, idempotent `safe_add_column`, and fast-path bypass (<1ms) at startup.
 * **🎨 Modular CSS Architecture & Thematic Design System**: Partitioned monolithic `style.css` (~14,000 lines) into 21 domain stylesheets across 5 semantic directories (`base/`, `themes/`, `components/`, `views/`, `responsive/`) with zero build dependencies.

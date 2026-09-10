@@ -185,12 +185,20 @@ Object.assign(window.BankSyncView, {
         // Lancer l'animation de progression sur le fond du bouton
         this.setButtonsState('syncing');
 
-        const payload = {};
+        const payload = {
+            force: true,
+            trigger_source: 'manual'
+        };
         if (token) payload.vault_token = token;
         if (pw && pw !== "__USE_VAULT_TOKEN__") payload.master_password = pw;
 
         try {
             const res = await API.post('/api/bank-sync/trigger-auto-sync', payload);
+            if (res && res.cooldown_active) {
+                this.setButtonsState('idle');
+                this.showToast(res.message || 'Relevé ignoré : délai de sécurité actif.', 'info');
+                return;
+            }
             this.showToast(window.i18n ? window.i18n.t('bank_sync_run_background_toast') || 'Relevé lancé en arrière-plan.' : 'Relevé lancé en arrière-plan.', 'success');
 
             if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {

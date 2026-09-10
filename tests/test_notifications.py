@@ -288,7 +288,9 @@ def test_notification_toast_keys_and_diagnostic_version():
 
     from app.services.diagnostic_service import get_system_diagnostics
     diag = get_system_diagnostics()
-    assert diag.get("app_version") == "1.1.6"
+    with open("package.json", "r", encoding="utf-8") as f:
+        pkg_ver = json.load(f)["version"]
+    assert diag.get("app_version") == pkg_ver
 
 
 
