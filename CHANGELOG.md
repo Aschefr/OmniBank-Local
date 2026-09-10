@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added & Improved
+- **Desktop Startup Resilience & Packaging Diagnostics 🛡️**: Introduced an automated pre-release sidecar smoke test, added a startup failure screen with direct diagnostic logs and fallback release download link, and secured sidecar runtime assets in versioned packaging specs.
+
 ## [1.1.6] - 2026-09-09
 
 ### Added & Improved
