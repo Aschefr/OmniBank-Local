@@ -103,7 +103,13 @@ def get_system_diagnostics(db_session=None) -> Dict[str, Any]:
     from app.database import DATA_DIR
 
     # Application version
-    app_version = "1.0.84"
+    app_version = "1.1.6"
+    try:
+        from app.main import app
+        if hasattr(app, "version") and app.version:
+            app_version = app.version
+    except Exception:
+        pass
     try:
         import json
         pkg_path = os.path.join(os.path.abspath('.'), 'package.json')

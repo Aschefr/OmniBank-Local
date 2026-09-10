@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.5-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.6-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,7 +110,16 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.1.5)
+## 🆕 Nouveautés (v1.1.6)
+
+* **🏛️ Moteur de Migrations SQLite Incrémental & Modulaire** : Déconstruction d'`init_data.py` en 24 modules de versions numérotées sous `app/migrations/` avec runner transactionnel atomique, utilitaire idempotent `safe_add_column` et fast-path (<1ms) au démarrage.
+* **🎨 Architecture CSS Modulaire & Design System Thématique** : Découpage de `style.css` (13 919 lignes) en 21 feuilles de style structurées dans 5 répertoires sémantiques (`base/`, `themes/`, `components/`, `views/`, `responsive/`) orchestrées sans dépendance de compilation.
+* **🏗️ Modularisation Frontend (`app.js`)** : Découpage du cœur applicatif en un orchestrateur léger (~460 lignes) et 5 modules spécialisés (`notifications`, `sidebar`, `profiles`, `changelog`, `i18n_picker`) montés sur `App.prototype`.
+* **📦 Souveraineté 100% Zero-Cloud** : Intégration locale de toutes les dépendances CDN dans `/static/vendor/` (Chart.js, KaTeX, Marked, DOMPurify, polices Inter, drapeaux SVG) pour un fonctionnement hors-ligne absolu.
+* **🧠 Cockpit de Revue IA & Persistance Anti-Dégradation** : Animations d'analyse IA en direct (`🧠 Analyse IA...`), analyse unique par batch, endpoint `/api/bank-sync/update-pending` protégeant les suggestions contre les écrasements, et badges d'origine contextuels.
+* **🔔 Toast Rouge d'Échec de Relevé & Détection de Panne Bancaire** : Affichage d'un toast d'alerte rouge avec bouton direct vers le centre de notifications lors des échecs de synchronisation, différenciation explicite entre interruption de service bancaire et action utilisateur requise, et correction de l'affichage du carrousel de prêts.
+
+## 📦 Historique Récent (v1.1.5)
 
 * **🚀 Enregistrement Autonome Direct (Auto-Pilote Étape 3)** : Les dépenses et recettes sans ambiguïté et à haute confiance sont désormais enregistrées directement en compte avec traçabilité d'audit et annulation possible à tout moment.
 * **🧠 Revue Assistée par IA & Bandeau Dynamique** : Proposition automatique de catégories et de noms propres dans le sas de revue via l'IA locale Ollama, avec badges de provenance explicites (`Règle manuelle`, `Règle apprise`, `Historique`, `Suggestion IA`) et bandeau de suivi en direct.
@@ -118,21 +127,13 @@ Accédez à l'interface sur `http://localhost:8434`.
 * **🧪 Banc d'Essai Smart Label & Règles Réversibles** : Simulation en temps réel de la reconnaissance des commerçants et du repli IA dans les Paramètres, avec gestion réversible des règles manuelles/caméléons et support d'annulation (Undo).
 * **📱 Requalification 2FA & Fluidité de Démarrage** : Notification dédiée et action contextuelle "Valider sur smartphone" pour la double authentification bancaire. Démarrage instantané de l'application avec temporisation des rapports IA d'arrière-plan.
 
-## 📦 Historique Récent (v1.1.4)
-
-* **🔓 Synchronisation Bancaire Réactive au Déverrouillage** : Le déverrouillage du coffre-fort d'identifiants déclenche automatiquement une synchronisation d'arrière-plan sans attendre la boucle périodique.
-* **🛡️ Option de Déverrouillage Passif Silencieux** : Choix explicite dans les réglages et la modale pour charger les clés en RAM sans initier d'appel réseau bancaire à T0.
-* **⏱️ Cooldown Anti-Spam Persistant (3 Heures)** : Protection par horodatage persistant en base SQLite empêchant les requêtes abusives rapprochées tout en préservant le bouton de synchronisation forcée.
-* **📅 Tri Chronologique Strict des Écritures Woob** : Ingestion strictement ascendante des opérations et des prévisions pour une réconciliation multi-passes déterministe.
-* **📱 Cartes de Connexions Bancaires & Tiroir Mobile Responsives** : Grille adaptative sur petits écrans avec bannières d'erreur pleine largeur et boutons tactiles 36px.
-
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
 ---
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.1.5-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.1.6-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -232,21 +233,22 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.1.5)
+## 🆕 What's New (v1.1.6)
+
+* **🏛️ Modular Incremental SQLite Migration Engine**: Refactored monolithic `init_data.py` into 24 sequential version modules under `app/migrations/` with an atomic transactional runner, idempotent `safe_add_column`, and fast-path bypass (<1ms) at startup.
+* **🎨 Modular CSS Architecture & Thematic Design System**: Partitioned monolithic `style.css` (~14,000 lines) into 21 domain stylesheets across 5 semantic directories (`base/`, `themes/`, `components/`, `views/`, `responsive/`) with zero build dependencies.
+* **🏗️ Frontend Application Modularization (`app.js`)**: Decoupled core lifecycle into a lightweight orchestrator (~460 lines) and 5 domain modules (`notifications`, `sidebar`, `profiles`, `changelog`, `i18n_picker`) mounted on `App.prototype`.
+* **📦 100% Zero-Cloud Offline Sovereignty**: Bundled all external CDN dependencies locally into `/static/vendor/` (Chart.js, KaTeX, Marked, DOMPurify, Inter fonts, SVG flags) for completely offline operation without third-party requests.
+* **🧠 AI Review Cockpit & Anti-Demotion Persistence**: Real-time AI analysis animations (`🧠 AI Analysis...`), single-pass batch classification, `/api/bank-sync/update-pending` protecting suggestions from being overwritten, and dynamic origin provenance badges.
+* **🔔 Bank Sync Red Error Toast & Outage Diagnostics**: Dedicated red toast alert with 1-click notification center access upon sync failure, clear differentiation between bank server outages/maintenance and required user actions, and sidebar loan carousel display fix.
+
+## 📦 Recent History (v1.1.5)
 
 * **🚀 Autonomous Direct Expense Auto-Commit (Auto-Pilot Stage 3)**: Unambiguous incoming transactions with certified high confidence are automatically recorded directly to accounts with audit trail logging and instant rollback capability.
 * **🧠 AI-Assisted Review & Live Status Feedback**: The review cockpit automatically suggests smart categories and merchant names via local Ollama AI in the background, featuring explicit provenance badges (`Manual Rule`, `Learned Rule`, `History`, `AI Suggestion`) and a live status banner.
 * **📥 Frictionless Statement Import Dropzone**: Statement imports fully handled by Auto-Pilot now close automatically with a celebratory toast summary, eliminating empty review dialogs.
 * **🧪 Smart Label Simulation Sandbox & Reversible Rules**: Test merchant recognition and local AI fallback in real time directly within Settings. Manual rule protection and chameleon multi-category status are fully reversible with 1-click toggles and undo support.
 * **📱 Bank 2FA Requalification & Fast Startup**: Contextual "Validate on smartphone" actions and notifications for bank 2FA challenges. Decoupled background AI reporting ensures instant application boot.
-
-## 📦 Recent History (v1.1.4)
-
-* **🔓 Reactive Bank Sync on Vault Unlock**: Unlocking the credential vault immediately launches a background bank synchronization when enabled.
-* **🛡️ Passive Vault Unlock Option**: Explicit toggle in settings and master password prompt to load credentials in RAM without firing network requests at T0.
-* **⏱️ Persistent 3-Hour Anti-Spam Cooldown**: SQLite-persisted timestamp guard preventing rapid banking server queries while keeping manual force-sync intact.
-* **📅 Strict Chronological Woob Transaction Sorting**: Ascending chronological order for transactions and upcoming movements, ensuring robust multi-pass reconciliation.
-* **📱 Mobile-Responsive Connection Cards & Navigation Drawer**: Adaptive layout for small viewports with full-width error banners and 36px touch targets.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

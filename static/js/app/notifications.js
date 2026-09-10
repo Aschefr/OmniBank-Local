@@ -120,17 +120,21 @@ window.AppModules.notifications = {
         }
     },
 
+    openNotificationsMenu() {
+        const notifMenu = document.getElementById('notifMenu');
+        if (notifMenu) {
+            this.loadNotifications();
+            notifMenu.style.display = 'block';
+        }
+    },
+
     async loadNotifications() {
         try {
-            const [activeNotifs, archivedNotifs] = await Promise.all([
+            const [activeNotifs, archivedNotifs, pendingTransfers] = await Promise.all([
                 API.get('/api/notifications?archived=false'),
-                API.get('/api/notifications?archived=true')
+                API.get('/api/notifications?archived=true'),
+                API.get('/api/cross-profile/pending').catch(() => [])
             ]);
-
-            let pendingTransfers = [];
-            try {
-                pendingTransfers = await API.get('/api/cross-profile/pending');
-            } catch (err) { /* silent catch if endpoint fails or cross profile not active */ }
 
             this._cachedActiveNotifs = Array.isArray(activeNotifs) ? activeNotifs : [];
             this._cachedArchivedNotifs = Array.isArray(archivedNotifs) ? archivedNotifs : [];
@@ -140,17 +144,53 @@ window.AppModules.notifications = {
             let hasBankSyncNotif = false;
             if (this._knownNotifIds) {
                 let foundNew = false;
+                const newUnread = [];
                 this._cachedActiveNotifs.forEach(n => {
                     if (!n.is_read && !this._knownNotifIds.has(n.id)) {
                         this._knownNotifIds.add(n.id);
                         foundNew = true;
+                        newUnread.push(n);
                         if (n.type === 'bank_sync' || n.type === 'file_import') {
                             hasBankSyncNotif = true;
                         }
                     }
                 });
                 if (foundNew) {
-                    showToast(window.i18n ? window.i18n.t('notif_new_received') || "Nouvelle notification reçue" : "Nouvelle notification reçue", 'info');
+                    const errorNotif = newUnread.find(n => n.type === 'bank_sync_error' || (n.title && (n.title.includes('Échec') || n.title.includes('Sync failed'))));
+                    const twofaNotif = newUnread.find(n => n.type === 'bank_sync_2fa' || (n.title && (n.title.includes('2FA') || n.title.includes('Validation'))));
+
+                    if (errorNotif) {
+                        let connLabel = '';
+                        if (errorNotif.link_data) {
+                            try {
+                                const ld = typeof errorNotif.link_data === 'string' ? JSON.parse(errorNotif.link_data) : errorNotif.link_data;
+                                connLabel = ld.conn_label || '';
+                            } catch (_) {}
+                        }
+                        if (!connLabel && errorNotif.title) {
+                            connLabel = errorNotif.title.replace(/^⚠️\s*(?:Échec relevé|Sync failed for|Sync failed)\s*/i, '').trim();
+                        }
+                        const msg = connLabel
+                            ? (window.i18n ? window.i18n.tp('notif_toast_sync_failed_conn', { label: connLabel }) : `Échec du relevé ${connLabel} : nouvelle notification reçue.`)
+                            : (window.i18n ? window.i18n.t('notif_toast_sync_failed') : "Échec de la synchronisation bancaire : nouvelle notification reçue.");
+                        showToast(msg, 'error', 6000, {
+                            action: {
+                                text: window.i18n ? window.i18n.t('notif_toast_view') || 'Voir' : 'Voir',
+                                callback: () => this.openNotificationsMenu()
+                            }
+                        });
+                    } else if (twofaNotif) {
+                        const msg = window.i18n ? window.i18n.t('notif_toast_2fa_required') || "Validation 2FA requise : nouvelle notification reçue." : "Validation 2FA requise : nouvelle notification reçue.";
+                        showToast(msg, 'info', 5000, {
+                            action: {
+                                text: window.i18n ? window.i18n.t('notif_toast_view') || 'Voir' : 'Voir',
+                                callback: () => this.openNotificationsMenu()
+                            }
+                        });
+                    } else {
+                        showToast(window.i18n ? window.i18n.t('notif_new_received') || "Nouvelle notification reçue" : "Nouvelle notification reçue", 'info');
+                    }
+
                     if (hasBankSyncNotif) {
                         if (window.BankSyncView && typeof window.BankSyncView.refreshActiveViews === 'function') {
                             window.BankSyncView.refreshActiveViews();

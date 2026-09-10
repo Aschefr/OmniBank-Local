@@ -116,7 +116,7 @@ async def lifespan(app: FastAPI):
             logger.info("[Shutdown] AI report thread finished cleanly.")
 
 
-app = FastAPI(title="OmniBank Local", lifespan=lifespan)
+app = FastAPI(title="OmniBank Local", version="1.1.6", lifespan=lifespan)
 # Restrict CORS to known origins (SEC-05)
 _CORS_ORIGINS = [
     "http://127.0.0.1:8434",

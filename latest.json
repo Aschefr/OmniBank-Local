@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSCtXeERVbE1OQnA2WHV5bzhzT3pmbGNveHdZQ3Z3Y0Z0b1Bob1FZRUovSHFXNm1BL1NSajhzdFpLeHNmaXJBdXF5dVN4TWVQT09TSDc3Q1lVVTE5ZUF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTMzNDIyCWZpbGU6T21uaUJhbmtfMS4xLjVfeDY0X2ZyLUZSLm1zaQo5ZlBROFhSTW0vajZsMGw3Z08wYWhVNk10UzkzL1pUU2FiSFZrWWJGQUkyVG5VZk9vREJpdTNGcmxTZzJWcFZqZ0hOUlhySDNpMjF4c0s0RDZ4TXhEdz09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.5/OmniBank_1.1.5_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDNlSkw2U3pRZzJMT3phWHNsVndWaG1xTlFuVnozT2RTWUNYNWorWGVDWHdLOURydVlFU2FuaEI0VFNSR1hFY04ybUNqNHVIblUvTTEwZkZBU2o2Q1F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MDE5OTMyCWZpbGU6T21uaUJhbmtfMS4xLjZfeDY0X2ZyLUZSLm1zaQpyOTlNNVJ2bzVaalAwc1BlakVjVTlaelBUSGJwanY5dzM0bER1bkdiMUg0aG1VOFE2clZIU0huVWpTa1ZtbGNmaXJJdXdKTUR5b0JLQ3JkdjNCYm5BUT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.6/OmniBank_1.1.6_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-09-09T05:57:02Z",
-    "version":  "1.1.5",
-    "notes":  "Autonomous Auto-Commit, AI-Assisted Review \u0026 Smart Labels Sandbox"
+    "pub_date":  "2026-09-10T05:58:53Z",
+    "version":  "1.1.6",
+    "notes":  "Architecture Modulaire, Zero-Cloud Offline \u0026 Robustesse IA"
 }

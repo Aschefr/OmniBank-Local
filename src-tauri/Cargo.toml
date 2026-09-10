@@ -1,6 +1,6 @@
 [package]
 name = "omnibank"
-version = "1.0.0"
+version = "1.1.6"
 description = "OmniBank - Personal Finance Manager"
 authors = ["Amify Studio"]
 edition = "2021"
