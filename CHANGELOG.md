@@ -9,6 +9,8 @@ All notable changes to this project will be documented in this file.
 - **Live AI Processing Animations in Review Cockpit 🧠✨**: Transactions undergoing local AI classification now display a subtle purple shimmer and live status badge (`🧠 AI Analysis...`), smoothly flashing green once smart categories and clean labels are populated.
 - **Smart Single-Pass AI Analysis 🛡️**: The review cockpit now runs automatic local AI categorization only once upon transaction discovery, permanently preserving user edits and category choices across modal openings.
 - **Contextual Origin Badges 💡**: Added explicit badges and tooltips (`✨ Local AI`, `🤖 Learned Rule`, `🛡️ Manual Rule`, `🕒 History`, `🔀 Multi-Category`) so you always know where transaction suggestions originate.
+- **Organization Mode Session Lock 🏢🔒**: Added a manual 1-click "Lock session" action in the organization user switcher, instantly returning to the user selection splash screen to protect shared workstations.
+- **Backend Architecture & Smart Label Modularization ⚡**: Modularized smart label engine into 6 domain-focused modules and streamlined AI chat router through `ChatOrchestrator`, improving maintainability and code structure with 100% test coverage.
 - **Performance & Startup Optimization ⚡**: Instant application boot and fast profile switching (<1ms) thanks to a streamlined database engine and modular frontend architecture.
 
 ### Fixed
