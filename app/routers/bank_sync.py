@@ -942,6 +942,42 @@ async def sync_connection_stream(
             if worker_conn:
                 worker_conn.last_sync_status = "error"
                 worker_conn.last_error = err_msg
+                try:
+                    from app.models import Notification
+                    existing_err = worker_db.query(Notification).filter(
+                        Notification.type == "bank_sync_error",
+                        Notification.is_read == False,
+                        Notification.is_archived == False,
+                        Notification.link_data.like(f'%"conn_id": {worker_conn.id}%')
+                    ).first()
+
+                    link_dict = {
+                        "view": "accounts",
+                        "action": "bank_sync_error",
+                        "conn_id": worker_conn.id,
+                        "conn_label": worker_conn.label,
+                        "error": err_msg
+                    }
+                    notif_title = f"⚠️ Échec relevé {worker_conn.label}"
+                    notif_content = f"Erreur lors du relevé bancaire de {worker_conn.label} : {err_msg}"
+
+                    if existing_err:
+                        existing_err.content = notif_content
+                        existing_err.created_at = datetime.now(timezone.utc)
+                        existing_err.link_data = json.dumps(link_dict)
+                    else:
+                        notif = Notification(
+                            type="bank_sync_error",
+                            title=notif_title,
+                            content=notif_content,
+                            link_data=json.dumps(link_dict),
+                            is_read=False,
+                            is_archived=False,
+                            created_at=datetime.now(timezone.utc)
+                        )
+                        worker_db.add(notif)
+                except Exception as notif_e:
+                    logger.warning(f"[BankSync] Erreur création notification d'échec interactive : {notif_e}")
                 worker_db.commit()
             sse_callback("error", {"message": err_msg})
         finally:

@@ -131,6 +131,58 @@ def _apply_module_hotfixes(w: Woob, backend_name: str, backend: Any = None):
                     cls._cragr_clientid_hotfixed_v2 = True
                     logger.info("[BankSync] Hotfix mémoire Crédit Agricole (clientId dans mireOptions/fallback) appliqué avec succès.")
 
+            # Hotfix mémoire KeypadPage pour Crédit Agricole : détection d'interruption de service vs action requise
+            if pages_mod and hasattr(pages_mod, "KeypadPage"):
+                cls_keypad = pages_mod.KeypadPage
+                if not getattr(cls_keypad, "_cragr_keypad_inspected_v2", False):
+                    orig_build_pwd = cls_keypad.build_password
+                    def make_patched_build_password(orig_fn):
+                        def patched_build_password(self, password):
+                            status_code = getattr(getattr(self, "response", None), "status_code", 200)
+                            from woob.exceptions import BrowserUnavailable, ActionNeeded
+
+                            # 1. Erreur serveur HTTP (500, 502, 503, 504) -> Interruption de service
+                            if status_code in (500, 502, 503, 504):
+                                logger.warning(f"[BankSync] [Crédit Agricole] Interruption de service bancaire (HTTP {status_code})")
+                                raise BrowserUnavailable(f"Le serveur du Crédit Agricole est temporairement indisponible ou en maintenance (HTTP {status_code}).")
+
+                            if isinstance(self.doc, dict) and "keys_layout" not in self.doc:
+                                raw_text = getattr(getattr(self, "response", None), "text", "") or ""
+                                logger.warning(f"[BankSync] [Crédit Agricole] Clavier absent (status={status_code}): {self.doc or raw_text[:200]}")
+
+                                # 2. Réponse vide ou contenant des termes de maintenance/panne -> Interruption de service
+                                combined_lower = f"{str(self.doc)} {raw_text}".lower()
+                                is_outage = (
+                                    not self.doc
+                                    or any(k in combined_lower for k in (
+                                        "maintenance", "indisponible", "incident", "interruption",
+                                        "temporairement", "unavailable", "bad gateway", "erreur technique",
+                                        "momentan", "panne", "service_unavailable"
+                                    ))
+                                )
+                                if is_outage:
+                                    raise BrowserUnavailable(
+                                        "Interruption temporaire du service bancaire : les serveurs du Crédit Agricole semblent actuellement indisponibles ou en cours de maintenance. Veuillez réessayer plus tard."
+                                    )
+
+                                # 3. Réponse contenant une demande d'action utilisateur
+                                detail = (
+                                    self.doc.get("message")
+                                    or self.doc.get("error_description")
+                                    or self.doc.get("error")
+                                    or self.doc.get("title")
+                                    or self.doc.get("detail")
+                                )
+                                msg_detail = f" ({detail})" if detail else ""
+                                raise ActionNeeded(
+                                    f"Action requise sur votre espace bancaire : un écran intermédiaire{msg_detail} bloque l'accès automatisé. Connectez-vous sur le site ou l'application de votre banque pour débloquer l'accès."
+                                )
+                            return orig_fn(self, password)
+                        return patched_build_password
+                    cls_keypad.build_password = make_patched_build_password(orig_build_pwd)
+                    cls_keypad._cragr_keypad_inspected_v2 = True
+                    logger.info("[BankSync] Hotfix mémoire Crédit Agricole (KeypadPage inspection v2) appliqué avec succès.")
+
             # 3. Patch sur disque du fichier pages.py si accessible en écriture
             pkg_dir = None
             if mod and hasattr(mod, "package") and hasattr(mod.package, "__file__"):
@@ -384,10 +436,39 @@ def _format_account_type(acc_type) -> str:
 
 
 def clean_error_message(e: Exception) -> str:
-    """Fournit un message d'erreur clair et lisible pour l'UI, évitant les chaînes vides ou obscures."""
+    """Fournit un message d'erreur clair et lisible pour l'UI, différenciant panne/maintenance et action requise."""
     msg = str(e).strip() if e else ""
     exc_name = type(e).__name__ if e else "UnknownException"
+    msg_lower = msg.lower()
 
+    # 1. Détection prioritaire : Interruption de service bancaire / Panne serveur / Maintenance
+    is_outage = (
+        exc_name in ("BrowserUnavailable", "ServerMaintenance")
+        or "browserunavailable" in msg_lower
+        or "servermaintenance" in msg_lower
+        or "service unavailable" in msg_lower
+        or "service temporar" in msg_lower
+        or "temporairement indisponible" in msg_lower
+        or "momentanément indisponible" in msg_lower
+        or "actuellement indisponible" in msg_lower
+        or "interruption temporaire du service" in msg_lower
+        or "interruption de service" in msg_lower
+        or ("interruption" in msg_lower and any(k in msg_lower for k in ("service", "banque", "serveur")))
+        or "bad gateway" in msg_lower
+        or "gateway timeout" in msg_lower
+        or "502" in msg_lower or "503" in msg_lower or "504" in msg_lower
+        or "maintenance" in msg_lower
+        or "incident technique" in msg_lower
+        or "panne" in msg_lower
+        or "connection refused" in msg_lower
+        or "connection reset" in msg_lower
+    )
+    if is_outage:
+        if "crédit agricole" in msg_lower or "cragr" in msg_lower:
+            return "Interruption temporaire du service bancaire : les serveurs du Crédit Agricole semblent actuellement indisponibles ou en cours de maintenance. Veuillez réessayer plus tard."
+        return "Interruption temporaire du service bancaire : le serveur de votre banque est actuellement indisponible ou en maintenance. Veuillez réessayer plus tard."
+
+    # 2. Cas de message vide ou générique
     if not msg or msg in ("{}", "''", '""', "None"):
         if exc_name == "NeedInteractiveFor2FA":
             return "Authentification forte requise : veuillez lancer la synchronisation depuis l'application pour valider l'accès sur votre smartphone."
@@ -395,7 +476,7 @@ def clean_error_message(e: Exception) -> str:
             return "Validation sur l'application mobile requise par votre banque."
         elif exc_name == "BrowserIncorrectPassword":
             return "Identifiant ou mot de passe bancaire incorrect."
-        elif exc_name in ("BrowserUnavailable", "ActionNeeded"):
+        elif exc_name == "ActionNeeded":
             return "Action requise sur le site ou l'application mobile de votre banque."
         elif exc_name in ("AppValidationExpired", "AppValidationCancelled"):
             return "La validation sur votre application bancaire a expiré ou a été annulée."
@@ -405,15 +486,19 @@ def clean_error_message(e: Exception) -> str:
             return "Formulaire d'authentification introuvable. Votre banque peut demander une action préalable sur son application mobile ou bloquer temporairement les accès automatisés."
         return f"Erreur de communication avec la banque ({exc_name})."
 
-    # Nettoyage des motifs d'erreurs récurrents
+    # 3. Mot de passe incorrect
+    if "BrowserIncorrectPassword" in msg or "bad login" in msg_lower or "identifiant ou mot de passe incorrect" in msg_lower:
+        return "Identifiant ou mot de passe bancaire incorrect."
+
+    # 4. Action requise sur l'espace client (CGU, SécuriPass, profil)
+    if "ActionNeeded" in msg or exc_name == "ActionNeeded":
+        return msg if "Action requise" in msg else "Action requise sur le site ou l'application mobile de votre banque (ex: acceptation de nouvelles CGU ou mise à jour de sécurité)."
+
+    # 5. Formulaire introuvable
     if "FormNotFound" in msg or exc_name == "FormNotFound":
         return "Formulaire d'authentification introuvable. Votre banque peut demander une action préalable sur son application mobile (nouvelles CGU, confirmation SécuriPass) ou bloquer temporairement les accès automatisés."
-    if "BrowserIncorrectPassword" in msg or "bad login" in msg.lower():
-        return "Identifiant ou mot de passe bancaire incorrect."
-    if "ActionNeeded" in msg or exc_name == "ActionNeeded":
-        return "Action requise sur le site ou l'application mobile de votre banque (ex: acceptation de nouvelles CGU ou mise à jour de sécurité)."
-    if "BrowserUnavailable" in msg:
-        return "Le serveur de votre banque est temporairement indisponible."
+
+    # 6. Validations 2FA et sessions
     if "AppValidationCancelled" in msg or "Authentification annulée" in msg:
         return "Validation 2FA annulée."
     if "AppValidationExpired" in msg or "Session 2FA expirée" in msg:
@@ -422,7 +507,9 @@ def clean_error_message(e: Exception) -> str:
         return "Authentification forte requise : veuillez lancer la synchronisation depuis l'application pour valider l'accès sur votre smartphone."
     if "DecoupledValidation" in msg or "AppValidation" in msg or exc_name in ("DecoupledValidation", "AppValidation"):
         return f"Validation sur l'application mobile requise par votre banque : {msg}" if msg and msg not in ("{}", "''", '""', "None") else "Validation sur l'application mobile requise par votre banque."
-    if ("element" in msg.lower() and "not found" in msg.lower()) or "clientid" in msg.lower() or exc_name == "ElementNotFound":
+
+    # 7. Éléments manquants (seulement si non lié à une indisponibilité)
+    if ("element" in msg_lower and "not found" in msg_lower) or "clientid" in msg_lower or exc_name == "ElementNotFound":
         return (
             f"Action requise sur votre espace bancaire : un écran intermédiaire (nouvelles CGU à accepter, validation SécuriPass mobile ou confirmation de coordonnées) bloque l'accès automatisé. Connectez-vous sur le site ou l'application de votre banque pour débloquer l'accès. (Détail : {msg})"
         )

@@ -274,3 +274,21 @@ def test_notification_archiving_and_unarchiving():
     app.dependency_overrides.pop(get_db, None)
 
 
+def test_notification_toast_keys_and_diagnostic_version():
+    """Vérifie l'existence des clés i18n de notification d'échec et la version diagnostique."""
+    import json
+    with open("static/i18n/fr.json", "r", encoding="utf-8-sig") as f:
+        fr = json.load(f)
+    with open("static/i18n/en.json", "r", encoding="utf-8-sig") as f:
+        en = json.load(f)
+
+    for key in ("notif_toast_sync_failed", "notif_toast_sync_failed_conn", "notif_toast_2fa_required", "notif_toast_view"):
+        assert key in fr, f"Missing {key} in fr.json"
+        assert key in en, f"Missing {key} in en.json"
+
+    from app.services.diagnostic_service import get_system_diagnostics
+    diag = get_system_diagnostics()
+    assert diag.get("app_version") == "1.1.6"
+
+
+
