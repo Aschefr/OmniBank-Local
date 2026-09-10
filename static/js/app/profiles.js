@@ -38,6 +38,9 @@ window.AppModules.profiles = {
                     this.currentUser = name;
                     sessionStorage.setItem('omni_current_user', name);
 
+                    const label = document.getElementById('currentUserLabel');
+                    if (label) label.textContent = name;
+
                     // Fade out overlay
                     overlay.style.transition = 'opacity 0.3s';
                     overlay.style.opacity = '0';
@@ -45,6 +48,10 @@ window.AppModules.profiles = {
                         overlay.style.display = 'none';
                         overlay.style.opacity = '1';
                         await this._initUI();
+                        if ((this.currentView === 'config' || this.currentView === 'configuration') && window.ConfigView && typeof window.ConfigView.fetchFacts === 'function') {
+                            window.ConfigView.fetchFacts();
+                        }
+                        if (window.EventBus) window.EventBus.emit('user_changed', { user: name });
                         resolve();
                     }, 300);
                 });
@@ -82,25 +89,48 @@ window.AppModules.profiles = {
                     users = users.filter(u => u.is_active);
                 } catch (e) { console.error(e); }
 
-                menu.innerHTML = users.map(u => `
+                let itemsHtml = users.map(u => `
                     <div class="user-switcher-item ${u.name === this.currentUser ? 'active' : ''}" data-user="${u.name}">
                         ${u.name === this.currentUser ? '<span class="user-item-dot"></span>' : '<span style="width:8px"></span>'}
                         <span>👤 ${u.name}</span>
                     </div>
                 `).join('');
 
-                menu.querySelectorAll('.user-switcher-item').forEach(item => {
+                const lockText = window.i18n ? window.i18n.t('user_switcher_lock') : 'Verrouiller la session';
+                itemsHtml += `
+                    <div class="user-switcher-item user-switcher-lock" id="userSwitcherLockBtn">
+                        <span style="font-size:12px;">🔒</span>
+                        <span data-i18n="user_switcher_lock">${lockText}</span>
+                    </div>
+                `;
+
+                menu.innerHTML = itemsHtml;
+
+                menu.querySelectorAll('.user-switcher-item:not(.user-switcher-lock)').forEach(item => {
                     item.addEventListener('click', () => {
                         const name = item.getAttribute('data-user');
                         this.currentUser = name;
                         sessionStorage.setItem('omni_current_user', name);
                         label.textContent = name;
                         menu.style.display = 'none';
-                        if (this.currentView === 'configuration' && window.ConfigView && typeof window.ConfigView.fetchFacts === 'function') {
+                        if ((this.currentView === 'config' || this.currentView === 'configuration') && window.ConfigView && typeof window.ConfigView.fetchFacts === 'function') {
                             window.ConfigView.fetchFacts();
                         }
+                        if (window.EventBus) window.EventBus.emit('user_changed', { user: name });
                     });
                 });
+
+                const lockBtn = document.getElementById('userSwitcherLockBtn');
+                if (lockBtn) {
+                    lockBtn.addEventListener('click', async (evt) => {
+                        evt.stopPropagation();
+                        menu.style.display = 'none';
+                        this.currentUser = null;
+                        sessionStorage.removeItem('omni_current_user');
+                        if (label) label.textContent = '—';
+                        await this._showUserPicker();
+                    });
+                }
 
                 menu.style.display = 'block';
             } else {
@@ -188,10 +218,11 @@ window.AppModules.profiles = {
         `;
 
         if (this.profiles && active && active.has_pin) {
+            const lockText = window.i18n ? window.i18n.t('profiles_lock_session') : 'Verrouiller la session';
             html += `
                 <div class="profile-dropdown-add" id="profileLockBtn" style="border-top:1px solid var(--border-color); color:var(--text-muted); margin-top:2px;">
                     <span>🔒</span>
-                    <span>Verrouiller la session</span>
+                    <span data-i18n="profiles_lock_session">${lockText}</span>
                 </div>
             `;
         }

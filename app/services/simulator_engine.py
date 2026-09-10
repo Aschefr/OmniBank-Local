@@ -16,12 +16,20 @@ from app.services.finance_engine import calculate_balances, get_main_account
 
 logger = logging.getLogger(__name__)
 import os as _os
+import sys as _sys
 
 def _load_presets():
     """Charge les modèles de simulation prédéfinis depuis le fichier JSON externe."""
     _path = _os.path.join(_os.path.dirname(__file__), "simulator_presets.json")
-    with open(_path, "r", encoding="utf-8") as _f:
-        return json.load(_f)
+    if not _os.path.exists(_path) and getattr(_sys, 'frozen', False):
+        _base = getattr(_sys, '_MEIPASS', _os.path.dirname(_sys.executable))
+        _path = _os.path.join(_base, "app", "services", "simulator_presets.json")
+        if not _os.path.exists(_path):
+            _path = _os.path.join(_base, "simulator_presets.json")
+    if _os.path.exists(_path):
+        with open(_path, "r", encoding="utf-8") as _f:
+            return json.load(_f)
+    return []
 
 PRESET_TEMPLATES = _load_presets()
 
