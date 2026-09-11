@@ -1,15 +1,3 @@
-const escapeHtml = (text) => {
-    if (!text) return '';
-    return text.toString()
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-};
-window.escapeHtml = escapeHtml;
-
-
 window.ChatView = Object.assign(window.ChatView || {}, {
     sessions: [],
     activeSessionId: null,
