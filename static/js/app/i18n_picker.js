@@ -8,7 +8,7 @@ window.AppModules.i18nPicker = {
         const langMenu = document.getElementById('langMenu');
         if (!langMenu || !window.i18n) return;
         
-        const escape = window.escapeHtml || (str => String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])));
+        const escape = window.escapeHtml || (str => String(str || ''));
         const langs = window.i18n.availableLangs || [];
         const currentLang = window.i18n.lang || 'fr';
         let html = '';
@@ -39,7 +39,7 @@ window.AppModules.i18nPicker = {
         const container = document.getElementById('mobileLangList');
         if (!container || !window.i18n) return;
 
-        const escapeHtml = window.escapeHtml || (str => String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])));
+        const escapeHtml = window.escapeHtml || (str => String(str || ''));
         const langs = window.i18n.availableLangs || [];
         const current = window.i18n.lang;
         let html = '';

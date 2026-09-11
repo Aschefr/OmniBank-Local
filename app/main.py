@@ -216,6 +216,8 @@ from app.routers import (
     cross_profile,
     simulator,
     bank_sync,
+    bank_sync_vault,
+    bank_sync_pending,
     diagnostics,
     smart_labels
 )
@@ -243,6 +245,8 @@ app.include_router(profiles.router)
 app.include_router(cross_profile.router)
 app.include_router(simulator.router)
 app.include_router(bank_sync.router)
+app.include_router(bank_sync_vault.router)
+app.include_router(bank_sync_pending.router)
 app.include_router(diagnostics.router)
 app.include_router(smart_labels.router)
 

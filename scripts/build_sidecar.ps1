@@ -91,8 +91,12 @@ if (-not $SkipBuild) {
         --hidden-import "app.routers.backup" `
         --hidden-import "app.routers.profiles" `
         --hidden-import "app.routers.bank_sync" `
+        --hidden-import "app.routers.bank_sync_vault" `
+        --hidden-import "app.routers.bank_sync_pending" `
         --hidden-import "app.services.bank_sync_service" `
         --hidden-import "app.services.bank_sync_scheduler" `
+        --hidden-import "app.services.bank_sync.pending_store" `
+        --hidden-import "app.services.bank_sync.auto_sync" `
         --hidden-import "app.services.credential_vault" `
         --hidden-import "app._license_secret" `
         --collect-submodules "uvicorn" `
@@ -185,8 +189,12 @@ if (-not $SkipBuild) {
         --hidden-import "app.routers.backup" `
         --hidden-import "app.routers.profiles" `
         --hidden-import "app.routers.bank_sync" `
+        --hidden-import "app.routers.bank_sync_vault" `
+        --hidden-import "app.routers.bank_sync_pending" `
         --hidden-import "app.services.bank_sync_service" `
         --hidden-import "app.services.bank_sync_scheduler" `
+        --hidden-import "app.services.bank_sync.pending_store" `
+        --hidden-import "app.services.bank_sync.auto_sync" `
         --hidden-import "app.services.credential_vault" `
         --hidden-import "app._license_secret" `
         --collect-submodules "uvicorn" `

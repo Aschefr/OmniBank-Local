@@ -195,7 +195,7 @@ window.ThemeManager = {
         if (!container) return;
 
         const i18n = window.i18n || { t: k => k };
-        const escapeHtml = str => String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        const escapeHtml = window.escapeHtml || (str => String(str || ''));
 
         let html = '';
         for (const t of this.THEMES) {
