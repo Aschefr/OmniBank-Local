@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDdYNHVXYUxQRHFNNCsrbFg4RHVSVk40QWhYNHZPbFEwQU02Zll0RE9lS2tlVWFJZEVJcmQxSnZ2WVlmWWJuS2FGeERCa0p1U2lyVDUvdmJoZGdBNXcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MDQ1MTMyCWZpbGU6T21uaUJhbmtfMS4xLjdfeDY0X2ZyLUZSLm1zaQpyT2hOZVFmVmF0ZnRYa3J1ZStXTnJ6UmVQNUVpVXAzUFUwTEk1TFBxNHZYSzkvV3ltWUtuM0Y2eklpRjQwTlV4aEtheFJ3MGlDcEVCRVkxL3NQRTVBZz09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.7/OmniBank_1.1.7_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC9mT1o2VmE4SGRhZUR4enhKSlNmclNWQTZROUtPTi94NFBhTi9Palp5S2l1ekh5SUd6blBnakgvMmtFRG9HaTdicXI2a2JSRWZHSFVUOUs3d090MFFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTAyMTI0CWZpbGU6T21uaUJhbmtfMS4xLjhfeDY0X2ZyLUZSLm1zaQp6Y3dmSXI0ZTlkTXVqMHJ6RlRMYUNDN0tBVk1IYUhtQ1Z0amRYR3RJZnF3OEdOS0lXT3UwTzJLZ2RZT05NV3dpN3g3VFFEQTdhMkhDSExOQnhqbExCUT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.8/OmniBank_1.1.8_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-09-10T12:58:53Z",
-    "version":  "1.1.7",
-    "notes":  "Forçage Relevé Bancaire, 2FA Directe \u0026 Double Smoke Test MSI"
+    "pub_date":  "2026-09-11T04:48:44Z",
+    "version":  "1.1.8",
+    "notes":  "Faster bank sync (2× Crédit Agricole) \u0026 vault unlock flow fix"
 }

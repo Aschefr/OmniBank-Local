@@ -119,9 +119,9 @@ Object.assign(window.BankSyncView, {
             } catch (e) {
                 console.warn('[BankSync] Erreur polling statut sync:', e);
             }
-            this._syncPollingTimer = setTimeout(poll, 2500);
+            this._syncPollingTimer = setTimeout(poll, 1200);
         };
-        this._syncPollingTimer = setTimeout(poll, 2500);
+        this._syncPollingTimer = setTimeout(poll, 1200);
     },
 
     _stopSyncPollingTracker() {
@@ -134,18 +134,19 @@ Object.assign(window.BankSyncView, {
     async triggerBackgroundSyncNow() {
         this.ensureModalsExist();
 
-        if (!this.vaultStatus || this.vaultStatus.remaining_seconds === undefined) {
-            await this.loadVaultStatus();
-        }
+        // 1. Vérifier l'état temps réel du coffre auprès du serveur
+        await this.loadVaultStatus();
 
         let token = this.getVaultToken();
+        const isClientUnlocked = Boolean(this.vaultStatus && this.vaultStatus.is_unlocked && token);
         let pw = null;
 
-        // Si le coffre n'est pas déverrouillé, demander le mot de passe maître
-        if (!token || !this.vaultStatus?.is_unlocked) {
+        // Si ce navigateur n'est pas déverrouillé/autorisé (coffre verrouillé OU session active sur le serveur sans jeton local)
+        if (!isClientUnlocked) {
             pw = await this.promptMasterPassword(
                 window.i18n ? window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne' : 'Relever en ligne',
-                window.i18n ? window.i18n.t('bank_sync_vault_prompt_msg') || 'Entrez votre mot de passe maître pour autoriser le relevé en tâche de fond :' : 'Entrez votre mot de passe maître pour autoriser le relevé en tâche de fond :'
+                window.i18n ? window.i18n.t('bank_sync_vault_prompt_msg') || 'Entrez votre mot de passe maître pour autoriser le relevé en tâche de fond :' : 'Entrez votre mot de passe maître pour autoriser le relevé en tâche de fond :',
+                { forSync: true, forcePrompt: true }
             );
 
             if (!pw) {
@@ -153,17 +154,6 @@ Object.assign(window.BankSyncView, {
                 return;
             }
             token = this.getVaultToken();
-
-            // Si le déverrouillage réactif vient déjà de lancer la synchronisation en tâche de fond,
-            // ne pas déclencher un second relevé concurrent identique :
-            if (this.vaultStatus?.reactive_sync?.ok && !this.vaultStatus.reactive_sync.skipped_passive_mode && !this.vaultStatus.reactive_sync.cooldown_active) {
-                this.setButtonsState('syncing');
-                if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
-                    window.app.setFastNotificationsPolling(true);
-                }
-                this._startSyncPollingTracker();
-                return;
-            }
         }
 
         // Vérification préalable : si une connexion active est déjà en attente d'un 2FA smartphone
@@ -185,11 +175,12 @@ Object.assign(window.BankSyncView, {
         // Lancer l'animation de progression sur le fond du bouton
         this.setButtonsState('syncing');
 
+        const currentToken = this.getVaultToken();
         const payload = {
             force: true,
             trigger_source: 'manual'
         };
-        if (token) payload.vault_token = token;
+        if (currentToken) payload.vault_token = currentToken;
         if (pw && pw !== "__USE_VAULT_TOKEN__") payload.master_password = pw;
 
         try {
@@ -210,15 +201,17 @@ Object.assign(window.BankSyncView, {
         } catch (err) {
             console.error('[BankSync] Erreur trigger-auto-sync:', err);
             this._stopSyncPollingTracker();
-            if (err.status === 401 || (err.detail && err.detail.includes('verrouill'))) {
+            const is401 = err.status === 401 || (err.message && err.message.toLowerCase().includes('verrouill')) || (err.detail && err.detail.toLowerCase().includes('verrouill'));
+            if (is401) {
                 this.clearVaultToken();
-                this.vaultStatus = { is_unlocked: false, remaining_days: 0 };
+                this.vaultStatus = { is_unlocked: false, server_unlocked: false, remaining_days: 0 };
                 this.renderVaultStatusBar();
                 this.setButtonsState('idle');
-                this.showToast(err.detail || (window.i18n ? window.i18n.t('bank_sync_toast_session_expired') : 'Session expirée. Veuillez ressaisir votre mot de passe maître.'), 'info');
+                this.showToast(err.detail || err.message || (window.i18n ? window.i18n.t('bank_sync_toast_session_expired') : 'Session expirée. Veuillez ressaisir votre mot de passe maître.'), 'info');
                 const retryPw = await this.promptMasterPassword(
                     window.i18n ? window.i18n.t('bank_sync_run_background_btn') : 'Relevé en arrière-plan',
-                    window.i18n ? window.i18n.t('bank_sync_vault_prompt_msg') : 'Veuillez déverrouiller le coffre avec votre mot de passe maître :'
+                    window.i18n ? window.i18n.t('bank_sync_vault_prompt_msg') : 'Veuillez déverrouiller le coffre avec votre mot de passe maître :',
+                    { forSync: true, forcePrompt: true }
                 );
                 if (retryPw) {
                     return this.triggerBackgroundSyncNow();
@@ -343,7 +336,7 @@ Object.assign(window.BankSyncView, {
 
     async _startFreshSync(connId) {
         let pw = null;
-        const token = this.getVaultToken();
+        let token = this.getVaultToken();
         if (token && this.vaultStatus?.is_unlocked) {
             pw = "__USE_VAULT_TOKEN__";
         } else {
@@ -351,6 +344,7 @@ Object.assign(window.BankSyncView, {
                 window.i18n ? window.i18n.t('bank_sync_modal_title') : 'Synchronisation bancaire',
                 window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître pour synchroniser vos comptes :'
             );
+            token = this.getVaultToken();
         }
         if (!pw) return;
 

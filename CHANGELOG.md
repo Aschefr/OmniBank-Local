@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.8] - 2026-09-10
+
+### Improved
+- **Faster Bank Synchronization (Crédit Agricole) ⚡**: Online statement retrieval is now up to 2× faster by reusing authenticated sessions and stopping pagination early once all relevant transactions have been collected.
+
+### Fixed
+- **Vault Unlock & Sync Flow Consistency 🔐**: Restored reliable behavior when clicking "Relevé en ligne" — vault unlock prompt, cross-browser session re-authorization, and force-sync now work correctly in all scenarios regardless of anti-spam cooldown state.
+
 ## [1.1.7] - 2026-09-10
 
 ### Added & Improved

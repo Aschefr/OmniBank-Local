@@ -3,14 +3,18 @@
 
 Object.assign(window.BankSyncView, {
 
-    promptMasterPassword(title = null, message = null) {
+    promptMasterPassword(title = null, message = null, options = {}) {
         this.ensureModalsExist();
+        const forcePrompt = typeof options === 'boolean' ? options : !!options.forcePrompt;
+        const forSync = typeof options === 'object' && options !== null ? !!options.forSync : false;
         const token = this.getVaultToken();
-        if (token && this.vaultStatus?.is_unlocked) {
+
+        // Si non forcé et déjà déverrouillé sur ce navigateur :
+        if (!forcePrompt && this.vaultStatus?.is_unlocked && token) {
             return Promise.resolve("__USE_VAULT_TOKEN__");
         }
 
-        const isServerUnlockedWithoutToken = !!(this.vaultStatus?.is_unlocked && !token);
+        const isServerUnlockedWithoutToken = !!((this.vaultStatus?.server_unlocked || this.vaultStatus?.is_unlocked) && !token);
         const defaultTitle = isServerUnlockedWithoutToken
             ? (window.i18n ? window.i18n.t('bank_sync_auth_device_title') || 'Autoriser cet appareil' : 'Autoriser cet appareil')
             : (window.i18n ? window.i18n.t('bank_sync_vault_unlock_modal_title') || window.i18n.t('bank_sync_master_pw_modal_title') || 'Déverrouillage sécurisé' : 'Déverrouillage sécurisé');
@@ -20,6 +24,7 @@ Object.assign(window.BankSyncView, {
 
         return new Promise((resolve) => {
             this._pwResolve = resolve;
+            this._pwForSync = forSync;
             const modal = document.getElementById('masterPasswordModal');
             if (modal && window.i18n && typeof window.i18n.translateDOM === 'function') {
                 window.i18n.translateDOM(modal);
@@ -50,6 +55,7 @@ Object.assign(window.BankSyncView, {
                 modal.style.display = 'flex';
                 setTimeout(() => input && input.focus(), 50);
             } else {
+                this._pwForSync = false;
                 resolve(null);
             }
         });
@@ -76,11 +82,16 @@ Object.assign(window.BankSyncView, {
             this.toggleSyncOnVaultUnlock(shouldSyncOnUnlock);
         }
 
+        const unlockPayload = {
+            master_password: val,
+            remember_days: days
+        };
+        if (this._pwForSync) {
+            unlockPayload.skip_reactive_sync = true;
+        }
+
         try {
-            const res = await API.post('/api/bank-sync/vault/unlock', {
-                master_password: val,
-                remember_days: days
-            });
+            const res = await API.post('/api/bank-sync/vault/unlock', unlockPayload);
             if (res.vault_token) {
                 if (shouldRemember) {
                     this.setVaultToken(res.vault_token);
@@ -89,7 +100,9 @@ Object.assign(window.BankSyncView, {
                 this.renderVaultStatusBar();
                 await this.loadConnections();
 
-                if (res.reactive_sync) {
+                // Si l'ouverture venait de "Relevé en ligne", ne pas déclencher le relevé passif ici :
+                // triggerBackgroundSyncNow() prend immédiatement le relais avec le forçage manuel.
+                if (!this._pwForSync && res.reactive_sync) {
                     if (res.reactive_sync.cooldown_active) {
                         this.showToast(res.reactive_sync.message, 'info');
                         this._vaultUnlockToastShown = true;
@@ -116,6 +129,7 @@ Object.assign(window.BankSyncView, {
             return;
         }
 
+        this._pwForSync = false;
         document.getElementById('masterPasswordModal').style.display = 'none';
         if (this._pwResolve) {
             this._pwResolve(val);
@@ -124,6 +138,7 @@ Object.assign(window.BankSyncView, {
     },
 
     _cancelMasterPw() {
+        this._pwForSync = false;
         document.getElementById('masterPasswordModal').style.display = 'none';
         if (this._pwResolve) {
             this._pwResolve(null);

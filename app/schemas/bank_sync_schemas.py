@@ -78,13 +78,16 @@ class SyncConnectionRequest(BaseModel):
 class VaultUnlockRequest(BaseModel):
     master_password: str
     remember_days: Optional[int] = 7
+    skip_reactive_sync: Optional[bool] = False
 
 
 class VaultStatusOut(BaseModel):
     is_unlocked: bool
+    server_unlocked: bool = False
     remaining_seconds: int = 0
     remaining_days: int = 0
     expires_at: Optional[float] = None
+    vault_token: Optional[str] = None
 
 
 class TwoFAResponseRequest(BaseModel):

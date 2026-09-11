@@ -151,6 +151,7 @@
         }
 
         .startup-error-box {
+            display: none !important;
             margin-top: 18px;
             padding: 16px;
             border-radius: 12px;
@@ -159,6 +160,9 @@
             text-align: center;
             max-width: 420px;
             animation: fadeIn 0.3s ease-out;
+        }
+        .startup-error-box.visible {
+            display: block !important;
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(6px); }
@@ -283,6 +287,13 @@
         document.getElementById('downgrade-hint').textContent = t.downgradeHint;
         document.title = t.title;
 
+        // Ensure error box is strictly hidden on initial render
+        const errBoxInit = document.getElementById('startup-error-box');
+        if (errBoxInit) {
+            errBoxInit.classList.remove('visible');
+            errBoxInit.style.setProperty('display', 'none', 'important');
+        }
+
         // Function invoked by Tauri in case of engine timeout or crash
         window.showStartupError = function(customMsg, logPath) {
             const spinner = document.querySelector('.spinner-container');
@@ -294,7 +305,8 @@
 
             const errBox = document.getElementById('startup-error-box');
             if (errBox) {
-                errBox.style.display = 'block';
+                errBox.classList.add('visible');
+                errBox.style.setProperty('display', 'block', 'important');
                 if (customMsg) {
                     document.getElementById('error-message').textContent = customMsg;
                 }

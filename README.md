@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.7-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.8-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,27 +110,21 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.1.7)
+## 🆕 Nouveautés (v1.1.8)
 
-* **📱 Forçage Manuel & Modale 2FA Directe** : Le bouton « Relevé en ligne » force désormais instantanément la synchronisation avec la banque (court-circuitant le délai de sécurité automatique de 3h). Déclenchement automatique de la modale 2FA interactive lors des validations smartphone requises (Crédit Mutuel, Crédit Agricole) et fermeture automatique dès validation mobile. Persistance des sessions Woob pour conserver les jetons SCA 90 jours.
-* **🛡️ Résilience Desktop & Double Smoke Test de Packaging** : Intégration de tests de fumée automatisés à 2 niveaux (test de santé `/api/health` du sidecar + extraction administrative `msiexec /a` du paquet MSI compilé avant toute publication). Écran de repli automatique avec diagnostic et téléchargement de version précédente en cas d'anomalie au lancement.
+* **⚡ Relevé Bancaire 2× Plus Rapide (Crédit Agricole)** : La récupération des opérations en ligne est désormais jusqu'à deux fois plus rapide grâce à la réutilisation des sessions authentifiées et l'arrêt intelligent de la pagination.
+* **🔐 Fiabilité du Flux Coffre & Synchronisation** : Le clic sur « Relevé en ligne » fonctionne désormais correctement dans tous les cas — déverrouillage du coffre, ré-autorisation inter-navigateur et forçage de synchronisation.
+
+## 📦 Historique Récent (v1.1.7)
+
+* **📱 Forçage Manuel & Modale 2FA Directe** : Synchronisation forcée instantanée, modale 2FA interactive automatique et persistance des sessions SCA 90 jours.
+* **🛡️ Résilience Desktop & Double Smoke Test** : Tests de fumée automatisés du sidecar et du MSI avant publication, écran de repli en cas d'anomalie.
 
 ## 📦 Historique Récent (v1.1.6)
 
-* **🏛️ Moteur de Migrations SQLite Incrémental & Modulaire** : Déconstruction d'`init_data.py` en 24 modules de versions numérotées sous `app/migrations/` avec runner transactionnel atomique, utilitaire idempotent `safe_add_column` et fast-path (<1ms) au démarrage.
-* **🎨 Architecture CSS Modulaire & Design System Thématique** : Découpage de `style.css` (13 919 lignes) en 21 feuilles de style structurées dans 5 répertoires sémantiques (`base/`, `themes/`, `components/`, `views/`, `responsive/`) orchestrées sans dépendance de compilation.
-* **🏗️ Modularisation Frontend (`app.js`)** : Découpage du cœur applicatif en un orchestrateur léger (~460 lignes) et 5 modules spécialisés (`notifications`, `sidebar`, `profiles`, `changelog`, `i18n_picker`) montés sur `App.prototype`.
-* **📦 Souveraineté 100% Zero-Cloud** : Intégration locale de toutes les dépendances CDN dans `/static/vendor/` (Chart.js, KaTeX, Marked, DOMPurify, polices Inter, drapeaux SVG) pour un fonctionnement hors-ligne absolu.
-* **🧠 Cockpit de Revue IA & Persistance Anti-Dégradation** : Animations d'analyse IA en direct (`🧠 Analyse IA...`), analyse unique par batch, endpoint `/api/bank-sync/update-pending` protégeant les suggestions contre les écrasements, et badges d'origine contextuels.
-* **🔔 Toast Rouge d'Échec de Relevé & Détection de Panne Bancaire** : Affichage d'un toast d'alerte rouge avec bouton direct vers le centre de notifications lors des échecs de synchronisation, différenciation explicite entre interruption de service bancaire et action utilisateur requise, et correction de l'affichage du carrousel de prêts.
-
-## 📦 Historique Récent (v1.1.5)
-
-* **🚀 Enregistrement Autonome Direct (Auto-Pilote Étape 3)** : Les dépenses et recettes sans ambiguïté et à haute confiance sont désormais enregistrées directement en compte avec traçabilité d'audit et annulation possible à tout moment.
-* **🧠 Revue Assistée par IA & Bandeau Dynamique** : Proposition automatique de catégories et de noms propres dans le sas de revue via l'IA locale Ollama, avec badges de provenance explicites (`Règle manuelle`, `Règle apprise`, `Historique`, `Suggestion IA`) et bandeau de suivi en direct.
-* **📥 Importation Directe de Relevés Sans Friction** : Les imports de relevés où 100% des opérations sont prises en charge par l'auto-pilote s'enregistrent instantanément sans modale superflue avec un toast récapitulatif festif.
-* **🧪 Banc d'Essai Smart Label & Règles Réversibles** : Simulation en temps réel de la reconnaissance des commerçants et du repli IA dans les Paramètres, avec gestion réversible des règles manuelles/caméléons et support d'annulation (Undo).
-* **📱 Requalification 2FA & Fluidité de Démarrage** : Notification dédiée et action contextuelle "Valider sur smartphone" pour la double authentification bancaire. Démarrage instantané de l'application avec temporisation des rapports IA d'arrière-plan.
+* **🏛️ Migrations SQLite Modulaires** : 24 modules versionnés sous `app/migrations/` avec runner atomique et fast-path (<1ms).
+* **🎨 Architecture CSS Modulaire** : 21 feuilles de style dans 5 répertoires sémantiques.
+* **📦 Souveraineté 100% Zero-Cloud** : Toutes les dépendances CDN intégrées localement.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -138,7 +132,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.1.7-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.1.8-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -238,27 +232,21 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.1.7)
+## 🆕 What's New (v1.1.8)
 
-* **📱 Forced Manual Bank Sync & Direct 2FA Auto-Prompt**: Manual clicks on 'Relevé en ligne' now immediately force online synchronization (bypassing the 3-hour automated background cooldown). Automatically surfaces the interactive 2FA modal when strong customer authentication is required (Crédit Mutuel, Crédit Agricole) and auto-closes upon mobile approval. Added persistent Woob storage to preserve 90-day SCA session tokens.
-* **🛡️ Desktop Startup Resilience & Dual Packaging Smoke Tests**: Added automated dual-stage smoke tests (sidecar `/api/health` validation + post-build administrative MSI extraction test) to guarantee 100% functional release bundles. Added a startup failure fallback screen with direct diagnostic logs and previous version download link.
+* **⚡ 2× Faster Bank Synchronization (Crédit Agricole)**: Online statement retrieval is now up to twice as fast by reusing authenticated sessions and intelligently stopping pagination once all relevant transactions have been collected.
+* **🔐 Vault Unlock & Sync Flow Consistency**: Clicking "Relevé en ligne" now works reliably in all scenarios — vault unlock prompt, cross-browser session re-authorization, and force-sync regardless of anti-spam cooldown state.
+
+## 📦 Recent History (v1.1.7)
+
+* **📱 Forced Manual Bank Sync & Direct 2FA Auto-Prompt**: Instant forced synchronization, automatic interactive 2FA modal, and persistent 90-day SCA session tokens.
+* **🛡️ Desktop Startup Resilience & Dual Smoke Tests**: Automated sidecar and MSI smoke tests before publication, startup failure fallback screen.
 
 ## 📦 Recent History (v1.1.6)
 
-* **🏛️ Modular Incremental SQLite Migration Engine**: Refactored monolithic `init_data.py` into 24 sequential version modules under `app/migrations/` with an atomic transactional runner, idempotent `safe_add_column`, and fast-path bypass (<1ms) at startup.
-* **🎨 Modular CSS Architecture & Thematic Design System**: Partitioned monolithic `style.css` (~14,000 lines) into 21 domain stylesheets across 5 semantic directories (`base/`, `themes/`, `components/`, `views/`, `responsive/`) with zero build dependencies.
-* **🏗️ Frontend Application Modularization (`app.js`)**: Decoupled core lifecycle into a lightweight orchestrator (~460 lines) and 5 domain modules (`notifications`, `sidebar`, `profiles`, `changelog`, `i18n_picker`) mounted on `App.prototype`.
-* **📦 100% Zero-Cloud Offline Sovereignty**: Bundled all external CDN dependencies locally into `/static/vendor/` (Chart.js, KaTeX, Marked, DOMPurify, Inter fonts, SVG flags) for completely offline operation without third-party requests.
-* **🧠 AI Review Cockpit & Anti-Demotion Persistence**: Real-time AI analysis animations (`🧠 AI Analysis...`), single-pass batch classification, `/api/bank-sync/update-pending` protecting suggestions from being overwritten, and dynamic origin provenance badges.
-* **🔔 Bank Sync Red Error Toast & Outage Diagnostics**: Dedicated red toast alert with 1-click notification center access upon sync failure, clear differentiation between bank server outages/maintenance and required user actions, and sidebar loan carousel display fix.
-
-## 📦 Recent History (v1.1.5)
-
-* **🚀 Autonomous Direct Expense Auto-Commit (Auto-Pilot Stage 3)**: Unambiguous incoming transactions with certified high confidence are automatically recorded directly to accounts with audit trail logging and instant rollback capability.
-* **🧠 AI-Assisted Review & Live Status Feedback**: The review cockpit automatically suggests smart categories and merchant names via local Ollama AI in the background, featuring explicit provenance badges (`Manual Rule`, `Learned Rule`, `History`, `AI Suggestion`) and a live status banner.
-* **📥 Frictionless Statement Import Dropzone**: Statement imports fully handled by Auto-Pilot now close automatically with a celebratory toast summary, eliminating empty review dialogs.
-* **🧪 Smart Label Simulation Sandbox & Reversible Rules**: Test merchant recognition and local AI fallback in real time directly within Settings. Manual rule protection and chameleon multi-category status are fully reversible with 1-click toggles and undo support.
-* **📱 Bank 2FA Requalification & Fast Startup**: Contextual "Validate on smartphone" actions and notifications for bank 2FA challenges. Decoupled background AI reporting ensures instant application boot.
+* **🏛️ Modular SQLite Migrations**: 24 sequential version modules under `app/migrations/` with atomic runner and fast-path (<1ms).
+* **🎨 Modular CSS Architecture**: 21 domain stylesheets across 5 semantic directories.
+* **📦 100% Zero-Cloud Offline Sovereignty**: All CDN dependencies bundled locally.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

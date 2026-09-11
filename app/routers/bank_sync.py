@@ -198,7 +198,7 @@ def unlock_vault(req: VaultUnlockRequest, db: Session = Depends(get_db)):
     # Déclenchement réactif au déverrouillage si configuré (avec respect du cooldown anti-spam)
     reactive_sync = None
     sync_on_unlock = _get_config_value(db, "bank_sync_on_vault_unlock", "true").lower() == "true"
-    if not sync_on_unlock:
+    if getattr(req, "skip_reactive_sync", False) or not sync_on_unlock:
         reactive_sync = {"ok": True, "skipped_passive_mode": True}
     elif connections:
         reactive_sync = trigger_manual_auto_sync(
@@ -280,7 +280,7 @@ def get_auto_sync_settings(db: Session = Depends(get_db)):
         "enabled": enabled,
         "interval_hours": interval,
         "sync_on_vault_unlock": sync_on_unlock,
-        "vault_unlocked": VaultSessionManager.get_status(profile_id=active_pid).get("is_unlocked", False),
+        "vault_unlocked": VaultSessionManager.is_unlocked(profile_id=active_pid),
         **cooldown_info
     }
 
