@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Improved
+- **Modularized Bank Sync Architecture ⚡**: Restructured banking synchronization and background scheduler services into clean, isolated modules (`pending_store`, `auto_sync`, and dedicated API routers for vault and pending operations), significantly improving codebase maintainability and testability for Auto-Pilot roadmap extensions.
+- **Enhanced Frontend XSS Protection 🛡️**: Reinforced HTML entity escaping across the application by consistently sanitizing single quotes (`'`) alongside standard HTML special characters across all dynamic UI elements.
+
 ## [1.1.8] - 2026-09-10
 
 ### Improved
