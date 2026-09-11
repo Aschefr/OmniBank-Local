@@ -100,15 +100,19 @@ Object.assign(window.BankSyncView, {
             const url = token ? `/api/bank-sync/vault/status?token=${encodeURIComponent(token)}` : '/api/bank-sync/vault/status';
             const data = await API.get(url);
             this.vaultStatus = data;
-            if (token && !data.is_unlocked) {
+            if (data && data.is_unlocked && data.vault_token) {
+                this.setVaultToken(data.vault_token);
+            } else if (token && (!data || !data.is_unlocked)) {
                 this.clearVaultToken();
             }
             this.renderVaultStatusBar();
+            return data;
         } catch (e) {
             console.warn('[BankSync] Erreur lecture statut coffre:', e);
             this.clearVaultToken();
-            this.vaultStatus = { is_unlocked: false, remaining_days: 0, remaining_seconds: 0 };
+            this.vaultStatus = { is_unlocked: false, server_unlocked: false, remaining_days: 0, remaining_seconds: 0 };
             this.renderVaultStatusBar();
+            return this.vaultStatus;
         }
     },
 
@@ -124,8 +128,10 @@ Object.assign(window.BankSyncView, {
             autoSyncBox.style.display = this.connections && this.connections.length > 0 ? 'inline-flex' : 'none';
         }
 
-        const isUnlocked = !!this.vaultStatus?.is_unlocked;
         const hasToken = !!this.getVaultToken();
+        const isClientUnlocked = !!(this.vaultStatus?.is_unlocked && hasToken);
+        const isServerUnlocked = !!(this.vaultStatus?.server_unlocked || this.vaultStatus?.is_unlocked);
+        const isUnlocked = isClientUnlocked;
         const isAutoSyncEnabled = !!this.autoSyncSettings?.enabled;
         const interval = this.autoSyncSettings?.interval_hours || 24;
 
@@ -137,7 +143,7 @@ Object.assign(window.BankSyncView, {
                 this.stopVaultCountdown();
             } else {
                 pill.style.display = 'inline-flex';
-                if (isUnlocked && hasToken) {
+                if (isClientUnlocked) {
                     const timeStr = this.formatVaultRemaining(this.vaultStatus?.remaining_seconds || 0);
                     const unlockedLabel = window.i18n ? window.i18n.t('bank_sync_vault_unlocked') : 'Déverrouillé';
                     const tooltipTpl = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_tooltip') : 'Coffre-fort déverrouillé en mémoire (reverrouillage automatique dans {time}). Cliquez pour verrouiller immédiatement.';
@@ -148,7 +154,7 @@ Object.assign(window.BankSyncView, {
                         </span>
                     `;
                     this.startVaultCountdown();
-                } else if (isUnlocked && !hasToken) {
+                } else if (isServerUnlocked && !isClientUnlocked) {
                     // Session active en RAM sur le serveur Docker, mais non encore authentifiée sur ce navigateur
                     const timeStr = this.formatVaultRemaining(this.vaultStatus?.remaining_seconds || 0);
                     const remoteLabel = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_remote') || 'Actif sur serveur' : 'Actif sur serveur';
@@ -180,7 +186,7 @@ Object.assign(window.BankSyncView, {
             const autoSyncActive = window.i18n ? window.i18n.t('bank_sync_auto_sync_active') : 'Actif';
             const unlockBtnText = window.i18n ? window.i18n.t('bank_sync_auto_sync_unlock_btn') : 'Déverrouiller';
 
-            if (isAutoSyncEnabled && !isUnlocked) {
+            if (isAutoSyncEnabled && !isServerUnlocked) {
                 // ÉTAT ALERTE CRITIQUE : Relevé auto programmé mais Coffre verrouillé !
                 autoSyncBox.className = 'bank-sync-auto-sync-widget is-locked-warning';
                 autoSyncBox.style.cssText = `
@@ -216,7 +222,7 @@ Object.assign(window.BankSyncView, {
                         <span>🔓</span> <span>${unlockBtnText}</span>
                     </button>
                 `;
-            } else if (isAutoSyncEnabled && isUnlocked) {
+            } else if (isAutoSyncEnabled && isServerUnlocked) {
                 // ÉTAT OPÉRATIONNEL : Coffre déverrouillé & Relevé auto actif
                 autoSyncBox.className = 'bank-sync-auto-sync-widget is-active';
                 autoSyncBox.style.cssText = `
@@ -269,7 +275,7 @@ Object.assign(window.BankSyncView, {
                     box-sizing: border-box;
                     transition: all 0.25s ease;
                 `;
-                autoSyncBox.title = isUnlocked ? (window.i18n ? window.i18n.t('bank_sync_auto_sync_enable_tooltip') : "Activer le relevé automatique en arrière-plan.") : (window.i18n ? window.i18n.t('bank_sync_auto_sync_enable_locked_tooltip') : "Activer le relevé automatique (nécessite de déverrouiller le coffre).");
+                autoSyncBox.title = isServerUnlocked ? (window.i18n ? window.i18n.t('bank_sync_auto_sync_enable_tooltip') : "Activer le relevé automatique en arrière-plan.") : (window.i18n ? window.i18n.t('bank_sync_auto_sync_enable_locked_tooltip') : "Activer le relevé automatique (nécessite de déverrouiller le coffre).");
                 autoSyncBox.innerHTML = `
                     <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; white-space: nowrap;">
                         <input type="checkbox" id="chkAutoSyncToggle" onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: var(--accent); width: 15px; height: 15px;">
@@ -287,7 +293,7 @@ Object.assign(window.BankSyncView, {
 
     async unlockVaultManually() {
         this._vaultUnlockToastShown = false;
-        const pw = await this.promptMasterPassword();
+        const pw = await this.promptMasterPassword(null, null, true);
         if (!pw) return;
         if (!this._vaultUnlockToastShown) {
             this.showToast(window.i18n ? window.i18n.t('bank_sync_toast_vault_unlocked', 'Coffre déverrouillé avec succès !') : 'Coffre déverrouillé avec succès !', 'success');

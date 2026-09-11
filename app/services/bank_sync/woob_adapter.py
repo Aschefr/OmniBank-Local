@@ -198,7 +198,48 @@ def _apply_module_hotfixes(w: Woob, backend_name: str, backend: Any = None):
                     cls_keypad._cragr_keypad_inspected_v2 = True
                     logger.info("[BankSync] Hotfix mémoire Crédit Agricole (KeypadPage inspection v2) appliqué avec succès.")
 
-            # 3. Patch sur disque du fichier pages.py si accessible en écriture
+            # 3. Hotfix mémoire CreditAgricoleBrowser : réutilisation de session detail-dav pour iter_coming (gain de 8 requêtes HTTP)
+            browser_cls = None
+            if mod and hasattr(mod, "klass") and hasattr(mod.klass, "BROWSER"):
+                browser_cls = mod.klass.BROWSER
+            elif backend and hasattr(backend, "browser"):
+                browser_cls = backend.browser.__class__
+
+            if browser_cls and hasattr(browser_cls, "_open_detail_dav") and not getattr(browser_cls, "_cragr_session_reuse_v1", False):
+                orig_open_dav = browser_cls._open_detail_dav
+                orig_iter_coming = getattr(browser_cls, "iter_coming", None)
+
+                def make_patched_open_dav(fn):
+                    def patched_open_detail_dav(self, account):
+                        # Si la session detail-dav est déjà ouverte et armée sur ce compte, éviter le logout/relogin OAuth (8 requêtes HTTP économisées)
+                        if getattr(self, "_current_dav_account_id", None) == account.id:
+                            logger.debug(f"[BankSync] [Crédit Agricole] Réutilisation session detail-dav active pour compte {account.id}")
+                            return
+                        fn(self, account)
+                        self._current_dav_account_id = account.id
+                    return patched_open_detail_dav
+
+                def make_patched_iter_coming(fn):
+                    def patched_iter_coming(self, account):
+                        from woob.capabilities.bank import Account as WoobAccount
+                        if getattr(account, "type", None) != WoobAccount.TYPE_CHECKING:
+                            return []
+                        try:
+                            return fn(self, account)
+                        except Exception as ex_coming:
+                            # En cas d'invalidation inattendue de session detail-dav, forcer la réouverture complète et retenter
+                            logger.debug(f"[BankSync] [Crédit Agricole] Réessai réouverture detail-dav pour iter_coming: {ex_coming}")
+                            self._current_dav_account_id = None
+                            return fn(self, account)
+                    return patched_iter_coming
+
+                browser_cls._open_detail_dav = make_patched_open_dav(orig_open_dav)
+                if orig_iter_coming:
+                    browser_cls.iter_coming = make_patched_iter_coming(orig_iter_coming)
+                browser_cls._cragr_session_reuse_v1 = True
+                logger.info("[BankSync] Hotfix mémoire Crédit Agricole (réutilisation session detail-dav & accélération) appliqué avec succès.")
+
+            # 4. Patch sur disque du fichier pages.py si accessible en écriture
             pkg_dir = None
             if mod and hasattr(mod, "package") and hasattr(mod.package, "__file__"):
                 pkg_dir = pathlib.Path(mod.package.__file__).parent

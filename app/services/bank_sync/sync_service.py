@@ -410,6 +410,9 @@ class BankSyncService:
                     })
 
                 history_raw = []
+                prev_date = None
+                is_descending = True
+                consecutive_old_txs = 0
                 try:
                     for tx in backend.iter_history(acc):
                         tx_date = getattr(tx, "date", None)
@@ -423,8 +426,26 @@ class BankSyncService:
                             except Exception:
                                 continue
 
-                        if not tx_date or tx_date < cutoff_date:
+                        if not tx_date:
                             continue
+
+                        # Détecter le sens chronologique du flux : si les dates croissent de plus de 5 jours, le flux est ascendant
+                        if prev_date is not None and tx_date > prev_date + timedelta(days=5):
+                            is_descending = False
+
+                        prev_date = tx_date
+
+                        if tx_date < cutoff_date:
+                            # Pour les flux antichronologiques (standard de 99% des banques dont Crédit Agricole),
+                            # interrompre le générateur dès que l'historique dépasse largement la date de coupure.
+                            if is_descending and tx_date < cutoff_date - timedelta(days=7):
+                                consecutive_old_txs += 1
+                                if consecutive_old_txs >= 3:
+                                    logger.debug(f"[BankSync] Arrêt anticipé pagination historique [{acc_label}] à {tx_date} (cutoff={cutoff_date})")
+                                    break
+                            continue
+
+                        consecutive_old_txs = 0
 
                         raw_amount = float(getattr(tx, "amount", 0.0) or 0.0)
                         amount = abs(raw_amount)
