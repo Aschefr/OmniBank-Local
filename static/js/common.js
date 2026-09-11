@@ -78,7 +78,10 @@ async function _handleApiError(res) {
         window.ErrorReporter.recordApiError(res.url || 'API', res.status, errMsg);
     }
     
-    throw new Error(errMsg);
+    const err = new Error(errMsg);
+    err.status = res.status;
+    err.detail = errMsg;
+    throw err;
 }
 
 const API = {

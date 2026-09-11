@@ -157,8 +157,8 @@ class VaultSessionManager:
         expires_at = time.time() + ttl_seconds
 
         with cls._lock:
-            # Purger toute session antérieure pour ce même profil
-            to_purge = [t for t, s in cls._sessions.items() if s.get("profile_id") == pid]
+            # Purger les sessions expirées pour ce même profil
+            to_purge = [t for t, s in list(cls._sessions.items()) if s.get("profile_id") == pid and s.get("expires_at", 0) <= time.time()]
             for t in to_purge:
                 cls._sessions.pop(t, None)
 
@@ -210,34 +210,48 @@ class VaultSessionManager:
         pid = cls._resolve_profile_id(profile_id)
 
         with cls._lock:
-            target = None
+            # Nettoyer les sessions expirées
+            expired = [t for t, s in list(cls._sessions.items()) if s["expires_at"] <= now]
+            for t in expired:
+                cls._sessions.pop(t, None)
+
+            # 1. Vérifier si le token fourni correspond à une session active pour ce profil
+            client_session = None
             if token and token in cls._sessions:
                 s = cls._sessions[token]
                 if s["expires_at"] > now and s.get("profile_id") == pid:
-                    target = s
-                elif s["expires_at"] <= now:
-                    cls._sessions.pop(token, None)
-            elif not token:
-                for t, s in list(cls._sessions.items()):
-                    if s["expires_at"] > now:
-                        if s.get("profile_id") == pid:
-                            target = s
-                            break
-                    else:
-                        cls._sessions.pop(t, None)
+                    client_session = s
 
-            if not target or target["expires_at"] <= now:
-                return {"is_unlocked": False, "remaining_seconds": 0, "remaining_days": 0}
+            # 2. Chercher toute session active sur le serveur pour ce profil
+            server_session = client_session
+            if not server_session:
+                for t, s in cls._sessions.items():
+                    if s["expires_at"] > now and s.get("profile_id") == pid:
+                        server_session = s
+                        break
 
-            remaining_sec = max(0, int(target["expires_at"] - now))
+            if not server_session:
+                return {
+                    "is_unlocked": False,
+                    "server_unlocked": False,
+                    "remaining_seconds": 0,
+                    "remaining_days": 0,
+                    "vault_token": None
+                }
+
+            remaining_sec = max(0, int(server_session["expires_at"] - now))
             import math
             remaining_days = max(1, math.ceil(remaining_sec / 86400))
+            is_client_unlocked = client_session is not None
+
             return {
-                "is_unlocked": True,
+                "is_unlocked": is_client_unlocked,
+                "server_unlocked": True,
                 "remaining_seconds": remaining_sec,
                 "remaining_days": remaining_days,
-                "expires_at": target["expires_at"],
-                "profile_id": target.get("profile_id")
+                "expires_at": server_session["expires_at"],
+                "profile_id": server_session.get("profile_id"),
+                "vault_token": token if is_client_unlocked else None
             }
 
     @classmethod

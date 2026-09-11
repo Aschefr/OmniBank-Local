@@ -147,6 +147,15 @@ def test_vault_session_manager_and_unlock():
     status_res = client.get(f"/api/bank-sync/vault/status?token={token}")
     assert status_res.status_code == 200
     assert status_res.json()["is_unlocked"] is True
+    assert status_res.json()["server_unlocked"] is True
+    assert status_res.json()["vault_token"] == token
+
+    # 3b. Status WITHOUT token (Cas 3 : Simule un autre navigateur alors que le serveur est actif)
+    status_no_token = client.get("/api/bank-sync/vault/status")
+    assert status_no_token.status_code == 200
+    assert status_no_token.json()["is_unlocked"] is False
+    assert status_no_token.json()["server_unlocked"] is True
+    assert status_no_token.json()["vault_token"] is None
 
     # 4. Password retrieval
     assert VaultSessionManager.get_password(token) == "MyMasterKey123!"
@@ -155,6 +164,23 @@ def test_vault_session_manager_and_unlock():
     lock_res = client.post(f"/api/bank-sync/vault/lock?token={token}")
     assert lock_res.status_code == 200
     assert VaultSessionManager.get_status(token)["is_unlocked"] is False
+
+
+def test_vault_unlock_with_skip_reactive_sync():
+    from app.services.credential_vault import VaultSessionManager
+    client = TestClient(fastapi_app)
+    VaultSessionManager.lock_session()
+    res = client.post("/api/bank-sync/vault/unlock", json={
+        "master_password": "MyMasterKey123!",
+        "remember_days": 1,
+        "skip_reactive_sync": True
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["ok"] is True
+    assert data["is_unlocked"] is True
+    assert data["reactive_sync"] == {"ok": True, "skipped_passive_mode": True}
+    VaultSessionManager.lock_session()
 
 
 def test_auto_sync_settings_and_pending():
@@ -3138,6 +3164,180 @@ def test_csv_import_persists_when_no_bank_connections_exist():
         assert restored["accounts"][0]["transactions"][0]["description"] == "Frais bancaires trimestriels"
     finally:
         clear_all_pending_sync(test_db)
+
+
+def test_cragr_session_reuse_hotfix():
+    """Vérifie que le hotfix Crédit Agricole réutilise la session detail-dav sans ré-authentification redondante."""
+    from app.services.bank_sync.woob_adapter import get_woob, _apply_module_hotfixes
+    from woob.capabilities.bank import Account as WoobAccount
+
+    w = get_woob()
+    _apply_module_hotfixes(w, "cragr")
+
+    mod = w.modules_loader.get_or_load_module("cragr")
+    browser_cls = mod.klass.BROWSER
+    assert getattr(browser_cls, "_cragr_session_reuse_v1", False) is True
+
+    acc1 = WoobAccount()
+    acc1.id = "123456789"
+    acc1.type = WoobAccount.TYPE_CHECKING
+
+    acc2 = WoobAccount()
+    acc2.id = "987654321"
+    acc2.type = WoobAccount.TYPE_CHECKING
+
+    class DummyBrowser(browser_cls):
+        region = "test_region"
+        url = "https://example.com/?code=123"
+        def __init__(self):
+            pass
+
+    mock_inst = DummyBrowser()
+    mock_inst.sso = type("MockURL", (), {"go": lambda *a, **kw: None})()
+    mock_inst.dav_fe = type("MockURL", (), {"go": lambda *a, **kw: None})()
+    mock_inst.dav_logout = type("MockURL", (), {"go": lambda *a, **kw: None})()
+    mock_inst.dav_user = type("MockURL", (), {"go": lambda *a, **kw: None})()
+    mock_inst.dav_config = type("MockURL", (), {"go": lambda *a, **kw: type("MockCfg", (), {"get_client_id": lambda *a: "cid"})()})()
+    mock_inst.authorize = type("MockURL", (), {"go": lambda *a, **kw: None})()
+    mock_inst.dav_login = type("MockURL", (), {"go": lambda *a, **kw: None})()
+    mock_inst.dav_context = type("MockURL", (), {"go": lambda *a, **kw: None})()
+    mock_inst.page = type("MockPage", (), {"get_context_id": lambda *a: "ctx1", "get_state": lambda *a: "st1"})()
+
+    # 1. Premier appel : doit ouvrir detail-dav
+    mock_inst._open_detail_dav(acc1)
+    assert getattr(mock_inst, "_current_dav_account_id", None) == acc1.id
+
+    # 2. Remplacer dav_logout par un bouchon qui échoue si appelé (prouve que le 2nd tour est évité)
+    def forbidden_logout(*a, **kw):
+        raise AssertionError("dav_logout ne doit pas être appelé lors d'une réutilisation de session")
+    mock_inst.dav_logout.go = forbidden_logout
+
+    # 3. Second appel pour le même compte : réutilise sans logout/relogin
+    mock_inst._open_detail_dav(acc1)
+    assert getattr(mock_inst, "_current_dav_account_id", None) == acc1.id
+
+
+def test_iter_history_early_stopping():
+    """Vérifie que la boucle d'historique s'arrête de manière anticipée quand les opérations dépassent la marge de coupure."""
+    import json
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(bind=engine)
+    test_db = SessionLocal()
+    from datetime import date, timedelta
+    from app.models import Account, BankConnection
+    from app.services.credential_vault import CredentialVault
+    from app.services.bank_sync import BankSyncService
+
+    # 1. Créer un compte local et une connexion
+    local_acc = Account(name="Test Compte Early Stop", type="Compte courant", initial_balance=1000.0)
+    test_db.add(local_acc)
+    test_db.commit()
+    test_db.refresh(local_acc)
+
+    conn = BankConnection(
+        label="Test Early Stop Bank",
+        backend="mockbank",
+        account_mapping=json.dumps({"remote_acc_1": local_acc.id}),
+        is_active=True
+    )
+    test_db.add(conn)
+    test_db.commit()
+    test_db.refresh(conn)
+
+    CredentialVault.store_credentials(test_db, conn.id, {"login": "demo", "password": "secret"}, "MasterPW123!")
+
+    # 2. Préparer un faux générateur d'historique qui émet 100 opérations ordonnées dans le temps
+    today = date.today()
+    cutoff = today - timedelta(days=30)
+    # 5 opérations récentes (>= cutoff)
+    # 3 opérations entre cutoff et cutoff - 7 jours
+    # 3 opérations anciennes (< cutoff - 7 jours)
+    # 50 opérations très anciennes (< cutoff - 100 jours)
+    generated_indices = []
+
+    def mock_iter_history(account):
+        # Récentes
+        for i in range(5):
+            generated_indices.append(f"recent_{i}")
+            class MockTx:
+                date = today - timedelta(days=i * 2)
+                amount = -10.0 - i
+                label = f"Recent Tx {i}"
+            yield MockTx()
+        # Zone tampon (< cutoff mais > cutoff - 7)
+        for i in range(3):
+            generated_indices.append(f"buffer_{i}")
+            class MockTx:
+                date = cutoff - timedelta(days=i + 1)
+                amount = -20.0
+                label = f"Buffer Tx {i}"
+            yield MockTx()
+        # Anciennes (< cutoff - 7 jours) : après 3, la pagination doit s'interrompre
+        for i in range(10):
+            generated_indices.append(f"old_{i}")
+            class MockTx:
+                date = cutoff - timedelta(days=15 + i)
+                amount = -50.0
+                label = f"Old Tx {i}"
+            yield MockTx()
+        # Très anciennes : ne doivent JAMAIS être appelées
+        for i in range(50):
+            generated_indices.append(f"ancient_{i}")
+            class MockTx:
+                date = cutoff - timedelta(days=200 + i)
+                amount = -100.0
+                label = f"Ancient Tx {i}"
+            yield MockTx()
+
+    class MockRemoteAccount:
+        id = "remote_acc_1"
+        label = "Compte Courant Mock"
+        balance = 1200.0
+
+    class MockBackend:
+        config = {}
+        def iter_accounts(self):
+            return [MockRemoteAccount()]
+        def iter_history(self, acc):
+            return mock_iter_history(acc)
+        def iter_coming(self, acc):
+            return []
+
+    class MockWoob:
+        backend_instances = {}
+        def load_backend(self, *args, **kwargs):
+            return MockBackend()
+        def unload_backends(self, *args, **kwargs):
+            pass
+
+    import app.services.bank_sync.sync_service as sync_mod
+    orig_get_woob = sync_mod._get_woob
+    orig_get_storage = sync_mod._get_woob_storage
+    sync_mod._get_woob = lambda: MockWoob()
+    sync_mod._get_woob_storage = lambda: None
+
+    try:
+        preview = BankSyncService.fetch_preview_transactions(
+            db=test_db,
+            connection=conn,
+            master_password="MasterPW123!",
+            since_days=30
+        )
+        txs = preview["accounts"][0]["transactions"]
+        # Vérifier que les 5 opérations récentes sont présentes
+        assert len(txs) == 5
+        assert all(t["amount"] >= 10.0 for t in txs)
+
+        # Vérifier que la pagination s'est arrêtée après 3 opérations anciennes
+        # (recent_0..4 = 5, buffer_0..2 = 3, old_0..2 = 3 => total généré == 11)
+        assert len(generated_indices) == 11, f"Pagination aurait dû s'arrêter à 11 items, mais en a généré {len(generated_indices)}"
+        assert not any("ancient" in item for item in generated_indices), "Les opérations très anciennes ne doivent jamais être demandées"
+    finally:
+        sync_mod._get_woob = orig_get_woob
+        sync_mod._get_woob_storage = orig_get_storage
+
+
 
 
 
