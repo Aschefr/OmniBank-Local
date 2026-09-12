@@ -28,7 +28,8 @@ def unlock_vault(req: VaultUnlockRequest, db: Session = Depends(get_db)):
     """
     active_pid = get_active_profile().get("id", "default")
     connections = db.query(BankConnection).filter(BankConnection.is_active == True).all()
-    # Si des connexions existent, tester le mot de passe sur la première qui a des identifiants
+
+    # Si des connexions existent, tester obligatoirement le mot de passe sur la première qui a des identifiants
     for conn in connections:
         if CredentialVault.has_credentials(db, conn.id):
             creds = CredentialVault.retrieve_credentials(db, conn.id, req.master_password)
@@ -157,7 +158,7 @@ def update_auto_sync_settings(data: Dict[str, Any], db: Session = Depends(get_db
 
 
 @router.post("/trigger-auto-sync")
-def run_manual_auto_sync(data: Optional[Dict[str, Any]] = None):
+def run_manual_auto_sync(data: Optional[Dict[str, Any]] = None, db: Session = Depends(get_db)):
     """Déclenche un relevé automatique en arrière-plan."""
     from app.services.bank_sync_scheduler import trigger_manual_auto_sync
     active_pid = get_active_profile().get("id", "default")
@@ -170,10 +171,15 @@ def run_manual_auto_sync(data: Optional[Dict[str, Any]] = None):
         vault_token=vault_token,
         profile_id=active_pid,
         force=force,
+        db=db,
         trigger_source=trigger_source
     )
     if not res.get("ok"):
-        raise HTTPException(status_code=401, detail=res.get("detail", "Coffre verrouillé"))
+        status_code = 401 if "verrouill" in res.get("detail", "").lower() else 400
+        raise HTTPException(
+            status_code=status_code,
+            detail=res.get("detail", "Coffre verrouillé")
+        )
     return res
 
 

@@ -19,10 +19,10 @@ from app.migrations.versions import ALL_MIGRATIONS
 
 
 def test_migration_order_and_registry():
-    """Vérifie que toutes les migrations de v02 à v25 sont consécutives, valides et complètes."""
-    assert len(ALL_MIGRATIONS) == 24, f"Nombre de migrations inattendu : {len(ALL_MIGRATIONS)}"
+    """Vérifie que toutes les migrations de v02 à v26 sont consécutives, valides et complètes."""
+    assert len(ALL_MIGRATIONS) == 25, f"Nombre de migrations inattendu : {len(ALL_MIGRATIONS)}"
 
-    expected_versions = list(range(2, 26))
+    expected_versions = list(range(2, 27))
     actual_versions = [m.version for m in ALL_MIGRATIONS]
     assert actual_versions == expected_versions, f"Désalignement des versions : {actual_versions} vs {expected_versions}"
 
@@ -32,13 +32,13 @@ def test_migration_order_and_registry():
 
 
 def test_fresh_database_full_migration():
-    """Vérifie qu'une base SQLite vierge est amenée de v0 à v25 avec toutes les tables, colonnes et seeds."""
+    """Vérifie qu'une base SQLite vierge est amenée de v0 à v26 avec toutes les tables, colonnes et seeds."""
     engine = create_engine("sqlite:///:memory:")
     init_db(target_engine=engine)
 
     with engine.connect() as conn:
         current_v = get_current_schema_version(conn)
-        assert current_v == TARGET_SCHEMA_VERSION == 25
+        assert current_v == TARGET_SCHEMA_VERSION == 26
 
         # Vérifier l'existence de toutes les tables créées au fil des versions
         critical_tables = [
@@ -59,6 +59,7 @@ def test_fresh_database_full_migration():
         assert column_exists(conn, "budgets", "is_locked")  # v24
         assert column_exists(conn, "bank_label_mappings", "is_manual")  # v25
         assert column_exists(conn, "bank_label_mappings", "category_counts")  # v25
+        assert column_exists(conn, "transactions", "comment")  # v26
 
         # Vérifier le seed de la configuration et des taux de change (v16, v24)
         base_curr = conn.execute(text("SELECT value FROM global_config WHERE key = 'base_currency'")).scalar()
@@ -72,7 +73,7 @@ def test_fresh_database_full_migration():
 
 
 def test_incremental_migration_from_intermediate_version():
-    """Vérifie qu'une base pré-existante (ex: v8) monte proprement à v25 sans régression."""
+    """Vérifie qu'une base pré-existante (ex: v8) monte proprement à v26 sans régression."""
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(bind=engine)
 
@@ -83,31 +84,32 @@ def test_incremental_migration_from_intermediate_version():
 
     # Exécuter les migrations incrémentales
     final_v = run_migrations(engine)
-    assert final_v == 25
+    assert final_v == 26
 
     with engine.connect() as conn:
-        assert get_current_schema_version(conn) == 25
+        assert get_current_schema_version(conn) == 26
         # Les tables introduites après la v8 doivent exister
         assert table_exists(conn, "action_history")  # v11
         assert table_exists(conn, "exchange_rates")  # v16
         assert table_exists(conn, "scenarios")  # v18
         assert table_exists(conn, "bank_label_mappings")  # v20
         assert table_exists(conn, "autopilot_decision_log")  # v24
+        assert column_exists(conn, "transactions", "comment")  # v26
 
 
 def test_migration_fast_path():
-    """Vérifie que sur une base déjà en v25, init_db termine immédiatement."""
+    """Vérifie que sur une base déjà en v26, init_db termine immédiatement."""
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(bind=engine)
 
     with engine.connect() as conn:
-        set_schema_version(conn, 25)
+        set_schema_version(conn, 26)
         conn.commit()
 
     # init_db doit court-circuiter (fast-path) sans erreur
     init_db(target_engine=engine)
     with engine.connect() as conn:
-        assert get_current_schema_version(conn) == 25
+        assert get_current_schema_version(conn) == 26
 
 
 def test_safe_add_column_idempotency():
@@ -137,4 +139,5 @@ def test_idempotent_multiple_init_db():
     init_db(target_engine=engine)
 
     with engine.connect() as conn:
-        assert get_current_schema_version(conn) == 25
+        assert get_current_schema_version(conn) == 26
+

@@ -1,5 +1,6 @@
 import logging
 from datetime import date
+from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models import Account, Transaction, GlobalConfig, ExchangeRate
@@ -179,6 +180,16 @@ def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date,
     
     expenses_sum = sum(t.amount for t in future_tx) + sum(t.amount for t in future_transfers)
 
+    # Anticipation dynamique des charges récurrentes candidates (N >= 2, niveau 1 Auto-Pilote)
+    # Déduites sans écriture en base avec filtre anti-doublon si déjà débitées dans le cycle en cours
+    candidate_charges_sum = 0.0
+    try:
+        from app.services.recurrence_detector import detect_candidate_recurring_expenses
+        candidates = detect_candidate_recurring_expenses(db, account.id, current_date, next_pay_date)
+        candidate_charges_sum = sum(float(c.get("amount", 0.0) or 0.0) for c in candidates)
+    except Exception as rec_err:
+        logger.debug(f"[FinanceEngine] Erreur lors de l'anticipation des charges récurrentes candidates: {rec_err}")
+
     # Subtract active piggy bank (tirelire) balances — reserved funds
     from app.models import Budget, BudgetAllocation
     savings_budgets = db.query(Budget).filter(
@@ -203,7 +214,37 @@ def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date,
         tx_expenses = sum(abs(t.amount) for t in txs if t.type != "income")
         savings_total += (tx_income - tx_expenses) + alloc_balance
 
-    return round(current_balance - expenses_sum - max(savings_total, 0), 2)
+    return round(current_balance - expenses_sum - candidate_charges_sum - max(savings_total, 0), 2)
+
+
+def get_anticipated_candidate_charges(
+    db: Session,
+    account_id: Optional[int] = None,
+    current_date: Optional[date] = None,
+    next_pay_date: Optional[date] = None
+) -> List[Dict[str, Any]]:
+    """
+    Retourne la liste des charges récurrentes candidates anticipées (N >= 2)
+    pour la restitution visuelle (Dashboard / Centre de Contrôle) et le Reste à Vivre.
+    """
+    if account_id is None:
+        acc = get_main_account(db)
+        if not acc:
+            return []
+        account_id = acc.id
+
+    c_date = current_date or date.today()
+    if next_pay_date is None:
+        pay_info = predict_next_paycheck(db)
+        next_pay_date = pay_info.get("date") or (c_date + relativedelta(months=1))
+
+    try:
+        from app.services.recurrence_detector import detect_candidate_recurring_expenses
+        return detect_candidate_recurring_expenses(db, account_id, c_date, next_pay_date)
+    except Exception as e:
+        logger.warning(f"[FinanceEngine] Erreur lors de la récupération des charges candidates: {e}")
+        return []
+
 
 def get_accounts_available_balances(db: Session, precomputed_balances: dict = None):
     """

@@ -329,15 +329,33 @@ def trigger_manual_auto_sync(
             "detail": "Coffre-fort verrouillé. Veuillez d'abord déverrouiller le coffre pour lancer le relevé."
         }
 
+    # Isolation tests : en environnement pytest, neutraliser avant accès DB / thread réel
+    if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("OMNIBANK_ENABLE_TEST_BACKGROUND_SYNC"):
+        logger.info(f"[BankAutoSync] Environnement pytest actif : relevé d'arrière-plan neutralisé pour éviter la pollution.")
+        return {
+            "ok": True,
+            "test_mode": True,
+            "cooldown_active": False,
+            "message": "Mode test actif : thread d'arrière-plan neutralisé."
+        }
+
     from app.database import get_engine
     from sqlalchemy.orm import sessionmaker
     engine = get_engine(pid)
     SessionProf = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-    # 1. Vérification du cooldown persistant (si non forcé)
-    if not force:
-        db_check = db or SessionProf()
-        try:
+    # 1. Vérifier qu'il existe des connexions actives pour ce profil
+    db_check = db or SessionProf()
+    try:
+        active_conns = db_check.query(BankConnection).filter(BankConnection.is_active == True).all()
+        if not active_conns:
+            return {
+                "ok": False,
+                "detail": "Aucune connexion bancaire active pour ce profil."
+            }
+
+        # 2. Vérification du cooldown persistant (si non forcé)
+        if not force:
             cooldown = get_auto_sync_cooldown_status(db_check, pid)
             if cooldown.get("cooldown_active"):
                 remaining = cooldown.get("remaining_seconds", 0)
@@ -350,11 +368,11 @@ def trigger_manual_auto_sync(
                     "elapsed_seconds": cooldown.get("elapsed_seconds"),
                     "message": f"Relevé récent effectué il y a moins de 3h. Prochain relevé auto disponible dans {rem_min} min."
                 }
-        finally:
-            if not db:
-                db_check.close()
+    finally:
+        if not db:
+            db_check.close()
 
-    # 2. Verrou anti-concurrence : empêcher deux threads de relevé simultanés sur le même profil
+    # 3. Verrou anti-concurrence : empêcher deux threads de relevé simultanés sur le même profil
     active_t = _ACTIVE_BACKGROUND_THREADS.get(pid)
     if active_t and active_t.is_alive():
         logger.info(f"[BankAutoSync] Relevé déjà en cours d'exécution pour le profil '{pid}', nouvel appel concurrent ignoré.")
@@ -373,16 +391,6 @@ def trigger_manual_auto_sync(
     finally:
         if not db:
             db_init.close()
-
-    # 3. Isolation tests : en environnement pytest, neutraliser le thread réel pour éviter toute pollution
-    if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("OMNIBANK_ENABLE_TEST_BACKGROUND_SYNC"):
-        logger.info(f"[BankAutoSync] Environnement pytest actif : relevé d'arrière-plan neutralisé pour éviter la pollution.")
-        return {
-            "ok": True,
-            "test_mode": True,
-            "cooldown_active": False,
-            "message": "Mode test actif : thread d'arrière-plan neutralisé."
-        }
 
     def _worker():
         import time

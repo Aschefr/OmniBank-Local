@@ -607,8 +607,8 @@ Object.assign(window.BankSyncView, {
         // Mise à jour du badge mobile d'en-tête (ouvre la revue détaillée sur demande)
         this._updateMobilePendingBadge(totalCount, confirmedMatchCount, hasDiscrepancy);
 
-        // Masquer si aucune opération fantôme ET aucun écart de solde
-        if (!hasGhosts && !hasDiscrepancy) {
+        // Masquer si aucune opération fantôme, aucun écart de solde ET aucun rapprochement confirmé
+        if (!hasGhosts && !hasDiscrepancy && confirmedMatchCount === 0) {
             box.style.display = 'none';
             box.innerHTML = '';
             if (container) container.style.display = 'none';
@@ -618,8 +618,8 @@ Object.assign(window.BankSyncView, {
         box.style.display = 'block';
         if (container) container.style.display = 'block';
 
-        // État replié/déplié : déplié si opérations fantômes, replié si seulement écarts
-        const defaultCollapsed = !hasGhosts;
+        // État replié/déplié : déplié si opérations fantômes ou rapprochements, replié si seulement écarts
+        const defaultCollapsed = !hasGhosts && confirmedMatchCount === 0;
         const isCollapsed = (this._ghostBoxManualCollapse !== undefined)
             ? this._ghostBoxManualCollapse
             : defaultCollapsed;
@@ -884,6 +884,14 @@ Object.assign(window.BankSyncView, {
             </div>
             <div id="ghostBoxContent" style="${isCollapsed ? 'display: none;' : 'margin-top: 10px; max-height: min(45vh, 400px); overflow-y: auto; overflow-x: hidden; padding-right: 4px;'}">
                 ${balanceBarsHtml}
+                ${!hasGhosts && confirmedMatchCount > 0 ? `
+                <div style="padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; font-size: 12.5px; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span>✨</span>
+                        <span><strong>${confirmedMatchCount}</strong> opération(s) rapprochée(s) avec succès. Cliquez sur <strong>Rapprocher (${confirmedMatchCount})</strong> ci-dessus pour finaliser la validation.</span>
+                    </div>
+                </div>
+                ` : ''}
                 ${hasGhosts ? `
             <!-- Vue Tableau Desktop -->
             <div class="ghost-desktop-table-wrapper">

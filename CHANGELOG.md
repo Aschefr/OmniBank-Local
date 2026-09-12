@@ -4,9 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Improved
+- **Autonomous Recurrence Lifecycle & Maintenance (Auto-Pilot Step 4.5) ⚡**:
+  - **Tolerant Auto-Linking with Factor-3 Safety Ceiling**: Automatically links out-of-plan charges (such as telecom overages, e.g. €35.99 vs €14.99 planned) to the monthly forecast while preserving future months and reference templates intact at the planned amount. High-value outliers exceeding a strict factor of 3 (e.g. smartphone hardware purchases) remain safely quarantined in the staging queue for manual review.
+  - **Perennial Rate Hike Propagation ($N=3$)**: Detects permanent subscription fee increases across 3 consecutive monthly cycles and automatically updates the template base amount, propagating the new rate to future unpointed forecasts while safeguarding historical transactions.
+  - **Triple-Lock Auto-Skipping**: Safely marks uncharged recurrences as skipped (`is_skipped = True`) to liberate Rest to Live reserves under a triple-lock verification (reconciled bank balance, empty staging queue, and due date + 1 cycle + 3 days elapsed).
+  - **Abandoned Contract Auto-Closing**: Automatically retires dead or cancelled contracts after 3 consecutive skipped cycles (`is_closed = True`) and purges phantom forecasts.
+  - **1-Click Control & Granular Toggles**: Introduced an `⚙️ Automations` settings modal in the Recurrences view to toggle each lifecycle rule independently, clear visual indicators (`⚡ Auto-adjusted`, `⏭️ Auto-skipped`), and a 1-click action to revert any adjusted forecast back to its template amount.
+- **Periodic Recurrence Detection & Dynamic "Rest to Live" Anticipation (Auto-Pilot Step 4) 🔄**:
+  - **Dynamic "Rest to Live" Anticipation ($N=2$)**: Automatically identifies candidate recurring expenses after 2 consecutive cycles (28–31 days ± 2 days) and proactively deducts them from the projected Rest to Live balance without prematurely writing records to SQLite, guarded by strict anti-double-counting rules and fast cache.
+  - **Full-Auto Promotion for Ordinary Subscriptions ($N \ge 3$)**: Automatically promotes confirmed recurring debits (rent, utilities, telecoms, media subscriptions) to official `RecurrenceTemplate` rules with immediate retroactive linking of all past transactions and comprehensive decision logging.
+  - **Deterministic Split-Payment Lifecycle Management (Alma, Klarna, Oney $M/N$)**: Auto-detects installment plans, bounds recurrence templates to $N$ occurrences with retroactive linking of past payments, and deterministically marks the template as closed (`is_closed = True`) upon reaching the final installment ($M = N$).
+  - **Strict Expense Segregation**: Safeguards incoming credits and reimbursements (such as healthcare/CPAM refunds) from ever being erroneously converted into fixed expense templates.
+
 ### Improved
 - **Modularized Bank Sync Architecture ⚡**: Restructured banking synchronization and background scheduler services into clean, isolated modules (`pending_store`, `auto_sync`, and dedicated API routers for vault and pending operations), significantly improving codebase maintainability and testability for Auto-Pilot roadmap extensions.
 - **Enhanced Frontend XSS Protection 🛡️**: Reinforced HTML entity escaping across the application by consistently sanitizing single quotes (`'`) alongside standard HTML special characters across all dynamic UI elements.
+
+### Fixed
+- **CSV Import Staging Queue Persistence 📥**: Resolved an issue where imported statement operations disappeared upon view switching when no online banking connection was configured, by normalizing staging cache keys and permanently safeguarding the file import slot (`CSV_IMPORT_CONN_ID`).
+- **Multi-Profile Vault & Online Sync Isolation 🔐**: Hidden the "Relever en ligne" toolbar action on master profiles without configured bank connections, prevented spurious master password prompts, and enforced automatic in-memory vault session locking upon profile switching to guarantee absolute cross-profile data airtightness.
 
 ## [1.1.8] - 2026-09-10
 

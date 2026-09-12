@@ -36,6 +36,26 @@ Object.assign(window.BankSyncView, {
                 btn.innerHTML = `<span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n ? window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne' : 'Relever en ligne'}</span>`;
             }
         });
+        this.updateSyncButtonsVisibility();
+    },
+
+    updateSyncButtonsVisibility() {
+        const hasActiveConns = Array.isArray(this.connections) && this.connections.some(c => c.is_active);
+        const syncButtons = document.querySelectorAll('.overview-bank-sync-btn, #btnTriggerAutoSync, #btnTimelineBgSync, #btnHeaderBgSync, #btnHistoryBgSync');
+        syncButtons.forEach(btn => {
+            btn.style.display = hasActiveConns ? '' : 'none';
+        });
+    },
+
+    async ensureSyncButtonsVisibility() {
+        if (!this.connections) {
+            try {
+                this.connections = await API.get('/api/bank-sync/connections');
+            } catch (_) {
+                this.connections = [];
+            }
+        }
+        this.updateSyncButtonsVisibility();
     },
 
     async checkBackgroundSyncStatus() {
@@ -134,6 +154,24 @@ Object.assign(window.BankSyncView, {
     async triggerBackgroundSyncNow() {
         this.ensureModalsExist();
 
+        // 0. Vérification préalable absolue : existence de connexions bancaires actives
+        try {
+            if (!this.connections || this.connections.length === 0) {
+                this.connections = await API.get('/api/bank-sync/connections');
+            }
+        } catch (_) {}
+
+        const activeConns = Array.isArray(this.connections) ? this.connections.filter(c => c.is_active) : [];
+        if (activeConns.length === 0) {
+            this.setButtonsState('idle');
+            this.updateSyncButtonsVisibility();
+            this.showToast(
+                window.i18n ? window.i18n.t('bank_sync_no_connections') || 'Aucune connexion bancaire configurée pour ce profil.' : 'Aucune connexion bancaire configurée pour ce profil.',
+                'warning'
+            );
+            return;
+        }
+
         // 1. Vérifier l'état temps réel du coffre auprès du serveur
         await this.loadVaultStatus();
 
@@ -157,14 +195,7 @@ Object.assign(window.BankSyncView, {
         }
 
         // Vérification préalable : si une connexion active est déjà en attente d'un 2FA smartphone
-        try {
-            if (!this.connections || this.connections.length === 0) {
-                this.connections = await API.get('/api/bank-sync/connections');
-            }
-        } catch (_) {}
-        const pending2FAConn = Array.isArray(this.connections)
-            ? this.connections.find(c => c.is_active && (c.last_sync_status === '2fa_required' || (c.last_error && c.last_error.toLowerCase().includes('2fa'))))
-            : null;
+        const pending2FAConn = activeConns.find(c => c.is_active && (c.last_sync_status === '2fa_required' || (c.last_error && c.last_error.toLowerCase().includes('2fa'))));
 
         if (pending2FAConn) {
             this.setButtonsState('idle');
