@@ -179,9 +179,8 @@ Object.assign(window.BankSyncView, {
         try {
             const conns = await API.get('/api/bank-sync/connections');
             this.connections = conns || [];
-            const headerBtn = document.getElementById('btnHeaderBgSync');
-            if (headerBtn) {
-                headerBtn.style.display = this.connections.length > 0 ? 'flex' : 'none';
+            if (typeof this.updateSyncButtonsVisibility === 'function') {
+                this.updateSyncButtonsVisibility();
             }
             this.renderVaultStatusBar();
             this.renderConnectionsList();

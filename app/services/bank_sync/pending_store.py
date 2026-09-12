@@ -40,6 +40,16 @@ TRIGGER_SOURCE_LABELS = {
 }
 
 
+def _normalize_conn_id(cid: Any) -> int:
+    """Normalise un identifiant de connexion (int, str 'csv_import', '-1') en entier strict."""
+    try:
+        return int(cid)
+    except (ValueError, TypeError):
+        if str(cid).strip().lower() in ("csv_import", "file"):
+            return CSV_IMPORT_CONN_ID
+        return -999
+
+
 def _resolve_profile_id(profile_id: Optional[str] = None) -> str:
     if profile_id:
         return profile_id
@@ -68,14 +78,17 @@ def clear_pending_sync_for_connection(db: Session, conn_id: int, profile_id: Opt
     """Purge le sas d'opérations en attente pour une connexion spécifique d'un profil."""
     global _PENDING_SYNC_DATA
     pid = _resolve_profile_id(profile_id)
+    cid = _normalize_conn_id(conn_id)
     if pid in _PENDING_SYNC_DATA:
-        _PENDING_SYNC_DATA[pid].pop(conn_id, None)
+        _PENDING_SYNC_DATA[pid].pop(cid, None)
+        _PENDING_SYNC_DATA[pid].pop(str(cid), None)
         if _PENDING_SYNC_DATA[pid]:
-            _set_config_value(db, "bank_pending_sync_cache", json.dumps(_PENDING_SYNC_DATA[pid]))
+            serializable = {str(k): v for k, v in _PENDING_SYNC_DATA[pid].items()}
+            _set_config_value(db, "bank_pending_sync_cache", json.dumps(serializable))
         else:
             _set_config_value(db, "bank_pending_sync_cache", "")
     stats_cache.invalidate(pid)
-    logger.info(f"[BankSyncScheduler] Sas de synchronisation purgé pour la connexion #{conn_id} (profil={pid})")
+    logger.info(f"[BankSyncScheduler] Sas de synchronisation purgé pour la connexion #{cid} (profil={pid})")
 
 
 def clear_all_pending_sync(db: Session, profile_id: Optional[str] = None):
@@ -260,11 +273,18 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
             try:
                 cached = json.loads(raw)
                 for k, v in cached.items():
-                    prof_data[int(k)] = v
+                    prof_data[_normalize_conn_id(k)] = v
             except Exception:
                 pass
 
-    if not valid_conns and CSV_IMPORT_CONN_ID not in prof_data:
+    # Normaliser toutes les clés du cache en int pour éviter les désynchronisations str vs int
+    for k in list(prof_data.keys()):
+        norm_k = _normalize_conn_id(k)
+        if norm_k != k:
+            prof_data[norm_k] = prof_data.pop(k)
+
+    has_csv = (CSV_IMPORT_CONN_ID in prof_data) and bool(prof_data[CSV_IMPORT_CONN_ID].get("accounts"))
+    if not valid_conns and not has_csv:
         # Aucune connexion bancaire configurée et pas d'import fichier en cours -> Purge absolue
         prof_data.clear()
         _set_config_value(db, "bank_pending_sync_cache", "")
@@ -281,7 +301,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
         }
 
     # Purger immédiatement les conn_id orphelines qui n'existent plus (en épargnant CSV_IMPORT_CONN_ID)
-    orphan_ids = [cid for cid in list(prof_data.keys()) if cid not in valid_conn_map and cid != CSV_IMPORT_CONN_ID]
+    orphan_ids = [cid for cid in list(prof_data.keys()) if _normalize_conn_id(cid) not in valid_conn_map and _normalize_conn_id(cid) != CSV_IMPORT_CONN_ID]
     if orphan_ids:
         for oid in orphan_ids:
             prof_data.pop(oid, None)
@@ -481,15 +501,19 @@ def save_pending_sync_data(db: Session, conn_id: int, preview_data: Dict[str, An
     """
     global _PENDING_SYNC_DATA
     pid = _resolve_profile_id(profile_id)
+    cid = _normalize_conn_id(conn_id)
     if pid not in _PENDING_SYNC_DATA:
         _PENDING_SYNC_DATA[pid] = {}
+
+    # Nettoyer d'éventuelles clés str qui traîneraient
+    _PENDING_SYNC_DATA[pid].pop(str(cid), None)
 
     new_accounts = preview_data.get("accounts", []) or []
     current_time = time.time()
 
     # 1. Purger/retirer ces comptes de toutes les AUTRES connexions existantes dans le sas
     for other_cid in list(_PENDING_SYNC_DATA[pid].keys()):
-        if other_cid == conn_id:
+        if _normalize_conn_id(other_cid) == cid:
             continue
         other_conn_entry = _PENDING_SYNC_DATA[pid].get(other_cid)
         if not other_conn_entry:
@@ -502,11 +526,11 @@ def save_pending_sync_data(db: Session, conn_id: int, preview_data: Dict[str, An
         if len(filtered_other_accs) != len(existing_other_accs):
             other_conn_entry["accounts"] = filtered_other_accs
             # Si plus aucun compte dans un import CSV, on supprime la connexion du sas
-            if other_cid == CSV_IMPORT_CONN_ID and len(filtered_other_accs) == 0:
+            if _normalize_conn_id(other_cid) == CSV_IMPORT_CONN_ID and len(filtered_other_accs) == 0:
                 _PENDING_SYNC_DATA[pid].pop(other_cid, None)
 
     # 2. Mettre à jour la connexion cible
-    if conn_id == CSV_IMPORT_CONN_ID:
+    if cid == CSV_IMPORT_CONN_ID:
         # Pour les imports fichiers successifs (ex: fichier A pour compte 1 puis fichier B pour compte 2),
         # fusionner avec les comptes existants du sas fichier en remplaçant ceux qui correspondent.
         existing_csv_accs = _PENDING_SYNC_DATA[pid].get(CSV_IMPORT_CONN_ID, {}).get("accounts", [])
@@ -521,7 +545,7 @@ def save_pending_sync_data(db: Session, conn_id: int, preview_data: Dict[str, An
         }
     else:
         # Pour une connexion bancaire en ligne, remplacer intégralement ses comptes par le nouveau relevé
-        _PENDING_SYNC_DATA[pid][conn_id] = {
+        _PENDING_SYNC_DATA[pid][cid] = {
             "updated_at": current_time,
             "accounts": new_accounts,
             "_ai_analyzed": bool(preview_data.get("_ai_analyzed", False))

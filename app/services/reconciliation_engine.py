@@ -49,6 +49,12 @@ def compute_text_score(candidate_desc: Optional[str], raw_bank_label: Optional[s
         return 0
     try:
         from app.services.smart_label_service import _compute_match_score
+        from app.services.recurrence_detector import parse_fractional_signature
+        frac_bank = parse_fractional_signature(raw_bank_label)
+        cand_upper = candidate_desc.strip().upper()
+        if frac_bank and (cand_upper.startswith(frac_bank[0]) or frac_bank[0] in cand_upper):
+            return 25
+
         ratio = _compute_match_score(raw_bank_label, candidate_desc)
         return round(ratio * 25)
     except Exception as e:
@@ -219,7 +225,7 @@ def check_reconciliation(
             recon_query_filtered = recon_query
 
         recon_match, recon_score, recon_collision = best_scored_tx(recon_query_filtered.all(), target_dt, bank_label)
-        if recon_match:
+        if recon_match and recon_score >= 60:
             return {
                 "id": recon_match.id,
                 "description": recon_match.description,
@@ -255,7 +261,7 @@ def check_reconciliation(
             available_op_query = op_query.filter(Transaction.id.notin_(matched_ids))
 
         op_match, op_score, op_collision = best_scored_tx(available_op_query.all(), target_dt, bank_label)
-        if op_match:
+        if op_match and op_score >= 60:
             return {
                 "id": op_match.id,
                 "description": op_match.description,
@@ -266,6 +272,100 @@ def check_reconciliation(
                 "auto_committed": op_score >= 85 and not op_collision
             }
         return None
+
+    # 2.C : Recherche d'une prévision de récurrence active avec montant déviant (Hors-forfait / Frais variables)
+    def _find_deviant_recurrence():
+        from app.models import GlobalConfig
+        try:
+            cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_link_deviant_recurrences").first()
+            is_enabled = (cfg.value.strip().lower() in ("true", "1", "yes")) if (cfg and cfg.value) else True
+        except Exception:
+            is_enabled = True
+
+        if not is_enabled or not bank_label:
+            return None
+
+        # Chercher des prévisions non pointées issues d'une récurrence
+        # Fenêtre temporelle : tx_date +/- 5 jours
+        start_op = tx_date - timedelta(days=5)
+        end_op = tx_date + timedelta(days=5)
+
+        op_query = db.query(Transaction).filter(
+            Transaction.reconciliation_date == None,
+            Transaction.recurrence_id != None,
+            Transaction.date_operation >= start_op,
+            Transaction.date_operation <= end_op,
+            or_(Transaction.is_skipped == False, Transaction.is_skipped == None)
+        )
+        if acc_filter is not None:
+            op_query = op_query.filter(acc_filter)
+
+        if matched_ids:
+            op_query = op_query.filter(Transaction.id.notin_(matched_ids))
+
+        candidates = op_query.all()
+        if not candidates:
+            return None
+
+        valid_matches = []
+        for cand in candidates:
+            # Vérifier sens du flux (dépense vs recette)
+            raw_float = float(tx_amount)
+            cand_is_expense = (cand.type in ("expense_fixed", "expense_var", "transfer") or (cand.from_account_id and not cand.to_account_id))
+            is_expense = (raw_float < 0)
+            if is_expense != cand_is_expense:
+                continue
+
+            # Similarité textuelle marchand >= 85%
+            txt_score = compute_text_score(cand.description, bank_label)
+            if txt_score < 21:
+                # Vérifier aussi si clean merchants concordent nettement
+                try:
+                    from app.services.recurrence_detector import get_clean_merchant
+                    cm_cand = get_clean_merchant(cand.description)
+                    cm_bank = get_clean_merchant(bank_label)
+                    if cm_cand and cm_bank and (cm_cand in cm_bank or cm_bank in cm_cand):
+                        txt_score = 25
+                    else:
+                        continue
+                except Exception:
+                    continue
+
+            # Plafond de tolérance : facteur 3 strict
+            # montant réel compris entre (prévu / 3.0) et (prévu * 3.0)
+            exp_amt = abs(float(cand.amount or 0.0))
+            act_amt = abs_amount
+            if exp_amt <= 0 or act_amt <= 0:
+                continue
+
+            min_allowed = exp_amt / 3.0
+            max_allowed = exp_amt * 3.0
+            if not (min_allowed <= act_amt <= max_allowed):
+                continue
+
+            tmp_score = compute_temporal_score(cand.date_operation, target_dt)
+            valid_matches.append((cand, exp_amt, act_amt, txt_score + tmp_score))
+
+        if not valid_matches:
+            return None
+
+        # Trier par score décroissant
+        valid_matches.sort(key=lambda x: x[3], reverse=True)
+        collision = (len(valid_matches) > 1 and (valid_matches[0][3] - valid_matches[1][3]) < 10)
+        best_cand, best_exp, best_act, total_sc = valid_matches[0]
+
+        return {
+            "id": best_cand.id,
+            "description": best_cand.description,
+            "already_reconciled": False,
+            "is_amount_deviant": True,
+            "original_forecast_amount": best_exp,
+            "actual_amount": best_act,
+            "match_score": 90 if not collision else 65,
+            "collision_detected": collision,
+            "suggested_match": collision,
+            "auto_committed": not collision
+        }
 
     # Recherche des candidats parmi les prédictions non pointées et les opérations déjà pointées
     unrec_match = _find_unreconciled_prediction()
@@ -281,6 +381,11 @@ def check_reconciliation(
         return unrec_match
     elif recon_match:
         return recon_match
+
+    # 2.C : Si aucun match exact en montant, tenter l'auto-liaison tolérante sur récurrence active
+    deviant_match = _find_deviant_recurrence()
+    if deviant_match:
+        return deviant_match
 
     # 2.B : Si aucun match libre, vérifier si c'est le pendant miroir d'un virement interne
     # déjà apparié dans ce même lot (dans matched_ids)

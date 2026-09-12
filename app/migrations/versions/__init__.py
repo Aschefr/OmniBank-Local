@@ -29,6 +29,7 @@ from app.migrations.versions import (
     v23_chat_entity_snapshots,
     v24_autopilot_foundations,
     v25_smart_label_reliability,
+    v26_transaction_comment,
 )
 
 ALL_MIGRATIONS: List[Migration] = [
@@ -56,4 +57,5 @@ ALL_MIGRATIONS: List[Migration] = [
     Migration(v23_chat_entity_snapshots.VERSION, v23_chat_entity_snapshots.DESCRIPTION, v23_chat_entity_snapshots.upgrade),
     Migration(v24_autopilot_foundations.VERSION, v24_autopilot_foundations.DESCRIPTION, v24_autopilot_foundations.upgrade),
     Migration(v25_smart_label_reliability.VERSION, v25_smart_label_reliability.DESCRIPTION, v25_smart_label_reliability.upgrade),
+    Migration(v26_transaction_comment.VERSION, v26_transaction_comment.DESCRIPTION, v26_transaction_comment.upgrade),
 ]

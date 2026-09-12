@@ -67,6 +67,9 @@ class Transaction(Base):
     # Skipped recurring occurrence flag (True = skipped/paused, False/None = regular)
     is_skipped = Column(Boolean, default=False, nullable=True)
 
+    # Note / commentaire d'ajustement ou d'historique
+    comment = Column(String, nullable=True)
+
     # Multi-currency support
     original_amount = Column(Float, nullable=True)
     original_currency = Column(String, nullable=True)

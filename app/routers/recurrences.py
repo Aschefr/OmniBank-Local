@@ -423,10 +423,21 @@ def generate_recurrences(template_id: Optional[int] = None, db: Session = Depend
             Transaction.recurrence_id == tpl.id
         ).count()
         
+        # Si le template a déjà atteint ou dépassé son quota maximal d'occurrences
+        if tpl.max_occurrences and existing_count >= tpl.max_occurrences:
+            reconciled_count = db.query(Transaction).filter(
+                Transaction.recurrence_id == tpl.id,
+                Transaction.reconciliation_date.isnot(None)
+            ).count()
+            if reconciled_count >= tpl.max_occurrences and not tpl.is_closed:
+                tpl.is_closed = True
+                db.add(tpl)
+            continue
+
         tpl_generated = 0
             
         while current_date <= end_date:
-            # Stop if max occurrences reached
+            # Stop if max occurrences reached (préserve le statut actif tant que les échéances ne sont pas échues)
             if tpl.max_occurrences and (existing_count + tpl_generated) >= tpl.max_occurrences:
                 break
                 
@@ -626,5 +637,39 @@ def update_recurrence_category(tpl_id: int, req: RecurrenceCategoryUpdate, db: S
     stats_cache.invalidate()
     db.refresh(db_tpl)
     return db_tpl
+
+
+@router.post("/transactions/{tx_id}/restore-amount")
+def restore_transaction_forecast_amount(tx_id: int, db: Session = Depends(get_db)):
+    """
+    Rétablit en 1 clic le montant d'origine du template pour une échéance qui avait été auto-ajustée
+    lors d'un prélèvement déviant (hors-forfait).
+    """
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if not tx.recurrence_id:
+        raise HTTPException(status_code=400, detail="Transaction is not linked to a recurrence")
+    tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tx.recurrence_id).first()
+    if not tpl:
+        raise HTTPException(status_code=404, detail="Recurrence template not found")
+
+    old_snap = snapshot_entity(tx)
+    tx.amount = tpl.amount
+    tx.comment = f"Rétabli montant prévu ({tpl.amount:.2f} €)"
+    db.flush()
+    action_id = record_action(
+        db,
+        "transaction",
+        tx.id,
+        "UPDATE",
+        old_snap,
+        snapshot_entity(tx),
+        user_name="Utilisateur (Rétablissement montant)"
+    )
+    db.commit()
+    stats_cache.invalidate()
+    return {"ok": True, "success": True, "amount": tx.amount, "restored_amount": tx.amount, "action_id": action_id}
+
 
 

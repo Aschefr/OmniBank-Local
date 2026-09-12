@@ -12,6 +12,10 @@ DESCRIPTION = "Fondations de l'Auto-Pilot bancaire et verrou budgétaire"
 def upgrade(conn: Connection) -> None:
     safe_add_column(conn, "budgets", "is_locked", "BOOLEAN DEFAULT 0")
 
+    from app.migrations.runner import column_exists
+    if column_exists(conn, "autopilot_decision_log", "action_type"):
+        conn.execute(text("DROP TABLE IF EXISTS autopilot_decision_log"))
+
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS autopilot_decision_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,6 +36,15 @@ def upgrade(conn: Connection) -> None:
     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_autopilot_decision_log_batch_id ON autopilot_decision_log (batch_id)"))
     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_autopilot_decision_log_entity ON autopilot_decision_log (entity_type, entity_id)"))
     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_autopilot_decision_log_created_at ON autopilot_decision_log (created_at)"))
+
+    safe_add_column(conn, "autopilot_decision_log", "decision_type", "TEXT")
+    safe_add_column(conn, "autopilot_decision_log", "action", "TEXT")
+    safe_add_column(conn, "autopilot_decision_log", "conn_id", "INTEGER")
+    safe_add_column(conn, "autopilot_decision_log", "account_id", "INTEGER")
+    safe_add_column(conn, "autopilot_decision_log", "raw_snapshot", "TEXT")
+    safe_add_column(conn, "autopilot_decision_log", "confidence_score", "FLOAT")
+    safe_add_column(conn, "autopilot_decision_log", "is_undone", "BOOLEAN DEFAULT 0")
+    safe_add_column(conn, "autopilot_decision_log", "undone_at", "DATETIME")
 
     conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('auto_pilot_enabled', 'false')"))
     conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('bank_sync_on_vault_unlock', 'true')"))
