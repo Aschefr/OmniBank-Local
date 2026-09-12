@@ -250,6 +250,13 @@ def api_activate_profile(profile_id: str, req: Optional[ProfileActivateRequest] 
 
     active_profile = get_active_profile()
     if active_profile["id"] != profile_id:
+        # Verrouiller immédiatement la session du coffre-fort du profil quitté pour garantir l'étanchéité
+        try:
+            from app.services.credential_vault import VaultSessionManager
+            VaultSessionManager.lock_session(profile_id=active_profile["id"])
+        except Exception as e:
+            logger.warning(f"[Profiles] Erreur verrouillage session coffre pour {active_profile['id']}: {e}")
+
         # Fermer la connexion active précédente
         dispose_engine(active_profile["id"])
         set_active_profile(profile_id)

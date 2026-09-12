@@ -534,5 +534,188 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         }).join('');
     },
 
+    async openAutomationsModal() {
+        const existing = document.getElementById('recurrenceAutomationsModal');
+        if (existing) existing.remove();
 
+        let cfg = {};
+        try {
+            cfg = await API.get('/api/config/');
+        } catch (err) {
+            console.error('Erreur chargement config automatismes:', err);
+        }
+
+        const isDeviant = (cfg.auto_link_deviant_recurrences ?? 'true') === 'true';
+        const isHike = (cfg.auto_propagate_recurrence_hikes ?? 'true') === 'true';
+        const isSkip = (cfg.auto_skip_unreconciled_recurrences ?? 'true') === 'true';
+        const isClose = (cfg.auto_close_unreconciled_recurrences ?? 'true') === 'true';
+
+        const modal = document.createElement('div');
+        modal.id = 'recurrenceAutomationsModal';
+        modal.className = 'modal-overlay';
+        modal.style.zIndex = '1000';
+
+        const title = window.i18n.t('rec_automations_title', 'Automatismes du cycle de vie des récurrences');
+        const desc = window.i18n.t('rec_automations_desc', 'Configurez les comportements autonomes de détection, ajustement et clôture des récurrences.');
+
+        modal.innerHTML = `
+            <div class="modal" style="width: 94%; max-width: 620px; min-width: 0; max-height: 90vh; overflow-y: auto; box-sizing: border-box; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); padding: clamp(14px, 3.5vw, 24px); display: flex; flex-direction: column; gap: 16px; animation: modalFadeIn 0.3s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; gap: 10px;">
+                    <div>
+                        <h3 style="margin: 0; font-size: clamp(16px, 3vw, 18px); font-weight: 700; display: flex; align-items: center; gap: 8px;">⚙️ ${title}</h3>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${desc}</div>
+                    </div>
+                    <button type="button" style="background: transparent; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); line-height: 1; padding: 2px 6px;" onclick="document.getElementById('recurrenceAutomationsModal').remove()">×</button>
+                </div>
+                
+                <form id="recurrenceAutomationsForm" style="display: flex; flex-direction: column; gap: 14px;" onsubmit="event.preventDefault(); window.RecurrenceView.saveAutomationsConfig();">
+                    <!-- Option Racine : Déviations & Hors-forfait -->
+                    <div style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                            <input type="checkbox" id="cfg_auto_link_deviant_recurrences" ${isDeviant ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primary-color, #6366f1); cursor: pointer;">
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                    <span style="display: flex; align-items: center; gap: 6px;"><span>⚡</span> <span>${window.i18n.t('rec_auto_link_deviant_title', 'Auto-liaison des déviations et hors-forfait')}</span></span>
+                                    <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(99, 102, 241, 0.15); color: #6366f1; white-space: nowrap;">${window.i18n.t('rec_auto_master_badge', 'Option principale')}</span>
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                    ${window.i18n.t('rec_auto_link_deviant_desc', 'Lie automatiquement l’opération du Sas à l’échéance prévue si le montant diffère dans une tolérance de ratio (1/3 à 3x), sans altérer le montant du modèle.')}
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Branche Hiérarchique Conditionnée par l'Auto-Liaison -->
+                    <div id="subAutomationsBranch" style="margin-left: clamp(10px, 2.5vw, 20px); border-left: 2px solid var(--primary-color, #6366f1); padding-left: clamp(8px, 2vw, 14px); display: flex; flex-direction: column; gap: 12px; transition: opacity 0.2s ease, border-color 0.2s ease;">
+                        
+                        <!-- Sous-Option 1 : Hausse tarifaire pérenne N=3 -->
+                        <div id="box_auto_propagate_recurrence_hikes" style="padding: 11px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-base); transition: opacity 0.2s ease;">
+                            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                                <input type="checkbox" id="cfg_auto_propagate_recurrence_hikes" ${isHike ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primary-color, #6366f1); cursor: pointer;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                        <span>📈</span> <span>${window.i18n.t('rec_auto_propagate_hikes_title', 'Actualisation auto sur hausse pérenne (N=3)')}</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                        ${window.i18n.t('rec_auto_propagate_hikes_desc', 'Met à jour automatiquement le modèle de récurrence et les prévisions futures après 3 mois consécutifs au même nouveau montant.')}
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Sous-Option 2 : Auto-saut des échéances non prélevées -->
+                        <div id="box_auto_skip_unreconciled_recurrences" style="padding: 11px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-base); transition: opacity 0.2s ease;">
+                            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                                <input type="checkbox" id="cfg_auto_skip_unreconciled_recurrences" ${isSkip ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primary-color, #6366f1); cursor: pointer;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                        <span>⏭️</span> <span>${window.i18n.t('rec_auto_skip_title', 'Auto-saut des échéances non prélevées')}</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                        ${window.i18n.t('rec_auto_skip_desc', 'Marque comme sautée une échéance dépassée (période + 3 jours) si le solde bancaire est strictement conforme au centime près et le Sas vide.')}
+                                    </div>
+                                </div>
+                            </label>
+
+                            <!-- Sous-Sous-Option : Auto-clôture après 3 sauts consécutifs -->
+                            <div id="box_auto_close_unreconciled_recurrences" style="margin-top: 10px; margin-left: clamp(8px, 2vw, 16px); border-left: 2px dashed var(--border-color); padding-left: clamp(6px, 1.5vw, 12px); transition: opacity 0.2s ease;">
+                                <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" id="cfg_auto_close_unreconciled_recurrences" ${isClose ? 'checked' : ''} style="margin-top: 3px; width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--primary-color, #6366f1); cursor: pointer;">
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="font-size: 12.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                            <span>🛑</span> <span>${window.i18n.t('rec_auto_close_title', 'Auto-clôture après 3 échéances consécutives sautées')}</span>
+                                        </div>
+                                        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.35;">
+                                            ${window.i18n.t('rec_auto_close_desc', 'Clôture définitivement le modèle récurrent si 3 échéances successives n\'ont pas été prélevées (contrats résiliés ou abandonnés).')}
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('recurrenceAutomationsModal').remove()">
+                            ${window.i18n.t('btn_cancel', 'Annuler')}
+                        </button>
+                        <button type="submit" class="btn btn-primary" style="font-weight: 600;">
+                            ${window.i18n.t('btn_save', 'Enregistrer')}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        window.RecurrenceView.updateAutomationsDependencies();
+    },
+
+    updateAutomationsDependencies() {
+        const linkChk = document.getElementById('cfg_auto_link_deviant_recurrences');
+        const hikeChk = document.getElementById('cfg_auto_propagate_recurrence_hikes');
+        const skipChk = document.getElementById('cfg_auto_skip_unreconciled_recurrences');
+        const closeChk = document.getElementById('cfg_auto_close_unreconciled_recurrences');
+
+        const branch = document.getElementById('subAutomationsBranch');
+        const hikeBox = document.getElementById('box_auto_propagate_recurrence_hikes');
+        const skipBox = document.getElementById('box_auto_skip_unreconciled_recurrences');
+        const closeBox = document.getElementById('box_auto_close_unreconciled_recurrences');
+
+        const isLinkActive = !!(linkChk && linkChk.checked);
+
+        if (branch) {
+            branch.style.borderColor = isLinkActive ? 'var(--primary-color, #6366f1)' : 'var(--border-color)';
+        }
+
+        // 1. Branche Hausses pérennes (dépend de l'auto-liaison)
+        if (hikeChk && hikeBox) {
+            hikeChk.disabled = !isLinkActive;
+            hikeBox.style.opacity = isLinkActive ? '1' : '0.45';
+            hikeBox.style.pointerEvents = isLinkActive ? 'auto' : 'none';
+        }
+
+        // 2. Branche Auto-saut (dépend de l'auto-liaison)
+        if (skipChk && skipBox) {
+            skipChk.disabled = !isLinkActive;
+            skipBox.style.opacity = isLinkActive ? '1' : '0.45';
+            skipBox.style.pointerEvents = isLinkActive ? 'auto' : 'none';
+        }
+
+        // 3. Sous-branche Auto-clôture (dépend de l'auto-liaison ET de l'auto-saut)
+        const isSkipActive = isLinkActive && !!(skipChk && skipChk.checked);
+        if (closeChk && closeBox) {
+            closeChk.disabled = !isSkipActive;
+            closeBox.style.opacity = isSkipActive ? '1' : '0.45';
+            closeBox.style.pointerEvents = isSkipActive ? 'auto' : 'none';
+        }
+    },
+
+    async saveAutomationsConfig() {
+        const linkChk = document.getElementById('cfg_auto_link_deviant_recurrences');
+        const isLinkActive = !!(linkChk && linkChk.checked);
+
+        const skipChk = document.getElementById('cfg_auto_skip_unreconciled_recurrences');
+        const isSkipActive = isLinkActive && !!(skipChk && skipChk.checked);
+
+        const deviant = isLinkActive ? 'true' : 'false';
+        const hike = (isLinkActive && document.getElementById('cfg_auto_propagate_recurrence_hikes')?.checked) ? 'true' : 'false';
+        const skip = isSkipActive ? 'true' : 'false';
+        const close = (isSkipActive && document.getElementById('cfg_auto_close_unreconciled_recurrences')?.checked) ? 'true' : 'false';
+
+        try {
+            await API.post('/api/config/', {
+                auto_link_deviant_recurrences: deviant,
+                auto_propagate_recurrence_hikes: hike,
+                auto_skip_unreconciled_recurrences: skip,
+                auto_close_unreconciled_recurrences: close
+            });
+            const m = document.getElementById('recurrenceAutomationsModal');
+            if (m) m.remove();
+            showToast(window.i18n.t('rec_toast_automations_saved', 'Paramètres des automatismes enregistrés avec succès'), 'success');
+        } catch (err) {
+            console.error('Erreur sauvegarde config automatismes:', err);
+            showToast(window.i18n.t('rec_toast_automations_error', err.message || 'Erreur de sauvegarde'), 'error');
+        }
+    }
 });

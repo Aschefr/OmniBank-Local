@@ -6,7 +6,7 @@ import calendar
 from app.database import get_db
 from app.models import Account, Transaction
 from app.schemas.api_schemas import AccountOut
-from app.services.finance_engine import calculate_balances, get_net_worth, get_liquid_net_worth, calculate_rest_to_live, get_overdraft_warning, predict_next_paycheck, get_main_account
+from app.services.finance_engine import calculate_balances, get_net_worth, get_liquid_net_worth, calculate_rest_to_live, get_overdraft_warning, predict_next_paycheck, get_main_account, get_anticipated_candidate_charges
 from app.services import stats_cache
 from app.profile_manager import get_active_profile
 
@@ -228,6 +228,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "unreconciled_income": unreconciled_income,
         "total_unreconciled_income": total_unreconciled_income,
         "main_account_id": main_acc.id if main_acc else None,
+        "anticipated_recurrences": get_anticipated_candidate_charges(db, main_acc.id if main_acc else None, today, next_pay_date),
         "budget_summary": period_groups,
         "savings_summary": savings_summary,
         "savings_details": savings_list,

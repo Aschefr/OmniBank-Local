@@ -268,9 +268,14 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     cursor: not-allowed;
                 }
             </style>
-            <div class="view-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;">
+            <div class="view-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;display:flex;justify-content:space-between;align-items:center;">
                 <div class="view-header-title-group">
                     <h2 class="view-header-title">🔄 <span data-i18n="nav_recurrences">${window.i18n.t('nav_recurrences')}</span></h2>
+                </div>
+                <div>
+                    <button class="btn btn-secondary" onclick="window.RecurrenceView.openAutomationsModal()" title="${window.i18n.t('rec_automations_title') || 'Paramètres des automatismes du cycle de vie'}" style="padding: 7px 14px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+                        <span>⚙️</span> <span data-i18n="rec_automations_btn">${window.i18n.t('rec_automations_btn') || 'Automatismes'}</span>
+                    </button>
                 </div>
             </div>
             
@@ -538,5 +543,16 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                 }, 2000);
             }
         }, 300);
+    },
+    
+    async restoreForecastAmount(txId) {
+        try {
+            const res = await API.post(`/api/recurrences/transactions/${txId}/restore-amount`);
+            showToast(window.i18n.t('rec_toast_restored') || 'Montant prévu initial rétabli avec succès', 'success');
+            await this.loadData();
+        } catch (err) {
+            console.error('Erreur lors du rétablissement du montant prévu:', err);
+            showToast(err.message || 'Erreur lors du rétablissement', 'error');
+        }
     }
 });

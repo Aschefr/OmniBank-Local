@@ -13,7 +13,17 @@ router = APIRouter(prefix="/api/config", tags=["config"])
 @router.get("/")
 def get_all_config(db: Session = Depends(get_db)):
     configs = db.query(GlobalConfig).all()
-    return {c.key: c.value for c in configs}
+    res = {c.key: c.value for c in configs}
+    defaults = {
+        "auto_link_deviant_recurrences": "true",
+        "auto_propagate_recurrence_hikes": "true",
+        "auto_skip_unreconciled_recurrences": "true",
+        "auto_close_unreconciled_recurrences": "true",
+    }
+    for k, v in defaults.items():
+        if k not in res:
+            res[k] = v
+    return res
 
 @router.post("/")
 def set_config(data: Dict[str, str], db: Session = Depends(get_db)):

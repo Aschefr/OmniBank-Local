@@ -469,14 +469,18 @@ async def import_to_pending(
 
     # Inject into pending sync sas or process through Auto-Pilot if enabled
     from app.services.autopilot_service import process_incoming_batch, is_autopilot_enabled
+    from app.routers.profiles import get_active_profile
+
+    active_profile = get_active_profile()
+    active_pid = active_profile.get("id", "default") if active_profile else "default"
 
     autopilot_active = is_autopilot_enabled(db)
     auto_summary = None
     if autopilot_active:
-        auto_summary = process_incoming_batch(db, CSV_IMPORT_CONN_ID, preview_data)
+        auto_summary = process_incoming_batch(db, CSV_IMPORT_CONN_ID, preview_data, profile_id=active_pid)
         preview_data["_autopilot_summary"] = auto_summary
     else:
-        save_pending_sync_data(db, CSV_IMPORT_CONN_ID, preview_data)
+        save_pending_sync_data(db, CSV_IMPORT_CONN_ID, preview_data, profile_id=active_pid)
 
     # Créer une notification in-app d'import de fichier
     try:
@@ -492,7 +496,7 @@ async def import_to_pending(
 
         if autopilot_active and auto_summary:
             from app.services.bank_sync_scheduler import _PENDING_SYNC_DATA
-            pending_accounts = _PENDING_SYNC_DATA.get("default", {}).get(CSV_IMPORT_CONN_ID, {}).get("accounts", [])
+            pending_accounts = _PENDING_SYNC_DATA.get(active_pid, {}).get(CSV_IMPORT_CONN_ID, {}).get("accounts", [])
         else:
             pending_accounts = accounts_out
 

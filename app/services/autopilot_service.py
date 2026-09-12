@@ -151,6 +151,59 @@ def process_incoming_batch(
     except Exception as sl_err:
         logger.warning(f"[AutoPilot] Avertissement lors de la résolution smart labels du lot: {sl_err}")
 
+    # 2.B Évaluation du rapprochement pour les transactions non encore annotées
+    try:
+        from app.services.reconciliation_engine import check_reconciliation
+        for acc in preview_data.get("accounts", []):
+            acc_id = acc.get("account_id")
+            for tx in acc.get("transactions", []):
+                if not tx.get("is_reconciled") and tx.get("matched_db_id") is None and not tx.get("is_coming"):
+                    raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
+                    op_d_str = tx.get("date_operation") or tx.get("date")
+                    op_d = date.today()
+                    if op_d_str:
+                        s = str(op_d_str).strip()[:10]
+                        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%d-%m-%Y"):
+                            try:
+                                op_d = datetime.strptime(s, fmt).date()
+                                break
+                            except ValueError:
+                                pass
+                    lbl = tx.get("raw_description") or tx.get("description") or ""
+                    c_id = tx.get("csv_id")
+                    rec_info = check_reconciliation(
+                        db,
+                        tx_date=op_d,
+                        tx_amount=raw_amt,
+                        account_id=acc_id,
+                        bank_label=lbl,
+                        csv_id=c_id
+                    )
+                    if rec_info and rec_info.get("id"):
+                        is_already = bool(rec_info.get("already_reconciled", False))
+                        score = float(rec_info.get("match_score", 0) or 0)
+
+                        # Si l'opération en face est déjà pointée dans le passé :
+                        # une charge récurrente du mois précédent (écart >= 20 jours ou score < 85)
+                        # ne doit pas être prise pour un doublon bloquant
+                        is_past_cycle = False
+                        if is_already:
+                            matched_tx = db.query(Transaction).filter(Transaction.id == rec_info["id"]).first()
+                            if matched_tx and matched_tx.date_operation:
+                                delta_days = abs((op_d - matched_tx.date_operation).days)
+                                if delta_days >= 20 or score < 85:
+                                    is_past_cycle = True
+
+                        if not is_past_cycle:
+                            tx["is_reconciled"] = True
+                            tx["already_reconciled"] = is_already
+                            tx["matched_db_id"] = rec_info["id"]
+                            tx["match_score"] = score
+                            tx["collision_detected"] = rec_info.get("collision_detected", False)
+                            tx["is_amount_deviant"] = rec_info.get("is_amount_deviant", False)
+                            tx["original_forecast_amount"] = rec_info.get("original_forecast_amount")
+    except Exception as rec_eval_err:
+        logger.debug(f"[AutoPilot] Évaluation réconciliation non appliquée: {rec_eval_err}")
 
     # 3. Indexer les csv_id existants en base et les catégories valides
     from app.models import Category
@@ -199,10 +252,19 @@ def process_incoming_batch(
 
                         # Appliquer le rapprochement en base
                         existing.reconciliation_date = date.today()
+                        if tx.get("is_amount_deviant"):
+                            raw_val = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
+                            existing.amount = abs(raw_val)
+                            orig_amt = tx.get("original_forecast_amount")
+                            if not existing.comment and orig_amt is not None:
+                                existing.comment = f"Auto-ajusté : {orig_amt:.2f} € → {existing.amount:.2f} €"
+
                         if tx.get("csv_id"):
                             existing.csv_id = tx["csv_id"]
                         if tx.get("category"):
                             existing.category = tx["category"]
+                        if tx.get("description"):
+                            existing.description = tx["description"]
 
                         # Historisation Undo/Redo
                         record_action(
@@ -222,6 +284,9 @@ def process_incoming_batch(
                                 if not k.startswith("_") and not isinstance(v, (datetime, date))
                             },
                             "matched_db_id": existing.id,
+                            "is_amount_deviant": tx.get("is_amount_deviant", False),
+                            "original_amount": tx.get("original_forecast_amount"),
+                            "actual_amount": existing.amount,
                             "before": before_snap,
                             "after": snapshot_entity(existing)
                         }
@@ -229,7 +294,7 @@ def process_incoming_batch(
                         decision = AutopilotDecisionLog(
                             batch_id=batch_id,
                             decision_type="reconciliation",
-                            action="AUTO_COMMIT",
+                            action="AUTO_RECONCILED_DEVIANT" if tx.get("is_amount_deviant") else "AUTO_COMMIT",
                             entity_type="transaction",
                             entity_id=existing.id,
                             conn_id=conn_id if conn_id != CSV_IMPORT_CONN_ID else None,
@@ -302,10 +367,15 @@ def process_incoming_batch(
                         valid_categories.add(category)
 
                     op_date_str = tx.get("date_operation") or tx.get("date")
-                    try:
-                        op_date = datetime.strptime(str(op_date_str)[:10], "%Y-%m-%d").date()
-                    except Exception:
-                        op_date = date.today()
+                    op_date = date.today()
+                    if op_date_str:
+                        s = str(op_date_str).strip()[:10]
+                        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%d-%m-%Y"):
+                            try:
+                                op_date = datetime.strptime(s, fmt).date()
+                                break
+                            except ValueError:
+                                pass
 
                     new_tx = Transaction(
                         csv_id=csv_id,
@@ -402,9 +472,23 @@ def process_incoming_batch(
 
         db.commit()
         stats_cache.invalidate(pid)
+
+        # 4. Étape 4 & 4.5 Auto-Pilote : Détection périodique des récurrences, promotions & cycle de vie
+        promoted_recurrences = 0
+        try:
+            from app.services.recurrence_detector import process_recurrence_promotions, process_auto_skipping
+            for acc in preview_data.get("accounts", []):
+                acc_id = acc.get("account_id")
+                if acc_id:
+                    res_promo = process_recurrence_promotions(db, acc_id, profile_id=pid, batch_id=batch_id)
+                    promoted_recurrences += res_promo.get("promoted_templates", 0)
+                    process_auto_skipping(db, acc_id, bank_balance=acc.get("bank_balance"), profile_id=pid, batch_id=batch_id)
+        except Exception as promo_err:
+            logger.warning(f"[AutoPilot] Avertissement lors de la détection/promotion des récurrences: {promo_err}")
+
         logger.info(
             f"[AutoPilot] Lot {batch_id} validé avec succès : "
-            f"{auto_reconciled_count} auto-rapprochées, {auto_committed_count} créées, {pending_count} en attente (total {total_count})."
+            f"{auto_reconciled_count} auto-rapprochées, {auto_committed_count} créées, {pending_count} en attente, {promoted_recurrences} récurrences promues (total {total_count})."
         )
 
         return {
@@ -413,7 +497,8 @@ def process_incoming_batch(
             "auto_reconciled": auto_reconciled_count,
             "auto_committed": auto_committed_count,
             "pending": pending_count,
-            "total": total_count
+            "total": total_count,
+            "promoted_recurrences": promoted_recurrences
         }
 
     except Exception as e:

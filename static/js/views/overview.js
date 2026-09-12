@@ -38,7 +38,7 @@ window.OverviewView = {
                             </button>
                             <div class="overview-acc-menu" id="ovAccountMenu" role="listbox" style="display:none;"></div>
                         </div>
-                        <button class="overview-bank-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}">
+                        <button class="overview-bank-sync-btn" style="display: none;" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}">
                             <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
                         </button>
                         <button class="btn btn-primary overview-add-btn" onclick="window.OverviewView.showAddModal()" data-i18n="btn_add_operation">
@@ -574,12 +574,19 @@ window.OverviewView = {
 
     async _checkBankConnections() {
         const syncBtn = document.querySelector('.overview-bank-sync-btn');
-        if (!syncBtn) return;
         try {
             const conns = await API.get('/api/bank-sync/connections');
-            syncBtn.style.display = (conns && conns.length > 0) ? 'inline-flex' : 'none';
+            if (window.BankSyncView) {
+                window.BankSyncView.connections = conns || [];
+                if (typeof window.BankSyncView.updateSyncButtonsVisibility === 'function') {
+                    window.BankSyncView.updateSyncButtonsVisibility();
+                }
+            }
+            if (syncBtn) {
+                syncBtn.style.display = (conns && conns.some(c => c.is_active)) ? 'inline-flex' : 'none';
+            }
         } catch (_) {
-            syncBtn.style.display = 'none';
+            if (syncBtn) syncBtn.style.display = 'none';
         }
     },
 

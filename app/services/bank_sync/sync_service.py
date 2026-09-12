@@ -797,6 +797,12 @@ class BankSyncService:
                         reconciled_count += 1
                     if item.get("category"):
                         existing.category = item["category"]
+                    if item.get("is_amount_deviant"):
+                        raw_amt = float(item.get("raw_amount") if item.get("raw_amount") is not None else (item.get("amount") or 0.0))
+                        existing.amount = abs(raw_amt)
+                        orig_amt = item.get("original_forecast_amount")
+                        if not existing.comment and orig_amt is not None:
+                            existing.comment = f"Auto-ajusté : {orig_amt:.2f} € → {existing.amount:.2f} €"
                     csv_id = item.get("csv_id")
                     if csv_id:
                         existing.csv_id = csv_id
@@ -908,6 +914,24 @@ class BankSyncService:
             ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
 
         db.commit()
+
+        # Étape 4 & 4.5 Auto-Pilote : Détection périodique des récurrences, promotions & cycle de vie
+        try:
+            from app.services.recurrence_detector import process_recurrence_promotions, process_auto_skipping
+            from app.profile_manager import get_active_profile
+            active_pid = get_active_profile().get("id", "default")
+            batch_identifier = f"sas_commit_{connection_id}"
+            promo_accounts = set(distinct_account_ids)
+            if not promo_accounts:
+                for cid in created_ids:
+                    tx_row = db.query(Transaction).filter(Transaction.id == cid).first()
+                    if tx_row and tx_row.from_account_id:
+                        promo_accounts.add(tx_row.from_account_id)
+            for acc_id in promo_accounts:
+                process_recurrence_promotions(db, acc_id, profile_id=active_pid, batch_id=batch_identifier)
+                process_auto_skipping(db, acc_id, profile_id=active_pid, batch_id=batch_identifier)
+        except Exception as promo_err:
+            logger.warning(f"[BankSync] Erreur lors des promotions de récurrence post-commit: {promo_err}")
 
         # Invalider le cache et recalculer
         try:

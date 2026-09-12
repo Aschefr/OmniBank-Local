@@ -322,6 +322,12 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         // Pass complete transaction object to FormView.openEdit by resolving it from memory
         const editActionHtml = `<button class="gantt-popover-item" onclick="window.RecurrenceView.closeSegmentPopover(); window.RecurrenceView.openEditForTx(${txId})">✏️ ${window.i18n.t('rec_popover_action_edit') || 'Modifier l\'opération'}</button>`;
         
+        const isAutoAdjusted = tx.comment && (tx.comment.includes('Auto-ajusté') || tx.comment.includes('Auto-adjusted'));
+        let restoreActionHtml = '';
+        if (isAutoAdjusted) {
+            restoreActionHtml = `<button class="gantt-popover-item" style="color: #6366f1; font-weight: 600;" onclick="window.RecurrenceView.closeSegmentPopover(); window.RecurrenceView.restoreForecastAmount(${txId})">↩️ ${window.i18n.t('rec_popover_action_restore_forecast') || 'Rétablir le montant prévu'}</button>`;
+        }
+
         const tpl = (this.templates || []).find(t => t.id === templateId);
         let closeSubActionHtml = '';
         if (tpl) {
@@ -332,15 +338,26 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             }
         }
         
+        let autoBadgeHtml = '';
+        if (isAutoAdjusted) {
+            autoBadgeHtml = `<span style="display: inline-block; font-size: 10px; background: rgba(99, 102, 241, 0.15); color: #6366f1; padding: 1px 6px; border-radius: 4px; margin-left: 6px;">⚡ Auto-ajusté</span>`;
+        } else if (isSkipped && tx.comment && (tx.comment.includes('Auto-sauté') || tx.comment.includes('Auto-skipped'))) {
+            autoBadgeHtml = `<span style="display: inline-block; font-size: 10px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 1px 6px; border-radius: 4px; margin-left: 6px;">⏭️ Auto-sauté</span>`;
+        }
+
         popover.innerHTML = `
             <div style="padding: 6px 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px;">
-                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">${window.i18n.t('rec_popover_title') || 'Options de l\'échéance'}</div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: space-between;">
+                    <span>${window.i18n.t('rec_popover_title') || 'Options de l\'échéance'}</span>
+                    ${autoBadgeHtml}
+                </div>
                 <div style="font-size: 12px; font-weight: 600; color: var(--text-main); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${tx.description}</div>
                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">📅 ${formattedDate} • <span class="privacy-blur">${formatCurrency(tx.amount)}</span></div>
             </div>
             <div style="display: flex; flex-direction: column; gap: 2px;">
                 ${skipActionHtml}
                 ${reconcileActionHtml}
+                ${restoreActionHtml}
                 ${editActionHtml}
                 ${closeSubActionHtml}
             </div>

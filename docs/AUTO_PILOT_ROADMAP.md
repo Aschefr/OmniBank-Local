@@ -12,6 +12,7 @@
    - [Brique 2 : Pipeline de Catégorisation Multi-Stage & Enregistrement Auto](#brique-2--pipeline-de-catégorisation-multi-stage--enregistrement-auto)
    - [Brique 3 : Moteur de Rapprochement Automatique à Haute Certitude](#brique-3--moteur-de-rapprochement-automatique-à-haute-certitude)
    - [Brique 4 : Détection & Promotion des Récurrences (Anticipation Reste à Vivre)](#brique-4--détection--promotion-des-récurrences-anticipation-reste-à-vivre)
+   - [Brique 4.5 : Cycle de Vie Dynamique & Maintenance Autonome des Récurrences](#brique-45--cycle-de-vie-dynamique--maintenance-autonome-des-récurrences-brique-modulaire-découplée)
    - [Brique 5 : Gestionnaire Dynamique d'Enveloppes (Lissage 3–6 Mois & Cold Start)](#brique-5--gestionnaire-dynamique-denveloppes-lissage-36-mois--cold-start)
    - [Brique 6 : Sas d'Attente ("Pending Sync") & Matrice d'Arbitrage](#brique-6--sas-dattente-pending-sync--matrice-darbitrage)
    - [Brique 7 : Page Dédiée « Centre de Contrôle Auto-Pilote » (Vue Décisions, Réversibilité & Réorientation)](#brique-7--page-dédiée-centre-de-contrôle-auto-pilote-vue-décisions-réversibilité--réorientation)
@@ -214,24 +215,79 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 ### Brique 4 : Détection & Promotion des Récurrences (Anticipation Reste à Vivre)
 *Détecter automatiquement les opérations répétées pour affiner le Reste à Vivre sans polluer la base de données.*
 
-* **Ce qu'il reste à faire** :
-   1. **Algorithme de Détection Périodique (Pattern Matching)** :
-      - Détection des débits récurrents : Même marchand nettoyé + Montant identique ($\pm 0,00$ €) + Intervalle de 28 à 31 jours ($\pm 2$ jours de battement calendaire). **Filtre strict sur les dépenses (`raw_amount < 0` ou `type == 'expense_var'`)** : Les remboursements de santé (ex: virement CPAM) ou recettes exceptionnelles ne doivent en aucun cas être convertis en modèles de charges fixes.
-      - **Modification requise de `calculate_rest_to_live`** dans [`finance_engine.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/finance_engine.py) : la fonction actuelle (ligne 144) ne considère que les transactions non rapprochées avant la prochaine paie. Un scan historique dynamique doit être ajouté pour détecter les charges candidates ($N \ge 2$) et les soustraire du solde sans écriture en base.
-      - **Optimisation de Performance via Cache** : Le calcul des charges candidates ($N \ge 2$) doit être mis en cache dans [`app/services/stats_cache.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/stats_cache.py) et invalidé uniquement lors des commits de transactions ou imports de relevés, évitant tout scan SQL lourd sur 90 jours lors de chaque rafraîchissement du Dashboard ou de l'Overview.
-   2. **Approche à Deux Niveaux & Règle Anti-Doublon Comptable** :
-      - **Niveau 1 — Anticipation Reste à Vivre Déterministe Dynamique ($N=2$)** : Dès 2 occurrences consécutives détectées, l'échéance du mois suivant est intégrée dynamiquement comme charge fixe prévisionnelle dans le calcul du Reste à Vivre (`calculate_rest_to_live` dans `finance_engine.py`) sans dépendre d'une variable globale volatile en RAM.
-      - **Garde-fou Anti-Doublon dans `calculate_rest_to_live`** : Une charge candidate ($N=2$) n'est déduite du solde **que si aucun débit concordant (même marchand nettoyé et montant exact)** n'a déjà été débité et comptabilisé depuis le début du cycle de paie en cours (évite de déduire deux fois une facture déjà réglée).
-      - **Niveau 2 — Suggestion d'Officialisation (1-Clic)** : Badge discret dans le Dashboard invitant à convertir l'opération en `RecurrenceTemplate` officiel.
-   3. **Règle du Mode Full-Auto pour Charges Ordinaires (Abonnements / Loyers)** :
-      - Pour les débits récurrents ordinaires (sans signature de paiement fractionné), la promotion automatique en template n'intervient qu'à partir du **3ème mois consécutif ($N \ge 3$)** avec création d'un `RecurrenceTemplate` permanent actif (`is_closed = False`).
-      - L'utilisateur conserve toujours la possibilité de clôturer manuellement le template en 1 clic dans l'onglet Récurrences ou le Centre de Contrôle.
-   4. **Détection des Paiements Fractionnés (Alma / Klarna / Oney) & Cycle de Clôture Déterministe** :
-      - **Regex de Détection** : Identification des signatures d'échelonnement dans les libellés bruts via un motif regex dédié : `r'\b(?:ALMA|KLARNA|ONEY|FLOA|COFIDIS).*?\b(\d+)\s*[/x]\s*(\d+)\b'` capturant le numéro d'échéance courante ($M$) et le total ($N$) pour en déduire `max_occurrences = N`.
-      - **Liaison Rétroactive Immédiate ($M$ Transactions Passées)** : Le modèle `RecurrenceTemplate` ne disposant pas de colonne compteur, l'Auto-Pilote rattache immédiatement les $M$ transactions réelles existantes au template créé (`tx.recurrence_id = tpl.id`). Le décompte existant `existing_count = db.query(Transaction).filter(...).count()` vaut ainsi immédiatement $M$, garantissant que `generate_recurrences` ne programmera que les $N - M$ échéances restantes avant extinction automatique.
-      - **Extinction Automatique à l'Échéance Finale ($M = N$)** : Dès que l'échéance finale est atteinte (ex: Alma 3/3 au Mois 3), le template est immédiatement marqué `is_closed = True` et ne génère plus aucune opération future.
-      - **Cohérence des Décomptes d'Assertions** : Les assertions du benchmark et de l'UI vérifiant les templates officialisés comptent les templates **actifs** (`is_closed == False`). Ainsi, au Mois 3, il y a rigoureusement **4 templates actifs** (Foncia, EDF, Freebox, Spotify), le template Alma étant clôturé.
-      - **Garde-fou Anti-Promotion Infinie** : Un paiement identifié comme fractionné ($N \le 12$) ne doit jamais être promu en abonnement récurrent permanent.
+* **Fichiers concernés** :
+  - [`app/services/recurrence_detector.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/recurrence_detector.py) (Nouveau service : parsing fractionnés, détection périodique, promotions récurrences)
+  - [`app/services/finance_engine.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/finance_engine.py) (`calculate_rest_to_live` déduit les charges candidates $N=2$, `get_anticipated_candidate_charges`)
+  - [`app/routers/stats.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/stats.py) (Exposition de `anticipated_recurrences` dans `/api/stats/dashboard`)
+  - [`app/routers/recurrences.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/recurrences.py) (`generate_recurrences` avec auto-clôture à `max_occurrences`)
+  - [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) (Déclenchement des promotions et cycle fractionné post-batch)
+* **État d'avancement actuel : 100% — ✅ LIVRÉ (Étape 4)**
+   1. ✅ **Algorithme de Détection Périodique (Pattern Matching)** :
+      - Détection des débits récurrents : Même marchand nettoyé + Montant identique ($\pm 0,00$ €) + Intervalle de 28 à 31 jours ($\pm 2$ jours de battement calendaire). **Filtre strict sur les dépenses (`raw_amount < 0` ou `type == 'expense_var'`)** : Les remboursements de santé (ex: virement CPAM) ou recettes exceptionnelles ne sont jamais convertis en modèles de charges fixes.
+      - **Enrichissement de `calculate_rest_to_live`** dans [`finance_engine.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/finance_engine.py) : déduction dynamique des charges candidates ($N \ge 2$) non encore débitées avant la prochaine paie.
+      - **Optimisation de Performance via Cache** : Calcul mis en cache dans [`app/services/stats_cache.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/stats_cache.py) et invalidé lors des mutations de transactions ou templates.
+   2. ✅ **Approche à Deux Niveaux & Règle Anti-Doublon Comptable** :
+      - **Niveau 1 — Anticipation Reste à Vivre Déterministe Dynamique ($N=2$)** : Dès 2 occurrences consécutives détectées, l'échéance du mois suivant est intégrée dynamiquement comme charge prévisionnelle sans écriture prématurée en base.
+      - **Garde-fou Anti-Doublon dans `calculate_rest_to_live`** : Une charge candidate n'est déduite que si aucun débit concordant n'a déjà été débité et comptabilisé depuis le début du cycle de paie en cours.
+      - **Niveau 2 — Suggestion d'Officialisation (1-Clic)** : Exposition via `/api/stats/dashboard` (`anticipated_recurrences`).
+   3. ✅ **Règle du Mode Full-Auto pour Charges Ordinaires (Abonnements / Loyers)** :
+      - Promotion automatique en `RecurrenceTemplate` permanent actif (`is_closed = False`) dès le **3ème mois consécutif ($N \ge 3$)**.
+      - Liaison rétroactive immédiate de l'ensemble des transactions de la chaîne passée (`t.recurrence_id = tpl.id`).
+   4. ✅ **Détection des Paiements Fractionnés (Alma / Klarna / Oney) & Cycle de Clôture Déterministe** :
+      - **Regex de Détection** : Identification des signatures d'échelonnement `r'\b(?:ALMA|KLARNA|ONEY|FLOA|COFIDIS).*?\b(\d+)\s*[/x\s]\s*(\d+)\b'` capturant l'échéance courante $M$ et le total $N$.
+      - **Liaison Rétroactive Immédiate & Extinction Déterministe ($M = N$)** : Clôture formelle (`is_closed = True`) dès que la dernière échéance est honorée, avec purge des prévisions orphelines.
+      - **Cohérence des Décomptes d'Assertions** : Exactement 4 templates actifs au Mois 3 du benchmark (Foncia, EDF, Freebox, Spotify), Alma étant clôturé.
+      - **Garde-fou Anti-Promotion Infinie** : Exclusion des fractionnés de la promotion infinie.
+   5. ✅ **Suite de Tests Dédiée Validée** : 100% de succès sur les 6 tests unitaires et d'intégration (`tests/test_autopilot_step4.py`).
+
+---
+
+### Brique 4.5 : Cycle de Vie Dynamique & Maintenance Autonome des Récurrences (Brique Modulaire Découplée)
+*Gérer intelligemment la vie réelle des abonnements et charges régulières : variations ponctuelles (hors-forfaits), hausses de tarifs durables ($N=3$), auto-saut des échéances non débitées et auto-clôture des contrats résiliés.*
+
+* **Fichiers concernés** :
+  - [`app/services/reconciliation_engine.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/reconciliation_engine.py) (Passe 2.C : détection tolérante aux déviations de montants sur prévisions actives)
+  - [`app/services/recurrence_detector.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/recurrence_detector.py) (Détection des hausses tarifaires pérennes à $N=3$, auto-clôture après 3 carences consécutives)
+  - [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) & [`app/services/bank_sync/sync_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync/sync_service.py) (Auto-liaison ponctuelle et routine d'évaluation d'auto-saut `process_auto_skipping`)
+  - [`app/routers/recurrences.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/recurrences.py) (Propagation sécurisée des hausses de template `propagate_recurrence`, désautage et rétablissement)
+  - [`static/js/views/recurrence_manager.js`](file:///d:/Code%20Projects/OmniBank-Local/static/js/views/recurrence_manager.js) & [`static/js/views/recurrences_modals.js`](file:///d:/Code%20Projects/OmniBank-Local/static/js/views/recurrences_modals.js) (Modale `⚙️ Automatismes`, badges visuels, actions d'annulation 1-clic)
+  - [`app/models.py`](file:///d:/Code%20Projects/OmniBank-Local/app/models.py) & [`app/migrations/versions/v26_transaction_comment.py`](file:///d:/Code%20Projects/OmniBank-Local/app/migrations/versions/v26_transaction_comment.py) (Colonne `comment` sur `Transaction`, schéma v26)
+  - [`app/config.py`](file:///d:/Code%20Projects/OmniBank-Local/app/config.py), [`static/i18n/fr.json`](file:///d:/Code%20Projects/OmniBank-Local/static/i18n/fr.json) & [`static/i18n/en.json`](file:///d:/Code%20Projects/OmniBank-Local/static/i18n/en.json) (4 toggles `GlobalConfig` indépendants et 21 clés i18n bilingues)
+
+* **État d'avancement actuel : 100% — ✅ LIVRÉ (Étape 4.5)**
+
+* **Architecture des 4 Règles Métier Découplées** :
+  1. **Cas A — Auto-Liaison Tolérante aux Déviations Ponctuelles (Hors-forfait / Frais variables)** :
+     - *Problème résolu* : Une facture mobile prévue à 14,99 € arrive à 35,99 € (hors-forfait). Sans tolérance, l'opération atterrit dans le Sas comme nouvelle dépense, laissant la prévision de 14,99 € orpheline et faussant le solde prévisionnel.
+     - *Comportement* : Dans `reconciliation_engine.py`, si aucun match exact n'est trouvé, une passe spécifique cherche une échéance récurrente active sur le même compte à date concordante ($\pm 4$ jours) avec similarité marchand Smart Label élevée ($\ge 85\%$).
+     - *Garde-fou Anti-Smartphone* : Plafond strict : facteur 3 (montant réel compris entre $\frac{1}{3} \times$ et $3 \times$ le montant prévu). Au-delà (ex: achat d'un téléphone à 800 € chez Orange), neutralisation de l'auto-liaison et maintien dans le Sas pour arbitrage humain.
+     - *Comptabilisation* : L'échéance du mois est liée et pointée au montant réel constaté (35,99 €). **Le montant du template et les mois futurs restent strictement intacts à 14,99 €**.
+  2. **Cas B — Détection & Auto-Propagation des Hausses Tarifaires ($N=3$)** :
+     - *Problème résolu* : Un abonnement passe de 10,99 € à 11,99 € (augmentation globale). Ajuster chaque mois manuellement est fastidieux.
+     - *Comportement* : Si 3 débits consécutifs ($N=3$) partagent le même nouveau montant déviant à intervalle régulier (26 à 33 jours) :
+       - Le modèle de récurrence bascule automatiquement au nouveau montant (`template.amount = 11.99`).
+       - Propagation automatique (`propagate_recurrence`) sur toutes les prévisions futures non pointées.
+       - Conservation stricte et sanctuarisation de l'historique passé aux anciens montants.
+  3. **Cas 2.A — Auto-Saut des Échéances Non Prélevées sur Solde Conforme (Triple Verrou)** :
+     - *Problème résolu* : Un prélèvement exceptionnellement non effectué bloque indéfiniment la trésorerie dans le Reste à Vivre.
+     - *Comportement* : L'échéance est automatiquement marquée comme « Sautée » (`is_skipped = True`), libérant immédiatement la réserve dans le Reste à Vivre.
+     - *Triple Verrou de Sécurité Stricte* :
+       1. Date d'échéance $+ 1$ période calendaire $+ 3$ jours de battement dépassée (ex: $M+1 + 3\text{j}$ pour un mensuel).
+       2. Solde bancaire réel strictement égal au solde pointé OmniBank ($|\Delta| < 0.005 \text{ €}$).
+       3. Sas d'attente parfaitement vide (`pending == 0`).
+       *Garantie* : Si des opérations sont en cours de validation dans le Sas ou si les soldes divergent, l'auto-saut est formellement neutralisé pour ne jamais sauter une opération en transit.
+  4. **Cas 2.B / 2.C — Auto-Clôture sur 3 Échéances Sautées Consécutives (Résiliations / Contrats Morts)** :
+     - *Problème résolu* : Contrat de salle de sport résilié mais continuant à générer 12 échéances fantômes par an.
+     - *Comportement* : Si les 3 dernières occurrences d'un template sont toutes sautées (`is_skipped = True`), bascule automatique du modèle à `is_closed = True` et purge de toutes les occurrences futures non pointées.
+  5. **Toggles Indépendants & Rétroaction Visuelle (Ergonomie & Contrôle)** :
+     - 4 interrupteurs configurables indépendamment dans `GlobalConfig` :
+       - `auto_link_deviant_recurrences` (Défaut : `true`)
+       - `auto_propagate_recurrence_hikes` (Défaut : `true`)
+       - `auto_skip_unreconciled_recurrences` (Défaut : `true`)
+       - `auto_close_unreconciled_recurrences` (Défaut : `true`)
+     - Bouton `⚙️ Automatismes` dans la barre d'outils de la vue Récurrences (`recurrence_manager.js`).
+     - Badges distinctifs `Ajusté auto` et `Sauté auto` dans la vue chronologique et tabulaire.
+     - Boutons de correction 1-clic dans la modale d'échéance (`[Rétablir montant initial]`, `[Désauter]`).
 
 ---
 
@@ -397,6 +453,8 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 | **Comptable** | Écritures fantômes / double débit | Incohérence des soldes, écart avec le relevé de compte officiel. | Règle d'or : une écriture passée ne peut être validée qu'une seule fois. Vérification stricte via `csv_id`. |
 | **Budgets** | Hyper-réactivité / Effet "Yoyo" | Les budgets changent chaque semaine, créant anxiété et illisibilité. | **Isolation stricte** : Aucun ajustement d'enveloppe pendant les syncs quotidiennes. Lissage EMA sur 3 à 6 mois au 1er du mois. |
 | **Cold Start** | Extrapolation sur données partielles | Création d'enveloppes aberrantes après seulement 10 jours d'utilisation. | Pendant les 90 premiers jours, borner les estimations par les modèles de récurrence (`RecurrenceTemplate`) et imposer un plafond de variation. |
+| **Récurrences** | Hors-forfait ou déviation ponctuelle | Doublon dans le Sas d'attente ou altération indésirable des prévisions annuelles. | **Auto-liaison tolérante bornée** : Lier l'échéance du mois au débit réel avec plafond de sécurité (≤ 150 € / 4x), sans modifier le template ni les mois suivants. |
+| **Récurrences** | Abandon de contrat non détecté | Échéances fantômes persistant indéfiniment et bloquant le Reste à Vivre. | **Triple verrou d'auto-saut** (|Δ solde| < 0.005 €, Sas vide, période échue) + auto-clôture après 3 sauts consécutifs. |
 | **UX** | Syndrome de la "Boîte Noire" | L'utilisateur ne sait plus ce qui a été fait, perte de confiance. | Journal d'activité clair : *"Auto-Pilote : 3 opérations rapprochées, 1 ajoutée. Tout est équilibré."* + Rollback 1-clic. |
 | **Cycle de Vie (Tauri)** | Fermeture brutale [X] pendant la synchronisation | Données partielles ou coupure abrupte du process Python. | **Bouclier de Fermeture Sécurisée** : Interception événementielle conjointe au niveau natif Rust dans `src-tauri/src/main.rs` (`WindowEvent::CloseRequested` en plus de `RunEvent::Exit`) et côté webview (`tauri://close-requested`), consultation de l'état de synchronisation en cours via l'API locale, court écran d'attente (2 à 4s) si actif avec **fermeture automatique** dès le commit terminé. Transactions SQLite atomiques (`with db.begin():`) garantissant zéro corruption de base. |
 
@@ -456,7 +514,7 @@ Tout développement lié au mode Auto-Pilote doit se conformer strictement à [C
 
 ## 6. Feuille de Route Incrémentale (Ordre de Réalisation)
 
-La transition vers l'Auto-Pilote s'effectuera en **7 étapes autonomes**, chacune apportant une valeur immédiate sans attendre l'étape suivante :
+La transition vers l'Auto-Pilote s'effectuera en **8 étapes autonomes**, chacune apportant une valeur immédiate sans attendre l'étape suivante :
 
 ```mermaid
 graph TD
@@ -464,8 +522,9 @@ graph TD
     A --> B["Étape 2 : Orchestrateur AutoPilotService<br/>Auto-Rapprochement & Modèle DecisionLog<br/>✅ 100% PASS"]
     B --> C["Étape 3 : Pipeline Smart Labels & Écritures<br/>Auto-Commit Écritures & Fallback IA<br/>✅ 100% PASS"]
     C --> C1["Étape 3.5 : Filet de Sécurité & IA Augmentée<br/>Garde-fous Anti-Prolifération & Sas Propre<br/>✅ 100% PASS"]
-    C1 --> D["Étape 4 : Détection & Promotion Récurrences<br/>Charges Candidates Dynamiques (Reste à Vivre)"]
-    D --> E["Étape 5 : Lissage Budgétaire EMA Déterministe<br/>(budget_service.py 100% Offline)"]
+    C1 --> D["Étape 4 : Détection & Promotion Récurrences<br/>Charges Candidates Dynamiques (Reste à Vivre)<br/>✅ 100% PASS"]
+    D --> D1["Étape 4.5 : Cycle de Vie Dynamique Récurrences<br/>Tolérance Écart, Hausse N=3, Auto-Saut & Clôture"]
+    D1 --> E["Étape 5 : Lissage Budgétaire EMA Déterministe<br/>(budget_service.py 100% Offline)"]
     E --> F["Étape 6 : Centre de Contrôle Dédié<br/>Decision Feed, Rollback Snapshot, Switch UI & Finitions Desktop"]
 ```
 
@@ -545,16 +604,39 @@ graph TD
   - Clés i18n associées synchronisées en FR et EN (`utf-8-sig`).
 - *Bénéfice immédiat* : Élimination totale des blocages de saisie dans le Sas d'attente, sas propre par défaut, et mode Auto-Pilote à supervision zéro véritablement opérationnel.
 
-#### Étape 4 : Détection Périodique, Charges Candidates Dynamiques ($N=2$) & Liaison Rétroactive
-- Moteur de reconnaissance de périodicité (même montant, même marchand nettoyé, intervalle 28–31 jours).
-- **Intégration dynamique déterministe au Reste à Vivre (Niveau 1)** : calcul à la volée dans `calculate_rest_to_live` (`finance_engine.py`) avec mise en cache courte par signature dans `stats_cache.py` (sans état global volatile en RAM), avec filtre anti-doublon (la charge candidate n'est déduite que si aucune écriture réelle n'a déjà été débitée dans le cycle de paie en cours).
-- Badge d'officialisation 1-clic (Niveau 2).
-- En mode Full-Auto : officialisation automatique en `RecurrenceTemplate` après 3 mois consécutifs ($N \ge 3$).
-- **Gestion des paiements fractionnés (Alma / Klarna / Oney)** via regex `M/N` : création d'un `RecurrenceTemplate` avec `max_occurrences = N` et **liaison rétroactive immédiate** des $M$ écritures déjà débitées (`tx.recurrence_id = tpl.id`). Lorsque l'échéance finale est atteinte ($M = N$, ex: Alma 3/3), le template passe automatiquement à `is_closed = True`, garantissant qu'au Mois 3 il reste exactement 4 templates actifs en base et que la génération future s'arrête à l'extinction du contrat ($N - M$ prélèvements restants).
-- **Clés i18n requises (Étape 4)** :
-  - `autopilot_recurrence_candidate`, `autopilot_recurrence_promoted`, `autopilot_recurrence_fractional`
-  - `autopilot_rav_anticipated_charges`, `autopilot_promote_template_badge`
-- *Bénéfice immédiat* : Le Reste à Vivre anticipe les charges fixes dès le 1er du mois sans attendre les prélèvements ni polluer la base.
+#### Étape 4 : Détection Périodique, Charges Candidates Dynamiques ($N=2$) & Liaison Rétroactive — `✅ TERMINÉE (100%)`
+- [x] **Jalon 4.1 : Reconnaissance de Périodicité (Pattern Matching)** : Moteur `detect_candidate_recurring_expenses` dans `app/services/recurrence_detector.py` (même montant, même marchand nettoyé, intervalle 28–31 jours ± 2 jours de battement) avec filtre strict sur dépenses décaissées.
+- [x] **Jalon 4.2 : Anticipation Dynamique du Reste à Vivre (Niveau 1, $N=2$)** : Déduction des charges candidates dans `calculate_rest_to_live` (`finance_engine.py`) avec mise en cache par signature dans `stats_cache.py` et garde-fou anti-doublon (déduction neutralisée dès que le débit du cycle en cours a été exécuté).
+- [x] **Jalon 4.3 : Promotion Full-Auto ($N \ge 3$) & Liaison Rétroactive** : Promotion automatique en `RecurrenceTemplate` permanent actif (`is_closed = False`), rattachement rétroactif des $N$ transactions passées (`tx.recurrence_id = tpl.id`), et journalisation `AutopilotDecisionLog`.
+- [x] **Jalon 4.4 : Cycle de Vie Intégral des Paiements Fractionnés (Alma / Klarna / Oney)** : Regex flexible `M/N`, template borné (`max_occurrences = N`), liaison rétroactive des échéances honorées, et auto-clôture finale à $M = N$ (`is_closed = True`) avec purge des prévisions orphelines.
+- [x] **Jalon 4.5 : Clés i18n Bilingues Synchronisées (FR/EN, UTF-8 BOM)** : `autopilot_recurrence_candidate`, `autopilot_recurrence_promoted`, `autopilot_recurrence_fractional`, `autopilot_rav_anticipated_charges`, `autopilot_promote_template_badge` ajoutées dans `static/i18n/fr.json` et `static/i18n/en.json`.
+- [x] **Jalon 4.6 : Suite de Tests Dédiée Validée** : 100% de succès sur les 6 tests unitaires et d'intégration (`tests/test_autopilot_step4.py`), incluant le benchmark réel de bout en bout sur 4 mois.
+- *Bénéfice immédiat* : Le Reste à Vivre anticipe les charges fixes dès le 1er du mois sans attendre les prélèvements ni polluer la base de données.
+
+#### Étape 4.5 : Cycle de Vie Dynamique & Maintenance Autonome des Récurrences — `✅ TERMINÉE (100%)`
+- [x] **Jalon 4.5.1 : Auto-Liaison Tolérante aux Déviations de Montant (Hors-forfait / Frais ponctuels)** :
+  - Dans `reconciliation_engine.py` : si aucun match exact en montant n'existe, détection d'une prévision active sur le même compte à date concordante ($\pm 4$ jours) avec similarité marchand Smart Label haute certitude ($\ge 85\%$).
+  - Plafond de tolérance borné : facteur 3 strict (montant réel compris entre $\frac{1}{3} \times$ et $3 \times$ le montant de l'échéance prévue) afin de bloquer les achats de smartphones ou équipements volumineux dans le Sas.
+  - Rapprochement de l'échéance du mois avec actualisation du montant réel décaissé, **sans altérer le montant de référence du template ni les échéances futures**.
+- [x] **Jalon 4.5.2 : Détection & Auto-Propagation des Hausses Tarifaires ($N=3$)** :
+  - Dans `recurrence_detector.py` : surveillance des montants déviants liés. Si 3 mensualités consécutives ($N=3$) partagent le même nouveau montant déviant (ex: forfait Sosh passant de 14,99 € à 16,99 €) :
+  - Actualisation automatique du montant de base du template (`template.amount = nouveau_montant`).
+  - Déclenchement automatique de `propagate_recurrence` pour réévaluer toutes les prévisions futures non pointées.
+  - Conservation stricte de l'historique passé aux anciens montants.
+- [x] **Jalon 4.5.3 : Auto-Saut des Échéances Non Prélevées sur Solde Conforme** :
+  - Triple verrou de sécurité : solde bancaire égal au solde pointé OmniBank ($|\Delta| < 0.005 \text{ €}$), Sas d'attente vide (`pending == 0`), et date d'échéance $+ 1$ période calendaire $+ 3$ jours de battement dépassée.
+  - Marquage automatique `is_skipped = True` : neutralisation de l'échéance et libération immédiate de la réserve dans le calcul du Reste à Vivre.
+- [x] **Jalon 4.5.4 : Auto-Clôture sur 3 Échéances Sautées Consécutives (Contrats Résiliés / Abandonnés)** :
+  - Constat de carence prolongée : si un template enregistre 3 occurrences consécutives sautées/absentes, bascule automatique du modèle à `is_closed = True` et purge des prévisions ultérieures.
+- [x] **Jalon 4.5.5 : Toggles Découplés & Ergonomie Récurrences (`recurrence_manager.js` & Modales)** :
+  - Enregistrement des 4 clés de configuration indépendantes dans `GlobalConfig` (`auto_link_deviant_recurrences`, `auto_propagate_recurrence_hikes`, `auto_skip_unreconciled_recurrences`, `auto_close_unreconciled_recurrences`).
+  - Ajout d'un bouton `⚙️ Automatismes` dans la barre d'outils des Récurrences ouvrant la modale de pilotage des interrupteurs.
+  - Badges visuels distinctifs sur les cellules (`⚡ Ajusté auto`, `⏭️ Sauté auto`) et boutons d'action d'annulation en 1 clic dans la modale d'échéance et la timeline (`↩️ Rétablir le montant prévu`, `Désauter`).
+- [x] **Jalon 4.5.6 : Clés i18n Bilingues Synchronisées & Suite de Tests Dédiée** :
+  - 21 clés de traduction complètes FR/EN (`utf-8-sig`).
+  - Migration de schéma v26 (`comment` sur `transactions`) et route API `/api/recurrences/transactions/{tx_id}/restore-amount`.
+  - 100% de succès sur les 7 tests de cycle de vie dynamique (`tests/test_autopilot_step4_5_dynamic_lifecycle.py`).
+- *Bénéfice immédiat* : Une gestion prévisionnelle vivante, résiliente aux aléas du quotidien (hors-forfait, hausses d'abonnement, prélèvements annulés), sans intervention manuelle et sans dérégler votre budget annuel.
 
 #### Étape 5 : Lissage & Stabilisation des Enveloppes Budgétaires (100% Déterministe Offline)
 - Implémentation du filtre EMA 3–6 mois directement dans `app/services/budget_service.py` (**sans aucune dépendance à Ollama**).
@@ -674,6 +756,20 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 | **T4.1** | Débit Netflix 13,49 € constaté en M-1 et M-2 (2 mois consécutifs). Aucun template en DB. | Calcul du Reste à Vivre au 1er du mois M (avant prélèvement). | Le Reste à Vivre déduit in-memory 13,49 € d'anticipation de charge fixe. | Calcul exact : $\text{Reste à Vivre} - 13,49 \text{ €}$, mais **0 écriture de template en DB**. | Création prématurée d'un template en base dès le 2ème mois. |
 | **T4.2** | Débit Netflix 13,49 € prélevé pour le 3ème mois consécutif ($N = 3$). Mode Full-Auto actif. | Ingestion du 3ème prélèvement par l'Auto-Pilote. | Promotion automatique en `RecurrenceTemplate` (fréquence mensuelle, `expense_fixed`). | Modèle créé en base, catégorie passée en charge fixe, décision loggée. | Pas de modèle créé après 3 mois, ou création de doublons mensuels. |
 | **T4.3** | Paiement fractionné détecté : `PRLV ALMA 1/3 80,00 €` (ou `M1/4`). | Ingestion des échéances successives ($1/3 \to 2/3 \to 3/3$). | Détection de la signature fractionnée ($M/N$), création d'un template borné ($N = 3$ max) avec liaison rétroactive. À $M=N$ (Mois 3), clôture automatique (`is_closed = True`). | Extinction automatique confirmée au Mois 4 (0 débit, 0 génération), 4 templates actifs au M3. | Transformation en abonnement permanent infini ou template restant actif après extinction. |
+
+---
+
+### Pack de Test 4.5 : Cycle de Vie Dynamique & Maintenance Autonome (Étape 4.5) — `✅ 100% PASS`
+
+| Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Statut |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **T4.5.1** | Forfait mobile prévu à 14,99 € le 20. Prélèvement reçu : `PRLV SOSH 35,99 €` (hors-forfait). | Exécution de la synchronisation bancaire avec auto-liaison active. | L'échéance de Septembre est automatiquement liée, pointée et ajustée à 35,99 €. Le template et les prévisions futures (Octobre...) restent à **14,99 €**. | Échéance pointée à 35,99 €, mois futurs intacts à 14,99 €, 0 doublon créé. | ✅ **PASS** |
+| **T4.5.2** | Forfait mobile prévu à 14,99 €. Prélèvement reçu : `ORANGE 799,00 €` (achat smartphone). | Ingestion du lot par l'Auto-Pilote. | Détection du dépassement du plafond de tolérance ($> 3 \times$). Neutralisation de l'auto-liaison. | Opération maintenue dans le Sas d'attente pour arbitrage humain. | ✅ **PASS** |
+| **T4.5.3** | Abonnement Spotify prévu à 10,99 €. Trois prélèvements successifs constatés à 11,99 € ($N=3$). | Ingestion du 3ème prélèvement consécutif à 11,99 €. | Constat de hausse pérenne : le template passe à 11,99 € et toutes les échéances futures non pointées sont actualisées. | Template à 11,99 €, mois futurs à 11,99 €, passé sanctuarisé à 10,99 €. | ✅ **PASS** |
+| **T4.5.4** | Échéance salle de sport non débitée au 10 Août. Au 14 Septembre (+1 mois +3j), solde bancaire conforme ($|\Delta| < 0.005$), Sas vide. | Vérification de l'entretien automatique. | L'échéance d'Août est automatiquement marquée comme « Sautée » (`is_skipped = True`), libérant le Reste à Vivre. | `is_skipped = True`, calcul du Reste à Vivre actualisé, badge `Sauté auto`. | ✅ **PASS** |
+| **T4.5.5** | Échéance non débitée, mais solde bancaire distant $\ne$ solde local, ou opérations en attente dans le Sas. | Routine d'auto-saut. | Condition de solde conforme non satisfaite : neutralisation absolue de l'auto-saut. | Aucun saut automatique déclenché tant que les soldes divergent ou que le Sas est garni. | ✅ **PASS** |
+| **T4.5.6** | Abonnement salle de sport avec 3 occurrences consécutives sautées (`is_skipped = True`). | Déclenchement de l'entretien des récurrences. | Constat d'abandon/résiliation : clôture automatique du template (`is_closed = True`) et purge des futures occurrences. | Template clos, 0 génération future, décision notée dans le journal d'audit. | ✅ **PASS** |
+| **T4.5.7** | Échéance auto-ajustée à 35,99 € par erreur ou souhait de régularisation. | Clic sur `[↩️ Rétablir montant initial]` dans l'UI ou appel endpoint. | Le montant repasse à 14,99 € (valeur du template) et le commentaire trace la restauration. | Montant rétabli à 14,99 €, commentaire explicite en base. | ✅ **PASS** |
 
 ---
 
