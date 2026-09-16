@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Deterministic Budget Envelope Discovery & Recalibration (Auto-Pilot Step 5) 📊**:
+  - **Deterministic Envelope Suggestion (Cold-Start & Orphan Categories)**: Automatically identifies unbudgeted expense categories and suggests new envelope allocations based on Winsorized historical spending and floor threshold (€30), without creating unapproved records in SQLite.
+  - **Smoothed EMA Recalibration & Double Drift Guard**: Calculates monthly smoothed budget adjustments using Exponential Moving Average ($\alpha = 0.20$) bound by a double drift limit ($\pm 10\%$/month and $\pm 25\%$/year vs annual reference budget `base_annual_amount`), warning users when drift thresholds are reached.
+  - **Strict Anti-Thrashing & Event Cadence**: Executes monthly suggestions on period rollover and startup catch-up (`lifespan`), with reactive Cold-Start triggers upon statement import when active envelopes $< 3$.
+  - **Persistent Rejection & Anti-Harassment**: Explicitly dismissed suggestions (`DISMISSED`) are permanently respected, preventing recurring proposals for unwanted envelope categories.
+  - **1-Click Review Banner & Automations Modal ⚙️**: Unified visual suggestion banner on the Budgets view with 1-click Approve/Dismiss buttons, and an Automations settings modal (`⚙️ Automations`) offering granular toggles for auto-creation and auto-application with dynamic hierarchical dependency management.
+  - **Macro-Capacity Indicator & One-Off Spending Guard**: Displays global income engagement ratio, suggested envelope aggregate, and projected Rest to Live margin directly in the suggestion banner to prevent budget asphyxiation, flagging fragile single-month categories (`observed_months <= 1`) with warning badges.
 - **Autonomous Recurrence Lifecycle & Maintenance (Auto-Pilot Step 4.5) ⚡**:
   - **Tolerant Auto-Linking with Factor-3 Safety Ceiling**: Automatically links out-of-plan charges (such as telecom overages, e.g. €35.99 vs €14.99 planned) to the monthly forecast while preserving future months and reference templates intact at the planned amount. High-value outliers exceeding a strict factor of 3 (e.g. smartphone hardware purchases) remain safely quarantined in the staging queue for manual review.
   - **Perennial Rate Hike Propagation ($N=3$)**: Detects permanent subscription fee increases across 3 consecutive monthly cycles and automatically updates the template base amount, propagating the new rate to future unpointed forecasts while safeguarding historical transactions.
@@ -20,6 +27,7 @@ All notable changes to this project will be documented in this file.
 ### Improved
 - **Modularized Bank Sync Architecture ⚡**: Restructured banking synchronization and background scheduler services into clean, isolated modules (`pending_store`, `auto_sync`, and dedicated API routers for vault and pending operations), significantly improving codebase maintainability and testability for Auto-Pilot roadmap extensions.
 - **Enhanced Frontend XSS Protection 🛡️**: Reinforced HTML entity escaping across the application by consistently sanitizing single quotes (`'`) alongside standard HTML special characters across all dynamic UI elements.
+- **Multi-Profile Database Schema Synchronization at Startup 🛠️**: Application initialization (`lifespan`) now synchronously audits and migrates all existing master profile SQLite databases at startup via `init_all_profiles_db()`, preventing schema lag or missing columns across multi-profile setups.
 
 ### Fixed
 - **CSV Import Staging Queue Persistence 📥**: Resolved an issue where imported statement operations disappeared upon view switching when no online banking connection was configured, by normalizing staging cache keys and permanently safeguarding the file import slot (`CSV_IMPORT_CONN_ID`).

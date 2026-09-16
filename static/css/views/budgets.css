@@ -545,4 +545,443 @@
 /* ── Empty State ──────────────────────────────────────────────────────────── */
 .bv-empty { color: var(--text-muted); padding: 10px 0; }
 
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Auto-Pilote Budgétaire — Bandeau de suggestions & Cartes de décision (Étape 5)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.autopilot-suggestion-banner {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-left: 4px solid var(--primary-color, #6366f1);
+    border-radius: 12px;
+    padding: clamp(12px, 2.5vw, 18px);
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.autopilot-banner-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.autopilot-banner-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.autopilot-banner-title {
+    margin: 0;
+    font-size: clamp(14px, 2vw, 16px);
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.autopilot-banner-count {
+    background: var(--primary-color, #6366f1);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+}
+
+.autopilot-banner-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.autopilot-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.autopilot-suggestion-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.autopilot-suggestion-card:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.autopilot-card-create {
+    border-top: 3px solid #10b981;
+}
+
+.autopilot-card-recalib {
+    border-top: 3px solid #6366f1;
+}
+
+.autopilot-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.autopilot-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+    word-break: break-word;
+}
+
+.autopilot-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+.autopilot-badge-creation {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.autopilot-badge-recalibration {
+    background: rgba(99, 102, 241, 0.15);
+    color: #6366f1;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.autopilot-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.autopilot-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.autopilot-card-label {
+    color: var(--text-muted);
+}
+
+.autopilot-card-val {
+    color: var(--text-main);
+    font-weight: 500;
+}
+
+.autopilot-card-amount {
+    color: var(--primary-color, #6366f1);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.autopilot-card-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.autopilot-drift-warning {
+    font-size: 11px;
+    font-weight: 600;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    padding: 4px 8px;
+    border-radius: 6px;
+    margin-top: 4px;
+}
+
+.autopilot-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 8px;
+}
+
+.autopilot-action-btn {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 14px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.autopilot-btn-approve {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+    color: #fff !important;
+}
+
+.autopilot-btn-approve:hover {
+    background: #059669 !important;
+    border-color: #059669 !important;
+}
+
+/* Auto-Pilote Budgets : Info-Bulles, Badges et Détails des Sommes */
+.autopilot-banner-summary-pill-group {
+    display: inline-flex;
+    align-items: center;
+}
+
+.autopilot-summary-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: var(--text-main);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.autopilot-summary-pill:hover,
+.autopilot-summary-pill:focus-visible {
+    background: rgba(99, 102, 241, 0.22);
+    border-color: var(--primary-color, #6366f1);
+    outline: none;
+}
+
+.autopilot-summary-net-tag {
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+}
+
+.net-plus {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.15);
+}
+
+.net-minus {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+}
+
+.autopilot-badge-one-off {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.autopilot-cats-row {
+    margin-bottom: 2px;
+}
+
+.autopilot-cats-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    max-width: 170px;
+}
+
+.autopilot-cats-pill:hover,
+.autopilot-cats-pill:focus-visible {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--primary-color, #6366f1);
+    outline: none;
+}
+
+.autopilot-pill-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.autopilot-info-icon {
+    font-size: 10px;
+    opacity: 0.65;
+    transition: opacity 0.15s;
+}
+
+.autopilot-cats-pill:hover .autopilot-info-icon,
+.autopilot-summary-pill:hover .autopilot-info-icon {
+    opacity: 1;
+}
+
+/* Tooltip wrapper and popover */
+.autopilot-tooltip-wrapper {
+    position: relative;
+    display: inline-flex;
+}
+
+.autopilot-suggestion-card:hover,
+.autopilot-suggestion-card:focus-within {
+    z-index: 25;
+}
+
+.autopilot-tooltip-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 1000;
+    min-width: 240px;
+    max-width: 320px;
+    background: var(--bg-surface, #1e293b);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+    padding: 10px 12px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+    animation: tooltipFadeIn 0.15s ease;
+    pointer-events: auto;
+}
+
+@keyframes tooltipFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.autopilot-tooltip-wrapper:hover .autopilot-tooltip-popover,
+.autopilot-tooltip-wrapper:focus-within .autopilot-tooltip-popover {
+    display: flex;
+}
+
+.autopilot-summary-popover {
+    left: 0;
+    right: auto;
+    min-width: 320px;
+    max-width: 400px;
+}
+
+.autopilot-summary-popover .autopilot-tooltip-cat-name {
+    max-width: none;
+    white-space: normal;
+}
+
+.autopilot-tooltip-title {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.autopilot-tooltip-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.autopilot-tooltip-cat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    padding: 3px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.07);
+}
+
+.autopilot-tooltip-cat-item:last-child {
+    border-bottom: none;
+}
+
+.autopilot-tooltip-cat-name {
+    color: var(--text-muted);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+}
+
+.autopilot-tooltip-cat-sum {
+    color: var(--text-main);
+    text-align: right;
+    white-space: nowrap;
+}
+
+.autopilot-tooltip-cat-sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    display: block;
+    font-weight: normal;
+}
+
+.autopilot-tooltip-history-title {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-style: italic;
+}
+
+.autopilot-tooltip-history-chips {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+
+.autopilot-history-chip {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+}
+
+.autopilot-tooltip-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.autopilot-tooltip-summary-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 0;
+}
+
+
 

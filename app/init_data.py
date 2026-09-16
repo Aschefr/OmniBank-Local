@@ -19,12 +19,12 @@ def init_db(target_engine=None):
     Initialise la base de données SQLite :
     1. Fast-path si la base est déjà au schéma cible (évite l'introspection lors des switches de profil).
     2. Création des tables SQLAlchemy via Base.metadata.create_all().
-    3. Exécution séquentielle des migrations incrémentales (v02 à v25) via app.migrations.
+    3. Exécution séquentielle des migrations incrémentales (v02 à v26) via app.migrations.
     """
     from app.database import get_engine
     eng = target_engine or get_engine()
 
-    # Fast-path : si la base est déjà initialisée et au schéma cible (v25),
+    # Fast-path : si la base est déjà initialisée et au schéma cible,
     # éviter l'introspection complète de toutes les tables SQLAlchemy lors de chaque switch de profil
     try:
         with eng.connect() as conn:
@@ -38,6 +38,29 @@ def init_db(target_engine=None):
 
     # Exécution ordonnée des index de base et des migrations incrémentales
     run_migrations(eng)
+
+
+def init_all_profiles_db():
+    """
+    Initialise et migre l'ensemble des profils existants au démarrage de l'application.
+    Garantit l'alignement immédiat du schéma SQLite de chaque base dès le lancement.
+    """
+    try:
+        from app.profile_manager import load_profiles_data
+        from app.database import get_engine
+        profiles = load_profiles_data().get("profiles", [])
+        if profiles:
+            for p in profiles:
+                try:
+                    eng = get_engine(p["id"])
+                    init_db(target_engine=eng)
+                except Exception as e:
+                    logger.error(f"[InitDB] Erreur migration du profil {p.get('id')}: {e}")
+            return
+    except Exception as e:
+        logger.warning(f"[InitDB] Erreur itération multi-profils au démarrage: {e}")
+    # Repli sur le profil actif par défaut si profiles.json est inaccessible
+    init_db()
 
 
 def wipe_db(db: Session):

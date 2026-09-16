@@ -16,6 +16,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </button>
                 </div>
                 <div class="bv-header-actions">
+                    <button class="btn btn-secondary bv-btn-automations" onclick="window.BudgetsView.openBudgetAutomationsModal()" 
+                            title="${window.i18n.t('budget_automations_title') || 'Automatismes des enveloppes budgétaires'}" 
+                            style="padding: 7px 14px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+                        <span>⚙️</span> <span class="btn-text" data-i18n="budget_automations_btn">${window.i18n.t('budget_automations_btn') || 'Automatismes'}</span>
+                    </button>
                     <button id="budgetAiBtn" class="btn btn-secondary" style="${aiDisp}" onclick="window.BudgetsView.openAiWindowModal()" data-i18n="budget_btn_suggestions">${window.i18n.t('budget_btn_suggestions')}</button>
                     <button class="btn btn-secondary bv-btn-delete" onclick="window.BudgetsView.showBulkDeleteModal()" data-i18n="budget_btn_bulk_delete">${window.i18n.t('budget_btn_bulk_delete') || '🗑️ Nettoyer'}</button>
                     <button class="btn btn-primary" onclick="window.BudgetsView.showAddForm()" data-i18n="budget_btn_new">${window.i18n.t('budget_btn_new')}</button>
@@ -579,7 +584,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             }
         }
 
-        let fullHtml = toggleHeaderHtml + capacityHtml;
+        const bannerHtml = this.renderAutopilotSuggestionsBanner ? this.renderAutopilotSuggestionsBanner() : '';
+        let fullHtml = bannerHtml + toggleHeaderHtml + capacityHtml;
 
         const activeFilter = this.currentGridFilter || 'all';
         const filterBarHtml = `

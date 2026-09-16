@@ -30,6 +30,7 @@ class BudgetCreate(BaseModel):
     account_ids: Optional[List[int]] = None
     envelope_type: Optional[str] = "spending"  # "spending" or "savings"
     is_locked: Optional[bool] = False
+    base_annual_amount: Optional[float] = None
 
 
 class BudgetUpdate(BaseModel):
@@ -44,6 +45,7 @@ class BudgetUpdate(BaseModel):
     account_ids: Optional[List[int]] = None
     envelope_type: Optional[str] = None
     is_locked: Optional[bool] = None
+    base_annual_amount: Optional[float] = None
 
 
 class AllocationCreate(BaseModel):
@@ -289,3 +291,59 @@ def ai_recalculate_budgets(data: AiRecalculateRequest, db: Session = Depends(get
     except Exception as e:
         logger.error(f"[Budgets Router] Erreur ai_recalculate: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erreur de recalcul : {str(e)}")
+
+
+# ─── AutoPilot Budget Suggestions (Étape 5) ──────────────────────────────────
+
+@router.get("/autopilot/suggestions")
+def get_autopilot_budget_suggestions(db: Session = Depends(get_db)):
+    """Liste toutes les suggestions budgétaires en attente (créations + recalibrages)."""
+    try:
+        return budget_service.get_all_pending_budget_suggestions(db)
+    except Exception as e:
+        logger.error(f"[Budgets AutoPilot] Erreur récupération suggestions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/autopilot/suggestions/{decision_id}/approve")
+def approve_autopilot_budget_suggestion(decision_id: int, db: Session = Depends(get_db)):
+    """Valide une suggestion budgétaire (création ou recalibrage) en 1 clic."""
+    try:
+        result = budget_service.apply_budget_suggestion(db, decision_id)
+        stats_cache.invalidate()
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Budgets AutoPilot] Erreur approbation suggestion {decision_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/autopilot/suggestions/{decision_id}/dismiss")
+def dismiss_autopilot_budget_suggestion(decision_id: int, db: Session = Depends(get_db)):
+    """Rejette une suggestion budgétaire (garantie anti-harcèlement)."""
+    try:
+        result = budget_service.dismiss_budget_suggestion(db, decision_id)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Budgets AutoPilot] Erreur rejet suggestion {decision_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/autopilot/recalibrate")
+def trigger_budget_recalibration(db: Session = Depends(get_db)):
+    """Déclencheur forcé de recalibrage pour preview et tests."""
+    try:
+        creation_results = budget_service.suggest_new_envelopes_deterministic(db, force=True)
+        recalib_results = budget_service.evaluate_monthly_budget_suggestions(db, force=True)
+        stats_cache.invalidate()
+        return {
+            "new_envelopes": creation_results,
+            "recalibrations": recalib_results,
+            "total": len(creation_results) + len(recalib_results)
+        }
+    except Exception as e:
+        logger.error(f"[Budgets AutoPilot] Erreur recalibrage forcé: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

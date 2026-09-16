@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.database import engine, Base, DATA_DIR
-from app.init_data import init_db
+from app.init_data import init_db, init_all_profiles_db
 import app.models # Important: load models before create_all
 
 import logging
@@ -18,12 +18,11 @@ logger = logging.getLogger(__name__)
 def resource_path(relative_path):
     """Get absolute path to bundled resource (PyInstaller-aware)."""
     if getattr(sys, 'frozen', False):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath('.'), relative_path)
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
-
-# Create tables if they don't exist + run idempotent migrations
-logger.info(f"[Startup] DATA_DIR = {DATA_DIR}")
 
 from contextlib import asynccontextmanager
 from starlette.middleware.gzip import GZipMiddleware
@@ -36,7 +35,7 @@ async def lifespan(app: FastAPI):
     # ── Startup ──
     from app.profile_manager import ensure_profiles_initialized
     ensure_profiles_initialized()
-    init_db()
+    init_all_profiles_db()
     from app.routers.auto_backup import start_scheduler
     start_scheduler()
     from app.services.bank_sync_scheduler import start_bank_sync_scheduler
@@ -79,6 +78,17 @@ async def lifespan(app: FastAPI):
         db.commit()
     except Exception as e:
         logger.error(f"Failed to purge old action history on startup: {e}")
+    finally:
+        db.close()
+
+    # Étape 5 Auto-Pilote : Rattrapage des suggestions budgétaires au démarrage
+    db = SessionLocal()
+    try:
+        from app.services.budget_service import evaluate_monthly_budget_suggestions, suggest_new_envelopes_deterministic
+        evaluate_monthly_budget_suggestions(db, force=False)
+        suggest_new_envelopes_deterministic(db, force=False)
+    except Exception as e:
+        logger.warning(f"[AutoPilot] Échec rattrapage suggestions budgétaires au démarrage: {e}")
     finally:
         db.close()
         

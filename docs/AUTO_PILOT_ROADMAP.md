@@ -12,8 +12,8 @@
    - [Brique 2 : Pipeline de Catégorisation Multi-Stage & Enregistrement Auto](#brique-2--pipeline-de-catégorisation-multi-stage--enregistrement-auto)
    - [Brique 3 : Moteur de Rapprochement Automatique à Haute Certitude](#brique-3--moteur-de-rapprochement-automatique-à-haute-certitude)
    - [Brique 4 : Détection & Promotion des Récurrences (Anticipation Reste à Vivre)](#brique-4--détection--promotion-des-récurrences-anticipation-reste-à-vivre)
-   - [Brique 4.5 : Cycle de Vie Dynamique & Maintenance Autonome des Récurrences](#brique-45--cycle-de-vie-dynamique--maintenance-autonome-des-récurrences-brique-modulaire-découplée)
-   - [Brique 5 : Gestionnaire Dynamique d'Enveloppes (Lissage 3–6 Mois & Cold Start)](#brique-5--gestionnaire-dynamique-denveloppes-lissage-36-mois--cold-start)
+   - [Brique 4.5 : Cycle de Vie Dynamique & Maintenance Autonome des Récurrences (Brique Modulaire Découplée)](#brique-45--cycle-de-vie-dynamique--maintenance-autonome-des-récurrences-brique-modulaire-découplée)
+   - [Brique 5 : Gestionnaire Dynamique d'Enveloppes (Analyse & Suggestion → Recalibrage Contrôlé)](#brique-5--gestionnaire-denveloppes-analyse--suggestion--recalibrage-contrôlé)
    - [Brique 6 : Sas d'Attente ("Pending Sync") & Matrice d'Arbitrage](#brique-6--sas-dattente-pending-sync--matrice-darbitrage)
    - [Brique 7 : Page Dédiée « Centre de Contrôle Auto-Pilote » (Vue Décisions, Réversibilité & Réorientation)](#brique-7--page-dédiée-centre-de-contrôle-auto-pilote-vue-décisions-réversibilité--réorientation)
 3. [Pièges à Éviter & Points d'Attention Critiques](#3-pièges-à-éviter--points-dattention-critiques)
@@ -37,7 +37,7 @@ Le mode **Auto-Pilote** n'est pas une boîte noire opaque ni une refonte complè
 ├── Ingestion comptable :
 │    ├── Score certitude >= 85%  ──>  Rapprochement direct ou Enregistrement DB direct
 │    └── Score certitude < 85%   ──>  Sas d'attente (Cockpit) pour arbitrage humain 1-clic
-├── Budgets dynamiques : Recalibrage mensuel lissé (filtre EMA 3-6 mois, amortissement cold start)
+├── Budgets dynamiques : Analyse & suggestion mensuelle lissée (filtre EMA 3-6 mois, opt-in Full-Auto)
 ├── Restitution silencieuse : Badge discret dans l'en-tête, zéro blocage, consultation 100% facultative
 └── Souveraineté & Contrôle : Page dédiée pour auditer les décisions, dépointer, réorienter ou annuler
 ```
@@ -291,39 +291,64 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 
 ---
 
-### Brique 5 : Gestionnaire Dynamique d'Enveloppes (Lissage 3–6 Mois & Cold Start)
-*Créer, adapter et maintenir les enveloppes de budget sans à-coups ni hyper-réactivité, de manière 100% déterministe et offline.*
+### Brique 5 : Gestionnaire Dynamique d'Enveloppes (Découverte Déterministe, Création & Recalibrage Contrôlé)
+*Détecter les catégories non budgétées pour proposer de nouvelles enveloppes au Cold-Start ou au fil de l'eau, et analyser les tendances de dépenses pour proposer des ajustements d'enveloppes existantes, de manière 100% déterministe et offline. Le système fonctionne en deux temps : **d'abord la suggestion (notification/preview)** avec validation ou refus persistant, **puis l'auto-acceptation contrôlée (opt-in)** après mise en place du Centre de Contrôle en Étape 6.*
+
+> [!IMPORTANT]
+> **Principe de Souveraineté Budgétaire** : Un budget est un **plafond intentionnel de dépense**, pas un reflet passif de la réalité. Le système ne doit jamais valider rétroactivement des excès en augmentant silencieusement les enveloppes. Le mode par défaut est **proposition + approbation 1-clic ou refus explicite**, jamais mutation silencieuse.
 
 * **Fichiers concernés** :
-  - [`app/services/budget_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/budget_service.py) (Calcul mathématique du lissage EMA, Winsorizing et plafonnement — **100% offline sans dépendance Ollama**)
+  - [`app/services/budget_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/budget_service.py) (Détection déterministe de catégories orphelines, calcul mathématique du lissage EMA, Winsorizing et plafonnement — **100% offline sans dépendance Ollama**)
   - [`app/services/stats_utils.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/stats_utils.py) (Filtre d'écrêtage Winsorizing extrait et partagé — Étape 0)
-  - [`app/services/budget_ai_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/budget_ai_service.py) (Suggestions et commentaires qualitatifs IA — facultatifs)
+  - [`app/services/budget_ai_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/budget_ai_service.py) (Suggestions de regroupement multi-catégories et commentaires qualitatifs IA — facultatifs)
 * **État d'avancement actuel : 50%**
   - ✅ Calcul des moyennes historiques sur fenêtres glissantes configurables (3 à 12 mois).
   - ✅ Écrêtage statistique des anomalies (Winsorizing / outlier sensitivity 1 à 5) extrait dans [`app/services/stats_utils.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/stats_utils.py) et re-exporté dans `budget_service.py` (**100% offline sans Ollama** — Jalon 0.7).
   - ✅ Colonne `Budget.is_locked` ajoutée en base de données (schéma SQLite v24) et intégrée aux DTOs Pydantic (Jalons 0.4, 0.5, 0.6).
-  - ⬜ Synchronisation dynamique des dépenses fixes vs variables avec les `RecurrenceTemplate` — la classification fixe/variable existe dans le modèle, mais **aucune logique de synchronisation automatique** entre les templates et les enveloppes budgétaires n'est implémentée dans `budget_service.py`.
-* **Ce qu'il reste à faire** :
+  - ⬜ Synchronisation dynamique des dépenses fixes vs variables avec les `RecurrenceTemplate` — jalon distinct (cf. §5.6 ci-dessous).
+* **Architecture Complète des Deux Volets Budgétaires** :
+
+  #### Volet A : Découverte & Suggestion de Création d'Enveloppes (Cold-Start & Nouvelles Catégories)
+  1. **Détection Déterministe Pure (100% Hors-Ligne sans IA)** :
+     - Le moteur identifie toutes les catégories de dépenses actives non encore couvertes par une enveloppe (`unbudgeted_categories`).
+     - Pour chaque catégorie orpheline présentant des dépenses observées ($N \ge 1$) ou une récurrence active (`RecurrenceTemplate`) :
+       - Calcul du montant d'amorçage : moyenne mensuelle observée avec Winsorizing.
+       - Périodicité suggérée : `yearly` si récurrence annuelle, `monthly` par défaut.
+       - Application du plancher configurable `GlobalConfig.budget_minimum_threshold` (défaut : 30 €).
+       - Suggestion de création d'enveloppe émise dans `AutopilotDecisionLog` (`decision_type = 'budget_creation_suggestion'`, `action = 'SUGGESTED'`).
+  2. **Cadence Réactive Cold-Start (Découverte au Fil de l'Eau)** :
+     - **En phase Cold-Start** (`< 60 jours` d'historique ou `< 3 enveloppes actives`) : l'évaluation des catégories orphelines se déclenche **à chaque import de lot ou relevé bancaire** (`process_incoming_batch`). Dès qu'une nouvelle catégorie cumule des débits, l'utilisateur reçoit immédiatement une suggestion pour créer l'enveloppe sans attendre la fin du mois.
+     - **En vitesse de croisière** : le rythme bascule sur une fréquence mensuelle (1er du mois / cycle de paie), évitant toute sollicitation superflue.
+  3. **Cycle Complet : Approbation 1-Clic, Refus Persistant (`DISMISSED`) & Auto-Création** :
+     - **[Approuver 1-clic]** : Crée l'enveloppe en base (`Budget` + `BudgetCategory`), trace l'action dans `ActionHistory` (Undo/Redo possible) et passe la décision à `action = 'AUTO_COMMIT'`.
+     - **[Ignorer / Refuser]** : Passe la décision à `action = 'DISMISSED'`. **Garantie anti-harcèlement** : une catégorie explicitement refusée n'est plus reproposée lors des imports ultérieurs.
+     - **Auto-Création Full-Auto (Étape 6)** : Interrupteur dédié `GlobalConfig.auto_create_budget_envelopes` (défaut : `false`) permettant, une fois le Centre de Contrôle actif, d'auto-créer les enveloppes évidentes avec réversibilité garantie dans le Decision Feed.
+  4. **Enrichissement Optionnel avec IA (Ollama)** :
+     - Si Ollama est disponible, le LLM peut proposer un regroupement sémantique élégant de plusieurs catégories affines au sein d'une même enveloppe (ex: `Boulangerie` + `Supermarché` $\to$ Enveloppe `Alimentation & Courses`). Si l'IA est absente, le mode déterministe prend le relais sans rupture.
+
+  #### Volet B : Recalibrage Amorti des Enveloppes Existantes (Lissage EMA)
   1. **Cadence Périodique & Déclencheur Temporel (Anti-Thrashing)** :
-     - **Règle absolue** : Les enveloppes ne doivent **JAMAIS** être modifiées lors d'une synchronisation quotidienne.
-     - **Déclencheur Temporel Backend** : Le recalibrage s'exécute uniquement à date fixe : **au 1er du mois ou lors d'un nouveau cycle de paie**.
-     - **Implémentation** : La vérification est intégrée dans la boucle périodique [`bank_sync_scheduler_loop`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py) ainsi qu'au boot dans le `lifespan` de [`app/main.py`](file:///d:/Code%20Projects/OmniBank-Local/app/main.py). Une clé `last_budget_recalibration_period` (ex: `"2026-09"`) est persistée dans `GlobalConfig` pour garantir qu'un seul calcul est appliqué par période.
+     - **Règle absolue** : Les montants des enveloppes ne doivent **JAMAIS** être recalculés lors d'une synchronisation quotidienne.
+     - **Déclencheur Temporel Backend** : Exécution uniquement à date fixe : **au 1er du mois ou lors d'un nouveau cycle de paie**.
+     - **Implémentation** : Vérification dans `bank_sync_scheduler_loop` et au démarrage applicatif dans `lifespan` (`app/main.py`) via la clé persistante `last_budget_recalibration_period` (format `YYYY-MM`).
   2. **Filtre de Lissage Exponentiel Déterministe (EMA 3–6 mois)** :
-     - Implémenté directement dans `budget_service.py` pour fonctionner même si Ollama est absent ou désactivé.
-     - Formule d'ajustement amorti :
-       $$\text{Budget}_{t} = (1 - \alpha) \cdot \text{Budget}_{t-1} + \alpha \cdot \overline{\text{Dépenses}}_{3-6m}$$
-       avec $\alpha = 0.20$ (amortissement doux préservant la stabilité).
-  3. **Plafond de Dérive Mensuelle (Drift Guard) & Filtre Strict d'Éligibilité des Enveloppes** :
-     - **Filtre strict d'éligibilité** : Le lissage s'applique EXCLUSIVEMENT aux enveloppes mensuelles opérationnelles de dépenses courantes :
-       `Budget.envelope_type == 'spending' and not Budget.is_project and not Budget.is_closed and not Budget.is_locked and Budget.period == 'monthly'`
-     - **Exclusion stricte** : Les tirelires d'épargne (`envelope_type == 'savings'`) alimentées manuellement via `BudgetAllocation`, les budgets de projets ponctuels (`is_project == True`), les enveloppes annuelles ou clôturées sont formellement protégés contre toute retouche automatique.
-     - Aucun budget automatique ne doit varier de plus de $\pm 10\%$ d'un mois sur l'autre de façon autonome.
-     - Prise en compte du cadenas `Budget.is_locked` (initialisé en Étape 0) pour que le filtre ignore formellement toute enveloppe cadenassée par l'utilisateur.
-  4. **Traitement du "Cold Start" (Démarrage à Froid)** :
-     - Si l'historique compte moins de 3 mois de données :
-       - Priorité absolue aux montants des récurrences connues (`RecurrenceTemplate`).
-       - Pour le variable : application d'un coefficient de prudence ($1.15 \times \text{moyenne observation}$) pour éviter les dépassements d'enveloppe précoces.
-       - Interdiction de créer des micro-enveloppes anecdotiques (seuil plancher de dépense mensuelle minimum, ex: 30 €).
+     - Formule amortie : $\text{Suggestion}_{t} = (1 - \alpha) \cdot \text{Budget}_{t-1} + \alpha \cdot \overline{\text{Dépenses}}_{3-6m}$ avec $\alpha = 0.20$.
+     - Résultat : une suggestion tracée dans `AutopilotDecisionLog` (`decision_type = 'budget_suggestion'`), **sans mutation directe de `Budget.monthly_amount` en Étape 5**.
+  3. **Double Plafond de Dérive (Drift Guard) & Sanctuarisation des Enveloppes** :
+     - **Filtre strict d'éligibilité** : `Budget.envelope_type == 'spending' and not is_project and not is_closed and not is_locked and period in ('monthly', None)`.
+     - **Exclusions absolues** : Épargne (`savings`), projets (`is_project`), enveloppes verrouillées (`is_locked == True`), enveloppes annuelles ou closes.
+     - **Borne instantanée** : variation limitée à $\pm 10\%$ max d'un mois sur l'autre.
+     - **Borne cumulée annuelle** : dérive limitée à $\pm 25\%$ max par rapport à la référence annuelle (`Budget.base_annual_amount`). Au-delà, blocage et alerte de révision manuelle.
+  4. **Synchronisation `RecurrenceTemplate` → Enveloppes (Jalon Distinct §5.6)** :
+     - Reporté à l'Étape 6 : répercussion des hausses tarifaires ($N=3$) ou clôtures d'abonnements sur les enveloppes concernées. dans le Dashboard (ex: `📊 3 ajustements budgétaires proposés`) et valide/refuse 1-clic. **Aucune mutation directe des montants `Budget.monthly_amount`.**
+     - **Étape 6 — Mode Full-Auto (opt-in après Centre de Contrôle)** : Une fois le Centre de Contrôle livré (Étape 6), un toggle `auto_apply_budget_suggestions` dans `GlobalConfig` (défaut : `false`) permet d'activer la mutation automatique des montants avec traçabilité complète et rollback 1-clic dans le Decision Feed. Ce mode n'est proposé que lorsque l'outillage de contrôle et de réversibilité est opérationnel.
+  6. **Synchronisation `RecurrenceTemplate` → Enveloppes Budgétaires (Jalon Distinct)** :
+     - **Périmètre reporté** : La synchronisation automatique entre les templates de récurrence et les enveloppes budgétaires constitue un jalon distinct, traité en Étape 6 une fois le Centre de Contrôle opérationnel.
+     - **Cas couverts (spécification préalable)** :
+       - Hausse tarifaire détectée ($N=3$) sur un template lié à une enveloppe → Proposition d'ajustement de l'enveloppe du delta constaté.
+       - Clôture d'un template (résiliation) → Proposition de réduction de l'enveloppe du montant correspondant.
+       - Promotion d'un nouveau template ($N \ge 3$) → Suggestion d'augmentation de l'enveloppe concernée.
+     - **Mécanisme** : Toujours via le mode suggestion (notification + validation 1-clic), jamais mutation directe sauf opt-in Full-Auto.
 
 ---
 
@@ -335,15 +360,14 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - [`app/services/bank_sync_scheduler.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py) (`save_pending_sync_data`, `_PENDING_SYNC_DATA`)
   - [`app/routers/csv_manager.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/csv_manager.py) (`import_to_pending`)
   - [`app/routers/bank_sync.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/bank_sync.py)
-* **État d'avancement actuel : 95%**
+* **État d'avancement actuel : 100% — ✅ LIVRÉ (Étape 3)**
   - ✅ Sas d'attente persistant (RAM + `GlobalConfig`).
   - ✅ Déduplication automatique entre imports de fichiers CSV et connexions bancaires en ligne.
   - ✅ Cockpit visuel ergonomique permettant d'ignorer, modifier ou valider les opérations.
   - ✅ Support multi-onglets XLSX & multi-sections CSV avec mémorisation de mapping par compte (`GlobalConfig.file_account_mapping`) et ré-évaluation dynamique instantanée du rapprochement (Phase B / v1.1.3).
   - ✅ **Unification du Pipeline d'Ingestion & Routage Dynamique** : Les relevés Woob (`execute_auto_sync_for_connection`) et les imports de fichiers (`import_to_pending`) transitent désormais par le point d'entrée unique `AutoPilotService.process_incoming_batch()`.
   - ✅ **Routage Conditionnel Transparent** : Si l'Auto-Pilote est désactivé, 100% des opérations vont dans le Sas (comportement manuel classique 100% intact). S'il est activé, les rapprochements à haute certitude court-circuitent le Sas avec audit et notification enrichie.
-* **Ce qu'il reste à faire (Étape 3)** :
-  1. **Adaptation Dropzone CSV / Excel (`import_wizard.js`)** : Fermeture automatique de la modale avec toast de confirmation lorsque 100% des opérations d'un lot sont traitées de manière autonome (`pending === 0`), sans ouvrir de modale de revue vide.
+  - ✅ **Adaptation Dropzone CSV / Excel (`import_wizard.js` — Jalon 3.9)** : Fermeture automatique de la modale avec toast de confirmation récapitulatif enrichi lorsque 100% des opérations d'un lot sont traitées de manière autonome (`pending === 0`), sans ouvrir de modale de revue vide.
 
 ---
 
@@ -523,9 +547,9 @@ graph TD
     B --> C["Étape 3 : Pipeline Smart Labels & Écritures<br/>Auto-Commit Écritures & Fallback IA<br/>✅ 100% PASS"]
     C --> C1["Étape 3.5 : Filet de Sécurité & IA Augmentée<br/>Garde-fous Anti-Prolifération & Sas Propre<br/>✅ 100% PASS"]
     C1 --> D["Étape 4 : Détection & Promotion Récurrences<br/>Charges Candidates Dynamiques (Reste à Vivre)<br/>✅ 100% PASS"]
-    D --> D1["Étape 4.5 : Cycle de Vie Dynamique Récurrences<br/>Tolérance Écart, Hausse N=3, Auto-Saut & Clôture"]
-    D1 --> E["Étape 5 : Lissage Budgétaire EMA Déterministe<br/>(budget_service.py 100% Offline)"]
-    E --> F["Étape 6 : Centre de Contrôle Dédié<br/>Decision Feed, Rollback Snapshot, Switch UI & Finitions Desktop"]
+    D --> D1["Étape 4.5 : Cycle de Vie Dynamique Récurrences<br/>Tolérance Écart, Hausse N=3, Auto-Saut & Clôture<br/>✅ 100% PASS"]
+    D1 --> E["Étape 5 : Analyse & Suggestions Budgétaires EMA<br/>(Mode Preview déterministe 100% Offline)"]
+    E --> F["Étape 6 : Centre de Contrôle Dédié<br/>Decision Feed, Rollback, Full-Auto Budgets & Finitions Desktop"]
 ```
 
 ### Détail des Étapes de Livraison :
@@ -638,26 +662,72 @@ graph TD
   - 100% de succès sur les 7 tests de cycle de vie dynamique (`tests/test_autopilot_step4_5_dynamic_lifecycle.py`).
 - *Bénéfice immédiat* : Une gestion prévisionnelle vivante, résiliente aux aléas du quotidien (hors-forfait, hausses d'abonnement, prélèvements annulés), sans intervention manuelle et sans dérégler votre budget annuel.
 
-#### Étape 5 : Lissage & Stabilisation des Enveloppes Budgétaires (100% Déterministe Offline)
-- Implémentation du filtre EMA 3–6 mois directement dans `app/services/budget_service.py` (**sans aucune dépendance à Ollama**).
-- Ajout de l'heuristique de démarrage à froid (*Cold Start Dampening*) et écrêtage Winsorizing.
-- Plafond de dérive mensuelle borné à ± 10%.
-- Prise en compte du cadenas `Budget.is_locked` : exclusion stricte des enveloppes protégées lors du recalibrage automatique.
-- **Filtre strict d'éligibilité des enveloppes** : application exclusive aux dépenses mensuelles opérationnelles (`Budget.envelope_type == 'spending' and not Budget.is_project and not Budget.is_closed and not Budget.is_locked and Budget.period == 'monthly'`), exclusion formelle des tirelires d'épargne et projets.
-- **Déclencheurs Périodiques & Rattrapage au Démarrage (`lifespan`)** : vérification dans `bank_sync_scheduler_loop` ET lors de l'initialisation applicative dans `app/main.py` (`lifespan`) de la clé `last_budget_recalibration_period` (format `YYYY-MM`). Ainsi, les utilisateurs Desktop ouvrant l'application ponctuellement bénéficient du recalibrage mensuel immédiat dès le premier lancement du mois (règle anti-thrashing).
+#### Étape 5 : Découverte Déterministe d'Enveloppes, Suggestion & Recalibrage Budgétaire (Mode Preview — 100% Déterministe Offline) — `✅ TERMINÉE (100%)`
+- [x] **Jalon 5.1 : Migration de schéma v27 (`base_annual_amount` & clés `GlobalConfig`)** : Ajout de `base_annual_amount` sur le modèle `Budget`, initialisation des clés `budget_minimum_threshold` ("30.0"), `last_budget_recalibration_period` (""), `auto_create_budget_envelopes` ("false") et `auto_apply_budget_suggestions` ("false").
+- [x] **Jalon 5.2 : Moteur mathématique déterministe & Volet A (Création d'enveloppes)** : Détection des catégories orphelines, calcul Winsorisé avec seuil plancher 30 € et exclusion des refus antérieurs (`_get_dismissed_categories`).
+- [x] **Jalon 5.3 : Moteur mathématique lissé & Volet B (Recalibrage EMA)** : Calcul $\text{EMA} = 0.80 \times \text{Budget} + 0.20 \times \overline{\text{Dépenses}}$, double borne de dérive ($\pm 10\%$/mois et $\pm 25\%$/an vs `base_annual_amount`), alerte `drift_limit_reached` et protection `is_locked`.
+- [x] **Jalon 5.4 : Orchestration événementielle & Cadence Cold-Start** : Déclenchement automatique au boot (`lifespan`), au fil de l'eau post-import si $< 3$ enveloppes actives (`process_incoming_batch`), et mensuel dans `bank_sync_scheduler.py` avec anti-thrashing strict.
+- [x] **Jalon 5.5 : API Endpoints unifiés & Décisions persistantes** : Routes `/api/budgets/autopilot/suggestions`, `/approve` (1-clic), `/dismiss` (garantie anti-harcèlement) et `/recalibrate` (preview forcé).
+- [x] **Jalon 5.6 : Frontend & Modale ⚙️ Automatismes** : Module dédié `budgets_autopilot.js`, bandeau de suggestions responsive, bouton ⚙️ dans le header et modale de toggles hiérarchiques.
+- [x] **Jalon 5.7 : Clés i18n bilingues (FR/EN)** : 31 clés de traduction complètes encodées en UTF-8 BOM (`utf-8-sig`).
+- [x] **Jalon 5.8 : Suite de tests automatisés validée** : 100% de succès sur les 9 tests T5.1 à T5.9 (`tests/test_autopilot_step5_budgets.py`).
+- **Volet A — Découverte & Suggestion de Création d'Enveloppes (Cold-Start & Catégories Orphelines)** :
+  - Détection déterministe pure des catégories de dépenses actives non encore rattachées à un budget (`unbudgeted_categories`).
+  - Calcul du montant d'amorçage initial : moyenne mensuelle observée avec Winsorizing, récurrences connues et plancher configurable `GlobalConfig.budget_minimum_threshold` (défaut : 30 €).
+  - Périodicité suggérée : `yearly` si récurrence annuelle, `monthly` par défaut.
+  - **Cadence Réactive Cold-Start** : Déclenchement automatique post-import de lot (`process_incoming_batch`) si l'utilisateur est en phase Cold-Start (`< 60 jours` ou `< 3 enveloppes actives`), évitant d'attendre la fin du mois pour budgétiser les nouvelles catégories générées au fil de l'eau. En vitesse de croisière, bascule au rythme mensuel.
+  - **Gestion Complète des Décisions** :
+    - **Approbation 1-clic (`[Approuver]`)** : Création immédiate de l'enveloppe en base (`Budget` + `BudgetCategory`), snapshot dans `ActionHistory` (Undo/Redo opérationnel) et passage de la décision à `action = 'AUTO_COMMIT'`.
+    - **Refus persistant (`[Ignorer / Refuser]`)** : Enregistrement de la décision à `action = 'DISMISSED'` dans `AutopilotDecisionLog`. **Garantie anti-harcèlement** : une catégorie explicitement refusée n'est plus reproposée lors des imports ultérieurs.
+  - Enregistrement structuré dans `AutopilotDecisionLog` (`decision_type = 'budget_creation_suggestion'`).
+- **Volet B — Analyse & Suggestion de Recalibrage d'Enveloppes Existantes (Lissage EMA)** :
+  - Moteur de calcul EMA 3–6 mois directement dans `app/services/budget_service.py` (**sans aucune dépendance à Ollama**). Le résultat est une **suggestion de montant**, pas une mutation immédiate.
+  - Formule amortie : $\text{Suggestion}_{t} = (1 - \alpha) \cdot \text{Budget}_{t-1} + \alpha \cdot \overline{\text{Dépenses}}_{3-6m}$ avec $\alpha = 0.20$ et écrêtage Winsorizing.
+  - **Double plafond de dérive** : borne instantanée $\pm 10\%$/mois ET borne cumulée annuelle $\pm 25\%$ vs `Budget.base_annual_amount`.
+  - Migration de schéma : ajout de la colonne `Budget.base_annual_amount` (montant de référence annuel pour la borne de dérive cumulée) et des clés `GlobalConfig.budget_minimum_threshold` (30 €) et `GlobalConfig.last_budget_recalibration_period` ("").
+  - Prise en compte du cadenas `Budget.is_locked` : exclusion stricte des enveloppes protégées.
+  - **Filtre strict d'éligibilité des enveloppes** : application exclusive aux dépenses mensuelles opérationnelles (`Budget.envelope_type == 'spending' and not Budget.is_project and not Budget.is_closed and not Budget.is_locked and Budget.period == 'monthly'`), exclusion formelle des tirelires d'épargne et projets.
+  - **Déclencheurs Périodiques & Rattrapage au Démarrage (`lifespan`)** : vérification dans `bank_sync_scheduler_loop` ET lors de l'initialisation applicative dans `app/main.py` (`lifespan`) de la clé `last_budget_recalibration_period` (format `YYYY-MM`). Ainsi, les utilisateurs Desktop ouvrant l'application ponctuellement bénéficient du calcul mensuel immédiat dès le premier lancement du mois (règle anti-thrashing).
+  - Enregistrement structuré dans `AutopilotDecisionLog` (`decision_type = 'budget_suggestion'`).
+- **Notification & Bandeau UI Responsive (Mobile Viewport $\le 768\text{px}$)** :
+  - Émission d'une notification récapitulative (`📊 X suggestions budgétaires proposées`) et bandeau interactif dans la vue Budgets avec boutons tactiles ergonomiques ($\ge 44\text{px}$) et empilement vertical sans défilement horizontal. **Aucune mutation directe des montants `Budget.monthly_amount` à cette étape.**
 - **Clés i18n requises (Étape 5)** :
-  - `autopilot_decision_budget_recalibration`, `autopilot_budget_protected`, `autopilot_budget_recalibrated_toast`
-- *Bénéfice immédiat* : Des budgets stables, réalistes et non pollués par les dépenses ponctuelles, fonctionnels sur toute machine sans IA.
+  - `autopilot_budget_suggestion_title`, `autopilot_budget_creation_suggestion_title`, `autopilot_budget_creation_toast`, `autopilot_budget_suggestion_toast`, `autopilot_budget_protected`, `autopilot_budget_drift_limit_reached`, `autopilot_budget_approve`, `autopilot_budget_dismiss`, `autopilot_budget_dismissed_toast`, `autopilot_budget_created_toast`, `autopilot_budget_recalibrated_toast`, `autopilot_budget_base_annual_label`.
+- *Bénéfice immédiat* : L'utilisateur bénéficie d'une découverte proactive de ses budgets dès le premier jour et de recommandations stables et éclairées au fil des mois, avec un contrôle absolu et un refus respecté. Les budgets ne sont créés ou modifiés que sur approbation explicite.
+- **Évaluation de Pertinence Financière & Améliorations Découvertes (Profil Démonstration & Profil Principal)** :
+  - **Diagnostic Macro-Financier** : L'expérimentation sur le profil `Demonstration` (`p_bfa7acea`, 958 opérations, salaire moyen de 1 923,97 €/mois) a révélé un total de 12 suggestions d'enveloppes s'élevant à 1 811,73 €/mois, soit un taux d'engagement critique de 94.2% (ne laissant que 112,24 € de marge libre). Ce niveau d'engagement menaçait d'écraser l'objectif d'épargne programmée (virement de 120,00 €/mois sur le Livret A).
+  - **Biais des Dépenses Ponctuelles (One-Offs)** : La catégorie *"Dépenses diverses"* et les achats isolés importants (ex: achat exceptionnel) observés sur un seul mois (`observed_months = 1`) sont désormais immunisés contre l'auto-création silencieuse et signalés par un badge de vigilance `⚠️ Ponctuelle (1 mois obs.)` avec infobulle explicative.
+  - **Filtrage des Transferts & Élimination des Suggestions Fantômes** : Exclusion stricte des virements internes entre comptes détenus et des mots-clés de transfert (*Transfert*, *Compte vers compte*), et élimination des suggestions à 0 € moyenne / 30 € plancher lorsque aucune dépense réelle n'a été constatée.
+  - **Support Intégral du Système d'Annulation (Undo/Redo & Toasts 1-clic)** :
+    - L'approbation d'une création d'enveloppe (`CREATE`), d'un recalibrage (`UPDATE`) et le rejet d'une suggestion (`DISMISSED`) génèrent chacun un identifiant d'action `action_id`.
+    - L'annulation via toast (`showUndoToast`) ou via les boutons Annuler de l'en-tête supprime proprement les budgets créés et leurs liens `BudgetCategory` (zéro orphelin en base), restaure les anciens montants budgétaires et réactive instantanément la décision en statut `SUGGESTED` dans `AutopilotDecisionLog` (la carte réapparaît immédiatement dans le bandeau).
+  - **Info-Bulles Interactives & Ventilation Détaillée des Catégories (`category_breakdown`)** :
+    - Chaque carte de recalibrage affiche une puce interactive `📂 X catégories` avec popover listant les catégories composant l'enveloppe, leurs dépenses totales et leur moyenne mensuelle observée triées par volume décroissant.
+    - Le bandeau supérieur intègre une pilule de synthèse macro `📊 Détails des sommes` affichant la ventilation créations vs recalibrages et l'impact mensuel net global.
+  - **Cadence & Timing d'Exécution des Automatismes** :
+    - `auto_create_budget_envelopes` : S'exécute post-ingestion de relevé (`process_incoming_batch`) ou mensuellement, validant automatiquement uniquement les catégories ayant au moins 2 mois d'historique stable (`observed_months >= 2`) et non ponctuelles (`not is_one_off`).
+    - `auto_apply_budget_suggestions` : S'exécute strictement au 1er du mois / roulement de paie (règle anti-thrashing) et refuse d'appliquer automatiquement tout recalibrage si la dérive cumulée annuelle atteint le plafond de $\pm 25\%$.
 
-#### Étape 6 : Page Dédiée « Centre de Contrôle Auto-Pilote », Activation UI & Finitions Desktop
+#### Étape 6 : Page Dédiée « Centre de Contrôle Auto-Pilote », Activation Mutation Budgétaire & Finitions Desktop
 - Développement de la vue dédiée `static/js/views/autopilot_view.js` (`AutopilotView`) avec les 4 panneaux : Cockpit & KPIs, Decision Feed chronologique avec filtres, Leviers de rétroaction 1-clic (Dépointer, Rectifier catégorie, Rollback de cycle, Verrouillage budget), et Atelier des règles (`BankLabelMapping`).
 - Création du routeur backend `app/routers/autopilot.py` (`/api/autopilot/decisions`, `/api/autopilot/override`, `/api/autopilot/rollback-cycle`) et son enregistrement explicite dans `app/main.py` via `app.include_router(autopilot.router)`. Réutilisation intégrale de [`app/routers/smart_labels.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/smart_labels.py) pour la gestion des correspondances marchand (`/api/smart-labels/mappings`).
 - **Mécanisme de Rollback Global de Cycle Sémantique** : exploitation du `batch_id`, `conn_id`, `account_id` et du `raw_snapshot` de `AutopilotDecisionLog` pour identifier toutes les décisions d'un même cycle :
   - Pour `new_entry` : suppression physique des écritures ajoutées de la table `Transaction`.
   - Pour `reconciliation` : dissociation sans suppression (`reconciliation_date = NULL` et restauration snapshot) des prévisions pré-existantes (**ne supprime jamais les prévisions de l'utilisateur**).
   - Pour `recurrence_promotion` : clôture ou suppression du template créé.
+  - Pour `budget_suggestion` (nouveau) : restauration du montant `Budget.monthly_amount` depuis le `raw_snapshot` si une suggestion avait été auto-appliquée.
   - Marquage de toutes les décisions du lot à `is_undone = True` (`undone_at = now()`).
   - Reconstitution fidèle du lot structuré dans le Sas `_PENDING_SYNC_DATA`.
+- **Activation du Mode Full-Auto Budgétaire (Opt-in Post-Centre de Contrôle)** :
+  - Toggles `GlobalConfig.auto_create_budget_envelopes` et `GlobalConfig.auto_apply_budget_suggestions` (défaut : `false`) exposés dans le Centre de Contrôle.
+  - `auto_create_budget_envelopes` : Lorsque activé, les nouvelles enveloppes suggérées sur des catégories régulières ou récurrences pérennes ($N \ge 3$) sont créées automatiquement avec traçabilité et rollback possible.
+  - `auto_apply_budget_suggestions` : Lorsque activé, les suggestions de recalibrage calculées en Étape 5 sont automatiquement appliquées aux montants `Budget.monthly_amount` au 1er du mois, avec traçabilité complète dans `AutopilotDecisionLog` et rollback 1-clic dans le Decision Feed.
+  - Lorsque désactivé (défaut), les suggestions restent en mode preview/notification et requièrent une validation explicite de l'utilisateur.
+  - **Garde-fou de borne cumulée** : Si la dérive cumulée annuelle atteint $\pm 25\%$ vs `Budget.base_annual_amount`, le mode Full-Auto est automatiquement suspendu pour l'enveloppe concernée et une notification d'alerte invite à la révision manuelle.
+- **Synchronisation `RecurrenceTemplate` → Enveloppes Budgétaires** :
+  - Activation de la synchronisation automatique des templates de récurrence vers les enveloppes budgétaires (cf. Brique 5 §5.6 pour la spécification des cas couverts).
+  - Hausse tarifaire ($N=3$), clôture de template, promotion de nouveau template → Suggestions d'ajustement d'enveloppe via le même pipeline que le lissage EMA.
+  - Soumis au même mode de fonctionnement (suggestion par défaut, mutation si opt-in `auto_apply_budget_suggestions`).
 - **Intégration Frontend & Intronisation du Switch (`static/index.html`, `app.js` & `setup_wizard.js`)** :
   - **Exposition de l'Interrupteur Maître** : Ajout du switch officiel d'activation Auto-Pilote dans les Réglages, dans le Setup Wizard (Étape 6/7) et dans le Centre de Contrôle, désormais adossé à l'ensemble du moteur validé.
   - Ajout du bouton de navigation `🤖 Auto-Pilote` (`data-view="autopilot"`) dans la barre desktop `.main-nav` ET dans le tiroir mobile `.mobile-nav`.
@@ -667,16 +737,17 @@ graph TD
   - Styles CSS dédiés aux 4 panneaux et au badge dans `static/css/style.css`.
 - **Bouclier de Fermeture Sécurisée & Fermeture Automatique (Tauri)** : Interception événementielle conjointe au niveau natif Rust dans `src-tauri/src/main.rs` (`WindowEvent::CloseRequested`) et webview (`tauri://close-requested`), consultation de l'état de synchronisation en cours via l'API `/api/bank-sync/status`, avec écran d'attente bref et fermeture automatique (`getCurrentWindow().destroy()`) dès validation du commit.
 - **Option System Tray** : Possibilité de minimiser OmniBank dans la barre des tâches près de l'horloge au lieu de quitter (couche native Tauri 2.x).
-- **Clés i18n requises (Étape 6)** — Liste exhaustive pour le Centre de Contrôle & Switch :
+- **Clés i18n requises (Étape 6)** — Liste exhaustive pour le Centre de Contrôle, Switch & Mutation Budgétaire :
   - Activation & États : `autopilot_switch_label`, `autopilot_switch_tooltip_disabled`, `autopilot_switch_tooltip_discovery`, `autopilot_state_learning`, `autopilot_state_cruising`, `autopilot_state_disabled`, `autopilot_wizard_intro_title`, `autopilot_wizard_intro_desc`
   - Navigation & Header : `nav_autopilot`, `autopilot_badge_active`, `autopilot_badge_learning`, `autopilot_badge_count`
   - Panneau Cockpit : `autopilot_kpi_operations_managed`, `autopilot_kpi_precision`, `autopilot_kpi_anomalies`, `autopilot_kpi_clicks_saved`
-  - Decision Feed : `autopilot_feed_title`, `autopilot_feed_filter_all`, `autopilot_feed_filter_reconciliations`, `autopilot_feed_filter_categories`, `autopilot_feed_filter_recurrences`
-  - Actions : `autopilot_action_unpoint`, `autopilot_action_change_category`, `autopilot_action_rollback_cycle`, `autopilot_action_memorize_rule`, `autopilot_action_blacklist_merchant`, `autopilot_action_lock_budget`
+  - Decision Feed : `autopilot_feed_title`, `autopilot_feed_filter_all`, `autopilot_feed_filter_reconciliations`, `autopilot_feed_filter_categories`, `autopilot_feed_filter_recurrences`, `autopilot_feed_filter_budgets`
+  - Actions : `autopilot_action_unpoint`, `autopilot_action_change_category`, `autopilot_action_rollback_cycle`, `autopilot_action_memorize_rule`, `autopilot_action_blacklist_merchant`, `autopilot_action_lock_budget`, `autopilot_action_rollback_budget`
   - Atelier : `autopilot_rules_title`, `autopilot_rules_merchants_tab`, `autopilot_rules_excluded_tab`, `autopilot_rules_budgets_tab`
+  - Budgets Full-Auto : `autopilot_budget_auto_apply_toggle`, `autopilot_budget_auto_applied_toast`, `autopilot_budget_drift_annual_alert`, `autopilot_budget_recurrence_sync_suggestion`
   - Modales : `autopilot_confirm_rollback`, `autopilot_confirm_memorize`, `autopilot_tauri_closing_wait`
 - Synchronisation bilingue des clés i18n (`fr.json` et `en.json` via script Python `utf-8-sig`).
-- *Bénéfice immédiat* : L'utilisateur gagne une visibilité limpide, un contrôle absolu et une réversibilité totale à tout moment.
+- *Bénéfice immédiat* : L'utilisateur gagne une visibilité limpide, un contrôle absolu et une réversibilité totale à tout moment. Les ajustements budgétaires ne deviennent automatiques que sur activation explicite, avec rollback garanti.
 
 ---
 
@@ -749,13 +820,13 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 
 ---
 
-### Pack de Test 4 : Détection & Promotion des Récurrences (Étape 4)
+### Pack de Test 4 : Détection & Promotion des Récurrences (Étape 4) — `✅ 100% PASS`
 
-| Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Critère d'Échec (FAIL) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **T4.1** | Débit Netflix 13,49 € constaté en M-1 et M-2 (2 mois consécutifs). Aucun template en DB. | Calcul du Reste à Vivre au 1er du mois M (avant prélèvement). | Le Reste à Vivre déduit in-memory 13,49 € d'anticipation de charge fixe. | Calcul exact : $\text{Reste à Vivre} - 13,49 \text{ €}$, mais **0 écriture de template en DB**. | Création prématurée d'un template en base dès le 2ème mois. |
-| **T4.2** | Débit Netflix 13,49 € prélevé pour le 3ème mois consécutif ($N = 3$). Mode Full-Auto actif. | Ingestion du 3ème prélèvement par l'Auto-Pilote. | Promotion automatique en `RecurrenceTemplate` (fréquence mensuelle, `expense_fixed`). | Modèle créé en base, catégorie passée en charge fixe, décision loggée. | Pas de modèle créé après 3 mois, ou création de doublons mensuels. |
-| **T4.3** | Paiement fractionné détecté : `PRLV ALMA 1/3 80,00 €` (ou `M1/4`). | Ingestion des échéances successives ($1/3 \to 2/3 \to 3/3$). | Détection de la signature fractionnée ($M/N$), création d'un template borné ($N = 3$ max) avec liaison rétroactive. À $M=N$ (Mois 3), clôture automatique (`is_closed = True`). | Extinction automatique confirmée au Mois 4 (0 débit, 0 génération), 4 templates actifs au M3. | Transformation en abonnement permanent infini ou template restant actif après extinction. |
+| Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Statut |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **T4.1** | Débit Netflix 13,49 € constaté en M-1 et M-2 (2 mois consécutifs). Aucun template en DB. | Calcul du Reste à Vivre au 1er du mois M (avant prélèvement). | Le Reste à Vivre déduit in-memory 13,49 € d'anticipation de charge fixe. | Calcul exact : $\text{Reste à Vivre} - 13,49 \text{ €}$, mais **0 écriture de template en DB**. | ✅ **PASS** |
+| **T4.2** | Débit Netflix 13,49 € prélevé pour le 3ème mois consécutif ($N = 3$). Mode Full-Auto actif. | Ingestion du 3ème prélèvement par l'Auto-Pilote. | Promotion automatique en `RecurrenceTemplate` (fréquence mensuelle, `expense_fixed`). | Modèle créé en base, catégorie passée en charge fixe, décision loggée. | ✅ **PASS** |
+| **T4.3** | Paiement fractionné détecté : `PRLV ALMA 1/3 80,00 €` (ou `M1/4`). | Ingestion des échéances successives ($1/3 \to 2/3 \to 3/3$). | Détection de la signature fractionnée ($M/N$), création d'un template borné ($N = 3$ max) avec liaison rétroactive. À $M=N$ (Mois 3), clôture automatique (`is_closed = True`). | Extinction automatique confirmée au Mois 4 (0 débit, 0 génération), 4 templates actifs au M3. | ✅ **PASS** |
 
 ---
 
@@ -773,13 +844,19 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 
 ---
 
-### Pack de Test 5 : Lissage Budgétaire EMA & Cadence Mensuelle (Étape 5)
+### Pack de Test 5 : Analyse & Suggestion Budgétaire EMA — Mode Preview (Étape 5)
 
 | Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Critère d'Échec (FAIL) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **T5.1** | Enveloppe "Carburant" fixée à 120,00 €. Synchronisation quotidienne du 12 du mois (plein de 65 €). | Exécution de la synchronisation bancaire courante. | Le montant de l'enveloppe Carburant reste **strictement fixé à 120,00 €**. | Règle absolue anti-thrashing respectée : zéro retouche de budget en cours de mois. | Recalibrage ou modification du budget pendant un jour ordinaire du mois. |
-| **T5.2** | Budget N-1 = 100,00 €. Dépenses moyennes 3 mois constatées = 150,00 €. Date : 1er du mois. | Déclencheur du recalibrage mensuel (EMA $\alpha = 0.20$). | Calcul pré-établi : $(0.80 \times 100) + (0.20 \times 150) = 80 + 30 = \mathbf{110,00 \text{ €}}$. | Nouveau budget exactement égal à 110,00 € (variation bornée à +10%). | Budget passant brutalement à 150 € ou valeur non lissée. |
-| **T5.3** | Budget N-1 = 100,00 €. Dépense exceptionnelle ponctuelle de 600,00 € (panne auto). | Recalibrage mensuel avec filtre Winsorizing anti-anomalie. | L'anomalie de 600 € est écrêtée par Winsorizing. | Le budget auto ne dépasse pas le plafond de dérive (+10% max soit 110 €). | Explosion de l'enveloppe à 300 € suite à une dépense unique non représentative. |
+| **T5.1** | Enveloppe "Carburant" fixée à 120,00 €. Synchronisation quotidienne du 12 du mois (plein de 65 €). | Exécution de la synchronisation bancaire courante. | Le montant de l'enveloppe Carburant reste **strictement fixé à 120,00 €**. Aucune suggestion émise en cours de mois. | Règle absolue anti-thrashing respectée : zéro calcul et zéro notification de budget en cours de mois. | Suggestion ou modification du budget pendant un jour ordinaire du mois. |
+| **T5.2** | Budget N-1 = 100,00 €. Dépenses moyennes 3 mois constatées = 150,00 €. Date : 1er du mois. Mode suggestion (défaut). | Déclencheur du calcul mensuel (EMA $\alpha = 0.20$). | Suggestion calculée : $(0.80 \times 100) + (0.20 \times 150) = 80 + 30 = \mathbf{110,00 \text{ €}}$. Le montant en base reste à 100,00 €. | Suggestion de 110,00 € enregistrée dans `AutopilotDecisionLog`, notification émise, `Budget.monthly_amount` intact à 100,00 €. | Mutation directe du montant à 110 € ou 150 € sans approbation. |
+| **T5.3** | Budget N-1 = 100,00 €. Dépense exceptionnelle ponctuelle de 600,00 € (panne auto). | Calcul mensuel avec filtre Winsorizing anti-anomalie. | L'anomalie de 600 € est écrêtée par Winsorizing. | La suggestion ne dépasse pas le plafond de dérive (+10% max soit 110 €). `Budget.monthly_amount` reste à 100,00 €. | Suggestion supérieure à 110 € ou mutation directe. |
+| **T5.4** | Budget "Alimentation" fixé à 300,00 € (`base_annual_amount` = 300 €). Après 11 mois de légers dépassements, la suggestion EMA cumulée atteint 385 € (+28%). | Calcul mensuel au 12ème mois. | La borne cumulée annuelle ($\pm 25\%$) bloque la suggestion : max autorisé = 375 € (300 × 1.25). Notification d'alerte invitant à la révision manuelle. | Suggestion plafonnée à 375 €, notification de dérive cumulée émise. | Suggestion à 385 € dépassant la borne annuelle sans alerte. |
+| **T5.5** | Enveloppe "Loisirs" (150 €) cadenassée par l'utilisateur (`is_locked = True`). Dépenses réelles = 220 €. | Calcul mensuel au 1er du mois. | Aucune suggestion émise pour cette enveloppe. | Enveloppe ignorée par le moteur, décision notée : *"Enveloppe protégée"*. | Suggestion ou notification pour une enveloppe verrouillée. |
+| **T5.6** | Validation 1-clic de la suggestion T5.2 par l'utilisateur (110,00 €). | Approbation explicite via notification ou Dashboard. | `Budget.monthly_amount` passe à 110,00 €. Décision `budget_suggestion` mise à jour dans `AutopilotDecisionLog` (`is_applied = True`). | Mutation tracée avec `raw_snapshot` avant/après, rollback possible via `ActionHistory`. | Mutation sans traçabilité ou sans snapshot. |
+| **T5.7** | Catégorie active "Pharmacie" (3 débits de 25 €) non couverte par un budget. Mode déterministe (sans IA). | Exécution de la découverte des catégories orphelines. | Détection déterministe de la catégorie non couverte, calcul du montant d'amorçage (75,00 €). Suggestion de création émise dans `AutopilotDecisionLog` (`decision_type = 'budget_creation_suggestion'`, `action = 'SUGGESTED'`). | Proposition créée en base d'audit, 0 budget créé prématurément, notification émise. | Aucune suggestion émise ou création forcée sans accord. |
+| **T5.8** | Suggestion de création d'enveloppe T5.7 présente dans l'UI. L'utilisateur clique sur `[Ignorer / Refuser]`. | Rejet explicite via endpoint `/api/budgets/autopilot/suggestions/{id}/dismiss`. | La décision passe à `action = 'DISMISSED'` dans `AutopilotDecisionLog`. Lors de l'import suivant avec des dépenses "Pharmacie", aucune suggestion de création n'est ré-émise. | Règle anti-harcèlement respectée : catégorie refusée non reproposée. | Suggestion ré-émise en boucle à chaque import. |
+| **T5.9** | Base en phase Cold-Start (< 60 jours, 1 seule enveloppe active). Import d'un nouveau fichier de relevé avec nouvelle catégorie "Bricolage". | Ingestion par `process_incoming_batch`. | En Cold-Start, l'analyse des catégories orphelines est déclenchée immédiatement post-batch : suggestion de création pour "Bricolage" générée au fil de l'eau. | Réactivité Cold-Start confirmée sans attendre la fin du mois. | Blocage jusqu'au 1er du mois privant l'utilisateur de budget. |
 
 ---
 
