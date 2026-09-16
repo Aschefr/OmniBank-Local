@@ -156,6 +156,7 @@ class Budget(Base):
     account_ids = Column(String, nullable=True)              # JSON list of account IDs (org mode), null = global
     envelope_type = Column(String, default="spending")        # "spending" (classic) or "savings" (piggy bank / tirelire)
     is_locked = Column(Boolean, default=False)                # Protection contre le recalibrage automatique Auto-Pilote
+    base_annual_amount = Column(Float, nullable=True)         # Montant de référence annuel pour la borne de dérive cumulée (±25%/an)
 
 class BudgetCategory(Base):
     """Many-to-many: each row links a budget to one category name."""

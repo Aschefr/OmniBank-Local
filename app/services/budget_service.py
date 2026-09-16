@@ -73,6 +73,7 @@ def budget_to_dict(b: Budget, db: Session) -> dict:
         "account_ids": parse_account_ids(b.account_ids),
         "envelope_type": b.envelope_type or "spending",
         "is_locked": bool(b.is_locked) if b.is_locked is not None else False,
+        "base_annual_amount": b.base_annual_amount,
     }
 
 def get_all_budgets(db: Session) -> List[dict]:
@@ -100,6 +101,7 @@ def get_all_budgets(db: Session) -> List[dict]:
             "account_ids": parse_account_ids(b.account_ids),
             "envelope_type": b.envelope_type or "spending",
             "is_locked": bool(b.is_locked) if b.is_locked is not None else False,
+            "base_annual_amount": b.base_annual_amount,
         }
         for b in budgets
     ]
@@ -121,6 +123,7 @@ def create_new_budget(data, db: Session) -> dict:
         account_ids=serialize_account_ids(data.account_ids),
         envelope_type=data.envelope_type or "spending",
         is_locked=bool(getattr(data, "is_locked", False) or False),
+        base_annual_amount=getattr(data, "base_annual_amount", None) or (data.monthly_amount * 12 if period != "yearly" else data.monthly_amount),
     )
     db.add(b)
     db.flush()
@@ -810,3 +813,744 @@ def get_budget_capacity_data(db: Session):
         "accounts": list(account_balances.values()),
         "savings_overflow": compute_savings_overflow_data(db)
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Étape 5 — Découverte Déterministe d'Enveloppes & Recalibrage Budgétaire
+# Mode Preview/Suggestion exclusif : aucune mutation directe sans approbation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import uuid
+from app.models import AutopilotDecisionLog, Notification, RecurrenceTemplate
+
+
+def get_unbudgeted_categories(db: Session) -> List[str]:
+    """Liste les catégories de dépenses actives non encore rattachées à un budget actif.
+    Exclut formellement les virements internes, transferts, épargne et revenus.
+    """
+    from app.models import Category
+
+    # Catégories déjà budgétées (budgets non fermés)
+    budgeted_cats_q = (
+        db.query(BudgetCategory.category_name)
+        .join(Budget, Budget.id == BudgetCategory.budget_id)
+        .filter(Budget.is_closed == False, Budget.envelope_type == "spending")
+        .distinct()
+    )
+    budgeted_set = {row[0] for row in budgeted_cats_q.all()}
+
+    # Catégories explicitement non-dépenses dans le référentiel des catégories
+    non_spending_cats = db.query(Category.name).filter(
+        Category.type.in_(["income", "transfer", "savings"])
+    ).all()
+    excluded_names = {c[0].strip().lower() for c in non_spending_cats if c[0]}
+
+    transfer_keywords = (
+        "transfert", "compte vers compte", "virement interne", "virement",
+        "épargne", "epargne", "virement compte à compte"
+    )
+
+    # Catégories ayant des dépenses réelles (non-income, non-transfer, et non-virement interne)
+    active_cats_q = (
+        db.query(Transaction.category)
+        .filter(
+            Transaction.category.isnot(None),
+            Transaction.category != "",
+            Transaction.type.notin_(["income", "transfer"]),
+            # Exclure formellement les écritures avec un compte source ET un compte cible (virements internes)
+            ~(Transaction.from_account_id.isnot(None) & Transaction.to_account_id.isnot(None)),
+        )
+        .distinct()
+    )
+    active_set = {row[0] for row in active_cats_q.all()}
+
+    orphan = [
+        c for c in sorted(active_set - budgeted_set)
+        if c.strip().lower() not in excluded_names
+        and not any(kw in c.strip().lower() for kw in transfer_keywords)
+    ]
+    logger.debug(f"[AutoPilot Budgets] Catégories orphelines détectées : {len(orphan)} ({orphan[:5]}...)")
+    return orphan
+
+
+def _get_dismissed_categories(db: Session) -> set:
+    """Retourne les catégories explicitement refusées (garantie anti-harcèlement)."""
+    dismissed = (
+        db.query(AutopilotDecisionLog.raw_snapshot)
+        .filter(
+            AutopilotDecisionLog.decision_type == "budget_creation_suggestion",
+            AutopilotDecisionLog.action == "DISMISSED",
+            AutopilotDecisionLog.is_undone == False,
+        )
+        .all()
+    )
+    result = set()
+    for row in dismissed:
+        if row[0]:
+            try:
+                import json as _json
+                snap = _json.loads(row[0])
+                if "category" in snap:
+                    result.add(snap["category"])
+            except Exception:
+                pass
+    return result
+
+
+def _get_monthly_spending_for_category(db: Session, category: str, lookback_months: int = 3) -> List[float]:
+    """Calcule les dépenses mensuelles par catégorie sur les N derniers mois."""
+    today = date.today()
+    start_date = today.replace(day=1) - timedelta(days=lookback_months * 31)
+
+    txs = (
+        db.query(Transaction)
+        .filter(
+            Transaction.category == category,
+            Transaction.type.notin_(["income", "transfer"]),
+            ~(Transaction.from_account_id.isnot(None) & Transaction.to_account_id.isnot(None)),
+            Transaction.date_operation >= start_date,
+            Transaction.date_operation < today.replace(day=1),
+        )
+        .all()
+    )
+
+    # Grouper par mois
+    monthly = {}
+    for tx in txs:
+        key = f"{tx.date_operation.year}-{tx.date_operation.month:02d}"
+        monthly[key] = monthly.get(key, 0.0) + abs(tx.amount)
+
+    # Remplir les mois vides avec 0
+    result = []
+    cursor = start_date.replace(day=1)
+    end_cursor = today.replace(day=1)
+    while cursor < end_cursor:
+        key = f"{cursor.year}-{cursor.month:02d}"
+        result.append(monthly.get(key, 0.0))
+        if cursor.month == 12:
+            cursor = cursor.replace(year=cursor.year + 1, month=1)
+        else:
+            cursor = cursor.replace(month=cursor.month + 1)
+
+    return result
+
+
+def suggest_new_envelopes_deterministic(db: Session, profile_id: str = None, force: bool = False) -> List[dict]:
+    """Volet A — Détection et suggestion de création d'enveloppes pour les catégories orphelines.
+    
+    100% déterministe, 100% hors-ligne, zéro dépendance Ollama.
+    Enregistre les suggestions dans AutopilotDecisionLog sans créer de budget en base.
+    """
+    orphan_cats = get_unbudgeted_categories(db)
+    if not orphan_cats:
+        logger.debug("[AutoPilot Budgets] Aucune catégorie orpheline détectée.")
+        return []
+
+    # Exclure les catégories déjà refusées
+    dismissed = _get_dismissed_categories(db)
+
+    # Exclure les catégories ayant déjà une suggestion SUGGESTED en cours
+    already_suggested = set()
+    pending = (
+        db.query(AutopilotDecisionLog.raw_snapshot)
+        .filter(
+            AutopilotDecisionLog.decision_type == "budget_creation_suggestion",
+            AutopilotDecisionLog.action == "SUGGESTED",
+            AutopilotDecisionLog.is_undone == False,
+        )
+        .all()
+    )
+    for row in pending:
+        if row[0]:
+            try:
+                import json as _json
+                snap = _json.loads(row[0])
+                if "category" in snap:
+                    already_suggested.add(snap["category"])
+            except Exception:
+                pass
+
+    # Seuil plancher configurable
+    min_threshold = 30.0
+    cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_minimum_threshold").first()
+    if cfg and cfg.value:
+        try:
+            min_threshold = float(cfg.value)
+        except (ValueError, TypeError):
+            pass
+
+    # Vérifier si l'option d'auto-création est activée
+    cfg_auto_create = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_create_budget_envelopes").first()
+    is_auto_create = bool(cfg_auto_create and cfg_auto_create.value.strip().lower() == "true")
+
+    batch_id = str(uuid.uuid4())
+    suggestions = []
+
+    for cat in orphan_cats:
+        if cat in dismissed or cat in already_suggested:
+            continue
+
+        # Calculer le montant d'amorçage
+        monthly_vals = _get_monthly_spending_for_category(db, cat, lookback_months=3)
+        non_zero_vals = [v for v in monthly_vals if v > 0]
+
+        if not non_zero_vals:
+            # Vérifier s'il y a une récurrence active avec un montant strictement positif
+            has_recurrence = (
+                db.query(RecurrenceTemplate)
+                .filter(
+                    (RecurrenceTemplate.category == cat) | (RecurrenceTemplate.description.ilike(f"%{cat}%")),
+                    RecurrenceTemplate.is_closed == False,
+                )
+                .first()
+            )
+            if not has_recurrence or not has_recurrence.amount:
+                continue
+            rec_amt = float(has_recurrence.amount or 0.0)
+            if rec_amt <= 0:
+                continue
+            avg_amount = rec_amt
+        else:
+            cleaned, _, _ = winsorize_values(non_zero_vals, sensitivity=3)
+            avg_amount = sum(cleaned) / len(cleaned) if cleaned else 0.0
+
+        if avg_amount <= 0:
+            continue
+
+        # Détection des dépenses ponctuelles exceptionnelles (One-Offs)
+        is_one_off = bool(len(non_zero_vals) == 1 and avg_amount > (min_threshold * 5))
+
+        # Appliquer le seuil plancher
+        suggested_amount = max(round(avg_amount, 2), min_threshold)
+
+        # Créer la suggestion
+        import json as _json
+        snapshot = _json.dumps({
+            "category": cat,
+            "suggested_amount": suggested_amount,
+            "avg_monthly": round(avg_amount, 2),
+            "observed_months": len(non_zero_vals),
+            "monthly_values": [round(v, 2) for v in monthly_vals],
+            "is_one_off": is_one_off,
+        })
+
+        action_status = "SUGGESTED"
+        created_budget_id = None
+
+        # Si l'option auto-création est activée et que l'historique est régulier (>= 2 mois, non ponctuel)
+        if is_auto_create and len(non_zero_vals) >= 2 and not is_one_off:
+            from app.services.history_service import record_action, snapshot_entity
+            b = Budget(
+                name=cat,
+                monthly_amount=suggested_amount,
+                period="monthly",
+                is_project=False,
+                is_closed=False,
+                envelope_type="spending",
+                is_locked=False,
+                base_annual_amount=suggested_amount * 12,
+            )
+            db.add(b)
+            db.flush()
+            db.add(BudgetCategory(budget_id=b.id, category_name=cat))
+            db.flush()
+            record_action(db, "budget", b.id, "CREATE", None, snapshot_entity(b, db))
+            action_status = "AUTO_COMMIT"
+            created_budget_id = b.id
+            logger.info(f"[AutoPilot Budgets] Auto-création immédiate de l'enveloppe '{cat}' ({suggested_amount} €).")
+
+        decision = AutopilotDecisionLog(
+            batch_id=batch_id,
+            decision_type="budget_creation_suggestion",
+            action=action_status,
+            entity_type="budget",
+            entity_id=created_budget_id,
+            conn_id=-1,
+            account_id=None,
+            raw_snapshot=snapshot,
+            confidence_score=85.0 if len(non_zero_vals) >= 2 else 60.0,
+        )
+        db.add(decision)
+        db.flush()
+
+        if action_status == "SUGGESTED":
+            suggestions.append({
+                "decision_id": decision.id,
+                "type": "creation",
+                "category": cat,
+                "suggested_amount": suggested_amount,
+                "avg_monthly": round(avg_amount, 2),
+                "observed_months": len(non_zero_vals),
+                "is_one_off": is_one_off,
+            })
+
+    if suggestions or is_auto_create:
+        db.commit()
+        logger.info(f"[AutoPilot Budgets] Cycle de découverte terminé : {len(suggestions)} suggestion(s) en attente.")
+    else:
+        logger.debug("[AutoPilot Budgets] Aucune nouvelle suggestion de création à émettre.")
+
+    return suggestions
+
+
+def calculate_envelope_historical_spending(
+    db: Session, budget: Budget, lookback_months: int = 3, sensitivity: int = 3
+) -> tuple:
+    """Calcule les dépenses mensuelles des catégories associées à une enveloppe avec Winsorizing
+    et extrait le détail précis par catégorie (breakdown).
+    
+    Returns:
+        (avg_spending, observed_months, monthly_values, category_breakdown)
+    """
+    cats = db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget.id).all()
+    cat_names = [c.category_name for c in cats]
+    if not cat_names:
+        return 0.0, 0, [], []
+
+    today = date.today()
+    start_date = today.replace(day=1) - timedelta(days=lookback_months * 31)
+
+    txs = (
+        db.query(Transaction)
+        .filter(
+            Transaction.category.in_(cat_names),
+            Transaction.type.notin_(["income", "transfer"]),
+            ~(Transaction.from_account_id.isnot(None) & Transaction.to_account_id.isnot(None)),
+            Transaction.date_operation >= start_date,
+            Transaction.date_operation < today.replace(day=1),
+        )
+        .all()
+    )
+
+    # Breakdown détaillé par catégorie individuelle
+    category_breakdown = []
+    for cname in cat_names:
+        c_txs = [tx for tx in txs if tx.category == cname]
+        c_total = sum(abs(tx.amount) for tx in c_txs)
+        c_avg = c_total / lookback_months if lookback_months > 0 else 0.0
+        category_breakdown.append({
+            "category": cname,
+            "total_spending": round(c_total, 2),
+            "avg_monthly": round(c_avg, 2),
+        })
+    category_breakdown.sort(key=lambda x: x["avg_monthly"], reverse=True)
+
+    # Grouper par mois
+    monthly = {}
+    for tx in txs:
+        key = f"{tx.date_operation.year}-{tx.date_operation.month:02d}"
+        monthly[key] = monthly.get(key, 0.0) + abs(tx.amount)
+
+    # Construire la série chronologique complète
+    values = []
+    cursor = start_date.replace(day=1)
+    end_cursor = today.replace(day=1)
+    while cursor < end_cursor:
+        key = f"{cursor.year}-{cursor.month:02d}"
+        values.append(monthly.get(key, 0.0))
+        if cursor.month == 12:
+            cursor = cursor.replace(year=cursor.year + 1, month=1)
+        else:
+            cursor = cursor.replace(month=cursor.month + 1)
+
+    non_zero = [v for v in values if v > 0]
+    if not non_zero:
+        return 0.0, 0, values, category_breakdown
+
+    cleaned, _, _ = winsorize_values(non_zero, sensitivity=sensitivity)
+    avg = sum(cleaned) / len(cleaned) if cleaned else 0.0
+
+    return round(avg, 2), len(non_zero), [round(v, 2) for v in values], category_breakdown
+
+
+def compute_budget_ema_suggestion(
+    current_budget: float,
+    avg_spending: float,
+    base_annual_amount: float,
+    observed_months: int,
+    min_threshold: float,
+    alpha: float = 0.20,
+) -> dict:
+    """Calcule la suggestion EMA avec double plafond de dérive (±10%/mois, ±25%/an).
+    
+    Returns:
+        dict avec suggested_amount, delta_pct, drift_limit_reached, raw_ema
+    """
+    if observed_months < 1 or current_budget <= 0:
+        return {
+            "suggested_amount": current_budget,
+            "delta_pct": 0.0,
+            "drift_limit_reached": False,
+            "raw_ema": current_budget,
+            "capped_reason": None,
+        }
+
+    # 1. Calcul brut EMA
+    raw_ema = (1 - alpha) * current_budget + alpha * avg_spending
+
+    # 2. Borne mensuelle ±10%
+    max_monthly = current_budget * 1.10
+    min_monthly = current_budget * 0.90
+    capped = max(min(raw_ema, max_monthly), min_monthly)
+    capped_reason = None
+    if raw_ema > max_monthly:
+        capped_reason = "monthly_cap_up"
+    elif raw_ema < min_monthly:
+        capped_reason = "monthly_cap_down"
+
+    # 3. Borne annuelle ±25% vs base_annual_amount
+    drift_limit_reached = False
+    if base_annual_amount and base_annual_amount > 0:
+        monthly_base = base_annual_amount / 12.0
+        max_annual = monthly_base * 1.25
+        min_annual = monthly_base * 0.75
+        if capped > max_annual:
+            capped = max_annual
+            drift_limit_reached = True
+            capped_reason = "annual_cap_up"
+        elif capped < min_annual:
+            capped = min_annual
+            drift_limit_reached = True
+            capped_reason = "annual_cap_down"
+
+    # 4. Seuil plancher
+    capped = max(capped, min_threshold)
+
+    suggested = round(capped, 2)
+    delta_pct = round(((suggested - current_budget) / current_budget) * 100, 1) if current_budget > 0 else 0.0
+
+    return {
+        "suggested_amount": suggested,
+        "delta_pct": delta_pct,
+        "drift_limit_reached": drift_limit_reached,
+        "raw_ema": round(raw_ema, 2),
+        "capped_reason": capped_reason,
+    }
+
+
+def evaluate_monthly_budget_suggestions(
+    db: Session, force: bool = False
+) -> List[dict]:
+    """Volet B — Évaluation mensuelle et suggestion de recalibrage EMA des enveloppes existantes.
+    
+    Règle Anti-Thrashing : exécuté uniquement au 1er du mois / nouveau cycle,
+    sauf si force=True (ex: test unitaire ou recalcul forcé).
+    Si l'option auto_apply_budget_suggestions est activée, applique directement le recalibrage
+    avec traçabilité et rollback possible.
+    """
+    today = date.today()
+    current_period = f"{today.year}-{today.month:02d}"
+
+    if not force:
+        cfg_period = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_recalibration_period").first()
+        if cfg_period and cfg_period.value == current_period:
+            logger.debug(f"[AutoPilot Budgets] Période {current_period} déjà recalibrée. Anti-thrashing actif.")
+            return []
+
+    # Seuil plancher configurable
+    min_threshold = 30.0
+    cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_minimum_threshold").first()
+    if cfg and cfg.value:
+        try:
+            min_threshold = float(cfg.value)
+        except (ValueError, TypeError):
+            pass
+
+    # Option d'auto-application du recalibrage
+    cfg_auto_apply = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_apply_budget_suggestions").first()
+    is_auto_apply = bool(cfg_auto_apply and cfg_auto_apply.value.strip().lower() == "true")
+
+    # Filtre d'éligibilité strict
+    budgets = (
+        db.query(Budget)
+        .filter(
+            Budget.envelope_type == "spending",
+            Budget.period == "monthly",
+            Budget.is_project == False,
+            Budget.is_closed == False,
+            Budget.is_locked == False,
+        )
+        .all()
+    )
+
+    if not budgets:
+        logger.debug("[AutoPilot Budgets] Aucune enveloppe éligible au recalibrage.")
+        return []
+
+    # Exclure les budgets ayant déjà une suggestion SUGGESTED en cours
+    pending = (
+        db.query(AutopilotDecisionLog.entity_id)
+        .filter(
+            AutopilotDecisionLog.decision_type == "budget_suggestion",
+            AutopilotDecisionLog.action == "SUGGESTED",
+            AutopilotDecisionLog.entity_type == "budget",
+            AutopilotDecisionLog.is_undone == False,
+        )
+        .all()
+    )
+    already_suggested_ids = {row[0] for row in pending if row[0]}
+
+    # Vérifier les budgets dont un recalibrage a été DISMISSED pour cette période
+    dismissed_ids = set()
+    dismissed_q = (
+        db.query(AutopilotDecisionLog.entity_id)
+        .filter(
+            AutopilotDecisionLog.decision_type == "budget_suggestion",
+            AutopilotDecisionLog.action == "DISMISSED",
+            AutopilotDecisionLog.entity_type == "budget",
+            AutopilotDecisionLog.is_undone == False,
+        )
+        .all()
+    )
+    dismissed_ids = {row[0] for row in dismissed_q if row[0]}
+
+    batch_id = str(uuid.uuid4())
+    suggestions = []
+
+    for b in budgets:
+        if b.id in already_suggested_ids or b.id in dismissed_ids:
+            continue
+
+        avg_spending, observed_months, monthly_vals, category_breakdown = calculate_envelope_historical_spending(db, b)
+
+        if observed_months < 1:
+            continue
+
+        base_annual = b.base_annual_amount or (b.monthly_amount * 12)
+        ema_result = compute_budget_ema_suggestion(
+            current_budget=b.monthly_amount,
+            avg_spending=avg_spending,
+            base_annual_amount=base_annual,
+            observed_months=observed_months,
+            min_threshold=min_threshold,
+        )
+
+        # Ne pas suggérer si delta < 2% (insignifiant)
+        if abs(ema_result["delta_pct"]) < 2.0:
+            continue
+
+        import json as _json
+        snapshot = _json.dumps({
+            "budget_id": b.id,
+            "budget_name": b.name,
+            "current_amount": b.monthly_amount,
+            "suggested_amount": ema_result["suggested_amount"],
+            "delta_pct": ema_result["delta_pct"],
+            "avg_spending": avg_spending,
+            "observed_months": observed_months,
+            "monthly_values": monthly_vals,
+            "drift_limit_reached": ema_result["drift_limit_reached"],
+            "raw_ema": ema_result["raw_ema"],
+            "base_annual_amount": base_annual,
+            "categories": [c["category"] for c in category_breakdown],
+            "category_breakdown": category_breakdown,
+        })
+
+        action_status = "SUGGESTED"
+
+        # Si l'option auto-application est activée et que le plafond de dérive annuelle n'est pas atteint
+        if is_auto_apply and not ema_result["drift_limit_reached"]:
+            from app.services.history_service import record_action, snapshot_entity
+            old_snapshot = snapshot_entity(b, db)
+            b.monthly_amount = ema_result["suggested_amount"]
+            db.flush()
+            record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db))
+            action_status = "AUTO_COMMIT"
+            logger.info(f"[AutoPilot Budgets] Auto-application du recalibrage pour '{b.name}' ({ema_result['suggested_amount']} €).")
+
+        decision = AutopilotDecisionLog(
+            batch_id=batch_id,
+            decision_type="budget_suggestion",
+            action=action_status,
+            entity_type="budget",
+            entity_id=b.id,
+            conn_id=-1,
+            account_id=None,
+            raw_snapshot=snapshot,
+            confidence_score=85.0 if not ema_result["drift_limit_reached"] else 70.0,
+        )
+        db.add(decision)
+        db.flush()
+
+        if action_status == "SUGGESTED":
+            suggestions.append({
+                "decision_id": decision.id,
+                "type": "recalibration",
+                "budget_id": b.id,
+                "budget_name": b.name,
+                "current_amount": b.monthly_amount,
+                "suggested_amount": ema_result["suggested_amount"],
+                "delta_pct": ema_result["delta_pct"],
+                "avg_spending": avg_spending,
+                "observed_months": observed_months,
+                "drift_limit_reached": ema_result["drift_limit_reached"],
+                "category_breakdown": category_breakdown,
+            })
+
+    # Mettre à jour la période de dernière exécution
+    period_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_recalibration_period").first()
+    if period_cfg:
+        period_cfg.value = current_period
+    else:
+        db.add(GlobalConfig(key="last_budget_recalibration_period", value=current_period))
+
+    if suggestions or is_auto_apply:
+        notif = Notification(
+            type="autopilot_budget",
+            title=f"📊 {len(suggestions)} suggestion(s) budgétaire(s)",
+            content=f"{len(suggestions)} ajustement(s) d'enveloppe(s) proposé(s) pour {current_period}.",
+            detailed_content=None,
+            link_data='{"view": "budgets"}',
+        )
+        db.add(notif)
+        db.commit()
+        logger.info(f"[AutoPilot Budgets] {len(suggestions)} suggestion(s) de recalibrage émise(s) pour {current_period}.")
+    else:
+        db.commit()
+        logger.debug(f"[AutoPilot Budgets] Aucune suggestion de recalibrage en attente pour {current_period}.")
+
+    return suggestions
+
+
+def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
+    """Retourne toutes les suggestions budgétaires en attente (créations + recalibrages)."""
+    import json as _json
+    pending = (
+        db.query(AutopilotDecisionLog)
+        .filter(
+            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion"]),
+            AutopilotDecisionLog.action == "SUGGESTED",
+            AutopilotDecisionLog.is_undone == False,
+        )
+        .order_by(AutopilotDecisionLog.created_at.desc())
+        .all()
+    )
+
+    results = []
+    for d in pending:
+        snap = {}
+        if d.raw_snapshot:
+            try:
+                snap = _json.loads(d.raw_snapshot)
+            except Exception:
+                pass
+
+        entry = {
+            "decision_id": d.id,
+            "decision_type": d.decision_type,
+            "type": "creation" if d.decision_type == "budget_creation_suggestion" else "recalibration",
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+            "confidence_score": d.confidence_score,
+            **snap,
+        }
+        results.append(entry)
+
+    return results
+
+
+def apply_budget_suggestion(db: Session, decision_id: int) -> dict:
+    """Approuve une suggestion budgétaire : crée l'enveloppe ou applique le recalibrage."""
+    import json as _json
+
+    decision = db.query(AutopilotDecisionLog).filter(AutopilotDecisionLog.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Suggestion non trouvée.")
+    if decision.action != "SUGGESTED":
+        raise HTTPException(status_code=400, detail="Cette suggestion a déjà été traitée.")
+
+    snap = {}
+    if decision.raw_snapshot:
+        try:
+            snap = _json.loads(decision.raw_snapshot)
+        except Exception:
+            pass
+
+    if decision.decision_type == "budget_creation_suggestion":
+        # Création d'enveloppe
+        cat = snap.get("category", "Sans nom")
+        amount = snap.get("suggested_amount", 30.0)
+
+        b = Budget(
+            name=cat,
+            monthly_amount=amount,
+            period="monthly",
+            is_project=False,
+            is_closed=False,
+            envelope_type="spending",
+            is_locked=False,
+            base_annual_amount=amount * 12,
+        )
+        db.add(b)
+        db.flush()
+
+        db.add(BudgetCategory(budget_id=b.id, category_name=cat))
+        db.flush()
+
+        action_id = record_action(db, "budget", b.id, "CREATE", None, snapshot_entity(b, db))
+        decision.action = "AUTO_COMMIT"
+        decision.entity_id = b.id
+        db.commit()
+
+        logger.info(f"[AutoPilot Budgets] Enveloppe '{cat}' créée avec succès ({amount} €).")
+        return {
+            "ok": True,
+            "type": "creation",
+            "budget_id": b.id,
+            "name": cat,
+            "amount": amount,
+            "action_id": action_id,
+        }
+
+    elif decision.decision_type == "budget_suggestion":
+        # Recalibrage
+        budget_id = snap.get("budget_id") or decision.entity_id
+        if not budget_id:
+            raise HTTPException(status_code=400, detail="ID de budget manquant.")
+
+        b = db.query(Budget).filter(Budget.id == budget_id).first()
+        if not b:
+            raise HTTPException(status_code=404, detail="Budget non trouvé.")
+
+        old_snapshot = snapshot_entity(b, db)
+        new_amount = snap.get("suggested_amount", b.monthly_amount)
+        b.monthly_amount = new_amount
+        db.flush()
+
+        action_id = record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db))
+        decision.action = "AUTO_COMMIT"
+        db.commit()
+
+        logger.info(f"[AutoPilot Budgets] Enveloppe '{b.name}' actualisée à {new_amount} €.")
+        return {
+            "ok": True,
+            "type": "recalibration",
+            "budget_id": b.id,
+            "name": b.name,
+            "old_amount": snap.get("current_amount"),
+            "new_amount": new_amount,
+            "action_id": action_id,
+        }
+
+    raise HTTPException(status_code=400, detail="Type de suggestion inconnu.")
+
+
+def dismiss_budget_suggestion(db: Session, decision_id: int) -> dict:
+    """Rejette une suggestion budgétaire (garantie anti-harcèlement avec support de l'annulation)."""
+    from app.services.history_service import record_action, snapshot_entity
+
+    decision = db.query(AutopilotDecisionLog).filter(AutopilotDecisionLog.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Suggestion non trouvée.")
+    if decision.action != "SUGGESTED":
+        raise HTTPException(status_code=400, detail="Cette suggestion a déjà été traitée.")
+
+    old_snapshot = snapshot_entity(decision, db)
+    decision.action = "DISMISSED"
+    db.flush()
+
+    new_snapshot = snapshot_entity(decision, db)
+    action_id = record_action(db, "autopilot_decision", decision.id, "UPDATE", old_snapshot, new_snapshot)
+    db.commit()
+
+    logger.info(f"[AutoPilot Budgets] Suggestion {decision_id} rejetée (type={decision.decision_type}, action_id={action_id}).")
+    return {"ok": True, "decision_id": decision_id, "action": "DISMISSED", "action_id": action_id}

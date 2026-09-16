@@ -3369,4 +3369,43 @@ body.theme-titanium-light .notif-card.unread {
     }
 }
 
+/* ── Auto-Pilote Budgets Mobile Responsive (<= 768px) ── */
+@media (max-width: 768px) {
+    .autopilot-suggestion-banner {
+        padding: 12px !important;
+        margin-bottom: 16px !important;
+    }
+
+    .autopilot-cards-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    .autopilot-suggestion-card {
+        padding: 12px !important;
+        box-sizing: border-box !important;
+        max-width: 100% !important;
+    }
+
+    .autopilot-card-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+    }
+
+    .autopilot-action-btn {
+        flex: 1 !important;
+        min-height: 44px !important;
+        font-size: 13px !important;
+    }
+
+    .bv-btn-automations .btn-text {
+        display: none !important;
+    }
+
+    .bv-btn-automations {
+        padding: 7px 10px !important;
+    }
+}
+
 
