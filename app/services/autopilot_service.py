@@ -486,6 +486,16 @@ def process_incoming_batch(
         except Exception as promo_err:
             logger.warning(f"[AutoPilot] Avertissement lors de la détection/promotion des récurrences: {promo_err}")
 
+        # 5. Étape 5 Auto-Pilote : Détection Cold-Start des nouvelles enveloppes budgétaires
+        try:
+            from app.models import Budget
+            active_budgets_count = db.query(Budget).filter(Budget.is_closed == False, Budget.envelope_type == "spending").count()
+            if active_budgets_count < 3:
+                from app.services.budget_service import suggest_new_envelopes_deterministic
+                suggest_new_envelopes_deterministic(db, profile_id=pid)
+        except Exception as budget_err:
+            logger.warning(f"[AutoPilot] Avertissement lors de la suggestion cold-start budgets: {budget_err}")
+
         logger.info(
             f"[AutoPilot] Lot {batch_id} validé avec succès : "
             f"{auto_reconciled_count} auto-rapprochées, {auto_committed_count} créées, {pending_count} en attente, {promoted_recurrences} récurrences promues (total {total_count})."

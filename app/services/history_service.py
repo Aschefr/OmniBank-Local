@@ -4,7 +4,7 @@ from sqlalchemy import Date, DateTime, desc
 from app.models import (
     ActionHistory, Transaction, Account, Category, Budget,
     BudgetCategory, BudgetAllocation, RecurrenceTemplate, OrgUser,
-    GlobalConfig, AIFact, BankLabelMapping
+    GlobalConfig, AIFact, BankLabelMapping, AutopilotDecisionLog
 )
 
 MODEL_MAPPING = {
@@ -17,6 +17,7 @@ MODEL_MAPPING = {
     "org_user": OrgUser,
     "ai_fact": AIFact,
     "bank_label_mapping": BankLabelMapping,
+    "autopilot_decision": AutopilotDecisionLog,
 }
 
 
@@ -51,14 +52,7 @@ def check_undo_safety(db, action: ActionHistory) -> dict:
                 conflicts.append(f"account_has_recurrences:{rec_count}")
 
         elif action.entity_type == "budget":
-            # BudgetCategory liées
-            cat_count = db.query(BudgetCategory).filter(
-                BudgetCategory.budget_id == entity_id
-            ).count()
-            if cat_count > 0:
-                conflicts.append(f"budget_has_categories:{cat_count}")
-
-            # BudgetAllocation liées
+            # BudgetAllocation liées (argent alloué à cette tirelire/enveloppe)
             alloc_count = db.query(BudgetAllocation).filter(
                 BudgetAllocation.budget_id == entity_id
             ).count()
@@ -277,6 +271,19 @@ def undo_action(db, action: ActionHistory):
                     Transaction.recurrence_id == action.entity_id,
                     Transaction.reconciliation_date == None
                 ).delete(synchronize_session=False)
+            elif action.entity_type == "budget":
+                # Delete linked BudgetCategory rows
+                db.query(BudgetCategory).filter(
+                    BudgetCategory.budget_id == action.entity_id
+                ).delete(synchronize_session=False)
+                # Revert any linked Autopilot decision to SUGGESTED
+                dec = db.query(AutopilotDecisionLog).filter(
+                    AutopilotDecisionLog.entity_id == action.entity_id,
+                    AutopilotDecisionLog.decision_type == "budget_creation_suggestion",
+                ).first()
+                if dec:
+                    dec.action = "SUGGESTED"
+                    dec.entity_id = None
 
             db.delete(entity)
         else:
@@ -291,7 +298,17 @@ def undo_action(db, action: ActionHistory):
         prev_state = json.loads(action.previous_state) if action.previous_state else {}
         restore_state(entity, prev_state, db)
 
-        if action.entity_type == "recurrence_template":
+        if action.entity_type == "budget":
+            # Revert any linked Autopilot recalibration decision to SUGGESTED
+            dec = db.query(AutopilotDecisionLog).filter(
+                AutopilotDecisionLog.entity_id == action.entity_id,
+                AutopilotDecisionLog.decision_type == "budget_suggestion",
+                AutopilotDecisionLog.action == "AUTO_COMMIT",
+            ).order_by(desc(AutopilotDecisionLog.created_at)).first()
+            if dec:
+                dec.action = "SUGGESTED"
+
+        elif action.entity_type == "recurrence_template":
             db.flush()
             prev_closed = prev_state.get("is_closed")
             new_state_dict = json.loads(action.new_state) if action.new_state else {}

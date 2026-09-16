@@ -30,6 +30,7 @@ from app.migrations.versions import (
     v24_autopilot_foundations,
     v25_smart_label_reliability,
     v26_transaction_comment,
+    v27_budget_base_annual_and_autopilot,
 )
 
 ALL_MIGRATIONS: List[Migration] = [
@@ -58,4 +59,5 @@ ALL_MIGRATIONS: List[Migration] = [
     Migration(v24_autopilot_foundations.VERSION, v24_autopilot_foundations.DESCRIPTION, v24_autopilot_foundations.upgrade),
     Migration(v25_smart_label_reliability.VERSION, v25_smart_label_reliability.DESCRIPTION, v25_smart_label_reliability.upgrade),
     Migration(v26_transaction_comment.VERSION, v26_transaction_comment.DESCRIPTION, v26_transaction_comment.upgrade),
+    Migration(v27_budget_base_annual_and_autopilot.VERSION, v27_budget_base_annual_and_autopilot.DESCRIPTION, v27_budget_base_annual_and_autopilot.upgrade),
 ]

@@ -1,6 +1,6 @@
 """
 Tests unitaires et d'intégration pour le moteur de migrations incrémentales (Action 13).
-Vérifie la complétude du registre, l'initialisation complète à neuf (v0 -> v25),
+Vérifie la complétude du registre, l'initialisation complète à neuf (v0 -> v27),
 la mise à niveau incrémentale depuis une version intermédiaire, l'idempotence et le fast-path.
 """
 import pytest
@@ -19,10 +19,10 @@ from app.migrations.versions import ALL_MIGRATIONS
 
 
 def test_migration_order_and_registry():
-    """Vérifie que toutes les migrations de v02 à v26 sont consécutives, valides et complètes."""
-    assert len(ALL_MIGRATIONS) == 25, f"Nombre de migrations inattendu : {len(ALL_MIGRATIONS)}"
+    """Vérifie que toutes les migrations de v02 à v27 sont consécutives, valides et complètes."""
+    assert len(ALL_MIGRATIONS) == 26, f"Nombre de migrations inattendu : {len(ALL_MIGRATIONS)}"
 
-    expected_versions = list(range(2, 27))
+    expected_versions = list(range(2, 28))
     actual_versions = [m.version for m in ALL_MIGRATIONS]
     assert actual_versions == expected_versions, f"Désalignement des versions : {actual_versions} vs {expected_versions}"
 
@@ -32,13 +32,13 @@ def test_migration_order_and_registry():
 
 
 def test_fresh_database_full_migration():
-    """Vérifie qu'une base SQLite vierge est amenée de v0 à v26 avec toutes les tables, colonnes et seeds."""
+    """Vérifie qu'une base SQLite vierge est amenée de v0 à v27 avec toutes les tables, colonnes et seeds."""
     engine = create_engine("sqlite:///:memory:")
     init_db(target_engine=engine)
 
     with engine.connect() as conn:
         current_v = get_current_schema_version(conn)
-        assert current_v == TARGET_SCHEMA_VERSION == 26
+        assert current_v == TARGET_SCHEMA_VERSION == 27
 
         # Vérifier l'existence de toutes les tables créées au fil des versions
         critical_tables = [
@@ -60,6 +60,13 @@ def test_fresh_database_full_migration():
         assert column_exists(conn, "bank_label_mappings", "is_manual")  # v25
         assert column_exists(conn, "bank_label_mappings", "category_counts")  # v25
         assert column_exists(conn, "transactions", "comment")  # v26
+        assert column_exists(conn, "budgets", "base_annual_amount")  # v27
+
+        # Vérifier les clés GlobalConfig v27 (Auto-Pilote Budgets)
+        min_threshold = conn.execute(text("SELECT value FROM global_config WHERE key = 'budget_minimum_threshold'")).scalar()
+        assert min_threshold == "30.0"
+        auto_create = conn.execute(text("SELECT value FROM global_config WHERE key = 'auto_create_budget_envelopes'")).scalar()
+        assert auto_create == "false"
 
         # Vérifier le seed de la configuration et des taux de change (v16, v24)
         base_curr = conn.execute(text("SELECT value FROM global_config WHERE key = 'base_currency'")).scalar()
@@ -73,7 +80,7 @@ def test_fresh_database_full_migration():
 
 
 def test_incremental_migration_from_intermediate_version():
-    """Vérifie qu'une base pré-existante (ex: v8) monte proprement à v26 sans régression."""
+    """Vérifie qu'une base pré-existante (ex: v8) monte proprement à v27 sans régression."""
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(bind=engine)
 
@@ -84,10 +91,10 @@ def test_incremental_migration_from_intermediate_version():
 
     # Exécuter les migrations incrémentales
     final_v = run_migrations(engine)
-    assert final_v == 26
+    assert final_v == 27
 
     with engine.connect() as conn:
-        assert get_current_schema_version(conn) == 26
+        assert get_current_schema_version(conn) == 27
         # Les tables introduites après la v8 doivent exister
         assert table_exists(conn, "action_history")  # v11
         assert table_exists(conn, "exchange_rates")  # v16
@@ -95,21 +102,22 @@ def test_incremental_migration_from_intermediate_version():
         assert table_exists(conn, "bank_label_mappings")  # v20
         assert table_exists(conn, "autopilot_decision_log")  # v24
         assert column_exists(conn, "transactions", "comment")  # v26
+        assert column_exists(conn, "budgets", "base_annual_amount")  # v27
 
 
 def test_migration_fast_path():
-    """Vérifie que sur une base déjà en v26, init_db termine immédiatement."""
+    """Vérifie que sur une base déjà en v27, init_db termine immédiatement."""
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(bind=engine)
 
     with engine.connect() as conn:
-        set_schema_version(conn, 26)
+        set_schema_version(conn, 27)
         conn.commit()
 
     # init_db doit court-circuiter (fast-path) sans erreur
     init_db(target_engine=engine)
     with engine.connect() as conn:
-        assert get_current_schema_version(conn) == 26
+        assert get_current_schema_version(conn) == 27
 
 
 def test_safe_add_column_idempotency():
@@ -139,5 +147,13 @@ def test_idempotent_multiple_init_db():
     init_db(target_engine=engine)
 
     with engine.connect() as conn:
-        assert get_current_schema_version(conn) == 26
+        assert get_current_schema_version(conn) == 27
+
+
+def test_init_all_profiles_db():
+    """Vérifie que init_all_profiles_db s'exécute de manière idempotente sur tous les profils sans erreur."""
+    from app.init_data import init_all_profiles_db
+    # Doit s'exécuter sans lever d'exception
+    init_all_profiles_db()
+
 

@@ -54,6 +54,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             this.loadAccounts(),
             this.loadCategories(),
             this.loadAllStatuses(),
+            this.loadAutopilotSuggestions ? this.loadAutopilotSuggestions() : Promise.resolve(),
             this.checkAI()
         ]);
         // Re-render once after all data is loaded
