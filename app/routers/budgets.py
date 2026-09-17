@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
@@ -332,11 +332,82 @@ def dismiss_autopilot_budget_suggestion(decision_id: int, db: Session = Depends(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/autopilot/suggestions/dismissed")
+def get_dismissed_autopilot_budget_suggestions(
+    limit: int = 50, db: Session = Depends(get_db)
+):
+    """Retourne l'historique des suggestions budgétaires écartées."""
+    try:
+        return budget_service.get_dismissed_budget_suggestions(db, limit=limit)
+    except Exception as e:
+        logger.error(f"[Budgets AutoPilot] Erreur récupération suggestions écartées: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/autopilot/suggestions/{decision_id}/reactivate")
+def reactivate_autopilot_budget_suggestion(
+    decision_id: int, db: Session = Depends(get_db)
+):
+    """Réactive une suggestion budgétaire précédemment écartée."""
+    try:
+        return budget_service.reactivate_budget_suggestion(db, decision_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Budgets AutoPilot] Erreur réactivation suggestion {decision_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/autopilot/suggestions/dismissed")
+def clear_dismissed_autopilot_budget_suggestions(db: Session = Depends(get_db)):
+    """Purge l'ensemble de l'historique des suggestions budgétaires écartées."""
+    try:
+        return budget_service.clear_dismissed_budget_suggestions(db)
+    except Exception as e:
+        logger.error(f"[Budgets AutoPilot] Erreur purge suggestions écartées: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class BulkSuggestionActionRequest(BaseModel):
+    decision_ids: Optional[List[int]] = None
+
+
+@router.post("/autopilot/suggestions/approve-all")
+def approve_all_autopilot_budget_suggestions(
+    data: Optional[BulkSuggestionActionRequest] = None, db: Session = Depends(get_db)
+):
+    """Valide en masse les suggestions budgétaires (ou la sélection spécifiée)."""
+    try:
+        ids = data.decision_ids if data else None
+        result = budget_service.apply_all_budget_suggestions(db, ids)
+        stats_cache.invalidate()
+        return result
+    except Exception as e:
+        logger.error(f"[Budgets Router] Erreur approbation groupée suggestions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/autopilot/suggestions/dismiss-all")
+def dismiss_all_autopilot_budget_suggestions(
+    data: Optional[BulkSuggestionActionRequest] = None, db: Session = Depends(get_db)
+):
+    """Rejette en masse les suggestions budgétaires (ou la sélection spécifiée)."""
+    try:
+        ids = data.decision_ids if data else None
+        result = budget_service.dismiss_all_budget_suggestions(db, ids)
+        return result
+    except Exception as e:
+        logger.error(f"[Budgets Router] Erreur rejet groupé suggestions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/autopilot/recalibrate")
-def trigger_budget_recalibration(db: Session = Depends(get_db)):
+def trigger_budget_recalibration(
+    engine: Optional[str] = None, db: Session = Depends(get_db)
+):
     """Déclencheur forcé de recalibrage pour preview et tests."""
     try:
-        creation_results = budget_service.suggest_new_envelopes_deterministic(db, force=True)
+        creation_results = budget_service.suggest_new_envelopes(db, force=True, engine_override=engine)
         recalib_results = budget_service.evaluate_monthly_budget_suggestions(db, force=True)
         stats_cache.invalidate()
         return {
@@ -347,3 +418,4 @@ def trigger_budget_recalibration(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"[Budgets AutoPilot] Erreur recalibrage forcé: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+

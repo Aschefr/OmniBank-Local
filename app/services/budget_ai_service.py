@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from fastapi import HTTPException
 
-from app.models import Budget, BudgetCategory, Transaction, Category, RecurrenceTemplate
+from app.models import Budget, BudgetCategory, Transaction, Category, RecurrenceTemplate, GlobalConfig
 from app.services.chat.ollama_client import get_ollama_config, call_ollama_sync, call_ollama_async
 from app.services.finance_engine import predict_next_paycheck
 
@@ -42,7 +42,11 @@ def _get_ai_status_snapshot() -> Dict[str, Any]:
     """Retourne un snapshot thread-safe du statut courant."""
     with _ai_status_lock:
         if AI_TASK_STATUS["state"] in ["PREPARING", "SENDING", "THINKING", "PARSING"] and AI_TASK_STATUS.get("start_time"):
-            AI_TASK_STATUS["elapsed_seconds"] = int(time.time() - AI_TASK_STATUS["start_time"])
+            elapsed = int(time.time() - AI_TASK_STATUS["start_time"])
+            AI_TASK_STATUS["elapsed_seconds"] = elapsed
+            if elapsed > AI_TASK_STATUS.get("max_seconds", 300):
+                AI_TASK_STATUS["state"] = "ERROR"
+                AI_TASK_STATUS["error"] = "Délai d'analyse dépassé."
         return dict(AI_TASK_STATUS)
 
 def get_ai_suggest_status() -> Dict[str, Any]:
@@ -354,12 +358,26 @@ async def ai_suggest_budgets_service(window_months: int, lang: Optional[str], db
         error=None,
         start_time=time.time(),
     )
+    try:
+        res = await _ai_suggest_budgets_service_impl(window_months, lang, db, outlier_sensitivity)
+        _update_ai_status(state="SUCCESS", step_key="ai_status_success", result=res)
+        return res
+    except HTTPException as he:
+        _update_ai_status(state="ERROR", error=he.detail if hasattr(he, "detail") else str(he))
+        raise
+    except Exception as e:
+        logger.error(f"[AI Budget] Erreur inattendue dans ai_suggest_budgets_service: {e}", exc_info=True)
+        _update_ai_status(state="ERROR", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Erreur d'analyse : {str(e)}")
 
+async def _ai_suggest_budgets_service_impl(window_months: int, lang: Optional[str], db: Session, outlier_sensitivity: int = 2) -> dict:
     window_months = window_months if window_months in (3, 6, 12) else 3
 
+    cfg_engine = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_suggestion_engine").first()
+    is_deterministic_engine = bool(cfg_engine and cfg_engine.value and cfg_engine.value.strip().lower() == "deterministic")
+
     cfg = get_ollama_config(db)
-    if not cfg.get("enabled"):
-        _update_ai_status(state="ERROR", error="IA non activée dans les paramètres.")
+    if not is_deterministic_engine and not cfg.get("enabled"):
         raise HTTPException(status_code=400, detail="IA non activée dans les paramètres.")
 
     paycheck_info = predict_next_paycheck(db)
@@ -419,10 +437,10 @@ async def ai_suggest_budgets_service(window_months: int, lang: Optional[str], db
 
 {formatted_cats}
 
-TASK: Group these categories into 10 to 14 precise, targeted thematic budget envelopes.
+TASK: Group these {nb_cats} categories into cohesive, thematic budget envelopes (aim for 4 to 8 high-quality envelopes, grouping 2 to 4 related categories together whenever logical, such as Food & Groceries, Transport & Fuel, Housing, Health & Wellness, Leisure & Entertainment, Tech).
 
 RULES:
-1. Create between 10 and 14 specific envelopes. Do not create huge mixed groups.
+1. Create cohesive envelopes by grouping related categories together. Do not isolate each category into its own envelope unless it is truly unique.
 2. Separate loans/mortgages from insurance, telecom from cloud services, and vehicle maintenance from toll fees.
 3. In the "categories" list for each envelope, include ONLY the exact category names from the input list.
 4. EVERY input category MUST be assigned to an envelope.
@@ -444,30 +462,36 @@ Response format (JSON object with key "envelopes"):
 
     raw = ""
     last_error_msg = ""
-    try:
-        raw = await call_ollama_async(prompt, cfg, extra_options={"format": "json"})
-    except HTTPException as e:
-        last_error_msg = e.detail
-        logger.warning(f"[AI Budget] Premier essai Ollama json échoué: {e.detail}")
-    except Exception as e:
-        last_error_msg = str(e)
-        logger.warning(f"[AI Budget] Premier essai Ollama json échoué: {e}")
+    is_fallback = False
 
-    if not raw or not raw.strip():
+    if is_deterministic_engine:
+        logger.info("[AI Budget] Moteur déterministe sélectionné dans les paramètres. Contournement d'Ollama et regroupement thématique déterministe immédiat.")
+        is_fallback = True
+    else:
+        ollama_ctx = min(int(cfg.get("num_ctx", 4096) or 4096), 4096)
         try:
-            logger.info("[AI Budget] Tentative 2 avec appel Ollama standard...")
-            raw = await call_ollama_async(prompt, cfg)
-        except HTTPException as e2:
-            last_error_msg = e2.detail
-            logger.warning(f"[AI Budget] Tentative 2 Ollama échouée: {e2.detail}")
-        except Exception as e2:
-            last_error_msg = str(e2)
-            logger.warning(f"[AI Budget] Tentative 2 Ollama échouée: {e2}")
+            raw = await call_ollama_async(prompt, cfg, extra_options={"format": "json", "num_ctx": ollama_ctx})
+        except HTTPException as e:
+            last_error_msg = e.detail
+            logger.warning(f"[AI Budget] Premier essai Ollama json échoué: {e.detail}")
+        except Exception as e:
+            last_error_msg = str(e)
+            logger.warning(f"[AI Budget] Premier essai Ollama json échoué: {e}")
 
-    if not raw or not raw.strip():
-        err_detail = f"Impossible de communiquer avec le modèle IA Ollama : {last_error_msg}".strip()
-        _update_ai_status(state="ERROR", error=err_detail)
-        raise HTTPException(status_code=502, detail=err_detail)
+        if not raw or not raw.strip():
+            try:
+                logger.info("[AI Budget] Tentative 2 avec appel Ollama standard...")
+                raw = await call_ollama_async(prompt, cfg, extra_options={"num_ctx": ollama_ctx})
+            except HTTPException as e2:
+                last_error_msg = e2.detail
+                logger.warning(f"[AI Budget] Tentative 2 Ollama échouée: {e2.detail}")
+            except Exception as e2:
+                last_error_msg = str(e2)
+                logger.warning(f"[AI Budget] Tentative 2 Ollama échouée: {e2}")
+
+        if not raw or not raw.strip():
+            logger.warning(f"[AI Budget] Communication Ollama impossible ({last_error_msg}). Bascule automatique sur les propositions déterministes de secours.")
+            is_fallback = True
 
     _update_ai_status(state="PARSING", step_key="ai_status_parsing")
 
@@ -655,6 +679,78 @@ Response format (JSON object with key "envelopes"):
                     proposals.append(_build_proposal(clean_name, clean_cats, reason))
 
     orphan_cats = [c for c in cat_data.keys() if c not in used_in_proposals]
+
+    def _cluster_categories_thematically(cats_to_group, is_orphan_fallback=False):
+        remaining = [c for c in cats_to_group if c not in used_in_proposals]
+        if not remaining:
+            return
+
+        clusters = [
+            ("Housing & Home" if lang == "en" else "Logement & Maison",
+             ["loyer", "electr", "gaz", "eau", "edf", "charges", "energie", "logement", "brico", "meuble", "travaux", "deco"]),
+            ("Health & Wellness" if lang == "en" else "Santé & Bien-être",
+             ["sante", "pharm", "medecin", "dentiste", "mutuelle", "optique", "laboratoire", "soin"]),
+            ("Subscriptions & Telecom" if lang == "en" else "Abonnements & Multimédia",
+             ["abonnement", "media", "netflix", "spotify", "internet", "telephon", "mobile", "fibre", "free", "orange", "sfr", "bouygues"]),
+            ("Insurance" if lang == "en" else "Assurances & Prévoyance",
+             ["assurance", "prevoyance", "sinistre", "axa", "macif", "allianz", "maif"]),
+            ("Food & Groceries" if lang == "en" else "Alimentation & Courses",
+             ["course", "alim", "super", "resto", "boulang", "repas", "nourriture", "drive", "carrefour", "leclerc", "auchan", "lidl", "monoprix"]),
+            ("Transport & Vehicle" if lang == "en" else "Transport & Véhicule",
+             ["transp", "carburant", "essence", "peage", "train", "sncf", "uber", "taxi", "parking", "auto", "garage", "moto"]),
+            ("Leisure & Entertainment" if lang == "en" else "Loisirs & Sorties",
+             ["loisir", "sport", "cinema", "vacance", "voyage", "culture", "livre", "spectacle", "hotel", "sortie", "hobby"]),
+            ("Shopping & Discretionary" if lang == "en" else "Achats & Shopping",
+             ["shopping", "vetement", "mode", "cadeau", "amazon", "fnac", "habillement", "high-tech"])
+        ]
+
+        for cluster_name, keywords in clusters:
+            matched = []
+            for c in remaining:
+                c_lower = c.lower()
+                if any(kw in c_lower for kw in keywords):
+                    matched.append(c)
+            if matched:
+                used_in_proposals.update(matched)
+                remaining = [c for c in remaining if c not in matched]
+                monthly_cats = [c for c in matched if cat_data[c].get("suggested_period", "monthly") == "monthly"]
+                yearly_cats = [c for c in matched if cat_data[c].get("suggested_period") == "yearly"]
+                justif = (f"Regroupement thématique ({len(matched)} catégories)." if lang != "en" else f"Thematic grouping ({len(matched)} categories).")
+                if is_orphan_fallback:
+                    justif = (f"Regroupement thématique complémentaire ({len(matched)} catégories)." if lang != "en" else f"Complementary thematic grouping ({len(matched)} categories).")
+
+                if monthly_cats and yearly_cats:
+                    proposals.append(_build_proposal(cluster_name, monthly_cats, justif, period_override="monthly"))
+                    proposals.append(_build_proposal(f"{cluster_name} (Annuels)", yearly_cats, justif, period_override="yearly"))
+                else:
+                    period_ov = "yearly" if yearly_cats else "monthly"
+                    proposals.append(_build_proposal(cluster_name, matched, justif, period_override=period_ov))
+
+        # Restant fixe
+        rem_fixed = [c for c in remaining if cat_data[c]["is_fixed"] or cat_data[c]["type"] == "expense_fixed"]
+        if rem_fixed:
+            used_in_proposals.update(rem_fixed)
+            remaining = [c for c in remaining if c not in rem_fixed]
+            name = "Fixed Charges & Contracts" if lang == "en" else "Charges Fixes & Contrats"
+            justif = "Charges contractuelles résiduelles regroupées." if lang != "en" else "Residual fixed contractual charges grouped."
+            proposals.append(_build_proposal(name, rem_fixed, justif))
+
+        # Restant variable
+        if remaining:
+            used_in_proposals.update(remaining)
+            name = "Daily Life & Miscellaneous" if lang == "en" else "Vie Courante & Divers"
+            justif = f"Dépenses courantes diverses ({len(remaining)} catégories)." if lang != "en" else f"Miscellaneous living expenses ({len(remaining)} categories)."
+            proposals.append(_build_proposal(name, remaining, justif))
+
+    if not proposals and cat_data:
+        is_fallback = True
+        logger.info("[AI Budget] Génération des propositions thématiques déterministes...")
+        _cluster_categories_thematically(cat_data.keys(), is_orphan_fallback=False)
+    elif orphan_cats:
+        logger.info(f"[AI Budget] Regroupement thématique complémentaire des {len(orphan_cats)} catégories orphelines...")
+        _cluster_categories_thematically(orphan_cats, is_orphan_fallback=True)
+
+    orphan_cats = [c for c in cat_data.keys() if c not in used_in_proposals]
     unclassified_categories = []
     for c in orphan_cats:
         unclassified_categories.append({
@@ -666,24 +762,6 @@ Response format (JSON object with key "envelopes"):
             "suggested_period": cat_data[c].get("suggested_period", "monthly"),
             "top_descs": cat_data[c].get("top_descs", []),
         })
-
-    is_fallback = False
-    if not proposals and cat_data:
-        is_fallback = True
-        logger.warning("[AI Budget] Le LLM n'a renvoyé aucune enveloppe valide. Création automatique des propositions de secours...")
-        # Regrouper par type de dépense (Dépenses fixes, variables, exceptionnelles)
-        fixed_cats = [c for c in cat_data if cat_data[c]["is_fixed"] or cat_data[c]["type"] == "expense_fixed"]
-        var_cats = [c for c in cat_data if c not in fixed_cats]
-
-        if fixed_cats:
-            used_in_proposals.update(fixed_cats)
-            proposals.append(_build_proposal("Charges Fixes", fixed_cats, "Charges fixes contractuelles regroupées automatiquement."))
-        if var_cats:
-            used_in_proposals.update(var_cats)
-            proposals.append(_build_proposal("Vie Courante & Varia", var_cats, "Dépenses courantes regroupées automatiquement."))
-
-        orphan_cats = [c for c in cat_data.keys() if c not in used_in_proposals]
-        unclassified_categories = []
 
     if not proposals:
         err_detail = "L'IA n'a pas pu générer de propositions d'enveloppes valides. Vérifiez le modèle Ollama configuré."
@@ -727,8 +805,8 @@ Response format (JSON object with key "envelopes"):
         "requested_window_months": window_months,
         "effective_window_months": effective_window,
         "outlier_sensitivity": outlier_sensitivity,
+        "engine": "deterministic" if is_deterministic_engine else "ai",
     }
-    _update_ai_status(state="SUCCESS", step_key="ai_status_success", result=result_payload)
     return result_payload
 
 async def ai_refine_budgets_service(window_months: int, lang: Optional[str], existing_proposals: list[dict], unclassified_categories: list[dict], db: Session, outlier_sensitivity: int = 2) -> dict:
