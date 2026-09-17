@@ -28,6 +28,36 @@ const ProfileStorage = {
 };
 window.ProfileStorage = ProfileStorage;
 
+const ProfileSessionStorage = {
+    _getPrefix() {
+        if (window.ProfileStorage && typeof window.ProfileStorage.getActiveProfileId === 'function') {
+            return window.ProfileStorage.getActiveProfileId();
+        }
+        return (window.app && window.app.activeProfileId) || 'default';
+    },
+    getItem(key) {
+        try {
+            return sessionStorage.getItem(`${this._getPrefix()}_${key}`);
+        } catch (_) {
+            return null;
+        }
+    },
+    setItem(key, val) {
+        try {
+            sessionStorage.setItem(`${this._getPrefix()}_${key}`, val);
+        } catch (_) {}
+    },
+    removeItem(key) {
+        try {
+            sessionStorage.removeItem(`${this._getPrefix()}_${key}`);
+        } catch (_) {}
+    },
+    get(key) { return this.getItem(key); },
+    set(key, val) { this.setItem(key, val); },
+    remove(key) { this.removeItem(key); }
+};
+window.ProfileSessionStorage = ProfileSessionStorage;
+
 window.escapeHtml = function(str) {
     if (!str) return '';
     return String(str)

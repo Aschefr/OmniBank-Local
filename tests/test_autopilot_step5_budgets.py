@@ -36,11 +36,17 @@ from app.services.budget_service import (
     compute_budget_ema_suggestion,
     calculate_envelope_historical_spending,
     evaluate_monthly_budget_suggestions,
+    suggest_new_envelopes,
     suggest_new_envelopes_deterministic,
     get_unbudgeted_categories,
     get_all_pending_budget_suggestions,
     apply_budget_suggestion,
     dismiss_budget_suggestion,
+    apply_all_budget_suggestions,
+    dismiss_all_budget_suggestions,
+    get_dismissed_budget_suggestions,
+    reactivate_budget_suggestion,
+    clear_dismissed_budget_suggestions,
 )
 from app.services.autopilot_service import process_incoming_batch
 from app.services import stats_cache
@@ -66,6 +72,8 @@ def test_db():
         GlobalConfig(key="last_budget_recalibration_period", value=""),
         GlobalConfig(key="auto_create_budget_envelopes", value="false"),
         GlobalConfig(key="auto_apply_budget_suggestions", value="false"),
+        GlobalConfig(key="enable_budget_creation_suggestions", value="true"),
+        GlobalConfig(key="enable_budget_recalibration_suggestions", value="true"),
     ])
     db.commit()
 
@@ -350,8 +358,8 @@ def test_t5_7_unbudgeted_deterministic_creation(test_db):
     
     assert len(suggestions) == 1
     assert suggestions[0]["category"] == "Pharmacie"
-    # Montant suggéré plafonné au seuil minimal (30.00 €) car 25 < 30
-    assert suggestions[0]["suggested_amount"] == 30.0
+    # Montant suggéré réaliste (25.00 €) basé sur la moyenne observée
+    assert suggestions[0]["suggested_amount"] == 25.0
 
     # Zéro création sauvage en base
     assert test_db.query(Budget).count() == initial_budget_count
@@ -444,3 +452,464 @@ def test_t5_9_cold_start_reactive_flow(test_db):
     assert len(boulangerie_sugg) == 1
     assert boulangerie_sugg[0]["type"] == "creation"
     assert boulangerie_sugg[0]["suggested_amount"] >= 30.0
+
+
+def test_t5_10_one_off_isolated_expense_ignored(test_db):
+    """T5.10 : Achat ponctuel exceptionnel isolé (< 2 mois sans récurrence) — Totalement ignoré."""
+    acc = Account(name="Courant", type="Compte courant", initial_balance=25000.0)
+    test_db.add(acc)
+    test_db.commit()
+
+    today = date.today()
+    # Un seul achat ponctuel de 17 999 € il y a 1 mois
+    past_date = today.replace(day=1) - relativedelta(months=1, days=-10)
+    test_db.add(Transaction(
+        from_account_id=acc.id,
+        category="Achat exceptionnel",
+        amount=17999.0,
+        type="expense_var",
+        date_saisie=past_date,
+        date_operation=past_date,
+        description="Achat exceptionnel à gros montant",
+    ))
+    test_db.commit()
+
+    # L'achat ponctuel sur 1 seul mois ne doit JAMAIS donner lieu à une suggestion d'enveloppe
+    suggestions = suggest_new_envelopes_deterministic(test_db, force=True)
+    assert len(suggestions) == 0
+
+
+def test_t5_11_bulk_approve_and_dismiss(test_db):
+    """T5.11 : Actions groupées — Validation et rejet par lot atomiques."""
+    acc = Account(name="Courant", type="Compte courant", initial_balance=5000.0)
+    test_db.add(acc)
+    test_db.commit()
+
+    # Créer manuellement 2 suggestions en attente
+    d1 = AutopilotDecisionLog(
+        batch_id="batch-bulk-1",
+        decision_type="budget_creation_suggestion",
+        action="SUGGESTED",
+        entity_type="budget",
+        raw_snapshot=json.dumps({"category": "Presse", "suggested_amount": 15.0}),
+    )
+    d2 = AutopilotDecisionLog(
+        batch_id="batch-bulk-2",
+        decision_type="budget_creation_suggestion",
+        action="SUGGESTED",
+        entity_type="budget",
+        raw_snapshot=json.dumps({"category": "Cinéma", "suggested_amount": 22.0}),
+    )
+    test_db.add_all([d1, d2])
+    test_db.commit()
+
+    # Test approve-all sur d1 uniquement
+    res = apply_all_budget_suggestions(test_db, decision_ids=[d1.id])
+    assert res["ok"] is True
+    assert res["count"] == 1
+    test_db.refresh(d1)
+    assert d1.action == "AUTO_COMMIT"
+
+    # Test dismiss-all sur d2
+    res_dismiss = dismiss_all_budget_suggestions(test_db, decision_ids=[d2.id])
+    assert res_dismiss["ok"] is True
+    assert res_dismiss["count"] == 1
+    test_db.refresh(d2)
+    assert d2.action == "DISMISSED"
+
+
+def test_t5_12_toggle_disable_creation_suggestions(test_db):
+    """T5.12 : Interrupteur d'automatisation — Désactiver les suggestions de création d'enveloppes."""
+    acc = Account(name="Courant", type="Compte courant", initial_balance=1000.0)
+    test_db.add(acc)
+    test_db.commit()
+
+    today = date.today()
+    for m in range(1, 4):
+        past_date = today.replace(day=1) - relativedelta(months=m, days=-5)
+        test_db.add(Transaction(
+            from_account_id=acc.id,
+            category="Pharmacie",
+            amount=35.0,
+            type="expense_var",
+            date_saisie=past_date,
+            date_operation=past_date,
+            description="Pharmacie du Centre",
+        ))
+    test_db.commit()
+
+    # Désactiver l'option dans GlobalConfig
+    cfg = test_db.query(GlobalConfig).filter(GlobalConfig.key == "enable_budget_creation_suggestions").first()
+    cfg.value = "false"
+    test_db.commit()
+
+    # La détection déterministe ne doit rien émettre
+    suggs = suggest_new_envelopes_deterministic(test_db, force=True)
+    assert suggs == []
+
+    # Même si une suggestion préexistait en base, get_all_pending_budget_suggestions ne doit pas la remonter
+    d = AutopilotDecisionLog(
+        batch_id="batch-test",
+        decision_type="budget_creation_suggestion",
+        action="SUGGESTED",
+        entity_type="budget",
+        raw_snapshot=json.dumps({"category": "Pharmacie", "suggested_amount": 35.0, "observed_months": 3}),
+    )
+    test_db.add(d)
+    test_db.commit()
+
+    pending = get_all_pending_budget_suggestions(test_db)
+    creation_items = [item for item in pending if item.get("type") == "creation"]
+    assert creation_items == []
+
+
+def test_t5_13_toggle_disable_recalibration_suggestions(test_db):
+    """T5.13 : Interrupteur d'automatisation — Désactiver les suggestions de recalibrage mensuel."""
+    acc = Account(name="Courant", type="Compte courant", initial_balance=2000.0)
+    test_db.add(acc)
+    test_db.commit()
+
+    b = Budget(
+        name="Alimentation",
+        monthly_amount=100.0,
+        period="monthly",
+        envelope_type="spending",
+        is_closed=False,
+        is_locked=False,
+        base_annual_amount=1200.0,
+    )
+    test_db.add(b)
+    test_db.commit()
+    test_db.add(BudgetCategory(budget_id=b.id, category_name="Courses"))
+    test_db.commit()
+
+    today = date.today()
+    for m in range(1, 4):
+        past_date = today.replace(day=1) - relativedelta(months=m, days=-5)
+        test_db.add(Transaction(
+            from_account_id=acc.id,
+            category="Courses",
+            amount=150.0,
+            type="expense_var",
+            date_saisie=past_date,
+            date_operation=past_date,
+            description="Supermarché",
+        ))
+    test_db.commit()
+
+    # Désactiver l'option dans GlobalConfig
+    cfg = test_db.query(GlobalConfig).filter(GlobalConfig.key == "enable_budget_recalibration_suggestions").first()
+    cfg.value = "false"
+    test_db.commit()
+
+    # L'évaluation mensuelle ne doit rien émettre
+    recalibs = evaluate_monthly_budget_suggestions(test_db, force=True)
+    assert recalibs == []
+
+    # Même si une suggestion préexistait en base, get_all_pending_budget_suggestions ne doit pas la remonter
+    d = AutopilotDecisionLog(
+        batch_id="batch-recalib",
+        decision_type="budget_suggestion",
+        action="SUGGESTED",
+        entity_type="budget",
+        entity_id=b.id,
+        raw_snapshot=json.dumps({"budget_id": b.id, "suggested_amount": 110.0}),
+    )
+    test_db.add(d)
+    test_db.commit()
+
+    pending = get_all_pending_budget_suggestions(test_db)
+    recalib_items = [item for item in pending if item.get("type") == "recalibration"]
+    assert recalib_items == []
+
+
+def test_t5_14_engine_deterministic_selection(test_db):
+    """T5.14 : Sélection du moteur déterministe — Suggestions créées avec engine='deterministic'."""
+    acc = Account(name="Courant", type="Compte courant", initial_balance=2000.0)
+    test_db.add(acc)
+    test_db.commit()
+
+    today = date.today()
+    for m in range(1, 4):
+        past_date = today.replace(day=1) - relativedelta(months=m, days=-5)
+        test_db.add(Transaction(
+            from_account_id=acc.id,
+            category="Boulangerie",
+            amount=45.0,
+            type="expense_var",
+            date_saisie=past_date,
+            date_operation=past_date,
+            description="Pain & Croissants",
+        ))
+    test_db.commit()
+
+    cfg = test_db.query(GlobalConfig).filter(GlobalConfig.key == "budget_suggestion_engine").first()
+    if not cfg:
+        cfg = GlobalConfig(key="budget_suggestion_engine", value="deterministic")
+        test_db.add(cfg)
+    else:
+        cfg.value = "deterministic"
+    test_db.commit()
+
+    suggestions = suggest_new_envelopes(test_db, force=True, engine_override="deterministic")
+    assert len(suggestions) == 1
+    s = suggestions[0]
+    assert s["name"] == "Boulangerie"
+    assert s["engine"] == "deterministic"
+    assert s["categories"] == ["Boulangerie"]
+    assert s["suggested_amount"] == 45.0
+
+
+def test_t5_15_engine_ai_fallback_to_deterministic(test_db):
+    """T5.15 : Repli transparent zéro-crash — Si le moteur IA est choisi mais qu'Ollama est inaccessible, repli automatique."""
+    acc = Account(name="Courant", type="Compte courant", initial_balance=2000.0)
+    test_db.add(acc)
+    test_db.commit()
+
+    today = date.today()
+    for m in range(1, 4):
+        past_date = today.replace(day=1) - relativedelta(months=m, days=-5)
+        test_db.add(Transaction(
+            from_account_id=acc.id,
+            category="Jardinage",
+            amount=60.0,
+            type="expense_var",
+            date_saisie=past_date,
+            date_operation=past_date,
+            description="Plantes & Terreau",
+        ))
+    test_db.commit()
+
+    # Configurer l'IA activée mais avec URL invalide / non joignable
+    test_db.add_all([
+        GlobalConfig(key="enable_ai", value="true"),
+        GlobalConfig(key="ollama_url", value="http://127.0.0.1:9999"),
+        GlobalConfig(key="ollama_model", value="non_existent_model"),
+        GlobalConfig(key="budget_suggestion_engine", value="ai"),
+    ])
+    test_db.commit()
+
+    # L'appel ne doit lever AUCUNE exception HTTP 502 ou 500
+    suggestions = suggest_new_envelopes(test_db, force=True, engine_override="ai")
+    assert len(suggestions) == 1
+    s = suggestions[0]
+    assert s["name"] == "Jardinage"
+    assert s["engine"] == "deterministic_fallback"
+    assert s["suggested_amount"] == 60.0
+
+
+def test_t5_16_apply_multi_category_suggestion(test_db):
+    """T5.16 : Validation d'une suggestion multi-catégories — Attache toutes les catégories au Budget."""
+    acc = Account(name="Courant", type="Compte courant", initial_balance=2000.0)
+    test_db.add(acc)
+    test_db.commit()
+
+    # Créer une décision suggérée multi-catégories
+    snap = {
+        "name": "Artisans & Commerces",
+        "category": "Artisans & Commerces",
+        "categories": ["Boulangerie", "Boucherie"],
+        "suggested_amount": 120.0,
+        "avg_monthly": 120.0,
+        "observed_months": 3,
+        "engine": "ai",
+        "justification": "Regroupement sémantique IA (2 catégories)",
+    }
+    d = AutopilotDecisionLog(
+        batch_id="batch-multi-cat",
+        decision_type="budget_creation_suggestion",
+        action="SUGGESTED",
+        entity_type="budget",
+        raw_snapshot=json.dumps(snap),
+    )
+    test_db.add(d)
+    test_db.commit()
+
+    # Appliquer la suggestion
+    res = apply_budget_suggestion(test_db, d.id)
+    assert res["ok"] is True
+    assert res["type"] == "creation"
+    assert res["name"] == "Artisans & Commerces"
+
+    # Vérifier en base la création de l'enveloppe et des catégories rattachées
+    budget = test_db.query(Budget).filter(Budget.name == "Artisans & Commerces").first()
+    assert budget is not None
+    assert budget.monthly_amount == 120.0
+    assert budget.base_annual_amount == 1440.0
+
+    b_cats = test_db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget.id).all()
+    cat_names = sorted([bc.category_name for bc in b_cats])
+    assert cat_names == ["Boucherie", "Boulangerie"]
+
+    # Vérifier l'historique d'action pour le support Undo
+    act = test_db.query(ActionHistory).filter(ActionHistory.id == res["action_id"]).first()
+    assert act is not None
+    after_data = json.loads(act.new_state)
+    assert sorted(after_data.get("_categories", [])) == ["Boucherie", "Boulangerie"]
+
+
+def test_t5_17_dismiss_and_history(test_db):
+    """T5.17 : Écartement d'une suggestion et consultation de l'historique."""
+    snap = {
+        "name": "Bricolage",
+        "category": "Bricolage",
+        "suggested_amount": 75.0,
+        "avg_monthly": 75.0,
+        "observed_months": 3,
+    }
+    decision = AutopilotDecisionLog(
+        batch_id="batch-history-test",
+        decision_type="budget_creation_suggestion",
+        action="SUGGESTED",
+        entity_type="budget",
+        raw_snapshot=json.dumps(snap),
+    )
+    test_db.add(decision)
+    test_db.commit()
+
+    # Écarter la suggestion
+    res = dismiss_budget_suggestion(test_db, decision.id)
+    assert res["ok"] is True
+    assert res["action"] == "DISMISSED"
+
+    # Vérifier la présence dans l'historique des suggestions écartées
+    dismissed = get_dismissed_budget_suggestions(test_db)
+    assert len(dismissed) >= 1
+    found = next((d for d in dismissed if d["decision_id"] == decision.id), None)
+    assert found is not None
+    assert found["name"] == "Bricolage"
+    assert found["suggested_amount"] == 75.0
+    assert found["type"] == "creation"
+    assert found["dismissed_period"] is not None
+
+
+def test_t5_18_reactivate_suggestion(test_db):
+    """T5.18 : Réactivation d'une suggestion précédemment écartée."""
+    snap = {
+        "name": "Sport & Loisirs",
+        "category": "Sport & Loisirs",
+        "suggested_amount": 90.0,
+        "avg_monthly": 90.0,
+        "observed_months": 2,
+    }
+    decision = AutopilotDecisionLog(
+        batch_id="batch-reactivate-test",
+        decision_type="budget_creation_suggestion",
+        action="DISMISSED",
+        entity_type="budget",
+        raw_snapshot=json.dumps(snap),
+    )
+    test_db.add(decision)
+    test_db.commit()
+
+    # Réactiver la suggestion
+    res = reactivate_budget_suggestion(test_db, decision.id)
+    assert res["ok"] is True
+    assert res["action"] == "SUGGESTED"
+
+    # La suggestion doit réapparaître dans les suggestions en attente
+    pending = get_all_pending_budget_suggestions(test_db)
+    found_pending = next((p for p in pending if p["decision_id"] == decision.id), None)
+    assert found_pending is not None
+    assert found_pending["name"] == "Sport & Loisirs"
+
+    # Elle ne doit plus figurer dans les suggestions écartées
+    dismissed = get_dismissed_budget_suggestions(test_db)
+    found_dismissed = next((d for d in dismissed if d["decision_id"] == decision.id), None)
+    assert found_dismissed is None
+
+
+def test_t5_19_dismissed_scoped_to_current_month(test_db):
+    """T5.19 : Un recalibrage écarté le mois précédent ne bloque plus le mois en cours."""
+    from datetime import datetime
+
+    b = Budget(
+        name="Transport",
+        monthly_amount=100.0,
+        period="monthly",
+        envelope_type="spending",
+        is_closed=False,
+        is_locked=False,
+    )
+    test_db.add(b)
+    test_db.commit()
+
+    # Simuler une suggestion écartée il y a 40 jours (mois passé)
+    old_date = datetime.utcnow() - timedelta(days=40)
+    snap = {
+        "budget_id": b.id,
+        "budget_name": "Transport",
+        "current_amount": 100.0,
+        "suggested_amount": 120.0,
+    }
+    old_decision = AutopilotDecisionLog(
+        batch_id="batch-old-dismiss",
+        decision_type="budget_suggestion",
+        action="DISMISSED",
+        entity_type="budget",
+        entity_id=b.id,
+        raw_snapshot=json.dumps(snap),
+        created_at=old_date,
+    )
+    test_db.add(old_decision)
+    test_db.commit()
+
+    # Créer les dépenses récentes pour rendre Transport éligible au recalibrage
+    today = date.today()
+    acc = Account(name="Courant", type="Compte courant", initial_balance=2000.0)
+    test_db.add(acc)
+    test_db.flush()
+    test_db.add(BudgetCategory(budget_id=b.id, category_name="Carburant"))
+    for m in range(1, 4):
+        past_date = today.replace(day=1) - relativedelta(months=m, days=-5)
+        test_db.add(Transaction(
+            from_account_id=acc.id,
+            category="Carburant",
+            amount=140.0,
+            type="expense_var",
+            date_saisie=past_date,
+            date_operation=past_date,
+            description="Carburant",
+        ))
+    test_db.commit()
+
+    # Évaluer le recalibrage : le rejet du mois passé ne doit PAS bloquer le nouveau cycle
+    suggestions = evaluate_monthly_budget_suggestions(test_db, force=True)
+    transport_sugg = next((s for s in suggestions if s.get("budget_id") == b.id), None)
+    assert transport_sugg is not None
+    assert transport_sugg["budget_name"] == "Transport"
+
+
+def test_t5_20_clear_dismissed_history(test_db):
+    """T5.20 : Vidage complet de l'historique des suggestions écartées."""
+    # Créer 2 suggestions écartées
+    d1 = AutopilotDecisionLog(
+        batch_id="batch-clear-1",
+        decision_type="budget_creation_suggestion",
+        action="DISMISSED",
+        entity_type="budget",
+        raw_snapshot=json.dumps({"name": "Test Env 1"}),
+    )
+    d2 = AutopilotDecisionLog(
+        batch_id="batch-clear-2",
+        decision_type="budget_suggestion",
+        action="DISMISSED",
+        entity_type="budget",
+        raw_snapshot=json.dumps({"budget_name": "Test Env 2"}),
+    )
+    test_db.add_all([d1, d2])
+    test_db.commit()
+
+    assert len(get_dismissed_budget_suggestions(test_db)) >= 2
+
+    # Vider l'historique
+    res = clear_dismissed_budget_suggestions(test_db)
+    assert res["ok"] is True
+    assert res["count"] >= 2
+
+    # L'historique doit désormais être vide
+    assert len(get_dismissed_budget_suggestions(test_db)) == 0
+
+
+
+

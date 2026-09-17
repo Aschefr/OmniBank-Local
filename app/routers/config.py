@@ -22,6 +22,9 @@ def get_all_config(db: Session = Depends(get_db)):
         "budget_minimum_threshold": "30.0",
         "auto_create_budget_envelopes": "false",
         "auto_apply_budget_suggestions": "false",
+        "enable_budget_creation_suggestions": "true",
+        "enable_budget_recalibration_suggestions": "true",
+        "budget_suggestion_engine": "deterministic",
     }
     for k, v in defaults.items():
         if k not in res:

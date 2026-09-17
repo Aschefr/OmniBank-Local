@@ -463,6 +463,13 @@ window.AppModules.profiles = {
                     sessionStorage.setItem('omni_switching_profile', 'true');
                 } catch (_) {}
 
+                if (window.ProfileStorage && typeof window.ProfileStorage.init === 'function') {
+                    window.ProfileStorage.init(profileId);
+                }
+                if (window.BudgetsView && typeof window.BudgetsView.resetAiState === 'function') {
+                    window.BudgetsView.resetAiState();
+                }
+
                 if (res.reload_required) {
                     window.location.reload();
                 } else {

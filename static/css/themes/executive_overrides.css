@@ -1750,6 +1750,334 @@ body.theme-titanium-light .bv-progress-bar {
     border-radius: 3px !important;
 }
 
+/* ── 7.7.1 Executive Budget AI & Suggestions Encadré (#budgetAiPanel) ── */
+body.theme-titanium-dark .budget-ai-panel,
+body.theme-titanium-light .budget-ai-panel {
+    border-radius: 6px !important;
+    position: relative;
+    padding: 16px 20px !important;
+    margin-bottom: 24px !important;
+}
+
+body.theme-titanium-dark .budget-ai-panel {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 14px rgba(0, 0, 0, 0.35) !important;
+}
+
+body.theme-titanium-light .budget-ai-panel {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 8px rgba(60, 45, 30, 0.06) !important;
+}
+
+/* Liseré supérieur continu métallique 2px */
+body.theme-titanium-dark .budget-ai-panel::before,
+body.theme-titanium-light .budget-ai-panel::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .budget-ai-simulator,
+body.theme-titanium-light .budget-ai-simulator {
+    border-radius: 6px !important;
+}
+
+body.theme-titanium-dark .budget-ai-simulator {
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: var(--bg-base) !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.theme-titanium-light .budget-ai-simulator {
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    background: var(--bg-base) !important;
+    box-shadow: inset 0 1px 2px rgba(60, 45, 30, 0.04) !important;
+}
+
+body.theme-titanium-dark .budget-sim-gauge-card,
+body.theme-titanium-light .budget-sim-gauge-card {
+    border-radius: 6px !important;
+    position: relative;
+    padding: 14px 16px !important;
+}
+
+body.theme-titanium-dark .budget-sim-gauge-card {
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.theme-titanium-light .budget-sim-gauge-card {
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 3px rgba(60, 45, 30, 0.04) !important;
+}
+
+body.theme-titanium-dark .budget-sim-adjust-bar,
+body.theme-titanium-light .budget-sim-adjust-bar {
+    border-radius: 6px !important;
+}
+
+body.theme-titanium-dark .budget-sim-adjust-bar {
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: var(--bg-surface) !important;
+}
+
+body.theme-titanium-light .budget-sim-adjust-bar {
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    background: var(--bg-surface) !important;
+}
+
+body.theme-titanium-dark .budget-sim-adjust-bar button,
+body.theme-titanium-light .budget-sim-adjust-bar button {
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+}
+
+body.theme-titanium-dark .budget-ai-alert-banner,
+body.theme-titanium-light .budget-ai-alert-banner {
+    border-radius: 6px !important;
+}
+
+body.theme-titanium-dark .budget-ai-loading-overlay,
+body.theme-titanium-light .budget-ai-loading-overlay {
+    border-radius: 6px !important;
+}
+
+body.theme-titanium-dark .budget-ai-proposal-card,
+body.theme-titanium-light .budget-ai-proposal-card {
+    border-radius: 6px !important;
+    position: relative;
+    transition: all 0.15s ease !important;
+}
+
+body.theme-titanium-dark .budget-ai-proposal-card {
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+body.theme-titanium-light .budget-ai-proposal-card {
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 3px rgba(60, 45, 30, 0.03) !important;
+}
+
+body.theme-titanium-dark .budget-ai-proposal-card:hover,
+body.theme-titanium-light .budget-ai-proposal-card:hover {
+    border-color: var(--accent) !important;
+    transform: translateY(-1px) !important;
+}
+
+body.theme-titanium-dark .budget-ai-proposal-card.proposal-monthly,
+body.theme-titanium-light .budget-ai-proposal-card.proposal-monthly {
+    border-left: 3px solid var(--accent) !important;
+}
+
+body.theme-titanium-dark .budget-ai-proposal-card.proposal-yearly,
+body.theme-titanium-light .budget-ai-proposal-card.proposal-yearly {
+    border-left: 3px solid #8b5cf6 !important;
+}
+
+body.theme-titanium-dark .budget-ai-proposal-card input[type="text"],
+body.theme-titanium-light .budget-ai-proposal-card input[type="text"] {
+    border-radius: 4px !important;
+}
+
+body.theme-titanium-dark .budget-ai-proposal-card input[type="number"],
+body.theme-titanium-light .budget-ai-proposal-card input[type="number"] {
+    border-radius: 4px !important;
+}
+
+body.theme-titanium-dark .budget-ai-proposal-card select,
+body.theme-titanium-light .budget-ai-proposal-card select {
+    border-radius: 4px !important;
+}
+
+body.theme-titanium-dark .ai-cat-badge,
+body.theme-titanium-light .ai-cat-badge {
+    border-radius: 4px !important;
+    font-size: 11px !important;
+}
+
+body.theme-titanium-dark .budget-ai-unclassified-panel,
+body.theme-titanium-light .budget-ai-unclassified-panel {
+    border-radius: 6px !important;
+}
+
+body.theme-titanium-dark .budget-ai-sticky-bar,
+body.theme-titanium-light .budget-ai-sticky-bar {
+    border-radius: 6px !important;
+}
+
+body.theme-titanium-dark .budget-ai-sticky-bar {
+    background: rgba(35, 40, 50, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+body.theme-titanium-light .budget-ai-sticky-bar {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    box-shadow: 0 6px 20px rgba(60, 45, 30, 0.12) !important;
+}
+
+body.theme-titanium-dark .budget-ai-sticky-bar button,
+body.theme-titanium-light .budget-ai-sticky-bar button {
+    border-radius: 4px !important;
+    background: var(--accent) !important;
+    color: #fff !important;
+}
+
+/* ── 7.7.2 Executive Bandeau de Suggestions & Surveillance Active (Compact Strip) ── */
+body.theme-titanium-dark .budget-suggestions-strip,
+body.theme-titanium-light .budget-suggestions-strip {
+    border-radius: 6px !important;
+    position: relative;
+    border-left: 1px solid var(--border-color) !important;
+}
+
+body.theme-titanium-dark .budget-suggestions-strip {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.theme-titanium-light .budget-suggestions-strip {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 4px rgba(60, 45, 30, 0.05) !important;
+}
+
+body.theme-titanium-dark .budget-suggestions-strip::before,
+body.theme-titanium-light .budget-suggestions-strip::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .budget-strip-active-monitoring::before,
+body.theme-titanium-light .budget-strip-active-monitoring::before {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #a7f3d0 100%) !important;
+}
+
+body.theme-titanium-dark .budget-suggestions-strip button,
+body.theme-titanium-light .budget-suggestions-strip button {
+    border-radius: 4px !important;
+}
+
+/* ── 7.7.3 Executive Modales Budgets (Revue & Automatismes) ── */
+body.theme-titanium-dark .budget-review-modal,
+body.theme-titanium-light .budget-review-modal,
+body.theme-titanium-dark #budgetAutomationsModal .modal,
+body.theme-titanium-light #budgetAutomationsModal .modal,
+body.theme-titanium-dark .budget-dismissed-modal,
+body.theme-titanium-light .budget-dismissed-modal {
+    border-radius: 6px !important;
+    position: relative;
+}
+
+body.theme-titanium-dark .budget-review-modal,
+body.theme-titanium-dark #budgetAutomationsModal .modal,
+body.theme-titanium-dark .budget-dismissed-modal {
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 24px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+body.theme-titanium-light .budget-review-modal,
+body.theme-titanium-light #budgetAutomationsModal .modal,
+body.theme-titanium-light .budget-dismissed-modal {
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 20px 50px rgba(60, 45, 30, 0.15) !important;
+}
+
+body.theme-titanium-dark .budget-review-modal::before,
+body.theme-titanium-light .budget-review-modal::before,
+body.theme-titanium-dark #budgetAutomationsModal .modal::before,
+body.theme-titanium-light #budgetAutomationsModal .modal::before,
+body.theme-titanium-dark .budget-dismissed-modal::before,
+body.theme-titanium-light .budget-dismissed-modal::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .budget-review-row,
+body.theme-titanium-light .budget-review-row {
+    border-radius: 4px !important;
+}
+
+body.theme-titanium-dark .budget-review-tab,
+body.theme-titanium-light .budget-review-tab,
+body.theme-titanium-dark .review-action-btn,
+body.theme-titanium-light .review-action-btn {
+    border-radius: 4px !important;
+}
+
+/* ── 7.7.4 Executive Bandeau Compact Suggestions Masquées (.budget-ai-minimized-strip) ── */
+body.theme-titanium-dark .budget-ai-minimized-strip,
+body.theme-titanium-light .budget-ai-minimized-strip {
+    border-radius: 6px !important;
+    position: relative;
+    padding: 10px 16px !important;
+    margin-bottom: 20px !important;
+}
+
+body.theme-titanium-dark .budget-ai-minimized-strip {
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.theme-titanium-light .budget-ai-minimized-strip {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(60, 45, 30, 0.05) !important;
+}
+
+body.theme-titanium-dark .budget-ai-minimized-strip::before,
+body.theme-titanium-light .budget-ai-minimized-strip::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+    background: var(--accent-gradient);
+}
+
+body.theme-titanium-dark .budget-ai-minimized-strip button,
+body.theme-titanium-light .budget-ai-minimized-strip button {
+    border-radius: 4px !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+}
+
 /* ── 7.8 Tendances (Trends) & Graphiques ── */
 body.theme-titanium-dark .trends-chart-pane,
 body.theme-titanium-dark .trends-table-pane,
