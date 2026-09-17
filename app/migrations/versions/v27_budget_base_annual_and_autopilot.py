@@ -29,3 +29,6 @@ def upgrade(conn: Connection) -> None:
     conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('last_budget_recalibration_period', '')"))
     conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('auto_create_budget_envelopes', 'false')"))
     conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('auto_apply_budget_suggestions', 'false')"))
+    conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('enable_budget_creation_suggestions', 'true')"))
+    conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('enable_budget_recalibration_suggestions', 'true')"))
+    conn.execute(text("INSERT OR IGNORE INTO global_config (key, value) VALUES ('budget_suggestion_engine', 'deterministic')"))

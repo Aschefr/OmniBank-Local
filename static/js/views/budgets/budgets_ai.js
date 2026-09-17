@@ -93,11 +93,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             });
 
             if (res && res.proposals) {
-                this.aiProposals = res.proposals;
                 if (res.unclassified_categories) {
                     this.unclassifiedCategories = res.unclassified_categories;
                 }
-                this.renderAiProposalsList();
+                this.renderAiProposals(res.proposals);
                 if (this.wizardState && this.wizardState.currentStep) {
                     this.renderWizardStep();
                 }
@@ -108,7 +107,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     },
 
     async requestAiSuggestions(windowMonths = 3, outlierSensitivity = null) {
-        sessionStorage.removeItem('budget_ai_panel_closed');
+        this.removeProfileSessionItem('budget_ai_panel_closed');
+        this.removeProfileSessionItem('budget_ai_panel_hidden');
         const sensitivity = outlierSensitivity !== null ? outlierSensitivity : (this.currentOutlierSensitivity || 2);
         this.currentOutlierSensitivity = sensitivity;
 
@@ -124,6 +124,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         this.updateAiWindowButtonsState(windowMonths);
 
         const panel = document.getElementById('budgetAiPanel');
+        const strip = document.getElementById('budgetAiMinimizedStrip');
         const container = document.getElementById('budgetAiProposals');
         const overlay = document.getElementById('aiLoadingOverlay');
         const simulator = document.getElementById('aiBudgetSimulator') || document.getElementById('aiImpactSimulator');
@@ -133,6 +134,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         this.aiProposals = [];
         this.unclassifiedCategories = [];
 
+        if (strip) strip.style.display = 'none';
         if (simulator) simulator.style.display = 'none';
         if (alertBanner) alertBanner.style.display = 'none';
         if (stickyBar) stickyBar.style.display = 'none';
@@ -387,10 +389,60 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         });
     },
 
+    getProfileId() {
+        if (window.ProfileStorage && typeof window.ProfileStorage.getActiveProfileId === 'function') {
+            return window.ProfileStorage.getActiveProfileId();
+        }
+        return (window.app && window.app.activeProfileId) || 'default';
+    },
+
+    getProfileSessionItem(key) {
+        if (window.ProfileSessionStorage && typeof window.ProfileSessionStorage.getItem === 'function') {
+            return window.ProfileSessionStorage.getItem(key);
+        }
+        return sessionStorage.getItem(`${this.getProfileId()}_${key}`);
+    },
+
+    setProfileSessionItem(key, val) {
+        if (window.ProfileSessionStorage && typeof window.ProfileSessionStorage.setItem === 'function') {
+            return window.ProfileSessionStorage.setItem(key, val);
+        }
+        sessionStorage.setItem(`${this.getProfileId()}_${key}`, val);
+    },
+
+    removeProfileSessionItem(key) {
+        if (window.ProfileSessionStorage && typeof window.ProfileSessionStorage.removeItem === 'function') {
+            return window.ProfileSessionStorage.removeItem(key);
+        }
+        sessionStorage.removeItem(`${this.getProfileId()}_${key}`);
+    },
+
+    resetAiState() {
+        this.aiProposals = [];
+        this.unclassifiedCategories = [];
+        this.aiSuggestMeta = null;
+        this.customSalaryOverride = null;
+        this.customYearlySalaryOverride = null;
+        this.wizardState = {
+            currentStep: 1,
+            currentProposalIndex: 0,
+            pendingCategories: []
+        };
+        const panel = document.getElementById('budgetAiPanel');
+        if (panel) {
+            panel.style.display = 'none';
+            panel.innerHTML = '';
+        }
+        const strip = document.getElementById('budgetAiMinimizedStrip');
+        if (strip) strip.style.display = 'none';
+        this.updateHeaderSuggestionsButton();
+    },
+
     saveAiStateToSession() {
         try {
             if (this.aiProposals !== undefined && this.aiProposals !== null) {
                 const data = {
+                    profile_id: this.getProfileId(),
                     proposals: this.aiProposals,
                     unclassified: this.unclassifiedCategories || [],
                     meta: this.aiSuggestMeta || null,
@@ -398,16 +450,19 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     customYearlySalaryOverride: this.customYearlySalaryOverride || null,
                     wizardState: this.wizardState || null
                 };
-                sessionStorage.setItem('omni_ai_proposals_state', JSON.stringify(data));
+                this.setProfileSessionItem('omni_ai_proposals_state', JSON.stringify(data));
             }
         } catch (e) {}
     },
 
     loadAiStateFromSession() {
         try {
-            const raw = sessionStorage.getItem('omni_ai_proposals_state');
+            const raw = this.getProfileSessionItem('omni_ai_proposals_state');
             if (raw) {
                 const data = JSON.parse(raw);
+                if (data && data.profile_id && data.profile_id !== this.getProfileId()) {
+                    return false;
+                }
                 if (data && Array.isArray(data.proposals)) {
                     this.aiSuggestMeta = data.meta;
                     this.unclassifiedCategories = data.unclassified || [];
@@ -429,15 +484,40 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     },
 
     clearAiStateFromSession() {
-        sessionStorage.removeItem('omni_ai_proposals_state');
+        this.removeProfileSessionItem('omni_ai_proposals_state');
     },
 
     async checkAiTaskStatusOnMount() {
-        if (sessionStorage.getItem('budget_ai_panel_closed') === 'true') return;
-
-        if (this.loadAiStateFromSession() && this.aiProposals) {
-            this.renderAiProposalsList();
+        if (this.getProfileSessionItem('budget_ai_panel_closed') === 'true') {
+            this.resetAiState();
             return;
+        }
+
+        if (this.loadAiStateFromSession() && this.aiProposals && this.aiProposals.length > 0) {
+            const isHidden = this.getProfileSessionItem('budget_ai_panel_hidden') === 'true';
+            this.renderAiProposalsList();
+            if (isHidden) {
+                const panel = document.getElementById('budgetAiPanel');
+                if (panel) panel.style.display = 'none';
+                const strip = document.getElementById('budgetAiMinimizedStrip');
+                if (strip) {
+                    strip.style.display = 'flex';
+                    const countEl = document.getElementById('minimizedAiCount');
+                    if (countEl) countEl.textContent = this.aiProposals.length;
+                }
+            } else {
+                const panel = document.getElementById('budgetAiPanel');
+                if (panel) panel.style.display = 'block';
+                const strip = document.getElementById('budgetAiMinimizedStrip');
+                if (strip) strip.style.display = 'none';
+            }
+            this.updateHeaderSuggestionsButton();
+            return;
+        } else {
+            // Étanchéité : pas de propositions valides pour ce profil
+            this.aiProposals = [];
+            this.unclassifiedCategories = [];
+            this.aiSuggestMeta = null;
         }
 
         try {
@@ -534,9 +614,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             return {
                 ...p,
                 cat_amounts,
-                original_amount: p.suggested_amount,
-                period: p.suggested_period || 'monthly',
-                selected: true
+                original_cat_amounts: { ...cat_amounts },
+                original_amount: p.original_amount !== undefined ? p.original_amount : p.suggested_amount,
+                historical_actual_amount: p.historical_actual_amount !== undefined ? p.historical_actual_amount : p.suggested_amount,
+                period: p.suggested_period || p.period || 'monthly',
+                selected: p.selected !== undefined ? p.selected : true
             };
         });
         this.unclassifiedCategories = (this.aiSuggestMeta && this.aiSuggestMeta.unclassified_categories) || [];
@@ -569,10 +651,15 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     adjustAiProposals(multiplier, isAbsoluteReset = false) {
         if (!this.aiProposals) return;
         this.aiProposals.forEach((p, i) => {
-            if (p.is_fixed) return;
+            if (p.is_fixed && !p.unlocked) return;
+
+            const oldAmt = p.suggested_amount;
 
             if (isAbsoluteReset) {
-                p.suggested_amount = p.original_amount;
+                p.suggested_amount = p.original_amount !== undefined ? p.original_amount : (p.historical_actual_amount !== undefined ? p.historical_actual_amount : p.suggested_amount);
+                if (p.original_cat_amounts) {
+                    p.cat_amounts = { ...p.original_cat_amounts };
+                }
             } else if (p.has_fixed_mix && p.fixed_sum > 0) {
                 const variablePart = Math.max(0, p.suggested_amount - p.fixed_sum);
                 const adjustedVar = Math.round(variablePart * multiplier * 100) / 100;
@@ -581,9 +668,27 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 p.suggested_amount = Math.max(0, Math.round(p.suggested_amount * multiplier * 100) / 100);
             }
 
+            // Mettre à jour proportionnellement cat_amounts pour la cohérence des cartes et segments
+            if (p.cat_amounts && oldAmt > 0 && !isAbsoluteReset) {
+                const ratio = p.suggested_amount / oldAmt;
+                for (const c in p.cat_amounts) {
+                    p.cat_amounts[c] = Math.round(p.cat_amounts[c] * ratio * 100) / 100;
+                }
+            }
+
             const input = document.getElementById(`aiProposalAmount_${i}`);
             if (input) input.value = p.suggested_amount;
         });
+
+        if (window.showToast) {
+            const pct = Math.round((multiplier - 1) * 100);
+            const sign = pct > 0 ? `+${pct}%` : `${pct}%`;
+            const msg = (window.i18n && window.i18n.t && window.i18n.t('ai_sim_toast_adjusted'))
+                ? window.i18n.t('ai_sim_toast_adjusted').replace('{sign}', sign)
+                : `Montant des enveloppes ajusté (${sign})`;
+            window.showToast(msg, 'info');
+        }
+
         this.renderAiProposalsList();
     },
 
@@ -595,10 +700,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const isYearly = (p.period || p.suggested_period) === 'yearly';
             const paceAvgSum = (p.categories || []).reduce((sum, c) => {
                 let val = 0;
-                if (p.cat_amounts && p.cat_amounts[c] !== undefined) {
-                    val = p.cat_amounts[c];
-                } else if (p.cat_details && p.cat_details[c] && p.cat_details[c].amount !== undefined) {
+                if (p.cat_details && p.cat_details[c] && p.cat_details[c].amount !== undefined) {
                     val = p.cat_details[c].amount;
+                } else if (p.cat_amounts && p.cat_amounts[c] !== undefined) {
+                    val = p.cat_amounts[c];
                 } else if (this.aiSuggestMeta && this.aiSuggestMeta.cat_averages && this.aiSuggestMeta.cat_averages[c] !== undefined) {
                     const monthlyAvg = Math.abs(this.aiSuggestMeta.cat_averages[c]);
                     val = isYearly ? (monthlyAvg * 12.0) : monthlyAvg;
@@ -615,6 +720,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const input = document.getElementById(`aiProposalAmount_${i}`);
             if (input) input.value = p.suggested_amount;
         });
+
+        if (window.showToast) {
+            const msg = (window.i18n && window.i18n.t && window.i18n.t('ai_sim_toast_aligned_avg'))
+                ? window.i18n.t('ai_sim_toast_aligned_avg')
+                : "Enveloppes alignées sur la moyenne historique constatée";
+            window.showToast(msg, 'info');
+        }
+
         this.renderAiProposalsList();
     },
 
@@ -640,7 +753,26 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const input = document.getElementById(`aiProposalAmount_${i}`);
             if (input) input.value = p.suggested_amount;
         });
+
+        if (window.showToast) {
+            const msg = (window.i18n && window.i18n.t && window.i18n.t('ai_sim_toast_aligned_month'))
+                ? window.i18n.t('ai_sim_toast_aligned_month')
+                : "Enveloppes alignées sur les dépenses du mois en cours";
+            window.showToast(msg, 'info');
+        }
+
         this.renderAiProposalsList();
+    },
+
+    isDeterministicEngine() {
+        if (this.aiSuggestMeta && this.aiSuggestMeta.engine) {
+            return this.aiSuggestMeta.engine === 'deterministic';
+        }
+        if (this.aiProposals && this.aiProposals.length > 0 && this.aiProposals[0].engine) {
+            return this.aiProposals[0].engine === 'deterministic';
+        }
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        return (cfg.budget_suggestion_engine ?? 'deterministic') === 'deterministic';
     },
 
     resetAiProposalsToOriginal() {
@@ -648,11 +780,23 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         this.aiProposals.forEach((p, i) => {
             if (p.is_fixed && !p.unlocked) return;
 
-            const orig = p.original_amount !== undefined ? p.original_amount : p.suggested_amount;
+            const orig = p.original_amount !== undefined ? p.original_amount : (p.historical_actual_amount !== undefined ? p.historical_actual_amount : p.suggested_amount);
             p.suggested_amount = Math.round(orig * 100) / 100;
+            if (p.original_cat_amounts) {
+                p.cat_amounts = { ...p.original_cat_amounts };
+            }
             const input = document.getElementById(`aiProposalAmount_${i}`);
             if (input) input.value = p.suggested_amount;
         });
+
+        if (window.showToast) {
+            const isDet = this.isDeterministicEngine();
+            const msg = isDet
+                ? ((window.i18n && window.i18n.t && window.i18n.t('ai_sim_toast_reset_det')) || "Suggestions réinitialisées aux montants initiaux")
+                : ((window.i18n && window.i18n.t && window.i18n.t('ai_sim_toast_reset_orig')) || "Suggestions réinitialisées aux montants proposés par l'IA");
+            window.showToast(msg, 'info');
+        }
+
         this.renderAiProposalsList();
     },
 
@@ -670,7 +814,20 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (regularSalary <= 0) {
             regularSalary = (this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.average_income || this.capacityData.monthly.income_ref || 0) : 0;
         }
-        if (regularSalary <= 0) return;
+        if (regularSalary <= 0) {
+            if (window.showToast) {
+                const msg = (window.i18n && window.i18n.t && window.i18n.t('ai_sim_toast_no_salary'))
+                    ? window.i18n.t('ai_sim_toast_no_salary')
+                    : "Veuillez renseigner un revenu repère pour utiliser l'alignement sur les revenus.";
+                window.showToast(msg, 'warning');
+            }
+            if (salaryInput) {
+                salaryInput.focus();
+                salaryInput.style.borderColor = '#ef4444';
+                setTimeout(() => { salaryInput.style.borderColor = ''; }, 2000);
+            }
+            return;
+        }
 
         const currentMonthlyCapacity = (this.aiSuggestMeta && this.aiSuggestMeta.already_engaged_monthly !== undefined)
             ? this.aiSuggestMeta.already_engaged_monthly
@@ -723,6 +880,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 }
             }
         }
+
+        if (window.showToast) {
+            const msg = (window.i18n && window.i18n.t && window.i18n.t('ai_sim_toast_aligned_income'))
+                ? window.i18n.t('ai_sim_toast_aligned_income').replace('{amount}', formatCurrency(regularSalary))
+                : `Enveloppes alignées sur les revenus (${formatCurrency(regularSalary)})`;
+            window.showToast(msg, 'info');
+        }
+
         this.renderAiProposalsList();
     },
 
@@ -895,7 +1060,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            const unit = isYearly ? '€/an' : '€/m';
+            const unit = isYearly ? '/an' : '/m';
             // Echelle fixe entre 0 et Max€ (Cas le plus haut + 5% de marge visuelle)
             const maxVal = Math.max(envelopeAmount, salaryRef, estimatedAmount, 100) * 1.05;
 
@@ -915,11 +1080,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <!-- Barre d'affichage superposée fine -->
                     <div style="position:relative;height:8px;background:var(--bg-base);border:1px solid var(--border-color);border-radius:4px;overflow:visible;margin-top:14px;margin-bottom:14px;">
                         <!-- Barre Bleue (Montant des enveloppes) -->
-                        <div style="position:absolute;top:0;left:0;bottom:0;width:${envPct}%;background:linear-gradient(90deg, #3b82f6, #6366f1);border-radius:4px;transition:width 0.4s ease;max-width:100%;" title="Montant des enveloppes: ${formatCurrency(envelopeAmount)} ${unit}"></div>
+                        <div style="position:absolute;top:0;left:0;bottom:0;width:${envPct}%;background:var(--accent-gradient);border-radius:4px;transition:width 0.4s ease;max-width:100%;" title="Montant des enveloppes: ${formatCurrency(envelopeAmount)}${unit}"></div>
                         
                         <!-- Repère Jaune (Montant des dépenses estimées) -->
                         ${estimatedPct !== null ? `
-                            <div style="position:absolute;top:-4px;bottom:-4px;left:${estimatedPct}%;width:3px;background:#eab308;box-shadow:0 0 6px #eab308;z-index:3;" title="Dépenses estimées: ${formatCurrency(estimatedAmount)} ${unit}">
+                            <div style="position:absolute;top:-4px;bottom:-4px;left:${estimatedPct}%;width:3px;background:#eab308;box-shadow:0 0 6px #eab308;z-index:3;" title="Dépenses estimées: ${formatCurrency(estimatedAmount)}${unit}">
                                 <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:2px;background:#eab308;color:#000000;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
                                     🟨 Est. lissée ${formatCurrency(estimatedAmount)}
                                 </div>
@@ -928,7 +1093,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
                         <!-- Repère Violet (Salaire repère) -->
                         ${salaryPct !== null ? `
-                            <div style="position:absolute;top:-6px;bottom:-6px;left:${salaryPct}%;width:3px;background:#c084fc;box-shadow:0 0 6px #c084fc;z-index:4;" title="Revenus repère: ${formatCurrency(salaryRef)} ${unit}">
+                            <div style="position:absolute;top:-6px;bottom:-6px;left:${salaryPct}%;width:3px;background:#c084fc;box-shadow:0 0 6px #c084fc;z-index:4;" title="Revenus repère: ${formatCurrency(salaryRef)}${unit}">
                                 <div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:2px;background:#c084fc;color:#ffffff;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
                                     💼 Salaire: ${formatCurrency(salaryRef)}
                                 </div>
@@ -946,15 +1111,15 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         // Mise à jour des badges de chaque carte
         const card1Badge = document.getElementById('aiSimCard1Badge');
-        if (card1Badge) card1Badge.textContent = `${formatCurrency(impactCombinedMonthly)} €/m`;
+        if (card1Badge) card1Badge.textContent = `${formatCurrency(impactCombinedMonthly)}/m`;
 
         const card2Badge = document.getElementById('aiSimCard2Badge');
-        if (card2Badge) card2Badge.textContent = `${formatCurrency(impactMonthlyStrict)} €/m`;
+        if (card2Badge) card2Badge.textContent = `${formatCurrency(impactMonthlyStrict)}/m`;
 
         const card3Badge = document.getElementById('aiSimCard3Badge');
         if (card3Badge) {
             const smoothedMonthly = impactYearlyStrict / 12.0;
-            card3Badge.innerHTML = `${formatCurrency(impactYearlyStrict)} €/an <span style="font-size:10px;font-weight:600;color:var(--text-muted);margin-left:4px;">(${formatCurrency(smoothedMonthly)} €/m)</span>`;
+            card3Badge.innerHTML = `${formatCurrency(impactYearlyStrict)}/an <span style="font-size:10px;font-weight:600;color:var(--text-muted);margin-left:4px;">(${formatCurrency(smoothedMonthly)}/m)</span>`;
         }
 
         // Rendu des 3 gauges
@@ -1328,17 +1493,32 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
     renderAiProposalsList() {
         const panel = document.getElementById('budgetAiPanel');
+        const strip = document.getElementById('budgetAiMinimizedStrip');
         const container = document.getElementById('budgetAiProposals');
         const simulator = document.getElementById('aiBudgetSimulator');
 
         const proposals = this.aiProposals || [];
         const unclassified = this.unclassifiedCategories || [];
 
-        if (sessionStorage.getItem('budget_ai_panel_closed') === 'true' || (!proposals.length && !unclassified.length)) {
+        if (this.getProfileSessionItem('budget_ai_panel_closed') === 'true' || (!proposals.length && !unclassified.length)) {
             if (panel) panel.style.display = 'none';
+            if (strip) strip.style.display = 'none';
+            this.updateHeaderSuggestionsButton();
             return;
         }
-        if (panel) panel.style.display = 'block';
+
+        const isHidden = this.getProfileSessionItem('budget_ai_panel_hidden') === 'true';
+        if (isHidden) {
+            if (panel) panel.style.display = 'none';
+            if (strip) {
+                strip.style.display = 'flex';
+                const countEl = document.getElementById('minimizedAiCount');
+                if (countEl) countEl.textContent = proposals.length;
+            }
+        } else {
+            if (panel) panel.style.display = 'block';
+            if (strip) strip.style.display = 'none';
+        }
 
         const windowMonths = (this.aiSuggestMeta && this.aiSuggestMeta.window_months) || 3;
         this.updateAiWindowButtonsState(windowMonths);
@@ -1469,7 +1649,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             }
 
             return `
-                <div id="aiProposal_${proposalRealIndex}" style="${bgTint}border-radius:8px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;">
+                <div id="aiProposal_${proposalRealIndex}" class="budget-ai-proposal-card ${isYearly ? 'proposal-yearly' : 'proposal-monthly'}" style="display:flex;flex-direction:column;gap:6px;">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
                         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:240px;">
                             <input type="checkbox" class="ai-proposal-checkbox" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);" ${p.selected ? 'checked' : ''} onchange="window.BudgetsView.toggleAiProposal(${proposalRealIndex}, this.checked)">
@@ -1477,7 +1657,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <div style="display:flex;flex-direction:column;gap:2px;">
                                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                                     <input type="text" 
-                                           value="${p.name.replace(/"/g, '&quot;')}" 
+                                           value="${String(p.name || p.category || (p.categories && p.categories[0]) || 'Enveloppe').replace(/"/g, '&quot;')}" 
                                            style="font-size:13px;font-weight:700;color:var(--text-main);background:transparent;border:1px solid transparent;border-radius:4px;padding:1px 4px;outline:none;transition:all 0.2s ease;max-width:280px;" 
                                            onfocus="this.style.background='var(--bg-surface)'; this.style.borderColor='var(--accent)';"
                                            onblur="this.style.background='transparent'; this.style.borderColor='transparent';"
@@ -1619,7 +1799,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                                 tooltipText += `\nExemples: ${details.top_descs.join(', ')}`;
                                             }
 
-                                            const amtFormatted = `${item.amount.toFixed(0)}€`;
+                                            const amtFormatted = item.amount < 1 
+                                                ? (item.amount > 0 ? `${item.amount.toFixed(2)}€` : '0€') 
+                                                : (item.amount < 10 ? `${item.amount.toFixed(1)}€` : `${item.amount.toFixed(0)}€`);
                                             const fitsInside = pct >= 5;
                                             const labelHtml = fitsInside ? `<span style="font-size:9.5px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;text-shadow:0 1px 2px rgba(0,0,0,0.7);">${item.name} (${amtFormatted})</span>` : '';
 
@@ -1682,7 +1864,19 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         container.innerHTML = html;
 
         this.updateAiImpactSimulation();
+
+        const btnReset = document.getElementById('btnResetProposals');
+        if (btnReset) {
+            const isDet = this.isDeterministicEngine();
+            const t = (k, def) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : def;
+            btnReset.textContent = isDet 
+                ? t('budget_strategy_reset_det', '💡 Aligner avec suggestions initiales')
+                : t('ai_budget_strategy_recommended_clean', '🤖 Aligner avec suggestions IA');
+            btnReset.setAttribute('data-i18n', isDet ? 'budget_strategy_reset_det' : 'ai_budget_strategy_recommended_clean');
+        }
+
         this.saveAiStateToSession();
+        this.updateHeaderSuggestionsButton();
     },
 
     renderAiUnclassifiedPanelHtml() {
@@ -1729,7 +1923,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }).join('');
 
         return `
-            <div id="aiUnclassifiedPanel" style="background:var(--bg-base);border:1px dashed var(--accent);border-radius:10px;padding:14px 16px;margin-top:14px;">
+            <div id="aiUnclassifiedPanel" class="budget-ai-unclassified-panel" style="margin-top:14px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
                     <strong style="color:var(--accent);font-size:13px;">
                         ${(window.i18n.t('ai_budget_unclassified_title') || '📌 Catégories non classées')} (${unclassified.length})
@@ -1891,6 +2085,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const createdNames = new Set();
         try {
             for (const p of proposals) {
+                if (p.decision_id) {
+                    try {
+                        await API.post(`/api/budgets/autopilot/suggestions/${p.decision_id}/approve`);
+                        count++;
+                        createdNames.add(p.name);
+                        continue;
+                    } catch (err) {
+                        console.warn('[Budgets AI] Approbation directe suggestion échouée, repli standard:', err);
+                    }
+                }
                 await API.post('/api/budgets/', {
                     name: p.name,
                     monthly_amount: p.suggested_amount,
@@ -1904,13 +2108,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
             this.aiProposals = (this.aiProposals || []).filter(p => !createdNames.has(p.name));
             if (!this.aiProposals.length) {
-                this.closeAiPanel();
+                this.purgeAiSuggestions(true);
             } else {
                 this.renderAiProposalsList();
             }
 
             await this.loadBudgets();
             await this.loadStatus();
+            if (this.loadAutopilotSuggestions) {
+                await this.loadAutopilotSuggestions();
+            }
             window.app.refreshSidebar();
             showInlineMessage(window.i18n.t('title_info'), `${count} enveloppe(s) créée(s) avec succès !`);
         } catch(e) {
@@ -1931,13 +2138,28 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
 
         try {
-            await API.post('/api/budgets/', {
-                name: proposal.name,
-                monthly_amount: proposal.suggested_amount,
-                period: proposal.period || proposal.suggested_period || 'monthly',
-                is_project: false,
-                categories: proposal.categories || [],
-            });
+            if (proposal.decision_id) {
+                try {
+                    await API.post(`/api/budgets/autopilot/suggestions/${proposal.decision_id}/approve`);
+                } catch (err) {
+                    console.warn('[Budgets AI] Approbation directe suggestion échouée, repli standard:', err);
+                    await API.post('/api/budgets/', {
+                        name: proposal.name,
+                        monthly_amount: proposal.suggested_amount,
+                        period: proposal.period || proposal.suggested_period || 'monthly',
+                        is_project: false,
+                        categories: proposal.categories || [],
+                    });
+                }
+            } else {
+                await API.post('/api/budgets/', {
+                    name: proposal.name,
+                    monthly_amount: proposal.suggested_amount,
+                    period: proposal.period || proposal.suggested_period || 'monthly',
+                    is_project: false,
+                    categories: proposal.categories || [],
+                });
+            }
             
             this._pendingHighlightName = proposal.name;
 
@@ -1947,10 +2169,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
             await this.loadBudgets();
             await this.loadStatus();
+            if (this.loadAutopilotSuggestions) {
+                await this.loadAutopilotSuggestions();
+            }
             window.app.refreshSidebar();
 
             if (!this.aiProposals || !this.aiProposals.length) {
-                this.closeAiPanel();
+                this.purgeAiSuggestions(true);
             } else {
                 this.renderAiProposalsList();
             }
@@ -1980,13 +2205,107 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
     },
 
-    closeAiPanel() {
-        sessionStorage.setItem('budget_ai_panel_closed', 'true');
+    hideAiPanel() {
+        this.setProfileSessionItem('budget_ai_panel_hidden', 'true');
+        this.removeProfileSessionItem('budget_ai_panel_closed');
+        this.saveAiStateToSession();
+
+        const panel = document.getElementById('budgetAiPanel');
+        if (panel) panel.style.display = 'none';
+
+        const count = (this.aiProposals || []).length;
+        const strip = document.getElementById('budgetAiMinimizedStrip');
+        if (strip && count > 0) {
+            strip.style.display = 'flex';
+            const countEl = document.getElementById('minimizedAiCount');
+            if (countEl) countEl.textContent = count;
+        }
+
+        this.updateHeaderSuggestionsButton();
+    },
+
+    showAiPanel() {
+        this.removeProfileSessionItem('budget_ai_panel_hidden');
+        this.removeProfileSessionItem('budget_ai_panel_closed');
+
+        const strip = document.getElementById('budgetAiMinimizedStrip');
+        if (strip) strip.style.display = 'none';
+
+        const panel = document.getElementById('budgetAiPanel');
+        if (panel) {
+            panel.style.display = 'block';
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        this.updateHeaderSuggestionsButton();
+    },
+
+    purgeAiSuggestions(silent = false) {
+        this.removeProfileSessionItem('budget_ai_panel_hidden');
+        this.setProfileSessionItem('budget_ai_panel_closed', 'true');
         this.clearAiStateFromSession();
         this.aiProposals = [];
         this.unclassifiedCategories = [];
+
         const panel = document.getElementById('budgetAiPanel');
         if (panel) panel.style.display = 'none';
+
+        const strip = document.getElementById('budgetAiMinimizedStrip');
+        if (strip) strip.style.display = 'none';
+
+        this.updateHeaderSuggestionsButton();
+
+        if (!silent && window.showInlineMessage) {
+            window.showInlineMessage(
+                (window.i18n && window.i18n.t('title_info')) || 'Information',
+                (window.i18n && window.i18n.t('budget_ai_purged_toast')) || 'Suggestions réinitialisées. Vous pouvez relancer une analyse à tout moment.'
+            );
+        }
+    },
+
+    closeAiPanel() {
+        this.purgeAiSuggestions(true);
+    },
+
+    handleHeaderSuggestionsBtnClick() {
+        const hasProposals = (this.aiProposals && this.aiProposals.length > 0) || (this.unclassifiedCategories && this.unclassifiedCategories.length > 0);
+        const isHidden = this.getProfileSessionItem('budget_ai_panel_hidden') === 'true';
+        const isClosed = this.getProfileSessionItem('budget_ai_panel_closed') === 'true';
+        const panel = document.getElementById('budgetAiPanel');
+        const isPanelVisible = panel && panel.style.display !== 'none';
+
+        if (hasProposals && !isClosed && (isHidden || !isPanelVisible)) {
+            // Restore instantly on demand!
+            this.showAiPanel();
+        } else {
+            // Launch analysis or configure period
+            this.openAiWindowModal();
+        }
+    },
+
+    updateHeaderSuggestionsButton() {
+        const btn = document.getElementById('budgetAiBtn');
+        if (!btn) return;
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const hasProposals = (this.aiProposals && this.aiProposals.length > 0);
+        const isHidden = this.getProfileSessionItem('budget_ai_panel_hidden') === 'true';
+        const isClosed = this.getProfileSessionItem('budget_ai_panel_closed') === 'true';
+        const panel = document.getElementById('budgetAiPanel');
+        const isPanelVisible = panel && panel.style.display !== 'none';
+
+        if (hasProposals && !isClosed && (isHidden || !isPanelVisible)) {
+            const count = this.aiProposals.length;
+            btn.innerHTML = `👁️ ${(window.i18n && window.i18n.t) ? window.i18n.t('budget_ai_btn_show_existing') : 'Afficher les suggestions'} (${count})`;
+            btn.title = 'Ré-ouvrir le panneau de suggestions avec vos réglages en mémoire';
+            btn.classList.add('btn-suggestions-pending');
+        } else {
+            btn.classList.remove('btn-suggestions-pending');
+            const defaultText = (cfg.enable_ai === 'true')
+                ? ((window.i18n && window.i18n.t) ? window.i18n.t('budget_btn_suggestions') : '✨ Suggestions IA')
+                : ((window.i18n && window.i18n.t) ? window.i18n.t('budget_btn_suggestions_det') : '✨ Suggestions');
+            btn.innerHTML = defaultText;
+            btn.title = '';
+        }
     },
 
     // ── WIZARD DE CONFIGURATION DES SUGGESTIONS IA ──────────────────
@@ -2046,16 +2365,26 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const omittedCount = (this.unclassifiedCategories || []).length;
         const t = (k, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : fallback;
 
-        if (titleEl) titleEl.innerHTML = `<span>${t('ai_wizard_step1_title', '🔮 Suggestions IA prêtes')}</span>`;
+        const isDeterministic = (this.aiSuggestMeta && this.aiSuggestMeta.engine === 'deterministic');
+        const isFallback = (this.aiSuggestMeta && this.aiSuggestMeta.is_fallback && !isDeterministic);
+
+        if (titleEl) {
+            titleEl.innerHTML = `<span>${isDeterministic ? (t('budget_wizard_step1_title_deterministic', '💡 Recommandations d\'enveloppes prêtes')) : t('ai_wizard_step1_title', '🔮 Suggestions IA prêtes')}</span>`;
+        }
 
         let msgText = t('ai_wizard_step1_msg', '{suggested_count} enveloppes ont été suggérées et {omitted_count} catégorie(s) de dépenses ont été omises.')
             .replace('{suggested_count}', suggestedCount)
             .replace('{omitted_count}', omittedCount);
 
-        const isFallback = (this.aiSuggestMeta && this.aiSuggestMeta.is_fallback);
-
         contentEl.innerHTML = `
-            ${isFallback ? `
+            ${isDeterministic ? `
+                <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.35);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;">
+                    <span style="font-size:20px;">⚡</span>
+                    <div style="font-size:13px;color:var(--text-main);line-height:1.4;">
+                        ${t('budget_wizard_deterministic_notice', 'Suggestions générées par le moteur déterministe basé sur l\'analyse réelle de vos dépenses des derniers mois (100% local et sécurisé).')}
+                    </div>
+                </div>
+            ` : (isFallback ? `
                 <div style="background:rgba(245,158,11,0.12);border:1px solid #f59e0b;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
                     <div style="font-size:13px;color:var(--text-main);line-height:1.4;" data-i18n="ai_wizard_fallback_notice">
                         ${t('ai_wizard_fallback_notice', '⚠️ L\'IA n\'a pas renvoyé le format de données attendu. Des enveloppes de secours déterministes ont été créées sur vos données réelles. Vous pouvez relancer le processus complet avec l\'IA.')}
@@ -2064,7 +2393,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         ${t('ai_wizard_btn_retry_llm', '🔄 Ré-essayer avec l\'IA')}
                     </button>
                 </div>
-            ` : ''}
+            ` : '')}
             <div style="background:var(--bg-base);border:1px solid var(--border-color);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px;">
                 <p style="font-size:14px;color:var(--text-main);margin:0;line-height:1.5;">${msgText}</p>
                 ${omittedCount > 0 ? `
@@ -2316,9 +2645,18 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('real')" style="font-size:11px;padding:4px 8px;border-radius:8px;color:#60a5fa;">
                             📊 Aligner sur la moyenne
                         </button>
-                        <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('reset')" style="font-size:11px;padding:4px 8px;border-radius:8px;color:#c084fc;" data-i18n="ai_wizard_btn_reset">
-                            🤖 Aligner avec suggestions IA
-                        </button>
+                        ${(() => {
+                            const isDet = this.isDeterministicEngine();
+                            const resetLabel = isDet 
+                                ? t('budget_strategy_reset_det', '💡 Aligner avec suggestions initiales')
+                                : t('ai_wizard_btn_reset', '🤖 Aligner avec suggestions IA');
+                            const resetI18n = isDet ? 'budget_strategy_reset_det' : 'ai_wizard_btn_reset';
+                            return `
+                                <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('reset')" style="font-size:11px;padding:4px 8px;border-radius:8px;color:#c084fc;" data-i18n="${resetI18n}">
+                                    ${resetLabel}
+                                </button>
+                            `;
+                        })()}
                     </div>
                 </div>
 
@@ -2572,7 +2910,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                         tooltipText += `\nExemples: ${details.top_descs.join(', ')}`;
                                     }
 
-                                    const amtFormatted = `${item.amount.toFixed(0)}€`;
+                                    const amtFormatted = item.amount < 1 
+                                        ? (item.amount > 0 ? `${item.amount.toFixed(2)}€` : '0€') 
+                                        : (item.amount < 10 ? `${item.amount.toFixed(1)}€` : `${item.amount.toFixed(0)}€`);
                                     const fitsInside = pct >= 4;
                                     const labelHtml = fitsInside ? `<span style="font-size:11px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px;text-shadow:0 1px 3px rgba(0,0,0,0.8);">${item.name} (${amtFormatted})</span>` : '';
 
