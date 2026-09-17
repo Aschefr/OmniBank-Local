@@ -113,11 +113,25 @@ NOW WRITE THE SUMMARY BELOW:"""
         db.commit()
     return None
 
-def generate_session_title(db_session_factory, session_id: int, user_message: str, cfg: dict):
-    """Generate a session title in a background task using its own DB session.
+def generate_session_title(profile_or_factory, session_id: int, user_message: str, cfg: dict):
+    """Generate a session title in a background task using its own DB session bound to the originating profile.
     Uses a dedicated DB session to avoid conflicts with the streaming response,
     and retries once after a delay if Ollama is busy."""
     import time
+    from app.database import get_engine
+    from sqlalchemy.orm import sessionmaker
+
+    def _create_db_session():
+        if isinstance(profile_or_factory, str):
+            eng = get_engine(profile_or_factory)
+            factory = sessionmaker(autocommit=False, autoflush=False, bind=eng)
+            return factory()
+        elif callable(profile_or_factory):
+            return profile_or_factory()
+        else:
+            from app.database import SessionLocal
+            return SessionLocal()
+
     prompt = f"""Conversation first message: "{user_message}"
 
 === INSTRUCTIONS ===
@@ -141,15 +155,15 @@ NOW GENERATE THE TITLE:"""
             if title:
                 clean_title = title.strip().strip('"').strip("'").split("\n")[0].strip()
                 if clean_title:
-                    db = db_session_factory()
+                    db = _create_db_session()
                     session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
                     if session:
                         session.title = clean_title
                         db.commit()
-                        print(f"[Chat] Auto-title for session {session_id}: {clean_title}")
+                        logger.info(f"[Chat] Auto-title for session {session_id} (profile={profile_or_factory}): {clean_title}")
                     return  # Success
         except Exception as e:
-            print(f"[Chat] Title generation attempt {attempt}/{max_attempts} failed for session {session_id}: {e}")
+            logger.warning(f"[Chat] Title generation attempt {attempt}/{max_attempts} failed for session {session_id}: {e}")
         finally:
             if db is not None:
                 try:
@@ -157,4 +171,4 @@ NOW GENERATE THE TITLE:"""
                 except Exception as e:
                     logger.debug(f"[Chat] Erreur lors de la fermeture de session DB: {e}")
 
-    print(f"[Chat] All title generation attempts failed for session {session_id}")
+    logger.warning(f"[Chat] All title generation attempts failed for session {session_id}")

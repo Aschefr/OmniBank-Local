@@ -457,7 +457,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         this.initEntityPopover();
 
         if (isRestore) {
-            const savedScroll = sessionStorage.getItem(`chatScrollPos_${this.activeSessionId}`);
+            const savedScroll = window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem(`chatScrollPos_${this.activeSessionId}`) : sessionStorage.getItem(`chatScrollPos_${this.activeSessionId}`);
             if (savedScroll !== null) {
                 container.scrollTop = parseInt(savedScroll);
             } else {
@@ -476,7 +476,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             let lastScrollTop = container.scrollTop;
             container.addEventListener('scroll', () => {
                 if (this.activeSessionId) {
-                    sessionStorage.setItem(`chatScrollPos_${this.activeSessionId}`, container.scrollTop);
+                    if (window.ProfileSessionStorage) window.ProfileSessionStorage.setItem(`chatScrollPos_${this.activeSessionId}`, container.scrollTop);
+                    else sessionStorage.setItem(`chatScrollPos_${this.activeSessionId}`, container.scrollTop);
                 }
                 const currentScrollTop = container.scrollTop;
                 const scrollingUp = currentScrollTop < lastScrollTop;
