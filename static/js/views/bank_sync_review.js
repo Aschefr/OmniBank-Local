@@ -257,7 +257,7 @@ Object.assign(window.BankSyncView, {
     _isBatchAnalyzed(sig) {
         if (!sig) return false;
         try {
-            const raw = sessionStorage.getItem('omnibank_ai_analyzed_batches') || '[]';
+            const raw = (window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('omnibank_ai_analyzed_batches') : sessionStorage.getItem('omnibank_ai_analyzed_batches')) || '[]';
             const set = new Set(JSON.parse(raw));
             return set.has(sig);
         } catch (_) {
@@ -268,11 +268,12 @@ Object.assign(window.BankSyncView, {
     _markBatchAnalyzed(sig) {
         if (!sig) return;
         try {
-            const raw = sessionStorage.getItem('omnibank_ai_analyzed_batches') || '[]';
+            const raw = (window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('omnibank_ai_analyzed_batches') : sessionStorage.getItem('omnibank_ai_analyzed_batches')) || '[]';
             const set = new Set(JSON.parse(raw));
             set.add(sig);
             const arr = Array.from(set).slice(-30);
-            sessionStorage.setItem('omnibank_ai_analyzed_batches', JSON.stringify(arr));
+            if (window.ProfileSessionStorage) window.ProfileSessionStorage.setItem('omnibank_ai_analyzed_batches', JSON.stringify(arr));
+            else sessionStorage.setItem('omnibank_ai_analyzed_batches', JSON.stringify(arr));
         } catch (_) {}
     },
 

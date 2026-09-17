@@ -237,22 +237,34 @@ def delete_allocation(budget_id: int, alloc_id: int, db: Session = Depends(get_d
 # ─── AI Suggestion Endpoints ──────────────────────────────────────────────────
 
 @router.get("/ai_suggest/status")
-def get_ai_suggest_status():
-    return budget_ai_service.get_ai_suggest_status()
+def get_ai_suggest_status(db: Session = Depends(get_db)):
+    from app.profile_manager import get_active_profile
+    pid = get_active_profile()["id"]
+    return budget_ai_service.get_ai_suggest_status(profile_id=pid)
 
 
 @router.post("/ai_suggest/cancel")
-def cancel_ai_suggest():
-    return budget_ai_service.cancel_ai_suggest()
+def cancel_ai_suggest(db: Session = Depends(get_db)):
+    from app.profile_manager import get_active_profile
+    pid = get_active_profile()["id"]
+    return budget_ai_service.cancel_ai_suggest(profile_id=pid)
 
 
 @router.post("/ai_suggest")
 async def ai_suggest_budgets(data: Optional[AiSuggestRequest] = None, db: Session = Depends(get_db)):
     try:
+        from app.profile_manager import get_active_profile
+        pid = get_active_profile()["id"]
         window_months = data.window_months if data else 3
         lang = data.lang if data else "fr"
         outlier_sensitivity = data.outlier_sensitivity if (data and data.outlier_sensitivity is not None) else 2
-        return await budget_ai_service.ai_suggest_budgets_service(window_months=window_months, lang=lang, outlier_sensitivity=outlier_sensitivity, db=db)
+        return await budget_ai_service.ai_suggest_budgets_service(
+            window_months=window_months,
+            lang=lang,
+            outlier_sensitivity=outlier_sensitivity,
+            db=db,
+            profile_id=pid
+        )
     except HTTPException:
         raise
     except Exception as e:

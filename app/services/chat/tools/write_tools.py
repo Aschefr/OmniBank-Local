@@ -414,13 +414,18 @@ def generate_csv_export_link_tool(db: Session, category: str = None, start_date:
     if not records:
         return {"error": "Aucune opération trouvée avec ces critères."}
         
+    import os
+    from app.database import get_current_uploads_dir
+    uploads_dir = get_current_uploads_dir()
+    exports_dir = os.path.join(uploads_dir, "exports")
+    os.makedirs(exports_dir, exist_ok=True)
     filename = f"export_{uuid.uuid4().hex[:8]}.csv"
-    filepath = f"static/{filename}"
+    filepath = os.path.join(exports_dir, filename)
     df = pd.DataFrame(records)
     df.to_csv(filepath, index=False, sep=";", encoding="utf-8-sig")
     
     return {
-        "download_url": f"/static/{filename}",
+        "download_url": f"/uploads/exports/{filename}",
         "matching_records_count": len(records)
     }
 

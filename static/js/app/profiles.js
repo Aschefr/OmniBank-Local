@@ -36,7 +36,8 @@ window.AppModules.profiles = {
                 badge.addEventListener('click', () => {
                     const name = badge.getAttribute('data-user');
                     this.currentUser = name;
-                    sessionStorage.setItem('omni_current_user', name);
+                    if (window.ProfileSessionStorage) window.ProfileSessionStorage.setItem('omni_current_user', name);
+                    else sessionStorage.setItem('omni_current_user', name);
 
                     const label = document.getElementById('currentUserLabel');
                     if (label) label.textContent = name;
@@ -110,7 +111,8 @@ window.AppModules.profiles = {
                     item.addEventListener('click', () => {
                         const name = item.getAttribute('data-user');
                         this.currentUser = name;
-                        sessionStorage.setItem('omni_current_user', name);
+                        if (window.ProfileSessionStorage) window.ProfileSessionStorage.setItem('omni_current_user', name);
+                        else sessionStorage.setItem('omni_current_user', name);
                         label.textContent = name;
                         menu.style.display = 'none';
                         if ((this.currentView === 'config' || this.currentView === 'configuration') && window.ConfigView && typeof window.ConfigView.fetchFacts === 'function') {
@@ -126,7 +128,8 @@ window.AppModules.profiles = {
                         evt.stopPropagation();
                         menu.style.display = 'none';
                         this.currentUser = null;
-                        sessionStorage.removeItem('omni_current_user');
+                        if (window.ProfileSessionStorage) window.ProfileSessionStorage.removeItem('omni_current_user');
+                        else sessionStorage.removeItem('omni_current_user');
                         if (label) label.textContent = '—';
                         await this._showUserPicker();
                     });

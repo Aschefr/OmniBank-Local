@@ -801,21 +801,24 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             }
             if (data.enable_org_mode === 'true') {
                 // Ensure default user exists and set it as current if none selected
-                if (!sessionStorage.getItem('omni_current_user')) {
+                const curUser = window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('omni_current_user') : sessionStorage.getItem('omni_current_user');
+                if (!curUser) {
                     try {
                         const defaultUser = await API.post('/api/org_users/ensure_default');
                         if (defaultUser && defaultUser.name) {
-                            sessionStorage.setItem('omni_current_user', defaultUser.name);
+                            if (window.ProfileSessionStorage) window.ProfileSessionStorage.setItem('omni_current_user', defaultUser.name);
+                            else sessionStorage.setItem('omni_current_user', defaultUser.name);
                             if (window.app) window.app.currentUser = defaultUser.name;
                         }
                     } catch(e) {}
                 }
                 // Update header label
                 const label = document.getElementById('currentUserLabel');
-                const userName = sessionStorage.getItem('omni_current_user');
+                const userName = window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('omni_current_user') : sessionStorage.getItem('omni_current_user');
                 if (label && userName) label.textContent = userName;
             } else {
-                sessionStorage.removeItem('omni_current_user');
+                if (window.ProfileSessionStorage) window.ProfileSessionStorage.removeItem('omni_current_user');
+                else sessionStorage.removeItem('omni_current_user');
                 if (window.app) window.app.currentUser = null;
             }
             

@@ -751,7 +751,8 @@ window.AppModules.notifications = {
 
                 const is2FA = n.type === 'bank_sync_2fa' || linkObj.action === 'bank_sync_2fa';
                 if (linkObj.session_id) {
-                    sessionStorage.setItem('chatActiveSessionId', linkObj.session_id);
+                    if (window.ProfileSessionStorage) window.ProfileSessionStorage.setItem('chatActiveSessionId', linkObj.session_id);
+                    else sessionStorage.setItem('chatActiveSessionId', linkObj.session_id);
                     if (window.ChatView) {
                         window.ChatView.activeSessionId = linkObj.session_id;
                     }
@@ -978,7 +979,8 @@ window.AppModules.notifications = {
             });
 
             // 2. Save active session and navigate to chat
-            sessionStorage.setItem('chatActiveSessionId', sessionId);
+            if (window.ProfileSessionStorage) window.ProfileSessionStorage.setItem('chatActiveSessionId', sessionId);
+            else sessionStorage.setItem('chatActiveSessionId', sessionId);
             if (window.ChatView) {
                 window.ChatView.activeSessionId = sessionId;
             }

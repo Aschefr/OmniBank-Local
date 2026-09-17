@@ -220,7 +220,7 @@ class App {
             
             // ── Phase 9: Check if org mode needs user selection ──
             if (this.config.enable_org_mode === 'true') {
-                const savedUser = sessionStorage.getItem('omni_current_user');
+                const savedUser = (window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('omni_current_user') : sessionStorage.getItem('omni_current_user'));
                 if (!savedUser) {
                     // Ensure default user exists
                     try { await API.post('/api/org_users/ensure_default'); } catch (e) {}

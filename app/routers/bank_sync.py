@@ -249,6 +249,9 @@ async def test_connection_stream(
         msg = f"event: {event_type}\ndata: {data_str}\n\n"
         main_loop.call_soon_threadsafe(event_queue.put_nowait, msg)
 
+    from app.profile_manager import get_active_profile
+    active_pid = get_active_profile()["id"]
+
     def test_worker():
         try:
             sse_callback("progress", {"step": "auth", "message": f"Connexion sécurisée à {conn.label or conn.backend}..."})
@@ -258,9 +261,12 @@ async def test_connection_stream(
                 session_id=session_id,
                 event_callback=sse_callback
             )
-            from app.database import SessionLocal
+            from app.database import get_engine
+            from sqlalchemy.orm import sessionmaker
             from app.models import Notification
-            worker_db = SessionLocal()
+            eng = get_engine(active_pid)
+            SessionProf = sessionmaker(autocommit=False, autoflush=False, bind=eng)
+            worker_db = SessionProf()
             try:
                 worker_conn = worker_db.query(BankConnection).filter(BankConnection.id == conn_id).first()
                 if worker_conn:
@@ -425,10 +431,16 @@ async def sync_connection_stream(
         # Envoi thread-safe dans la queue asyncio depuis le thread worker
         main_loop.call_soon_threadsafe(event_queue.put_nowait, msg)
 
+    from app.profile_manager import get_active_profile
+    active_pid = get_active_profile()["id"]
+
     # Lancement du worker de sync dans un thread séparé
     def sync_worker():
-        from app.database import SessionLocal
-        worker_db = SessionLocal()
+        from app.database import get_engine
+        from sqlalchemy.orm import sessionmaker
+        eng = get_engine(active_pid)
+        SessionProf = sessionmaker(autocommit=False, autoflush=False, bind=eng)
+        worker_db = SessionProf()
         worker_conn = None
         try:
             worker_conn = worker_db.query(BankConnection).filter(BankConnection.id == conn_id).first()
