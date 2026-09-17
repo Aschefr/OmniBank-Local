@@ -42,7 +42,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         if (!container) return;
         
         try {
-            const activeUser = sessionStorage.getItem('omni_current_user') || '';
+            const activeUser = (window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('omni_current_user') : sessionStorage.getItem('omni_current_user')) || '';
             let url = '/api/chat/facts';
             if (activeUser) {
                 url += `?user_name=${encodeURIComponent(activeUser)}`;
@@ -91,7 +91,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         if (!input) return;
         
         try {
-            const activeUser = sessionStorage.getItem('omni_current_user') || '';
+            const activeUser = (window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('omni_current_user') : sessionStorage.getItem('omni_current_user')) || '';
             let url = '/api/chat/facts';
             if (activeUser) url += `?user_name=${encodeURIComponent(activeUser)}`;
             const facts = await API.get(url);
@@ -139,7 +139,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
         
         try {
-            const activeUser = sessionStorage.getItem('omni_current_user') || '';
+            const activeUser = (window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('omni_current_user') : sessionStorage.getItem('omni_current_user')) || '';
             const privateToSession = privateCheckbox ? privateCheckbox.checked : false;
             
             await API.post('/api/chat/facts', {
@@ -312,7 +312,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
 
         this.activeSessionId = sessionId;
-        sessionStorage.setItem('chatActiveSessionId', sessionId);
+        if (window.ProfileSessionStorage) window.ProfileSessionStorage.setItem('chatActiveSessionId', sessionId);
+        else sessionStorage.setItem('chatActiveSessionId', sessionId);
         this.editingContext = false;
         this.editingMsgId = null;
         this.confirmDeleteMsgId = null;

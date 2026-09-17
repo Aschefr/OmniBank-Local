@@ -1281,7 +1281,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
     async init() {
         document.body.classList.add('in-chat-view');
         this.sessions = [];
-        const savedSessionId = sessionStorage.getItem('chatActiveSessionId');
+        const savedSessionId = window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('chatActiveSessionId') : sessionStorage.getItem('chatActiveSessionId');
         this.activeSessionId = savedSessionId ? parseInt(savedSessionId) : null;
         this.messages = [];
         this.compressedContext = null;

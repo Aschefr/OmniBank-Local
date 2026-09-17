@@ -20,40 +20,60 @@ from app.services.finance_engine import predict_next_paycheck
 
 logger = logging.getLogger(__name__)
 
-# ── Thread-safety pour AI_TASK_STATUS ────────────────────────────────────────
+# ── Thread-safety pour AI_TASK_STATUS par profil ────────────────────────────
 _ai_status_lock = threading.Lock()
 
-AI_TASK_STATUS: Dict[str, Any] = {
-    "state": "IDLE",
-    "step_key": "ai_status_preparing",
-    "elapsed_seconds": 0,
-    "max_seconds": 300,
-    "result": None,
-    "error": None,
-    "start_time": None,
-}
+def _resolve_profile_id(profile_id: Optional[str] = None) -> str:
+    if profile_id:
+        return profile_id
+    try:
+        from app.profile_manager import get_active_profile
+        return get_active_profile()["id"]
+    except Exception:
+        return "default"
 
-def _update_ai_status(**kwargs) -> None:
-    """Mise à jour thread-safe du statut de la tâche IA."""
+def _get_default_status() -> Dict[str, Any]:
+    return {
+        "state": "IDLE",
+        "step_key": "ai_status_preparing",
+        "elapsed_seconds": 0,
+        "max_seconds": 300,
+        "result": None,
+        "error": None,
+        "start_time": None,
+    }
+
+_AI_TASK_STATUSES: Dict[str, Dict[str, Any]] = {}
+
+def _update_ai_status(profile_id: Optional[str] = None, **kwargs) -> None:
+    """Mise à jour thread-safe du statut de la tâche IA pour un profil donné."""
+    pid = _resolve_profile_id(profile_id)
     with _ai_status_lock:
-        AI_TASK_STATUS.update(kwargs)
+        if pid not in _AI_TASK_STATUSES:
+            _AI_TASK_STATUSES[pid] = _get_default_status()
+        _AI_TASK_STATUSES[pid].update(kwargs)
 
-def _get_ai_status_snapshot() -> Dict[str, Any]:
-    """Retourne un snapshot thread-safe du statut courant."""
+def _get_ai_status_snapshot(profile_id: Optional[str] = None) -> Dict[str, Any]:
+    """Retourne un snapshot thread-safe du statut courant pour un profil donné."""
+    pid = _resolve_profile_id(profile_id)
     with _ai_status_lock:
-        if AI_TASK_STATUS["state"] in ["PREPARING", "SENDING", "THINKING", "PARSING"] and AI_TASK_STATUS.get("start_time"):
-            elapsed = int(time.time() - AI_TASK_STATUS["start_time"])
-            AI_TASK_STATUS["elapsed_seconds"] = elapsed
-            if elapsed > AI_TASK_STATUS.get("max_seconds", 300):
-                AI_TASK_STATUS["state"] = "ERROR"
-                AI_TASK_STATUS["error"] = "Délai d'analyse dépassé."
-        return dict(AI_TASK_STATUS)
+        if pid not in _AI_TASK_STATUSES:
+            _AI_TASK_STATUSES[pid] = _get_default_status()
+        st = _AI_TASK_STATUSES[pid]
+        if st["state"] in ["PREPARING", "SENDING", "THINKING", "PARSING"] and st.get("start_time"):
+            elapsed = int(time.time() - st["start_time"])
+            st["elapsed_seconds"] = elapsed
+            if elapsed > st.get("max_seconds", 300):
+                st["state"] = "ERROR"
+                st["error"] = "Délai d'analyse dépassé."
+        return dict(st)
 
-def get_ai_suggest_status() -> Dict[str, Any]:
-    return _get_ai_status_snapshot()
+def get_ai_suggest_status(profile_id: Optional[str] = None) -> Dict[str, Any]:
+    return _get_ai_status_snapshot(profile_id)
 
-def cancel_ai_suggest() -> Dict[str, Any]:
+def cancel_ai_suggest(profile_id: Optional[str] = None) -> Dict[str, Any]:
     _update_ai_status(
+        profile_id=profile_id,
         state="IDLE",
         step_key="ai_status_idle",
         elapsed_seconds=0,
@@ -348,8 +368,10 @@ def extract_json_envelopes(cleaned_raw: str) -> list[dict]:
 
     return parsed_objs
 
-async def ai_suggest_budgets_service(window_months: int, lang: Optional[str], db: Session, outlier_sensitivity: int = 2) -> dict:
+async def ai_suggest_budgets_service(window_months: int, lang: Optional[str], db: Session, outlier_sensitivity: int = 2, profile_id: Optional[str] = None) -> dict:
+    pid = _resolve_profile_id(profile_id)
     _update_ai_status(
+        profile_id=pid,
         state="PREPARING",
         step_key="ai_status_preparing",
         elapsed_seconds=0,
@@ -359,18 +381,19 @@ async def ai_suggest_budgets_service(window_months: int, lang: Optional[str], db
         start_time=time.time(),
     )
     try:
-        res = await _ai_suggest_budgets_service_impl(window_months, lang, db, outlier_sensitivity)
-        _update_ai_status(state="SUCCESS", step_key="ai_status_success", result=res)
+        res = await _ai_suggest_budgets_service_impl(window_months, lang, db, outlier_sensitivity, profile_id=pid)
+        _update_ai_status(profile_id=pid, state="SUCCESS", step_key="ai_status_success", result=res)
         return res
     except HTTPException as he:
-        _update_ai_status(state="ERROR", error=he.detail if hasattr(he, "detail") else str(he))
+        _update_ai_status(profile_id=pid, state="ERROR", error=he.detail if hasattr(he, "detail") else str(he))
         raise
     except Exception as e:
         logger.error(f"[AI Budget] Erreur inattendue dans ai_suggest_budgets_service: {e}", exc_info=True)
-        _update_ai_status(state="ERROR", error=str(e))
+        _update_ai_status(profile_id=pid, state="ERROR", error=str(e))
         raise HTTPException(status_code=500, detail=f"Erreur d'analyse : {str(e)}")
 
-async def _ai_suggest_budgets_service_impl(window_months: int, lang: Optional[str], db: Session, outlier_sensitivity: int = 2) -> dict:
+async def _ai_suggest_budgets_service_impl(window_months: int, lang: Optional[str], db: Session, outlier_sensitivity: int = 2, profile_id: Optional[str] = None) -> dict:
+    pid = _resolve_profile_id(profile_id)
     window_months = window_months if window_months in (3, 6, 12) else 3
 
     cfg_engine = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_suggestion_engine").first()
@@ -458,7 +481,7 @@ Response format (JSON object with key "envelopes"):
   ]
 }}"""
 
-    _update_ai_status(state="SENDING", step_key="ai_status_sending")
+    _update_ai_status(profile_id=pid, state="SENDING", step_key="ai_status_sending")
 
     raw = ""
     last_error_msg = ""
@@ -493,7 +516,7 @@ Response format (JSON object with key "envelopes"):
             logger.warning(f"[AI Budget] Communication Ollama impossible ({last_error_msg}). Bascule automatique sur les propositions déterministes de secours.")
             is_fallback = True
 
-    _update_ai_status(state="PARSING", step_key="ai_status_parsing")
+    _update_ai_status(profile_id=pid, state="PARSING", step_key="ai_status_parsing")
 
     cleaned_raw = re.sub(r'```(?:json)?', '', raw or "").strip()
     parsed_objs = extract_json_envelopes(cleaned_raw) if cleaned_raw else []
@@ -765,7 +788,7 @@ Response format (JSON object with key "envelopes"):
 
     if not proposals:
         err_detail = "L'IA n'a pas pu générer de propositions d'enveloppes valides. Vérifiez le modèle Ollama configuré."
-        _update_ai_status(state="ERROR", error=err_detail)
+        _update_ai_status(profile_id=pid, state="ERROR", error=err_detail)
         raise HTTPException(status_code=500, detail=err_detail)
 
     total_new_fixed_monthly = sum(
@@ -1058,3 +1081,8 @@ def ai_recalculate_amounts_service(window_months: int, outlier_sensitivity: int,
         "unclassified_categories": updated_unclassified,
         "outlier_sensitivity": outlier_sensitivity,
     }
+
+def __getattr__(name: str):
+    if name == "AI_TASK_STATUS":
+        return get_ai_suggest_status()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

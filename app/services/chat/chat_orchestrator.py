@@ -68,22 +68,34 @@ from app.services.chat.ollama_client import get_ollama_config
 
 logger = logging.getLogger(__name__)
 
-# Ensembles en mémoire pour le suivi des générations en cours et notifications
+def _resolve_profile_id(profile_id: Optional[str] = None) -> str:
+    if profile_id:
+        return profile_id
+    try:
+        from app.profile_manager import get_active_profile
+        return get_active_profile()["id"]
+    except Exception:
+        return "default"
+
+# Ensembles en mémoire pour le suivi des générations en cours et notifications : {(profile_id, session_id)}
 _generating_sessions = set()
 _notify_on_complete = set()
 
 
-def is_session_generating(session_id: int) -> bool:
-    """Indique si une génération IA est actuellement en cours pour cette session."""
-    return session_id in _generating_sessions
+def is_session_generating(session_id: int, profile_id: Optional[str] = None) -> bool:
+    """Indique si une génération IA est actuellement en cours pour cette session dans le profil donné."""
+    pid = _resolve_profile_id(profile_id)
+    return (pid, session_id) in _generating_sessions
 
 
-def register_notify_on_complete(session_id: int, db: Session) -> dict:
+def register_notify_on_complete(session_id: int, db: Session, profile_id: Optional[str] = None) -> dict:
     """Enregistre qu'une notification doit être créée lorsque la réponse IA est prête."""
-    if session_id in _generating_sessions:
-        _notify_on_complete.add(session_id)
+    pid = _resolve_profile_id(profile_id)
+    key = (pid, session_id)
+    if key in _generating_sessions:
+        _notify_on_complete.add(key)
     else:
-        logger.info(f"[Chat] Génération déjà terminée pour la session {session_id} — notification immédiate")
+        logger.info(f"[Chat] Génération déjà terminée pour la session {session_id} (profil={pid}) — notification immédiate")
         notif = Notification(
             type="system",
             title="Réponse IA disponible 💬",
@@ -310,7 +322,9 @@ async def generate_chat_stream(
     _done_sent = False
     _client_disconnected = False
     _tools_meta = ""
-    _generating_sessions.add(session_id)
+    active_pid = _resolve_profile_id()
+    session_key = (active_pid, session_id)
+    _generating_sessions.add(session_key)
 
     try:
         if needs_compression:
@@ -706,10 +720,10 @@ async def generate_chat_stream(
         yield f"data: {json.dumps({'token_usage': {'used': used_tokens, 'limit': cfg['num_ctx']}})}\n\n"
 
         if is_first_exchange:
-            logger.info(f"[Chat] Lancement de la génération de titre en arrière-plan pour la session {session_id}")
+            logger.info(f"[Chat] Lancement de la génération de titre en arrière-plan pour la session {session_id} (profil={active_pid})")
             threading.Thread(
                 target=generate_session_title,
-                args=(SessionLocal, session_id, req.content, cfg),
+                args=(active_pid, session_id, req.content, cfg),
                 daemon=True,
             ).start()
 
@@ -743,11 +757,11 @@ async def generate_chat_stream(
             except Exception as save_err:
                 logger.error(f"[Chat] Échec de sauvegarde de la réponse partielle : {save_err}")
 
-        if session_id in _notify_on_complete:
-            _notify_on_complete.discard(session_id)
+        if session_key in _notify_on_complete:
+            _notify_on_complete.discard(session_key)
             if _response_saved:
                 try:
-                    logger.info(f"[Chat] Génération achevée pour la session {session_id} — création de notification")
+                    logger.info(f"[Chat] Génération achevée pour la session {session_id} (profil={active_pid}) — création de notification")
                     notif = Notification(
                         type="system",
                         title="Réponse IA disponible 💬",
@@ -760,7 +774,7 @@ async def generate_chat_stream(
                 except Exception as notif_err:
                     logger.error(f"[Chat] Échec de création de la notification de complétion : {notif_err}")
 
-        _generating_sessions.discard(session_id)
+        _generating_sessions.discard(session_key)
 
 
 async def autocategorize_transaction(db: Session, description: str, amount: Optional[float] = None) -> dict:
