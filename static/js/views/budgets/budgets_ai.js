@@ -4,9 +4,55 @@
 window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     openAiWindowModal() {
         const modal = document.getElementById('aiWindowSelectionModal');
-        if (modal) {
-            modal.style.display = 'flex';
+        if (!modal) return;
+        modal.style.display = 'flex';
+
+        // Synchroniser le moteur de calcul sélectionné par défaut avec la configuration du profil actif
+        const cfgEngine = (window.app?.config?.budget_suggestion_engine || 'deterministic').toLowerCase();
+        const isDet = (cfgEngine === 'deterministic');
+        const cardDet = document.getElementById('modalEngineCard_det');
+        const cardAi = document.getElementById('modalEngineCard_ai');
+        const radioDet = document.querySelector('input[name="modalSuggestEngine"][value="deterministic"]');
+        const radioAi = document.querySelector('input[name="modalSuggestEngine"][value="ai"]');
+
+        if (isDet) {
+            if (radioDet) radioDet.checked = true;
+            if (cardDet) {
+                cardDet.style.border = '2px solid var(--accent)';
+                cardDet.classList.add('bv-modal-option--selected');
+            }
+            if (cardAi) {
+                cardAi.style.border = '1px solid var(--border-color)';
+                cardAi.classList.remove('bv-modal-option--selected');
+            }
+        } else {
+            if (radioAi) radioAi.checked = true;
+            if (cardAi) {
+                cardAi.style.border = '2px solid var(--accent)';
+                cardAi.classList.add('bv-modal-option--selected');
+            }
+            if (cardDet) {
+                cardDet.style.border = '1px solid var(--border-color)';
+                cardDet.classList.remove('bv-modal-option--selected');
+            }
         }
+
+        // Vérifier l'état de l'IA locale pour le badge d'état
+        const aiBadge = document.getElementById('modalAiStatusBadge');
+        if (aiBadge) {
+            const isAiOnline = window.BudgetsView?.ollamaOnline === true;
+            if (isAiOnline) {
+                aiBadge.textContent = window.i18n.t('budget_modal_engine_ai_tag_online') || '🟢 IA prête';
+                aiBadge.style.color = '#10b981';
+                aiBadge.style.background = 'rgba(16,185,129,0.15)';
+            } else {
+                aiBadge.textContent = window.i18n.t('budget_modal_engine_ai_tag_offline') || '⚪ IA hors-ligne';
+                aiBadge.style.color = 'var(--text-muted)';
+                aiBadge.style.background = 'rgba(148,163,184,0.15)';
+            }
+        }
+
+        this.updateSuggestModalButtonText(isDet ? 'deterministic' : 'ai');
     },
 
     closeAiWindowModal() {
@@ -16,22 +62,53 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
     },
 
+    selectModalSuggestEngine(engine, element) {
+        const radio = element.querySelector('input[type="radio"]');
+        if (radio) radio.checked = true;
+
+        const cards = document.querySelectorAll('.bv-engine-options .bv-engine-card');
+        cards.forEach(lbl => {
+            lbl.style.border = '1px solid var(--border-color)';
+            lbl.classList.remove('bv-modal-option--selected');
+        });
+        element.style.border = '2px solid var(--accent)';
+        element.classList.add('bv-modal-option--selected');
+
+        this.updateSuggestModalButtonText(engine);
+    },
+
+    updateSuggestModalButtonText(engine) {
+        const btn = document.getElementById('btnConfirmSuggestModal');
+        if (!btn) return;
+        if (engine === 'deterministic') {
+            btn.innerHTML = window.i18n.t('budget_modal_btn_start_det') || '⚡ Calculer les suggestions';
+        } else {
+            btn.innerHTML = window.i18n.t('budget_modal_btn_start_ai') || '🚀 Lancer l\'analyse IA';
+        }
+    },
+
     selectModalAiWindow(months, element) {
         const radio = element.querySelector('input[type="radio"]');
         if (radio) radio.checked = true;
 
-        const labels = document.querySelectorAll('#aiWindowSelectionModal label');
+        const labels = document.querySelectorAll('#aiWindowSelectionModal .bv-modal-options > label');
         labels.forEach(lbl => {
             lbl.style.border = '1px solid var(--border-color)';
+            lbl.classList.remove('bv-modal-option--selected');
         });
         element.style.border = '2px solid var(--accent)';
+        element.classList.add('bv-modal-option--selected');
     },
 
     confirmAiWindowSelection() {
-        const selectedRadio = document.querySelector('input[name="modalAiWindowOption"]:checked');
-        const months = selectedRadio ? parseInt(selectedRadio.value) : 3;
+        const selectedEngineRadio = document.querySelector('input[name="modalSuggestEngine"]:checked');
+        const engine = selectedEngineRadio ? selectedEngineRadio.value : 'deterministic';
+
+        const selectedWindowRadio = document.querySelector('input[name="modalAiWindowOption"]:checked');
+        const months = selectedWindowRadio ? parseInt(selectedWindowRadio.value) : 3;
+
         this.closeAiWindowModal();
-        this.requestAiSuggestions(months);
+        this.requestAiSuggestions(months, null, engine);
     },
 
     getOutlierSensitivityLabel(level) {
@@ -106,19 +183,27 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
     },
 
-    async requestAiSuggestions(windowMonths = 3, outlierSensitivity = null) {
+    async requestAiSuggestions(windowMonths = 3, outlierSensitivity = null, engine = null) {
         this.removeProfileSessionItem('budget_ai_panel_closed');
         this.removeProfileSessionItem('budget_ai_panel_hidden');
         const sensitivity = outlierSensitivity !== null ? outlierSensitivity : (this.currentOutlierSensitivity || 2);
         this.currentOutlierSensitivity = sensitivity;
 
+        const chosenEngine = (engine || this.currentSuggestionEngine || window.app?.config?.budget_suggestion_engine || 'deterministic').toLowerCase();
+        const isDeterministic = (chosenEngine === 'deterministic');
+        this.currentSuggestionEngine = chosenEngine;
+
         const btn = document.getElementById('budgetAiBtn');
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = `<svg class="animate-spin" style="width:14px;height:14px;margin-right:6px;display:inline-block;vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg> ${window.i18n.t('budget_ai_analyzing')}`;
+            if (isDeterministic) {
+                btn.innerHTML = `⚡ ${window.i18n.t('budget_calculating_det') || 'Calcul en cours...'}`;
+            } else {
+                btn.innerHTML = `<svg class="animate-spin" style="width:14px;height:14px;margin-right:6px;display:inline-block;vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg> ${window.i18n.t('budget_ai_analyzing')}`;
+            }
         }
         
         this.updateAiWindowButtonsState(windowMonths);
@@ -148,11 +233,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             panel.style.display = 'block';
         }
         if (overlay) {
-            overlay.style.display = 'flex';
+            overlay.style.display = isDeterministic ? 'none' : 'flex';
         }
         if (container) {
-            container.style.opacity = '0.3';
-            container.style.pointerEvents = 'none';
+            container.style.opacity = isDeterministic ? '1' : '0.3';
+            container.style.pointerEvents = isDeterministic ? 'auto' : 'none';
         }
 
         if (this.currentAiSuggestAbortController) {
@@ -163,31 +248,48 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
         this.currentAiSuggestAbortController = new AbortController();
 
-        if (this.aiPollTimer) clearInterval(this.aiPollTimer);
-        this.aiPollTimer = setInterval(async () => {
-            try {
-                const status = await API.get('/api/budgets/ai_suggest/status');
-                if (status && status.state) {
-                    if (status.state === 'ERROR' || status.state === 'IDLE') {
-                        this.resetAiBtnAndOverlay();
-                    } else {
-                        this.updateAiPipelineStatusUI(status);
-                        if (window.app && window.app.updateAiNavBadge) {
-                            window.app.updateAiNavBadge(status);
+        if (this.aiPollTimer) {
+            clearInterval(this.aiPollTimer);
+            this.aiPollTimer = null;
+        }
+
+        if (!isDeterministic) {
+            this.aiPollTimer = setInterval(async () => {
+                try {
+                    const status = await API.get('/api/budgets/ai_suggest/status');
+                    if (status && status.state) {
+                        if (status.state === 'ERROR' || status.state === 'IDLE') {
+                            this.resetAiBtnAndOverlay();
+                        } else {
+                            this.updateAiPipelineStatusUI(status);
+                            if (window.app && window.app.updateAiNavBadge) {
+                                window.app.updateAiNavBadge(status);
+                            }
                         }
                     }
-                }
-            } catch (e) {}
-        }, 1000);
+                } catch (e) {}
+            }, 1000);
+        }
 
         try {
             const currentLang = (window.i18n && window.i18n.currentLang) ? window.i18n.currentLang : 'fr';
             const result = await API.post('/api/budgets/ai_suggest', {
                 window_months: windowMonths,
                 lang: currentLang,
-                outlier_sensitivity: sensitivity
+                outlier_sensitivity: sensitivity,
+                engine: chosenEngine
             }, { signal: this.currentAiSuggestAbortController.signal });
-            await this.playParsingAnimation();
+
+            if (this.aiPollTimer) {
+                clearInterval(this.aiPollTimer);
+                this.aiPollTimer = null;
+            }
+            if (overlay) overlay.style.display = 'none';
+
+            if (!isDeterministic) {
+                await this.playParsingAnimation();
+            }
+
             this.aiSuggestMeta = result;
             const effWin = result.effective_window_months || result.window_months || windowMonths;
             this.updateAiWindowButtonsState(windowMonths, effWin);
@@ -211,7 +313,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             }
             const isInfoMsg = msg.includes('non activ') || msg.includes('déjà couvertes') || msg.includes('400');
             if (!isInfoMsg && (msg.includes('Internal Server Error') || !msg.trim() || msg.startsWith('<'))) {
-                msg = (window.i18n && window.i18n.t) ? window.i18n.t('budget_ai_error') : "Impossible de contacter Ollama. Vérifiez l'adresse et le port dans les paramètres.";
+                msg = (window.i18n && window.i18n.t) ? window.i18n.t('budget_ai_error') : "Impossible de contacter l'IA locale. Vérifiez l'adresse et le port dans les paramètres.";
             }
             if (isInfoMsg) {
                 showInlineMessage(window.i18n.t('title_info'), msg);
@@ -278,7 +380,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         if (btn) {
             btn.disabled = false;
-            btn.textContent = window.i18n.t('budget_btn_suggestions') || '✨ Suggestions IA';
+            btn.textContent = window.i18n.t('budget_btn_suggestions') || '💡 Suggérer des enveloppes';
+            btn.title = window.i18n.t('budget_btn_suggestions_tt') || 'Générer manuellement des propositions d\'enveloppes';
         }
         if (overlay) overlay.style.display = 'none';
         if (container) {
@@ -959,6 +1062,51 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         this.updateAiImpactSimulation();
     },
 
+    computeNiceScale(maxVal, targetTicks = 4) {
+        const rawMax = Math.max(Number(maxVal) || 0, 10);
+        const roughStep = rawMax / Math.max(2, targetTicks);
+        const exponent = Math.floor(Math.log10(roughStep));
+        const power = Math.pow(10, exponent);
+        const fraction = roughStep / power;
+
+        let niceMultiplier;
+        if (fraction <= 1.5) {
+            niceMultiplier = 1;
+        } else if (fraction <= 3.5) {
+            niceMultiplier = 2;
+        } else if (fraction <= 7.5) {
+            niceMultiplier = 5;
+        } else {
+            niceMultiplier = 10;
+        }
+
+        const step = niceMultiplier * power;
+        const ticks = [0];
+        let current = step;
+        while (current < rawMax) {
+            ticks.push(Math.round(current));
+            current += step;
+        }
+        const scaleCeiling = Math.round(current);
+        ticks.push(scaleCeiling);
+
+        return { step, ticks, scaleCeiling };
+    },
+
+    formatCompactAmount(val) {
+        if (val === 0) return '0 €';
+        const abs = Math.abs(val);
+        if (abs >= 1000000) {
+            const m = val / 1000000;
+            return (m % 1 === 0 ? m.toFixed(0) : m.toFixed(1)).replace('.', ',') + ' M€';
+        }
+        if (abs >= 10000) {
+            const k = val / 1000;
+            return (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)).replace('.', ',') + ' k€';
+        }
+        return Math.round(val).toLocaleString('fr-FR') + ' €';
+    },
+
     updateAiImpactSimulation() {
         const proposals = this.aiProposals || [];
         const selected = proposals.filter(p => p.selected);
@@ -1055,37 +1203,46 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             }
         });
 
-        // ── HELPER DE RENDU D'UNE BARRE D'AFFICHAGE SUPERPOSÉE STANDARD ─────────
         const renderSuperimposedGauge = (containerId, envelopeAmount, salaryRef, estimatedAmount, isYearly = false) => {
             const container = document.getElementById(containerId);
             if (!container) return;
 
             const unit = isYearly ? '/an' : '/m';
-            // Echelle fixe entre 0 et Max€ (Cas le plus haut + 5% de marge visuelle)
-            const maxVal = Math.max(envelopeAmount, salaryRef, estimatedAmount, 100) * 1.05;
+            const rawMax = Math.max(envelopeAmount, salaryRef, estimatedAmount, 100);
+            const { step, ticks, scaleCeiling } = this.computeNiceScale(rawMax * 1.05, 4);
 
-            const envPct = Math.min(100, Math.max(0, (envelopeAmount / maxVal) * 100));
-            const salaryPct = salaryRef > 0 ? Math.min(100, Math.max(0, (salaryRef / maxVal) * 100)) : null;
-            const estimatedPct = estimatedAmount > 0 ? Math.min(100, Math.max(0, (estimatedAmount / maxVal) * 100)) : null;
+            const envPct = Math.min(100, Math.max(0, (envelopeAmount / scaleCeiling) * 100));
+            const salaryPct = salaryRef > 0 ? Math.min(100, Math.max(0, (salaryRef / scaleCeiling) * 100)) : null;
+            const estimatedPct = estimatedAmount > 0 ? Math.min(100, Math.max(0, (estimatedAmount / scaleCeiling) * 100)) : null;
 
-            // Graduation Marks
-            const step = maxVal >= 6000 ? 2000 : (maxVal >= 3000 ? 1000 : (maxVal >= 1000 ? 500 : 200));
-            const ticks = [];
-            for (let v = 0; v <= maxVal; v += step) {
-                ticks.push(v);
-            }
+            const ticksHtml = ticks.map((val, idx) => {
+                const pct = scaleCeiling > 0 ? ((val / scaleCeiling) * 100) : 0;
+                const label = this.formatCompactAmount(val);
+                let alignStyle = `left:${pct}%;transform:translateX(-50%);`;
+                if (idx === 0) {
+                    alignStyle = 'left:0;transform:none;';
+                } else if (idx === ticks.length - 1) {
+                    alignStyle = 'right:0;left:auto;transform:none;';
+                }
+                return `
+                    <div style="position:absolute;${alignStyle}display:flex;flex-direction:column;align-items:center;pointer-events:none;">
+                        <div style="width:1px;height:3px;background:var(--border-color);opacity:0.8;margin-bottom:2px;"></div>
+                        <span style="font-size:9.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${label}</span>
+                    </div>
+                `;
+            }).join('');
 
             container.innerHTML = `
                 <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;">
                     <!-- Barre d'affichage superposée fine -->
-                    <div style="position:relative;height:8px;background:var(--bg-base);border:1px solid var(--border-color);border-radius:4px;overflow:visible;margin-top:14px;margin-bottom:14px;">
+                    <div style="position:relative;height:8px;background:var(--bg-base);border:1px solid var(--border-color);border-radius:4px;overflow:visible;margin-top:16px;margin-bottom:18px;">
                         <!-- Barre Bleue (Montant des enveloppes) -->
                         <div style="position:absolute;top:0;left:0;bottom:0;width:${envPct}%;background:var(--accent-gradient);border-radius:4px;transition:width 0.4s ease;max-width:100%;" title="Montant des enveloppes: ${formatCurrency(envelopeAmount)}${unit}"></div>
                         
                         <!-- Repère Jaune (Montant des dépenses estimées) -->
                         ${estimatedPct !== null ? `
                             <div style="position:absolute;top:-4px;bottom:-4px;left:${estimatedPct}%;width:3px;background:#eab308;box-shadow:0 0 6px #eab308;z-index:3;" title="Dépenses estimées: ${formatCurrency(estimatedAmount)}${unit}">
-                                <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:2px;background:#eab308;color:#000000;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
+                                <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;background:#eab308;color:#000000;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
                                     🟨 Est. lissée ${formatCurrency(estimatedAmount)}
                                 </div>
                             </div>
@@ -1094,16 +1251,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <!-- Repère Violet (Salaire repère) -->
                         ${salaryPct !== null ? `
                             <div style="position:absolute;top:-6px;bottom:-6px;left:${salaryPct}%;width:3px;background:#c084fc;box-shadow:0 0 6px #c084fc;z-index:4;" title="Revenus repère: ${formatCurrency(salaryRef)}${unit}">
-                                <div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:2px;background:#c084fc;color:#ffffff;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
+                                <div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;background:#c084fc;color:#ffffff;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
                                     💼 Salaire: ${formatCurrency(salaryRef)}
                                 </div>
                             </div>
                         ` : ''}
                     </div>
 
-                    <!-- Échelle fixe graduée -->
-                    <div style="position:relative;height:14px;margin-top:-10px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--text-muted);font-weight:600;">
-                        ${ticks.map(val => `<span>${val}€</span>`).join('')}
+                    <!-- Échelle fixe graduée avec positionnement précis -->
+                    <div style="position:relative;height:16px;margin-top:2px;font-size:9.5px;color:var(--text-muted);font-weight:600;">
+                        ${ticksHtml}
                     </div>
                 </div>
             `;
@@ -1127,26 +1284,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         renderSuperimposedGauge('aiSimGaugeCard1', impactCombinedMonthly, regularSalary, estimatedCombinedMonthly, false);
         renderSuperimposedGauge('aiSimGaugeCard2', impactMonthlyStrict, regularSalary, estimatedMonthlyStrict, false);
         renderSuperimposedGauge('aiSimGaugeCard3', impactYearlyStrict, yearlySalary, estimatedYearlyStrict, true);
-
-        const renderScaleTicks = (containerId) => {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            const step = maxScale <= 2500 ? 500 : 1000;
-            let html = '';
-            for (let val = 0; val <= maxScale; val += step) {
-                const pos = (val / maxScale) * 100;
-                const label = val === 0 ? '0 €' : `${val} €`;
-                const alignStyle = pos === 0 ? 'left:0;' : (pos >= 98 ? 'right:0;' : `left:${pos}%;transform:translateX(-50%);`);
-                html += `<div style="position:absolute;${alignStyle}display:flex;flex-direction:column;align-items:center;">
-                    <div style="width:1px;height:4px;background:var(--text-muted);opacity:0.4;"></div>
-                    <span style="font-size:9px;color:var(--text-muted);opacity:0.75;margin-top:1px;font-weight:600;font-family:sans-serif;">${label}</span>
-                </div>`;
-            }
-            container.innerHTML = html;
-        };
-
-        renderScaleTicks('aiSimScaleTicks1');
-        renderScaleTicks('aiSimScaleTicks2');
 
         const alertBanner = document.getElementById('aiSimHistoricalComparisonAlert');
         if (alertBanner) {
@@ -1518,6 +1655,19 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         } else {
             if (panel) panel.style.display = 'block';
             if (strip) strip.style.display = 'none';
+        }
+
+        const engineBadge = document.getElementById('aiPanelEngineBadge');
+        if (engineBadge) {
+            const isDet = (this.currentSuggestionEngine === 'deterministic') || 
+                          (this.aiSuggestMeta && this.aiSuggestMeta.engine === 'deterministic');
+            if (isDet) {
+                engineBadge.className = 'bv-engine-tag bv-engine-tag--det';
+                engineBadge.textContent = '⚡ ' + (window.i18n ? window.i18n.t('budget_engine_det_short') || 'Déterministe' : 'Déterministe');
+            } else {
+                engineBadge.className = 'bv-engine-tag bv-engine-tag--ai';
+                engineBadge.textContent = '🤖 ' + (window.i18n ? window.i18n.t('budget_engine_ai_short') || 'IA locale' : 'IA locale');
+            }
         }
 
         const windowMonths = (this.aiSuggestMeta && this.aiSuggestMeta.window_months) || 3;
@@ -2234,7 +2384,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const panel = document.getElementById('budgetAiPanel');
         if (panel) {
             panel.style.display = 'block';
-            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         this.updateHeaderSuggestionsButton();
@@ -2300,11 +2449,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             btn.classList.add('btn-suggestions-pending');
         } else {
             btn.classList.remove('btn-suggestions-pending');
-            const defaultText = (cfg.enable_ai === 'true')
-                ? ((window.i18n && window.i18n.t) ? window.i18n.t('budget_btn_suggestions') : '✨ Suggestions IA')
-                : ((window.i18n && window.i18n.t) ? window.i18n.t('budget_btn_suggestions_det') : '✨ Suggestions');
+            const defaultText = (window.i18n && window.i18n.t)
+                ? window.i18n.t('budget_btn_suggestions')
+                : '💡 Suggérer des enveloppes';
             btn.innerHTML = defaultText;
-            btn.title = '';
+            btn.title = (window.i18n && window.i18n.t) ? window.i18n.t('budget_btn_suggestions_tt') : 'Générer manuellement des propositions d\'enveloppes';
         }
     },
 
@@ -2337,7 +2486,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     triggerAiCreateBtnPulse() {
         const btn = document.getElementById('btnAcceptAiProposals');
         if (btn) {
-            btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
             btn.classList.add('ai-create-btn-pulse');
             setTimeout(() => {
                 btn.classList.remove('ai-create-btn-pulse');
@@ -2523,17 +2671,28 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         });
 
         // Echelle fixe avec +5% de marge visuelle
-        const maxScale = Math.max(totalMonthlyAvg, refSalary, totalEstimatedMonthly, 100) * 1.05;
-        const spendingPct = Math.min(100, Math.max(0, (totalMonthlyAvg / maxScale) * 100));
-        const salaryPct = refSalary > 0 ? Math.min(100, Math.max(0, (refSalary / maxScale) * 100)) : null;
-        const estimatedPct = totalEstimatedMonthly > 0 ? Math.min(100, Math.max(0, (totalEstimatedMonthly / maxScale) * 100)) : null;
+        const rawMax = Math.max(totalMonthlyAvg, refSalary, totalEstimatedMonthly, 100);
+        const { step, ticks, scaleCeiling } = this.computeNiceScale(rawMax * 1.05, 4);
+        const spendingPct = Math.min(100, Math.max(0, (totalMonthlyAvg / scaleCeiling) * 100));
+        const salaryPct = refSalary > 0 ? Math.min(100, Math.max(0, (refSalary / scaleCeiling) * 100)) : null;
+        const estimatedPct = totalEstimatedMonthly > 0 ? Math.min(100, Math.max(0, (totalEstimatedMonthly / scaleCeiling) * 100)) : null;
 
-        // Graduation Marks (0, 1000, 2000, 3000...)
-        const step = maxScale >= 6000 ? 2000 : (maxScale >= 3000 ? 1000 : (maxScale >= 1000 ? 500 : 200));
-        const ticks = [];
-        for (let v = 0; v <= maxScale; v += step) {
-            ticks.push(v);
-        }
+        const ticksHtml = ticks.map((val, idx) => {
+            const pct = scaleCeiling > 0 ? ((val / scaleCeiling) * 100) : 0;
+            const label = this.formatCompactAmount(val);
+            let alignStyle = `left:${pct}%;transform:translateX(-50%);`;
+            if (idx === 0) {
+                alignStyle = 'left:0;transform:none;';
+            } else if (idx === ticks.length - 1) {
+                alignStyle = 'right:0;left:auto;transform:none;';
+            }
+            return `
+                <div style="position:absolute;${alignStyle}display:flex;flex-direction:column;align-items:center;pointer-events:none;">
+                    <div style="width:1px;height:3px;background:var(--border-color);opacity:0.8;margin-bottom:2px;"></div>
+                    <span style="font-size:9.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${label}</span>
+                </div>
+            `;
+        }).join('');
 
         const diffVal = totalMonthlyAvg - refSalary;
         const isOverSalary = diffVal > 0.01;
@@ -2581,13 +2740,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </div>
                     
                     <!-- Combined Scale Bar avec Badge Salaire Repère et Repère Jaune Est. -->
-                    <div style="position:relative;height:32px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;overflow:visible;margin-top:16px;margin-bottom:18px;">
+                    <div style="position:relative;height:32px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:12px;overflow:visible;margin-top:16px;margin-bottom:22px;">
                         <!-- Barre Bleue (Montant des enveloppes) -->
-                        <div style="position:absolute;top:0;left:0;bottom:0;width:${spendingPct}%;background:linear-gradient(90deg, #3b82f6, #6366f1);border-radius:12px;transition:width 0.4s ease;max-width:100%;"></div>
+                        <div id="wizardSpendingBar" style="position:absolute;top:0;left:0;bottom:0;width:${spendingPct}%;background:linear-gradient(90deg, #3b82f6, #6366f1);border-radius:12px;transition:width 0.4s ease;max-width:100%;"></div>
                         
                         <!-- Repère Jaune (Montant des dépenses estimées) -->
                         ${estimatedPct !== null ? `
-                            <div style="position:absolute;top:-2px;bottom:-2px;left:${estimatedPct}%;width:3px;background:#eab308;box-shadow:0 0 8px #eab308;z-index:3;" title="Dépenses estimées: ${totalEstimatedMonthly.toFixed(2)} €/m">
+                            <div id="wizardEstimatedMarker" style="position:absolute;top:-2px;bottom:-2px;left:${estimatedPct}%;width:3px;background:#eab308;box-shadow:0 0 8px #eab308;z-index:3;" title="Dépenses estimées: ${totalEstimatedMonthly.toFixed(2)} €/m">
                                 <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;background:#eab308;color:#000000;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
                                     🟨 Est. lissée ${totalEstimatedMonthly.toFixed(0)}€
                                 </div>
@@ -2604,9 +2763,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         ` : ''}
                     </div>
 
-                    <!-- Échelle de prix fixe (0, 1000€, 2000€...) -->
-                    <div style="position:relative;height:16px;margin-top:-14px;display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);font-weight:600;">
-                        ${ticks.map(val => `<span>${val}€</span>`).join('')}
+                    <!-- Échelle de prix graduée -->
+                    <div id="wizScaleTicksContainer" style="position:relative;height:16px;margin-top:2px;font-size:10px;color:var(--text-muted);font-weight:600;">
+                        ${ticksHtml}
                     </div>
                 </div>
 
@@ -2733,17 +2892,47 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 totalEstimatedMonthly += (period === 'yearly' ? (histAmt / 12.0) : histAmt);
             });
 
-            const maxScale = Math.max(totalMonthlyAvg, num, totalEstimatedMonthly, 100) * 1.05;
-            const salaryPct = num > 0 ? Math.min(100, Math.max(0, (num / maxScale) * 100)) : 0;
+            const rawMax = Math.max(totalMonthlyAvg, num, totalEstimatedMonthly, 100);
+            const { ticks, scaleCeiling } = this.computeNiceScale(rawMax * 1.05, 4);
+            const salaryPct = num > 0 ? Math.min(100, Math.max(0, (num / scaleCeiling) * 100)) : 0;
+            const spendingPct = Math.min(100, Math.max(0, (totalMonthlyAvg / scaleCeiling) * 100));
+            const estimatedPct = totalEstimatedMonthly > 0 ? Math.min(100, Math.max(0, (totalEstimatedMonthly / scaleCeiling) * 100)) : 0;
 
             const wizardSalaryMarker = document.getElementById('wizardSalaryMarker');
             if (wizardSalaryMarker) {
                 wizardSalaryMarker.style.left = `${salaryPct}%`;
                 wizardSalaryMarker.style.display = num > 0 ? 'block' : 'none';
             }
+            const wizardSpendingBar = document.getElementById('wizardSpendingBar');
+            if (wizardSpendingBar) {
+                wizardSpendingBar.style.width = `${spendingPct}%`;
+            }
+            const wizardEstimatedMarker = document.getElementById('wizardEstimatedMarker');
+            if (wizardEstimatedMarker) {
+                wizardEstimatedMarker.style.left = `${estimatedPct}%`;
+            }
             const wizardSalaryMarkerBadge = document.getElementById('wizardSalaryMarkerBadge');
             if (wizardSalaryMarkerBadge) {
                 wizardSalaryMarkerBadge.textContent = `💼 Salaire: ${num.toFixed(0)}€`;
+            }
+            const wizScaleTicksContainer = document.getElementById('wizScaleTicksContainer');
+            if (wizScaleTicksContainer) {
+                wizScaleTicksContainer.innerHTML = ticks.map((val, idx) => {
+                    const pct = scaleCeiling > 0 ? ((val / scaleCeiling) * 100) : 0;
+                    const label = this.formatCompactAmount(val);
+                    let alignStyle = `left:${pct}%;transform:translateX(-50%);`;
+                    if (idx === 0) {
+                        alignStyle = 'left:0;transform:none;';
+                    } else if (idx === ticks.length - 1) {
+                        alignStyle = 'right:0;left:auto;transform:none;';
+                    }
+                    return `
+                        <div style="position:absolute;${alignStyle}display:flex;flex-direction:column;align-items:center;pointer-events:none;">
+                            <div style="width:1px;height:3px;background:var(--border-color);opacity:0.8;margin-bottom:2px;"></div>
+                            <span style="font-size:9.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${label}</span>
+                        </div>
+                    `;
+                }).join('');
             }
 
             // Recalcul de l'alerte

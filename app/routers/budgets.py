@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
@@ -63,6 +63,7 @@ class AiSuggestRequest(BaseModel):
     window_months: int = 3
     lang: Optional[str] = "fr"
     outlier_sensitivity: Optional[int] = 2
+    engine: Optional[str] = None
 
 
 class AiRefineRequest(BaseModel):
@@ -78,6 +79,10 @@ class AiRecalculateRequest(BaseModel):
     outlier_sensitivity: int = 2
     existing_proposals: list[dict] = []
     unclassified_categories: list[dict] = []
+
+
+class ApproveSuggestionPayload(BaseModel):
+    custom_amount: Optional[float] = None
 
 
 import logging
@@ -258,10 +263,12 @@ async def ai_suggest_budgets(data: Optional[AiSuggestRequest] = None, db: Sessio
         window_months = data.window_months if data else 3
         lang = data.lang if data else "fr"
         outlier_sensitivity = data.outlier_sensitivity if (data and data.outlier_sensitivity is not None) else 2
+        engine = data.engine if data else None
         return await budget_ai_service.ai_suggest_budgets_service(
             window_months=window_months,
             lang=lang,
             outlier_sensitivity=outlier_sensitivity,
+            engine=engine,
             db=db,
             profile_id=pid
         )
@@ -318,10 +325,15 @@ def get_autopilot_budget_suggestions(db: Session = Depends(get_db)):
 
 
 @router.post("/autopilot/suggestions/{decision_id}/approve")
-def approve_autopilot_budget_suggestion(decision_id: int, db: Session = Depends(get_db)):
-    """Valide une suggestion budgétaire (création ou recalibrage) en 1 clic."""
+def approve_autopilot_budget_suggestion(
+    decision_id: int,
+    payload: Optional[ApproveSuggestionPayload] = Body(None),
+    db: Session = Depends(get_db)
+):
+    """Valide une suggestion budgétaire (création ou recalibrage) en 1 clic (avec support de montant personnalisé)."""
     try:
-        result = budget_service.apply_budget_suggestion(db, decision_id)
+        custom_amount = payload.custom_amount if payload else None
+        result = budget_service.apply_budget_suggestion(db, decision_id, custom_amount=custom_amount)
         stats_cache.invalidate()
         return result
     except HTTPException:
