@@ -21,9 +21,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
     },
 
-    async approveAutopilotSuggestion(decisionId, onComplete) {
+    async approveAutopilotSuggestion(decisionId, onComplete, customAmount = null) {
         try {
-            const res = await API.post(`/api/budgets/autopilot/suggestions/${decisionId}/approve`);
+            const payload = (customAmount !== null && customAmount !== undefined && !isNaN(customAmount) && Number(customAmount) > 0)
+                ? { custom_amount: Number(customAmount) }
+                : null;
+            const res = await API.post(`/api/budgets/autopilot/suggestions/${decisionId}/approve`, payload);
             const name = res.name || 'Enveloppe';
             const amount = res.amount || res.new_amount || 0;
             
@@ -145,15 +148,48 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const isEnableRecalib = (this.autopilotConfig?.enable_budget_recalibration_suggestions ?? 'true') === 'true';
         const isMonitoringActive = isEnableCreation || isEnableRecalib;
 
+        // Si une analyse automatique / IA est en cours d'exécution
+        if (this._isAiAnalyzing) {
+            const stepDesc = this._aiAnalyzingStep || (window.i18n.t('budget_auto_ai_analyzing_step') || 'Recherche et regroupement thématique des catégories...');
+            return `
+                <div class="budget-suggestions-strip budget-strip-analyzing" role="region" aria-label="Analyse en cours">
+                    <div class="budget-strip-left">
+                        <span class="budget-monitoring-pulse-dot" style="background: var(--accent); box-shadow: 0 0 8px var(--accent);" title="Analyse en cours"></span>
+                        <div class="budget-strip-info">
+                            <span class="budget-strip-title" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <strong style="color: var(--accent);">🤖 ${window.i18n.t('budget_auto_ai_analyzing_title') || 'Analyse IA en cours...'}</strong>
+                                <span style="font-size: 12px; color: var(--text-muted);">${stepDesc}</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="budget-strip-right" style="display: flex; align-items: center; gap: 12px;">
+                        <div class="budget-ai-progress-bar-wrap" style="width: 130px; height: 7px; background: var(--border-color); border-radius: 4px; overflow: hidden; position: relative;">
+                            <div id="budgetAiBannerProgressBar" style="width: ${this._aiAnalyzingPct || 40}%; height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s ease;"></div>
+                        </div>
+                        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); min-width: 32px;">${this._aiAnalyzingPct || 40}%</span>
+                    </div>
+                </div>
+            `;
+        }
+
         if (!this.autopilotSuggestions || this.autopilotSuggestions.length === 0) {
             if (!isMonitoringActive) {
                 return '';
             }
 
             const activeMonitoringTitle = window.i18n.t('budget_auto_active_monitoring_title') || 'Surveillance active :';
-            const activeMonitoringDesc = window.i18n.t('budget_auto_active_monitoring_desc') || 'Toutes vos enveloppes sont équilibrées pour ce mois.';
+            let activeMonitoringDesc;
+            if (isEnableRecalib && isEnableCreation) {
+                activeMonitoringDesc = window.i18n.t('budget_auto_active_monitoring_desc') || 'Toutes vos enveloppes sont équilibrées pour ce mois.';
+            } else if (!isEnableRecalib && isEnableCreation) {
+                activeMonitoringDesc = window.i18n.t('budget_auto_active_monitoring_creation_only') || 'Veille sur les nouvelles catégories régulières (ajustements d\'enveloppes désactivés).';
+            } else {
+                activeMonitoringDesc = window.i18n.t('budget_auto_active_monitoring_recalib_only') || 'Vos enveloppes existantes sont équilibrées (création de nouvelles enveloppes désactivée).';
+            }
+
             const historyLabel = window.i18n.t('budget_auto_btn_history_dismissed') || 'Historique / Écartées';
             const settingsLabel = window.i18n.t('budget_automations_btn') || 'Automatismes';
+            const refreshLabel = window.i18n.t('budget_auto_btn_refresh_tt') || 'Actualiser les recommandations';
 
             return `
                 <div class="budget-suggestions-strip budget-strip-active-monitoring" role="region" aria-label="Surveillance active">
@@ -171,6 +207,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 onclick="window.BudgetsView.openDismissedSuggestionsModal()" 
                                 title="${historyLabel}">
                             <span>📋</span> <span class="btn-text">${historyLabel}</span>
+                        </button>
+                        <button type="button" class="btn btn-secondary budget-strip-btn-refresh" 
+                                onclick="window.BudgetsView.triggerAutopilotAnalysis()" 
+                                title="${refreshLabel}">
+                            <span>🔄</span>
                         </button>
                         <button type="button" class="btn btn-secondary budget-strip-btn-settings" 
                                 onclick="window.BudgetsView.openBudgetAutomationsModal()" 
@@ -360,14 +401,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         // Rendu dans le panneau riche interactif
         this.renderAiProposalsList();
 
-        // Rendre visible et faire défiler vers le panneau
+        // Rendre visible le panneau
         if (this.showAiPanel) {
             this.showAiPanel();
         } else {
             const panel = document.getElementById('budgetAiPanel');
             if (panel) {
                 panel.style.display = 'block';
-                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
 
@@ -616,7 +656,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 <span class="review-detail-val">${formatCurrency(s.avg_monthly || 0)}/mois</span>
                                 <span class="review-detail-sep">|</span>
                                 <span class="review-detail-label">Montant proposé :</span>
-                                <strong class="review-detail-amount">${formatCurrency(s.suggested_amount || 0)}/mois</strong>
+                                <div class="review-inplace-amount-wrapper" onclick="event.stopPropagation()">
+                                    <input type="number" step="1" min="1" class="review-inplace-input" id="customAmountInput_${s.decision_id}" value="${Math.round(s.suggested_amount || 0)}" title="Ajuster le montant proposé avant validation" />
+                                    <span class="review-inplace-unit">€/m</span>
+                                </div>
                                 ${s.justification ? `
                                     <div style="font-size: 11.5px; color: var(--text-muted); font-style: italic; margin-top: 4px; width: 100%;">
                                         💬 ${escapeHtml(s.justification)}
@@ -626,7 +669,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 <span class="review-detail-label">Évolution :</span>
                                 <span class="review-detail-old" style="text-decoration: line-through; opacity: 0.65;">${formatCurrency(s.current_amount || 0)}</span>
                                 <span class="review-arrow">→</span>
-                                <strong class="review-detail-amount">${formatCurrency(s.suggested_amount || 0)}/mois</strong>
+                                <div class="review-inplace-amount-wrapper" onclick="event.stopPropagation()">
+                                    <input type="number" step="1" min="1" class="review-inplace-input" id="customAmountInput_${s.decision_id}" value="${Math.round(s.suggested_amount || 0)}" title="Ajuster le montant proposé avant validation" />
+                                    <span class="review-inplace-unit">€/m</span>
+                                </div>
                                 <span class="review-detail-sep">|</span>
                                 <span class="review-detail-label">Moyenne :</span>
                                 <span class="review-detail-val">${formatCurrency(s.avg_spending || 0)}/mois</span>
@@ -703,11 +749,43 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             }
         };
 
+        let customAmount = null;
         if (action === 'approve') {
-            await this.approveAutopilotSuggestion(decisionId, onRowProcessed);
+            const input = document.getElementById(`customAmountInput_${decisionId}`);
+            if (input && input.value) {
+                const val = parseFloat(input.value);
+                if (!isNaN(val) && val > 0) {
+                    customAmount = val;
+                }
+            }
+        }
+
+        if (action === 'approve') {
+            await this.approveAutopilotSuggestion(decisionId, onRowProcessed, customAmount);
         } else {
             await this.dismissAutopilotSuggestion(decisionId, onRowProcessed);
         }
+    },
+
+    openReviewModalForBudget(budgetId) {
+        this.openSuggestionsReviewModal();
+        this._setReviewFilter('recalibration');
+        setTimeout(() => {
+            const target = (this.autopilotSuggestions || []).find(s => s.type !== 'creation' && s.budget_id === budgetId);
+            if (target) {
+                const row = document.getElementById(`reviewRow_${target.decision_id}`);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.style.transition = 'box-shadow 0.3s ease, transform 0.3s ease';
+                    row.style.boxShadow = '0 0 0 3px var(--accent)';
+                    row.style.transform = 'scale(1.02)';
+                    setTimeout(() => {
+                        row.style.boxShadow = '';
+                        row.style.transform = '';
+                    }, 1800);
+                }
+            }
+        }, 150);
     },
 
     async _bulkAction(action) {
@@ -790,7 +868,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                         <span>🧠</span> <span>${window.i18n.t('budget_auto_engine_title') || 'Moteur de découverte des enveloppes'}</span>
                                     </span>
                                     <span id="ollama_status_badge" style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(148, 163, 184, 0.15); color: var(--text-muted); white-space: nowrap;">
-                                        ${cfg.ollama_url ? '⏳ Vérification Ollama...' : (window.i18n.t('budget_auto_engine_ai_unconfigured') || 'Ollama non configuré')}
+                                        ${cfg.ollama_url ? '⏳ Connexion à l\'IA...' : (window.i18n.t('budget_auto_engine_ai_unconfigured') || 'IA non configurée')}
                                     </span>
                                 </div>
                                 <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">
@@ -809,10 +887,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                     <label id="engine_lbl_ai" style="display: flex; align-items: flex-start; gap: 8px; padding: 9px 10px; border-radius: 6px; border: 1.5px solid ${currentEngine === 'ai' ? 'var(--accent)' : 'var(--border-color)'}; background: ${currentEngine === 'ai' ? 'rgba(var(--accent-rgb), 0.08)' : 'transparent'}; cursor: pointer; transition: all 0.2s ease;">
                                         <input type="radio" name="budget_suggestion_engine" value="ai" ${currentEngine === 'ai' ? 'checked' : ''} onchange="window.BudgetsView._selectEngineInModal('ai')" style="margin-top: 2px; accent-color: var(--accent); cursor: pointer;">
                                         <div style="flex: 1; min-width: 0;">
-                                            <div style="font-size: 12px; font-weight: 700; color: var(--text-main);">🤖 ${window.i18n.t('budget_auto_engine_ai') || 'Assisté par IA (Ollama)'}</div>
-                                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.3;">${window.i18n.t('budget_auto_engine_ai_desc') || 'Regroupement sémantique multi-catégories via votre LLM local.'}</div>
+                                            <div style="font-size: 12px; font-weight: 700; color: var(--text-main);">🤖 ${window.i18n.t('budget_auto_engine_ai') || 'Assisté par IA'}</div>
+                                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.3;">${window.i18n.t('budget_auto_engine_ai_desc') || 'Regroupement sémantique multi-catégories via votre modèle d\'IA local.'}</div>
                                         </div>
                                     </label>
+                                </div>
+
+                                <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+                                    <button type="button" class="btn btn-secondary" onclick="window.BudgetsView.triggerAutopilotAnalysis(); document.getElementById('budgetAutomationsModal')?.remove();" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;" title="Lancer immédiatement une recherche et un calcul de suggestions">
+                                        <span>🚀</span> <span>${window.i18n.t('budget_auto_btn_run_analysis_now') || 'Lancer une analyse maintenant'}</span>
+                                    </button>
                                 </div>
                             </div>
 
@@ -894,11 +978,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     if (r.ok) {
                         badge.style.background = 'rgba(16, 185, 129, 0.15)';
                         badge.style.color = '#10b981';
-                        badge.textContent = '🟢 ' + (window.i18n.t('budget_auto_engine_ai_online') || 'Ollama connecté');
+                        badge.textContent = '🟢 ' + (window.i18n.t('budget_auto_engine_ai_online') || 'IA connectée');
                     } else {
                         badge.style.background = 'rgba(245, 158, 11, 0.15)';
                         badge.style.color = '#f59e0b';
-                        badge.textContent = '🟠 ' + (window.i18n.t('budget_auto_engine_ai_offline') || 'Ollama indisponible');
+                        badge.textContent = '🟠 ' + (window.i18n.t('budget_auto_engine_ai_offline') || 'IA indisponible');
                     }
                 })
                 .catch(() => {
@@ -906,7 +990,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     if (badge) {
                         badge.style.background = 'rgba(245, 158, 11, 0.15)';
                         badge.style.color = '#f59e0b';
-                        badge.textContent = '🟠 ' + (window.i18n.t('budget_auto_engine_ai_offline') || 'Ollama indisponible');
+                        badge.textContent = '🟠 ' + (window.i18n.t('budget_auto_engine_ai_offline') || 'IA indisponible');
                     }
                 });
         }
@@ -995,6 +1079,63 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         } catch (err) {
             console.error('[Budgets] Erreur sauvegarde config automatismes:', err);
             showToast(window.i18n.t('budget_toast_automations_error') || 'Erreur de sauvegarde des automatismes', 'error');
+        }
+    },
+
+    async triggerAutopilotAnalysis(engine = null) {
+        this._isAiAnalyzing = true;
+        this._aiAnalyzingPct = 25;
+        this._aiAnalyzingStep = window.i18n.t('budget_auto_ai_step_collecting') || 'Collecte et analyse de l\'historique des dépenses...';
+        
+        const strip = document.querySelector('.budget-suggestions-strip');
+        if (strip) {
+            strip.outerHTML = this.renderAutopilotSuggestionsBanner();
+        } else {
+            this.renderStatus();
+        }
+
+        const timer1 = setTimeout(() => {
+            if (this._isAiAnalyzing) {
+                this._aiAnalyzingPct = 65;
+                this._aiAnalyzingStep = window.i18n.t('budget_auto_ai_step_grouping') || 'Regroupement sémantique et calcul des montants...';
+                const pBar = document.getElementById('budgetAiBannerProgressBar');
+                if (pBar) pBar.style.width = '65%';
+            }
+        }, 1200);
+
+        try {
+            const chosenEngine = engine || (this.autopilotConfig?.budget_suggestion_engine || 'deterministic');
+            const res = await API.post(`/api/budgets/autopilot/recalibrate?engine=${encodeURIComponent(chosenEngine)}`);
+            
+            clearTimeout(timer1);
+            this._aiAnalyzingPct = 100;
+            this._aiAnalyzingStep = window.i18n.t('budget_auto_ai_step_complete') || 'Analyse terminée !';
+            const pBar = document.getElementById('budgetAiBannerProgressBar');
+            if (pBar) pBar.style.width = '100%';
+
+            await new Promise(r => setTimeout(r, 450));
+            this._isAiAnalyzing = false;
+
+            const total = (res.new_envelopes?.length || 0) + (res.recalibrations?.length || 0);
+            if (total > 0) {
+                showToast((window.i18n.t('budget_auto_ai_toast_found') || '{count} recommandation(s) budgétaire(s) identifiée(s)').replace('{count}', total), 'success');
+            } else {
+                showToast(window.i18n.t('budget_auto_ai_toast_none') || 'Aucun ajustement ni nouvelle enveloppe nécessaire pour le moment.', 'info');
+            }
+
+            await Promise.all([
+                this.loadBudgets(),
+                this.loadAllStatuses(),
+                this.loadAutopilotSuggestions()
+            ]);
+            this.renderStatus();
+        } catch (err) {
+            clearTimeout(timer1);
+            console.error('[Budgets] Erreur analyse automatique:', err);
+            this._isAiAnalyzing = false;
+            showToast(err.message || 'Erreur lors de l\'analyse des budgets', 'error');
+            await this.loadAutopilotSuggestions();
+            this.renderStatus();
         }
     },
 

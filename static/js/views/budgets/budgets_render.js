@@ -9,9 +9,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const hasProposals = (this.aiProposals && this.aiProposals.length > 0) || (this.unclassifiedCategories && this.unclassifiedCategories.length > 0);
         const isHidden = (window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('budget_ai_panel_hidden') : sessionStorage.getItem('budget_ai_panel_hidden')) === 'true';
         const isClosed = (window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('budget_ai_panel_closed') : sessionStorage.getItem('budget_ai_panel_closed')) === 'true';
-        let btnSuggestionsText = (cfg.enable_ai === 'true') 
-            ? (window.i18n.t('budget_btn_suggestions') || '✨ Suggestions IA') 
-            : (window.i18n.t('budget_btn_suggestions_det') || '✨ Suggestions');
+        let btnSuggestionsText = (window.i18n && window.i18n.t) 
+            ? (window.i18n.t('budget_btn_suggestions') || '💡 Suggérer des enveloppes') 
+            : '💡 Suggérer des enveloppes';
         let btnExtraClass = '';
         if (hasProposals && isHidden && !isClosed) {
             btnSuggestionsText = `👁️ ${window.i18n.t('budget_ai_btn_show_existing') || 'Afficher les suggestions'} (${(this.aiProposals || []).length})`;
@@ -36,51 +36,92 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             title="${window.i18n.t('budget_automations_title') || 'Automatismes des enveloppes budgétaires'}" 
                             style="padding: 7px 14px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
                         <span>⚙️</span> <span class="btn-text" data-i18n="budget_automations_btn">${window.i18n.t('budget_automations_btn') || 'Automatismes'}</span>
+                        ${(this.autopilotSuggestions && this.autopilotSuggestions.length > 0) ? `<span class="badge-count" style="background:#f59e0b; color:#fff; font-size:11px; padding:1px 6px; border-radius:10px; font-weight:700;">${this.autopilotSuggestions.length}</span>` : ''}
                     </button>
-                    <button id="budgetAiBtn" class="btn btn-secondary${btnExtraClass}" style="${aiDisp}" onclick="window.BudgetsView.handleHeaderSuggestionsBtnClick()" data-i18n="budget_btn_suggestions">${btnSuggestionsText}</button>
+                    <button id="budgetAiBtn" class="btn btn-secondary${btnExtraClass}" style="${aiDisp}" onclick="window.BudgetsView.handleHeaderSuggestionsBtnClick()" title="${window.i18n.t('budget_btn_suggestions_tt') || 'Générer manuellement des propositions d\'enveloppes'}" data-i18n="budget_btn_suggestions">${btnSuggestionsText}</button>
                     <button class="btn btn-secondary bv-btn-delete" onclick="window.BudgetsView.showBulkDeleteModal()" data-i18n="budget_btn_bulk_delete">${window.i18n.t('budget_btn_bulk_delete') || '🗑️ Nettoyer'}</button>
                     <button class="btn btn-primary" onclick="window.BudgetsView.showAddForm()" data-i18n="budget_btn_new">${window.i18n.t('budget_btn_new')}</button>
                 </div>
             </div>
 
-            <!-- Modal Sélection préalable de la période d'analyse IA -->
+            <!-- Modal Sélection préalable du moteur et de la période d'analyse -->
             <div id="aiWindowSelectionModal" class="bv-modal-overlay">
-                <div class="bv-modal-panel">
+                <div class="bv-modal-panel" style="max-width: 720px; width: min(720px, 95vw);">
                     <div class="bv-modal-header">
                         <h3>
-                            <span>🔮</span> <span data-i18n="ai_modal_window_title">${window.i18n.t('ai_modal_window_title') || '🔮 Suggestions Budgétaires par l\'IA'}</span>
+                            <span data-i18n="budget_modal_suggest_title">${window.i18n.t('budget_modal_suggest_title') || "💡 Suggestions d'enveloppes"}</span>
                         </h3>
                         <button class="btn btn-secondary" onclick="window.BudgetsView.closeAiWindowModal()" style="padding:4px 10px;font-size:12px;">✕</button>
                     </div>
 
-                    <p class="bv-modal-subtitle" data-i18n="ai_modal_window_subtitle">
-                        ${window.i18n.t('ai_modal_window_subtitle') || 'Choisissez la période d\'historique bancaire à analyser pour calculer vos enveloppes :'}
+                    <p class="bv-modal-subtitle" data-i18n="budget_modal_suggest_subtitle" style="margin-bottom:6px;">
+                        ${window.i18n.t('budget_modal_suggest_subtitle') || "Choisissez le moteur de calcul et la période d'historique bancaire à analyser :"}
                     </p>
 
-                    <div class="bv-modal-options">
-                        <label class="bv-modal-option bv-modal-option--selected" onclick="window.BudgetsView.selectModalAiWindow(3, this)">
-                            <input type="radio" name="modalAiWindowOption" value="3" checked>
-                            <div class="bv-modal-option-info">
-                                <strong data-i18n="ai_modal_win_3m_title">${window.i18n.t('ai_modal_win_3m_title') || '3 Mois (Recommandé)'}</strong>
-                                <span data-i18n="ai_modal_win_3m_desc">${window.i18n.t('ai_modal_win_3m_desc') || 'Idéal pour s\'adapter à vos habitudes de dépense récentes.'}</span>
-                            </div>
-                        </label>
+                    <!-- SECTION 1 : Moteur de calcul -->
+                    <div style="margin-bottom:8px;">
+                        <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;" data-i18n="budget_modal_engine_section_title">
+                            ${window.i18n.t('budget_modal_engine_section_title') || "Moteur de calcul"}
+                        </div>
+                        <div class="bv-engine-options">
+                            <label id="modalEngineCard_det" class="bv-engine-card bv-modal-option--selected" onclick="window.BudgetsView.selectModalSuggestEngine('deterministic', this)">
+                                <div class="bv-engine-card-header">
+                                    <div class="bv-engine-card-title">
+                                        <input type="radio" name="modalSuggestEngine" value="deterministic" checked style="accent-color:var(--accent);">
+                                        <span data-i18n="budget_modal_engine_det_title">${window.i18n.t('budget_modal_engine_det_title') || 'Déterministe'}</span>
+                                    </div>
+                                    <span class="bv-engine-tag bv-engine-tag--det" data-i18n="budget_modal_engine_det_tag">${window.i18n.t('budget_modal_engine_det_tag') || '⚡ Instantané'}</span>
+                                </div>
+                                <span class="bv-engine-card-desc" data-i18n="budget_modal_engine_det_desc">
+                                    ${window.i18n.t('budget_modal_engine_det_desc') || 'Calcul statistique Winsorisé 100% hors-ligne. Zéro dépendance, immédiat et fiable.'}
+                                </span>
+                            </label>
 
-                        <label class="bv-modal-option" onclick="window.BudgetsView.selectModalAiWindow(6, this)">
-                            <input type="radio" name="modalAiWindowOption" value="6">
-                            <div class="bv-modal-option-info">
-                                <strong data-i18n="ai_modal_win_6m_title">${window.i18n.t('ai_modal_win_6m_title') || '6 Mois (Lissage moyen)'}</strong>
-                                <span data-i18n="ai_modal_win_6m_desc">${window.i18n.t('ai_modal_win_6m_desc') || 'Parfait pour lisser les dépenses saisonnières et semi-annuelles.'}</span>
-                            </div>
-                        </label>
+                            <label id="modalEngineCard_ai" class="bv-engine-card" onclick="window.BudgetsView.selectModalSuggestEngine('ai', this)">
+                                <div class="bv-engine-card-header">
+                                    <div class="bv-engine-card-title">
+                                        <input type="radio" name="modalSuggestEngine" value="ai" style="accent-color:var(--accent);">
+                                        <span data-i18n="budget_modal_engine_ai_title">${window.i18n.t('budget_modal_engine_ai_title') || 'IA locale'}</span>
+                                    </div>
+                                    <span id="modalAiStatusBadge" class="bv-engine-tag bv-engine-tag--ai">🤖 Sémantique</span>
+                                </div>
+                                <span class="bv-engine-card-desc" data-i18n="budget_modal_engine_ai_desc">
+                                    ${window.i18n.t('budget_modal_engine_ai_desc') || 'Regroupement sémantique par intelligence artificielle locale sous des thèmes cohérents.'}
+                                </span>
+                            </label>
+                        </div>
+                    </div>
 
-                        <label class="bv-modal-option" onclick="window.BudgetsView.selectModalAiWindow(12, this)">
-                            <input type="radio" name="modalAiWindowOption" value="12">
-                            <div class="bv-modal-option-info">
-                                <strong data-i18n="ai_modal_win_12m_title">${window.i18n.t('ai_modal_win_12m_title') || '12 Mois (Vue annuelle complète)'}</strong>
-                                <span data-i18n="ai_modal_win_12m_desc">${window.i18n.t('ai_modal_win_12m_desc') || 'Capturer l\'ensemble des charges annuelles, abonnements et impôts.'}</span>
-                            </div>
-                        </label>
+                    <!-- SECTION 2 : Période d'historique -->
+                    <div style="margin-bottom:8px;">
+                        <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;" data-i18n="budget_modal_period_section_title">
+                            ${window.i18n.t('budget_modal_period_section_title') || "Période d'historique"}
+                        </div>
+                        <div class="bv-modal-options">
+                            <label class="bv-modal-option bv-modal-option--selected" onclick="window.BudgetsView.selectModalAiWindow(3, this)">
+                                <input type="radio" name="modalAiWindowOption" value="3" checked>
+                                <div class="bv-modal-option-info">
+                                    <strong data-i18n="ai_modal_win_3m_title">${window.i18n.t('ai_modal_win_3m_title') || '3 Mois (Recommandé)'}</strong>
+                                    <span data-i18n="ai_modal_win_3m_desc">${window.i18n.t('ai_modal_win_3m_desc') || 'Idéal pour s\'adapter à vos habitudes de dépense récentes.'}</span>
+                                </div>
+                            </label>
+
+                            <label class="bv-modal-option" onclick="window.BudgetsView.selectModalAiWindow(6, this)">
+                                <input type="radio" name="modalAiWindowOption" value="6">
+                                <div class="bv-modal-option-info">
+                                    <strong data-i18n="ai_modal_win_6m_title">${window.i18n.t('ai_modal_win_6m_title') || '6 Mois (Lissage moyen)'}</strong>
+                                    <span data-i18n="ai_modal_win_6m_desc">${window.i18n.t('ai_modal_win_6m_desc') || 'Parfait pour lisser les dépenses saisonnières et semi-annuelles.'}</span>
+                                </div>
+                            </label>
+
+                            <label class="bv-modal-option" onclick="window.BudgetsView.selectModalAiWindow(12, this)">
+                                <input type="radio" name="modalAiWindowOption" value="12">
+                                <div class="bv-modal-option-info">
+                                    <strong data-i18n="ai_modal_win_12m_title">${window.i18n.t('ai_modal_win_12m_title') || '12 Mois (Vue annuelle complète)'}</strong>
+                                    <span data-i18n="ai_modal_win_12m_desc">${window.i18n.t('ai_modal_win_12m_desc') || 'Capturer l\'ensemble des charges annuelles, abonnements et impôts.'}</span>
+                                </div>
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Switch Toggle Wizard -->
@@ -97,7 +138,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
                     <div class="bv-modal-footer">
                         <button class="btn btn-secondary" onclick="window.BudgetsView.closeAiWindowModal()">${window.i18n.t('budget_bulk_delete_cancel') || 'Annuler'}</button>
-                        <button class="btn btn-primary" onclick="window.BudgetsView.confirmAiWindowSelection()" data-i18n="ai_modal_btn_start">${window.i18n.t('ai_modal_btn_start') || '🚀 Lancer l\'analyse IA'}</button>
+                        <button id="btnConfirmSuggestModal" class="btn btn-primary" onclick="window.BudgetsView.confirmAiWindowSelection()" data-i18n="budget_modal_btn_start_det">
+                            ${window.i18n.t('budget_modal_btn_start_det') || '⚡ Calculer les suggestions'}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -199,6 +242,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             })()}
                 <div class="budget-ai-panel-header">
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <span id="aiPanelEngineBadge" class="bv-engine-tag bv-engine-tag--det" style="font-size:11px;font-weight:700;">⚡ Déterministe</span>
                         <span style="font-weight:700;font-size:13px;color:var(--text-main);" data-i18n="ai_budget_window">${window.i18n.t('ai_budget_window') || 'Historique d\'analyse :'}</span>
                         <span title="${window.i18n.t('ai_sim_tt_history_help') || 'La fenêtre détermine la profondeur de l\'historique analysée par l\'IA pour lisser vos moyennes mensuelles/annuelles, détecter les récurrences et couvrir l\'ensemble de vos catégories de dépenses.'}" style="cursor:help;margin-right:4px;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
                         <button id="aiWinBtn3" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(3)" data-i18n="ai_budget_window_3m">3 mois</button>
@@ -788,6 +832,20 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 </button>
             ` : '';
 
+            const autoSugg = (this.autopilotSuggestions || []).find(s => s.type !== 'creation' && s.budget_id === b.id);
+            let autoSuggBadgeHtml = '';
+            if (autoSugg) {
+                const delta = (autoSugg.suggested_amount || 0) - (b.budget_amount || 0);
+                const deltaStr = (delta >= 0 ? '+' : '') + formatCurrency(delta);
+                autoSuggBadgeHtml = `
+                    <div class="bv-card-sugg-badge" onclick="event.stopPropagation(); window.BudgetsView.openReviewModalForBudget(${b.id})" 
+                         title="${window.i18n.t('budget_card_sugg_tt') || 'Examiner la recommandation de recalibrage'}">
+                        <span class="bv-card-sugg-icon">💡</span>
+                        <span class="bv-card-sugg-text">${window.i18n.t('budget_card_sugg_label') || 'Ajustement'} : <strong>${formatCurrency(autoSugg.suggested_amount)}</strong> <small>(${deltaStr})</small></span>
+                    </div>
+                `;
+            }
+
             return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" class="budget-envelope-card ${overBudget ? 'over-budget' : ''}" style="${closedStyle}">
                     <div class="bv-card-header">
                         <div class="bv-card-name-area">
@@ -804,6 +862,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <button class="btn btn-danger" onclick="window.BudgetsView.deleteBudget(${b.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
                         </div>
                     </div>
+
+                    ${autoSuggBadgeHtml}
 
                     <div class="bv-card-amount-row">
                         <span>${periodLabel}</span>

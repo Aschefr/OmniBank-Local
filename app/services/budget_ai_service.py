@@ -368,36 +368,63 @@ def extract_json_envelopes(cleaned_raw: str) -> list[dict]:
 
     return parsed_objs
 
-async def ai_suggest_budgets_service(window_months: int, lang: Optional[str], db: Session, outlier_sensitivity: int = 2, profile_id: Optional[str] = None) -> dict:
+async def ai_suggest_budgets_service(
+    window_months: int,
+    lang: Optional[str],
+    db: Session,
+    outlier_sensitivity: int = 2,
+    profile_id: Optional[str] = None,
+    engine: Optional[str] = None
+) -> dict:
     pid = _resolve_profile_id(profile_id)
-    _update_ai_status(
-        profile_id=pid,
-        state="PREPARING",
-        step_key="ai_status_preparing",
-        elapsed_seconds=0,
-        max_seconds=300,
-        result=None,
-        error=None,
-        start_time=time.time(),
-    )
+    cfg_engine = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_suggestion_engine").first()
+    configured_engine = (cfg_engine.value if cfg_engine and cfg_engine.value else "deterministic").strip().lower()
+    chosen_engine = (engine or configured_engine).strip().lower()
+    is_deterministic_engine = (chosen_engine == "deterministic")
+
+    if not is_deterministic_engine:
+        _update_ai_status(
+            profile_id=pid,
+            state="PREPARING",
+            step_key="ai_status_preparing",
+            elapsed_seconds=0,
+            max_seconds=300,
+            result=None,
+            error=None,
+            start_time=time.time(),
+        )
     try:
-        res = await _ai_suggest_budgets_service_impl(window_months, lang, db, outlier_sensitivity, profile_id=pid)
-        _update_ai_status(profile_id=pid, state="SUCCESS", step_key="ai_status_success", result=res)
+        res = await _ai_suggest_budgets_service_impl(
+            window_months, lang, db, outlier_sensitivity, profile_id=pid, engine=chosen_engine
+        )
+        if not is_deterministic_engine:
+            _update_ai_status(profile_id=pid, state="SUCCESS", step_key="ai_status_success", result=res)
         return res
     except HTTPException as he:
-        _update_ai_status(profile_id=pid, state="ERROR", error=he.detail if hasattr(he, "detail") else str(he))
+        if not is_deterministic_engine:
+            _update_ai_status(profile_id=pid, state="ERROR", error=he.detail if hasattr(he, "detail") else str(he))
         raise
     except Exception as e:
         logger.error(f"[AI Budget] Erreur inattendue dans ai_suggest_budgets_service: {e}", exc_info=True)
-        _update_ai_status(profile_id=pid, state="ERROR", error=str(e))
+        if not is_deterministic_engine:
+            _update_ai_status(profile_id=pid, state="ERROR", error=str(e))
         raise HTTPException(status_code=500, detail=f"Erreur d'analyse : {str(e)}")
 
-async def _ai_suggest_budgets_service_impl(window_months: int, lang: Optional[str], db: Session, outlier_sensitivity: int = 2, profile_id: Optional[str] = None) -> dict:
+async def _ai_suggest_budgets_service_impl(
+    window_months: int,
+    lang: Optional[str],
+    db: Session,
+    outlier_sensitivity: int = 2,
+    profile_id: Optional[str] = None,
+    engine: Optional[str] = None
+) -> dict:
     pid = _resolve_profile_id(profile_id)
     window_months = window_months if window_months in (3, 6, 12) else 3
 
     cfg_engine = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_suggestion_engine").first()
-    is_deterministic_engine = bool(cfg_engine and cfg_engine.value and cfg_engine.value.strip().lower() == "deterministic")
+    configured_engine = (cfg_engine.value if cfg_engine and cfg_engine.value else "deterministic").strip().lower()
+    chosen_engine = (engine or configured_engine).strip().lower()
+    is_deterministic_engine = (chosen_engine == "deterministic")
 
     cfg = get_ollama_config(db)
     if not is_deterministic_engine and not cfg.get("enabled"):
@@ -481,14 +508,15 @@ Response format (JSON object with key "envelopes"):
   ]
 }}"""
 
-    _update_ai_status(profile_id=pid, state="SENDING", step_key="ai_status_sending")
+    if not is_deterministic_engine:
+        _update_ai_status(profile_id=pid, state="SENDING", step_key="ai_status_sending")
 
     raw = ""
     last_error_msg = ""
     is_fallback = False
 
     if is_deterministic_engine:
-        logger.info("[AI Budget] Moteur déterministe sélectionné dans les paramètres. Contournement d'Ollama et regroupement thématique déterministe immédiat.")
+        logger.info("[AI Budget] Moteur déterministe sélectionné. Contournement d'Ollama et regroupement thématique déterministe immédiat.")
         is_fallback = True
     else:
         ollama_ctx = min(int(cfg.get("num_ctx", 4096) or 4096), 4096)
@@ -516,7 +544,8 @@ Response format (JSON object with key "envelopes"):
             logger.warning(f"[AI Budget] Communication Ollama impossible ({last_error_msg}). Bascule automatique sur les propositions déterministes de secours.")
             is_fallback = True
 
-    _update_ai_status(profile_id=pid, state="PARSING", step_key="ai_status_parsing")
+    if not is_deterministic_engine:
+        _update_ai_status(profile_id=pid, state="PARSING", step_key="ai_status_parsing")
 
     cleaned_raw = re.sub(r'```(?:json)?', '', raw or "").strip()
     parsed_objs = extract_json_envelopes(cleaned_raw) if cleaned_raw else []

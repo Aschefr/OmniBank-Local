@@ -1734,7 +1734,7 @@ def dismiss_all_budget_suggestions(db: Session, decision_ids: Optional[List[int]
     }
 
 
-def apply_budget_suggestion(db: Session, decision_id: int) -> dict:
+def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Optional[float] = None) -> dict:
     """Approuve une suggestion budgétaire : crée l'enveloppe ou applique le recalibrage."""
     import json as _json
 
@@ -1755,6 +1755,8 @@ def apply_budget_suggestion(db: Session, decision_id: int) -> dict:
         # Création d'enveloppe
         envelope_name = snap.get("name") or snap.get("category", "Sans nom")
         amount = float(snap.get("suggested_amount", 30.0))
+        if custom_amount is not None and float(custom_amount) > 0:
+            amount = round(float(custom_amount), 2)
         period = snap.get("suggested_period", "monthly")
         base_annual = amount if period == "yearly" else amount * 12
 
@@ -1790,6 +1792,7 @@ def apply_budget_suggestion(db: Session, decision_id: int) -> dict:
             "budget_id": b.id,
             "name": envelope_name,
             "amount": amount,
+            "custom_amount": custom_amount,
             "action_id": action_id,
         }
 
@@ -1805,6 +1808,8 @@ def apply_budget_suggestion(db: Session, decision_id: int) -> dict:
 
         old_snapshot = snapshot_entity(b, db)
         new_amount = snap.get("suggested_amount", b.monthly_amount)
+        if custom_amount is not None and float(custom_amount) > 0:
+            new_amount = round(float(custom_amount), 2)
         b.monthly_amount = new_amount
         db.flush()
 
@@ -1820,6 +1825,7 @@ def apply_budget_suggestion(db: Session, decision_id: int) -> dict:
             "name": b.name,
             "old_amount": snap.get("current_amount"),
             "new_amount": new_amount,
+            "custom_amount": custom_amount,
             "action_id": action_id,
         }
 

@@ -911,5 +911,118 @@ def test_t5_20_clear_dismissed_history(test_db):
     assert len(get_dismissed_budget_suggestions(test_db)) == 0
 
 
+def test_t5_21_approve_suggestion_with_custom_amount(test_db):
+    """T5.21 : Approbation d'une suggestion avec montant personnalisé (in-place)."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.services.budget_service import apply_budget_suggestion
+
+    client = TestClient(app)
+
+    # 1. Test création d'enveloppe avec montant personnalisé
+    snap_create = {
+        "name": "Loisirs Créatifs",
+        "category": "Loisirs Créatifs",
+        "suggested_amount": 45.0,
+        "suggested_period": "monthly",
+    }
+    d1 = AutopilotDecisionLog(
+        batch_id="batch-custom-create",
+        decision_type="budget_creation_suggestion",
+        action="SUGGESTED",
+        entity_type="budget",
+        raw_snapshot=json.dumps(snap_create),
+    )
+    test_db.add(d1)
+    test_db.commit()
+
+    # Approuver avec custom_amount = 60.0
+    res_create = apply_budget_suggestion(test_db, d1.id, custom_amount=60.0)
+    assert res_create["ok"] is True
+    assert res_create["amount"] == 60.0
+    assert res_create["custom_amount"] == 60.0
+
+    b1 = test_db.query(Budget).filter(Budget.id == res_create["budget_id"]).first()
+    assert b1 is not None
+    assert b1.monthly_amount == 60.0
+    assert b1.base_annual_amount == 720.0
+
+    # 2. Test recalibrage d'enveloppe avec montant personnalisé
+    b2 = Budget(
+        name="Restaurant",
+        monthly_amount=200.0,
+        period="monthly",
+        envelope_type="spending",
+        base_annual_amount=2400.0,
+    )
+    test_db.add(b2)
+    test_db.commit()
+
+    snap_recalib = {
+        "budget_id": b2.id,
+        "budget_name": "Restaurant",
+        "current_amount": 200.0,
+        "suggested_amount": 230.0,
+    }
+    d2 = AutopilotDecisionLog(
+        batch_id="batch-custom-recalib",
+        decision_type="budget_suggestion",
+        action="SUGGESTED",
+        entity_type="budget",
+        raw_snapshot=json.dumps(snap_recalib),
+    )
+    test_db.add(d2)
+    test_db.commit()
+
+    # Approuver recalibrage avec custom_amount = 250.0
+    res_recalib = apply_budget_suggestion(test_db, d2.id, custom_amount=250.0)
+    assert res_recalib["ok"] is True
+    assert res_recalib["new_amount"] == 250.0
+    assert res_recalib["custom_amount"] == 250.0
+
+    test_db.refresh(b2)
+    assert b2.monthly_amount == 250.0
+
+
+def test_t5_22_manual_suggest_engine_deterministic_fast_path(test_db):
+    """T5.22 : Appel manuel POST /api/budgets/ai_suggest avec engine='deterministic' retourne immédiatement engine='deterministic'."""
+    acc = Account(name="Courant Manuel", type="Compte courant", initial_balance=1500.0)
+    test_db.add(acc)
+    test_db.commit()
+
+    today = date.today()
+    for m in range(1, 3):
+        past_date = today.replace(day=1) - relativedelta(months=m, days=-3)
+        test_db.add(Transaction(
+            from_account_id=acc.id,
+            category="Pharmacie",
+            amount=32.0,
+            type="expense_var",
+            date_saisie=past_date,
+            date_operation=past_date,
+            description="Médicaments",
+        ))
+    test_db.commit()
+
+    import asyncio
+    from app.services.budget_ai_service import ai_suggest_budgets_service, get_ai_suggest_status
+    res = asyncio.run(ai_suggest_budgets_service(
+        db=test_db,
+        window_months=3,
+        lang="fr",
+        outlier_sensitivity=2,
+        engine="deterministic"
+    ))
+    assert res is not None
+    assert res.get("engine") == "deterministic"
+    st = get_ai_suggest_status()
+    assert st.get("state") == "IDLE"
+    proposals = res.get("proposals", [])
+    assert len(proposals) >= 1
+    assert any("Pharmacie" in p.get("categories", []) for p in proposals)
+
+
+
+
 
 
