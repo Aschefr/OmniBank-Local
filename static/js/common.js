@@ -283,11 +283,135 @@ const API = {
 };
 window.API = API;
 
+// ─── Global Top Progress Bar Manager (Responsive & Mobile-safe) ───
+const GlobalProgress = {
+    _element: null,
+    _activeCount: 0,
+    _timer: null,
+    _progress: 0,
+    _progressInterval: null,
 
-// Global fetch interceptor for remote server URL support
+    _getOrCreateElement() {
+        if (!this._element || !document.body.contains(this._element)) {
+            this._element = document.getElementById('globalProgressBar');
+            if (!this._element) {
+                this._element = document.createElement('div');
+                this._element.id = 'globalProgressBar';
+                this._element.className = 'global-progress-bar';
+                document.body.appendChild(this._element);
+            }
+        }
+        return this._element;
+    },
+
+    start() {
+        this._activeCount++;
+        if (this._activeCount === 1) {
+            clearTimeout(this._timer);
+            // Seuil de 120ms : évite les micro-flashs sur les requêtes locales instantanées
+            this._timer = setTimeout(() => {
+                if (this._activeCount > 0) {
+                    const el = this._getOrCreateElement();
+                    el.classList.remove('is-done');
+                    el.classList.add('is-active');
+                    this._progress = 18;
+                    el.style.width = `${this._progress}%`;
+
+                    clearInterval(this._progressInterval);
+                    this._progressInterval = setInterval(() => {
+                        if (this._progress < 85) {
+                            const step = (85 - this._progress) * 0.15;
+                            this._progress += Math.max(step, 0.4);
+                            el.style.width = `${Math.min(this._progress, 88)}%`;
+                        }
+                    }, 180);
+                }
+            }, 120);
+        }
+    },
+
+    done() {
+        this._activeCount = Math.max(0, this._activeCount - 1);
+        if (this._activeCount === 0) {
+            clearTimeout(this._timer);
+            clearInterval(this._progressInterval);
+            const el = this._element || document.getElementById('globalProgressBar');
+            if (el && el.classList.contains('is-active')) {
+                el.style.width = '100%';
+                setTimeout(() => {
+                    el.classList.add('is-done');
+                    el.classList.remove('is-active');
+                    setTimeout(() => {
+                        el.style.width = '0%';
+                    }, 350);
+                }, 140);
+            }
+        }
+    }
+};
+window.GlobalProgress = GlobalProgress;
+
+/**
+ * Helper universel pour sécuriser les clics de boutons :
+ * - Fige la largeur actuelle (évite le saut de mise en page)
+ * - Applique la classe .is-loading (micro-spinner CSS)
+ * - Désactive le bouton (anti double-clic)
+ * - Rétablit l'état initial en bloc finally
+ *
+ * @param {HTMLElement|string} buttonOrSelector 
+ * @param {Function} asyncFn 
+ * @returns {Promise<*>}
+ */
+window.withButtonLoading = async function(buttonOrSelector, asyncFn) {
+    const btn = typeof buttonOrSelector === 'string'
+        ? document.querySelector(buttonOrSelector)
+        : buttonOrSelector;
+
+    if (!btn || !(btn instanceof HTMLElement)) {
+        return (typeof asyncFn === 'function') ? await asyncFn() : undefined;
+    }
+
+    if (btn.disabled || btn.classList.contains('is-loading')) {
+        return;
+    }
+
+    const rect = btn.getBoundingClientRect();
+    const prevMinWidth = btn.style.minWidth;
+    const prevPointerEvents = btn.style.pointerEvents;
+    const wasDisabled = btn.disabled;
+
+    if (rect.width > 0) {
+        btn.style.minWidth = `${rect.width}px`;
+    }
+
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+
+    try {
+        return (typeof asyncFn === 'function') ? await asyncFn() : undefined;
+    } finally {
+        btn.classList.remove('is-loading');
+        btn.disabled = wasDisabled;
+        btn.style.minWidth = prevMinWidth;
+        btn.style.pointerEvents = prevPointerEvents;
+    }
+};
+
+// Global fetch interceptor for remote server URL support & global progress tracking
 if (typeof window._originalFetch === 'undefined') {
     window._originalFetch = window.fetch;
     window.fetch = function(resource, config) {
+        const urlStr = typeof resource === 'string'
+            ? resource
+            : (resource instanceof Request ? resource.url : '');
+
+        const isApi = urlStr.includes('/api/') || (typeof resource === 'string' && resource.startsWith('/'));
+        const isSilent = config && config.silent === true;
+
+        if (isApi && !isSilent && window.GlobalProgress) {
+            window.GlobalProgress.start();
+        }
+
         if (typeof resource === 'string' && resource.startsWith('/')) {
             const baseUrl = API.getBaseUrl();
             if (baseUrl) {
@@ -300,7 +424,21 @@ if (typeof window._originalFetch === 'undefined') {
                 resource = new Request(target, resource);
             }
         }
-        return window._originalFetch.call(this, resource, config);
+
+        try {
+            const p = window._originalFetch.call(this, resource, config);
+            if (isApi && !isSilent && window.GlobalProgress) {
+                return Promise.resolve(p).finally(() => {
+                    window.GlobalProgress.done();
+                });
+            }
+            return p;
+        } catch (err) {
+            if (isApi && !isSilent && window.GlobalProgress) {
+                window.GlobalProgress.done();
+            }
+            throw err;
+        }
     };
 }
 

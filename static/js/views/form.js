@@ -1304,10 +1304,12 @@ window.FormView = {
     },
 
     async executeSave(propagate) {
-        try {
-            let actionId = null;
+        const saveBtn = document.getElementById('op_save_btn');
+        return window.withButtonLoading(saveBtn, async () => {
+            try {
+                let actionId = null;
 
-            if (this._ghostMode === true) {
+                if (this._ghostMode === true) {
                 // GHOST TRANSACTION COMMIT
                 const ghostAccId = this.pendingSaveData.from_account_id || this.pendingSaveData.to_account_id;
                 const isIncome = this.pendingSaveData.type === 'income';
@@ -1505,6 +1507,7 @@ window.FormView = {
             console.error(e);
             showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error_generic'));
         }
+        });
     },
 
     toggleSkipState() {

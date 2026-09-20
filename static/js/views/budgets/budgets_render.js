@@ -386,7 +386,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
                             <!-- Buttons -->
                             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
-                                <button class="btn btn-primary" style="flex:1;" onclick="window.BudgetsView.saveForm()" data-i18n="budget_btn_save">${window.i18n.t('budget_btn_save')}</button>
+                                <button id="budgetSaveBtn" class="btn btn-primary" style="flex:1;" onclick="window.BudgetsView.saveForm(this)" data-i18n="budget_btn_save">${window.i18n.t('budget_btn_save')}</button>
                                 <button class="btn btn-secondary" style="flex:1;" onclick="window.BudgetsView.hideEditSection()" data-i18n="budget_btn_cancel">${window.i18n.t('budget_btn_cancel')}</button>
                             </div>
                         </div>

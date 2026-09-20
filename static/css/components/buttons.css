@@ -48,6 +48,69 @@
     box-shadow: none;
 }
 
+/* ─── Button Loading & Disabled States ─── */
+.btn:disabled,
+.btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+    box-shadow: none;
+}
+
+.btn.is-loading {
+    position: relative !important;
+    pointer-events: none !important;
+    cursor: wait !important;
+}
+
+.btn.is-loading::after {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 8px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: btn-spin 0.65s linear infinite;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.btn.is-loading.has-spinner::after {
+    display: none !important;
+}
+
+.btn-icon.is-loading::after,
+.btn.btn-icon.is-loading::after {
+    margin-left: 0;
+    position: absolute;
+    top: calc(50% - 6px);
+    left: calc(50% - 6px);
+}
+
+.btn-icon.is-loading > *,
+.btn.btn-icon.is-loading > * {
+    opacity: 0.2;
+}
+
+.btn-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: btn-spin 0.65s linear infinite;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+@keyframes btn-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 
 /* ─── Section: Compact mode button & table sizing overrides (Lines 2635-2707) ─── */
 /* ── Compact Mode (All Themes: Classic, Executive Titanium & Albâtre) ── */

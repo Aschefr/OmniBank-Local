@@ -691,4 +691,46 @@
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
+/* ─── Global Top Progress Bar (Responsive & Mobile-safe) ─── */
+#globalProgressBar,
+.global-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0%;
+    height: 3px;
+    z-index: 99999;
+    pointer-events: none;
+    background: linear-gradient(90deg, var(--accent, #3366ff), #a855f7, #06b6d4, var(--accent, #3366ff));
+    background-size: 200% 100%;
+    box-shadow: 0 0 10px rgba(51, 102, 255, 0.6), 0 0 4px rgba(168, 85, 247, 0.4);
+    opacity: 0;
+    transition: width 0.25s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.25s ease;
+}
+
+#globalProgressBar.is-active,
+.global-progress-bar.is-active {
+    opacity: 1;
+    animation: progressPulse 1.8s linear infinite;
+}
+
+#globalProgressBar.is-done,
+.global-progress-bar.is-done {
+    opacity: 0;
+    transition: opacity 0.35s ease 0.1s, width 0.15s ease;
+}
+
+@keyframes progressPulse {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
+/* Safe area support for mobile devices with notch / dynamic island */
+@supports (top: env(safe-area-inset-top)) {
+    #globalProgressBar,
+    .global-progress-bar {
+        top: env(safe-area-inset-top, 0px);
+    }
+}
+
 
