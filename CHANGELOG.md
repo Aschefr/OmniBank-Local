@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Misplaced Categories Diagnostic & Reclassification Maintenance Tool 🏷️🔧**:
+  - **Automated Anomaly Audit**: Added a new maintenance tool in Settings (*Paramètres > Gestion des données*) that audits categories against real transaction and recurrence flows. It detects internal transfers misclassified as fixed/variable charges, single-account charges misclassified as transfers, and income/expense flow inversions.
+  - **Interactive Reclassification Preview**: Displays a diagnostic breakdown modal with color-coded type transition badges (Current ➔ Recommended), detailed diagnostic reasons, transaction counts, and sample operations. Users can review, adjust, or accept recommendations with a single click.
+  - **Atomic Multi-Entity Synchronization**: Applying reclassification cascades updates across `Category`, `Transaction`, and `RecurrenceTemplate` models, realigns isolated desynchronized transactions, invalidates stats caches, and dispatches real-time DOM events without manual page reloads (Zero F5).
+- **Strict Category Filtering by Direction & Reusable CategoryPicker 🏷️🔍**:
+  - **Reusable CategoryPicker Component**: Introduced `CategoryPicker`, a unified, searchable category dropdown featuring instant accent- and case-insensitive search (`permissiveMatch`), keyboard navigation (arrows, Enter, Escape), type color badges, and an integrated quick-create action.
+  - **Strict Type & Direction Filtering**: Restricts eligible categories based on inferred operation flow (*Depuis / Vers*): debits/outflows (`raw_amount < 0`) strictly allow variable and fixed expenses (`expense_var`, `expense_fixed`) with segmented tabs, credits/inflows (`raw_amount > 0`) strictly allow income categories (`income`), and transfers strictly allow transfer categories (`transfer`).
+  - **Visual Direction Pills**: Added explicit `🔴 Sortie` and `🟢 Entrée` flow indicators in bank sync review and CSV import wizard tables next to amounts.
+  - **Hardened Operation Form & Modals**: Removed legacy bypasses in `FormView` (`form.js`) and recurrence modals (`recurrences_modals.js`), ensuring changing transaction direction or type dynamically updates and resets incompatible category selections in real time.
 - **Recurrence Promotion Safeguards & Automations Opt-In Defaults 🔄🔒**:
   - **Promotion Toggle with Locked Date**: Added an automatic promotion toggle for regular subscriptions (N≥3) in the Recurrences automations dialog with a date field defaulting to Today - 45 days, editable prior to activation and locked upon activation.
   - **Automations Defaults to OFF**: All recurrence automation toggles now default to OFF for new profiles, ensuring explicit user opt-in.
@@ -14,6 +23,11 @@ All notable changes to this project will be documented in this file.
   - **Enforced Solid Borders & Full Opacity**: Enforced 1px solid borders and full opacity (`opacity: 1`) on `.overview-bank-sync-btn` across all states (idle, syncing, success, error) in the Dashboard and History toolbars, eliminating hazy or washed-out visual artifacts caused by `.btn` style inheritance.
 
 ### Fixed
+- **Internal Transfer Consistency & Phantom Inactive Categories in Synthèse 🔄📊**:
+  - **Bidirectional Transfer Normalization**: Enforced strict `transfer` typing on all bidirectional transactions (`from_account_id` and `to_account_id` both set) across transaction creation, update, propagation, and recurrence generation.
+  - **Category Type Mutation Cascade**: Updating a category's type now cascades to all associated transactions and recurrence templates.
+  - **Analytics Annual vs. Monthly Logic Alignment**: Aligned the annual totals calculation in `app/routers/stats.py` with monthly bidirectional filtering, eliminating phantom inactive category rows (such as *"Economies"*) that displayed dashes (`--`) despite being active monthly operations.
+  - **Database Migration**: Normalized all 109 legacy bidirectional transactions and 2 recurrence templates to `type = 'transfer'`, ensuring accurate reflection in the *Virements* section of the Synthèse table.
 - **Dashboard Columns & Bank Sync UX Improvements 🏦⚙️**:
   - **Online Sync Button Persistence**: Resolved an issue where the "Relever en ligne" button disappeared from the Dashboard and History toolbars after a page reload (F5) until navigating through Overview. Connection state detection and visibility checks are now executed reliably during application startup.
   - **Restored Dashboard Columns Button**: Restored the missing "⚙️ Colonnes" configuration button in the Dashboard toolbar following the filter bar redesign, allowing seamless toggling of visible table columns.

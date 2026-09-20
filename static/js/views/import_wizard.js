@@ -572,28 +572,36 @@ window.ImportWizard = {
                 `${rawDescHtml}<input type="text" class="import-desc inline-input" value="${mappedDescValue}" style="width: 100%; border: 1px solid transparent; background: transparent; padding: 5px; color: var(--text-muted);" readonly title="Existant en DB">` : 
                 `${rawDescHtml}<input type="text" class="import-desc inline-input" value="${mappedDescValue}" list="importDescList" oninput="window.ImportWizard.onDescriptionInput(this)" style="width: 100%; border: 1px solid var(--border-color); padding: 5px;">`;
                 
+            const amtVal = parseFloat(tx.amount || 0);
+            const isDebit = amtVal < 0;
+            const allowedTypes = isDebit ? ['expense_var', 'expense_fixed'] : ['income'];
+            const direction = isDebit ? 'debit' : 'credit';
+
             let catInputStr = '';
             if (!isRec) {
-                let options = `<option value="">-- Catégorie --</option>`;
-                (window.app.categoriesList || []).forEach(cat => {
-                    if (!cat.is_closed) {
-                        options += `<option value="${cat.name.replace(/"/g, '&quot;')}">${cat.name}</option>`;
-                    }
+                const catPickerHtml = window.CategoryPicker.renderTriggerHtml({
+                    id: `import_cat_${i}`,
+                    value: tx.category || '',
+                    allowedTypes: allowedTypes,
+                    direction: direction,
+                    inputClass: 'import-cat inline-input',
+                    placeholder: '-- Catégorie --',
+                    onChangeName: `(val) => { tx.category = val; }`
                 });
                 
                 const aiBtnHtml = (window.app.config && window.app.config.enable_ai === 'true') ? 
-                    `<button class="btn btn-secondary" onclick="window.ImportWizard.categorizeRow(this)" style="padding: 4px; border: none; background: transparent; cursor: pointer;" title=\"${window.i18n.t('tooltip_categorize_ai')}\">🧠</button>` : '';
+                    `<button class="btn btn-secondary" onclick="window.ImportWizard.categorizeRow(this)" style="padding: 4px 6px; border: none; background: transparent; cursor: pointer; font-size: 13px;" title="${window.i18n.t('tooltip_categorize_ai')}">🧠</button>` : '';
                     
                 catInputStr = `
                     <div style="display: flex; align-items: center; gap: 5px;">
-                        <select class="import-cat inline-input" style="width: 100%; border: 1px solid var(--border-color); padding: 5px;">
-                            ${options}
-                        </select>
+                        <div style="flex: 1;">
+                            ${catPickerHtml}
+                        </div>
                         ${aiBtnHtml}
                     </div>
                 `;
             } else {
-                catInputStr = `<span style="color: var(--text-muted); font-size: 12px; font-style: italic;">${window.i18n.t('import_already_in_db')}</span><input type="hidden" class="import-cat" value="">`;
+                catInputStr = `<span style="color: var(--text-muted); font-size: 12px; font-style: italic;">${window.i18n.t('import_already_in_db')}</span><input type="hidden" class="import-cat" id="import_cat_${i}" value="">`;
             }
             
             const tr = document.createElement('tr');
@@ -608,7 +616,12 @@ window.ImportWizard = {
                     ${catInputStr}
                 </td>
                 <td style="border-bottom: 1px solid var(--border-color); text-align: right;">
-                    <input type="number" step="0.01" class="import-amt inline-input" value="${tx.amount || 0}" style="width: 80px; text-align:right; border: 1px solid var(--border-color); padding: 5px;">
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+                        <input type="number" step="0.01" class="import-amt inline-input" value="${tx.amount || 0}" style="width: 80px; text-align:right; border: 1px solid var(--border-color); padding: 5px;">
+                        <span class="direction-pill ${isDebit ? 'direction-debit' : 'direction-credit'}" style="font-size: 9.5px; padding: 1px 6px;">
+                            ${isDebit ? '🔴 Sortie' : '🟢 Entrée'}
+                        </span>
+                    </div>
                 </td>
                 <td style="border-bottom: 1px solid var(--border-color); text-align: center;">
                     ${statusHtml}
@@ -749,7 +762,7 @@ window.ImportWizard = {
     async categorizeRow(btn) {
         const tr = btn.closest('tr');
         const desc = tr.querySelector('.import-desc').value;
-        const select = tr.querySelector('.import-cat');
+        const catInput = tr.querySelector('.import-cat');
         
         if (!desc) return;
         
@@ -758,8 +771,12 @@ window.ImportWizard = {
         
         try {
             const res = await API.post('/api/ai/categorize', { description: desc });
-            if (res.category) {
-                select.value = res.category;
+            if (res.category && catInput) {
+                if (window.CategoryPicker && catInput.id) {
+                    window.CategoryPicker.setValue(catInput.id, res.category, true);
+                } else {
+                    catInput.value = res.category;
+                }
             }
         } catch (e) {
             console.error("Erreur IA", e);
@@ -772,8 +789,8 @@ window.ImportWizard = {
     async categorizeAllNew() {
         const rows = Array.from(document.querySelectorAll('#importDataBody tr')).filter(tr => {
             const isRec = tr.querySelector('.import-reconciled').value === 'true';
-            const catSelect = tr.querySelector('.import-cat');
-            return !isRec && catSelect && !catSelect.value;
+            const catInput = tr.querySelector('.import-cat');
+            return !isRec && catInput && !catInput.value;
         });
         
         if (rows.length === 0) {
@@ -795,8 +812,14 @@ window.ImportWizard = {
                     const desc = tr.querySelector('.import-desc').value;
                     const cat = res.categories[desc];
                     if (cat) {
-                        const sel = tr.querySelector('.import-cat');
-                        if (sel) sel.value = cat;
+                        const catInput = tr.querySelector('.import-cat');
+                        if (catInput) {
+                            if (window.CategoryPicker && catInput.id) {
+                                window.CategoryPicker.setValue(catInput.id, cat, true);
+                            } else {
+                                catInput.value = cat;
+                            }
+                        }
                     }
                 });
             }

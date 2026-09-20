@@ -53,7 +53,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             const statusBadgeHtml = `<span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; ${statusBadgeStyle}">${statusLabel}</span>`;
             
             const catOptionsHtml = (this.categories || [])
-                .filter(c => !c.is_closed || c.name === t.category)
+                .filter(c => (!c.is_closed || c.name === t.category) && (!t.type || c.type === t.type))
                 .map(c => `<option value="${c.name}" ${t.category === c.name ? 'selected' : ''}>${c.name}</option>`)
                 .join('');
             

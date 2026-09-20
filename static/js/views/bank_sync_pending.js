@@ -1308,7 +1308,7 @@ Object.assign(window.BankSyncView, {
             window.i18n.translateDOM(modal);
         }
 
-        // Peupler la liste des catégories
+        // Peupler la liste des catégories filtrée par type d'opération
         const catSelect = document.getElementById('linkFinalCategory');
         if (catSelect) {
             let catNames = [];
@@ -1317,10 +1317,14 @@ Object.assign(window.BankSyncView, {
                     window.app = window.app || {};
                     window.app.categoriesList = await API.get('/api/categories/');
                 }
-                catNames = (window.app?.categoriesList || []).map(c => typeof c === 'string' ? c : c?.name).filter(Boolean);
+                const rawAmt = typeof ghost.raw_amount !== 'undefined' ? parseFloat(ghost.raw_amount) : (parseFloat(ghost.amount) || 0);
+                const isDebit = rawAmt < 0;
+                const allowedTypes = isDebit ? ['expense_var', 'expense_fixed'] : ['income'];
+                const filteredCats = (window.app?.categoriesList || []).filter(c => !c.is_closed && allowedTypes.includes(c.type));
+                catNames = filteredCats.map(c => c.name);
             } catch (_) {}
             if (!catNames.length) {
-                catNames = ['Alimentation', 'Loisirs', 'Transport', 'Logement', 'Salaire', 'Autre'];
+                catNames = ((ghost.raw_amount || 0) < 0) ? ['Alimentation', 'Loisirs', 'Transport', 'Logement', 'Autre'] : ['Salaire', 'Autre'];
             }
             catNames = Array.from(new Set(catNames)).sort((a, b) => a.localeCompare(b));
             catSelect.innerHTML = `<option value="">-- ${window.i18n ? window.i18n.t('no_category') || 'Sans catégorie' : 'Sans catégorie'} --</option>` + catNames.map(cat => `<option value="${window.escapeHtml ? window.escapeHtml(cat) : cat}">${window.escapeHtml ? window.escapeHtml(cat) : cat}</option>`).join('');

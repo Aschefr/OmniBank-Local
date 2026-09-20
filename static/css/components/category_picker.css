@@ -1,0 +1,382 @@
+/**
+ * category_picker.css — Reusable searchable category selector with type restriction and direction awareness
+ */
+
+/* 1. Trigger Component */
+.category-picker-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 3px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-surface);
+    color: var(--text-main);
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+}
+
+.category-picker-trigger:hover {
+    border-color: var(--accent, #6366f1);
+    background-color: rgba(99, 102, 241, 0.04);
+}
+
+.category-picker-trigger.is-open {
+    border-color: var(--accent, #6366f1);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+
+.category-picker-trigger.is-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.cat-picker-color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background-color: var(--text-muted);
+    transition: background-color 0.2s ease;
+}
+
+.cat-picker-color-dot.type-expense_var {
+    background-color: #f59e0b;
+}
+
+.cat-picker-color-dot.type-expense_fixed {
+    background-color: #ef4444;
+}
+
+.cat-picker-color-dot.type-income {
+    background-color: #10b981;
+}
+
+.cat-picker-color-dot.type-transfer {
+    background-color: #3b82f6;
+}
+
+.cat-picker-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.cat-picker-label.is-empty {
+    color: var(--text-muted);
+    font-style: italic;
+    font-weight: 400;
+}
+
+.cat-picker-arrow {
+    font-size: 10px;
+    opacity: 0.6;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.category-picker-trigger.is-open .cat-picker-arrow {
+    transform: rotate(180deg);
+}
+
+/* 2. Floating Popover */
+#categoryPickerPopover {
+    position: fixed;
+    z-index: 100000;
+    background: var(--bg-surface, #1e293b);
+    border: 1px solid var(--border-color, #334155);
+    border-radius: 10px;
+    box-shadow: 0 14px 36px -4px rgba(0, 0, 0, 0.45), 0 6px 14px rgba(0, 0, 0, 0.2);
+    width: 280px;
+    max-width: calc(100vw - 20px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: catPickerFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+@keyframes catPickerFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Popover Header */
+.cat-picker-header {
+    padding: 8px 10px 6px 10px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-base, rgba(0, 0, 0, 0.1));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cat-picker-direction-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cat-picker-type-tabs {
+    display: flex;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 2px;
+    border-radius: 6px;
+}
+
+.cat-picker-tab-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.cat-picker-tab-btn:hover {
+    color: var(--text-main);
+}
+
+.cat-picker-tab-btn.active {
+    background: var(--bg-surface);
+    color: var(--text-main);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Search Bar */
+.cat-picker-search-wrap {
+    position: relative;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.cat-picker-search-icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.cat-picker-search-input {
+    width: 100%;
+    padding: 6px 26px 6px 26px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-base);
+    color: var(--text-main);
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+}
+
+.cat-picker-search-input:focus {
+    border-color: var(--accent, #6366f1);
+}
+
+.cat-picker-search-clear {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+}
+
+.cat-picker-search-clear:hover {
+    color: var(--text-main);
+}
+
+/* Category List */
+.cat-picker-list {
+    max-height: 230px;
+    overflow-y: auto;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cat-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-main);
+    transition: background-color 0.15s ease, color 0.15s ease;
+    user-select: none;
+}
+
+.cat-picker-item:hover,
+.cat-picker-item.is-highlighted {
+    background-color: rgba(99, 102, 241, 0.12);
+    color: var(--accent, #6366f1);
+}
+
+.cat-picker-item.is-selected {
+    background-color: rgba(99, 102, 241, 0.18);
+    font-weight: 600;
+}
+
+.cat-picker-item-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cat-picker-item-type-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    opacity: 0.85;
+}
+
+.cat-picker-item-type-badge.type-expense_var {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.cat-picker-item-type-badge.type-expense_fixed {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.cat-picker-item-type-badge.type-income {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.cat-picker-item-type-badge.type-transfer {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.cat-picker-item-check {
+    font-size: 11px;
+    color: var(--accent, #6366f1);
+    font-weight: 700;
+}
+
+.cat-picker-empty-state {
+    padding: 16px 12px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-style: italic;
+}
+
+/* Footer / Action */
+.cat-picker-footer {
+    padding: 6px 10px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-base, rgba(0, 0, 0, 0.05));
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.cat-picker-new-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent, #6366f1);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: background-color 0.15s ease;
+}
+
+.cat-picker-new-btn:hover {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.cat-picker-clear-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: color 0.15s ease;
+}
+
+.cat-picker-clear-btn:hover {
+    color: #ef4444;
+}
+
+/* 3. Direction Pills for Review & Table rows */
+.direction-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 12px;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.direction-pill.direction-debit {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.28);
+}
+
+.direction-pill.direction-credit {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.direction-pill.direction-transfer {
+    background: rgba(59, 130, 246, 0.12);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.28);
+}

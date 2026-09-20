@@ -618,12 +618,37 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
             continue
         yr = str(tx.date_operation.year)
         tx_type = tx.type or "neutral"
-        cat = tx.category or "Sans cat\u00e9gorie"
+        cat = tx.category or "Sans catégorie"
+        amount = abs(tx.amount)
+
+        # Pour les opérations bi-directionnelles (avec from + to),
+        # aligner strictement avec la logique mensuelle :
+        is_bidirectional = tx.from_account_id is not None and tx.to_account_id is not None
+        if is_bidirectional:
+            if not acc_ids_list:
+                if tx_type != "transfer":
+                    amount = 0
+            else:
+                from_in = tx.from_account_id in acc_ids_list
+                to_in = tx.to_account_id in acc_ids_list
+                if from_in and to_in:
+                    if tx_type != "transfer":
+                        amount = 0
+                elif to_in:
+                    if tx_type != "transfer":
+                        tx_type = "income"
+                elif from_in:
+                    if tx_type == "income":
+                        tx_type = "transfer"
+
+        if amount == 0:
+            continue
+
         if tx_type not in annual:
             annual[tx_type] = {}
         if cat not in annual[tx_type]:
             annual[tx_type][cat] = {}
-        annual[tx_type][cat][yr] = round(annual[tx_type][cat].get(yr, 0.0) + tx.amount, 2)
+        annual[tx_type][cat][yr] = round(annual[tx_type][cat].get(yr, 0.0) + amount, 2)
 
     # Attach annual totals to result (keep same type/cat structure)
     for tx_type, type_data in result.items():

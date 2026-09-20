@@ -32,6 +32,13 @@ def get_templates(include_closed: bool = False, db: Session = Depends(get_db)):
 @router.post("/", response_model=RecurrenceTemplateOut)
 def create_template(tpl: RecurrenceTemplateCreate, db: Session = Depends(get_db)):
     db_tpl = RecurrenceTemplate(**tpl.model_dump())
+    if db_tpl.from_account_id is not None and db_tpl.to_account_id is not None:
+        db_tpl.type = "transfer"
+    elif db_tpl.from_account_id is None and db_tpl.to_account_id is not None:
+        db_tpl.type = "income"
+    elif db_tpl.from_account_id is not None and db_tpl.to_account_id is None:
+        if db_tpl.type not in ("expense_var", "expense_fixed"):
+            db_tpl.type = "expense_fixed"
     db.add(db_tpl)
     _upgrade_category_if_needed(db_tpl.category, db_tpl.type, db)
     db.flush()
@@ -67,6 +74,13 @@ def update_template(tpl_id: int, tpl_update: RecurrenceTemplateCreate, db: Sessi
     for key, value in update_data.items():
         if hasattr(db_tpl, key):
             setattr(db_tpl, key, value)
+    if db_tpl.from_account_id is not None and db_tpl.to_account_id is not None:
+        db_tpl.type = "transfer"
+    elif db_tpl.from_account_id is None and db_tpl.to_account_id is not None:
+        db_tpl.type = "income"
+    elif db_tpl.from_account_id is not None and db_tpl.to_account_id is None:
+        if db_tpl.type not in ("expense_var", "expense_fixed"):
+            db_tpl.type = "expense_fixed"
     _upgrade_category_if_needed(db_tpl.category, db_tpl.type, db)
     
     if structural_changed:
@@ -234,12 +248,20 @@ def propagate_recurrence(tpl_id: int, req: PropagateRequest, db: Session = Depen
         ).first()
     
         if not exists:
+            tx_type = tpl.type
+            if tpl.from_account_id is not None and tpl.to_account_id is not None:
+                tx_type = "transfer"
+            elif tpl.from_account_id is None and tpl.to_account_id is not None:
+                tx_type = "income"
+            elif tpl.from_account_id is not None and tpl.to_account_id is None:
+                if tx_type not in ("expense_var", "expense_fixed"):
+                    tx_type = "expense_fixed"
             new_tx = Transaction(
                 date_saisie=date.today(),
                 date_operation=current_date,
                 description=tpl.description,
                 amount=tpl.amount,
-                type=tpl.type,
+                type=tx_type,
                 category=tpl.category,
                 is_monthly=(tpl.frequency == "Monthly"),
                 is_yearly=(tpl.frequency == "Yearly"),
