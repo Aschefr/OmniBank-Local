@@ -316,7 +316,7 @@ window.CategoriesView = {
         let options = `<option value="">${window.i18n.t('cat_no_reallocate') || 'Do not reallocate (keep old name)'}</option>`;
         
         this.categories.forEach(c => {
-            if (c.id !== id && !c.is_closed) {
+            if (c.id !== id && !c.is_closed && c.type === cat.type) {
                 options += `<option value="${c.name}">${window.i18n.t('cat_reallocate_to') || 'Reallocate to'} ${c.name}</option>`;
             }
         });

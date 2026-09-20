@@ -479,6 +479,11 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                             🔧 <span data-i18n="maintenance_fix_types">${window.i18n.t('maintenance_fix_types') || 'Fix inconsistent types'}</span>
                         </button>
 
+                        <!-- Audit misplaced categories -->
+                        <button class="btn btn-secondary" id="btnAuditMisplacedCategories" onclick="window.ConfigView.auditMisplacedCategories()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(14,165,233,0.5); color: #0ea5e9;">
+                            🏷️ <span data-i18n="maintenance_misplaced_cats_btn">${window.i18n.t('maintenance_misplaced_cats_btn') || 'Détecter les catégories mal placées'}</span>
+                        </button>
+
                         <!-- Orphan recurrence cleanup -->
                         <button class="btn btn-secondary" id="btnCleanOrphanRecurrences" onclick="window.ConfigView.cleanOrphanRecurrences()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(239,68,68,0.5); color: #ef4444;">
                             🧹 <span data-i18n="maintenance_orphan_btn">${window.i18n.t('maintenance_orphan_btn') || 'Clean up orphan recurrences'}</span>

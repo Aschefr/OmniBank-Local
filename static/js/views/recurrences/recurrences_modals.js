@@ -184,6 +184,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         modal.style.zIndex = '1000';
 
         const categoryOptions = (this.categories || [])
+            .filter(c => (!c.is_closed || c.name === tpl.category) && (!tpl.type || c.type === tpl.type))
             .map(c => `<option value="${c.name}" ${tpl.category === c.name ? 'selected' : ''}>${c.name}</option>`)
             .join('');
 
@@ -355,8 +356,21 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
     },
 
     onEditTypeChange() {
-        // Both account fields are always available — no disabling.
-        // The user can freely assign Depuis/Vers regardless of type.
+        const type = document.getElementById('edit_type')?.value;
+        const catSelect = document.getElementById('edit_category');
+        if (!catSelect || !type) return;
+
+        const currentCat = catSelect.value;
+        const matchingCats = (this.categories || []).filter(c => !c.is_closed && c.type === type);
+        const isCurrentValid = matchingCats.some(c => c.name === currentCat);
+
+        const noCatText = window.i18n.t('edit_category_option_none') || '-- Sans catégorie --';
+        catSelect.innerHTML = `<option value="">${noCatText}</option>` +
+            matchingCats.map(c => `<option value="${c.name}" ${c.name === currentCat ? 'selected' : ''}>${c.name}</option>`).join('');
+
+        if (!isCurrentValid) {
+            catSelect.value = '';
+        }
     },
 
     async saveEditModal(templateId) {

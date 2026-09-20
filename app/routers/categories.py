@@ -118,8 +118,10 @@ def update_category(cat_id: int, cat: CategoryBase, db: Session = Depends(get_db
     old_name = db_cat.name
     new_name = cat.name
     
+    old_type = db_cat.type
+    new_type = cat.type
     db_cat.name = new_name
-    db_cat.type = cat.type
+    db_cat.type = new_type
     db_cat.is_closed = cat.is_closed
     
     # If name changed, cascade update to other tables
@@ -131,6 +133,12 @@ def update_category(cat_id: int, cat: CategoryBase, db: Session = Depends(get_db
         db.query(Transaction).filter(Transaction.category == old_name).update({"category": new_name})
         db.query(RecurrenceTemplate).filter(RecurrenceTemplate.category == old_name).update({"category": new_name})
         db.query(BudgetCategory).filter(BudgetCategory.category_name == old_name).update({"category_name": new_name})
+        
+    # If type changed, cascade update to recurrence templates and transactions
+    if old_type != new_type:
+        target_name = new_name
+        db.query(RecurrenceTemplate).filter(RecurrenceTemplate.category == target_name).update({"type": new_type})
+        db.query(Transaction).filter(Transaction.category == target_name).update({"type": new_type})
         
     db.flush()
     action_id = record_action(db, "category", db_cat.id, "UPDATE", old_snapshot, snapshot_entity(db_cat))
