@@ -98,6 +98,9 @@ def get_unique_descriptions(db: Session = Depends(get_db)):
 @router.post("/", response_model=TransactionOut)
 def create_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
     db_tx = Transaction(**tx.model_dump())
+    # Ensure bidirectional transactions are always typed as transfer
+    if db_tx.from_account_id and db_tx.to_account_id:
+        db_tx.type = "transfer"
     # Auto-set audit timestamp if created_by is present (org mode)
     if db_tx.created_by:
         db_tx.created_at = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -149,6 +152,10 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
         if key != "is_skipped": # Handled specifically above
             setattr(db_tx, key, value)
         
+    # Ensure bidirectional transactions are always typed as transfer
+    if db_tx.from_account_id and db_tx.to_account_id:
+        db_tx.type = "transfer"
+
     if propagate and db_tx.recurrence_id:
         # Update all future instances belonging to the same recurrence
         future_txs = db.query(Transaction).filter(
@@ -159,6 +166,8 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
             for key, value in update_data.items():
                 if key not in ['date_operation', 'reconciliation_date']: # Do not propagate dates
                     setattr(ftx, key, value)
+            if ftx.from_account_id and ftx.to_account_id:
+                ftx.type = "transfer"
         
         # Update the template itself
         template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
@@ -166,6 +175,8 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
             for key, value in update_data.items():
                 if hasattr(template, key) and key not in ['date_operation', 'reconciliation_date']:
                     setattr(template, key, value)
+            if template.from_account_id and template.to_account_id:
+                template.type = "transfer"
                     
     if db_tx.recurrence_id and db_tx.reconciliation_date:
         template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()

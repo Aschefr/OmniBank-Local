@@ -897,16 +897,19 @@ Object.assign(window.BankSyncView, {
                 ? `${dbDesc}<input type="text" class="sync-desc input-styled" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; border: 1px solid transparent; background: transparent; padding: 4px; color: var(--text-muted);" readonly>${descSublineHtml}` 
                 : `${dbDesc}<input type="text" class="sync-desc input-styled" list="bankSyncDescList" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; padding: 4px;" oninput="window.BankSyncView.onSyncDescInput(${this.currentAccountIndex}, '${tx.csv_id}', this)" onchange="window.BankSyncView.updateTxDesc(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">${descSublineHtml}`;
 
-            const existingCatNames = new Set(categories.filter(c => !c.is_closed).map(c => (c.name || '').toLowerCase()));
-            const extraCatOption = (tx.category && !existingCatNames.has(tx.category.toLowerCase()))
-                ? `<option value="${tx.category.replace(/"/g, '&quot;')}" selected>${tx.category} ${tx.smart_is_new_category ? (window.i18n ? window.i18n.t('smart_badge_new_cat_inline') || '(Nouvelle)' : '(Nouvelle)') : ''}</option>`
-                : '';
+            const isDebit = (tx.raw_amount < 0);
+            const allowedTypes = isDebit ? ['expense_var', 'expense_fixed'] : ['income'];
+            const direction = isDebit ? 'debit' : 'credit';
 
-            const catOptions = `<option value="">${lblSelectCat}</option>` +
-                extraCatOption +
-                categories.filter(c => !c.is_closed).map(c => 
-                    `<option value="${c.name.replace(/"/g, '&quot;')}" ${(tx.category && tx.category.toLowerCase() === c.name.toLowerCase()) ? 'selected' : ''}>${c.name}</option>`
-                ).join('');
+            const catPickerHtml = window.CategoryPicker.renderTriggerHtml({
+                id: `catSel_${tx.csv_id}`,
+                value: tx.category || '',
+                allowedTypes: allowedTypes,
+                direction: direction,
+                inputClass: 'input-styled sync-cat',
+                placeholder: lblSelectCat,
+                onChangeName: `(val) => window.BankSyncView.updateTxCat(${this.currentAccountIndex}, '${tx.csv_id}', val)`
+            });
 
             const aiButtonHtml = (!isRec && aiEnabled) ? `
                 <button class="btn btn-secondary review-ai-btn" style="padding: 3px 6px; font-size: 11px; border-radius: 6px;" onclick="window.BankSyncView.classifyRowWithAI('${tx.csv_id}', this)" title="${(window.i18n ? window.i18n.t('smart_label_ai_classify_tooltip') || 'Nommer et classifier avec l\'IA' : 'Nommer et classifier avec l\'IA').replace(/"/g, '&quot;')}">✨</button>
@@ -916,17 +919,21 @@ Object.assign(window.BankSyncView, {
                 ? `<span class="review-cat-auto" style="color: var(--text-muted); font-size: 12px; font-style: italic;">${lblAutoCat}</span>`
                 : `
                 <div class="review-cat-wrap" style="display: flex; gap: 4px; align-items: center;">
-                    <select class="input-styled sync-cat" id="catSel_${tx.csv_id}" style="flex: 1; padding: 4px;" onchange="window.BankSyncView.updateTxCat(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">
-                        ${catOptions}
-                    </select>
+                    ${catPickerHtml}
                     ${aiButtonHtml}
                 </div>
                 `;
 
-            const amountColor = (tx.raw_amount < 0) ? '#ef4444' : '#10b981';
+            const amountColor = isDebit ? '#ef4444' : '#10b981';
             const amountInput = isRec 
-                ? `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(tx.raw_amount < 0 ? '-' : '+')} ${tx.amount.toFixed(2)} €</span>`
+                ? `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(isDebit ? '-' : '+')} ${tx.amount.toFixed(2)} €</span>`
                 : `<input type="number" step="0.01" class="input-styled review-amount-input" value="${tx.amount.toFixed(2)}" style="width: 80px; text-align: right; padding: 4px; font-weight: 700; color: ${amountColor};" onchange="window.BankSyncView.updateTxAmount(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">`;
+
+            const directionPillHtml = `
+                <span class="direction-pill ${isDebit ? 'direction-debit' : 'direction-credit'}" style="font-size: 9.5px; padding: 1px 6px; margin-top: 3px;">
+                    ${isDebit ? '🔴 Sortie' : '🟢 Entrée'}
+                </span>
+            `;
 
             let rowStyle = 'border-bottom: 1px solid var(--border-color); transition: opacity 0.2s ease, filter 0.2s ease, background 0.3s ease;';
             let extraClass = '';
@@ -992,7 +999,10 @@ Object.assign(window.BankSyncView, {
                 <td class="review-cell-desc" style="padding: 10px 14px;">${descInput}</td>
                 <td class="review-cell-cat" style="padding: 10px 14px;">${catSelect}</td>
                 <td class="review-cell-amount" style="padding: 10px 14px; text-align: right;">
-                    ${amountInput}
+                    <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                        ${amountInput}
+                        ${directionPillHtml}
+                    </div>
                 </td>
                 <td class="review-cell-status">
                     <div class="review-status-wrap">
@@ -1174,7 +1184,7 @@ Object.assign(window.BankSyncView, {
             window.i18n.translateDOM(modal);
         }
 
-        // Peupler la liste des catégories
+        // Peupler la liste des catégories filtrée par type d'opération
         const catSelect = document.getElementById('linkFinalCategory');
         if (catSelect) {
             let catNames = [];
@@ -1183,10 +1193,14 @@ Object.assign(window.BankSyncView, {
                     window.app = window.app || {};
                     window.app.categoriesList = await API.get('/api/categories/');
                 }
-                catNames = (window.app?.categoriesList || []).map(c => typeof c === 'string' ? c : c?.name).filter(Boolean);
+                const rawAmt = typeof ghostLike.raw_amount !== 'undefined' ? parseFloat(ghostLike.raw_amount) : (parseFloat(ghostLike.amount) || 0);
+                const isDebit = rawAmt < 0;
+                const allowedTypes = isDebit ? ['expense_var', 'expense_fixed'] : ['income'];
+                const filteredCats = (window.app?.categoriesList || []).filter(c => !c.is_closed && allowedTypes.includes(c.type));
+                catNames = filteredCats.map(c => c.name);
             } catch (_) {}
             if (!catNames.length) {
-                catNames = ['Alimentation', 'Loisirs', 'Transport', 'Logement', 'Salaire', 'Autre'];
+                catNames = (ghostLike.raw_amount < 0) ? ['Alimentation', 'Loisirs', 'Transport', 'Logement', 'Autre'] : ['Salaire', 'Autre'];
             }
             catNames = Array.from(new Set(catNames)).sort((a, b) => a.localeCompare(b));
             catSelect.innerHTML = `<option value="">-- ${window.i18n ? window.i18n.t('no_category') || 'Sans catégorie' : 'Sans catégorie'} --</option>` + catNames.map(cat => `<option value="${window.escapeHtml ? window.escapeHtml(cat) : cat}">${window.escapeHtml ? window.escapeHtml(cat) : cat}</option>`).join('');
@@ -1245,15 +1259,17 @@ Object.assign(window.BankSyncView, {
             const data = this.descriptions[desc];
             if (data.category) {
                 this.updateTxCat(accIdx, csvId, data.category);
-                const catSel = document.getElementById(`catSel_${csvId}`);
-                if (catSel) {
-                    catSel.value = data.category;
-                    catSel.style.transition = 'box-shadow 0.2s ease, border-color 0.2s ease';
-                    catSel.style.borderColor = 'var(--accent, #6366f1)';
-                    catSel.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.25)';
+                if (window.CategoryPicker) {
+                    window.CategoryPicker.setValue(`catSel_${csvId}`, data.category, false);
+                }
+                const triggerEl = document.getElementById(`catSel_${csvId}_trigger`);
+                if (triggerEl) {
+                    triggerEl.style.transition = 'box-shadow 0.2s ease, border-color 0.2s ease';
+                    triggerEl.style.borderColor = 'var(--accent, #6366f1)';
+                    triggerEl.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.25)';
                     setTimeout(() => {
-                        catSel.style.borderColor = '';
-                        catSel.style.boxShadow = '';
+                        triggerEl.style.borderColor = '';
+                        triggerEl.style.boxShadow = '';
                     }, 800);
                 }
             }

@@ -425,6 +425,167 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         }
     },
 
+    async auditMisplacedCategories() {
+        const btn = document.getElementById('btnAuditMisplacedCategories');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse...'; }
+        try {
+            const preview = await API.get('/api/maintenance/misplaced_categories/preview');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '🏷️ ' + (window.i18n.t('maintenance_misplaced_cats_btn') || 'Détecter les catégories mal placées');
+            }
+
+            if (preview.count === 0 && (!preview.total_tx_mismatches || preview.total_tx_mismatches === 0)) {
+                showInlineMessage('✅', window.i18n.t('maintenance_misplaced_cats_none') || 'Aucune catégorie mal placée détectée. Vos catégories et opérations sont parfaitement en phase !');
+                return;
+            }
+
+            const typeLabels = {
+                'expense_var': window.i18n.t('type_expense_var') || 'Dépense variable',
+                'expense_fixed': window.i18n.t('type_expense_fixed') || 'Charge fixe',
+                'income': window.i18n.t('type_income') || 'Recette',
+                'transfer': window.i18n.t('type_transfer') || 'Virement'
+            };
+
+            const typeColors = {
+                'expense_var': 'color:var(--color-expense); background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25);',
+                'expense_fixed': 'color:#f59e0b; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25);',
+                'income': 'color:#10b981; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25);',
+                'transfer': 'color:var(--accent, #6366f1); background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25);'
+            };
+
+            // Summary section
+            let summaryHtml = `
+                <div style="background:var(--bg-surface);border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid var(--border-color);">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <span style="font-size:20px;">🔍</span>
+                        <strong style="font-size:14px;">${window.i18n.t('maintenance_summary') || "Résumé de l'analyse"}</strong>
+                    </div>
+                    <p style="margin:0;font-size:13px;color:var(--text-muted);line-height:1.5;">
+                        <strong style="color:var(--text-main);">${preview.count}</strong>
+                        ${window.i18n.t('maintenance_misplaced_cats_summary') || "anomalie(s) de catégorie détectée(s) : le type déclaré ne correspond pas aux flux réels des opérations."}
+                    </p>
+                </div>`;
+
+            // Category cards
+            let cardsHtml = '';
+            if (preview.categories && preview.categories.length > 0) {
+                cardsHtml = preview.categories.map((c, idx) => {
+                    const curStyle = typeColors[c.current_type] || '';
+                    const sugStyle = typeColors[c.suggested_type] || '';
+                    const curLabel = typeLabels[c.current_type] || c.current_type;
+                    const sugLabel = typeLabels[c.suggested_type] || c.suggested_type;
+
+                    const sampleRows = (c.sample || []).map(tx => `
+                        <tr style="font-size:11px;color:var(--text-muted);">
+                            <td style="padding:3px 6px;border-bottom:1px solid var(--border-color);">${tx.date}</td>
+                            <td style="padding:3px 6px;border-bottom:1px solid var(--border-color);">${tx.description}</td>
+                            <td style="padding:3px 6px;border-bottom:1px solid var(--border-color);text-align:right;font-weight:600;">${formatCurrency(tx.amount)}</td>
+                        </tr>
+                    `).join('');
+
+                    return `
+                    <div style="background:var(--bg-surface);border-radius:10px;padding:14px;margin-bottom:12px;border:1px solid var(--border-color);">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <strong style="font-size:15px;color:var(--text-main);">🏷️ ${c.name}</strong>
+                                <span style="font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600;${curStyle}">${curLabel}</span>
+                                <span style="font-size:13px;color:var(--text-muted);">➔</span>
+                                <span style="font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600;${sugStyle}">${sugLabel}</span>
+                            </div>
+                            <span style="font-size:12px;color:var(--text-muted);font-weight:500;">${c.total_txs} op. • ${c.templates_count} récurrence(s)</span>
+                        </div>
+                        
+                        <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px;line-height:1.4;">
+                            ⚠️ ${c.reason}
+                        </p>
+
+                        ${sampleRows ? `
+                        <div style="margin-bottom:10px;border-radius:6px;overflow:hidden;border:1px solid var(--border-color);">
+                            <table style="width:100%;border-collapse:collapse;background:var(--bg-main);">
+                                <thead>
+                                    <tr style="background:var(--bg-surface);font-size:10.5px;color:var(--text-muted);text-transform:uppercase;">
+                                        <th style="padding:4px 6px;text-align:left;">Date</th>
+                                        <th style="padding:4px 6px;text-align:left;">Description</th>
+                                        <th style="padding:4px 6px;text-align:right;">Montant</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${sampleRows}</tbody>
+                            </table>
+                        </div>` : ''}
+
+                        <div style="display:flex;align-items:center;gap:12px;background:var(--bg-main);padding:8px 12px;border-radius:8px;">
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:#10b981;">
+                                <input type="radio" name="misplaced_cat_${idx}" value="${c.suggested_type}" checked data-cat="${c.name}">
+                                <span>${(window.i18n.t('maintenance_misplaced_cats_reclassify_to') || 'Reclasser en « {type} » (recommandé)').replace('{type}', sugLabel)}</span>
+                            </label>
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-muted);">
+                                <input type="radio" name="misplaced_cat_${idx}" value="${c.current_type}" data-cat="${c.name}">
+                                <span>${(window.i18n.t('maintenance_misplaced_cats_keep') || 'Conserver le type actuel ({type})').replace('{type}', curLabel)}</span>
+                            </label>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            // Sync options checkbox
+            let syncOptionsHtml = `
+                <div style="margin-top:14px;padding:12px;background:rgba(99,102,241,0.06);border-radius:8px;border:1px solid rgba(99,102,241,0.2);">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;">
+                        <input type="checkbox" id="misplacedCatSyncAllTx" checked>
+                        <span>${(window.i18n.t('maintenance_misplaced_cats_sync_all_mismatches') || 'Corriger également les {count} opération(s) isolées dont le type diffère de leur catégorie').replace('{count}', preview.total_tx_mismatches || 0)}</span>
+                    </label>
+                </div>`;
+
+            const msgHtml = '<div style="max-height:60vh;overflow-y:auto;padding-right:4px;">' + summaryHtml + cardsHtml + syncOptionsHtml + '</div>';
+
+            const ok = await showInlineConfirm(
+                window.i18n.t('maintenance_misplaced_cats_title') || 'Diagnostic & Reclassement des catégories',
+                msgHtml
+            );
+            if (!ok) return;
+
+            // Collect decisions
+            const fixes = [];
+            (preview.categories || []).forEach((c, idx) => {
+                const selectedRadio = document.querySelector(`input[name="misplaced_cat_${idx}"]:checked`);
+                if (selectedRadio) {
+                    fixes.push({
+                        category: c.name,
+                        new_type: selectedRadio.value
+                    });
+                }
+            });
+
+            const syncAll = document.getElementById('misplacedCatSyncAllTx')?.checked ?? true;
+
+            const res = await API.post('/api/maintenance/misplaced_categories/apply', {
+                fixes: fixes,
+                sync_all_tx_types: syncAll
+            });
+
+            showToast(
+                (window.i18n.t('maintenance_misplaced_cats_result') || 'Reclassement terminé : {cats} catégorie(s), {txs} opération(s) et {tmpls} modèle(s) mis à jour.')
+                    .replace('{cats}', res.categories_fixed)
+                    .replace('{txs}', res.transactions_fixed)
+                    .replace('{tmpls}', res.templates_fixed),
+                'success', 5000
+            );
+
+            // Zero F5 reactive updates
+            window.dispatchEvent(new CustomEvent('categories-changed'));
+            window.dispatchEvent(new CustomEvent('transactions-changed'));
+            window.dispatchEvent(new CustomEvent('stats-changed'));
+        } catch(e) {
+            console.error(e);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '🏷️ ' + (window.i18n.t('maintenance_misplaced_cats_btn') || 'Détecter les catégories mal placées');
+            }
+            showInlineMessage(window.i18n.t('title_error') || 'Erreur', e.message);
+        }
+    },
+
     async cleanOrphanRecurrences() {
         const btn = document.getElementById('btnCleanOrphanRecurrences');
         if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse...'; }

@@ -265,10 +265,26 @@ window.ConfigSmartLabels = {
             const sel = document.getElementById('smart_label_cat_select');
             if (sel) {
                 const noCatText = window.i18n?.t('smart_label_no_cat') || '-- Sans catégorie --';
-                sel.innerHTML = `<option value="">${noCatText}</option>` +
-                    categories.filter(c => !c.is_closed).map(c =>
-                        `<option value="${window.escapeHtml ? window.escapeHtml(c.name) : c.name}">${window.escapeHtml ? window.escapeHtml(c.name) : c.name}</option>`
-                    ).join('');
+                const typeLabels = {
+                    'expense_var': window.i18n ? window.i18n.t('cat_picker_variable') || 'Dépenses variables' : 'Dépenses variables',
+                    'expense_fixed': window.i18n ? window.i18n.t('cat_picker_fixed') || 'Dépenses fixes' : 'Dépenses fixes',
+                    'income': window.i18n ? window.i18n.t('cat_picker_income') || 'Recettes' : 'Recettes',
+                    'transfer': window.i18n ? window.i18n.t('cat_picker_transfer') || 'Virements' : 'Virements'
+                };
+                const order = ['expense_var', 'expense_fixed', 'income', 'transfer'];
+                const activeCats = categories.filter(c => !c.is_closed);
+
+                let optGroupsHtml = '';
+                for (const t of order) {
+                    const groupCats = activeCats.filter(c => c.type === t);
+                    if (groupCats.length > 0) {
+                        optGroupsHtml += `<optgroup label="${typeLabels[t] || t}">` +
+                            groupCats.map(c => `<option value="${window.escapeHtml ? window.escapeHtml(c.name) : c.name}">${window.escapeHtml ? window.escapeHtml(c.name) : c.name}</option>`).join('') +
+                            `</optgroup>`;
+                    }
+                }
+
+                sel.innerHTML = `<option value="">${noCatText}</option>` + optGroupsHtml;
             }
         } catch (e) {
             console.warn('[SmartLabels] Erreur chargement catégories:', e);

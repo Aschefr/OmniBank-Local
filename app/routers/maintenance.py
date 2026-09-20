@@ -497,3 +497,213 @@ def close_template_from_wizard(tpl_id: int, db: Session = Depends(get_db)):
     tpl.is_closed = True
     db.commit()
     return {"ok": True, "template_id": tpl_id}
+
+
+# ---------------------------------------------------------------------------
+# Misplaced categories audit & reclassification
+# ---------------------------------------------------------------------------
+
+from pydantic import BaseModel
+
+
+class CategoryFixItem(BaseModel):
+    category: str
+    new_type: str
+
+
+class MisplacedCategoriesApplyRequest(BaseModel):
+    fixes: List[CategoryFixItem]
+    sync_all_tx_types: bool = True
+
+
+def _audit_misplaced_categories(db: Session):
+    """
+    Audite l'ensemble des catégories et détecte les anomalies par rapport aux flux réels.
+    """
+    from app.models import Category, Transaction, RecurrenceTemplate
+
+    cats = db.query(Category).all()
+    anomalies = []
+    total_tx_mismatches = 0
+
+    for c in cats:
+        txs = db.query(Transaction).filter(Transaction.category == c.name).all()
+        templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.category == c.name).all()
+
+        total_txs = len(txs)
+        if total_txs == 0 and not templates:
+            continue
+
+        # Directions basées sur from_account_id et to_account_id
+        bidi_txs = sum(1 for t in txs if t.from_account_id is not None and t.to_account_id is not None)
+        expense_txs = sum(1 for t in txs if t.from_account_id is not None and t.to_account_id is None)
+        income_txs = sum(1 for t in txs if t.from_account_id is None and t.to_account_id is not None)
+
+        bidi_tmpl = sum(1 for t in templates if t.from_account_id is not None and t.to_account_id is not None)
+
+        # Un virement bi-directionnel doit être typed 'transfer', les autres doivent correspondre au type de la catégorie
+        cat_tx_mismatches = sum(
+            1 for t in txs
+            if (t.type != "transfer" if (t.from_account_id is not None and t.to_account_id is not None) else t.type != c.type)
+        )
+        total_tx_mismatches += cat_tx_mismatches
+
+        reasons = []
+        suggested_type = None
+
+        # 1. Virements internes mal classés
+        if c.type != 'transfer' and (bidi_txs > 0 or bidi_tmpl > 0):
+            if total_txs > 0 and bidi_txs >= total_txs * 0.5:
+                reasons.append(f"{bidi_txs} sur {total_txs} opérations sont des virements internes entre comptes.")
+                suggested_type = 'transfer'
+            elif total_txs == 0 and bidi_tmpl > 0:
+                reasons.append("Les modèles de récurrence associés sont des virements internes entre comptes.")
+                suggested_type = 'transfer'
+
+        # 2. Catégorie transfer mais opérations non-virements
+        elif c.type == 'transfer':
+            if total_txs > 0 and bidi_txs == 0:
+                if expense_txs > 0 and income_txs == 0:
+                    reasons.append(f"Toutes les opérations ({expense_txs}) sont des dépenses classiques (compte unique débité).")
+                    suggested_type = 'expense_fixed' if templates else 'expense_var'
+                elif income_txs > 0 and expense_txs == 0:
+                    reasons.append(f"Toutes les opérations ({income_txs}) sont des recettes (compte unique crédité).")
+                    suggested_type = 'income'
+
+        # 3. Inversion Recettes / Dépenses
+        elif c.type in ('expense_var', 'expense_fixed') and suggested_type is None:
+            if total_txs > 0 and income_txs == total_txs and bidi_txs == 0:
+                reasons.append(f"Toutes les opérations ({income_txs}) sont des entrées d'argent (recettes).")
+                suggested_type = 'income'
+        elif c.type == 'income' and suggested_type is None:
+            if total_txs > 0 and expense_txs == total_txs and bidi_txs == 0:
+                reasons.append(f"Toutes les opérations ({expense_txs}) sont des sorties d'argent (dépenses).")
+                suggested_type = 'expense_fixed' if templates else 'expense_var'
+
+        # 4. Incohérence Charges fixes vs Dépenses variables
+        if suggested_type is None and c.type in ('expense_fixed', 'expense_var'):
+            tx_types = {}
+            for t in txs:
+                tx_types[t.type] = tx_types.get(t.type, 0) + 1
+
+            if c.type == 'expense_fixed' and tx_types.get('expense_var', 0) == total_txs and total_txs > 0 and len(templates) == 0:
+                reasons.append(f"Aucune récurrence n'est définie et toutes les opérations ({total_txs}) sont des dépenses variables ponctuelles.")
+                suggested_type = 'expense_var'
+            elif c.type == 'expense_var' and tx_types.get('expense_fixed', 0) == total_txs and total_txs > 0 and len(templates) > 0:
+                reasons.append(f"Cette catégorie possède des récurrences et toutes ses opérations ({total_txs}) sont des charges fixes.")
+                suggested_type = 'expense_fixed'
+
+        if reasons and suggested_type and suggested_type != c.type:
+            sample = [
+                {
+                    "date": t.date_operation.strftime("%Y-%m-%d") if t.date_operation else "-",
+                    "description": t.description or "-",
+                    "amount": t.amount or 0.0,
+                    "type": t.type
+                }
+                for t in txs[:5]
+            ]
+            anomalies.append({
+                "name": c.name,
+                "current_type": c.type,
+                "suggested_type": suggested_type,
+                "reason": " ".join(reasons),
+                "total_txs": total_txs,
+                "bidi_txs": bidi_txs,
+                "templates_count": len(templates),
+                "tx_mismatches_count": cat_tx_mismatches,
+                "sample": sample
+            })
+
+    return anomalies, total_tx_mismatches
+
+
+@router.get("/misplaced_categories/preview")
+def preview_misplaced_categories(db: Session = Depends(get_db)):
+    """
+    Retourne la liste des catégories mal placées (type en contradiction avec les flux réels)
+    ainsi que les opérations désynchronisées.
+    """
+    anomalies, total_tx_mismatches = _audit_misplaced_categories(db)
+    return {
+        "count": len(anomalies),
+        "categories": anomalies,
+        "total_tx_mismatches": total_tx_mismatches
+    }
+
+
+@router.post("/misplaced_categories/apply")
+def apply_misplaced_categories(
+    req: MisplacedCategoriesApplyRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Applique le reclassement des catégories choisies :
+    - Met à jour Category.type
+    - Aligne toutes les transactions de la catégorie
+    - Force type='transfer' pour les transactions bi-directionnelles
+    - Aligne les RecurrenceTemplate de la catégorie
+    - Si sync_all_tx_types=True, aligne également toute transaction dont le type diffère de sa catégorie
+    - Invalide stats_cache
+    """
+    from app.models import Category, Transaction, RecurrenceTemplate
+    from app.routers.stats import stats_cache
+
+    cats_fixed = 0
+    txs_fixed = 0
+    tmpls_fixed = 0
+
+    for fix in req.fixes:
+        cat_name = fix.category
+        new_type = fix.new_type
+
+        # 1. Update category
+        cat = db.query(Category).filter(Category.name == cat_name).first()
+        if cat and cat.type != new_type:
+            cat.type = new_type
+            cats_fixed += 1
+
+        # 2. Update transactions for this category
+        txs = db.query(Transaction).filter(Transaction.category == cat_name).all()
+        for tx in txs:
+            if tx.from_account_id is not None and tx.to_account_id is not None:
+                if tx.type != "transfer":
+                    tx.type = "transfer"
+                    txs_fixed += 1
+            elif tx.type != new_type:
+                tx.type = new_type
+                txs_fixed += 1
+
+        # 3. Update recurrence templates
+        tmpls = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.category == cat_name).all()
+        for tm in tmpls:
+            if tm.from_account_id is not None and tm.to_account_id is not None:
+                if tm.type != "transfer":
+                    tm.type = "transfer"
+                    tmpls_fixed += 1
+            elif tm.type != new_type:
+                tm.type = new_type
+                tmpls_fixed += 1
+
+    # Sync remaining transactions whose type differs from their category
+    if req.sync_all_tx_types:
+        all_cats = {c.name: c.type for c in db.query(Category).all()}
+        for tx in db.query(Transaction).all():
+            if not tx.category or tx.category not in all_cats:
+                continue
+            cat_type = all_cats[tx.category]
+            target_type = "transfer" if (tx.from_account_id and tx.to_account_id) else cat_type
+            if tx.type != target_type:
+                tx.type = target_type
+                txs_fixed += 1
+
+    db.commit()
+    stats_cache.invalidate()
+
+    return {
+        "categories_fixed": cats_fixed,
+        "transactions_fixed": txs_fixed,
+        "templates_fixed": tmpls_fixed,
+        "message": f"Reclassement terminé : {cats_fixed} catégorie(s), {txs_fixed} opération(s), {tmpls_fixed} modèle(s) mis à jour."
+    }
+

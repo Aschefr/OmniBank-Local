@@ -1050,13 +1050,26 @@ window.FormView = {
         
         const currentVal = forceCategoryName || select.value;
         
-        let html = '<option value="">-- Sans cat\u00e9gorie --</option>';
+        // Determine allowed types based on inferred type:
+        // - 'income' -> only 'income'
+        // - 'transfer' -> only 'transfer'
+        // - 'expense_fixed' -> 'expense_fixed'
+        // - 'expense_var' -> 'expense_var'
+        // - 'neutral' or empty -> all types allowed
+        const isStrictType = currentType && currentType !== 'neutral';
+        
+        // Check if currentVal is valid for currentType
+        const currentCatObj = this.categories.find(c => c.name === currentVal);
+        const isCurrentValValid = !isStrictType || (currentCatObj && currentCatObj.type === currentType);
+        const validSelectedVal = isCurrentValValid ? currentVal : '';
+
+        let html = '<option value="">-- Sans catégorie --</option>';
         this.categories.forEach(c => {
-            if (c.is_closed && c.name !== currentVal) return;
-            // Show categories matching current type OR if it's the target selected category
-            const isSelected = (c.name === currentVal);
-            const typeMatch = !currentType || c.type === currentType || isSelected;
+            if (c.is_closed && c.name !== validSelectedVal) return;
+            // Strict type matching: no more `|| isSelected` bypass!
+            const typeMatch = !isStrictType || c.type === currentType;
             if (typeMatch) {
+                const isSelected = (c.name === validSelectedVal);
                 if (!search || window.permissiveMatch(c.name, search) || isSelected) {
                     html += `<option value="${c.name}" ${isSelected ? 'selected' : ''}>${c.name}</option>`;
                 }
@@ -1064,9 +1077,7 @@ window.FormView = {
         });
         
         select.innerHTML = html;
-        if (currentVal) {
-            select.value = currentVal;
-        }
+        select.value = validSelectedVal;
     },
 
     showNewCatInput() {
