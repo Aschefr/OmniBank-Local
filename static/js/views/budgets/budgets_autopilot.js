@@ -416,7 +416,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     },
 
     // ─── Passerelle Vers la Présentation Visuelle Riche & Wizard ──────────────
-    openSuggestionsInAiView(openWizard = false) {
+    async openSuggestionsInAiView(openWizard = false) {
         if (!this.autopilotSuggestions || !this.autopilotSuggestions.length) return;
 
         const creations = this.autopilotSuggestions.filter(s => s.type === 'creation');
@@ -475,6 +475,21 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             sessionStorage.removeItem('budget_ai_panel_hidden');
         }
 
+        // S'assurer de la disponibilité des données de capacité si non encore chargées
+        if (!this.capacityData && window.API) {
+            try {
+                this.capacityData = await window.API.get('/api/budgets/capacity');
+            } catch (e) {}
+        }
+
+        const refSalary = (typeof this.getEffectiveReferenceSalary === 'function')
+            ? this.getEffectiveReferenceSalary()
+            : ((this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.average_income || this.capacityData.monthly.income_ref || 0) : 0);
+
+        if (refSalary > 0 && (this.customSalaryOverride === undefined || this.customSalaryOverride === null)) {
+            this.customSalaryOverride = refSalary;
+        }
+
         // Initialisation des métadonnées requises par le simulateur d'impact
         this.aiSuggestMeta = {
             window_months: 3,
@@ -483,9 +498,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             engine: creations[0]?.engine || 'deterministic',
             lang: (window.i18n && window.i18n.currentLang) || 'fr',
             proposals: this.aiProposals,
-            unclassified_categories: []
+            unclassified_categories: [],
+            regular_salary: refSalary,
+            monthly_income_reference: refSalary
         };
         this.unclassifiedCategories = [];
+
+        const salaryInputMain = document.getElementById('aiSimSalaryInput') || document.getElementById('aiRefSalaryInput');
+        if (salaryInputMain && refSalary > 0) {
+            salaryInputMain.value = refSalary.toFixed(2);
+        }
 
         // Rendu dans le panneau riche interactif et persistance en session
         this.renderAiProposalsList();
@@ -849,12 +871,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </div>
                     <div class="review-row-actions">
                         <button type="button" class="btn btn-secondary btn-sm review-action-btn" 
-                                onclick="window.BudgetsView._handleRowAction('dismiss', ${s.decision_id})" 
+                                onclick="window.BudgetsView._handleRowAction('dismiss', ${s.decision_id}, this)" 
                                 title="${dismissLabel}">
                             <span>✕</span> <span>${dismissLabel}</span>
                         </button>
                         <button type="button" class="btn btn-primary btn-sm review-action-btn" 
-                                onclick="window.BudgetsView._handleRowAction('approve', ${s.decision_id})" 
+                                onclick="window.BudgetsView._handleRowAction('approve', ${s.decision_id}, this)" 
                                 title="${approveLabel}">
                             <span>✓</span> <span>${approveLabel}</span>
                         </button>
@@ -864,7 +886,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }).join('');
     },
 
-    async _handleRowAction(action, decisionId) {
+    async _handleRowAction(action, decisionId, triggerBtn) {
+        if (triggerBtn) {
+            triggerBtn.classList.add('is-loading');
+        }
         const row = document.getElementById(`reviewRow_${decisionId}`);
         if (row) {
             row.style.opacity = '0.5';
@@ -920,8 +945,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
             // Rafraîchir les cartes d'enveloppes en arrière-plan (masque le badge et actualise le montant)
             if (action === 'approve') {
-                await this.loadBudgets();
-                await this.loadAllStatuses();
+                await Promise.all([
+                    this.loadBudgets(),
+                    this.loadAllStatuses()
+                ]);
             }
             this.renderStatus();
         };

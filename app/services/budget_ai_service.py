@@ -611,6 +611,10 @@ async def _ai_suggest_budgets_service_impl(
 
     paycheck_info = predict_next_paycheck(db)
     regular_salary = paycheck_info.get("amount", 0.0) if paycheck_info else 0.0
+    if regular_salary <= 0.0:
+        from app.services.budget_service import get_budget_capacity_data
+        cap_data = get_budget_capacity_data(db)
+        regular_salary = (cap_data.get("monthly", {}).get("average_income", 0.0) if cap_data else 0.0) or 0.0
 
     existing_budgets = db.query(Budget).filter(Budget.is_closed == False).all()
     already_used_cats = set()
