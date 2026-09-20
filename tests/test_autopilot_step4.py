@@ -292,6 +292,7 @@ def test_full_auto_promotion_n3(test_db):
     """
     acc = Account(name="Courant", type="Compte courant", initial_balance=1000.0)
     test_db.add(acc)
+    test_db.add(GlobalConfig(key="auto_promote_recurrences", value="true"))
     test_db.commit()
 
     # 3 débits Freebox consécutifs (34,99 €)
@@ -344,6 +345,7 @@ def test_autopilot_benchmark_end_to_end_4_months(test_db):
     test_db.add(acc)
     test_db.commit()
     test_db.add(GlobalConfig(key="main_account_id", value=str(acc.id)))
+    test_db.add(GlobalConfig(key="auto_promote_recurrences", value="true"))
     test_db.commit()
 
     def _import_benchmark_month(filename: str):

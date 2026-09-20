@@ -2503,7 +2503,7 @@
   "smart_label_sandbox_res_cat": "Inferred category",
   "smart_label_sandbox_res_source": "Analysis source",
   "smart_label_sandbox_res_explanation": "Diagnostic",
-  "autopilot_import_complete_toast": "🎉 Auto-Pilot: {total} transactions successfully imported and processed ({reconciled} reconciled, {committed} recorded).",
+  "autopilot_import_complete_toast": "🎉 Import complete: {total} transactions successfully imported and processed ({reconciled} reconciled, {committed} recorded).",
   "autopilot_batch_categorized": "{count} transaction(s) automatically categorized",
   "autopilot_uncategorized_fallback": "Unknown merchant with no confident match (left for your review)",
   "autopilot_ai_batch_failed": "Local AI analysis could not classify this batch, deterministic fallback applied",
@@ -2778,5 +2778,10 @@
   "budget_is_locked_label": "Lock this envelope",
   "budget_is_locked_sublabel": "Excludes this envelope from automatic recalculation and adjustments.",
   "budget_min_threshold_title": "Minimum floor threshold (€)",
-  "budget_min_threshold_desc": "Minimum floor amount for an envelope (default: 1 €). Prevents 0 € envelopes without artificially inflating small amounts."
+  "budget_min_threshold_desc": "Minimum floor amount for an envelope (default: 1 €). Prevents 0 € envelopes without artificially inflating small amounts.",
+  "rec_auto_promote_title": "Automatic promotion of regular subscriptions (N≥3)",
+  "rec_auto_promote_desc": "Automatically detects and formalizes into an active template subscriptions observed over at least 3 consecutive due dates.",
+  "rec_auto_promote_since_label": "Analyze starting from:",
+  "rec_auto_promote_since_locked": "(Locked on activation)",
+  "rec_auto_promote_since_editable": "(Editable before activation)"
 }

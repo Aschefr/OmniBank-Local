@@ -15,10 +15,12 @@ def get_all_config(db: Session = Depends(get_db)):
     configs = db.query(GlobalConfig).all()
     res = {c.key: c.value for c in configs}
     defaults = {
-        "auto_link_deviant_recurrences": "true",
-        "auto_propagate_recurrence_hikes": "true",
-        "auto_skip_unreconciled_recurrences": "true",
-        "auto_close_unreconciled_recurrences": "true",
+        "auto_link_deviant_recurrences": "false",
+        "auto_propagate_recurrence_hikes": "false",
+        "auto_skip_unreconciled_recurrences": "false",
+        "auto_close_unreconciled_recurrences": "false",
+        "auto_promote_recurrences": "false",
+        "auto_promote_recurrences_since": "",
         "budget_minimum_threshold": "1.0",
         "auto_create_budget_envelopes": "false",
         "auto_apply_budget_suggestions": "false",

@@ -4,6 +4,17 @@ window.HistoryView = {
     offset: 0,
     hasMore: true,
 
+    formatUserName(raw) {
+        if (!raw) return '-';
+        const map = {
+            'Auto-Pilote (Full-Auto N=3)': 'Automatisme (Récurrence N=3)',
+            'Auto-Pilote (Fractionné)': 'Automatisme (Fractionné)',
+            'Auto-Pilote (Écriture)': 'Automatisme (Écriture)',
+            'Auto-Pilote': 'Automatisme (Rapprochement)'
+        };
+        return map[raw] || raw;
+    },
+
     render() {
         return `
             <div class="view-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;margin-bottom:18px;">
@@ -172,7 +183,7 @@ window.HistoryView = {
                     </td>
                     <td data-label="${lblEntity}" class="col-history-entity" style="padding: 10px 15px; font-weight: 500;">${entityText}</td>
                     <td data-label="${lblDetail}" class="col-history-detail" style="padding: 10px 15px;">${detail}</td>
-                    <td data-label="${lblUser}" class="col-history-user" style="padding: 10px 15px; color: var(--text-muted);">${act.user_name || '-'}</td>
+                    <td data-label="${lblUser}" class="col-history-user" style="padding: 10px 15px; color: var(--text-muted);">${this.formatUserName(act.user_name)}</td>
                     <td class="mobile-card-actions col-history-actions" style="padding: 10px 15px; text-align: right;">${detailBtn}${undoBtn}</td>
                 </tr>
             `;
@@ -375,7 +386,7 @@ window.HistoryView = {
         let html = `
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; background: rgba(0,0,0,0.1); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
                 <div><strong>${window.i18n.t('history_col_date') || 'Date / Heure'} :</strong> <span style="color: var(--text-muted);">${formattedDate}</span></div>
-                <div><strong>${window.i18n.t('history_col_user') || 'Utilisateur'} :</strong> <span style="color: var(--text-muted);">${act.user_name || '-'}</span></div>
+                <div><strong>${window.i18n.t('history_col_user') || 'Utilisateur'} :</strong> <span style="color: var(--text-muted);">${this.formatUserName(act.user_name)}</span></div>
                 <div><strong>${window.i18n.t('history_col_action') || 'Action'} :</strong> <span style="color: ${actionConf.color}; font-weight: 600;">${actionText}</span></div>
                 <div><strong>${window.i18n.t('history_col_entity') || 'Entité'} :</strong> <span style="color: var(--text-muted); font-weight: 500;">${entityText} (ID: ${act.entity_id})</span></div>
             </div>
