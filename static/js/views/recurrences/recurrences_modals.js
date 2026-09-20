@@ -545,10 +545,17 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             console.error('Erreur chargement config automatismes:', err);
         }
 
-        const isDeviant = (cfg.auto_link_deviant_recurrences ?? 'true') === 'true';
-        const isHike = (cfg.auto_propagate_recurrence_hikes ?? 'true') === 'true';
-        const isSkip = (cfg.auto_skip_unreconciled_recurrences ?? 'true') === 'true';
-        const isClose = (cfg.auto_close_unreconciled_recurrences ?? 'true') === 'true';
+        const isPromote = (cfg.auto_promote_recurrences ?? 'false') === 'true';
+        let promoteSince = cfg.auto_promote_recurrences_since || '';
+        if (!promoteSince) {
+            const d = new Date();
+            d.setDate(d.getDate() - 45);
+            promoteSince = d.toISOString().split('T')[0];
+        }
+        const isDeviant = (cfg.auto_link_deviant_recurrences ?? 'false') === 'true';
+        const isHike = (cfg.auto_propagate_recurrence_hikes ?? 'false') === 'true';
+        const isSkip = (cfg.auto_skip_unreconciled_recurrences ?? 'false') === 'true';
+        const isClose = (cfg.auto_close_unreconciled_recurrences ?? 'false') === 'true';
 
         const modal = document.createElement('div');
         modal.id = 'recurrenceAutomationsModal';
@@ -569,6 +576,28 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                 </div>
                 
                 <form id="recurrenceAutomationsForm" style="display: flex; flex-direction: column; gap: 14px;" onsubmit="event.preventDefault(); window.RecurrenceView.saveAutomationsConfig();">
+                    <!-- Option : Promotion automatique N>=3 avec date d'effet verrouillée -->
+                    <div style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                            <input type="checkbox" id="cfg_auto_promote_recurrences" ${isPromote ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primary-color, #6366f1); cursor: pointer;">
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                    <span style="display: flex; align-items: center; gap: 6px;"><span>🔄</span> <span>${window.i18n.t('rec_auto_promote_title', 'Promotion automatique des abonnements réguliers (N≥3)')}</span></span>
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                    ${window.i18n.t('rec_auto_promote_desc', 'Détecte et officialise automatiquement en modèle actif les abonnements observés sur au moins 3 échéances consécutives.')}
+                                </div>
+                                <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                    <label for="cfg_auto_promote_recurrences_since" style="font-size: 11.5px; font-weight: 600; color: var(--text-muted); margin: 0;">
+                                        📅 ${window.i18n.t('rec_auto_promote_since_label', 'Analyser à partir du :')}
+                                    </label>
+                                    <input type="date" id="cfg_auto_promote_recurrences_since" value="${promoteSince}" style="padding: 4px 8px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-main); transition: all 0.2s ease;">
+                                    <span id="cfg_auto_promote_since_hint" style="font-size: 11px; color: var(--text-muted); font-style: italic;"></span>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+
                     <!-- Option Racine : Déviations & Hors-forfait -->
                     <div style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-base);">
                         <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
@@ -652,6 +681,21 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
     },
 
     updateAutomationsDependencies() {
+        const promoteChk = document.getElementById('cfg_auto_promote_recurrences');
+        const sinceInput = document.getElementById('cfg_auto_promote_recurrences_since');
+        const sinceHint = document.getElementById('cfg_auto_promote_since_hint');
+        if (promoteChk && sinceInput) {
+            const isPromoteActive = !!promoteChk.checked;
+            sinceInput.disabled = isPromoteActive;
+            sinceInput.style.opacity = isPromoteActive ? '0.6' : '1';
+            sinceInput.style.cursor = isPromoteActive ? 'not-allowed' : 'pointer';
+            if (sinceHint) {
+                sinceHint.textContent = isPromoteActive 
+                    ? window.i18n.t('rec_auto_promote_since_locked', '(Verrouillé à l\'activation)')
+                    : window.i18n.t('rec_auto_promote_since_editable', '(Modifiable avant activation)');
+            }
+        }
+
         const linkChk = document.getElementById('cfg_auto_link_deviant_recurrences');
         const hikeChk = document.getElementById('cfg_auto_propagate_recurrence_hikes');
         const skipChk = document.getElementById('cfg_auto_skip_unreconciled_recurrences');
@@ -692,12 +736,18 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
     },
 
     async saveAutomationsConfig() {
+        const promoteChk = document.getElementById('cfg_auto_promote_recurrences');
+        const isPromoteActive = !!(promoteChk && promoteChk.checked);
+        const sinceInput = document.getElementById('cfg_auto_promote_recurrences_since');
+        const promoteSinceVal = sinceInput?.value || '';
+
         const linkChk = document.getElementById('cfg_auto_link_deviant_recurrences');
         const isLinkActive = !!(linkChk && linkChk.checked);
 
         const skipChk = document.getElementById('cfg_auto_skip_unreconciled_recurrences');
         const isSkipActive = isLinkActive && !!(skipChk && skipChk.checked);
 
+        const promote = isPromoteActive ? 'true' : 'false';
         const deviant = isLinkActive ? 'true' : 'false';
         const hike = (isLinkActive && document.getElementById('cfg_auto_propagate_recurrence_hikes')?.checked) ? 'true' : 'false';
         const skip = isSkipActive ? 'true' : 'false';
@@ -705,6 +755,8 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
 
         try {
             await API.post('/api/config/', {
+                auto_promote_recurrences: promote,
+                auto_promote_recurrences_since: promoteSinceVal,
                 auto_link_deviant_recurrences: deviant,
                 auto_propagate_recurrence_hikes: hike,
                 auto_skip_unreconciled_recurrences: skip,

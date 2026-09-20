@@ -56,7 +56,7 @@ window.ImportWizard = {
             if (modalEl) modalEl.style.display = 'none';
 
             // Toast informatif bilingue avec bilan chiffré
-            const rawToast = window.i18n?.t('autopilot_import_complete_toast') || '🎉 Auto-Pilote : {total} opérations importées et traitées avec succès ({reconciled} rapprochées, {committed} enregistrées).';
+            const rawToast = window.i18n?.t('autopilot_import_complete_toast') || '🎉 Importation terminée : {total} opérations importées et traitées avec succès ({reconciled} rapprochées, {committed} enregistrées).';
             const toastMsg = rawToast
                 .replace('{total}', autoSummary.total)
                 .replace('{reconciled}', autoSummary.auto_reconciled)

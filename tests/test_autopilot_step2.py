@@ -157,7 +157,7 @@ def test_t2_1_high_confidence_auto_reconciliation(test_db):
     action = test_db.query(ActionHistory).filter(ActionHistory.entity_id == 101).order_by(ActionHistory.id.desc()).first()
     assert action is not None
     assert action.action_type == "UPDATE"
-    assert action.user_name == "Auto-Pilote"
+    assert action.user_name == "Automatisme (Rapprochement)"
 
 
 def test_t2_2_suggested_match_arbitration_zone(test_db):

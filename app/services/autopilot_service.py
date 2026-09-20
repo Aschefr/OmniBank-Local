@@ -333,7 +333,7 @@ def process_incoming_batch(
                             "UPDATE",
                             before_snap,
                             snapshot_entity(existing),
-                            user_name="Auto-Pilote"
+                            user_name="Automatisme (Rapprochement)"
                         )
 
                         # Journalisation de la décision Auto-Pilote
@@ -449,7 +449,7 @@ def process_incoming_batch(
                         to_account_id=to_acc,
                         attachments=tx.get("attachments"),
                         check_slip_number=tx.get("check_slip_number"),
-                        created_by="Auto-Pilote (Écriture)"
+                        created_by="Automatisme (Écriture)"
                     )
                     db.add(new_tx)
                     db.flush()
@@ -464,7 +464,7 @@ def process_incoming_batch(
                         "CREATE",
                         None,
                         snapshot_entity(new_tx),
-                        user_name="Auto-Pilote"
+                        user_name="Automatisme (Rapprochement)"
                     )
 
                     # Journalisation de la décision Auto-Pilote

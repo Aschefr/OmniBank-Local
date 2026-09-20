@@ -2503,7 +2503,7 @@
   "smart_label_sandbox_res_cat": "Catégorie déduite",
   "smart_label_sandbox_res_source": "Source d'analyse",
   "smart_label_sandbox_res_explanation": "Diagnostic",
-  "autopilot_import_complete_toast": "🎉 Auto-Pilote : {total} opérations importées et traitées avec succès ({reconciled} rapprochées, {committed} enregistrées).",
+  "autopilot_import_complete_toast": "🎉 Importation terminée : {total} opérations importées et traitées avec succès ({reconciled} rapprochées, {committed} enregistrées).",
   "autopilot_batch_categorized": "{count} opération(s) catégorisée(s) automatiquement",
   "autopilot_uncategorized_fallback": "Libellé inconnu sans correspondance sûre (laissé à votre arbitrage)",
   "autopilot_ai_batch_failed": "L'analyse IA locale n'a pas pu classer ce lot, repli déterministe appliqué",
@@ -2778,5 +2778,10 @@
   "budget_is_locked_label": "Verrouiller cette enveloppe",
   "budget_is_locked_sublabel": "Exclut cette enveloppe du recalcul et des ajustements automatiques.",
   "budget_min_threshold_title": "Seuil plancher minimal (€)",
-  "budget_min_threshold_desc": "Montant plancher minimal pour une enveloppe (défaut : 1 €). Empêche les enveloppes à 0 € sans gonfler artificiellement vos petits montants."
+  "budget_min_threshold_desc": "Montant plancher minimal pour une enveloppe (défaut : 1 €). Empêche les enveloppes à 0 € sans gonfler artificiellement vos petits montants.",
+  "rec_auto_promote_title": "Promotion automatique des abonnements réguliers (N≥3)",
+  "rec_auto_promote_desc": "Détecte et officialise automatiquement en modèle actif les abonnements observés sur au moins 3 échéances consécutives.",
+  "rec_auto_promote_since_label": "Analyser à partir du :",
+  "rec_auto_promote_since_locked": "(Verrouillé à l'activation)",
+  "rec_auto_promote_since_editable": "(Modifiable avant activation)"
 }

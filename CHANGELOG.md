@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Improved
+- **Recurrence Promotion Safeguards & Automations Opt-In Defaults 🔄🔒**:
+  - **Promotion Toggle with Locked Date**: Added an automatic promotion toggle for regular subscriptions (N≥3) in the Recurrences automations dialog with a date field defaulting to Today - 45 days, editable prior to activation and locked upon activation.
+  - **Automations Defaults to OFF**: All recurrence automation toggles now default to OFF for new profiles, ensuring explicit user opt-in.
+  - **Temporal Boundary & Closed Template Protection**: The recurrence promotion engine strictly ignores transactions prior to the configured date and prevents re-opening or recreating closed templates.
+  - **Neutralized "Auto-Pilote" Terminology**: Replaced premature user-facing "Auto-Pilote" labels with "Automatisme" across backend audit logs, UI action history, and import completion toasts.
+- **Bank Sync Button Visual Crispness 🎨✨**:
+  - **Enforced Solid Borders & Full Opacity**: Enforced 1px solid borders and full opacity (`opacity: 1`) on `.overview-bank-sync-btn` across all states (idle, syncing, success, error) in the Dashboard and History toolbars, eliminating hazy or washed-out visual artifacts caused by `.btn` style inheritance.
+
 ### Fixed
 - **Dashboard Columns & Bank Sync UX Improvements 🏦⚙️**:
   - **Online Sync Button Persistence**: Resolved an issue where the "Relever en ligne" button disappeared from the Dashboard and History toolbars after a page reload (F5) until navigating through Overview. Connection state detection and visibility checks are now executed reliably during application startup.

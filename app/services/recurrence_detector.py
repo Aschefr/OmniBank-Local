@@ -13,7 +13,7 @@ Fonctionnalités :
 import json
 import logging
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import or_
@@ -266,7 +266,7 @@ def process_recurrence_promotions(
                 "CREATE",
                 None,
                 snapshot_entity(tpl),
-                user_name="Auto-Pilote (Fractionné)"
+                user_name="Automatisme (Fractionné)"
             )
 
             # Liaison rétroactive immédiate des transactions existantes
@@ -324,39 +324,78 @@ def process_recurrence_promotions(
                 ).delete()
 
     # 2. Promotion Full-Auto pour abonnements ordinaires (N >= 3)
-    ordinary_groups: Dict[Tuple[str, float], List[Transaction]] = {}
-    for tx in recent_txs:
-        if not _is_valid_expense_for_recurrence(tx):
-            continue
-        # Exclure formellement les fractionnés de la promotion infinie
-        if parse_fractional_signature(tx.description):
-            continue
+    cfg_promote = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_promote_recurrences").first()
+    promote_enabled = (cfg_promote.value.strip().lower() in ("true", "1", "yes")) if (cfg_promote and cfg_promote.value) else False
 
-        clean_merchant = get_clean_merchant(tx.description)
-        amt = round(float(tx.amount or 0.0), 2)
-        ordinary_groups.setdefault((clean_merchant, amt), []).append(tx)
+    if promote_enabled:
+        cfg_since = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_promote_recurrences_since").first()
+        since_date_str = cfg_since.value.strip() if (cfg_since and cfg_since.value) else None
+        since_date = None
+        if since_date_str:
+            try:
+                since_date = datetime.strptime(since_date_str[:10], "%Y-%m-%d").date()
+            except Exception:
+                since_date = None
 
-    for (clean_merchant, amt), o_txs in ordinary_groups.items():
-        # Vérifier si un template actif existe déjà (même montant, même recurrence_id, ou même marchand)
-        existing_tpl = db.query(RecurrenceTemplate).filter(
-            RecurrenceTemplate.from_account_id == account_id,
-            RecurrenceTemplate.amount == amt,
-            (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed.is_(None))
-        ).first()
+        ordinary_txs = []
+        for tx in recent_txs:
+            if since_date:
+                t_date = tx.date_operation
+                if isinstance(t_date, datetime):
+                    t_date = t_date.date()
+                elif isinstance(t_date, str):
+                    try:
+                        t_date = datetime.strptime(t_date[:10], "%Y-%m-%d").date()
+                    except Exception:
+                        t_date = None
+                if t_date and t_date < since_date:
+                    continue
+            ordinary_txs.append(tx)
 
-        if not existing_tpl:
-            # Vérifier si les transactions sont déjà rattachées à un template existant
-            existing_rec_id = next((t.recurrence_id for t in o_txs if t.recurrence_id), None)
-            if existing_rec_id:
-                existing_tpl = db.query(RecurrenceTemplate).filter(
-                    RecurrenceTemplate.id == existing_rec_id,
-                    (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed.is_(None))
-                ).first()
-            if not existing_tpl:
-                # Vérifier par correspondance de libellé marchand pour éviter de recréer un abonnement lors d'une hausse tarifaire
+        ordinary_groups: Dict[Tuple[str, float], List[Transaction]] = {}
+        for tx in ordinary_txs:
+            if not _is_valid_expense_for_recurrence(tx):
+                continue
+            # Exclure formellement les fractionnés de la promotion infinie
+            if parse_fractional_signature(tx.description):
+                continue
+
+            clean_merchant = get_clean_merchant(tx.description)
+            amt = round(float(tx.amount or 0.0), 2)
+            ordinary_groups.setdefault((clean_merchant, amt), []).append(tx)
+
+        for (clean_merchant, amt), o_txs in ordinary_groups.items():
+            # 1. Si toutes les transactions sont déjà rattachées à un template (actif ou clôturé), ignorer
+            if all(t.recurrence_id is not None for t in o_txs):
+                continue
+
+            # 2. Vérifier si un template (actif ou clôturé) existe déjà pour ce compte
+            existing_tpl = db.query(RecurrenceTemplate).filter(
+                RecurrenceTemplate.from_account_id == account_id,
+                RecurrenceTemplate.amount == amt,
+                (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed.is_(None))
+            ).first()
+
+            closed_tpl = db.query(RecurrenceTemplate).filter(
+                RecurrenceTemplate.from_account_id == account_id,
+                RecurrenceTemplate.amount == amt,
+                RecurrenceTemplate.is_closed == True
+            ).first()
+
+            # Vérifier les recurrence_id existants parmi les transactions
+            existing_rec_ids = {t.recurrence_id for t in o_txs if t.recurrence_id}
+            if existing_rec_ids:
+                linked_tpls = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id.in_(existing_rec_ids)).all()
+                for lt in linked_tpls:
+                    if lt.is_closed:
+                        closed_tpl = lt
+                    elif not existing_tpl:
+                        existing_tpl = lt
+
+            # Vérifier par correspondance de libellé marchand
+            if not existing_tpl and not closed_tpl:
                 all_acc_tpls = db.query(RecurrenceTemplate).filter(
-                    RecurrenceTemplate.from_account_id == account_id,
-                    (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed.is_(None))
+                    RecurrenceTemplate.from_account_id == account_id
                 ).all()
                 for atpl in all_acc_tpls:
                     if atpl.description and clean_merchant and (
@@ -364,93 +403,100 @@ def process_recurrence_promotions(
                         clean_merchant.strip().lower() in atpl.description.strip().lower() or
                         atpl.description.strip().lower() in clean_merchant.strip().lower()
                     ):
-                        existing_tpl = atpl
+                        if atpl.is_closed:
+                            closed_tpl = atpl
+                        else:
+                            existing_tpl = atpl
                         break
 
-        if existing_tpl:
-            # S'assurer du rattachement des transactions au template existant
-            for t in o_txs:
-                if t.recurrence_id != existing_tpl.id:
-                    t.recurrence_id = existing_tpl.id
+            # Si un template clôturé correspond : ignorer silencieusement le groupe (ne pas recréer de template)
+            if closed_tpl and not existing_tpl:
+                continue
+
+            if existing_tpl:
+                # S'assurer du rattachement des transactions au template existant
+                for t in o_txs:
+                    if t.recurrence_id != existing_tpl.id:
+                        t.recurrence_id = existing_tpl.id
+                        t.type = "expense_fixed"
+                continue
+
+            # Vérifier les intervalles consécutifs (au moins 2 intervalles valides => 3 transactions consécutives)
+            dates = [t.date_operation for t in o_txs]
+            dates.sort()
+
+            consecutive_intervals = 0
+            chain_txs = [o_txs[0]]
+            for i in range(len(dates) - 1):
+                delta = (dates[i + 1] - dates[i]).days
+                if MIN_MONTHLY_INTERVAL_DAYS <= delta <= MAX_MONTHLY_INTERVAL_DAYS:
+                    consecutive_intervals += 1
+                    chain_txs.append(o_txs[i + 1])
+                else:
+                    consecutive_intervals = 0
+                    chain_txs = [o_txs[i + 1]]
+
+            # Promotion automatique à partir du 3ème mois consécutif (N >= 3)
+            if consecutive_intervals >= 2 and len(chain_txs) >= 3:
+                latest_tx = chain_txs[-1]
+                tpl = RecurrenceTemplate(
+                    description=clean_merchant,
+                    amount=amt,
+                    type="expense_fixed",
+                    category=latest_tx.category or "Abonnements",
+                    frequency="Monthly",
+                    day_of_month=latest_tx.date_operation.day,
+                    max_occurrences=None,
+                    from_account_id=account_id,
+                    is_closed=False
+                )
+                db.add(tpl)
+                db.flush()
+
+                # Liaison rétroactive immédiate
+                for t in chain_txs:
+                    t.recurrence_id = tpl.id
                     t.type = "expense_fixed"
-            continue
+                db.flush()
 
-        # Vérifier les intervalles consécutifs (au moins 2 intervalles valides => 3 transactions consécutives)
-        dates = [t.date_operation for t in o_txs]
-        dates.sort()
+                record_action(
+                    db,
+                    "recurrence_template",
+                    tpl.id,
+                    "CREATE",
+                    None,
+                    snapshot_entity(tpl),
+                    user_name="Automatisme (Récurrence N=3)"
+                )
 
-        consecutive_intervals = 0
-        chain_txs = [o_txs[0]]
-        for i in range(len(dates) - 1):
-            delta = (dates[i + 1] - dates[i]).days
-            if MIN_MONTHLY_INTERVAL_DAYS <= delta <= MAX_MONTHLY_INTERVAL_DAYS:
-                consecutive_intervals += 1
-                chain_txs.append(o_txs[i + 1])
-            else:
-                consecutive_intervals = 0
-                chain_txs = [o_txs[i + 1]]
+                # Inscription au journal de décision Auto-Pilote
+                snap_payload = {
+                    "merchant": clean_merchant,
+                    "amount": amt,
+                    "consecutive_months": len(chain_txs),
+                    "linked_transactions": [t.id for t in chain_txs],
+                    "template_id": tpl.id
+                }
+                decision = AutopilotDecisionLog(
+                    batch_id=bid,
+                    decision_type="recurrence_promotion",
+                    action="AUTO_COMMIT",
+                    entity_type="recurrence_template",
+                    entity_id=tpl.id,
+                    account_id=account_id,
+                    raw_snapshot=json.dumps(snap_payload, default=str),
+                    confidence_score=100.0,
+                    is_undone=False
+                )
+                db.add(decision)
+                promoted_count += 1
 
-        # Promotion automatique à partir du 3ème mois consécutif (N >= 3)
-        if consecutive_intervals >= 2 and len(chain_txs) >= 3:
-            latest_tx = chain_txs[-1]
-            tpl = RecurrenceTemplate(
-                description=clean_merchant,
-                amount=amt,
-                type="expense_fixed",
-                category=latest_tx.category or "Abonnements",
-                frequency="Monthly",
-                day_of_month=latest_tx.date_operation.day,
-                max_occurrences=None,
-                from_account_id=account_id,
-                is_closed=False
-            )
-            db.add(tpl)
-            db.flush()
-
-            # Liaison rétroactive immédiate
-            for t in chain_txs:
-                t.recurrence_id = tpl.id
-                t.type = "expense_fixed"
-            db.flush()
-
-            record_action(
-                db,
-                "recurrence_template",
-                tpl.id,
-                "CREATE",
-                None,
-                snapshot_entity(tpl),
-                user_name="Auto-Pilote (Full-Auto N=3)"
-            )
-
-            # Inscription au journal de décision Auto-Pilote
-            snap_payload = {
-                "merchant": clean_merchant,
-                "amount": amt,
-                "consecutive_months": len(chain_txs),
-                "linked_transactions": [t.id for t in chain_txs],
-                "template_id": tpl.id
-            }
-            decision = AutopilotDecisionLog(
-                batch_id=bid,
-                decision_type="recurrence_promotion",
-                action="AUTO_COMMIT",
-                entity_type="recurrence_template",
-                entity_id=tpl.id,
-                account_id=account_id,
-                raw_snapshot=json.dumps(snap_payload, default=str),
-                confidence_score=100.0,
-                is_undone=False
-            )
-            db.add(decision)
-            promoted_count += 1
-
-            # Génération ordonnée des futures occurrences
-            try:
-                from app.routers.recurrences import generate_recurrences
-                generate_recurrences(template_id=tpl.id, db=db)
-            except Exception as gen_err:
-                logger.warning(f"[AutoPilot] Erreur lors de la génération prévisionnelle pour le template {tpl.id}: {gen_err}")
+                # Génération ordonnée des futures occurrences
+                try:
+                    from app.routers.recurrences import generate_recurrences
+                    generate_recurrences(template_id=tpl.id, db=db)
+                except Exception as gen_err:
+                    logger.warning(f"[AutoPilot] Erreur lors de la génération prévisionnelle pour le template {tpl.id}: {gen_err}")
 
     # 3. Détection et Auto-Propagation des hausses tarifaires pérennes (N=3)
     cfg_link = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_link_deviant_recurrences").first()
