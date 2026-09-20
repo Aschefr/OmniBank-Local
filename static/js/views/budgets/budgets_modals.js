@@ -469,67 +469,82 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         document.getElementById('budgetUnifiedModal').style.display = 'flex';
     },
 
-    async saveForm() {
-        const id = document.getElementById('budgetEditId').value;
-        const name = document.getElementById('newBudgetName').value.trim();
-        const amount = parseFloat(document.getElementById('newBudgetAmount').value);
-        const period = document.getElementById('newBudgetPeriod').value;
-        const isProject = document.getElementById('budgetTypeProject').checked;
-        const isSavings = document.getElementById('budgetTypeSavings')?.checked;
-        const categories = (isProject || isSavings) ? [] : this.selectedCategories;
+    async saveForm(triggerBtn) {
+        const btn = triggerBtn || document.getElementById('budgetSaveBtn') || document.querySelector('#budgetFormSection button[data-i18n="budget_btn_save"]');
+        return window.withButtonLoading(btn, async () => {
+            const id = document.getElementById('budgetEditId').value;
+            const name = document.getElementById('newBudgetName').value.trim();
+            const amount = parseFloat(document.getElementById('newBudgetAmount').value);
+            const period = document.getElementById('newBudgetPeriod').value;
+            const isProject = document.getElementById('budgetTypeProject').checked;
+            const isSavings = document.getElementById('budgetTypeSavings')?.checked;
+            const categories = (isProject || isSavings) ? [] : this.selectedCategories;
 
-        if (!name) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_name_required'));
-        if (isNaN(amount) || amount < 0) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
+            if (!name) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_name_required'));
+            if (isNaN(amount) || amount < 0) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
 
-        const startDate = period === 'custom' ? (document.getElementById('newBudgetStartDate')?.value || null) : null;
-        const endDate = period === 'custom' ? (document.getElementById('newBudgetEndDate')?.value || null) : null;
-        if (period === 'custom' && (!startDate || !endDate)) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_custom_dates_required') || 'Please select start and end dates.');
-        
-        const envelope_type = isSavings ? 'savings' : 'spending';
-        const account_ids = window.app?.config?.enable_org_mode === 'true' ? this.getSelectedAccounts() : null;
-        const isLocked = document.getElementById('budgetIsLocked')?.checked || false;
-        const payload = { name, monthly_amount: amount, period, is_project: isProject, categories, start_date: startDate, end_date: endDate, account_ids, envelope_type, is_locked: isLocked };
-
-        try {
-            let savedId = id;
-            let actionId = null;
-            if (id) {
-                const res = await API.put(`/api/budgets/${id}`, payload);
-                actionId = res.action_id;
-            } else {
-                const res = await API.post('/api/budgets/', payload);
-                savedId = res.id;
-                actionId = res.action_id;
-            }
+            const startDate = period === 'custom' ? (document.getElementById('newBudgetStartDate')?.value || null) : null;
+            const endDate = period === 'custom' ? (document.getElementById('newBudgetEndDate')?.value || null) : null;
+            if (period === 'custom' && (!startDate || !endDate)) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_custom_dates_required') || 'Please select start and end dates.');
             
-            if (!id) this._pendingHighlightName = name;
+            const envelope_type = isSavings ? 'savings' : 'spending';
+            const account_ids = window.app?.config?.enable_org_mode === 'true' ? this.getSelectedAccounts() : null;
+            const isLocked = document.getElementById('budgetIsLocked')?.checked || false;
+            const payload = { name, monthly_amount: amount, period, is_project: isProject, categories, start_date: startDate, end_date: endDate, account_ids, envelope_type, is_locked: isLocked };
 
-            await this.loadBudgets();
-            await this.loadStatus();
-            window.app.refreshSidebar();
-
-            if (this._directEdit || !id) {
-                this.closeUnifiedModal();
-            } else {
-                document.getElementById('budgetFormSection').style.display = 'none';
-                const y = this._currentDetailYear;
-                const m = this._currentDetailMonth;
-                if (y && m) {
-                    await this.showDetail(parseInt(savedId), name, y, m);
+            try {
+                let savedId = id;
+                let actionId = null;
+                if (id) {
+                    const res = await API.put(`/api/budgets/${id}`, payload);
+                    actionId = res.action_id;
                 } else {
-                    const monthVal = document.getElementById('budgetMonthInput')?.value || this.monthlyMonth;
-                    if (monthVal) {
-                        const [yyyy, mm] = monthVal.split('-');
-                        await this.showDetail(parseInt(savedId), name, parseInt(yyyy), parseInt(mm));
+                    const res = await API.post('/api/budgets/', payload);
+                    savedId = res.id;
+                    actionId = res.action_id;
+                }
+                
+                if (!id) this._pendingHighlightName = name;
+
+                // Early closing : fermer la modale immédiatement dès confirmation API
+                const isDirectOrNew = this._directEdit || !id;
+                if (isDirectOrNew) {
+                    this.closeUnifiedModal();
+                } else {
+                    document.getElementById('budgetFormSection').style.display = 'none';
+                }
+
+                const toastMsg = id ? window.i18n.t('msg_envelope_updated') : window.i18n.t('msg_envelope_created');
+                showUndoToast(toastMsg, actionId, () => this.loadBudgets().then(() => this.loadStatus()));
+
+                // Parallélisation des rechargements en tâche de fond (Promise.all)
+                const refreshJobs = [
+                    this.loadBudgets(),
+                    this.loadStatus()
+                ];
+                if (window.app && typeof window.app.refreshSidebar === 'function') {
+                    refreshJobs.push(window.app.refreshSidebar());
+                }
+                await Promise.all(refreshJobs);
+
+                // Si pas directEdit / création, afficher le détail de l'enveloppe éditée
+                if (!isDirectOrNew) {
+                    const y = this._currentDetailYear;
+                    const m = this._currentDetailMonth;
+                    if (y && m) {
+                        await this.showDetail(parseInt(savedId), name, y, m);
+                    } else {
+                        const monthVal = document.getElementById('budgetMonthInput')?.value || this.monthlyMonth;
+                        if (monthVal) {
+                            const [yyyy, mm] = monthVal.split('-');
+                            await this.showDetail(parseInt(savedId), name, parseInt(yyyy), parseInt(mm));
+                        }
                     }
                 }
+            } catch(e) {
+                showToast(e.message || window.i18n.t('budget_ai_create_fail'), 'error', 5000);
             }
-
-            const toastMsg = id ? window.i18n.t('msg_envelope_updated') : window.i18n.t('msg_envelope_created');
-            showUndoToast(toastMsg, actionId, () => this.loadBudgets().then(() => this.loadStatus()));
-        } catch(e) {
-            showToast(e.message || window.i18n.t('budget_ai_create_fail'), 'error', 5000);
-        }
+        });
     },
 
     async updateAmount(id, val) {
