@@ -962,8 +962,10 @@ Object.assign(window.BankSyncView, {
 
         try {
             const res = await API.post('/api/bank-sync/commit-ghost', {
-                connection_id: ghost.connection_id || 0,
-                transaction: ghost
+                connection_id: (typeof ghost.connection_id !== 'undefined' && ghost.connection_id !== null) ? ghost.connection_id : 0,
+                transaction: ghost,
+                user_name: window.app?.currentUser || null,
+                lang: window.i18n?.currentLang || 'fr'
             });
             const createdTxId = res?.result?.created_ids?.[0] || res?.result?.transactions?.[0]?.id;
             if (createdTxId) {
@@ -1033,7 +1035,10 @@ Object.assign(window.BankSyncView, {
             if (!ok) return;
         }
         try {
-            const res = await API.post('/api/bank-sync/commit-all-ghosts');
+            const res = await API.post('/api/bank-sync/commit-all-ghosts', {
+                user_name: window.app?.currentUser || null,
+                lang: window.i18n?.currentLang || 'fr'
+            });
             const committed = res?.committed_count || count;
             const firstCreatedId = res?.created_ids?.[0];
             if (firstCreatedId) {

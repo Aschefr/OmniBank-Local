@@ -1055,10 +1055,19 @@ window.ImportWizard = {
     
     async finalizeSave(txs, accountId) {
         try {
-            const res = await API.post('/api/csv/save_batch', { transactions: txs, account_id: accountId });
+            const res = await API.post('/api/csv/save_batch', {
+                transactions: txs,
+                account_id: accountId,
+                user_name: window.app?.currentUser || null,
+                lang: window.i18n?.currentLang || 'fr'
+            });
             showInlineMessage(window.i18n.t('title_info'), window.i18n.tp('msg_import_done', {count: res.imported}));
             document.getElementById('importDataModal').style.display = 'none';
-            window.location.reload();
+            if (window.BankSyncView && typeof window.BankSyncView.refreshActiveViews === 'function') {
+                await window.BankSyncView.refreshActiveViews();
+            } else if (window.app && typeof window.app.loadView === 'function') {
+                window.app.loadView(window.app.currentView || 'timeline');
+            }
         } catch (e) {
             console.error(e);
             showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_save_error'));

@@ -149,6 +149,16 @@ const API = {
     _invalidateInflight() {
         this._inflight = {};
     },
+    _getCommonHeaders() {
+        const headers = {};
+        if (window.app && window.app.currentUser) {
+            headers['X-User-Name'] = encodeURIComponent(window.app.currentUser);
+        }
+        if (window.i18n && window.i18n.currentLang) {
+            headers['Accept-Language'] = window.i18n.currentLang;
+        }
+        return headers;
+    },
     async get(endpoint, extraOptions = {}) {
         // PERF: Déduplication — si un GET identique est déjà en cours, réutiliser la même Promise
         const cacheKey = endpoint;
@@ -160,7 +170,12 @@ const API = {
         const separator = targetUrl.includes('?') ? '&' : '?';
         const url = `${targetUrl}${separator}_t=${Date.now()}`;
         
-        const promise = fetch(url, extraOptions).then(async res => {
+        const fetchOptions = {
+            ...extraOptions,
+            headers: Object.assign(this._getCommonHeaders(), extraOptions.headers || {})
+        };
+
+        const promise = fetch(url, fetchOptions).then(async res => {
             if (!res.ok) await _handleApiError(res);
             return res.json();
         });
@@ -176,7 +191,7 @@ const API = {
     async post(endpoint, data, extraOptions = {}) {
         this._invalidateInflight();
         const targetUrl = this.fullUrl(endpoint);
-        const headers = Object.assign({ 'Content-Type': 'application/json' }, extraOptions.headers || {});
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, this._getCommonHeaders(), extraOptions.headers || {});
         const fetchOptions = {
             method: 'POST',
             headers,
@@ -199,7 +214,7 @@ const API = {
     async put(endpoint, data, extraOptions = {}) {
         this._invalidateInflight();
         const targetUrl = this.fullUrl(endpoint);
-        const headers = Object.assign({ 'Content-Type': 'application/json' }, extraOptions.headers || {});
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, this._getCommonHeaders(), extraOptions.headers || {});
         const fetchOptions = {
             method: 'PUT',
             headers,
@@ -222,13 +237,10 @@ const API = {
     async del(endpoint, data = null, customHeaders = null) {
         this._invalidateInflight();
         const targetUrl = this.fullUrl(endpoint);
-        const options = { method: 'DELETE', headers: {} };
+        const options = { method: 'DELETE', headers: Object.assign(this._getCommonHeaders(), customHeaders || {}) };
         if (data !== null && data !== undefined) {
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(data);
-        }
-        if (customHeaders && typeof customHeaders === 'object') {
-            Object.assign(options.headers, customHeaders);
         }
         const res = await fetch(targetUrl, options);
         if (!res.ok) await _handleApiError(res);
