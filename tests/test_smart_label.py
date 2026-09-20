@@ -812,7 +812,7 @@ def test_autopilot_auto_commit_unambiguous_new_entry(db_session):
     assert created_tx.type == "expense_var"
     assert created_tx.from_account_id == acc.id
     assert created_tx.reconciliation_date == date.today()
-    assert "Auto-Pilote" in created_tx.created_by
+    assert "Automatisme" in created_tx.created_by
 
     # Vérifier la trace dans AutopilotDecisionLog
     decision = db_session.query(AutopilotDecisionLog).filter(
