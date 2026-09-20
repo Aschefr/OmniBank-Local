@@ -63,7 +63,37 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         const backBtn = document.getElementById('btnBudgetsBackToSource');
         if (backBtn) {
-            backBtn.style.display = this.backToView ? 'inline-flex' : 'none';
+            const hasBack = !!this.backToView;
+            backBtn.classList.toggle('visible', hasBack);
+            backBtn.style.display = hasBack ? 'inline-flex' : 'none';
+        }
+
+        // Réactivité en temps réel : écoute des actualisations globales et visibilité d'onglet
+        if (!this._hasAttachedGlobalRefreshListeners) {
+            this._hasAttachedGlobalRefreshListeners = true;
+            window.addEventListener('budgets:refresh', async () => {
+                if (window.app?.currentView === 'budgets') {
+                    await Promise.all([
+                        this.loadBudgets(),
+                        this.loadCategories(),
+                        this.loadAllStatuses(),
+                        this.loadAutopilotSuggestions ? this.loadAutopilotSuggestions() : Promise.resolve()
+                    ]);
+                    this.renderStatus();
+                }
+            });
+
+            document.addEventListener('visibilitychange', async () => {
+                if (!document.hidden && window.app?.currentView === 'budgets') {
+                    await Promise.all([
+                        this.loadBudgets(),
+                        this.loadCategories(),
+                        this.loadAllStatuses(),
+                        this.loadAutopilotSuggestions ? this.loadAutopilotSuggestions() : Promise.resolve()
+                    ]);
+                    this.renderStatus();
+                }
+            });
         }
     },
 
@@ -128,11 +158,34 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     async checkAI() {
         try {
             const config = await API.get('/api/config/');
-            const aiEnabled = config.find(c => c.key === 'enable_ai')?.value;
-            this.aiEnabled = aiEnabled === 'true';
+            let aiVal = null;
+            if (Array.isArray(config)) {
+                aiVal = config.find(c => c.key === 'enable_ai')?.value;
+            } else if (config && typeof config === 'object') {
+                aiVal = config.enable_ai;
+            }
+            this.aiEnabled = (aiVal === 'true' || aiVal === true);
+            if (window.app && window.app.config) {
+                window.app.config.enable_ai = this.aiEnabled ? 'true' : 'false';
+            }
             const btn = document.getElementById('budgetAiBtn');
-            if (btn) btn.style.display = this.aiEnabled ? 'inline-flex' : 'none';
-        } catch(e) {}
+            if (btn) {
+                btn.style.display = 'inline-flex';
+                if (typeof this.updateHeaderSuggestionsButton === 'function') {
+                    this.updateHeaderSuggestionsButton();
+                }
+            }
+
+            if (this.aiEnabled) {
+                fetch('/api/config/ollama/models', { signal: AbortSignal.timeout ? AbortSignal.timeout(2500) : undefined })
+                    .then(r => { this.ollamaOnline = r.ok; })
+                    .catch(() => { this.ollamaOnline = false; });
+            } else {
+                this.ollamaOnline = false;
+            }
+        } catch(e) {
+            console.warn('[Budgets] Erreur lors de la vérification de configuration IA:', e);
+        }
     },
 
     async loadBudgets() {

@@ -45,7 +45,7 @@ window.AllOperationsView = {
                         <h2 class="view-header-title">
                             📋 <span data-i18n="nav_history">${window.i18n.t('nav_history')}</span>
                         </h2>
-                        <button id="btnHistoryBackToAnalytics" class="btn btn-secondary toolbar-btn" style="display:none; align-items:center; gap:6px; font-size:12.5px; height:34px; border-radius:8px; padding:0 12px; font-weight:600; cursor:pointer;" onclick="const v = window.AllOperationsView.backToView || 'analytics'; window.AllOperationsView.backToView = null; window.app.loadView(v)" title="${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}">
+                        <button id="btnHistoryBackToAnalytics" class="btn btn-secondary toolbar-btn${this.isDrillDown ? ' visible' : ''}" style="${this.isDrillDown ? 'display:inline-flex;' : 'display:none;'} align-items:center; gap:6px; font-size:12.5px; height:34px; border-radius:8px; padding:0 12px; font-weight:600; cursor:pointer;" onclick="const v = window.AllOperationsView.backToView || 'analytics'; window.AllOperationsView.backToView = null; window.app.loadView(v)" title="${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}">
                             <span>⬅️</span> <span data-i18n="btn_back">${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}</span>
                         </button>
                     </div>
@@ -445,7 +445,9 @@ window.AllOperationsView = {
 
             const backBtn = document.getElementById('btnHistoryBackToAnalytics');
             if (backBtn) {
-                backBtn.style.display = this.isDrillDown ? 'flex' : 'none';
+                const hasBack = !!this.isDrillDown;
+                backBtn.classList.toggle('visible', hasBack);
+                backBtn.style.display = hasBack ? 'inline-flex' : 'none';
             }
 
             this.renderTable();

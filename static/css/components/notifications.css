@@ -16,7 +16,7 @@
 }
 
 .notif-menu-header {
-    padding: 12px 16px 10px 16px;
+    padding: 12px 14px 10px 14px;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-base);
     display: flex;
@@ -29,6 +29,49 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    flex-wrap: wrap;
+}
+
+.notif-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.notif-action-btn {
+    font-size: 11px !important;
+    color: var(--text-muted) !important;
+    text-decoration: none !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    background: rgba(145, 158, 171, 0.08) !important;
+    border: 1px solid rgba(145, 158, 171, 0.18) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    transition: all 0.2s ease !important;
+    line-height: 1.2 !important;
+}
+
+.notif-action-btn:hover {
+    color: var(--accent) !important;
+    background: rgba(var(--accent-rgb, 59, 130, 246), 0.12) !important;
+    border-color: rgba(var(--accent-rgb, 59, 130, 246), 0.3) !important;
+}
+
+.notif-action-btn.btn-danger {
+    color: #ff5630 !important;
+    background: rgba(255, 86, 48, 0.08) !important;
+    border-color: rgba(255, 86, 48, 0.2) !important;
+}
+
+.notif-action-btn.btn-danger:hover {
+    background: rgba(255, 86, 48, 0.16) !important;
+    border-color: rgba(255, 86, 48, 0.4) !important;
 }
 
 .notif-tabs {

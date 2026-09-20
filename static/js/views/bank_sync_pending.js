@@ -187,10 +187,20 @@ Object.assign(window.BankSyncView, {
             }
         } else if (curView === 'accounts' && window.AccountsView && typeof window.AccountsView.loadData === 'function') {
             await window.AccountsView.loadData();
+        } else if (curView === 'budgets' && window.BudgetsView && typeof window.BudgetsView.loadBudgets === 'function') {
+            await Promise.all([
+                window.BudgetsView.loadBudgets(),
+                window.BudgetsView.loadAllStatuses ? window.BudgetsView.loadAllStatuses() : Promise.resolve(),
+                window.BudgetsView.loadAutopilotSuggestions ? window.BudgetsView.loadAutopilotSuggestions() : Promise.resolve()
+            ]);
+            if (typeof window.BudgetsView.renderStatus === 'function') {
+                window.BudgetsView.renderStatus();
+            }
         }
         if (window.app && typeof window.app.refreshSidebar === 'function') {
             await window.app.refreshSidebar();
         }
+        window.dispatchEvent(new CustomEvent('budgets:refresh'));
     },
 
     getConfirmedMatchesList(pendingData) {

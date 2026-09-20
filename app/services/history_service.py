@@ -299,14 +299,27 @@ def undo_action(db, action: ActionHistory):
         restore_state(entity, prev_state, db)
 
         if action.entity_type == "budget":
-            # Revert any linked Autopilot recalibration decision to SUGGESTED
+            # Revert any linked Autopilot decision (recalibration or enrichment) to SUGGESTED
             dec = db.query(AutopilotDecisionLog).filter(
                 AutopilotDecisionLog.entity_id == action.entity_id,
-                AutopilotDecisionLog.decision_type == "budget_suggestion",
+                AutopilotDecisionLog.decision_type.in_(["budget_suggestion", "budget_enrichment_suggestion"]),
                 AutopilotDecisionLog.action == "AUTO_COMMIT",
-            ).order_by(desc(AutopilotDecisionLog.created_at)).first()
+            ).order_by(AutopilotDecisionLog.id.desc()).first()
             if dec:
                 dec.action = "SUGGESTED"
+                if dec.decision_type == "budget_enrichment_suggestion" and dec.raw_snapshot:
+                    try:
+                        snap_d = json.loads(dec.raw_snapshot)
+                        added_cat = snap_d.get("new_category") or snap_d.get("category")
+                        if added_cat:
+                            bc_items = db.query(BudgetCategory).filter(
+                                BudgetCategory.budget_id == action.entity_id,
+                                BudgetCategory.category_name == added_cat
+                            ).all()
+                            for bc in bc_items:
+                                db.delete(bc)
+                    except Exception:
+                        pass
 
         elif action.entity_type == "recurrence_template":
             db.flush()

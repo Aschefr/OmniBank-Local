@@ -368,6 +368,18 @@ def get_dismissed_autopilot_budget_suggestions(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/autopilot/history")
+def get_budget_automations_history_endpoint(
+    limit: int = 50, db: Session = Depends(get_db)
+):
+    """Retourne l'historique des actions automatiques budgétaires exécutées."""
+    try:
+        return budget_service.get_budget_automations_history(db, limit=limit)
+    except Exception as e:
+        logger.error(f"[Budgets Automations] Erreur récupération historique des actions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/autopilot/suggestions/{decision_id}/reactivate")
 def reactivate_autopilot_budget_suggestion(
     decision_id: int, db: Session = Depends(get_db)
@@ -431,9 +443,20 @@ def trigger_budget_recalibration(
 ):
     """Déclencheur forcé de recalibrage pour preview et tests."""
     try:
+        from datetime import datetime, timezone
+        from app.models import GlobalConfig
         creation_results = budget_service.suggest_new_envelopes(db, force=True, engine_override=engine)
         recalib_results = budget_service.evaluate_monthly_budget_suggestions(db, force=True)
         stats_cache.invalidate()
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        cfg_last = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_autopilot_run_at").first()
+        if cfg_last:
+            cfg_last.value = now_iso
+        else:
+            db.add(GlobalConfig(key="last_budget_autopilot_run_at", value=now_iso))
+        db.commit()
+
         return {
             "new_envelopes": creation_results,
             "recalibrations": recalib_results,
@@ -442,4 +465,39 @@ def trigger_budget_recalibration(
     except Exception as e:
         logger.error(f"[Budgets AutoPilot] Erreur recalibrage forcé: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/autopilot/status")
+def get_budget_autopilot_status(db: Session = Depends(get_db)):
+    """Retourne le statut temporel et la cadence d'exécution de l'auto-pilote des budgets."""
+    try:
+        from app.models import GlobalConfig, Budget
+        last_run_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_autopilot_run_at").first()
+        last_period_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_recalibration_period").first()
+        active_count = db.query(Budget).filter(Budget.is_closed == False).count()
+        pending_sugg = budget_service.get_all_pending_budget_suggestions(db)
+
+        cfg_creation = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_budget_creation_suggestions").first()
+        cfg_auto_create = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_create_budget_envelopes").first()
+        cfg_recalib = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_budget_recalibration_suggestions").first()
+        cfg_auto_apply = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_apply_budget_suggestions").first()
+        cfg_engine = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_suggestion_engine").first()
+
+        return {
+            "ok": True,
+            "last_run_at": last_run_cfg.value if last_run_cfg and last_run_cfg.value else None,
+            "last_period": last_period_cfg.value if last_period_cfg and last_period_cfg.value else None,
+            "active_envelopes_count": active_count,
+            "is_cold_start": active_count < 3,
+            "pending_count": len(pending_sugg),
+            "enable_creation": not (cfg_creation and cfg_creation.value and cfg_creation.value.strip().lower() == "false"),
+            "auto_create": bool(cfg_auto_create and cfg_auto_create.value.strip().lower() == "true"),
+            "enable_recalibration": not (cfg_recalib and cfg_recalib.value and cfg_recalib.value.strip().lower() == "false"),
+            "auto_apply": bool(cfg_auto_apply and cfg_auto_apply.value.strip().lower() == "true"),
+            "engine": (cfg_engine.value if cfg_engine and cfg_engine.value else "deterministic").strip().lower(),
+        }
+    except Exception as e:
+        logger.error(f"[Budgets AutoPilot] Erreur récupération statut: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 

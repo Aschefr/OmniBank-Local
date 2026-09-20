@@ -19,7 +19,7 @@ def get_all_config(db: Session = Depends(get_db)):
         "auto_propagate_recurrence_hikes": "true",
         "auto_skip_unreconciled_recurrences": "true",
         "auto_close_unreconciled_recurrences": "true",
-        "budget_minimum_threshold": "30.0",
+        "budget_minimum_threshold": "1.0",
         "auto_create_budget_envelopes": "false",
         "auto_apply_budget_suggestions": "false",
         "enable_budget_creation_suggestions": "true",

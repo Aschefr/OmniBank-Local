@@ -301,35 +301,46 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - [`app/services/budget_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/budget_service.py) (Détection déterministe de catégories orphelines, calcul mathématique du lissage EMA, Winsorizing et plafonnement — **100% offline sans dépendance Ollama**)
   - [`app/services/stats_utils.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/stats_utils.py) (Filtre d'écrêtage Winsorizing extrait et partagé — Étape 0)
   - [`app/services/budget_ai_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/budget_ai_service.py) (Suggestions de regroupement multi-catégories et commentaires qualitatifs IA — facultatifs)
-* **État d'avancement actuel : 50%**
-  - ✅ Calcul des moyennes historiques sur fenêtres glissantes configurables (3 à 12 mois).
+* **État d'avancement actuel : 100% (Validé en Étape 5)**
+  - ✅ Découverte déterministe pure des catégories orphelines (Volet A) au Cold-Start et au fil de l'eau avec filtre de sécurité anti-achats isolés ($\ge 2$ mois observés).
+  - ✅ Enrichissement intelligent des enveloppes existantes (`_detect_envelope_enrichments`) : détection d'affinité thématique pour rattacher les catégories orphelines à des enveloppes existantes au lieu d'éparpiller en micro-enveloppes unitaires.
+  - ✅ Calcul des moyennes historiques sur fenêtres glissantes configurables (3 à 12 mois) avec lissage EMA amorti ($\alpha = 0.20$), seuil de significativité $\pm 2\%$ et double plafond de dérive ($\pm 10\%$/mois et $\pm 25\%$/an vs `base_annual_amount`).
   - ✅ Écrêtage statistique des anomalies (Winsorizing / outlier sensitivity 1 à 5) extrait dans [`app/services/stats_utils.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/stats_utils.py) et re-exporté dans `budget_service.py` (**100% offline sans Ollama** — Jalon 0.7).
   - ✅ Colonne `Budget.is_locked` ajoutée en base de données (schéma SQLite v24) et intégrée aux DTOs Pydantic (Jalons 0.4, 0.5, 0.6).
-  - ⬜ Synchronisation dynamique des dépenses fixes vs variables avec les `RecurrenceTemplate` — jalon distinct (cf. §5.6 ci-dessous).
+  - ✅ Moteur hybride unifié Déterministe / IA locale avec repli transparent zéro-crash en cas d'indisponibilité d'Ollama (Jalon 5.9).
+  - ✅ Workflow manuel avec sélecteur de moteur, fast-path instantané, échelle graduée dynamique, modale de révision ergonomique adaptée mobile et bandeau compact (Jalon 5.10).
+  - ✅ Hub d'activité à double onglet (`[📋 Historique / Écartées]`) : onglet `⚡ Actions exécutées` (traçabilité `AUTO_COMMIT` / `MANUAL_COMMIT`) et onglet `🗑️ Suggestions écartées` (réactivation 1-clic et purge) (Jalon 5.11).
+  - ✅ Encadré d'historique discret dans `⚙️ Automatismes` : liste repliée des 5 dernières actions automatiques avec détails d'impact et terminologie neutre (Jalon 5.11).
+  - ✅ Architecture modale 3 zones (Pinned Header / Scrollable Body / Pinned Footer) : élimination des débordements et défilement fluide garanti sur mobile et desktop (Jalon 5.11).
+  - ✅ Réactivité 100% Zero-F5 : actualisation dynamique en direct de la vue Budgets lors des imports, approbations et déclenchements de fond.
+  - ⬜ Mode Full-Auto (mutation directe en tâche de fond) et synchronisation automatique des `RecurrenceTemplate` vers les enveloppes — jalons d'orchestration globale prévus à l'**Étape 6** (post-Centre de Contrôle).
 * **Architecture Complète des Deux Volets Budgétaires** :
 
   #### Volet A : Découverte & Suggestion de Création d'Enveloppes (Cold-Start & Nouvelles Catégories)
   1. **Détection Déterministe Pure (100% Hors-Ligne sans IA)** :
      - Le moteur identifie toutes les catégories de dépenses actives non encore couvertes par une enveloppe (`unbudgeted_categories`).
-     - Pour chaque catégorie orpheline présentant des dépenses observées ($N \ge 1$) ou une récurrence active (`RecurrenceTemplate`) :
+     - **Garde-fou Anti-Dépenses Ponctuelles / Cold-Start ($\ge 2$ mois observés)** : Pour chaque catégorie orpheline présentant des dépenses observées sur **au moins 2 mois distincts** ($N \ge 2$) ou une récurrence active (`RecurrenceTemplate`) :
+       - Les dépenses isolées sur un seul mois (ex: gros achat exceptionnel de 15 000 €, cadeau ponctuel) sont automatiquement écartées afin de ne jamais créer de charge mensuelle récurrente fantôme réduisant indûment le Reste à Vivre.
        - Calcul du montant d'amorçage : moyenne mensuelle observée avec Winsorizing.
        - Périodicité suggérée : `yearly` si récurrence annuelle, `monthly` par défaut.
        - Application du plancher configurable `GlobalConfig.budget_minimum_threshold` (défaut : 30 €).
-       - Suggestion de création d'enveloppe émise dans `AutopilotDecisionLog` (`decision_type = 'budget_creation_suggestion'`, `action = 'SUGGESTED'`).
-  2. **Cadence Réactive Cold-Start (Découverte au Fil de l'Eau)** :
-     - **En phase Cold-Start** (`< 60 jours` d'historique ou `< 3 enveloppes actives`) : l'évaluation des catégories orphelines se déclenche **à chaque import de lot ou relevé bancaire** (`process_incoming_batch`). Dès qu'une nouvelle catégorie cumule des débits, l'utilisateur reçoit immédiatement une suggestion pour créer l'enveloppe sans attendre la fin du mois.
+       - Suggestion de création ou d'enrichissement d'enveloppe émise dans `AutopilotDecisionLog` (`decision_type = 'budget_creation_suggestion'` ou `'budget_enrichment_suggestion'`, `action = 'SUGGESTED'`).
+  2. **Enrichissement Intelligent d'Enveloppes Existantes** :
+     - Si une catégorie orpheline est thématiquement proche d'une enveloppe déjà ouverte (ex: *Boulangerie* $\to$ *Alimentation & Courses*), le système propose un enrichissement plutôt qu'une nouvelle enveloppe unitaire, avec réévaluation ciblée du plafond.
+  3. **Cadence Réactive Cold-Start (Découverte au Fil de l'Eau)** :
+     - **En phase Cold-Start** (`< 60 jours` d'historique ou `< 3 enveloppes actives`) : l'évaluation des catégories orphelines se déclenche **à chaque import de lot ou relevé bancaire** (`process_incoming_batch`). Dès qu'une nouvelle catégorie cumule des débits récurrents sur 2 mois, l'utilisateur reçoit immédiatement une suggestion pour créer ou enrichir l'enveloppe sans attendre la fin du mois.
      - **En vitesse de croisière** : le rythme bascule sur une fréquence mensuelle (1er du mois / cycle de paie), évitant toute sollicitation superflue.
-  3. **Cycle Complet : Approbation 1-Clic, Refus Persistant (`DISMISSED`) & Auto-Création** :
-     - **[Approuver 1-clic]** : Crée l'enveloppe en base (`Budget` + `BudgetCategory`), trace l'action dans `ActionHistory` (Undo/Redo possible) et passe la décision à `action = 'AUTO_COMMIT'`.
+  4. **Cycle Complet : Approbation 1-Clic, Refus Persistant (`DISMISSED`) & Auto-Création** :
+     - **[Approuver 1-clic]** : Crée l'enveloppe en base (`Budget` + `BudgetCategory`) ou rattache la catégorie, trace l'action dans `ActionHistory` (Undo/Redo possible) et passe la décision à `action = 'AUTO_COMMIT'`.
      - **[Ignorer / Refuser]** : Passe la décision à `action = 'DISMISSED'`. **Garantie anti-harcèlement** : une catégorie explicitement refusée n'est plus reproposée lors des imports ultérieurs.
      - **Auto-Création Full-Auto (Étape 6)** : Interrupteur dédié `GlobalConfig.auto_create_budget_envelopes` (défaut : `false`) permettant, une fois le Centre de Contrôle actif, d'auto-créer les enveloppes évidentes avec réversibilité garantie dans le Decision Feed.
-  4. **Enrichissement Optionnel avec IA (Ollama)** :
+  5. **Enrichissement Optionnel avec IA (Ollama)** :
      - Si Ollama est disponible, le LLM peut proposer un regroupement sémantique élégant de plusieurs catégories affines au sein d'une même enveloppe (ex: `Boulangerie` + `Supermarché` $\to$ Enveloppe `Alimentation & Courses`). Si l'IA est absente, le mode déterministe prend le relais sans rupture.
 
   #### Volet B : Recalibrage Amorti des Enveloppes Existantes (Lissage EMA)
   1. **Cadence Périodique & Déclencheur Temporel (Anti-Thrashing)** :
      - **Règle absolue** : Les montants des enveloppes ne doivent **JAMAIS** être recalculés lors d'une synchronisation quotidienne.
-     - **Déclencheur Temporel Backend** : Exécution uniquement à date fixe : **au 1er du mois ou lors d'un nouveau cycle de paie**.
+     - **Déclencheur Temporel Backend** : Exécution uniquement à date fixe : **au 1er du mois ou lors d'un nouveau cycle de paie** (ou sur déclenchement forcé explicite de l'utilisateur).
      - **Implémentation** : Vérification dans `bank_sync_scheduler_loop` et au démarrage applicatif dans `lifespan` (`app/main.py`) via la clé persistante `last_budget_recalibration_period` (format `YYYY-MM`).
   2. **Filtre de Lissage Exponentiel Déterministe (EMA 3–6 mois)** :
      - Formule amortie : $\text{Suggestion}_{t} = (1 - \alpha) \cdot \text{Budget}_{t-1} + \alpha \cdot \overline{\text{Dépenses}}_{3-6m}$ avec $\alpha = 0.20$.
@@ -339,16 +350,16 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
      - **Exclusions absolues** : Épargne (`savings`), projets (`is_project`), enveloppes verrouillées (`is_locked == True`), enveloppes annuelles ou closes.
      - **Borne instantanée** : variation limitée à $\pm 10\%$ max d'un mois sur l'autre.
      - **Borne cumulée annuelle** : dérive limitée à $\pm 25\%$ max par rapport à la référence annuelle (`Budget.base_annual_amount`). Au-delà, blocage et alerte de révision manuelle.
-  4. **Synchronisation `RecurrenceTemplate` → Enveloppes (Jalon Distinct §5.6)** :
-     - Reporté à l'Étape 6 : répercussion des hausses tarifaires ($N=3$) ou clôtures d'abonnements sur les enveloppes concernées. dans le Dashboard (ex: `📊 3 ajustements budgétaires proposés`) et valide/refuse 1-clic. **Aucune mutation directe des montants `Budget.monthly_amount`.**
-     - **Étape 6 — Mode Full-Auto (opt-in après Centre de Contrôle)** : Une fois le Centre de Contrôle livré (Étape 6), un toggle `auto_apply_budget_suggestions` dans `GlobalConfig` (défaut : `false`) permet d'activer la mutation automatique des montants avec traçabilité complète et rollback 1-clic dans le Decision Feed. Ce mode n'est proposé que lorsque l'outillage de contrôle et de réversibilité est opérationnel.
-  6. **Synchronisation `RecurrenceTemplate` → Enveloppes Budgétaires (Jalon Distinct)** :
-     - **Périmètre reporté** : La synchronisation automatique entre les templates de récurrence et les enveloppes budgétaires constitue un jalon distinct, traité en Étape 6 une fois le Centre de Contrôle opérationnel.
-     - **Cas couverts (spécification préalable)** :
-       - Hausse tarifaire détectée ($N=3$) sur un template lié à une enveloppe → Proposition d'ajustement de l'enveloppe du delta constaté.
-       - Clôture d'un template (résiliation) → Proposition de réduction de l'enveloppe du montant correspondant.
-       - Promotion d'un nouveau template ($N \ge 3$) → Suggestion d'augmentation de l'enveloppe concernée.
-     - **Mécanisme** : Toujours via le mode suggestion (notification + validation 1-clic), jamais mutation directe sauf opt-in Full-Auto.
+     - **Seuil de significativité de $\pm 2\%$** : les écarts inférieurs à 2% sont automatiquement filtrés pour éviter le bruit des micro-variations.
+  4. **Sas de Revue & Traçabilité Complète** :
+     - Les suggestions sont présentées dans un bandeau compact et examinables dans une modale dédiée adaptée desktop et mobile.
+     - Validation ou refus 1-clic avec Undo/Redo instantané.
+  5. **Étape 6 — Mode Full-Auto (opt-in après Centre de Contrôle)** :
+     - Une fois le Centre de Contrôle livré (Étape 6), un toggle `auto_apply_budget_suggestions` dans `GlobalConfig` (défaut : `false`) permettra d'activer la mutation automatique des montants avec traçabilité complète et rollback 1-clic dans le Decision Feed.
+  6. **Synchronisation `RecurrenceTemplate` → Enveloppes Budgétaires (Jalon Distinct Étape 6)** :
+     - Hausse tarifaire détectée ($N=3$) sur un template lié à une enveloppe → Proposition d'ajustement de l'enveloppe du delta constaté.
+     - Clôture d'un template (résiliation) → Proposition de réduction de l'enveloppe du montant correspondant.
+     - Promotion d'un nouveau template ($N \ge 3$) → Suggestion d'augmentation de l'enveloppe concernée.
 
 ---
 
@@ -548,7 +559,7 @@ graph TD
     C --> C1["Étape 3.5 : Filet de Sécurité & IA Augmentée<br/>Garde-fous Anti-Prolifération & Sas Propre<br/>✅ 100% PASS"]
     C1 --> D["Étape 4 : Détection & Promotion Récurrences<br/>Charges Candidates Dynamiques (Reste à Vivre)<br/>✅ 100% PASS"]
     D --> D1["Étape 4.5 : Cycle de Vie Dynamique Récurrences<br/>Tolérance Écart, Hausse N=3, Auto-Saut & Clôture<br/>✅ 100% PASS"]
-    D1 --> E["Étape 5 : Analyse & Suggestions Budgétaires EMA<br/>(Mode Preview déterministe 100% Offline)"]
+    D1 --> E["Étape 5 : Découverte & Recalibrage Budgétaire (Hybride Déterministe & IA)<br/>Preview Épuré, Zéro-Crash, Fast-Path & Confort UX<br/>✅ 100% PASS"]
     E --> F["Étape 6 : Centre de Contrôle Dédié<br/>Decision Feed, Rollback, Full-Auto Budgets & Finitions Desktop"]
 ```
 
@@ -718,7 +729,30 @@ graph TD
     - **Bandeau de Veille Active Permanent** : En l'absence de proposition en attente (ou après traitement), un bandeau épuré (`🟢 Surveillance active : Toutes vos enveloppes sont équilibrées pour ce mois.`) rassure l'utilisateur sur la bonne exécution des automatismes avec accès direct à `[📋 Historique / Écartées]` et `[⚙️ Automatismes]`.
     - **Écartement Réversible Borné au Cycle Courant (« Écarter ce mois-ci »)** : Remplacement de la notion définitive "Ignorer" par un écartement borné au mois en cours (`created_at >= month_start`). Les réévaluations futures restent libres pour les cycles suivants.
     - **Modale d'Historique & Réactivation 1-clic** : Panneau dédié `[📋 Historique / Écartées]` affichant toutes les propositions écartées (création & recalibrage) avec bouton `[↩️ Réactiver]` permettant de réintégrer instantanément n'importe quelle proposition dans le flux actif.
-    - **Validation Automatisée (19/19 tests)** : Couverture complète incluant T5.17 (Écartement & Historique), T5.18 (Réactivation 1-clic) et T5.19 (Découplage inter-mois).
+    - **Validation Automatisée (22/22 tests T5 + 7 tests UX = 29 tests)** : Couverture complète incluant T5.17 (Écartement & Historique), T5.18 (Réactivation 1-clic), T5.19 (Découplage inter-mois), T5.20 (Purge de l'historique), T5.21 (Montant personnalisé) et T5.22 (Fast-path déterministe).
+- [x] **Jalon 5.10 : Workflow Manuel Affiné, Fast-Path Déterministe & Confort Visuel Ergonomique** :
+  - **Clarification Sémantique de l'Action** : Renommage du bouton d'en-tête « Suggestions IA » en « 💡 Suggérer des enveloppes » pour refléter fidèlement le caractère hybride du système et éviter toute confusion lorsque l'algorithme déterministe est sélectionné.
+  - **Sélecteur de Moteur Intégré dans la Modale de Lancement (`#aiWindowSelectionModal`)** : Choix direct offert à l'utilisateur entre le calcul Déterministe (100% hors-ligne, instantané) et l'Analyse IA locale (Ollama), avec adaptation dynamique du libellé du bouton de validation.
+  - **Fast-Path Déterministe Immédiat** : Court-circuit complet de l'encadré de chargement d'inférence/parsing lorsque le mode déterministe est choisi, affichant instantanément les propositions calculées (`test_t5_22`).
+  - **Suppression du Scroll Automatique Gênant** : Retrait des appels `scrollIntoView()` lors de l'apparition de l'encadré de suggestions et de la pulsation d'accentuation du bouton d'acceptation, garantissant que la vue reste calée en haut de page (`window.scrollY = 0`) et que les contrôles de la barre d'outils restent constamment visibles et accessibles.
+  - **Graduation Dynamique & Lisibilité de l'Échelle (`computeNiceScale`)** : Remplacement de l'incrément fixe par un algorithme de pas « ronds » (1, 2, 5, 10...) et formatage compact en `k€`/`M€`, éliminant définitivement les superpositions illisibles de labels numériques sur les jauges du simulateur d'impact.
+  - **Élargissement de la Modale à 720px** : Ajustement de la largeur maximale (`max-width: 720px; width: min(720px, 95vw);`) assurant un affichage aéré des badges multi-catégories et de l'état d'Ollama sans troncature.
+  - **Suite Complète de Validation Automatisée** : 22/22 tests unitaires/intégration T5.1 à T5.22 dans `tests/test_autopilot_step5_budgets.py`, complétés par 7/7 tests de bout en bout validant le cycle de vie complet des catégories et la découverte d'enveloppes (`tests/test_demo_profile_category_lifecycle_ux.py`), soit **29/29 tests au total** avec 100% de succès.
+- [x] **Jalon 5.11 : Hub d'Activité à Double Onglet, Historique Récent des Automatismes & Architecture Modale 3-Zones Responsive** :
+  - **Hub d'Activité à Double Onglet (`#budgetDismissedModal`)** :
+    - Scission de la modale accessible depuis le bandeau de surveillance (`[📋 Historique / Écartées]`) en deux onglets distincts et ergonomiques :
+      * `⚡ Actions exécutées` : traçabilité exhaustive de l'ensemble des créations d'enveloppes et recalibrages menés à bien (`AUTO_COMMIT` et `MANUAL_COMMIT`), avec badges distinctifs, libellés de catégories, montants initiaux / finaux et horodatages précis.
+      * `🗑️ Suggestions écartées` : conservation des suggestions écartées du mois (`DISMISSED`) avec boutons de réactivation unitaire `[↩️ Réactiver]` pour réintégrer immédiatement n'importe quelle proposition dans le flux actif, et purge atomique `[Vider l'historique]`.
+  - **Encadré Discret d'Historique dans la Modale `⚙️ Automatismes`** :
+    - Intégration d'une section repliable en pied de la modale de configuration des automatismes (`budgets_modals.js`), listant les 5 dernières actions automatiques enregistrées pour offrir une visibilité immédiate sur les opérations de fond sans quitter le panneau des réglages.
+    - Cadrage sémantique rigoureux : emploi exclusif du vocabulaire *"Automatismes"* et *"Actions automatiques"*, sanctuarisant la terminologie *"Auto-Pilote"* pour la vue dédiée de l'Étape 6.
+  - **Refonte Architecturale du Layout de Modale en 3 Zones (Pinned Header / Scrollable Body / Pinned Footer)** :
+    - Restructuration CSS en conteneur flex vertical (`display: flex; flex-direction: column; max-height: 85vh;`) séparant un en-tête figé (`flex-shrink: 0`), un corps de contenu défilable indépendamment (`flex: 1 1 auto; overflow-y: auto;`) et un pied de modale figé (`flex-shrink: 0; position: sticky; bottom: 0;`).
+    - Élimination définitive des blocages de défilement et des troncatures de boutons d'action sur petits écrans et terminaux mobiles.
+  - **Résilience et Neutralité Moteur IA (LocalAI / Ollama)** :
+    - Terminologie unifiée IA locale (`⚡ Déterministe` / `🤖 IA locale`), détection dynamique d'état du moteur et préservation de la configuration sans écrasement involontaire lors des cycles de réouverture de modale.
+  - **Corrections Ergonomiques Complémentaires** :
+    - Correction du débordement du bouton « Tout archiver » dans l'en-tête du panneau de notifications sur desktop et mobile.
 
 #### Étape 6 : Page Dédiée « Centre de Contrôle Auto-Pilote », Activation Mutation Budgétaire & Finitions Desktop
 - Développement de la vue dédiée `static/js/views/autopilot_view.js` (`AutopilotView`) avec les 4 panneaux : Cockpit & KPIs, Decision Feed chronologique avec filtres, Leviers de rétroaction 1-clic (Dépointer, Rectifier catégorie, Rollback de cycle, Verrouillage budget), et Atelier des règles (`BankLabelMapping`).
@@ -876,6 +910,22 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 | **T5.14** | Moteur déterministe sélectionné (`budget_suggestion_engine = "deterministic"`). | Calcul des suggestions d'enveloppes. | Calcul instantané 100% hors-ligne sans solliciter Ollama, avec `engine = "deterministic"`. | Suggestions générées immédiatement sans latence réseau. | Appel réseau vers Ollama ou crash si Ollama est éteint. |
 | **T5.15** | Moteur IA sélectionné (`budget_suggestion_engine = "ai"`), mais Ollama est éteint ou inaccessible. | Calcul des suggestions d'enveloppes. | Résilience zéro-crash : bascule automatique transparente sur le calcul déterministe avec `engine = "deterministic_fallback"`. | Zéro exception HTTP 502/500, propositions de secours fluides émises. | Écran d'erreur rouge ou plantage applicatif. |
 | **T5.16** | Suggestion unifiée multi-catégories (ex: Artisans & Commerces regroupant Boulangerie et Boucherie). | Approbation unitaire ou groupée par l'utilisateur. | Création de l'enveloppe budgétaire et rattachement immédiat de l'ensemble des catégories (`BudgetCategory`). | Enveloppe créée avec toutes ses catégories liées, snapshot réversible dans `ActionHistory` (Undo/Redo). | Seule la première catégorie est liée ou échec de création. |
+| **T5.17** | Suggestion budgétaire en attente (ex: Loisirs 60 €). L'utilisateur clique sur `[Écarter ce mois-ci]`. | Appel `/dismiss` avec raison explicite. | La décision passe à `action = 'DISMISSED'` avec horodatage du mois. La carte disparaît du bandeau actif et s'archive dans l'historique. | Proposition archivée dans `AutopilotDecisionLog` (`DISMISSED`), bandeau actualisé. | Proposition supprimée définitivement sans historique ou maintenue dans le bandeau. |
+| **T5.18** | Proposition écartée présente dans la modale `[📋 Historique / Écartées]`. L'utilisateur clique sur `[↩️ Réactiver]`. | Appel endpoint `/reactivate`. | La décision repasse à `action = 'SUGGESTED'`. La proposition réapparaît instantanément dans la modale de revue et le bandeau actif. | Réactivation immédiate sans re-calcul, statut `SUGGESTED` restauré. | Proposition bloquée ou nécessité de relancer une analyse complète. |
+| **T5.19** | Une proposition a été écartée lors du mois $M$. Roulement au mois $M+1$. | Déclencheur du calcul mensuel du nouveau mois. | L'écartement est strictement borné au mois en cours (`created_at >= month_start`). Le mois suivant, la catégorie est librement réévaluée. | Découplage inter-mois effectif : liberté préservée pour les cycles ultérieurs. | Catégorie bannie à perpétuité sans réévaluation future possible. |
+| **T5.20** | Plusieurs propositions écartées archivées dans l'historique. L'utilisateur clique sur `[Vider l'historique]`. | Appel endpoint `/clear-dismissed`. | Purge atomique des décisions `DISMISSED` pour le profil actif. La liste d'historique redevient vierge. | Historique vidé, 0 impact sur les budgets actifs ou décisions appliquées. | Effacement accidentel de décisions actives ou erreur serveur. |
+| **T5.21** | Suggestion de 120,00 € pour l'enveloppe "Transport". L'utilisateur saisit un montant ajusté de 100,00 €. | Approbation avec paramètre `custom_amount = 100.0`. | L'enveloppe est créée/mise à jour à **100,00 €** au lieu de 120,00 €. La décision trace le montant initial et le montant effectif. | Budget créé avec le montant personnalisé de l'utilisateur, traçabilité intacte. | Forçage du montant suggéré d'origine (120 €) écrasant la saisie utilisateur. |
+| **T5.22** | Moteur déterministe sélectionné dans la modale de lancement manuel (`#aiWindowSelectionModal`). | Clic sur `[⚡ Calculer les suggestions]`. | Fast-path déterministe immédiat : court-circuit de l'encadré d'animation IA, affichage direct de la modale de résultats sans attente. | Propositions générées instantanément sans écran de chargement streaming. | Blocage sur une animation de parsing IA fantôme. |
+
+#### Suite d'Intégration UX — Cycle de Vie des Catégories & Découverte (`test_demo_profile_category_lifecycle_ux.py`)
+- **T_UX.1** : Auto-création d'une nouvelle catégorie lors d'une transaction importée.
+- **T_UX.2** : Découverte automatique d'une nouvelle enveloppe pour la catégorie orpheline dès 2 mois observés.
+- **T_UX.3** : Approbation de la nouvelle enveloppe avec montant personnalisé (`custom_amount`).
+- **T_UX.4** : Rattachement d'une nouvelle catégorie à une enveloppe multi-catégories existante.
+- **T_UX.5** : Détection de dérive et suggestion de recalibrage EMA amorti.
+- **T_UX.6** : Approbation du recalibrage et mise à jour effective de l'enveloppe sans dérégler le budget annuel.
+- **T_UX.7** : Écartement réversible et respect de la garantie anti-harcèlement.
+- **Résultat global** : **7/7 tests passés avec succès** (100% PASS).
 
 ---
 

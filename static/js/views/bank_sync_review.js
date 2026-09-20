@@ -1801,9 +1801,21 @@ Object.assign(window.BankSyncView, {
             if (window.AllOperationsView && window.AllOperationsView.loadData) {
                 window.AllOperationsView.loadData();
             }
+            if (window.BudgetsView && typeof window.BudgetsView.loadBudgets === 'function') {
+                Promise.all([
+                    window.BudgetsView.loadBudgets(),
+                    window.BudgetsView.loadAllStatuses ? window.BudgetsView.loadAllStatuses() : Promise.resolve(),
+                    window.BudgetsView.loadAutopilotSuggestions ? window.BudgetsView.loadAutopilotSuggestions() : Promise.resolve()
+                ]).then(() => {
+                    if (window.app?.currentView === 'budgets' && typeof window.BudgetsView.renderStatus === 'function') {
+                        window.BudgetsView.renderStatus();
+                    }
+                }).catch(() => {});
+            }
             if (window.app && window.app.refreshSidebar) {
                 window.app.refreshSidebar();
             }
+            window.dispatchEvent(new CustomEvent('budgets:refresh'));
         } catch (err) {
             this.showToast('Erreur lors de la validation : ' + (err.detail || err.message), 'error');
         }

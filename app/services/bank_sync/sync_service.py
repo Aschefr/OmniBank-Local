@@ -933,6 +933,13 @@ class BankSyncService:
         except Exception as promo_err:
             logger.warning(f"[BankSync] Erreur lors des promotions de récurrence post-commit: {promo_err}")
 
+        # Étape 5 Auto-Pilote : Découverte et suggestions/auto-création d'enveloppes budgétaires
+        try:
+            from app.services.budget_service import suggest_new_envelopes
+            suggest_new_envelopes(db, profile_id_or_force=active_pid, force=True)
+        except Exception as budget_err:
+            logger.warning(f"[BankSync] Erreur lors des suggestions budgétaires post-commit: {budget_err}")
+
         # Invalider le cache et recalculer
         try:
             from app.services.finance_engine import invalidate_cache

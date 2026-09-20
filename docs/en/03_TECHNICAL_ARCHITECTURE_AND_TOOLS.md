@@ -26,9 +26,10 @@ OmniBank Local uses a high-performance, autonomous **local-first Desktop / Web**
 |                                                                       |
 |  Routers & Services:                                                  |
 |  - Finance Engine (Balance & budget calculations)                     |
-|  - CSV Parser & Manager                                               |
+|  - Auto-Pilot Engine (Envelope discovery, EMA recalibration)          |
+|  - CSV Parser & Bank Sync Manager (Woob / local synchronization)      |
 |  - Backup & Auto-Backup Manager                                       |
-|  - Budget AI & Chat Service (Local RAG)                               |
+|  - Budget AI & Chat Service (Local RAG & Function Calling)            |
 +-----------------------------------------------------------------------+
            |                                             |
    SQLAlchemy ORM                                Local HTTP (Port 11434)
@@ -49,11 +50,12 @@ The SQLite database `omnibank.db` relies on a normalized relational schema via S
 1. `accounts`: Bank accounts (`id`, `name`, `type` ['Checking', 'Savings'...], `initial_balance`, `is_closed`, `color`).
 2. `categories`: Categories & subcategories (`id`, `parent_id`, `name`, `type` ['expense_fixed', 'expense_var', 'income', 'transfer'], `icon`, `color`).
 3. `transactions`: Financial transactions (`id`, `csv_id`, `date_saisie`, `date_operation`, `description`, `amount`, `type`, `category`, `reconciliation_date`, `from_account_id`, `to_account_id`, `recurrence_id`, `budget_id`, `created_by`, `modified_by`).
-4. `budgets`: Monthly budget envelopes (`id`, `category`, `period_month`, `period_year`, `allocated_amount`).
+4. `budgets` & `budget_categories`: Multi-category budget envelopes (`id`, `name`, `monthly_amount`, `period`, `is_locked`, `is_closed`, `is_project`, `envelope_type`, `base_annual_amount`).
 5. `recurrence_templates`: Recurrence templates (`id`, `description`, `amount`, `type`, `category`, `frequency` ['Monthly', 'Yearly', 'Bi-Monthly'...], `day_of_month`, `is_closed`, `max_occurrences`).
-6. `history` (`ActionHistory`): Audit log of user actions, undo stack, and entity modifications.
-7. `config` / `global_config`: Key-value application settings (language, theme, Ollama URL, active model, recurrence generation months).
-8. `org_users`: Organization Mode user profiles and audit tracking (for associations / CSE).
+6. `autopilot_decision_logs`: Timestamped decision register for autonomous actions and suggestions (envelope creation, enrichment, recalibration, auto-skipping, auto-closing) with raw JSON snapshots and statuses (`SUGGESTED`, `AUTO_COMMIT`, `DISMISSED`).
+7. `history` (`ActionHistory`): Audit log of user actions, undo stack, and entity modifications.
+8. `config` / `global_config`: Key-value application settings (language, theme, Ollama URL, Auto-Pilot options, minimum floor thresholds).
+9. `org_users`: Organization Mode user profiles and audit tracking (for associations / CSE).
 
 ---
 

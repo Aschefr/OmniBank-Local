@@ -1,11 +1,11 @@
-from typing import Optional, List
-from datetime import date, datetime, timedelta
+from typing import Optional, List, Union
+from datetime import date, datetime, timedelta, timezone
 import json
 import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, or_
 from fastapi import HTTPException
-from app.models import Budget, BudgetCategory, BudgetAllocation, Transaction, Account, GlobalConfig
+from app.models import Budget, BudgetCategory, BudgetAllocation, Transaction, Account, GlobalConfig, AutopilotDecisionLog
 from app.services.history_service import record_action, snapshot_entity
 from app.services.stats_utils import winsorize_values
 
@@ -177,6 +177,12 @@ def delete_single_budget(budget_id: int, db: Session) -> dict:
     old_snapshot = snapshot_entity(b, db)
     db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget_id).delete()
     db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == budget_id).delete()
+    # Clôturer automatiquement toute suggestion de recalibrage en attente visant ce budget
+    db.query(AutopilotDecisionLog).filter(
+        AutopilotDecisionLog.decision_type == "budget_suggestion",
+        AutopilotDecisionLog.action == "SUGGESTED",
+        AutopilotDecisionLog.entity_id == budget_id,
+    ).update({"action": "DISMISSED"}, synchronize_session=False)
     db.delete(b)
     action_id = record_action(db, "budget", budget_id, "DELETE", old_snapshot, None)
     db.commit()
@@ -207,6 +213,12 @@ def bulk_delete_budgets_by_type(target_type: str, db: Session) -> dict:
     budget_ids = [b.id for b in budgets_to_delete]
     db.query(BudgetCategory).filter(BudgetCategory.budget_id.in_(budget_ids)).delete(synchronize_session=False)
     db.query(BudgetAllocation).filter(BudgetAllocation.budget_id.in_(budget_ids)).delete(synchronize_session=False)
+    # Clôturer automatiquement toute suggestion de recalibrage en attente visant ces budgets
+    db.query(AutopilotDecisionLog).filter(
+        AutopilotDecisionLog.decision_type == "budget_suggestion",
+        AutopilotDecisionLog.action == "SUGGESTED",
+        AutopilotDecisionLog.entity_id.in_(budget_ids),
+    ).update({"action": "DISMISSED"}, synchronize_session=False)
     for b in budgets_to_delete:
         old_snapshot = snapshot_entity(b, db)
         record_action(db, "budget", b.id, "DELETE", old_snapshot, None)
@@ -367,6 +379,7 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
                 "categories": cats,
                 "is_project": b.is_project,
                 "is_closed": b.is_closed,
+                "is_locked": bool(b.is_locked) if b.is_locked is not None else False,
                 "envelope_type": "savings",
                 "budget_amount": budget_amount,
                 "funded": funded,
@@ -443,6 +456,7 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
             "categories": cats,
             "is_project": b.is_project,
             "is_closed": b.is_closed,
+            "is_locked": bool(b.is_locked) if b.is_locked is not None else False,
             "envelope_type": b.envelope_type or "spending",
             "budget_amount": budget_amount,
             "expenses": expenses,
@@ -863,9 +877,9 @@ def get_unbudgeted_categories(db: Session, lookback_months: int = 3) -> List[str
         .filter(
             Transaction.category.isnot(None),
             Transaction.category != "",
-            Transaction.type == "expense_var",
+            Transaction.type.in_(["expense_var", "expense"]),
             Transaction.date_operation >= start_date,
-            Transaction.date_operation < today.replace(day=1),
+            Transaction.date_operation <= today,
             # Exclure formellement les écritures avec un compte source ET un compte cible (virements internes)
             ~(Transaction.from_account_id.isnot(None) & Transaction.to_account_id.isnot(None)),
         )
@@ -887,7 +901,7 @@ def _get_dismissed_categories(db: Session) -> set:
     dismissed = (
         db.query(AutopilotDecisionLog.raw_snapshot)
         .filter(
-            AutopilotDecisionLog.decision_type == "budget_creation_suggestion",
+            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_enrichment_suggestion"]),
             AutopilotDecisionLog.action == "DISMISSED",
             AutopilotDecisionLog.is_undone == False,
         )
@@ -903,6 +917,8 @@ def _get_dismissed_categories(db: Session) -> set:
                     result.update(snap["categories"])
                 elif "category" in snap:
                     result.add(snap["category"])
+                if "new_category" in snap:
+                    result.add(snap["new_category"])
             except Exception:
                 pass
     return result
@@ -921,7 +937,7 @@ def _get_monthly_spending_for_category(db: Session, category: str, lookback_mont
             Transaction.type.notin_(["income", "transfer"]),
             ~(Transaction.from_account_id.isnot(None) & Transaction.to_account_id.isnot(None)),
             Transaction.date_operation >= start_date,
-            Transaction.date_operation < today.replace(day=1),
+            Transaction.date_operation <= today,
         )
         .all()
     )
@@ -932,11 +948,11 @@ def _get_monthly_spending_for_category(db: Session, category: str, lookback_mont
         key = f"{tx.date_operation.year}-{tx.date_operation.month:02d}"
         monthly[key] = monthly.get(key, 0.0) + abs(tx.amount)
 
-    # Remplir les mois vides avec 0
+    # Remplir les mois vides avec 0 (inclut le mois courant)
     result = []
     cursor = start_date.replace(day=1)
     end_cursor = today.replace(day=1)
-    while cursor < end_cursor:
+    while cursor <= end_cursor:
         key = f"{cursor.year}-{cursor.month:02d}"
         result.append(monthly.get(key, 0.0))
         cursor += relativedelta(months=1)
@@ -950,7 +966,12 @@ def _call_ollama_for_budget_grouping(cats: List[str], cat_stats: dict, ollama_cf
     import json as _json
     import re as _re
 
-    cat_lines = [f'- "{c}" ({cat_stats[c]["avg_monthly"]} €/mois)' for c in cats]
+    cat_lines = []
+    for c in cats:
+        hint_str = ""
+        if cat_stats[c].get("context_hint"):
+            hint_str = f" [achats fréquents : {cat_stats[c]['context_hint']}]"
+        cat_lines.append(f'- "{c}" ({cat_stats[c]["avg_monthly"]} €/mois){hint_str}')
     formatted = "\n".join(cat_lines)
     nb_cats = len(cats)
 
@@ -961,8 +982,10 @@ Group these {nb_cats} expense categories into cohesive, thematic budget envelope
 
 RULES:
 1. Group related categories together into cohesive envelopes. Do not isolate each category into its own envelope unless it is truly unique.
-2. Every category from the input list must belong to exactly one envelope. Use exact category names.
-3. Response MUST be a JSON object with a single key "envelopes":
+2. CRITICAL: Do NOT place general e-commerce platforms (such as Amazon, Cdiscount, AliExpress) or generic/miscellaneous categories into Food & Groceries or Health & Wellness envelopes unless their frequent purchases hint explicitly lists food or medical items. If their items are varied or non-food, place them in an envelope like "Achats & Shopping", "Maison & Équipement", "Autres", or their own dedicated envelope.
+3. Use the context hints [achats fréquents : ...] when provided to understand what is actually purchased in ambiguous categories and place them in the most relevant envelope.
+4. Every category from the input list must belong to exactly one envelope. Use exact category names.
+5. Response MUST be a JSON object with a single key "envelopes":
 {{
   "envelopes": [
     {{"name": "Envelope Name in French", "categories": ["Cat1", "Cat2"], "justification": "Short justification in French"}},
@@ -1026,22 +1049,389 @@ RULES:
     return grouped_proposals
 
 
+DETERMINISTIC_BUDGET_THEMES = [
+    {
+        "name": "Alimentation & Quotidien",
+        "keywords": [
+            "course", "supermarch", "aliment", "boulanger", "boucher",
+            "primeur", "marché", "marche", "épicerie", "epicerie",
+            "nourriture", "hypermarch", "repas"
+        ],
+    },
+    {
+        "name": "Mobilité & Transports",
+        "keywords": [
+            "auto", "essence", "carburant", "péage", "peage", "parking",
+            "garage", "entretien", "véhicule", "vehicule", "transport",
+            "train", "sncf", "métro", "metro", "bus", "taxi", "uber", "covoiturage"
+        ],
+    },
+    {
+        "name": "Loisirs, Sorties & Culture",
+        "keywords": [
+            "restaurant", "resto", "fast food", "cinéma", "cinema", "spectacle",
+            "concert", "théâtre", "theatre", "jeux", "loterie", "fdj", "steam",
+            "gaming", "vacances", "voyage", "hôtel", "hotel", "camping",
+            "musée", "musee", "bar", "café", "cafe", "loisir"
+        ],
+    },
+    {
+        "name": "Santé & Bien-être",
+        "keywords": [
+            "médecin", "medecin", "pharmacie", "santé", "sante", "docteur",
+            "dentiste", "optique", "lunette", "coiffure", "coiffeur",
+            "esthétique", "esthetique", "soin", "laboratoire", "médical"
+        ],
+    },
+    {
+        "name": "Mode & Habillement",
+        "keywords": [
+            "habillement", "vêtement", "vetement", "chaussure", "mode",
+            "fringue", "prêt-à-porter", "pret-a-porter", "lingerie", "textile"
+        ],
+    },
+    {
+        "name": "Achats en ligne & E-Commerce",
+        "keywords": [
+            "amazon", "cdiscount", "aliexpress", "shopping", "commande",
+            "colis", "fnac", "rakuten", "ebay", "vinted", "achat"
+        ],
+    },
+    {
+        "name": "Maison & Équipement",
+        "keywords": [
+            "bricolage", "jardin", "maison", "déco", "deco", "ameublement",
+            "électronique", "electronique", "meuble", "quincaillerie",
+            "leroy", "castorama", "ikea"
+        ],
+    },
+    {
+        "name": "Technologies & Numérique",
+        "keywords": [
+            "ia", "informatique", "logiciel", "hardware", "multimédia",
+            "multimedia", "tech", "gadget", "cloud", "streaming"
+        ],
+    },
+    {
+        "name": "Divers & Dépenses courantes",
+        "keywords": [
+            "divers", "autre", "retrait", "courant", "imprévu", "imprevu"
+        ],
+    },
+]
+
+
+# Mots vides typiques des libellés bancaires français — filtrés lors de l'extraction contextuelle
+BANKING_STOPWORDS = {
+    "cb", "carte", "prlv", "sepa", "vir", "virement", "paiement",
+    "facture", "sas", "sarl", "sa", "fr", "france", "paris",
+    "ref", "mktp", "eu", "dab", "retrait", "achat", "avoir",
+    "prelevement", "cotisation", "echeance", "remise", "lyon",
+    "marseille", "bordeaux", "nantes", "lille", "toulouse",
+    "prl", "eur", "com", "frais", "interets", "commission",
+    "pour", "avec", "dans", "chez", "sans", "sur", "les", "des", "une", "par", "aux",
+}
+
+# Plateformes marchandes et étiquettes génériques — TOUJOURS considérées comme ambiguës
+# car le nom seul ne définit pas la nature des biens achetés
+AMBIGUOUS_PLATFORMS_AND_GENERIC_TERMS = {
+    "amazon", "paypal", "cdiscount", "aliexpress", "ebay", "vinted",
+    "fnac", "rakuten", "shein", "temu", "leboncoin", "shopping",
+    "divers", "autre", "autres", "achat", "achats", "commande", "colis",
+    "frais", "depenses", "dépenses", "courant", "imprévu", "imprevu", "ponctuel",
+}
+
+
+def _is_category_explicit(cat_name: str) -> bool:
+    """Vérifie si le nom de la catégorie correspond à une nature de dépense claire et spécifique.
+    
+    Retourne False (ambiguë) si :
+    - Le nom contient une plateforme marchande (Amazon, Paypal, Cdiscount, AliExpress, Vinted, etc.)
+    - Le nom contient un terme générique (Divers, Autre, Achats, Shopping, Colis, Frais, etc.)
+    - Le nom ne matche aucun mot-clé d'un thème spécifique dans DETERMINISTIC_BUDGET_THEMES.
+    
+    Retourne True (explicite) si le nom indique sans ambiguïté la nature de la dépense (ex: Boulangerie, Essence, Médecin).
+    """
+    cat_lower = cat_name.strip().lower()
+
+    # 1. Garde-fou strict : marchands et termes génériques sont TOUJOURS ambigus
+    if any(term in cat_lower for term in AMBIGUOUS_PLATFORMS_AND_GENERIC_TERMS):
+        return False
+
+    # 2. Vérifier si un thème SPÉCIFIQUE (hors thèmes fourre-tout / e-commerce) est matché
+    for theme in DETERMINISTIC_BUDGET_THEMES:
+        if theme["name"] in ("Achats en ligne & E-Commerce", "Divers & Dépenses courantes"):
+            continue
+        if any(kw in cat_lower for kw in theme["keywords"]):
+            return True
+
+    return False
+
+
+def _extract_category_context_hints(db: Session, category: str, sample_size: int = 15) -> Optional[str]:
+    """Extrait les termes les plus fréquents des descriptions de transactions récentes d'une catégorie ambiguë.
+    
+    Retourne None immédiatement si la catégorie est explicite (matche un mot-clé thématique spécifique).
+    Retourne None si aucun token significatif n'est trouvé après nettoyage.
+    
+    Exemple de retour : "calfeutrage, clim, eclairage, led"
+    """
+    import re as _re
+    from collections import Counter
+
+    # Court-circuit : pas d'extraction pour les catégories déjà explicites
+    if _is_category_explicit(category):
+        return None
+
+    # Récupérer les N dernières transactions de cette catégorie (hors virements et revenus)
+    txs = (
+        db.query(Transaction.description)
+        .filter(
+            Transaction.category == category,
+            Transaction.type.notin_(["income", "transfer"]),
+            Transaction.description.isnot(None),
+        )
+        .order_by(Transaction.date_operation.desc())
+        .limit(sample_size)
+        .all()
+    )
+
+    if not txs:
+        return None
+
+    # Exclure les tokens qui font déjà partie du nom de la catégorie (ex: 'amazon')
+    cat_tokens = set(_re.sub(r"[^\w]+", " ", category.lower()).split())
+    token_counter = Counter()
+
+    for (desc,) in txs:
+        if not desc:
+            continue
+        text = desc.lower()
+        # Supprimer les dates (12/08, 12.08.2026, etc.)
+        text = _re.sub(r"\d{2}[/.]\d{2}(?:[/.]\d{2,4})?", " ", text)
+        # Supprimer les montants (42,50 €, 42.50€, etc.)
+        text = _re.sub(r"\d+[.,]\d{2}\s*€?", " ", text)
+        # Supprimer les codes hexadécimaux et numériques longs (REF8294, CB*1234, etc.)
+        text = _re.sub(r"\b[a-f0-9]{5,}\b", " ", text)
+        text = _re.sub(r"\b\d{4,}\b", " ", text)
+        # Supprimer les caractères spéciaux et astérisques
+        text = _re.sub(r"[*_/\\#@&|(){}[\]<>:;,.\-+='\"!?€$£]+", " ", text)
+        # Tokeniser et filtrer
+        tokens = text.split()
+        for tok in tokens:
+            tok = tok.strip()
+            if len(tok) < 3:
+                continue
+            if tok in BANKING_STOPWORDS or tok in cat_tokens:
+                continue
+            # Ignorer les tokens purement numériques
+            if tok.isdigit():
+                continue
+            token_counter[tok] += 1
+
+    if not token_counter:
+        return None
+
+    # Retourner jusqu'à 4 termes les plus fréquents
+    top_terms = [term for term, _ in token_counter.most_common(4)]
+    return ", ".join(top_terms)
+
+
+def _cluster_categories_deterministically(cat_stats: dict, engine_tag: str = "deterministic") -> list:
+    """Regroupe intelligemment les catégories orphelines en enveloppes thématiques cohérentes.
+    Garantit 100% hors-ligne un résultat structuré évitant le piège du '1 catégorie = 1 enveloppe'.
+    """
+    assigned = set()
+    proposals = []
+
+    for theme in DETERMINISTIC_BUDGET_THEMES:
+        theme_name = theme["name"]
+        keywords = theme["keywords"]
+        matching = []
+        for cat in cat_stats:
+            if cat in assigned:
+                continue
+            cat_lower = cat.strip().lower()
+            is_ambiguous = any(term in cat_lower for term in AMBIGUOUS_PLATFORMS_AND_GENERIC_TERMS)
+
+            matched = False
+            # Match par hints contextuels en priorité si disponible (pour orienter les catégories ambiguës)
+            hint = cat_stats[cat].get("context_hint", "")
+            if hint:
+                hint_tokens = [t.strip() for t in hint.split(",")]
+                matched = any(kw in ht for ht in hint_tokens for kw in keywords)
+
+            # Match par nom de catégorie si pas de match hint (ou catégorie non ambiguë)
+            if not matched and (not is_ambiguous or theme_name in ("Achats en ligne & E-Commerce", "Divers & Dépenses courantes")):
+                matched = any(kw in cat_lower for kw in keywords)
+
+            if matched:
+                matching.append(cat)
+                assigned.add(cat)
+
+        if matching:
+            total_amt = round(sum(cat_stats[c]["suggested_amount"] for c in matching), 2)
+            max_obs = max(cat_stats[c]["observed_months"] for c in matching)
+            envelope_name = theme_name if len(matching) > 1 else matching[0]
+            justification = (
+                f"Regroupement thématique déterministe ({len(matching)} catégories)"
+                if len(matching) > 1
+                else f"Moyenne constatée sur {max_obs} mois"
+            )
+            proposals.append({
+                "name": envelope_name,
+                "categories": matching,
+                "suggested_amount": total_amt,
+                "avg_monthly": total_amt,
+                "observed_months": max_obs,
+                "engine": engine_tag,
+                "justification": justification,
+            })
+
+    # Catégories orphelines restantes non répertoriées dans la taxonomie standard
+    remaining = [c for c in cat_stats if c not in assigned]
+    for cat in remaining:
+        st = cat_stats[cat]
+        proposals.append({
+            "name": cat,
+            "categories": [cat],
+            "suggested_amount": st["suggested_amount"],
+            "avg_monthly": st["avg_monthly"],
+            "observed_months": st["observed_months"],
+            "monthly_values": st.get("monthly_values", []),
+            "engine": engine_tag,
+            "justification": f"Moyenne constatée sur {st['observed_months']} mois",
+        })
+
+    return proposals
+
+
+def _detect_envelope_enrichments(db: Session, cat_stats: dict, chosen_engine: str = "deterministic") -> tuple:
+    """Détecte si certaines catégories orphelines ont une affinité naturelle avec des enveloppes ouvertes existantes.
+    
+    Returns:
+        (enrichment_proposals: list, remaining_cat_stats: dict)
+    """
+    open_budgets = (
+        db.query(Budget)
+        .filter(
+            Budget.is_closed == False,
+            Budget.is_project == False,
+            Budget.envelope_type == "spending"
+        )
+        .all()
+    )
+    if not open_budgets:
+        return [], cat_stats
+
+    # Associer chaque budget ouvert à ses catégories actuelles et déterminer son thème
+    budget_theme_map = {}
+    for b in open_budgets:
+        cats = [
+            bc.category_name.strip().lower()
+            for bc in db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all()
+        ]
+        b_name_lower = b.name.strip().lower()
+        matched_t = None
+        for theme in DETERMINISTIC_BUDGET_THEMES:
+            t_keywords = theme["keywords"]
+            if any(kw in b_name_lower for kw in t_keywords) or any(any(kw in c for kw in t_keywords) for c in cats):
+                matched_t = theme
+                break
+        budget_theme_map[b.id] = matched_t
+
+    enrichments = []
+    enriched_cats = set()
+
+    for cat, stats in cat_stats.items():
+        cat_lower = cat.strip().lower()
+        
+        # 1. Recherche par thème partagé (nom de catégorie)
+        best_budget = None
+        for b in open_budgets:
+            theme = budget_theme_map.get(b.id)
+            if theme and any(kw in cat_lower for kw in theme["keywords"]):
+                best_budget = b
+                break
+
+        # 1b. Recherche par thème partagé via hints contextuels (catégories ambiguës)
+        if not best_budget:
+            hint = stats.get("context_hint", "")
+            if hint:
+                hint_tokens = [t.strip() for t in hint.split(",")]
+                for b in open_budgets:
+                    theme = budget_theme_map.get(b.id)
+                    if theme and any(kw in ht for ht in hint_tokens for kw in theme["keywords"]):
+                        best_budget = b
+                        break
+
+        # 2. Si pas de match thématique, recherche par inclusion de nom
+        if not best_budget:
+            for b in open_budgets:
+                b_name_lower = b.name.strip().lower()
+                if (cat_lower in b_name_lower or b_name_lower in cat_lower) and len(cat_lower) >= 4:
+                    best_budget = b
+                    break
+
+        if best_budget:
+            add_amt = stats["suggested_amount"]
+            cur_amt = best_budget.monthly_amount
+            new_tot = round(cur_amt + add_amt, 2)
+            enrichments.append({
+                "type": "enrichment",
+                "target_budget_id": best_budget.id,
+                "target_budget_name": best_budget.name,
+                "name": best_budget.name,
+                "category": cat,
+                "new_category": cat,
+                "categories": [cat],
+                "additional_amount": add_amt,
+                "current_amount": cur_amt,
+                "suggested_amount": new_tot,
+                "avg_monthly": add_amt,
+                "observed_months": stats["observed_months"],
+                "monthly_values": stats.get("monthly_values", []),
+                "engine": "deterministic",
+                "justification": f"Rattachement de '{cat}' à l'enveloppe existante '{best_budget.name}' (+{add_amt} €/mois)",
+                "is_one_off": False,
+            })
+            enriched_cats.add(cat)
+
+    remaining_stats = {c: s for c, s in cat_stats.items() if c not in enriched_cats}
+    return enrichments, remaining_stats
+
+
 def suggest_new_envelopes(
     db: Session,
-    profile_id: str = None,
+    profile_id_or_force: Union[str, bool, None] = None,
     force: bool = False,
     engine_override: Optional[str] = None,
 ) -> List[dict]:
     """Volet A — Détection et suggestion de création d'enveloppes pour les catégories orphelines.
     
     Supporte deux moteurs configurables :
-    1. Déterministe (défaut) : calcul Winsorisé 100% hors-ligne, zéro dépendance Ollama.
+    1. Déterministe (défaut) : calcul Winsorisé 100% hors-ligne avec clustering thématique, zéro dépendance Ollama.
     2. Assisté par IA (Ollama) : regroupement sémantique multi-catégories avec fallback automatique transparent si Ollama est indisponible.
     """
+    if isinstance(profile_id_or_force, bool):
+        force = profile_id_or_force
+        profile_id = None
+    else:
+        profile_id = profile_id_or_force
+
     cfg_enabled = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_budget_creation_suggestions").first()
     if cfg_enabled and cfg_enabled.value and cfg_enabled.value.strip().lower() == "false":
         logger.debug("[Budgets] Suggestions de création désactivées par l'utilisateur.")
         return []
+
+    # Horodatage du cycle d'analyse
+    now_iso = datetime.now(timezone.utc).isoformat()
+    cfg_last = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_autopilot_run_at").first()
+    if cfg_last:
+        cfg_last.value = now_iso
+    else:
+        db.add(GlobalConfig(key="last_budget_autopilot_run_at", value=now_iso))
+    db.commit()
 
     orphan_cats = get_unbudgeted_categories(db)
     if not orphan_cats:
@@ -1056,7 +1446,7 @@ def suggest_new_envelopes(
     pending = (
         db.query(AutopilotDecisionLog.raw_snapshot)
         .filter(
-            AutopilotDecisionLog.decision_type == "budget_creation_suggestion",
+            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_enrichment_suggestion"]),
             AutopilotDecisionLog.action == "SUGGESTED",
             AutopilotDecisionLog.is_undone == False,
         )
@@ -1071,6 +1461,8 @@ def suggest_new_envelopes(
                     already_suggested.update(snap["categories"])
                 elif "category" in snap:
                     already_suggested.add(snap["category"])
+                if "new_category" in snap:
+                    already_suggested.add(snap["new_category"])
             except Exception:
                 pass
 
@@ -1079,7 +1471,7 @@ def suggest_new_envelopes(
         return []
 
     # Seuil plancher configurable
-    min_threshold = 30.0
+    min_threshold = 1.0
     cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_minimum_threshold").first()
     if cfg and cfg.value:
         try:
@@ -1112,67 +1504,135 @@ def suggest_new_envelopes(
                 "suggested_amount": round(avg, 2),
             }
 
+    # Enrichir les catégories ambiguës avec des hints contextuels extraits des transactions récentes
+    for cat in cat_stats:
+        hint = _extract_category_context_hints(db, cat)
+        if hint:
+            cat_stats[cat]["context_hint"] = hint
+            logger.debug(f"[Budgets] Hint contextuel pour '{cat}' : {hint}")
+
     if not cat_stats:
         return []
 
+    # 1. Détection d'enrichissement d'enveloppes existantes
+    enrichment_proposals, remaining_cat_stats = _detect_envelope_enrichments(db, cat_stats, chosen_engine)
+
+    # 2. Regroupement / clustering des catégories orphelines restantes
     proposals_data = []
+    if remaining_cat_stats:
+        if chosen_engine == "ai":
+            from app.services.chat.ollama_client import get_ollama_config
+            ollama_cfg = get_ollama_config(db)
+            ai_success = False
+            if ollama_cfg.get("enabled") and ollama_cfg.get("url") and ollama_cfg.get("model"):
+                try:
+                    ai_groups = _call_ollama_for_budget_grouping(list(remaining_cat_stats.keys()), remaining_cat_stats, ollama_cfg)
+                    if ai_groups:
+                        for grp in ai_groups:
+                            grp_cats = [c for c in grp.get("categories", []) if c in remaining_cat_stats]
+                            if not grp_cats:
+                                continue
+                            total_amt = round(sum(remaining_cat_stats[c]["suggested_amount"] for c in grp_cats), 2)
+                            max_obs = max(remaining_cat_stats[c]["observed_months"] for c in grp_cats)
+                            proposals_data.append({
+                                "name": grp.get("name") or grp_cats[0],
+                                "categories": grp_cats,
+                                "suggested_amount": total_amt,
+                                "avg_monthly": total_amt,
+                                "observed_months": max_obs,
+                                "engine": "ai",
+                                "justification": grp.get("justification") or f"Regroupement sémantique IA ({len(grp_cats)} catégories)",
+                            })
+                        ai_success = True
+                except Exception as e:
+                    logger.warning(f"[AutoPilot Budgets] Échec appel IA Ollama ({e}). Repli automatique sur le moteur déterministe.")
 
-    if chosen_engine == "ai":
-        from app.services.chat.ollama_client import get_ollama_config
-        ollama_cfg = get_ollama_config(db)
-        ai_success = False
-        if ollama_cfg.get("enabled") and ollama_cfg.get("url") and ollama_cfg.get("model"):
-            try:
-                ai_groups = _call_ollama_for_budget_grouping(list(cat_stats.keys()), cat_stats, ollama_cfg)
-                if ai_groups:
-                    for grp in ai_groups:
-                        grp_cats = [c for c in grp.get("categories", []) if c in cat_stats]
-                        if not grp_cats:
-                            continue
-                        total_amt = round(sum(cat_stats[c]["suggested_amount"] for c in grp_cats), 2)
-                        max_obs = max(cat_stats[c]["observed_months"] for c in grp_cats)
-                        proposals_data.append({
-                            "name": grp.get("name") or grp_cats[0],
-                            "categories": grp_cats,
-                            "suggested_amount": total_amt,
-                            "avg_monthly": total_amt,
-                            "observed_months": max_obs,
-                            "engine": "ai",
-                            "justification": grp.get("justification") or f"Regroupement sémantique IA ({len(grp_cats)} catégories)",
-                        })
-                    ai_success = True
-            except Exception as e:
-                logger.warning(f"[AutoPilot Budgets] Échec appel IA Ollama ({e}). Repli automatique sur le moteur déterministe.")
-
-        if not ai_success:
-            for cat, st in cat_stats.items():
-                proposals_data.append({
-                    "name": cat,
-                    "categories": [cat],
-                    "suggested_amount": st["suggested_amount"],
-                    "avg_monthly": st["avg_monthly"],
-                    "observed_months": st["observed_months"],
-                    "monthly_values": st["monthly_values"],
-                    "engine": "deterministic_fallback",
-                    "justification": "Calcul déterministe hors-ligne (repli automatique)",
-                })
-    else:
-        for cat, st in cat_stats.items():
-            proposals_data.append({
-                "name": cat,
-                "categories": [cat],
-                "suggested_amount": st["suggested_amount"],
-                "avg_monthly": st["avg_monthly"],
-                "observed_months": st["observed_months"],
-                "monthly_values": st["monthly_values"],
-                "engine": "deterministic",
-                "justification": f"Moyenne constatée sur {st['observed_months']} mois",
-            })
+            if not ai_success:
+                proposals_data = _cluster_categories_deterministically(remaining_cat_stats, engine_tag="deterministic_fallback")
+        else:
+            proposals_data = _cluster_categories_deterministically(remaining_cat_stats, engine_tag="deterministic")
 
     batch_id = str(uuid.uuid4())
     suggestions = []
     import json as _json
 
+    # A. Enregistrement des propositions d'enrichissement d'enveloppes
+    for prop in enrichment_proposals:
+        snapshot = _json.dumps({
+            "name": prop["target_budget_name"],
+            "target_budget_id": prop["target_budget_id"],
+            "target_budget_name": prop["target_budget_name"],
+            "new_category": prop["new_category"],
+            "category": prop["new_category"],
+            "categories": [prop["new_category"]],
+            "additional_amount": prop["additional_amount"],
+            "current_amount": prop["current_amount"],
+            "suggested_amount": prop["suggested_amount"],
+            "avg_monthly": prop["additional_amount"],
+            "observed_months": prop["observed_months"],
+            "monthly_values": prop.get("monthly_values", []),
+            "engine": prop["engine"],
+            "justification": prop.get("justification", ""),
+            "is_one_off": False,
+        })
+
+        action_status = "SUGGESTED"
+        target_budget_id = prop["target_budget_id"]
+
+        if is_auto_create and prop["observed_months"] >= 2:
+            from app.services.history_service import record_action, snapshot_entity
+            b = db.query(Budget).filter(Budget.id == target_budget_id).first()
+            if b and not b.is_closed:
+                old_snap = snapshot_entity(b, db)
+                existing_bc = db.query(BudgetCategory).filter(
+                    BudgetCategory.budget_id == b.id,
+                    BudgetCategory.category_name == prop["new_category"]
+                ).first()
+                if not existing_bc:
+                    db.add(BudgetCategory(budget_id=b.id, category_name=prop["new_category"]))
+                    db.flush()
+                b.monthly_amount = prop["suggested_amount"]
+                b.base_annual_amount = prop["suggested_amount"] * 12 if b.period != "yearly" else prop["suggested_amount"]
+                db.flush()
+                record_action(db, "budget", b.id, "UPDATE", old_snap, snapshot_entity(b, db))
+                action_status = "AUTO_COMMIT"
+                logger.info(f"[AutoPilot Budgets] Auto-enrichissement de l'enveloppe '{b.name}' avec '{prop['new_category']}' ({prop['suggested_amount']} €).")
+
+        decision = AutopilotDecisionLog(
+            batch_id=batch_id,
+            decision_type="budget_enrichment_suggestion",
+            action=action_status,
+            entity_type="budget",
+            entity_id=target_budget_id,
+            conn_id=-1,
+            account_id=None,
+            raw_snapshot=snapshot,
+            confidence_score=90.0 if prop["observed_months"] >= 2 else 65.0,
+        )
+        db.add(decision)
+        db.flush()
+
+        if action_status == "SUGGESTED":
+            suggestions.append({
+                "decision_id": decision.id,
+                "type": "enrichment",
+                "target_budget_id": target_budget_id,
+                "name": prop["target_budget_name"],
+                "target_budget_name": prop["target_budget_name"],
+                "category": prop["new_category"],
+                "new_category": prop["new_category"],
+                "categories": [prop["new_category"]],
+                "additional_amount": prop["additional_amount"],
+                "current_amount": prop["current_amount"],
+                "suggested_amount": prop["suggested_amount"],
+                "avg_monthly": prop["additional_amount"],
+                "observed_months": prop["observed_months"],
+                "engine": prop["engine"],
+                "justification": prop.get("justification", ""),
+                "is_one_off": False,
+            })
+
+    # B. Enregistrement des propositions de création de nouvelles enveloppes
     for prop in proposals_data:
         cats = prop["categories"]
         main_cat = cats[0] if len(cats) == 1 else prop["name"]
@@ -1243,6 +1703,14 @@ def suggest_new_envelopes(
                 "justification": prop.get("justification", ""),
                 "is_one_off": False,
             })
+
+    # Mettre à jour l'horodatage de dernière analyse de l'auto-pilote
+    now_iso = datetime.now(timezone.utc).isoformat()
+    cfg_last = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_autopilot_run_at").first()
+    if cfg_last:
+        cfg_last.value = now_iso
+    else:
+        db.add(GlobalConfig(key="last_budget_autopilot_run_at", value=now_iso))
 
     if suggestions or is_auto_create:
         db.commit()
@@ -1393,7 +1861,9 @@ def compute_budget_ema_suggestion(
 
 
 def evaluate_monthly_budget_suggestions(
-    db: Session, force: bool = False
+    db: Session,
+    profile_id_or_force: Union[str, bool, None] = None,
+    force: bool = False,
 ) -> List[dict]:
     """Volet B — Évaluation mensuelle et suggestion de recalibrage EMA des enveloppes existantes.
     
@@ -1402,6 +1872,11 @@ def evaluate_monthly_budget_suggestions(
     Si l'option auto_apply_budget_suggestions est activée, applique directement le recalibrage
     avec traçabilité et rollback possible.
     """
+    if isinstance(profile_id_or_force, bool):
+        force = profile_id_or_force
+        profile_id = None
+    else:
+        profile_id = profile_id_or_force
     today = date.today()
     current_period = f"{today.year}-{today.month:02d}"
 
@@ -1416,8 +1891,17 @@ def evaluate_monthly_budget_suggestions(
             logger.debug(f"[AutoPilot Budgets] Période {current_period} déjà recalibrée. Anti-thrashing actif.")
             return []
 
+    # Enregistrer l'horodatage de l'analyse
+    now_iso = datetime.now(timezone.utc).isoformat()
+    cfg_last = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_autopilot_run_at").first()
+    if cfg_last:
+        cfg_last.value = now_iso
+    else:
+        db.add(GlobalConfig(key="last_budget_autopilot_run_at", value=now_iso))
+    db.commit()
+
     # Seuil plancher configurable
-    min_threshold = 30.0
+    min_threshold = 1.0
     cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_minimum_threshold").first()
     if cfg and cfg.value:
         try:
@@ -1559,12 +2043,19 @@ def evaluate_monthly_budget_suggestions(
                 "category_breakdown": category_breakdown,
             })
 
-    # Mettre à jour la période de dernière exécution
+    # Mettre à jour la période de dernière exécution et l'horodatage
+    now_iso = datetime.now(timezone.utc).isoformat()
     period_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_recalibration_period").first()
     if period_cfg:
         period_cfg.value = current_period
     else:
         db.add(GlobalConfig(key="last_budget_recalibration_period", value=current_period))
+
+    cfg_last = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_autopilot_run_at").first()
+    if cfg_last:
+        cfg_last.value = now_iso
+    else:
+        db.add(GlobalConfig(key="last_budget_autopilot_run_at", value=now_iso))
 
     if suggestions or is_auto_apply:
         notif = Notification(
@@ -1585,14 +2076,14 @@ def evaluate_monthly_budget_suggestions(
 
 
 def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
-    """Retourne toutes les suggestions budgétaires en attente (créations + recalibrages).
+    """Retourne toutes les suggestions budgétaires en attente (créations + recalibrages + enrichissements).
     Purge automatiquement toute ancienne suggestion sur achat ponctuel isolé (< 2 mois sans récurrence).
     """
     import json as _json
     pending = (
         db.query(AutopilotDecisionLog)
         .filter(
-            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion"]),
+            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion", "budget_enrichment_suggestion"]),
             AutopilotDecisionLog.action == "SUGGESTED",
             AutopilotDecisionLog.is_undone == False,
         )
@@ -1607,12 +2098,25 @@ def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
     recalib_enabled = not (cfg_recalib and cfg_recalib.value and cfg_recalib.value.strip().lower() == "false")
 
     results = []
-    has_purged = False
     for d in pending:
         if d.decision_type == "budget_creation_suggestion" and not creation_enabled:
             continue
-        if d.decision_type == "budget_suggestion" and not recalib_enabled:
-            continue
+        if d.decision_type == "budget_suggestion":
+            if not recalib_enabled:
+                continue
+            # Sécurité anti-orphelins : vérifier si l'enveloppe cible existe toujours et n'est pas fermée
+            snap_check = {}
+            if d.raw_snapshot:
+                try:
+                    snap_check = _json.loads(d.raw_snapshot)
+                except Exception:
+                    pass
+            target_id = d.entity_id or snap_check.get("budget_id")
+            target_b = db.query(Budget.id).filter(Budget.id == target_id, Budget.is_closed == False).first() if target_id else None
+            if not target_b:
+                # L'enveloppe cible a été supprimée ou clôturée : écarter la suggestion
+                d.action = "DISMISSED"
+                continue
 
         snap = {}
         if d.raw_snapshot:
@@ -1621,9 +2125,27 @@ def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
             except Exception:
                 pass
 
-        # Purge de sécurité : si une suggestion de création concerne un achat ponctuel isolé (< 2 mois) ou une charge non éligible (prêt, crédit, charge fixe)
+        if d.decision_type == "budget_enrichment_suggestion":
+            if not creation_enabled:
+                continue
+            target_id = d.entity_id or snap.get("target_budget_id")
+            target_b = db.query(Budget.id).filter(Budget.id == target_id, Budget.is_closed == False).first() if target_id else None
+            if not target_b:
+                d.action = "DISMISSED"
+                continue
+            new_cat = snap.get("new_category") or snap.get("category")
+            if new_cat:
+                already_attached = db.query(BudgetCategory.id).filter(
+                    BudgetCategory.budget_id == target_id,
+                    BudgetCategory.category_name == new_cat
+                ).first()
+                if already_attached:
+                    d.action = "DISMISSED"
+                    continue
+
+        # Filtrage de sécurité : si une suggestion de création concerne un achat ponctuel isolé ou une charge non éligible (prêt, crédit, charge fixe)
         if d.decision_type == "budget_creation_suggestion":
-            observed = snap.get("observed_months", 0)
+            observed = snap.get("observed_months")
             is_one_off = snap.get("is_one_off", False)
             cat = (snap.get("category") or "").strip()
             cat_lower = cat.lower()
@@ -1632,17 +2154,14 @@ def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
                 "fixes", "fixe", "abonnement", "loyer", "assurance", "mutuelle"
             )
             is_ineligible = (
-                observed < 2
+                (observed is not None and observed < 2)
                 or is_one_off
                 or any(kw in cat_lower for kw in ineligible_keywords)
             )
             if is_ineligible:
-                d.action = "DISMISSED"
-                has_purged = True
-                logger.info(f"[Budgets] Purge automatique de la suggestion création inadaptée ({cat}, {snap.get('suggested_amount')} €).")
                 continue
 
-            # Si une enveloppe active existe déjà pour cette catégorie, la suggestion est considérée traitée
+            # Si une enveloppe active existe déjà pour cette catégorie, la suggestion est ignorée (déjà traitée)
             cats = snap.get("categories", [cat] if cat else [])
             existing_budget = (
                 db.query(Budget)
@@ -1654,24 +2173,18 @@ def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
                 .first()
             )
             if existing_budget:
-                d.action = "AUTO_COMMIT"
-                d.entity_id = existing_budget.id
-                has_purged = True
-                logger.info(f"[Budgets] Clôture automatique de la suggestion pour '{cat}' : enveloppe active existante (id={existing_budget.id}).")
                 continue
 
+        entry_type = "creation" if d.decision_type == "budget_creation_suggestion" else ("enrichment" if d.decision_type == "budget_enrichment_suggestion" else "recalibration")
         entry = {
             "decision_id": d.id,
             "decision_type": d.decision_type,
-            "type": "creation" if d.decision_type == "budget_creation_suggestion" else "recalibration",
+            "type": entry_type,
             "created_at": d.created_at.isoformat() if d.created_at else None,
             "confidence_score": d.confidence_score,
             **snap,
         }
         results.append(entry)
-
-    if has_purged:
-        db.commit()
 
     return results
 
@@ -1681,7 +2194,7 @@ def apply_all_budget_suggestions(db: Session, decision_ids: Optional[List[int]] 
     q = (
         db.query(AutopilotDecisionLog)
         .filter(
-            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion"]),
+            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion", "budget_enrichment_suggestion"]),
             AutopilotDecisionLog.action == "SUGGESTED",
             AutopilotDecisionLog.is_undone == False,
         )
@@ -1710,7 +2223,7 @@ def dismiss_all_budget_suggestions(db: Session, decision_ids: Optional[List[int]
     q = (
         db.query(AutopilotDecisionLog)
         .filter(
-            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion"]),
+            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion", "budget_enrichment_suggestion"]),
             AutopilotDecisionLog.action == "SUGGESTED",
             AutopilotDecisionLog.is_undone == False,
         )
@@ -1735,7 +2248,7 @@ def dismiss_all_budget_suggestions(db: Session, decision_ids: Optional[List[int]
 
 
 def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Optional[float] = None) -> dict:
-    """Approuve une suggestion budgétaire : crée l'enveloppe ou applique le recalibrage."""
+    """Approuve une suggestion budgétaire : crée l'enveloppe, applique le recalibrage ou enrichit l'enveloppe."""
     import json as _json
 
     decision = db.query(AutopilotDecisionLog).filter(AutopilotDecisionLog.id == decision_id).first()
@@ -1754,7 +2267,7 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
     if decision.decision_type == "budget_creation_suggestion":
         # Création d'enveloppe
         envelope_name = snap.get("name") or snap.get("category", "Sans nom")
-        amount = float(snap.get("suggested_amount", 30.0))
+        amount = round(float(snap.get("suggested_amount", 30.0)), 2)
         if custom_amount is not None and float(custom_amount) > 0:
             amount = round(float(custom_amount), 2)
         period = snap.get("suggested_period", "monthly")
@@ -1796,6 +2309,57 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
             "action_id": action_id,
         }
 
+    elif decision.decision_type == "budget_enrichment_suggestion":
+        # Enrichissement d'une enveloppe existante
+        target_budget_id = snap.get("target_budget_id") or decision.entity_id
+        if not target_budget_id:
+            raise HTTPException(status_code=400, detail="ID de budget cible manquant.")
+
+        b = db.query(Budget).filter(Budget.id == target_budget_id).first()
+        if not b or b.is_closed:
+            raise HTTPException(status_code=404, detail="Enveloppe cible non trouvée ou fermée.")
+
+        new_cat = snap.get("new_category") or snap.get("category")
+        if not new_cat:
+            raise HTTPException(status_code=400, detail="Catégorie à rattacher manquante.")
+
+        # Capturer l'ancien snapshot avant d'attacher la nouvelle catégorie et de modifier le montant
+        old_snapshot = snapshot_entity(b, db)
+
+        # Vérifier si la catégorie n'est pas déjà rattachée
+        existing_bc = db.query(BudgetCategory).filter(
+            BudgetCategory.budget_id == b.id,
+            BudgetCategory.category_name == new_cat
+        ).first()
+        if not existing_bc:
+            db.add(BudgetCategory(budget_id=b.id, category_name=new_cat))
+            db.flush()
+        new_amount = round(float(snap.get("suggested_amount", b.monthly_amount)), 2)
+        if custom_amount is not None and float(custom_amount) > 0:
+            new_amount = round(float(custom_amount), 2)
+
+        b.monthly_amount = new_amount
+        b.base_annual_amount = new_amount if b.period == "yearly" else new_amount * 12
+        db.flush()
+
+        action_id = record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db))
+        decision.action = "AUTO_COMMIT"
+        db.commit()
+
+        logger.info(f"[AutoPilot Budgets] Enveloppe '{b.name}' enrichie avec la catégorie '{new_cat}' (nouveau plafond: {new_amount} €).")
+        return {
+            "ok": True,
+            "type": "enrichment",
+            "budget_id": b.id,
+            "name": b.name,
+            "new_category": new_cat,
+            "old_amount": snap.get("current_amount", b.monthly_amount),
+            "new_amount": new_amount,
+            "amount": new_amount,
+            "custom_amount": custom_amount,
+            "action_id": action_id,
+        }
+
     elif decision.decision_type == "budget_suggestion":
         # Recalibrage
         budget_id = snap.get("budget_id") or decision.entity_id
@@ -1807,10 +2371,11 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
             raise HTTPException(status_code=404, detail="Budget non trouvé.")
 
         old_snapshot = snapshot_entity(b, db)
-        new_amount = snap.get("suggested_amount", b.monthly_amount)
+        new_amount = round(float(snap.get("suggested_amount", b.monthly_amount)), 2)
         if custom_amount is not None and float(custom_amount) > 0:
             new_amount = round(float(custom_amount), 2)
         b.monthly_amount = new_amount
+        b.base_annual_amount = new_amount if b.period == "yearly" else new_amount * 12
         db.flush()
 
         action_id = record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db))
@@ -1877,7 +2442,7 @@ def reactivate_budget_suggestion(db: Session, decision_id: int) -> dict:
     if decision.action != "DISMISSED":
         raise HTTPException(status_code=400, detail="Seule une suggestion écartée peut être réactivée.")
 
-    if decision.decision_type == "budget_suggestion" and decision.entity_id:
+    if decision.decision_type in ("budget_suggestion", "budget_enrichment_suggestion") and decision.entity_id:
         b = db.query(Budget).filter(Budget.id == decision.entity_id).first()
         if not b or b.is_closed:
             raise HTTPException(status_code=400, detail="L'enveloppe associée n'existe plus ou est clôturée.")
@@ -1912,7 +2477,7 @@ def get_dismissed_budget_suggestions(db: Session, limit: int = 50) -> List[dict]
     dismissed = (
         db.query(AutopilotDecisionLog)
         .filter(
-            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion"]),
+            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion", "budget_enrichment_suggestion"]),
             AutopilotDecisionLog.action == "DISMISSED",
             AutopilotDecisionLog.is_undone == False,
         )
@@ -1930,15 +2495,17 @@ def get_dismissed_budget_suggestions(db: Session, limit: int = 50) -> List[dict]
             except Exception:
                 pass
 
-        name = snap.get("name") or snap.get("budget_name") or snap.get("category") or f"Enveloppe #{d.entity_id or d.id}"
+        name = snap.get("name") or snap.get("target_budget_name") or snap.get("budget_name") or snap.get("category") or f"Enveloppe #{d.entity_id or d.id}"
         suggested_amount = snap.get("suggested_amount") or snap.get("amount") or 0.0
         current_amount = snap.get("current_amount")
         delta_pct = snap.get("delta_pct")
 
+        entry_type = "creation" if d.decision_type == "budget_creation_suggestion" else ("enrichment" if d.decision_type == "budget_enrichment_suggestion" else "recalibration")
+
         results.append({
             "decision_id": d.id,
             "decision_type": d.decision_type,
-            "type": "creation" if d.decision_type == "budget_creation_suggestion" else "recalibration",
+            "type": entry_type,
             "name": name,
             "suggested_amount": suggested_amount,
             "current_amount": current_amount,
@@ -1948,8 +2515,9 @@ def get_dismissed_budget_suggestions(db: Session, limit: int = 50) -> List[dict]
             "dismissed_period": snap.get("dismissed_period"),
             "created_at": d.created_at.isoformat() if d.created_at else None,
             "categories": snap.get("categories", []),
-            "category": snap.get("category"),
-            "avg_spending": snap.get("avg_spending"),
+            "category": snap.get("category") or snap.get("new_category"),
+            "new_category": snap.get("new_category"),
+            "avg_spending": snap.get("avg_spending") or snap.get("avg_monthly"),
             "justification": snap.get("justification", ""),
         })
     return results
@@ -1962,7 +2530,7 @@ def clear_dismissed_budget_suggestions(db: Session) -> dict:
     deleted_count = (
         db.query(AutopilotDecisionLog)
         .filter(
-            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion"]),
+            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion", "budget_enrichment_suggestion"]),
             AutopilotDecisionLog.action == "DISMISSED",
         )
         .delete(synchronize_session=False)
@@ -1970,4 +2538,56 @@ def clear_dismissed_budget_suggestions(db: Session) -> dict:
     db.commit()
     logger.info(f"[AutoPilot Budgets] Historique des suggestions écartées purgé ({deleted_count} entrées supprimées).")
     return {"ok": True, "count": deleted_count}
+
+
+def get_budget_automations_history(db: Session, limit: int = 50) -> List[dict]:
+    """Retourne l'historique des actions automatiques budgétaires exécutées (AUTO_COMMIT ou APPLIED)."""
+    import json as _json
+    from app.models import AutopilotDecisionLog
+
+    actions = (
+        db.query(AutopilotDecisionLog)
+        .filter(
+            AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_suggestion", "budget_enrichment_suggestion"]),
+            AutopilotDecisionLog.action.in_(["AUTO_COMMIT", "APPLIED"]),
+            AutopilotDecisionLog.is_undone == False,
+        )
+        .order_by(AutopilotDecisionLog.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    results = []
+    for d in actions:
+        snap = {}
+        if d.raw_snapshot:
+            try:
+                snap = _json.loads(d.raw_snapshot)
+            except Exception:
+                pass
+
+        name = snap.get("name") or snap.get("target_budget_name") or snap.get("budget_name") or snap.get("category") or f"Enveloppe #{d.entity_id or d.id}"
+        amount = snap.get("suggested_amount") or snap.get("amount") or 0.0
+        current_amount = snap.get("current_amount")
+        delta_pct = snap.get("delta_pct")
+
+        entry_type = "creation" if d.decision_type == "budget_creation_suggestion" else ("enrichment" if d.decision_type == "budget_enrichment_suggestion" else "recalibration")
+
+        results.append({
+            "decision_id": d.id,
+            "decision_type": d.decision_type,
+            "action": d.action,
+            "type": entry_type,
+            "is_autonomous": (d.action == "AUTO_COMMIT"),
+            "name": name,
+            "amount": amount,
+            "current_amount": current_amount,
+            "delta_pct": delta_pct,
+            "categories": snap.get("categories", [snap.get("category")] if snap.get("category") else []),
+            "engine": snap.get("engine") or "deterministic",
+            "justification": snap.get("justification", ""),
+            "confidence_score": d.confidence_score,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        })
+    return results
 
