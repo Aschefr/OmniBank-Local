@@ -374,6 +374,8 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
             for tx in tx_list:
                 tx_copy = dict(tx)
                 tx_copy["is_coming"] = is_coming_flag
+                tx_copy["connection_id"] = conn_id
+                tx_copy["connection_label"] = conn_label
                 tx_date_str = tx.get("date_operation")
                 raw_amount = tx.get("raw_amount")
                 csv_id = tx.get("csv_id")

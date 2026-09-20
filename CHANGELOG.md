@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **Dashboard Columns & Bank Sync UX Improvements 🏦⚙️**:
+  - **Online Sync Button Persistence**: Resolved an issue where the "Relever en ligne" button disappeared from the Dashboard and History toolbars after a page reload (F5) until navigating through Overview. Connection state detection and visibility checks are now executed reliably during application startup.
+  - **Restored Dashboard Columns Button**: Restored the missing "⚙️ Colonnes" configuration button in the Dashboard toolbar following the filter bar redesign, allowing seamless toggling of visible table columns.
+  - **Organisation Mode Guard for Creator Columns**: Ensured that the "Créé par" and "Modifié par" columns and their checkboxes in the column settings modal are strictly hidden when Organisation Mode is disabled.
+  - **Standardized Statement Creator Identification**: Standardized the `created_by` transaction audit field. In Organisation Mode, it reflects the declared user name alongside the statement context (e.g. `User (Relevé en ligne)` or `User (Relevé de compte manuel)`, with English localization). In personal mode, it cleanly stores the statement label (`Relevé en ligne` / `Relevé de compte manuel`). Migrated legacy database records to the new format.
 - **Budget Simulator Reference Salary Synchronization 💼⚡**:
   - **Accurate Reference Salary Detection**: Resolved an issue where closing or skipping the budget suggestion wizard reset the reference income/salary to `0.00 €` on the main simulator, displaying false liquidity tension warnings. The simulator now accurately reads and persists the user's predicted reference salary (or 6-month average income) seamlessly across both the wizard and the main budget view.
   - **Removed Hardcoded Fallback**: Eliminated an arbitrary hardcoded default of 2500€ inside the wizard, replacing it with unified dynamic retrieval (`getEffectiveReferenceSalary()`) backed by database paychecks and capacity averages.

@@ -47,6 +47,7 @@ window.TimelineView = {
                         </button>
                     </div>
                     <div class="view-header-toolbar">
+                        <button class="btn btn-secondary toolbar-btn" onclick="document.getElementById('timelineColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
                         <button id="btnImportStatement" class="btn btn-secondary toolbar-btn" onclick="window.ImportWizard.open()">
                             <span>📥</span> <span data-i18n="btn_import_statement">${window.i18n.t('btn_import_statement') || 'Importer un relevé'}</span>
                         </button>
@@ -137,8 +138,8 @@ window.TimelineView = {
                             <th class="col-recurrence" data-i18n="col_recurrence">${window.i18n.t('col_recurrence')}</th>
                             <th class="col-slip" data-i18n="col_slip">${window.i18n.t('col_slip')}</th>
                             <th class="col-attachments" data-i18n="col_attachments">${window.i18n.t('col_attachments')}</th>
-                            <th class="col-createdBy" data-i18n="col_created_by">${window.i18n.t('col_created_by')}</th>
-                            <th class="col-modifiedBy" data-i18n="col_modified_by">${window.i18n.t('col_modified_by')}</th>
+                            <th class="col-createdBy" data-i18n="col_created_by" style="${orgDisp}">${window.i18n.t('col_created_by')}</th>
+                            <th class="col-modifiedBy" data-i18n="col_modified_by" style="${orgDisp}">${window.i18n.t('col_modified_by')}</th>
                             <th class="col-actions" style="text-align: right;" data-i18n="th_actions">${window.i18n.t('th_actions') || 'Actions'}</th>
                         </tr>
                     </thead>
@@ -378,17 +379,27 @@ window.TimelineView = {
         const cfg = window.app && window.app.config ? window.app.config : {};
         const showAttachments = cfg.enable_attachments === 'true';
         const showSlips = cfg.enable_check_slips === 'true';
+        const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
         const def = { dateSaisie: false, date: true, desc: true, type: false, cat: true, amount: true, recon: true, budget: false, depuis: false, vers: false, recurrence: false, slip: showSlips, attachments: showAttachments, createdBy: false, modifiedBy: false };
         try {
             const saved = ProfileStorage.get('timeline_cols');
             const parsed = saved ? { ...def, ...JSON.parse(saved) } : def;
             if (!showSlips) parsed.slip = false;
             if (!showAttachments) parsed.attachments = false;
+            if (!isOrgMode) {
+                parsed.createdBy = false;
+                parsed.modifiedBy = false;
+            }
             return parsed;
         } catch { return def; }
     },
 
     toggleCol(col) {
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
+        if ((col === 'createdBy' || col === 'modifiedBy') && !isOrgMode) {
+            return;
+        }
         const settings = this.getColSettings();
         const chk = document.getElementById('chk_col_' + col);
         if (chk) {
@@ -400,6 +411,12 @@ window.TimelineView = {
 
     applyColSettings() {
         const cols = this.getColSettings();
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
+        if (!isOrgMode) {
+            cols.createdBy = false;
+            cols.modifiedBy = false;
+        }
         
         // Update checkboxes
         Object.keys(cols).forEach(k => {

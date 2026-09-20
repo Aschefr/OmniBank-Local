@@ -3,6 +3,8 @@
 
 window.BankSyncView = {
     connections: [],
+    _connectionsLoaded: false,
+    _connectionsPromise: null,
     backends: [],
     localAccounts: [],
     selectedBackend: null,

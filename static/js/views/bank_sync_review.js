@@ -1729,7 +1729,9 @@ Object.assign(window.BankSyncView, {
         try {
             const targetConnId = isCsvImport ? -1 : this.activeConnId;
             const res = await API.post(`/api/bank-sync/connections/${targetConnId}/commit`, {
-                transactions: allTxs
+                transactions: allTxs,
+                user_name: window.app?.currentUser || null,
+                lang: window.i18n?.currentLang || 'fr'
             });
 
             // Mettre à jour le preview en conservant les opérations non traitées (décochées) et les opérations en attente banque
