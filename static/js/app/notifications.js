@@ -249,13 +249,13 @@ window.AppModules.notifications = {
             const clearArchivesBtn = document.getElementById('clearArchivesBtn');
 
             if (markAllBtn) {
-                markAllBtn.style.display = this._cachedActiveNotifs.some(n => !n.is_read) ? 'inline' : 'none';
+                markAllBtn.style.display = this._cachedActiveNotifs.some(n => !n.is_read) ? 'inline-flex' : 'none';
             }
             if (archiveAllBtn) {
-                archiveAllBtn.style.display = this._cachedActiveNotifs.length > 0 ? 'inline' : 'none';
+                archiveAllBtn.style.display = this._cachedActiveNotifs.length > 0 ? 'inline-flex' : 'none';
             }
             if (clearArchivesBtn) {
-                clearArchivesBtn.style.display = this._cachedArchivedNotifs.length > 0 ? 'inline' : 'none';
+                clearArchivesBtn.style.display = this._cachedArchivedNotifs.length > 0 ? 'inline-flex' : 'none';
             }
 
             this._renderNotificationList();

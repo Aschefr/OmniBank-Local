@@ -137,14 +137,14 @@ async def bank_sync_scheduler_loop():
                             else:
                                 logger.debug(f"[BankScheduler] Coffre verrouillé pour le profil '{pid}' : sync auto en attente")
 
-                            # 3. Étape 5 : Évaluation périodique/mensuelle des suggestions budgétaires
-                            try:
-                                from app.services.budget_service import evaluate_monthly_budget_suggestions, suggest_new_envelopes_deterministic
-                                loop = asyncio.get_running_loop()
-                                await loop.run_in_executor(None, evaluate_monthly_budget_suggestions, db, pid, False)
-                                await loop.run_in_executor(None, suggest_new_envelopes_deterministic, db, pid, False)
-                            except Exception as b_eval_err:
-                                logger.debug(f"[BankScheduler] Suggestion budgétaire non exécutée pour profil '{pid}': {b_eval_err}")
+                        # 3. Étape 5 : Évaluation périodique/mensuelle des suggestions budgétaires (indépendante de la sync bancaire)
+                        try:
+                            from app.services.budget_service import evaluate_monthly_budget_suggestions, suggest_new_envelopes
+                            loop = asyncio.get_running_loop()
+                            await loop.run_in_executor(None, evaluate_monthly_budget_suggestions, db, pid, False)
+                            await loop.run_in_executor(None, suggest_new_envelopes, db, pid, False)
+                        except Exception as b_eval_err:
+                            logger.debug(f"[BankScheduler] Suggestion budgétaire non exécutée pour profil '{pid}': {b_eval_err}")
                     finally:
                         db.close()
                 except Exception as p_err:

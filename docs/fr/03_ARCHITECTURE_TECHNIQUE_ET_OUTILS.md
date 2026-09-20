@@ -26,9 +26,10 @@ OmniBank Local s'appuie sur une architecture hybride **Desktop / Web local-first
 |                                                                       |
 |  Routers & Services :                                                 |
 |  - Finance Engine (Calculs de soldes & budgets)                       |
-|  - CSV Parser & Manager                                               |
+|  - Auto-Pilot Engine (Découverte d'enveloppes, recalibrage EMA)       |
+|  - CSV Parser & Bank Sync Manager (Woob / Synchronisation locale)     |
 |  - Backup & Auto-Backup Manager                                       |
-|  - Budget AI & Chat Service (RAG Local)                               |
+|  - Budget AI & Chat Service (RAG Local & Function Calling)            |
 +-----------------------------------------------------------------------+
            |                                             |
    SQLAlchemy ORM                                HTTP Local (Port 11434)
@@ -49,11 +50,12 @@ La base de données SQLite `omnibank.db` s'appuie sur un schéma relationnel nor
 1. `accounts` : Comptes bancaires (id, name, type ['Compte courant', 'Livret'...], initial_balance, is_closed, color).
 2. `categories` : Catégories & sous-catégories (id, parent_id, name, type ['expense_fixed', 'expense_var', 'income', 'transfer'], icon, color).
 3. `transactions` : Opérations financières (id, csv_id, date_saisie, date_operation, description, amount, type, category, reconciliation_date, from_account_id, to_account_id, recurrence_id, budget_id, created_by, modified_by).
-4. `budgets` : Enveloppes budgétaires (id, category, period_month, period_year, allocated_amount).
+4. `budgets` & `budget_categories` : Enveloppes budgétaires multi-catégories (id, name, monthly_amount, period, is_locked, is_closed, is_project, envelope_type, base_annual_amount).
 5. `recurrence_templates` : Modèles de récurrence (id, description, amount, type, category, frequency ['Monthly', 'Yearly', 'Bi-Monthly'...], day_of_month, is_closed, max_occurrences).
-6. `history` (ActionHistory) : Journal d'audit des actions utilisateur, annulations (undo) et modifications.
-7. `config` / `global_config` : Clés-valeurs de configuration (langue, thème, URL Ollama, modèle actif, nombre de mois de récurrences).
-8. `org_users` : Utilisateurs et droits d'accès en Mode Organisation (CSE / Association).
+6. `autopilot_decision_logs` : Registre horodaté des décisions et suggestions autonomes (création d'enveloppes, enrichissements, recalibrages, auto-saut, auto-clôture) avec snapshots JSON complets et statuts (SUGGESTED, AUTO_COMMIT, DISMISSED).
+7. `history` (ActionHistory) : Journal d'audit des actions utilisateur, annulations (undo) et modifications.
+8. `config` / `global_config` : Clés-valeurs de configuration (langue, thème, URL Ollama, options d'Auto-Pilote, seuils planchers).
+9. `org_users` : Utilisateurs et droits d'accès en Mode Organisation (CSE / Association).
 
 ---
 

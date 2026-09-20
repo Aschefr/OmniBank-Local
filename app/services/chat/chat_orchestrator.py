@@ -64,7 +64,7 @@ from app.services.chat.chat_tools import (
     update_budget_envelope_tool,
     update_recurrence_template_tool,
 )
-from app.services.chat.ollama_client import get_ollama_config
+from app.services.chat.ollama_client import get_ollama_config, strip_thinking
 
 logger = logging.getLogger(__name__)
 
@@ -781,12 +781,18 @@ async def autocategorize_transaction(db: Session, description: str, amount: Opti
     """Demande à Ollama de suggérer une catégorie pour une transaction en privilégiant les existantes."""
     ollama_url_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_url").first()
     ollama_model_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_model").first()
+    ollama_ctx_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_context").first()
 
     if not ollama_url_conf or not ollama_url_conf.value or not ollama_model_conf or not ollama_model_conf.value:
         raise HTTPException(status_code=400, detail="Ollama non configuré.")
 
     url = ollama_url_conf.value.rstrip("/")
     model = ollama_model_conf.value
+    try:
+        ctx = int(ollama_ctx_conf.value) if ollama_ctx_conf and ollama_ctx_conf.value else 4096
+    except (ValueError, TypeError):
+        ctx = 4096
+
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
     cat_list = ", ".join(f'"{c}"' for c in categories)
 
@@ -806,11 +812,12 @@ Réponds avec SEULEMENT le nom, sans ponctuation, sans explication."""
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
-                "options": {"temperature": 0.1, "num_ctx": 512},
+                "options": {"temperature": 0.1, "num_ctx": ctx, "num_predict": 512},
             })
             resp.raise_for_status()
             data = resp.json()
-            suggested = data.get("message", {}).get("content", "").strip().strip('"').strip("'")
+            raw_content = data.get("message", {}).get("content", "")
+            suggested = strip_thinking(raw_content).strip().strip('"').strip("'")
             return {"category": suggested, "existing_categories": categories}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -3,6 +3,7 @@ app/services/chat/ollama_client.py — Helpers d'appel au serveur Ollama local.
 Fournit la configuration et les méthodes d'appel bloquant (sync) et non-bloquant (async).
 """
 import logging
+import re
 from typing import Any, Optional, Dict, List
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
@@ -11,6 +12,24 @@ import httpx
 from app.models import GlobalConfig
 
 logger = logging.getLogger(__name__)
+
+
+def strip_thinking(text: str) -> str:
+    """Supprime proprement les balises et contenus de réflexion (<think>...</think>, <thought>...</thought>, <reasoning>...</reasoning>)."""
+    if not text:
+        return ""
+    # 1. Supprime les blocs de réflexion fermés
+    cleaned = re.sub(r'<(?:think|thought|reasoning)>.*?</(?:think|thought|reasoning)>', '', text, flags=re.DOTALL)
+    # 2. Si une balise non fermée subsiste au début ou en cours de flux
+    if any(tag in cleaned for tag in ('<think>', '<thought>', '<reasoning>')):
+        first_brace = cleaned.find('{')
+        first_bracket = cleaned.find('[')
+        candidates = [pos for pos in (first_brace, first_bracket) if pos != -1]
+        if candidates:
+            cleaned = cleaned[min(candidates):]
+        else:
+            cleaned = re.sub(r'<(?:think|thought|reasoning)>.*', '', cleaned, flags=re.DOTALL)
+    return cleaned.strip()
 
 
 def get_ollama_config(db: Session) -> dict:
@@ -36,7 +55,11 @@ def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
     model = cfg.get("model") or ""
     if not url or not model:
         raise HTTPException(status_code=400, detail="Ollama URL ou modèle non configuré dans les paramètres.")
-    options = {"temperature": cfg.get("temperature", 0.3), "num_ctx": cfg.get("num_ctx", 4096)}
+    try:
+        default_ctx = int(cfg.get("num_ctx", 4096) or 4096)
+    except (ValueError, TypeError):
+        default_ctx = 4096
+    options = {"temperature": cfg.get("temperature", 0.3), "num_ctx": default_ctx}
     format_opt = None
     if extra_options:
         opts_copy = dict(extra_options)
@@ -63,7 +86,12 @@ def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
             raise HTTPException(status_code=502, detail=f"Erreur Ollama ({resp.status_code}) : {err_text}")
         
         res_json = resp.json()
-        content = res_json.get("message", {}).get("content", "")
+        msg = res_json.get("message", {})
+        content = msg.get("content", "")
+        if (not content or not content.strip()) and msg.get("thinking"):
+            thinking_str = msg.get("thinking", "").strip()
+            if "{" in thinking_str or "[" in thinking_str:
+                content = thinking_str
         if not content or not content.strip():
             raise HTTPException(status_code=502, detail="Le modèle Ollama a renvoyé une réponse vide.")
         return content
@@ -80,7 +108,11 @@ async def call_ollama_async(prompt: str, cfg: dict, extra_options: dict = None) 
     model = cfg.get("model") or ""
     if not url or not model:
         raise HTTPException(status_code=400, detail="Ollama URL ou modèle non configuré dans les paramètres.")
-    options = {"temperature": cfg.get("temperature", 0.3), "num_ctx": cfg.get("num_ctx", 4096)}
+    try:
+        default_ctx = int(cfg.get("num_ctx", 4096) or 4096)
+    except (ValueError, TypeError):
+        default_ctx = 4096
+    options = {"temperature": cfg.get("temperature", 0.3), "num_ctx": default_ctx}
     format_opt = None
     if extra_options:
         opts_copy = dict(extra_options)
@@ -104,7 +136,12 @@ async def call_ollama_async(prompt: str, cfg: dict, extra_options: dict = None) 
             raise HTTPException(status_code=502, detail=f"Erreur Ollama ({resp.status_code}) : {err_text}")
 
         res_json = resp.json()
-        content = res_json.get("message", {}).get("content", "")
+        msg = res_json.get("message", {})
+        content = msg.get("content", "")
+        if (not content or not content.strip()) and msg.get("thinking"):
+            thinking_str = msg.get("thinking", "").strip()
+            if "{" in thinking_str or "[" in thinking_str:
+                content = thinking_str
         if not content or not content.strip():
             raise HTTPException(status_code=502, detail="Le modèle Ollama a renvoyé une réponse vide.")
         return content
@@ -259,7 +296,7 @@ def _parse_and_validate_batch_response(
     if not raw_content or not raw_content.strip():
         return result
 
-    text = raw_content.strip()
+    text = strip_thinking(raw_content).strip()
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
@@ -399,9 +436,11 @@ def call_ollama_batch(
     if not url or not model:
         return fallback_empty
 
+    ctx_val = int(cfg.get("num_ctx", 4096) or 4096)
     options = {
         "temperature": 0.1,  # Déterminisme maximal pour la classification
-        "num_ctx": cfg.get("num_ctx", 4096)
+        "num_ctx": ctx_val,
+        "num_predict": min(4096, max(2048, ctx_val // 4))
     }
     if extra_options:
         options.update(extra_options)
@@ -437,7 +476,12 @@ def call_ollama_batch(
             return fallback_empty
 
         res_json = resp.json()
-        content = res_json.get("message", {}).get("content", "")
+        msg = res_json.get("message", {})
+        content = msg.get("content", "")
+        if (not content or not content.strip()) and msg.get("thinking"):
+            thinking_str = msg.get("thinking", "").strip()
+            if "{" in thinking_str or "[" in thinking_str:
+                content = thinking_str
         return _parse_and_validate_batch_response(content, descriptions, categories, suggest_names=suggest_names)
     except Exception as exc:
         logger.warning(f"[OllamaBatch] Échec de l'appel LLM par lot : {exc}")
@@ -472,9 +516,11 @@ async def call_ollama_batch_async(
     if not url or not model:
         return fallback_empty
 
+    ctx_val = int(cfg.get("num_ctx", 4096) or 4096)
     options = {
         "temperature": 0.1,
-        "num_ctx": cfg.get("num_ctx", 4096)
+        "num_ctx": ctx_val,
+        "num_predict": min(4096, max(2048, ctx_val // 4))
     }
     if extra_options:
         options.update(extra_options)
@@ -507,7 +553,12 @@ async def call_ollama_batch_async(
             return fallback_empty
 
         res_json = resp.json()
-        content = res_json.get("message", {}).get("content", "")
+        msg = res_json.get("message", {})
+        content = msg.get("content", "")
+        if (not content or not content.strip()) and msg.get("thinking"):
+            thinking_str = msg.get("thinking", "").strip()
+            if "{" in thinking_str or "[" in thinking_str:
+                content = thinking_str
         return _parse_and_validate_batch_response(content, descriptions, categories, suggest_names=suggest_names)
     except Exception as exc:
         logger.warning(f"[OllamaBatch] Échec de l'appel LLM asynchrone par lot : {exc}")

@@ -37,15 +37,74 @@ def is_autopilot_enabled(db: Session) -> bool:
         return False
 
 
+AUTOPILOT_MANAGED_KEYS = (
+    "enable_budget_creation_suggestions",
+    "enable_budget_recalibration_suggestions",
+    "auto_create_budget_envelopes",
+    "auto_apply_budget_suggestions",
+    "auto_link_deviant_recurrences",
+    "auto_propagate_recurrence_hikes",
+    "auto_skip_unreconciled_recurrences",
+    "auto_close_unreconciled_recurrences",
+)
+
+
 def set_autopilot_enabled(db: Session, enabled: bool) -> None:
-    """Active ou désactive le mode Auto-Pilote dans global_config."""
+    """Active ou désactive le mode Auto-Pilote dans global_config.
+    Quand le commutateur maître est activé (0 -> 1) :
+      - Mémorise un snapshot des réglages manuels fins dans 'autopilot_subtoggles_pre_activation_snapshot'.
+      - Active en cascade les modules autonomes essentiels.
+    Quand le commutateur maître est désactivé (1 -> 0) :
+      - Restaure fidèlement le snapshot des réglages manuels préalables.
+    """
     val_str = "true" if enabled else "false"
     cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_pilot_enabled").first()
+    was_enabled = bool(cfg and cfg.value and cfg.value.strip().lower() in ("true", "1", "yes", "on"))
+
     if not cfg:
         cfg = GlobalConfig(key="auto_pilot_enabled", value=val_str)
         db.add(cfg)
     else:
         cfg.value = val_str
+
+    if enabled and not was_enabled:
+        # 0 -> 1 : Sauvegarder l'état actuel des réglages personnalisés
+        snap = {}
+        for sub_key in AUTOPILOT_MANAGED_KEYS:
+            row = db.query(GlobalConfig).filter(GlobalConfig.key == sub_key).first()
+            if row and row.value is not None:
+                snap[sub_key] = row.value
+        
+        snap_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_subtoggles_pre_activation_snapshot").first()
+        if not snap_cfg:
+            snap_cfg = GlobalConfig(key="autopilot_subtoggles_pre_activation_snapshot", value=json.dumps(snap))
+            db.add(snap_cfg)
+        else:
+            snap_cfg.value = json.dumps(snap)
+
+        # Activation en cascade des briques de suggestions essentielles
+        for sub_key in ("enable_budget_creation_suggestions", "enable_budget_recalibration_suggestions"):
+            sc = db.query(GlobalConfig).filter(GlobalConfig.key == sub_key).first()
+            if not sc:
+                db.add(GlobalConfig(key=sub_key, value="true"))
+            else:
+                sc.value = "true"
+
+    elif not enabled and was_enabled:
+        # 1 -> 0 : Restaurer le snapshot préalable
+        snap_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_subtoggles_pre_activation_snapshot").first()
+        if snap_cfg and snap_cfg.value:
+            try:
+                saved_state = json.loads(snap_cfg.value)
+                for sub_key, saved_val in saved_state.items():
+                    sc = db.query(GlobalConfig).filter(GlobalConfig.key == sub_key).first()
+                    if sc:
+                        sc.value = saved_val
+                    else:
+                        db.add(GlobalConfig(key=sub_key, value=saved_val))
+            except Exception as e:
+                logger.warning(f"[AutoPilot] Échec restauration snapshot préférences: {e}")
+
     db.commit()
     logger.info(f"[AutoPilot] Mode Auto-Pilote configuré à : {val_str}")
 
@@ -486,15 +545,12 @@ def process_incoming_batch(
         except Exception as promo_err:
             logger.warning(f"[AutoPilot] Avertissement lors de la détection/promotion des récurrences: {promo_err}")
 
-        # 5. Étape 5 Auto-Pilote : Détection Cold-Start des nouvelles enveloppes budgétaires
+        # 5. Étape 5 Auto-Pilote : Détection et suggestions/création d'enveloppes budgétaires
         try:
-            from app.models import Budget
-            active_budgets_count = db.query(Budget).filter(Budget.is_closed == False, Budget.envelope_type == "spending").count()
-            if active_budgets_count < 3:
-                from app.services.budget_service import suggest_new_envelopes_deterministic
-                suggest_new_envelopes_deterministic(db, profile_id=pid)
+            from app.services.budget_service import suggest_new_envelopes
+            suggest_new_envelopes(db, profile_id_or_force=pid, force=True)
         except Exception as budget_err:
-            logger.warning(f"[AutoPilot] Avertissement lors de la suggestion cold-start budgets: {budget_err}")
+            logger.warning(f"[AutoPilot] Avertissement lors de la suggestion budgets: {budget_err}")
 
         logger.info(
             f"[AutoPilot] Lot {batch_id} validé avec succès : "

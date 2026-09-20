@@ -18,6 +18,7 @@ Target: Privacy-conscious individuals; French associations/CSE needing lightweig
 - **Accounting precision**: Round-trip CSV benchmark must pass exactly against reference image — decimal accuracy is non-negotiable
 - **Debug logs**: Backend/frontend debug output written in French per rule G-04 Construction Plan.yaml
 - **LLM prompts**: System prompts for Ollama must be English for function calling stability; response language injected dynamically by backend
+- **UI Reactivity (Zero F5)**: L'application doit être 100% réactive. Aucun rechargement manuel de page (F5) ne doit jamais être nécessaire lors de l'utilisation de l'application (les vues doivent s'actualiser automatiquement via événements DOM `CustomEvent`, hooks d'actions ou `visibilitychange`).
 
 <!-- GSD:project-end -->
 

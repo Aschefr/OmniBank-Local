@@ -149,7 +149,7 @@ const API = {
     _invalidateInflight() {
         this._inflight = {};
     },
-    async get(endpoint) {
+    async get(endpoint, extraOptions = {}) {
         // PERF: Déduplication — si un GET identique est déjà en cours, réutiliser la même Promise
         const cacheKey = endpoint;
         if (this._inflight[cacheKey]) {
@@ -160,7 +160,7 @@ const API = {
         const separator = targetUrl.includes('?') ? '&' : '?';
         const url = `${targetUrl}${separator}_t=${Date.now()}`;
         
-        const promise = fetch(url).then(async res => {
+        const promise = fetch(url, extraOptions).then(async res => {
             if (!res.ok) await _handleApiError(res);
             return res.json();
         });
@@ -173,14 +173,19 @@ const API = {
 
         return promise;
     },
-    async post(endpoint, data) {
+    async post(endpoint, data, extraOptions = {}) {
         this._invalidateInflight();
         const targetUrl = this.fullUrl(endpoint);
-        const res = await fetch(targetUrl, {
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, extraOptions.headers || {});
+        const fetchOptions = {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+            headers,
+            ...extraOptions
+        };
+        if (data !== undefined) {
+            fetchOptions.body = JSON.stringify(data);
+        }
+        const res = await fetch(targetUrl, fetchOptions);
         if (!res.ok) await _handleApiError(res);
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
@@ -191,14 +196,19 @@ const API = {
         }
         return json;
     },
-    async put(endpoint, data) {
+    async put(endpoint, data, extraOptions = {}) {
         this._invalidateInflight();
         const targetUrl = this.fullUrl(endpoint);
-        const res = await fetch(targetUrl, {
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, extraOptions.headers || {});
+        const fetchOptions = {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+            headers,
+            ...extraOptions
+        };
+        if (data !== undefined) {
+            fetchOptions.body = JSON.stringify(data);
+        }
+        const res = await fetch(targetUrl, fetchOptions);
         if (!res.ok) await _handleApiError(res);
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
