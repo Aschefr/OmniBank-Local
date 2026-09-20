@@ -306,10 +306,20 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (!contentEl) return;
 
         const t = (window.i18n && window.i18n.t) ? window.i18n.t.bind(window.i18n) : (k, d) => d;
-        let refSalary = this.customSalaryOverride;
-        if (refSalary === undefined || refSalary === null) {
-            const rawIncome = this.aiSuggestMeta ? (this.aiSuggestMeta.monthly_income_reference || this.aiSuggestMeta.regular_salary) : 0;
-            refSalary = (parseFloat(rawIncome) > 0) ? parseFloat(rawIncome) : 2500;
+        let refSalary = this.getEffectiveReferenceSalary();
+        if (this.customSalaryOverride === undefined || this.customSalaryOverride === null) {
+            if (refSalary > 0) {
+                this.customSalaryOverride = refSalary;
+                if (this.aiSuggestMeta) {
+                    this.aiSuggestMeta.regular_salary = refSalary;
+                    this.aiSuggestMeta.monthly_income_reference = refSalary;
+                }
+                const salaryInputMain = document.getElementById('aiSimSalaryInput') || document.getElementById('aiRefSalaryInput');
+                if (salaryInputMain && document.activeElement !== salaryInputMain) {
+                    salaryInputMain.value = refSalary.toFixed(2);
+                }
+                this.saveAiStateToSession();
+            }
         }
 
         let monthlyCount = 0;
@@ -1295,16 +1305,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (!this.aiProposals) return;
         
         const salaryInput = document.getElementById('aiSimSalaryInput');
-        let regularSalary = salaryInput ? parseFloat(salaryInput.value) : 0;
-        if (isNaN(regularSalary) || regularSalary <= 0) {
-            regularSalary = this.customSalaryOverride || 0;
-        }
-        if (regularSalary <= 0) {
-            regularSalary = (this.aiSuggestMeta && this.aiSuggestMeta.regular_salary) ? this.aiSuggestMeta.regular_salary : 0;
-        }
-        if (regularSalary <= 0) {
-            regularSalary = (this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.average_income || this.capacityData.monthly.income_ref || 0) : 0;
-        }
+        let regularSalary = this.getEffectiveReferenceSalary();
         if (regularSalary <= 0) {
             if (window.showToast) {
                 const msg = (window.i18n && window.i18n.t && window.i18n.t('ai_sim_toast_no_salary'))
@@ -1495,16 +1496,37 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         return Math.round(val).toLocaleString('fr-FR') + ' €';
     },
 
+    getEffectiveReferenceSalary() {
+        if (this.customSalaryOverride !== undefined && this.customSalaryOverride !== null && !isNaN(this.customSalaryOverride) && Number(this.customSalaryOverride) > 0) {
+            return Number(this.customSalaryOverride);
+        }
+        if (this.aiSuggestMeta) {
+            const metaSal = parseFloat(this.aiSuggestMeta.regular_salary || this.aiSuggestMeta.monthly_income_reference || 0);
+            if (!isNaN(metaSal) && metaSal > 0) {
+                return metaSal;
+            }
+        }
+        const salaryInput = document.getElementById('aiSimSalaryInput') || document.getElementById('aiRefSalaryInput');
+        if (salaryInput && salaryInput.value) {
+            const val = parseFloat(salaryInput.value);
+            if (!isNaN(val) && val > 0) {
+                return val;
+            }
+        }
+        if (this.capacityData && this.capacityData.monthly) {
+            const capSal = parseFloat(this.capacityData.monthly.average_income || this.capacityData.monthly.income_ref || this.capacityData.monthly.income || 0);
+            if (!isNaN(capSal) && capSal > 0) {
+                return capSal;
+            }
+        }
+        return 0;
+    },
+
     updateAiImpactSimulation() {
         const proposals = this.aiProposals || [];
         const selected = proposals.filter(p => p.selected);
 
-        let regularSalary = this.customSalaryOverride;
-        if (regularSalary === undefined || regularSalary === null) {
-            regularSalary = (this.aiSuggestMeta && this.aiSuggestMeta.regular_salary > 0) 
-                ? this.aiSuggestMeta.regular_salary 
-                : ((this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.income || 0) : 0);
-        }
+        let regularSalary = this.getEffectiveReferenceSalary();
 
         let currentMonthlyCapacity = 0;
         if (this.aiSuggestMeta && this.aiSuggestMeta.already_engaged_monthly !== undefined) {
@@ -2915,6 +2937,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const modal = document.getElementById('aiBudgetWizardModal');
         if (modal) modal.style.display = 'none';
         this.triggerAiCreateBtnPulse();
+        this.updateAiImpactSimulation();
     },
 
     triggerAiCreateBtnPulse() {
@@ -3084,10 +3107,20 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         });
 
         const windowMonths = (this.aiSuggestMeta && this.aiSuggestMeta.effective_window_months) ? this.aiSuggestMeta.effective_window_months : 3;
-        let refSalary = this.customSalaryOverride;
-        if (refSalary === undefined || refSalary === null) {
-            const rawIncome = this.aiSuggestMeta ? (this.aiSuggestMeta.monthly_income_reference || this.aiSuggestMeta.regular_salary) : 0;
-            refSalary = (parseFloat(rawIncome) > 0) ? parseFloat(rawIncome) : 2500;
+        let refSalary = this.getEffectiveReferenceSalary();
+        if (this.customSalaryOverride === undefined || this.customSalaryOverride === null) {
+            if (refSalary > 0) {
+                this.customSalaryOverride = refSalary;
+                if (this.aiSuggestMeta) {
+                    this.aiSuggestMeta.regular_salary = refSalary;
+                    this.aiSuggestMeta.monthly_income_reference = refSalary;
+                }
+                const salaryInputMain = document.getElementById('aiSimSalaryInput') || document.getElementById('aiRefSalaryInput');
+                if (salaryInputMain && document.activeElement !== salaryInputMain) {
+                    salaryInputMain.value = refSalary.toFixed(2);
+                }
+                this.saveAiStateToSession();
+            }
         }
 
         const gaugeLabel = t('ai_wizard_step2_gauge_label', 'Moyenne de dépenses ({months}m) :').replace('{months}', windowMonths);
