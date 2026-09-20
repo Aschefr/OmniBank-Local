@@ -8,7 +8,7 @@ les exclusions/restaurations persistantes et la liaison manuelle.
 import logging
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -173,18 +173,26 @@ def reconcile_all_matched_pending(db: Session = Depends(get_db)):
 
 
 @router.post("/commit-ghost")
-def commit_single_ghost_transaction(data: Dict[str, Any], db: Session = Depends(get_db)):
+def commit_single_ghost_transaction(data: Dict[str, Any], request: Request, db: Session = Depends(get_db)):
     """Valide et enregistre en base une ligne fantôme individuelle (1-clic ou modale FormView)."""
     conn_id = data.get("connection_id", 0)
     tx_data = data.get("transaction", {})
     if not tx_data:
         raise HTTPException(status_code=400, detail="Données de transaction requises")
 
+    user_name = data.get("user_name") or tx_data.get("user_name") or tx_data.get("created_by") or request.headers.get("x-user-name")
+    if user_name:
+        from urllib.parse import unquote
+        user_name = unquote(user_name)
+    lang = data.get("lang") or request.headers.get("accept-language", "").split(",")[0][:2]
+
     csv_id = tx_data.get("csv_id")
     res = BankSyncService.commit_reviewed_transactions(
         db=db,
         connection_id=conn_id,
-        transactions_data=[tx_data]
+        transactions_data=[tx_data],
+        user_name=user_name,
+        lang=lang
     )
 
     if csv_id:
@@ -194,8 +202,15 @@ def commit_single_ghost_transaction(data: Dict[str, Any], db: Session = Depends(
 
 
 @router.post("/commit-all-ghosts")
-def commit_all_ghost_transactions(db: Session = Depends(get_db)):
+def commit_all_ghost_transactions(request: Request, data: Optional[Dict[str, Any]] = None, db: Session = Depends(get_db)):
     """Valide et enregistre en lot toutes les nouvelles opérations fantômes non encore rapprochées."""
+    data = data or {}
+    user_name = data.get("user_name") or request.headers.get("x-user-name")
+    if user_name:
+        from urllib.parse import unquote
+        user_name = unquote(user_name)
+    lang = data.get("lang") or request.headers.get("accept-language", "").split(",")[0][:2]
+
     pending = get_all_pending_sync(db)
     committed_total = 0
     csv_ids_to_purge = []
@@ -219,7 +234,9 @@ def commit_all_ghost_transactions(db: Session = Depends(get_db)):
             res = BankSyncService.commit_reviewed_transactions(
                 db=db,
                 connection_id=conn_id,
-                transactions_data=unreconciled_txs
+                transactions_data=unreconciled_txs,
+                user_name=user_name,
+                lang=lang
             )
             committed_total += res.get("imported", 0)
             all_created_ids.extend(res.get("created_ids", []))

@@ -1315,6 +1315,8 @@ window.FormView = {
                 const isIncome = this.pendingSaveData.type === 'income';
                 const ghostPayload = {
                     connection_id: this._ghostConnId || 0,
+                    user_name: window.app?.currentUser || null,
+                    lang: window.i18n?.currentLang || 'fr',
                     transaction: {
                         csv_id: this._ghostCsvId,
                         description: this.pendingSaveData.description,

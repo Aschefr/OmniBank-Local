@@ -354,14 +354,21 @@ def fetch_preview(conn_id: int, req: SyncConnectionRequest, db: Session = Depend
 
 
 @router.post("/connections/{conn_id}/commit")
-def commit_reviewed_sync(conn_id: int, data: Dict[str, Any], db: Session = Depends(get_db)):
+def commit_reviewed_sync(conn_id: int, data: Dict[str, Any], request: Request, db: Session = Depends(get_db)):
     """Valide et enregistre en base les transactions revues par l'utilisateur."""
     txs = data.get("transactions", [])
+    user_name = data.get("user_name") or request.headers.get("x-user-name")
+    if user_name:
+        from urllib.parse import unquote
+        user_name = unquote(user_name)
+    lang = data.get("lang") or request.headers.get("accept-language", "").split(",")[0][:2]
     try:
         res = BankSyncService.commit_reviewed_transactions(
             db=db,
             connection_id=conn_id,
-            transactions_data=txs
+            transactions_data=txs,
+            user_name=user_name,
+            lang=lang
         )
         if conn_id > 0:
             conn = db.query(BankConnection).filter(BankConnection.id == conn_id).first()

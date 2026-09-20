@@ -1901,12 +1901,12 @@ def test_csv_multi_account_import_to_pending():
     assert commit_res.status_code == 200
     assert commit_res.json()["ok"] is True
 
-    # Vérifier en DB que la transaction a bien été insérée avec created_by "Import Relevé"
+    # Vérifier en DB que la transaction a bien été insérée avec created_by "Relevé de compte manuel"
     db_tx = db.query(Transaction).filter(Transaction.csv_id == tx_to_commit["csv_id"]).first()
     assert db_tx is not None
     assert db_tx.description == "PRLV EDF"
     assert db_tx.amount == 85.00
-    assert db_tx.created_by == "Import Relevé"
+    assert db_tx.created_by == "Relevé de compte manuel"
 
     # 6. Valider le reste via /commit-all-ghosts
     commit_all_res = client.post("/api/bank-sync/commit-all-ghosts")

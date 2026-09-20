@@ -389,11 +389,14 @@ class App {
         window.addEventListener('mouseup', (e) => { if (e.button === 3 || e.button === 4) e.preventDefault(); });
         window.addEventListener('keydown', (e) => { if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) e.preventDefault(); });
 
-        // Initial Load (Sidebar accounts & Pending bank sync in parallel)
+        // Initial Load (Sidebar accounts, Pending bank sync & Bank connections in parallel)
         await Promise.allSettled([
             this.refreshSidebar(),
             (window.BankSyncView && window.BankSyncView.loadPendingSync) 
                 ? window.BankSyncView.loadPendingSync().catch(e => console.warn('[BankSync] Initial pending sync load failed:', e))
+                : Promise.resolve(),
+            (window.BankSyncView && window.BankSyncView.ensureSyncButtonsVisibility)
+                ? window.BankSyncView.ensureSyncButtonsVisibility().catch(e => console.warn('[BankSync] Initial sync buttons visibility check failed:', e))
                 : Promise.resolve()
         ]);
 

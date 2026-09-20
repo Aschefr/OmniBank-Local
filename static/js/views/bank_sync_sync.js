@@ -47,13 +47,25 @@ Object.assign(window.BankSyncView, {
         });
     },
 
-    async ensureSyncButtonsVisibility() {
-        if (!this.connections) {
-            try {
-                this.connections = await API.get('/api/bank-sync/connections');
-            } catch (_) {
-                this.connections = [];
-            }
+    async ensureSyncButtonsVisibility(force = false) {
+        if (this._connectionsPromise) {
+            await this._connectionsPromise;
+            this.updateSyncButtonsVisibility();
+            return;
+        }
+        if (!this._connectionsLoaded || force) {
+            this._connectionsPromise = (async () => {
+                try {
+                    const conns = await API.get('/api/bank-sync/connections');
+                    this.connections = Array.isArray(conns) ? conns : [];
+                    this._connectionsLoaded = true;
+                } catch (_) {
+                    this.connections = [];
+                } finally {
+                    this._connectionsPromise = null;
+                }
+            })();
+            await this._connectionsPromise;
         }
         this.updateSyncButtonsVisibility();
     },

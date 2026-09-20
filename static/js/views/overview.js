@@ -573,15 +573,13 @@ window.OverviewView = {
     },
 
     async _checkBankConnections() {
+        if (window.BankSyncView && typeof window.BankSyncView.ensureSyncButtonsVisibility === 'function') {
+            await window.BankSyncView.ensureSyncButtonsVisibility();
+            return;
+        }
         const syncBtn = document.querySelector('.overview-bank-sync-btn');
         try {
             const conns = await API.get('/api/bank-sync/connections');
-            if (window.BankSyncView) {
-                window.BankSyncView.connections = conns || [];
-                if (typeof window.BankSyncView.updateSyncButtonsVisibility === 'function') {
-                    window.BankSyncView.updateSyncButtonsVisibility();
-                }
-            }
             if (syncBtn) {
                 syncBtn.style.display = (conns && conns.some(c => c.is_active)) ? 'inline-flex' : 'none';
             }

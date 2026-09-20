@@ -1,5 +1,5 @@
 from io import StringIO, BytesIO
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Form, Request
 from sqlalchemy.orm import Session
 from fastapi.responses import StreamingResponse
 
@@ -720,11 +720,30 @@ async def analyze_heuristic(
     return {"transactions": results, "file_balance": file_balance, "alerts": alerts}
 
 @router.post("/save_batch")
-async def save_batch(data: dict, db: Session = Depends(get_db)):
+async def save_batch(data: dict, request: Request, db: Session = Depends(get_db)):
     import pandas as pd
+    from datetime import datetime
+    from app.services.history_service import record_action, snapshot_entity
+    from app.models import GlobalConfig
+
     txs = data.get("transactions", [])
     account_id = data.get("account_id")
     csv_absolute_path = data.get("csv_absolute_path")
+
+    org_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
+    is_org_mode = bool(org_cfg and org_cfg.value and org_cfg.value.lower() == "true")
+
+    user_name = data.get("user_name") or request.headers.get("x-user-name")
+    if user_name:
+        from urllib.parse import unquote
+        user_name = unquote(user_name)
+    lang = (data.get("lang") or request.headers.get("accept-language", "")).split(",")[0][:2].lower()
+
+    statement_label = "Manual statement" if lang == "en" else "Relevé de compte manuel"
+    if is_org_mode and user_name and user_name.strip():
+        creator_name = f"{user_name.strip()} ({statement_label})"
+    else:
+        creator_name = statement_label
     
     if account_id:
         try:
@@ -738,12 +757,14 @@ async def save_batch(data: dict, db: Session = Depends(get_db)):
         if tx.get('is_reconciled') and tx.get('matched_db_id'):
             existing_tx = db.query(Transaction).filter(Transaction.id == tx['matched_db_id']).first()
             if existing_tx:
+                before_snap = snapshot_entity(existing_tx)
                 existing_tx.reconciliation_date = pd.to_datetime(tx['date_operation']).date()
                 if account_id:
                     if float(tx['amount']) < 0 and not existing_tx.from_account_id:
                         existing_tx.from_account_id = account_id
                     elif float(tx['amount']) >= 0 and not existing_tx.to_account_id:
                         existing_tx.to_account_id = account_id
+                record_action(db, "transaction", existing_tx.id, "UPDATE", before_snap, snapshot_entity(existing_tx), user_name=creator_name)
                 imported += 1
                 continue
 
@@ -804,9 +825,13 @@ async def save_batch(data: dict, db: Session = Depends(get_db)):
             from_account_id=from_acc,
             to_account_id=to_acc,
             attachments=tx.get('attachments'),
-            check_slip_number=tx.get('check_slip_number')
+            check_slip_number=tx.get('check_slip_number'),
+            created_by=creator_name,
+            created_at=datetime.now().strftime("%Y-%m-%d %H:%M")
         )
         db.add(new_tx)
+        db.flush()
+        record_action(db, "transaction", new_tx.id, "CREATE", None, snapshot_entity(new_tx), user_name=creator_name)
         imported += 1
 
         # Auto-apprentissage Smart Label

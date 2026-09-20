@@ -720,7 +720,9 @@ class BankSyncService:
     def commit_reviewed_transactions(
         db: Session,
         connection_id: int,
-        transactions_data: List[Dict[str, Any]]
+        transactions_data: List[Dict[str, Any]],
+        user_name: Optional[str] = None,
+        lang: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Enregistre et rapproche en base la liste d'opérations validée par l'utilisateur.
@@ -729,6 +731,24 @@ class BankSyncService:
         imported = 0
         reconciled_count = 0
         created_ids = []
+
+        is_manual = (not conn or connection_id == -1)
+
+        from app.models import GlobalConfig
+        org_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
+        is_org_mode = bool(org_cfg and org_cfg.value and org_cfg.value.lower() == "true")
+
+        lang_code = (lang or "fr").lower()[:2]
+        if lang_code == "en":
+            statement_label = "Manual statement" if is_manual else "Online statement"
+        else:
+            statement_label = "Relevé de compte manuel" if is_manual else "Relevé en ligne"
+
+        def resolve_creator_name(custom_user: Optional[str] = None) -> str:
+            u = (custom_user or user_name or "").strip()
+            if is_org_mode and u:
+                return f"{u} ({statement_label})"
+            return statement_label
 
         # Indexer les csv_id existants en base pour éviter tout doublon
         existing_csv_ids = set(
@@ -761,7 +781,8 @@ class BankSyncService:
                 continue
 
             is_orphan_link = item.get("is_orphan_transfer_link", False)
-            creator_name = "Import Relevé" if (not conn or connection_id == -1) else "Banque (Sync)"
+            item_user = item.get("user_name") or item.get("created_by")
+            creator_name = resolve_creator_name(item_user)
 
             # 2. Si liaison de virement orphelin (Auto-linking multi-comptes) :
             if is_rec and matched_id and is_orphan_link:
@@ -860,7 +881,8 @@ class BankSyncService:
                 to_account_id=to_acc,
                 attachments=item.get("attachments"),
                 check_slip_number=item.get("check_slip_number"),
-                created_by=creator_name
+                created_by=creator_name,
+                created_at=datetime.now().strftime("%Y-%m-%d %H:%M")
             )
             db.add(new_tx)
             db.flush()

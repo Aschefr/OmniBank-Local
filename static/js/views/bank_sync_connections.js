@@ -179,6 +179,7 @@ Object.assign(window.BankSyncView, {
         try {
             const conns = await API.get('/api/bank-sync/connections');
             this.connections = conns || [];
+            this._connectionsLoaded = true;
             if (typeof this.updateSyncButtonsVisibility === 'function') {
                 this.updateSyncButtonsVisibility();
             }
