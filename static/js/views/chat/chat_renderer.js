@@ -1352,7 +1352,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             window.app.loadView('budgets');
             setTimeout(() => {
                 const backBtn = document.getElementById('btnBudgetsBackToSource');
-                if (backBtn) backBtn.style.display = 'inline-flex';
+                if (backBtn) {
+                    backBtn.classList.add('visible');
+                    backBtn.style.display = 'inline-flex';
+                }
                 if (window.BudgetsView && typeof window.BudgetsView.showDetail === 'function') {
                     window.BudgetsView.showDetail(budgetId, budgetName, year, month);
                 }

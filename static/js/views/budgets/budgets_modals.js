@@ -348,6 +348,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (catSearch) catSearch.value = '';
         this.selectedCategories = [];
         this.renderCatCheckboxes(this.selectedCategories);
+        const lockChk = document.getElementById('budgetIsLocked');
+        if (lockChk) lockChk.checked = false;
+        const archiveSec = document.getElementById('budgetArchiveSection');
+        if (archiveSec) archiveSec.style.display = 'none';
         
         document.getElementById('budgetFormSection').style.display = 'block';
         document.getElementById('budgetUnifiedModal').style.display = 'flex';
@@ -397,6 +401,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (catSearch) catSearch.value = '';
         this.selectedCategories = b.categories || [];
         this.renderCatCheckboxes(this.selectedCategories);
+        const lockChk = document.getElementById('budgetIsLocked');
+        if (lockChk) lockChk.checked = !!b.is_locked;
+        const archiveSec = document.getElementById('budgetArchiveSection');
+        const closeText = document.getElementById('budgetToggleCloseText');
+        const closeIcon = document.getElementById('budgetToggleCloseIcon');
+        if (archiveSec && closeText && closeIcon) {
+            archiveSec.style.display = 'block';
+            closeIcon.textContent = b.is_closed ? '↩️' : '📦';
+            closeText.textContent = b.is_closed ? (window.i18n.t('budget_reopen_action') || 'Rouvrir cette enveloppe') : (window.i18n.t('budget_close_action') || 'Clôturer / Archiver cette enveloppe');
+        }
 
         document.getElementById('budgetFormSection').style.display = 'block';
         
@@ -440,6 +454,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (catSearch) catSearch.value = '';
         this.selectedCategories = b.categories || [];
         this.renderCatCheckboxes(this.selectedCategories);
+        const lockChk = document.getElementById('budgetIsLocked');
+        if (lockChk) lockChk.checked = !!b.is_locked;
+        const archiveSec = document.getElementById('budgetArchiveSection');
+        const closeText = document.getElementById('budgetToggleCloseText');
+        const closeIcon = document.getElementById('budgetToggleCloseIcon');
+        if (archiveSec && closeText && closeIcon) {
+            archiveSec.style.display = 'block';
+            closeIcon.textContent = b.is_closed ? '↩️' : '📦';
+            closeText.textContent = b.is_closed ? (window.i18n.t('budget_reopen_action') || 'Rouvrir cette enveloppe') : (window.i18n.t('budget_close_action') || 'Clôturer / Archiver cette enveloppe');
+        }
 
         document.getElementById('budgetFormSection').style.display = 'block';
         document.getElementById('budgetUnifiedModal').style.display = 'flex';
@@ -463,7 +487,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         
         const envelope_type = isSavings ? 'savings' : 'spending';
         const account_ids = window.app?.config?.enable_org_mode === 'true' ? this.getSelectedAccounts() : null;
-        const payload = { name, monthly_amount: amount, period, is_project: isProject, categories, start_date: startDate, end_date: endDate, account_ids, envelope_type };
+        const isLocked = document.getElementById('budgetIsLocked')?.checked || false;
+        const payload = { name, monthly_amount: amount, period, is_project: isProject, categories, start_date: startDate, end_date: endDate, account_ids, envelope_type, is_locked: isLocked };
 
         try {
             let savedId = id;
@@ -538,14 +563,42 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
     },
 
+    async toggleCloseFromModal() {
+        const id = parseInt(document.getElementById('budgetEditId')?.value);
+        if (!id) return;
+        this.closeUnifiedModal();
+        await this.toggleClose(id);
+    },
+
+    async toggleLock(id) {
+        const b = this.budgets.find(x => x.id === id);
+        if (!b) return;
+        const newLocked = !b.is_locked;
+        try {
+            const res = await API.put(`/api/budgets/${id}`, { is_locked: newLocked });
+            await this.loadBudgets();
+            await this.loadStatus();
+            window.app.refreshSidebar();
+            const toastMsg = newLocked 
+                ? (window.i18n.t('budget_locked_toast') || 'Enveloppe verrouillée (exclue du recalibrage automatique)')
+                : (window.i18n.t('budget_unlocked_toast') || 'Enveloppe déverrouillée (éligible au recalibrage automatique)');
+            showUndoToast(toastMsg, res.action_id, () => this.loadBudgets().then(() => this.loadStatus()));
+        } catch(e) {
+            showInlineMessage(window.i18n.t('title_error'), e.message);
+        }
+    },
+
     async deleteBudget(id) {
         if (!await showInlineConfirm(window.i18n.t('title_deletion'), window.i18n.t('confirm_delete_envelope'))) return;
         try {
             const res = await API.del(`/api/budgets/${id}`);
             await this.loadBudgets();
+            if (typeof this.loadAutopilotSuggestions === 'function') {
+                await this.loadAutopilotSuggestions();
+            }
             await this.loadStatus();
             window.app.refreshSidebar();
-            showUndoToast(window.i18n.t('msg_envelope_deleted') || 'Budget supprimé', res.action_id, () => this.loadBudgets().then(() => this.loadStatus()));
+            showUndoToast(window.i18n.t('msg_envelope_deleted') || 'Budget supprimé', res.action_id, () => Promise.all([this.loadBudgets(), this.loadAutopilotSuggestions ? this.loadAutopilotSuggestions() : Promise.resolve()]).then(() => this.loadStatus()));
         } catch(e) {
             showInlineMessage(window.i18n.t('title_info'), e.message);
         }
@@ -688,6 +741,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const res = await API.post('/api/budgets/bulk_delete', { target_type: selected });
             this.closeBulkDeleteModal();
             await this.loadBudgets();
+            if (typeof this.loadAutopilotSuggestions === 'function') {
+                await this.loadAutopilotSuggestions();
+            }
             await this.loadStatus();
             window.app.refreshSidebar();
             showInlineMessage(window.i18n.t('title_info'), `${res.deleted_count} enveloppe(s) supprimée(s).`);

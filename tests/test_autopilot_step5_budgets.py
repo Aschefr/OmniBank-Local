@@ -1022,6 +1022,45 @@ def test_t5_22_manual_suggest_engine_deterministic_fast_path(test_db):
     assert any("Pharmacie" in p.get("categories", []) for p in proposals)
 
 
+def test_t5_23_automations_history_endpoint(test_db):
+    """T5.23 : Vérifie que l'historique des actions automatiques budgétaires est bien retourné."""
+    import json
+    from app.models import AutopilotDecisionLog
+    from app.services.budget_service import get_budget_automations_history
+
+    # Insérer une décision AUTO_COMMIT
+    snap = json.dumps({
+        "name": "Technologie",
+        "category": "Technologie",
+        "categories": ["Technologie", "Logiciels"],
+        "suggested_amount": 281.85,
+        "engine": "deterministic",
+        "justification": "Dépenses régulières",
+    })
+    dec = AutopilotDecisionLog(
+        batch_id="test-batch-hist",
+        decision_type="budget_creation_suggestion",
+        action="AUTO_COMMIT",
+        entity_type="budget",
+        entity_id=999,
+        conn_id=-1,
+        raw_snapshot=snap,
+        confidence_score=85.0,
+    )
+    test_db.add(dec)
+    test_db.commit()
+
+    history = get_budget_automations_history(test_db, limit=10)
+    assert len(history) >= 1
+    item = next((h for h in history if h["decision_id"] == dec.id), None)
+    assert item is not None
+    assert item["name"] == "Technologie"
+    assert item["amount"] == 281.85
+    assert item["is_autonomous"] is True
+    assert item["engine"] == "deterministic"
+    assert item["type"] == "creation"
+
+
 
 
 
