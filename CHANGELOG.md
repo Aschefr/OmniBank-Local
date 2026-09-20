@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **Budget Simulator Reference Salary Synchronization 💼⚡**:
+  - **Accurate Reference Salary Detection**: Resolved an issue where closing or skipping the budget suggestion wizard reset the reference income/salary to `0.00 €` on the main simulator, displaying false liquidity tension warnings. The simulator now accurately reads and persists the user's predicted reference salary (or 6-month average income) seamlessly across both the wizard and the main budget view.
+  - **Removed Hardcoded Fallback**: Eliminated an arbitrary hardcoded default of 2500€ inside the wizard, replacing it with unified dynamic retrieval (`getEffectiveReferenceSalary()`) backed by database paychecks and capacity averages.
+  - **Zero F5 Interactive Sync**: Skipping or navigating out of the assistant modal automatically updates the underlying simulation bars, markers, and savings indicators in real time without requiring a manual page refresh.
+
 ### Added & Improved
 - **Contextual Categorization & Ambiguity Guardrails for Budget Envelopes 🎯🛒**:
   - **Dynamic Context Hints Extraction**: Automatically analyzes recent transaction descriptions for ambiguous categories, payment providers, and online platforms (e.g. Amazon, Paypal, Divers) to extract representative purchase tokens (e.g. tools, electronics, bike parts) while filtering out banking stop words and category names.
