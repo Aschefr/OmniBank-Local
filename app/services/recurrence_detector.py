@@ -585,11 +585,14 @@ def propagate_recurrence_update(db: Session, template_id: int):
     et régénère les nouvelles échéances au nouveau montant,
     en conservant fidèlement toutes les écritures passées déjà rapprochées.
     """
-    db.query(Transaction).filter(
+    unreconciled_future = db.query(Transaction).filter(
         Transaction.recurrence_id == template_id,
         Transaction.reconciliation_date.is_(None)
-    ).delete()
+    ).all()
+    for fut_tx in unreconciled_future:
+        db.delete(fut_tx)
     db.flush()
+    db.expire_all()
     from app.routers.recurrences import generate_recurrences
     generate_recurrences(template_id=template_id, db=db)
 
