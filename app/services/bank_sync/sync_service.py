@@ -868,11 +868,15 @@ class BankSyncService:
                 from app.services.smart_label_service import ensure_category_exists
                 ensure_category_exists(db, item["category"], t_type)
 
+            raw_lbl = item.get("raw_description") or item.get("raw_label") or item.get("description")
+            clean_lbl = item.get("description")
+
             new_tx = Transaction(
                 csv_id=csv_id,
                 date_saisie=date.today(),
                 date_operation=op_date,
                 description=item.get("description", "Opération bancaire"),
+                raw_description=raw_lbl,
                 amount=amt,
                 type=t_type,
                 category=item.get("category"),

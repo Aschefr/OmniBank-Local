@@ -178,6 +178,11 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - ✅ **Étage 3 : Fallback IA local Ollama Groupé par Lot (`call_ollama_batch`)** : Résolution des marchands inconnus en 1 seule requête JSON groupée (`format: "json"`) avec garde-fou anti-hallucination, validation linguistique anti-déchet et proposition contrôlée de nouvelles catégories.
   - ✅ **Banc d'Essai & Simulation Smart Label** : Atelier interactif de test de la cascade décisionnelle en direct avec sauvegarde 1-clic en règle permanente et plancher de fluidité UX.
   - ✅ **Auto-Commit des Nouvelles Écritures Courantes & Marchands Caméléons** : Enregistrement autonome des dépenses courantes directes non ambiguës dans [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) avec traçabilité complète `AutopilotDecisionLog` (`new_entry`) lorsque `auto_pilot_enabled == True`, incluant les marchands caméléons par défaut.
+  - ✅ **Persistance Immuable du Libellé Brut d'Import (`raw_description`) & Double Indexation Historique (Niveau 2)** :
+    - Sauvegarde permanente du libellé brut de relevé bancaire (`raw_description`) dans la table `transactions` (schéma SQLite v29 avec index dédié `ix_transactions_raw_desc`) lors des imports CSV et des synchronisations bancaires en ligne (Sas / Auto-Pilote).
+    - Étage 2 du moteur Smart Label (`resolver.py`) : double matching historique comparant le libellé brut entrant à la fois avec `Transaction.raw_description` et `Transaction.description`. Résolution instantanée des correspondances même si le libellé a été entièrement renommé par l'utilisateur (ex. `SHIFT4 LIMITED ...` $\rightarrow$ `Remboursement Hexcel Notes de Frais`).
+    - Mémoire transparente sans pollution de l'Atelier : la modification d'une transaction préserve son `raw_description` dans la table `transactions`, permettant au Niveau 2 (historique) de reconnaître automatiquement les futures opérations identiques sans encombrer la table `BankLabelMapping` avec des règles ponctuelles éphémères.
+    - Affichage ergonomique et bouton de restauration 1-clic du libellé d'origine dans la modale d'édition (`FormView.openEdit`).
 
 ---
 

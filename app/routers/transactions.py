@@ -8,7 +8,10 @@ from app.database import get_db
 from app.models import Transaction, Account, RecurrenceTemplate
 from app.schemas.api_schemas import TransactionCreate, TransactionUpdate, TransactionOut
 from app.services.history_service import record_action, snapshot_entity
+import logging
 from app.services import stats_cache
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -193,6 +196,7 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
         if template:
             template.amount = db_tx.amount
     db.flush()
+
     action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, snapshot_entity(db_tx), user_name=db_tx.modified_by)
     db.commit()
     stats_cache.invalidate()
