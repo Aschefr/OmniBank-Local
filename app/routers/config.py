@@ -10,25 +10,33 @@ from app.services import stats_cache
 
 router = APIRouter(prefix="/api/config", tags=["config"])
 
+CONFIG_DEFAULTS = {
+    "auto_link_deviant_recurrences": "false",
+    "auto_propagate_recurrence_hikes": "false",
+    "auto_skip_unreconciled_recurrences": "false",
+    "auto_close_unreconciled_recurrences": "false",
+    "auto_promote_recurrences": "false",
+    "auto_promote_recurrences_since": "",
+    "budget_minimum_threshold": "1.0",
+    "auto_create_budget_envelopes": "false",
+    "auto_apply_budget_suggestions": "false",
+    "enable_budget_creation_suggestions": "true",
+    "enable_budget_recalibration_suggestions": "true",
+    "budget_suggestion_engine": "deterministic",
+    # Étape 5.5 : Automatismes Opérations & Catégories (Défauts à false)
+    "auto_reconcile_transactions": "false",
+    "auto_commit_incoming_transactions": "false",
+    "auto_close_empty_import_sas": "false",
+    "auto_create_missing_categories": "false",
+    "auto_learn_merchant_rules": "false",
+    "auto_assign_chameleon_fallback": "false",
+}
+
 @router.get("/")
 def get_all_config(db: Session = Depends(get_db)):
     configs = db.query(GlobalConfig).all()
     res = {c.key: c.value for c in configs}
-    defaults = {
-        "auto_link_deviant_recurrences": "false",
-        "auto_propagate_recurrence_hikes": "false",
-        "auto_skip_unreconciled_recurrences": "false",
-        "auto_close_unreconciled_recurrences": "false",
-        "auto_promote_recurrences": "false",
-        "auto_promote_recurrences_since": "",
-        "budget_minimum_threshold": "1.0",
-        "auto_create_budget_envelopes": "false",
-        "auto_apply_budget_suggestions": "false",
-        "enable_budget_creation_suggestions": "true",
-        "enable_budget_recalibration_suggestions": "true",
-        "budget_suggestion_engine": "deterministic",
-    }
-    for k, v in defaults.items():
+    for k, v in CONFIG_DEFAULTS.items():
         if k not in res:
             res[k] = v
     return res

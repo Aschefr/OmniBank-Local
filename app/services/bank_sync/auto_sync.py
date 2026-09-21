@@ -98,22 +98,17 @@ def execute_auto_sync_for_connection(
             master_password=master_password,
             since_days=30
         )
-        from app.services.autopilot_service import process_incoming_batch, is_autopilot_enabled
-
-        autopilot_active = is_autopilot_enabled(db)
-        auto_res = {}
-        if autopilot_active:
-            auto_res = process_incoming_batch(db, conn.id, preview, profile_id=pid)
-        else:
-            save_pending_sync_data(db, conn.id, preview, profile_id=pid)
+        from app.services.autopilot_service import process_incoming_batch
+        auto_res = process_incoming_batch(db, conn.id, preview, profile_id=pid)
 
         # Calculer le nombre de correspondances (confirmées / en attente) et nouvelles lignes
         matches = 0
         coming_matches = 0
         new_txs = 0
-        auto_reconciled = auto_res.get("auto_reconciled", 0) if autopilot_active else 0
+        auto_reconciled = auto_res.get("auto_reconciled", 0)
+        auto_committed = auto_res.get("auto_committed", 0)
 
-        pending_entry = _PENDING_SYNC_DATA.get(pid, {}).get(conn.id, {}) if autopilot_active else preview
+        pending_entry = _PENDING_SYNC_DATA.get(pid, {}).get(conn.id, {}) or preview
         for acc in pending_entry.get("accounts", []):
             for tx in acc.get("transactions", []):
                 if tx.get("is_reconciled") and not tx.get("already_reconciled") and tx.get("matched_db_id"):

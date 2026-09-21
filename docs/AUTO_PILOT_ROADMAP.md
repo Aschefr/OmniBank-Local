@@ -14,6 +14,7 @@
    - [Brique 4 : Détection & Promotion des Récurrences (Anticipation Reste à Vivre)](#brique-4--détection--promotion-des-récurrences-anticipation-reste-à-vivre)
    - [Brique 4.5 : Cycle de Vie Dynamique & Maintenance Autonome des Récurrences (Brique Modulaire Découplée)](#brique-45--cycle-de-vie-dynamique--maintenance-autonome-des-récurrences-brique-modulaire-découplée)
    - [Brique 5 : Gestionnaire Dynamique d'Enveloppes (Analyse & Suggestion → Recalibrage Contrôlé)](#brique-5--gestionnaire-denveloppes-analyse--suggestion--recalibrage-contrôlé)
+   - [Brique 5.5 : Automatismes d'Ingestion Bancaire & Cycle de Vie des Catégories (Brique Modulaire Découplée)](#brique-55--automatismes-dingestion-bancaire--cycle-de-vie-des-catégories-brique-modulaire-découplée)
    - [Brique 6 : Sas d'Attente ("Pending Sync") & Matrice d'Arbitrage](#brique-6--sas-dattente-pending-sync--matrice-darbitrage)
    - [Brique 7 : Page Dédiée « Centre de Contrôle Auto-Pilote » (Vue Décisions, Réversibilité & Réorientation)](#brique-7--page-dédiée-centre-de-contrôle-auto-pilote-vue-décisions-réversibilité--réorientation)
 3. [Pièges à Éviter & Points d'Attention Critiques](#3-pièges-à-éviter--points-dattention-critiques)
@@ -363,6 +364,36 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 
 ---
 
+### Brique 5.5 : Automatismes d'Ingestion Bancaire & Cycle de Vie des Catégories (Brique Modulaire Découplée)
+*Permettre à l'utilisateur de piloter indépendamment les automatismes d'ingestion (relevés en ligne Woob et fichiers CSV/Excel) et le cycle de vie des catégories (apprentissage, création de catégories manquantes, filet de sécurité). Chaque réglage dispose d'une valeur par défaut à `"false"` pour préserver la liberté de choix unitaire de l'utilisateur, tout en s'intégrant au mécanisme de snapshot global lors de l'activation/désactivation de l'Auto-Pilote en Étape 6.*
+
+* **Fichiers concernés** :
+  - [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) (Conditionnement granulaire par toggle unitaire, intégration à `AUTOPILOT_MANAGED_KEYS`)
+  - [`app/services/smart_label_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/smart_label_service.py) (Contrôle du fallback et de la création de nouvelles catégories)
+  - [`app/routers/transactions.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/transactions.py) & [`app/routers/smart_labels.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/smart_labels.py)
+  - [`static/js/views/transactions.js`](file:///d:/Code%20Projects/OmniBank-Local/static/js/views/transactions.js) (Bouton `⚙️ Automatismes`, modale 3-zones et historique récent)
+  - [`static/js/views/config/config_smart_labels.js`](file:///d:/Code%20Projects/OmniBank-Local/static/js/views/config/config_smart_labels.js) (Bouton `⚙️ Automatismes`, modale 3-zones et historique récent)
+  - [`static/i18n/fr.json`](file:///d:/Code%20Projects/OmniBank-Local/static/i18n/fr.json) & [`static/i18n/en.json`](file:///d:/Code%20Projects/OmniBank-Local/static/i18n/en.json) (Clés bilingues encodées UTF-8-sig)
+
+* **État d'avancement actuel : 100% — ✅ LIVRÉ (Étape 5.5)**
+
+* **Architecture des 2 Volets d'Automatismes Découplés** :
+  1. **Volet A — Automatismes des Opérations & Ingestion Bancaire** :
+     - `auto_reconcile_transactions` (Défaut : `"false"`) : Lorsque activé, les opérations importées ou relevées dont le score composite de rapprochement $\ge 85\%$ sans collision sont pointées automatiquement en base sans passer par le Sas.
+     - `auto_commit_incoming_transactions` (Défaut : `"false"`) : Lorsque activé, les nouvelles dépenses et recettes courantes non ambiguës (catégorie claire, confiance $\ge 85\%$) sont directement enregistrées en base sans obliger l'utilisateur à ouvrir le Sas de revue.
+     - `auto_close_empty_import_sas` (Défaut : `"false"`) : Lorsque 100% des opérations d'un fichier CSV ou relevé sont traitées par les automatismes (`pending == 0`), fermeture immédiate de la dropzone avec émission d'un toast récapitulatif enrichi.
+     - Bouton `⚙️ Automatismes` dans la vue **Opérations** ouvrant une modale ergonomique 3-zones avec liste repliable des 5 dernières actions automatiques appliquées.
+  2. **Volet B — Automatismes Smart Labels & Cycle de Vie des Catégories** :
+     - `auto_create_missing_categories` (Défaut : `"false"`) : Lorsque activé, autorise la création automatique de nouvelles catégories déduites par IA (avec strict respect du quota max 2/lot et fusion lexicale $\ge 80\%$). Lorsque désactivé (défaut), le système bascule obligatoirement sur les catégories existantes ou la catégorie fourre-tout (`"Dépenses diverses"` / `"Revenus divers"`), avec zéro création de catégorie en base.
+     - `auto_learn_merchant_rules` (Défaut : `"false"`) : Lorsque activé, consolide automatiquement une règle d'apprentissage `BankLabelMapping` dès la 2ème occurrence concordante ($N \ge 2$). Lorsque désactivé, l'apprentissage ne se fait que sur action manuelle de l'utilisateur.
+     - `auto_assign_chameleon_fallback` (Défaut : `"false"`) : Lorsque activé, affecte par défaut la catégorie fourre-tout aux marchands caméléons (Amazon, PayPal...) pour permettre leur auto-commit. Lorsque désactivé, les marchands caméléons sont systématiquement maintenus dans le Sas d'attente pour arbitrage humain.
+     - Bouton `⚙️ Automatismes` dans l'Atelier Smart Labels ouvrant la modale dédiée avec liste repliable des dernières règles apprises et catégories créées.
+  3. **Principe de Snapshot & Respect des Choix Utilisateur** :
+     - Les 6 toggles sont initialisés par défaut à `"false"` dans `GlobalConfig` (mode prudent, choix 100% souverain de l'utilisateur).
+     - Intégration à `AUTOPILOT_MANAGED_KEYS` : lorsque le commutateur maître Auto-Pilote sera activé ultérieurement (Étape 6), il activera ces fonctions tout en conservant le snapshot des réglages fins préalables. Lors de la désactivation du mode Auto-Pilote, l'état exact des choix manuels de l'utilisateur sera fidèlement restauré.
+
+---
+
 ### Brique 6 : Sas d'Attente ("Pending Sync") & Matrice d'Arbitrage
 *Le sas d'attente devient le filtre d'exception de l'Auto-Pilote pour tous les modes d'entrée.*
 
@@ -549,7 +580,7 @@ Tout développement lié au mode Auto-Pilote doit se conformer strictement à [C
 
 ## 6. Feuille de Route Incrémentale (Ordre de Réalisation)
 
-La transition vers l'Auto-Pilote s'effectuera en **8 étapes autonomes**, chacune apportant une valeur immédiate sans attendre l'étape suivante :
+La transition vers l'Auto-Pilote s'effectuera en **9 étapes autonomes**, chacune apportant une valeur immédiate sans attendre l'étape suivante :
 
 ```mermaid
 graph TD
@@ -560,7 +591,8 @@ graph TD
     C1 --> D["Étape 4 : Détection & Promotion Récurrences<br/>Charges Candidates Dynamiques (Reste à Vivre)<br/>✅ 100% PASS"]
     D --> D1["Étape 4.5 : Cycle de Vie Dynamique Récurrences<br/>Tolérance Écart, Hausse N=3, Auto-Saut & Clôture<br/>✅ 100% PASS"]
     D1 --> E["Étape 5 : Découverte & Recalibrage Budgétaire (Hybride Déterministe & IA)<br/>Preview Épuré, Zéro-Crash, Fast-Path & Confort UX<br/>✅ 100% PASS"]
-    E --> F["Étape 6 : Centre de Contrôle Dédié<br/>Decision Feed, Rollback, Full-Auto Budgets & Finitions Desktop"]
+    E --> E1["Étape 5.5 : Automatismes Ingestion & Catégories<br/>Boutons ⚙️, Toggles Fins Débrayables & Historique Récent<br/>✅ 100% PASS"]
+    E1 --> F["Étape 6 : Centre de Contrôle Dédié<br/>Decision Feed, Rollback, Full-Auto Budgets & Finitions Desktop"]
 ```
 
 ### Détail des Étapes de Livraison :
@@ -754,6 +786,31 @@ graph TD
   - **Corrections Ergonomiques Complémentaires** :
     - Correction du débordement du bouton « Tout archiver » dans l'en-tête du panneau de notifications sur desktop et mobile.
 
+#### Étape 5.5 : Automatismes d'Ingestion Bancaire & Cycle de Vie des Catégories (Boutons UI `⚙️`, Toggles Débrayables par Défaut `"false"` & Historique Récent) — `✅ 100% PASS`
+- [x] **Jalon 5.5.1 : Initialisation des Toggles Découplés dans `GlobalConfig` & Intégration Snapshot** :
+  - Clés Volet Opérations : `auto_reconcile_transactions` ("false"), `auto_commit_incoming_transactions` ("false"), `auto_close_empty_import_sas` ("false").
+  - Clés Volet Catégories / Smart Labels : `auto_create_missing_categories` ("false"), `auto_learn_merchant_rules` ("false"), `auto_assign_chameleon_fallback` ("false").
+  - Intégration de ces 6 clés dans `AUTOPILOT_MANAGED_KEYS` dans `app/services/autopilot_service.py` pour préserver le snapshot utilisateur lors des bascules On/Off de l'Auto-Pilote global en Étape 6.
+- [x] **Jalon 5.5.2 : Conditionnement Granulaire dans `AutoPilotService.process_incoming_batch()`** :
+  - Découplage de la dépendance exclusive à `auto_pilot_enabled` : les opérations d'auto-rapprochement, d'auto-commit, de création de catégorie et d'apprentissage s'exécutent dès que leur toggle individuel respectif est actif (`"true"`), même si l'interrupteur maître global n'est pas encore engagé.
+  - Auto-rapprochement conditionné strictement par `auto_reconcile_transactions == "true"`.
+  - Auto-commit des écritures courantes conditionné par `auto_commit_incoming_transactions == "true"`.
+  - Création de catégories conditionnée par `auto_create_missing_categories == "true"` (si `false`, repli systématique sur `"Dépenses diverses"` ou catégorie existante sans mutation de la table `Category`).
+  - Consolidation des correspondances marchands conditionnée par `auto_learn_merchant_rules == "true"`.
+  - Clôture automatique de la dropzone/sas conditionnée par `auto_close_empty_import_sas == "true"`.
+- [x] **Jalon 5.5.3 : Bouton `⚙️ Automatismes` & Modale Dédiée dans la Vue Opérations (`all_operations.js`)** :
+  - Bouton `⚙️ Automatismes` dans la barre d'outils de la vue Transactions (`all_operations.js`).
+  - Modale 3-zones (Pinned Header / Scrollable Body / Pinned Footer) calquée sur le design system éprouvé de l'Étape 5.
+  - Liste repliable des 5 dernières actions automatiques appliquées aux transactions (rapprochements et écritures) avec montants, tiers et badges de statut.
+- [x] **Jalon 5.5.4 : Bouton `⚙️ Automatismes` & Modale Dédiée dans l'Atelier Smart Labels (`config_smart_labels.js`)** :
+  - Bouton `⚙️ Automatismes` dans l'en-tête de la carte des règles de correspondances bancaires.
+  - Modale 3-zones permettant de piloter l'apprentissage progressif, l'autorisation de création de catégories par IA et la gestion des marchands caméléons.
+  - Liste repliable des dernières règles apprises et catégories créées.
+- [x] **Jalon 5.5.5 : Clés i18n Bilingues Synchronisées (FR/EN)** :
+  - Traduction exhaustive FR/EN encodée strictement en UTF-8 BOM (`utf-8-sig`).
+- [x] **Jalon 5.5.6 : Suite de Tests Dédiée (Pack de Test 5.5)** :
+  - Validation de chaque toggle de façon unitaire et isolée, et validation du cycle de snapshot/restauration (`tests/test_autopilot_step5_5_automations.py` — 7/7 tests PASS).
+
 #### Étape 6 : Page Dédiée « Centre de Contrôle Auto-Pilote », Activation Mutation Budgétaire & Finitions Desktop
 - Développement de la vue dédiée `static/js/views/autopilot_view.js` (`AutopilotView`) avec les 4 panneaux : Cockpit & KPIs, Decision Feed chronologique avec filtres, Leviers de rétroaction 1-clic (Dépointer, Rectifier catégorie, Rollback de cycle, Verrouillage budget), et Atelier des règles (`BankLabelMapping`).
 - Création du routeur backend `app/routers/autopilot.py` (`/api/autopilot/decisions`, `/api/autopilot/override`, `/api/autopilot/rollback-cycle`) et son enregistrement explicite dans `app/main.py` via `app.include_router(autopilot.router)`. Réutilisation intégrale de [`app/routers/smart_labels.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/smart_labels.py) pour la gestion des correspondances marchand (`/api/smart-labels/mappings`).
@@ -926,6 +983,19 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 - **T_UX.6** : Approbation du recalibrage et mise à jour effective de l'enveloppe sans dérégler le budget annuel.
 - **T_UX.7** : Écartement réversible et respect de la garantie anti-harcèlement.
 - **Résultat global** : **7/7 tests passés avec succès** (100% PASS).
+
+---
+
+### Pack de Test 5.5 : Automatismes d'Ingestion & des Catégories (Étape 5.5) — `✅ 100% PASS`
+
+| Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Statut |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **T5.5.1** | `auto_reconcile_transactions = "false"`. Prévision existante concordante (100 pts). | Ingestion d'un lot d'opérations bancaires. | L'opération concordante n'est **PAS** auto-pointée. Elle est conservée dans le Sas d'attente pour validation humaine. | Rapprochement neutralisé par défaut (`"false"`), zéro mutation silencieuse. | ✅ **PASS** |
+| **T5.5.2** | `auto_reconcile_transactions = "true"` et `auto_commit_incoming_transactions = "false"`. Lot mixte (1 prévision + 1 dépense courante). | Ingestion du lot par `process_incoming_batch`. | La prévision est auto-pointée (`auto_reconciled = 1`), mais la nouvelle dépense est maintenue dans le Sas (`pending = 1`). | Découplage strict des deux automatismes respecté. | ✅ **PASS** |
+| **T5.5.3** | `auto_create_missing_categories = "false"`. Nouvelle catégorie pertinente proposée par l'IA. | Ingestion du lot par `process_incoming_batch`. | La création de nouvelle catégorie est neutralisée. L'écriture bascule sur le filet de sécurité déterministe (`"Dépenses diverses"`). La table `Category` reste strictement inchangée. | Zéro catégorie orpheline insérée en base, repli sur filet de sécurité. | ✅ **PASS** |
+| **T5.5.4** | `auto_create_missing_categories = "true"`. Nouvelle catégorie IA valide proposée (ex: "Jardinage"). | Ingestion du lot avec commit. | La catégorie "Jardinage" est créée en base avec le type approprié. | Insertion contrôlée dans la table `Category`. | ✅ **PASS** |
+| **T5.5.5** | `auto_learn_merchant_rules = "false"`. Opération validée pour un nouveau commerçant. | Exécution du commit. | La fonction `learn_label_mapping` n'est pas appelée ou ne crée pas de règle auto. La table `BankLabelMapping` reste inchangée. | Apprentissage automatique suspendu. | ✅ **PASS** |
+| **T5.5.6** | Toggles 5.5 configurés sur des valeurs mixtes (ex: 2 `"true"`, 4 `"false"`). | Bascule `set_autopilot_enabled(True)` puis `set_autopilot_enabled(False)`. | Lors de l'activation, snapshot mémorisé et fonctions requises activées. Lors de la désactivation, restauration exacte des 6 valeurs initiales de l'utilisateur. | Réversibilité et respect absolu des choix fins de l'utilisateur. | ✅ **PASS** |
 
 ---
 

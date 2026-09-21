@@ -424,3 +424,14 @@ def learn_single(req: LearnRequest, db: Session = Depends(get_db)):
         return {"ok": False, "detail": "Données insuffisantes"}
     return {"ok": True, "id": res.id, "pattern": res.raw_pattern}
 
+
+@router.get("/autopilot/history")
+def get_smart_labels_history_endpoint(limit: int = 5, db: Session = Depends(get_db)):
+    """Retourne les dernières règles de correspondances bancaires apprises automatiquement."""
+    from app.services.autopilot_service import get_smart_labels_automations_history
+    try:
+        return get_smart_labels_automations_history(db, limit=limit)
+    except Exception as e:
+        logger.error(f"[SmartLabels AutoPilot] Erreur récupération historique: {e}")
+        return []
+

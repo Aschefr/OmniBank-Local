@@ -48,9 +48,10 @@ window.ImportWizard = {
 
     // ── Adaptateur CSV → previewData → Cockpit Unifié ──────────────────
     openReviewFromCSV(result, accountId) {
-        // Jalon 3.9 : Si l'Auto-Pilote a traité 100% des opérations en amont (pending === 0)
+        // Jalon 3.9 & 5.5 : Si l'Auto-Pilote / Automatismes a traité 100% des opérations (pending === 0)
         const autoSummary = result._autopilot_summary;
-        if (autoSummary && autoSummary.status === 'completed' && autoSummary.pending === 0 && autoSummary.total > 0) {
+        const shouldAutoClose = autoSummary?.auto_close_sas ?? (window.app?.config?.auto_close_empty_import_sas === 'true');
+        if (autoSummary && autoSummary.status === 'completed' && autoSummary.pending === 0 && autoSummary.total > 0 && shouldAutoClose) {
             // Fermer le pré-wizard d'import sans ouvrir de modale de revue vide
             const modalEl = document.getElementById('importDataModal');
             if (modalEl) modalEl.style.display = 'none';
