@@ -16,9 +16,14 @@ window.ConfigSmartLabels = {
                     <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;" data-i18n="smart_label_section_title">
                         🏷️ ${window.i18n?.t('smart_label_section_title') || 'Règles de correspondance bancaire'}
                     </h3>
-                    <span id="smartLabelsCountBadge" class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--accent); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px;">
-                        0 règle
-                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button id="btnSmartLabelsAutomations" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11.5px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;" onclick="window.ConfigSmartLabels.openAutomationsModal()" title="${window.i18n?.t('smart_label_automations_title') || 'Paramètres des automatismes de catégorisation'}">
+                            <span>⚙️</span> <span data-i18n="smart_label_automations_btn">${window.i18n?.t('smart_label_automations_btn') || 'Automatismes'}</span>
+                        </button>
+                        <span id="smartLabelsCountBadge" class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--accent); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px;">
+                            0 règle
+                        </span>
+                    </div>
                 </div>
 
                 <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 15px; line-height: 1.4;" data-i18n="smart_label_section_desc">
@@ -1032,6 +1037,220 @@ window.ConfigSmartLabels = {
             console.error('[SmartLabels] Erreur sauvegarde règle sandbox:', e);
             if (typeof showToast === 'function') {
                 showToast('Erreur enregistrement règle : ' + (e.detail || e.message), 'error');
+            }
+        }
+    },
+
+    async openAutomationsModal() {
+        const existing = document.getElementById('smartLabelsAutomationsModal');
+        if (existing) existing.remove();
+
+        let cfg = {};
+        try {
+            cfg = await API.get('/api/config/');
+        } catch (err) {
+            console.error('[SmartLabels] Erreur chargement config automatismes:', err);
+            cfg = window.app?.config || {};
+        }
+
+        const isCreateCats = (cfg.auto_create_missing_categories ?? 'false') === 'true';
+        const isLearnRules = (cfg.auto_learn_merchant_rules ?? 'false') === 'true';
+        const isChameleon = (cfg.auto_assign_chameleon_fallback ?? 'false') === 'true';
+        const isAiEnabled = (cfg.enable_ai === 'true' || cfg.enable_ai === true);
+
+        const modal = document.createElement('div');
+        modal.id = 'smartLabelsAutomationsModal';
+        modal.className = 'modal-overlay';
+        modal.style.cssText = 'position: fixed; inset: 0; z-index: 10000; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: clamp(12px, 3vh, 24px) clamp(8px, 2vw, 16px); box-sizing: border-box;';
+
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+
+        const title = window.i18n?.t('smart_label_automations_title') || 'Automatismes de Catégorisation & Apprentissage';
+        const desc = window.i18n?.t('smart_label_automations_desc') || 'Configurez l\'auto-apprentissage des commerçants et la création autonome des catégories manquantes.';
+
+        modal.innerHTML = `
+            <div class="modal smart-labels-automations-modal" style="width: 96%; max-width: 640px; min-width: 0; max-height: min(90vh, 90dvh); display: flex; flex-direction: column; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-md); padding: 0; overflow: hidden; animation: modalFadeIn 0.3s ease;">
+                
+                <!-- Pinned Header -->
+                <div style="flex-shrink: 0; padding: clamp(14px, 3vw, 18px) clamp(16px, 3.5vw, 24px); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; background: var(--bg-surface);">
+                    <div style="flex: 1; min-width: 0; padding-right: 12px;">
+                        <h3 style="margin: 0; font-size: clamp(16px, 3vw, 18px); font-weight: 700; display: flex; align-items: center; gap: 8px;">⚙️ ${title}</h3>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${desc}</div>
+                    </div>
+                    <button type="button" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); line-height: 1; padding: 2px 6px;" onclick="document.getElementById('smartLabelsAutomationsModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
+                </div>
+
+                <!-- Form wrapping scrollable body + pinned footer -->
+                <form id="smartLabelsAutomationsForm" onsubmit="event.preventDefault(); window.ConfigSmartLabels.saveAutomationsConfig();" style="display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; margin: 0;">
+                    
+                    <!-- Scrollable Body -->
+                    <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: clamp(14px, 3vw, 20px) clamp(16px, 3.5vw, 24px); display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin;">
+                        
+                        <!-- Option 1 : Création automatique des catégories manquantes -->
+                        <div style="padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                                <input type="checkbox" id="cfg_auto_create_missing_categories" ${isCreateCats ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent, #6366f1); cursor: pointer;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>📁</span> <span>${window.i18n?.t('smart_label_auto_create_cats_label') || 'Création automatique des catégories manquantes'}</span></span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                        ${window.i18n?.t('smart_label_auto_create_cats_desc') || 'Crée automatiquement les catégories issues de vos relevés, des règles marchands ou déduites par l\'IA lorsqu\'elles n\'existent pas encore.'}
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 6px 10px; border-radius: 6px; background: var(--bg-surface); border: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                        <span>${window.i18n?.t('smart_label_engine_deterministic_hint') || '⚙️ Mode Déterministe : 100% hors-ligne (colonnes de relevés et règles marchands).'}</span>
+                                        <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: ${isAiEnabled ? 'rgba(99, 102, 241, 0.15)' : 'rgba(148, 163, 184, 0.15)'}; color: ${isAiEnabled ? 'var(--accent, #6366f1)' : 'var(--text-muted)'};">
+                                            ${isAiEnabled ? (window.i18n?.t('smart_label_engine_ai_active_hint') || '🤖 IA locale active (enrichissement sémantique)') : (window.i18n?.t('smart_label_engine_ai_disabled_hint') || '⚪ IA désactivée (mode 100% déterministe)')}
+                                        </span>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Option 2 : Auto-apprentissage des règles marchands -->
+                        <div style="padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                                <input type="checkbox" id="cfg_auto_learn_merchant_rules" ${isLearnRules ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent, #6366f1); cursor: pointer;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>🧠</span> <span>${window.i18n?.t('smart_label_auto_learn_rules_label') || 'Auto-apprentissage des règles marchands'}</span></span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                        ${window.i18n?.t('smart_label_auto_learn_rules_desc') || 'Mémorise automatiquement les associations commerçant / catégorie stables pour accélérer les futurs imports.'}
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Option 3 : Affectation automatique des marchands polyvalents -->
+                        <div style="padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                                <input type="checkbox" id="cfg_auto_assign_chameleon_fallback" ${isChameleon ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent, #6366f1); cursor: pointer;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>🦎</span> <span>${window.i18n?.t('smart_label_auto_chameleon_label') || 'Affectation automatique des marchands polyvalents'}</span></span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                        ${window.i18n?.t('smart_label_auto_chameleon_desc') || 'Autorise la validation automatique même pour les commerçants multi-catégories (Amazon, PayPal, etc.) vers la catégorie la plus fréquente.'}
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Bloc Historique des règles apprises -->
+                        <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; background: var(--bg-surface);">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                    <span>📜</span> <span>${window.i18n?.t('smart_label_auto_history_title') || 'Dernières règles & catégories apprises'}</span>
+                                </span>
+                            </div>
+                            <div id="smartLabelRecentAutomationsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; padding-right: 2px; scrollbar-width: thin;">
+                                <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px;">
+                                    <span>⏳ Chargement...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Pinned Footer -->
+                    <div style="flex-shrink: 0; display: flex; justify-content: flex-end; gap: 10px; padding: 12px clamp(16px, 3.5vw, 24px); border-top: 1px solid var(--border-color); background: var(--bg-surface); border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; z-index: 2;">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('smartLabelsAutomationsModal')?.remove()">
+                            ${window.i18n?.t('btn_cancel') || 'Annuler'}
+                        </button>
+                        <button type="submit" class="btn btn-primary" style="font-weight: 600;">
+                            ${window.i18n?.t('btn_save') || 'Enregistrer'}
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        this._loadRecentAutomationsInModal();
+    },
+
+    async _loadRecentAutomationsInModal() {
+        const listEl = document.getElementById('smartLabelRecentAutomationsList');
+        if (!listEl) return;
+
+        try {
+            const items = await API.get('/api/smart-labels/autopilot/history?limit=5');
+            if (!items || !items.length) {
+                listEl.innerHTML = `
+                    <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px; font-style: italic;">
+                        ${window.i18n?.t('smart_label_auto_history_empty') || 'Aucun apprentissage automatique récent.'}
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = items.map(it => {
+                const multiBadge = it.is_multi_category ? '<span style="font-size: 9.5px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; margin-left: 6px;">Multi-catégorie</span>' : '';
+                return `
+                    <div style="padding: 7px 10px; border-radius: 6px; background: var(--bg-base); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px;">
+                        <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+                            <span style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); white-space: nowrap;">
+                                Règle apprise
+                            </span>
+                            <span style="font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${it.raw_pattern || ''}">
+                                ${it.clean_label || it.raw_pattern}
+                            </span>
+                            ${multiBadge}
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                            <span style="color: var(--text-muted); font-size: 11px;">
+                                📁 ${it.category || '—'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (err) {
+            console.error('[SmartLabels] Erreur chargement historique automatismes:', err);
+            listEl.innerHTML = `
+                <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px; font-style: italic;">
+                    ${window.i18n?.t('smart_label_auto_history_empty') || 'Aucun apprentissage automatique récent.'}
+                </div>
+            `;
+        }
+    },
+
+    async saveAutomationsConfig() {
+        const createCatsChk = document.getElementById('cfg_auto_create_missing_categories');
+        const learnRulesChk = document.getElementById('cfg_auto_learn_merchant_rules');
+        const chameleonChk = document.getElementById('cfg_auto_assign_chameleon_fallback');
+
+        const payload = {
+            auto_create_missing_categories: createCatsChk?.checked ? 'true' : 'false',
+            auto_learn_merchant_rules: learnRulesChk?.checked ? 'true' : 'false',
+            auto_assign_chameleon_fallback: chameleonChk?.checked ? 'true' : 'false',
+        };
+
+        try {
+            await API.post('/api/config/', payload);
+            if (window.app && window.app.config) {
+                Object.assign(window.app.config, payload);
+            }
+            if (typeof showToast === 'function') {
+                showToast(window.i18n?.t('smart_label_auto_save_success') || 'Paramètres d\'automatisation des catégories enregistrés.', 'success');
+            }
+            document.getElementById('smartLabelsAutomationsModal')?.remove();
+        } catch (err) {
+            console.error('[SmartLabels] Erreur sauvegarde config automatismes:', err);
+            if (typeof showToast === 'function') {
+                showToast(window.i18n?.t('smart_label_auto_save_error') || 'Erreur lors de l\'enregistrement des automatismes de catégorisation.', 'error');
             }
         }
     }
