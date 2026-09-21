@@ -30,6 +30,22 @@ CONFIG_DEFAULTS = {
     "auto_create_missing_categories": "false",
     "auto_learn_merchant_rules": "false",
     "auto_assign_chameleon_fallback": "false",
+    # Simulateur de Projets & Scénarios (Persistance multi-appareils)
+    "sim_horizon": "36",
+    "sim_conservative_weight": "0.20",
+    "sim_var_expense_adj": "0.0",
+    "sim_outlier_sensitivity": "2",
+    "sim_seasonality_mode": "disabled",
+    "sim_seasonality_intensity": "1.0",
+    "sim_income_mode": "historical_n1",
+    "sim_custom_income": "",
+    "sim_inflation_rate": "0.0",
+    "sim_account": "",
+    "sim_active_scenario": "",
+    "sim_advanced_open": "false",
+    "sim_table_open": "false",
+    "sim_sources_open": "false",
+    "sim_seasonality_profile_open": "false",
 }
 
 @router.get("/")

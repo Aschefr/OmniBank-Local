@@ -17,29 +17,115 @@ window.SimulatorView = {
     inflationRate: 0.0,
     varExpenseAdjustmentPct: 0.0,
     conservativeWeight: 0.20,
+    outlierSensitivity: 2,
+    seasonalityMode: 'disabled',
+    seasonalityIntensity: 1.0,
+    isSeasonalityProfileOpen: false,
     _liveDebounceTimer: null,
+    _configSyncTimer: null,
+    _pendingConfigUpdates: {},
+
+    _saveParam(key, val) {
+        ProfileStorage.set(key, val);
+        const strVal = (val !== null && val !== undefined) ? String(val) : '';
+        this._queueSyncConfig({ [key]: strVal });
+    },
+
+    _batchSaveParams(map) {
+        for (const [k, v] of Object.entries(map)) {
+            ProfileStorage.set(k, v);
+        }
+        this._queueSyncConfig(map);
+    },
+
+    _queueSyncConfig(updates) {
+        if (!this._pendingConfigUpdates) this._pendingConfigUpdates = {};
+        Object.assign(this._pendingConfigUpdates, updates);
+        if (this._configSyncTimer) clearTimeout(this._configSyncTimer);
+        this._configSyncTimer = setTimeout(async () => {
+            const payload = { ...this._pendingConfigUpdates };
+            this._pendingConfigUpdates = {};
+            try {
+                await API.post('/api/config/', payload);
+                if (window.app && window.app.config) {
+                    Object.assign(window.app.config, payload);
+                }
+            } catch (err) {
+                console.warn('[SimulatorView] Synchronisation de la configuration avec la base SQLite échouée:', err);
+            }
+        }, 350);
+    },
 
     async init() {
-        this.horizonMonths = parseInt(ProfileStorage.get('sim_horizon') || '36');
-        const savedAcc = ProfileStorage.get('sim_account');
+        // Chargement de la configuration serveur (SQLite) pour persistance multi-appareils
+        let serverConfig = (window.app && window.app.config) ? window.app.config : null;
+        try {
+            const freshConfig = await API.get('/api/config/');
+            if (freshConfig) {
+                serverConfig = freshConfig;
+                if (window.app) window.app.config = freshConfig;
+            }
+        } catch (e) {
+            console.warn('[SimulatorView] Récupération config distante impossible, repli local:', e);
+        }
+
+        const getSetting = (key, fallback) => {
+            if (serverConfig && serverConfig[key] !== undefined && serverConfig[key] !== null && serverConfig[key] !== '') {
+                return serverConfig[key];
+            }
+            const local = ProfileStorage.get(key);
+            if (local !== null && local !== undefined && local !== '') {
+                return local;
+            }
+            return fallback;
+        };
+
+        this.horizonMonths = parseInt(getSetting('sim_horizon', '36')) || 36;
+        const savedAcc = getSetting('sim_account', null);
         this.accountId = savedAcc && savedAcc !== 'null' && savedAcc !== '' ? parseInt(savedAcc) : null;
-        const savedScId = ProfileStorage.get('sim_active_scenario');
+        const savedScId = getSetting('sim_active_scenario', null);
         this.activeScenarioId = savedScId && savedScId !== 'null' && savedScId !== '' ? parseInt(savedScId) : null;
-        this.incomeMode = ProfileStorage.get('sim_income_mode') || 'historical_n1';
-        const savedCustom = ProfileStorage.get('sim_custom_income');
+        this.incomeMode = getSetting('sim_income_mode', 'historical_n1');
+        const savedCustom = getSetting('sim_custom_income', null);
         this.customIncomeAmount = savedCustom && savedCustom !== 'null' && savedCustom !== '' ? parseFloat(savedCustom) : null;
-        const savedInflation = ProfileStorage.get('sim_inflation_rate');
+        const savedInflation = getSetting('sim_inflation_rate', '0.0');
         this.inflationRate = savedInflation && savedInflation !== 'null' && savedInflation !== '' ? parseFloat(savedInflation) : 0.0;
-        const savedVarAdj = ProfileStorage.get('sim_var_expense_adj');
+        const savedVarAdj = getSetting('sim_var_expense_adj', '0.0');
         this.varExpenseAdjustmentPct = savedVarAdj && savedVarAdj !== 'null' && savedVarAdj !== '' ? parseFloat(savedVarAdj) : 0.0;
+        const savedOutlierSens = getSetting('sim_outlier_sensitivity', '2');
+        this.outlierSensitivity = savedOutlierSens && savedOutlierSens !== 'null' && savedOutlierSens !== '' ? parseInt(savedOutlierSens) : 2;
+        const rawSeasonality = getSetting('sim_seasonality_mode', 'disabled');
+        this.seasonalityMode = ['disabled', 'historical', 'preset_standard'].includes(rawSeasonality) ? rawSeasonality : 'disabled';
+        const savedSeasIntensity = getSetting('sim_seasonality_intensity', '1.0');
+        this.seasonalityIntensity = (savedSeasIntensity !== null && savedSeasIntensity !== undefined && savedSeasIntensity !== '') ? Math.max(0.0, Math.min(1.0, parseFloat(savedSeasIntensity))) : 1.0;
+        if (isNaN(this.seasonalityIntensity)) this.seasonalityIntensity = 1.0;
+        this.isSeasonalityProfileOpen = getSetting('sim_seasonality_profile_open', 'false') === 'true';
         
-        const savedWeight = ProfileStorage.get('sim_conservative_weight');
+        const savedWeight = getSetting('sim_conservative_weight', null);
         if (savedWeight !== null && savedWeight !== undefined && savedWeight !== '') {
             this.conservativeWeight = parseFloat(savedWeight);
         } else {
             const savedProf = ProfileStorage.get('sim_projection_profile');
             this.conservativeWeight = (savedProf === 'conservative') ? 1.0 : ((savedProf === 'realistic') ? 0.0 : 0.20);
         }
+        if (isNaN(this.conservativeWeight)) this.conservativeWeight = 0.20;
+
+        // Synchronisation du ProfileStorage local avec les valeurs résolues
+        ProfileStorage.set('sim_horizon', this.horizonMonths);
+        if (this.accountId !== null) ProfileStorage.set('sim_account', this.accountId);
+        if (this.activeScenarioId !== null) ProfileStorage.set('sim_active_scenario', this.activeScenarioId);
+        ProfileStorage.set('sim_income_mode', this.incomeMode);
+        ProfileStorage.set('sim_custom_income', this.customIncomeAmount !== null ? this.customIncomeAmount : '');
+        ProfileStorage.set('sim_inflation_rate', this.inflationRate);
+        ProfileStorage.set('sim_var_expense_adj', this.varExpenseAdjustmentPct);
+        ProfileStorage.set('sim_outlier_sensitivity', this.outlierSensitivity);
+        ProfileStorage.set('sim_seasonality_mode', this.seasonalityMode);
+        ProfileStorage.set('sim_seasonality_intensity', this.seasonalityIntensity);
+        ProfileStorage.set('sim_seasonality_profile_open', this.isSeasonalityProfileOpen);
+        ProfileStorage.set('sim_conservative_weight', this.conservativeWeight);
+        ProfileStorage.set('sim_advanced_open', getSetting('sim_advanced_open', 'false') === 'true');
+        ProfileStorage.set('sim_table_open', getSetting('sim_table_open', 'false') === 'true');
+        ProfileStorage.set('sim_sources_open', getSetting('sim_sources_open', 'false') === 'true');
 
         await this.loadData();
     },
@@ -62,7 +148,7 @@ window.SimulatorView = {
                 const exists = this.scenarios.some(s => s.id === this.activeScenarioId);
                 if (!exists) {
                     this.activeScenarioId = this.scenarios[0].id;
-                    ProfileStorage.set('sim_active_scenario', this.activeScenarioId);
+                    this._saveParam('sim_active_scenario', this.activeScenarioId);
                 }
             } else {
                 this.activeScenarioId = null;
@@ -90,7 +176,10 @@ window.SimulatorView = {
                 custom_income_amount: this.customIncomeAmount,
                 inflation_rate: this.inflationRate || 0.0,
                 variable_expense_adjustment_pct: this.varExpenseAdjustmentPct || 0.0,
-                conservative_weight: (typeof this.conservativeWeight === 'number') ? this.conservativeWeight : 0.0
+                conservative_weight: (typeof this.conservativeWeight === 'number') ? this.conservativeWeight : 0.0,
+                outlier_sensitivity: this.outlierSensitivity || 2,
+                seasonality_mode: this.seasonalityMode || 'disabled',
+                seasonality_intensity: (typeof this.seasonalityIntensity === 'number') ? this.seasonalityIntensity : 1.0
             };
             const result = await API.post('/api/simulator/run', payload);
             if (this._simSeq === currentSeq) {
@@ -125,10 +214,26 @@ window.SimulatorView = {
         compactSummaryParts.push(`🛡️ ${prudencePct === 0 ? (window.i18n.t('sim_prudence_badge_100real') || 'Recettes du modèle') : (prudencePct === 100 ? (window.i18n.t('sim_prudence_badge_100cons') || 'Recettes minimales') : `Prudence ${prudencePct}%`)}`);
         compactSummaryParts.push(`⚡ ${effortPct > 0 ? '+' : ''}${effortPct}%`);
         const incomeBadge = (!this.incomeMode || this.incomeMode === 'historical_n1' || this.incomeMode === 'auto')
-            ? 'Année passée'
-            : (this.incomeMode === 'average' ? `Moyenne${avgIncome > 0 ? ` (~${avgIncome.toLocaleString('fr-FR')} €)` : ''}` : (this.incomeMode === 'custom' ? `${(this.customIncomeAmount || 0).toLocaleString('fr-FR')} €` : 'Zéro salaire'));
+            ? (window.i18n.t('sim_income_badge_historical_n1') || 'Année passée')
+            : (this.incomeMode === 'average' ? `${window.i18n.t('sim_income_badge_average') || 'Moyenne'}${avgIncome > 0 ? ` (~${avgIncome.toLocaleString('fr-FR')} €)` : ''}` : (this.incomeMode === 'custom' ? `${(this.customIncomeAmount || 0).toLocaleString('fr-FR')} €` : (window.i18n.t('sim_income_badge_zero') || 'Zéro salaire')));
         compactSummaryParts.push(`💼 ${incomeBadge}`);
         if (this.inflationRate > 0) compactSummaryParts.push(`📈 ${(this.inflationRate * 100).toFixed(1)}%`);
+        const outlierLevel = this.outlierSensitivity || 2;
+        const outlierLabel = this.getOutlierSensitivityLabel(outlierLevel);
+        const excCount = (data && data.excluded_outliers_count) ? data.excluded_outliers_count : 0;
+        compactSummaryParts.push(`🧹 ${outlierLabel}${excCount > 0 ? ` (${excCount})` : ''}`);
+
+        // Seasonality summary badge
+        const currentSeasPct = this.getSeasonalityIntensityPct();
+        if (this.seasonalityMode === 'historical') {
+            const seasMonths = (data && data.seasonal_history_months) ? data.seasonal_history_months : 0;
+            compactSummaryParts.push(`🍂 ${window.i18n.t('sim_seasonality_badge_historical') || 'Historique'} ${seasMonths}m (${currentSeasPct}%)`);
+        } else if (this.seasonalityMode === 'preset_standard') {
+            compactSummaryParts.push(`🏖️ ${window.i18n.t('sim_seasonality_badge_preset') || 'Vacances & Fêtes'} (${currentSeasPct}%)`);
+        } else {
+            compactSummaryParts.push(`🍂 ${window.i18n.t('sim_seasonality_badge_disabled') || 'Lissée'}`);
+        }
+
         const compactSummary = compactSummaryParts.join('  <span style="opacity:0.3;">│</span>  ');
 
         const html = `
@@ -252,9 +357,20 @@ window.SimulatorView = {
                 }
                 .sim-sliders-grid {
                     display: grid;
-                    grid-template-columns: 1.25fr 1fr;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
                     gap: 20px;
-                    align-items: center;
+                    align-items: start;
+                }
+                @media (max-width: 1100px) {
+                    .sim-sliders-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    .sim-secondary-controls {
+                        border-left: none !important;
+                        padding-left: 0 !important;
+                        border-top: 1px solid var(--border-color);
+                        padding-top: 14px;
+                    }
                 }
                 .sim-range-input {
                     -webkit-appearance: none;
@@ -320,6 +436,31 @@ window.SimulatorView = {
                 .sim-slider-badge-btn:hover {
                     border-color: var(--accent, #6366f1);
                     transform: scale(1.04);
+                }
+                .sim-seasonality-toggle-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                    padding: 4px 10px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    background: var(--bg-base);
+                    border: 1px solid var(--border-color);
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                }
+                .sim-seasonality-toggle-btn:hover {
+                    color: var(--text-main);
+                    border-color: var(--accent, #6366f1);
+                    background: rgba(99, 102, 241, 0.05);
+                }
+                .sim-seasonality-toggle-btn.active {
+                    color: var(--accent, #6366f1);
+                    border-color: rgba(99, 102, 241, 0.4);
+                    background: rgba(99, 102, 241, 0.1);
+                    font-weight: 700;
                 }
 
                 /* Collapsible sections */
@@ -614,7 +755,7 @@ window.SimulatorView = {
                     <span class="sim-collapsible-chevron ${advancedOpen ? 'open' : ''}" id="simAdvancedChevron">▸</span>
                 </div>
                 <div class="sim-collapsible-body ${advancedOpen ? 'open' : ''}" id="simAdvancedBody">
-                    <div class="sim-sliders-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start;">
+                    <div class="sim-sliders-grid" style="gap:24px;align-items:start;">
                         <!-- Colonne 1 : Curseur de Prudence & Réalisme -->
                         <div style="display:flex;flex-direction:column;gap:6px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -657,6 +798,86 @@ window.SimulatorView = {
                                 <span data-i18n="sim_effort_hint_right">${window.i18n.t('sim_effort_hint_right')}</span>
                             </div>
                         </div>
+
+                        <!-- Colonne 3 : Curseur de Sensibilité Dépenses Exceptionnelles (Outliers 1-5) -->
+                        <div style="display:flex;flex-direction:column;gap:6px;border-left:1px solid var(--border-color);padding-left:24px;" class="sim-secondary-controls">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_outlier_tooltip')}">
+                                    <span style="font-size:14px;">🧹</span>
+                                    <span data-i18n="sim_outlier_title">${window.i18n.t('sim_outlier_title')}</span>
+                                </label>
+                                <button type="button" id="simOutlierBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setOutlierSensitivity(2)" title="${window.i18n.t('sim_outlier_desc_2')}" style="color:${(this.outlierSensitivity || 2) === 1 ? '#ef4444' : ((this.outlierSensitivity || 2) === 2 ? '#10b981' : ((this.outlierSensitivity || 2) === 3 ? '#3b82f6' : ((this.outlierSensitivity || 2) === 4 ? '#f59e0b' : 'var(--text-muted)')))};">
+                                    ${this.getOutlierSensitivityLabel(this.outlierSensitivity || 2)}
+                                </button>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:10px;width:100%;margin:2px 0;">
+                                <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setOutlierSensitivity(1)" title="${window.i18n.t('sim_outlier_desc_1')}">🧹 <span data-i18n="sim_outlier_badge_strict">${window.i18n.t('sim_outlier_badge_strict')}</span></button>
+                                <input type="range" id="simOutlierSlider" class="sim-range-input" min="1" max="5" step="1" value="${this.outlierSensitivity || 2}" oninput="window.SimulatorView.onOutlierSensitivityInput(this.value)" onchange="window.SimulatorView.onOutlierSensitivityChange(this.value)">
+                                <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setOutlierSensitivity(5)" title="${window.i18n.t('sim_outlier_desc_5')}">📦 <span data-i18n="sim_outlier_badge_full">${window.i18n.t('sim_outlier_badge_full')}</span></button>
+                            </div>
+                            <div id="simOutlierExplainer" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-top:4px;padding:6px 9px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid var(--border-color);">
+                                ${this.getOutlierSensitivityExplainer(this.outlierSensitivity || 2, (data && data.excluded_outliers_count) || 0, (data && data.excluded_outliers_total) || 0)}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ═══ Seasonality Controls Row ═══ -->
+                    <div style="border-top:1px solid var(--border-color);margin-top:14px;padding-top:12px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                            <!-- Mode selector buttons -->
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_seasonality_tooltip')}">
+                                    <span style="font-size:14px;">🍂</span>
+                                    <span data-i18n="sim_seasonality_title">${window.i18n.t('sim_seasonality_title')} :</span>
+                                </label>
+                                <div style="display:inline-flex;background:var(--bg-base);border:1px solid var(--border-color);border-radius:8px;padding:2px;gap:2px;">
+                                    <button type="button" class="btn btn-xs ${this.seasonalityMode === 'disabled' ? 'btn-primary' : 'btn-ghost'}" style="font-size:11px;padding:3px 8px;border-radius:6px;" onclick="window.SimulatorView.setSeasonalityMode('disabled')">
+                                        🍂 <span data-i18n="sim_seasonality_mode_disabled">${window.i18n.t('sim_seasonality_mode_disabled')}</span>
+                                    </button>
+                                    <button type="button" class="btn btn-xs ${this.seasonalityMode === 'historical' ? 'btn-primary' : 'btn-ghost'}" style="font-size:11px;padding:3px 8px;border-radius:6px;" onclick="window.SimulatorView.setSeasonalityMode('historical')">
+                                        📊 <span data-i18n="sim_seasonality_mode_historical">${window.i18n.t('sim_seasonality_mode_historical')}</span>${(data && data.seasonal_history_months) ? ` (${data.seasonal_history_months}m)` : ''}
+                                    </button>
+                                    <button type="button" class="btn btn-xs ${this.seasonalityMode === 'preset_standard' ? 'btn-primary' : 'btn-ghost'}" style="font-size:11px;padding:3px 8px;border-radius:6px;" onclick="window.SimulatorView.setSeasonalityMode('preset_standard')">
+                                        🏖️ <span data-i18n="sim_seasonality_mode_preset">${window.i18n.t('sim_seasonality_mode_preset')}</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Intensity slider (visible when mode != 'disabled') -->
+                            ${this.seasonalityMode !== 'disabled' ? `
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">
+                                <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:4px;" title="${window.i18n.t('sim_seasonality_intensity_tooltip')}">
+                                    <span data-i18n="sim_seasonality_intensity_label">${window.i18n.t('sim_seasonality_intensity_label')}</span>
+                                </label>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setSeasonalityIntensity(0.0)" title="${window.i18n.t('sim_tooltip_click_seas_0')}">0%</button>
+                                    <input type="range" id="simSeasonalityIntensitySlider" class="sim-range-input" style="width:85px;" min="0" max="100" step="5" value="${this.getSeasonalityIntensityPct()}" oninput="window.SimulatorView.onSeasonalityIntensityInput(this.value)" onchange="window.SimulatorView.onSeasonalityIntensityChange(this.value)">
+                                    <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setSeasonalityIntensity(1.0)" title="${window.i18n.t('sim_tooltip_click_seas_100')}">100%</button>
+                                    <button type="button" id="simSeasonalityIntensityBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setSeasonalityIntensity(1.0)" title="${window.i18n.t('sim_tooltip_click_seas_rec')}" style="color:var(--accent, #6366f1);font-weight:700;">${this.getSeasonalityIntensityPct()}%</button>
+                                </div>
+                            </div>
+                            ` : ''}
+
+                            <!-- Toggle 12-Month Profile Preview Strip -->
+                            <div>
+                                <button type="button" class="sim-seasonality-toggle-btn ${this.isSeasonalityProfileOpen ? 'active' : ''}" onclick="window.SimulatorView.toggleSeasonalityProfile()">
+                                    <span>${this.isSeasonalityProfileOpen ? '▲' : '▼'}</span>
+                                    <span data-i18n="${this.isSeasonalityProfileOpen ? 'sim_seasonality_btn_hide_profile' : 'sim_seasonality_btn_view_profile'}">${this.isSeasonalityProfileOpen ? window.i18n.t('sim_seasonality_btn_hide_profile') : window.i18n.t('sim_seasonality_btn_view_profile')}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Seasonality Explainer -->
+                        <div id="simSeasonalityExplainer" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-top:6px;padding:6px 9px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid var(--border-color);">
+                            ${this.getSeasonalityExplainer(data)}
+                        </div>
+
+                        <!-- 12-Month Profile Preview Strip -->
+                        ${this.isSeasonalityProfileOpen ? `
+                        <div id="simSeasonalityProfileStrip" style="margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border-color);overflow-x:auto;">
+                            ${this.renderSeasonality12MonthsStrip(data)}
+                        </div>
+                        ` : ''}
                     </div>
 
                     <!-- Income & Inflation Row -->
@@ -679,18 +900,25 @@ window.SimulatorView = {
                                 </div>
                             ` : ''}
                         </div>
-                        ${this.horizonMonths >= 12 ? `
-                        <div style="display:flex;align-items:center;gap:6px;">
-                            <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
-                                <span>📈</span>
-                                <span data-i18n="sim_inflation_label">${window.i18n.t('sim_inflation_label')} :</span>
-                            </label>
-                            <div style="display:flex;align-items:center;gap:3px;background:var(--bg-input);padding:2px 6px;border-radius:6px;border:1px solid var(--border-color);">
-                                <input type="number" step="0.5" min="0" max="20" id="simInflationInput" class="inline-input" value="${(this.inflationRate * 100).toFixed(1)}" style="width:42px;padding:1px 2px;font-size:12px;font-weight:700;border:none;background:transparent;text-align:right;" onchange="window.SimulatorView.onInflationChange(this.value)">
-                                <span style="font-size:11px;color:var(--text-muted);font-weight:600;" data-i18n="sim_inflation_suffix">${window.i18n.t('sim_inflation_suffix')}</span>
+                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                            ${this.horizonMonths >= 12 ? `
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
+                                    <span>📈</span>
+                                    <span data-i18n="sim_inflation_label">${window.i18n.t('sim_inflation_label')} :</span>
+                                </label>
+                                <div style="display:flex;align-items:center;gap:3px;background:var(--bg-input);padding:2px 6px;border-radius:6px;border:1px solid var(--border-color);">
+                                    <input type="number" step="0.5" min="0" max="20" id="simInflationInput" class="inline-input" value="${(this.inflationRate * 100).toFixed(1)}" style="width:42px;padding:1px 2px;font-size:12px;font-weight:700;border:none;background:transparent;text-align:right;" onchange="window.SimulatorView.onInflationChange(this.value)">
+                                    <span style="font-size:11px;color:var(--text-muted);font-weight:600;" data-i18n="sim_inflation_suffix">${window.i18n.t('sim_inflation_suffix')}</span>
+                                </div>
                             </div>
+                            ` : ''}
+
+                            <button type="button" class="sim-seasonality-toggle-btn" onclick="window.SimulatorView.resetToRecommendedSettings()" title="${window.i18n.t('sim_reset_defaults_tooltip')}" style="padding:4px 10px;gap:5px;">
+                                <span>🔄</span>
+                                <span data-i18n="sim_btn_reset_defaults">${window.i18n.t('sim_btn_reset_defaults')}</span>
+                            </button>
                         </div>
-                        ` : ''}
                     </div>
                 </div>
             </div>
@@ -895,10 +1123,15 @@ window.SimulatorView = {
         }
 
         // Seasonality info
-        if (data.has_seasonality) {
-            items.push(`<span style="display:flex;align-items:center;gap:4px;">📅 ${t('sim_transparency_seasonality').replace('{months}', data.seasonal_history_months)}</span>`);
+        if (data.seasonality_mode === 'historical') {
+            const intPct = Math.round((data.seasonality_intensity || 1.0) * 100);
+            const mCount = data.seasonal_history_months || 0;
+            items.push(`<span style="display:flex;align-items:center;gap:4px;color:#f59e0b;font-weight:600;">🍂 <strong>${t('sim_seasonality_mode_historical')} :</strong> ${mCount} mois analysés (${intPct}%)</span>`);
+        } else if (data.seasonality_mode === 'preset_standard') {
+            const intPct = Math.round((data.seasonality_intensity || 1.0) * 100);
+            items.push(`<span style="display:flex;align-items:center;gap:4px;color:#f59e0b;font-weight:600;">🏖️ <strong>${t('sim_seasonality_mode_preset')} :</strong> ${intPct}% d'amplitude</span>`);
         } else {
-            items.push(`<span style="display:flex;align-items:center;gap:4px;">📅 ${t('sim_transparency_no_seasonality')}</span>`);
+            items.push(`<span style="display:flex;align-items:center;gap:4px;color:var(--text-muted);">🍂 <strong>${t('sim_seasonality_title')} :</strong> ${t('sim_seasonality_mode_disabled')}</span>`);
         }
 
         // Inflation info
@@ -1113,69 +1346,133 @@ window.SimulatorView = {
             return `<div style="padding:16px;text-align:center;color:var(--text-muted);">${window.i18n.t('sim_no_data') || 'Aucune donnée disponible.'}</div>`;
         }
 
+        const totalIncome = data.monthly_data.reduce((sum, m) => sum + (m.baseline_income || 0), 0);
+        const totalFixed = data.monthly_data.reduce((sum, m) => sum + (m.baseline_fixed || 0), 0);
+        const totalVariable = data.monthly_data.reduce((sum, m) => sum + (m.baseline_variable || 0), 0);
+        const totalEvents = data.monthly_data.reduce((sum, m) => sum + (m.simulated_events_impact || 0), 0);
+        const totalNet = data.monthly_data.reduce((sum, m) => sum + (m.simulated_net || 0), 0);
+        const startBal = data.monthly_data[0].start_balance_simulated;
+        const finalBal = data.monthly_data[data.monthly_data.length - 1].simulated_end_balance;
+        const finalBaseBal = data.monthly_data[data.monthly_data.length - 1].baseline_end_balance;
+        const totalDiff = Math.round((finalBal - finalBaseBal) * 100) / 100;
+
         return `
-            <table class="data-table" style="width:100%;font-size:12px;">
+            <table class="data-table" style="width:100%;min-width:980px;font-size:12px;border-collapse:collapse;">
                 <thead>
-                    <tr>
-                        <th style="text-align:left;" data-i18n="sim_th_month">${window.i18n.t('sim_th_month')}</th>
-                        <th style="text-align:right;" data-i18n="sim_th_start_bal">${window.i18n.t('sim_th_start_bal')}</th>
-                        <th style="text-align:right;" data-i18n="sim_th_baseline_net">${window.i18n.t('sim_th_baseline_net')}</th>
-                        <th style="text-align:right;" data-i18n="sim_th_sim_impact">${window.i18n.t('sim_th_sim_impact')}</th>
-                        <th style="text-align:right;" data-i18n="sim_th_end_bal">${window.i18n.t('sim_th_end_bal')}</th>
-                        <th style="text-align:right;" data-i18n="sim_th_diff">${window.i18n.t('sim_th_diff')}</th>
-                        <th style="text-align:left;" data-i18n="sim_th_events">${window.i18n.t('sim_th_events')}</th>
+                    <tr style="border-bottom:2px solid var(--border-color, rgba(255,255,255,0.1));">
+                        <th style="text-align:left;white-space:nowrap;padding:10px 12px;" data-i18n="sim_th_month">${window.i18n.t('sim_th_month')}</th>
+                        <th style="text-align:right;white-space:nowrap;padding:10px 8px;" title="${window.i18n.t('sim_th_start_bal_title')}" data-i18n="sim_th_start_bal">${window.i18n.t('sim_th_start_bal')}</th>
+                        <th style="text-align:right;white-space:nowrap;padding:10px 8px;" title="${window.i18n.t('sim_th_income_title')}" data-i18n="sim_th_income">${window.i18n.t('sim_th_income')}</th>
+                        <th style="text-align:right;white-space:nowrap;padding:10px 8px;" title="${window.i18n.t('sim_th_fixed_title')}" data-i18n="sim_th_fixed">${window.i18n.t('sim_th_fixed')}</th>
+                        <th style="text-align:right;white-space:nowrap;padding:10px 8px;" title="${window.i18n.t('sim_th_variable_title')}" data-i18n="sim_th_variable">${window.i18n.t('sim_th_variable')}</th>
+                        <th style="text-align:right;white-space:nowrap;padding:10px 8px;" title="${window.i18n.t('sim_th_sim_impact_title')}" data-i18n="sim_th_sim_impact">${window.i18n.t('sim_th_sim_impact')}</th>
+                        <th style="text-align:right;white-space:nowrap;padding:10px 8px;" title="${window.i18n.t('sim_th_net_title')}" data-i18n="sim_th_net">${window.i18n.t('sim_th_net')}</th>
+                        <th style="text-align:right;white-space:nowrap;padding:10px 8px;" title="${window.i18n.t('sim_th_end_bal_title')}" data-i18n="sim_th_end_bal">${window.i18n.t('sim_th_end_bal')}</th>
+                        <th style="text-align:left;white-space:nowrap;padding:10px 12px;" data-i18n="sim_th_events">${window.i18n.t('sim_th_events')}</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${data.monthly_data.map(m => {
-                        const diffSign = m.difference > 0 ? '+' : '';
-                        const impactSign = m.simulated_events_impact > 0 ? '+' : '';
                         const isNeg = m.simulated_end_balance < 0;
+                        const impactSign = m.simulated_events_impact > 0 ? '+' : '';
+                        const netSign = m.simulated_net > 0 ? '+' : '';
+                        const diffSign = m.difference > 0 ? '+' : '';
 
-                        // Tooltip décomposant précisément Entrées / Fixe / Variable / Inflation
-                        const inc = (m.baseline_income || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
-                        const fix = (m.baseline_fixed || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
-                        const vExp = (m.baseline_variable || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
-                        const inf = (m.baseline_inflation_delta || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
-                        const netStr = `${m.baseline_net > 0 ? '+' : ''}${m.baseline_net.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €`;
-                        
-                        const flowTooltip = `💼 ${window.i18n.t('sim_flow_tooltip_income')} : +${inc} €\n🏠 ${window.i18n.t('sim_flow_tooltip_fixed')} : -${fix} €\n🛒 ${window.i18n.t('sim_flow_tooltip_variable')} : -${vExp} €${m.baseline_inflation_delta > 0 ? `\n📈 ${window.i18n.t('sim_flow_tooltip_inflation')} : -${inf} €` : ''}\n─────────────────────\n➜ ${window.i18n.t('sim_flow_tooltip_net')} : ${netStr}`;
+                        const incFormatted = (m.baseline_income || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+                        const fixFormatted = (m.baseline_fixed || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+                        const varFormatted = (m.baseline_variable || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+                        const netFormatted = `${netSign}${m.simulated_net.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €`;
+
+                        const seasFactor = m.seasonal_factor || 1.0;
+                        const seasPct = m.seasonal_pct || 0;
+                        let seasBadge = '';
+                        if (seasPct !== 0) {
+                            const seasIcon = m.seasonal_tag === 'holidays' ? '🎄' : (m.seasonal_tag === 'summer' ? '🏖️' : (m.seasonal_tag === 'back_to_school' ? '🎒' : (m.seasonal_tag === 'winter' ? '❄️' : '🍂')));
+                            const seasColor = seasPct > 0 ? '#f59e0b' : '#10b981';
+                            const seasTooltipText = window.i18n.tp ? window.i18n.tp('sim_seas_var_tooltip', { pct: `${seasPct > 0 ? '+' : ''}${seasPct}`, factor: seasFactor.toFixed(2) }) : `Variation saisonnière : ${seasPct > 0 ? '+' : ''}${seasPct}% (${seasFactor}x)`;
+                            seasBadge = `<span class="sim-badge" style="background:${seasPct > 0 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)'};color:${seasColor};border:1px solid ${seasPct > 0 ? 'rgba(245, 158, 11, 0.25)' : 'rgba(16, 185, 129, 0.25)'};font-size:9px;padding:1px 4px;margin-left:4px;vertical-align:middle;" title="${seasTooltipText}">${seasPct > 0 ? '+' : ''}${seasPct}% ${seasIcon}</span>`;
+                        }
+
+                        const seasSuffix = seasPct !== 0 ? (window.i18n.tp ? window.i18n.tp('sim_table_var_seasonality_suffix', { pct: `${seasPct > 0 ? '+' : ''}${seasPct}` }) : ` (Saisonnalité : ${seasPct > 0 ? '+' : ''}${seasPct}%)`) : '';
+                        const inflDetail = m.baseline_inflation_delta > 0 ? (window.i18n.tp ? window.i18n.tp('sim_inflation_detail', { amount: m.baseline_inflation_delta.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}) }) : `dont +${m.baseline_inflation_delta.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} € inflation`) : '';
+                        const inflSuffix = inflDetail ? ` (${inflDetail})` : '';
+
+                        const netTooltip = `💼 ${window.i18n.t('sim_th_income')} : +${incFormatted} €\n🏠 ${window.i18n.t('sim_th_fixed')} : -${fixFormatted} €\n🛒 ${window.i18n.t('sim_th_variable')} : -${varFormatted} €${seasSuffix}${inflSuffix}${m.simulated_events_impact !== 0 ? `\n🎯 ${window.i18n.t('sim_th_sim_impact')} : ${impactSign}${m.simulated_events_impact.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : ''}\n─────────────────────\n➜ ${window.i18n.t('sim_th_net')} : ${netFormatted}`;
+
+                        const varCellTitle = (m.baseline_inflation_delta > 0 || seasPct !== 0) ? `${window.i18n.tp ? window.i18n.tp('sim_table_var_tooltip', { amount: varFormatted }) : `Dépenses variables : -${varFormatted} €`}${seasSuffix}${inflSuffix}` : '';
 
                         return `
-                            <tr style="${isNeg ? 'background:rgba(239, 68, 68, 0.08);' : ''}">
-                                <td style="font-weight:600;white-space:nowrap;vertical-align:middle;">
+                            <tr style="${isNeg ? 'background:rgba(239, 68, 68, 0.08);' : ''};border-bottom:1px solid var(--border-color, rgba(255,255,255,0.05));">
+                                <td style="font-weight:600;white-space:nowrap;vertical-align:middle;padding:8px 12px;">
                                     ${escapeHtml(this.formatMonthLabel(m.month))}
                                     ${m.is_min_cash ? `<span class="sim-badge" style="background:rgba(99, 102, 241, 0.15);color:#818cf8;border:1px solid rgba(99, 102, 241, 0.3);font-size:9px;margin-left:6px;padding:1px 4px;vertical-align:middle;" title="${window.i18n.t('sim_kpi_min_cash')}">⚓ ${window.i18n.t('sim_badge_min_cash')}</span>` : ''}
                                     ${isNeg ? `<span class="sim-badge" style="background:rgba(239, 68, 68, 0.15);color:#ef4444;border:1px solid rgba(239, 68, 68, 0.3);font-size:9px;margin-left:6px;padding:1px 4px;vertical-align:middle;" title="${window.i18n.t('sim_kpi_overdraft_title')}">⚠️ ${window.i18n.t('sim_badge_overdraft')}</span>` : ''}
                                 </td>
-                                <td style="text-align:right;color:var(--text-muted);vertical-align:middle;">
+                                <td style="text-align:right;color:var(--text-muted);vertical-align:middle;padding:8px;font-variant-numeric:tabular-nums;">
                                     ${m.start_balance_simulated.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
                                 </td>
-                                <td style="text-align:right;vertical-align:middle;cursor:help;" title="${flowTooltip}">
-                                    <div style="font-weight:600;color:${m.baseline_net >= 0 ? '#10b981' : '#ef4444'};display:inline-flex;align-items:center;gap:3px;justify-content:flex-end;">
-                                        <span>${m.baseline_net > 0 ? '+' : ''}${m.baseline_net.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €</span>
-                                        <span style="font-size:10px;opacity:0.65;">ℹ️</span>
+                                <td style="text-align:right;font-weight:600;color:#10b981;vertical-align:middle;padding:8px;font-variant-numeric:tabular-nums;">
+                                    +${incFormatted} €
+                                </td>
+                                <td style="text-align:right;font-weight:500;color:#ef4444;vertical-align:middle;padding:8px;font-variant-numeric:tabular-nums;">
+                                    -${fixFormatted} €
+                                </td>
+                                <td style="text-align:right;font-weight:500;color:#f59e0b;vertical-align:middle;padding:8px;font-variant-numeric:tabular-nums;" ${varCellTitle ? `title="${varCellTitle}"` : ''}>
+                                    <div style="display:flex;justify-content:flex-end;align-items:center;gap:2px;">
+                                        <span>-${varFormatted} €</span>
+                                        ${seasBadge}
                                     </div>
-                                    <div style="font-size:9.5px;color:var(--text-muted);opacity:0.75;font-weight:400;margin-top:1px;">
-                                        +${Math.round(m.baseline_income || 0).toLocaleString('fr-FR')} / -${Math.round(m.baseline_expense || 0).toLocaleString('fr-FR')}
-                                    </div>
+                                    ${m.baseline_inflation_delta > 0 ? `<div style="font-size:9px;color:var(--text-muted);opacity:0.8;">(+${Math.round(m.baseline_inflation_delta)}€ infl.)</div>` : ''}
                                 </td>
-                                <td style="text-align:right;font-weight:600;color:${m.simulated_events_impact > 0 ? '#10b981' : (m.simulated_events_impact < 0 ? '#ef4444' : 'var(--text-muted)')};vertical-align:middle;">
-                                    ${m.simulated_events_impact !== 0 ? `${impactSign}${m.simulated_events_impact.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : '-'}
+                                <td style="text-align:right;font-weight:600;color:${m.simulated_events_impact > 0 ? '#10b981' : (m.simulated_events_impact < 0 ? '#ef4444' : 'var(--text-muted)')};vertical-align:middle;padding:8px;font-variant-numeric:tabular-nums;">
+                                    ${m.simulated_events_impact !== 0 ? `${impactSign}${m.simulated_events_impact.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : '<span style="opacity:0.35;">—</span>'}
                                 </td>
-                                <td style="text-align:right;font-weight:700;color:${isNeg ? '#ef4444' : 'var(--text-main)'};vertical-align:middle;">
-                                    ${m.simulated_end_balance.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
+                                <td style="text-align:right;font-weight:700;color:${m.simulated_net >= 0 ? '#10b981' : '#ef4444'};vertical-align:middle;padding:8px;font-variant-numeric:tabular-nums;cursor:help;" title="${netTooltip}">
+                                    ${netFormatted}
                                 </td>
-                                <td style="text-align:right;font-weight:600;color:${m.difference > 0 ? '#10b981' : (m.difference < 0 ? '#ef4444' : 'var(--text-muted)')};vertical-align:middle;">
-                                    ${m.difference !== 0 ? `${diffSign}${m.difference.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : '-'}
+                                <td style="text-align:right;font-weight:700;color:${isNeg ? '#ef4444' : 'var(--text-main)'};vertical-align:middle;padding:8px;font-variant-numeric:tabular-nums;">
+                                    <div>${m.simulated_end_balance.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €</div>
+                                    ${m.difference !== 0 ? `<div style="font-size:9.5px;font-weight:500;color:${m.difference > 0 ? '#10b981' : '#ef4444'};opacity:0.85;" title="${window.i18n.tp ? window.i18n.tp('sim_diff_vs_baseline_tooltip', { diff: `${diffSign}${m.difference.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})}` }) : `${diffSign}${m.difference.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} € vs base`}">${diffSign}${m.difference.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} € vs base</div>` : ''}
                                 </td>
-                                <td style="color:var(--text-muted);font-size:11px;vertical-align:middle;">
-                                    ${m.events_applied.length > 0 ? m.events_applied.map(e => `<span class="sim-badge sim-badge-neutral" style="margin-right:4px;margin-bottom:2px;">${escapeHtml(e)}</span>`).join('') : '<span style="opacity:0.4;">-</span>'}
+                                <td style="color:var(--text-muted);font-size:11px;vertical-align:middle;padding:8px 12px;">
+                                    ${m.events_applied && m.events_applied.length > 0 ? m.events_applied.map(e => `<span class="sim-badge sim-badge-neutral" style="margin-right:4px;margin-bottom:2px;display:inline-block;">${escapeHtml(e)}</span>`).join('') : '<span style="opacity:0.35;">—</span>'}
                                 </td>
                             </tr>
                         `;
                     }).join('')}
                 </tbody>
+                <tfoot style="background:var(--bg-secondary, rgba(255,255,255,0.03));font-weight:700;border-top:2px solid var(--border-color, rgba(255,255,255,0.12));">
+                    <tr>
+                        <td style="padding:10px 12px;font-size:12px;white-space:nowrap;" data-i18n="sim_th_total">
+                            📊 ${window.i18n.t('sim_th_total') || 'Total période'}
+                        </td>
+                        <td style="text-align:right;padding:10px 8px;font-variant-numeric:tabular-nums;color:var(--text-muted);">
+                            ${startBal.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
+                        </td>
+                        <td style="text-align:right;padding:10px 8px;font-variant-numeric:tabular-nums;color:#10b981;">
+                            +${totalIncome.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
+                        </td>
+                        <td style="text-align:right;padding:10px 8px;font-variant-numeric:tabular-nums;color:#ef4444;">
+                            -${totalFixed.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
+                        </td>
+                        <td style="text-align:right;padding:10px 8px;font-variant-numeric:tabular-nums;color:#f59e0b;">
+                            -${totalVariable.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
+                        </td>
+                        <td style="text-align:right;padding:10px 8px;font-variant-numeric:tabular-nums;color:${totalEvents > 0 ? '#10b981' : (totalEvents < 0 ? '#ef4444' : 'var(--text-muted)')};">
+                            ${totalEvents !== 0 ? `${totalEvents > 0 ? '+' : ''}${totalEvents.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : '<span style="opacity:0.35;">—</span>'}
+                        </td>
+                        <td style="text-align:right;padding:10px 8px;font-variant-numeric:tabular-nums;color:${totalNet >= 0 ? '#10b981' : '#ef4444'};">
+                            ${totalNet > 0 ? '+' : ''}${totalNet.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
+                        </td>
+                        <td style="text-align:right;padding:10px 8px;font-variant-numeric:tabular-nums;color:${finalBal < 0 ? '#ef4444' : 'var(--text-main)'};">
+                            <div>${finalBal.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €</div>
+                            ${totalDiff !== 0 ? `<div style="font-size:9.5px;font-weight:500;color:${totalDiff > 0 ? '#10b981' : '#ef4444'};opacity:0.85;" title="${window.i18n.tp ? window.i18n.tp('sim_diff_vs_baseline_tooltip', { diff: `${totalDiff > 0 ? '+' : ''}${totalDiff.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})}` }) : `${totalDiff > 0 ? '+' : ''}${totalDiff.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} € vs base`}">${totalDiff > 0 ? '+' : ''}${totalDiff.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} € vs base</div>` : ''}
+                        </td>
+                        <td style="padding:10px 12px;color:var(--text-muted);font-size:11px;">
+                            <span style="opacity:0.35;">—</span>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         `;
     },
@@ -1404,12 +1701,12 @@ window.SimulatorView = {
 
         if (mode === 'average') {
             if (pctCons === 0) {
-                return `🎯 <strong>${t('sim_prudence_mode_neutral') || 'Recettes du modèle (0%)'}</strong> : Projection lissée basée sur vos recettes mensuelles moyennes (sans variation saisonnière).`;
+                return `🎯 <strong>${t('sim_prudence_mode_neutral') || 'Recettes du modèle (0%)'}</strong> : ${t('sim_prudence_desc_average_100real') || 'Projection lissée basée sur vos recettes mensuelles moyennes (sans variation saisonnière).'}`;
             }
             if (pctCons === 100) {
                 return `🛡️ <strong>${t('sim_prudence_mode_max') || 'Recettes minimales (100%)'}</strong> : ${t('sim_prudence_desc_100cons') || 'Scénario avec recettes au strict minimum (salaire de base garanti seul, charges fixes contractuelles maximales).'}`;
             }
-            const hybridDesc = (t('sim_prudence_desc_blend') || 'Dosage équilibré entre vos recettes moyennes et une marge de sécurité ({pct}%).')
+            const hybridDesc = (t('sim_prudence_desc_average_blend') || 'Dosage équilibré entre vos recettes moyennes et une marge de sécurité ({pct}%).')
                 .replace('{pct}', pctCons);
             const modeTitle = (t('sim_prudence_mode_moderate') || 'Prudence modérée ({pct}%)').replace('{pct}', pctCons);
             return `⚖️ <strong>${modeTitle}</strong> : ${hybridDesc}`;
@@ -1417,7 +1714,7 @@ window.SimulatorView = {
 
         // Mode historical_n1 / auto (saisonnier année passée)
         if (pctCons === 0) {
-            return `🎯 <strong>${t('sim_prudence_mode_neutral') || 'Recettes du modèle (0%)'}</strong> : Projection basée sur l'historique réel de l'année passée (primes, bonus et saisonnalité inclus).`;
+            return `🎯 <strong>${t('sim_prudence_mode_neutral') || 'Recettes du modèle (0%)'}</strong> : ${t('sim_prudence_desc_100real') || "Projection basée sur l'historique réel de l'année passée (primes, bonus et saisonnalité inclus)."}`;
         }
         if (pctCons === 100) {
             return `🛡️ <strong>${t('sim_prudence_mode_max') || 'Recettes minimales (100%)'}</strong> : ${t('sim_prudence_desc_100cons') || 'Scénario avec recettes au strict minimum (salaire de base garanti seul, charges fixes contractuelles maximales).'}`;
@@ -1465,6 +1762,7 @@ window.SimulatorView = {
         }
 
         // Déclenchement temps réel fluide
+        this._saveParam('sim_conservative_weight', this.conservativeWeight);
         this._triggerLiveSimulation();
 
         // Tableau mis à jour en différé pour maximiser les FPS du graphe
@@ -1492,7 +1790,7 @@ window.SimulatorView = {
         if (explainer) {
             explainer.innerHTML = this.getPrudenceExplainerText(this.conservativeWeight);
         }
-        ProfileStorage.set('sim_conservative_weight', this.conservativeWeight);
+        this._saveParam('sim_conservative_weight', this.conservativeWeight);
         await this.runSimulation();
         this.updateLiveSimulationView(true);
     },
@@ -1510,7 +1808,7 @@ window.SimulatorView = {
             badge.textContent = `${intVal > 0 ? '+' : ''}${intVal}%${euroSuffix}`;
             badge.style.color = intVal < 0 ? '#10b981' : (intVal > 0 ? '#ef4444' : 'var(--text-main)');
         }
-        ProfileStorage.set('sim_var_expense_adj', this.varExpenseAdjustmentPct);
+        this._saveParam('sim_var_expense_adj', this.varExpenseAdjustmentPct);
         await this.runSimulation();
         this.updateLiveSimulationView(true);
     },
@@ -1518,9 +1816,246 @@ window.SimulatorView = {
     async onConservativeWeightChange(val) {
         const intVal = parseInt(val) || 0;
         this.conservativeWeight = intVal / 100.0;
-        ProfileStorage.set('sim_conservative_weight', this.conservativeWeight);
+        this._saveParam('sim_conservative_weight', this.conservativeWeight);
         await this.runSimulation();
         this.updateLiveSimulationView(true);
+    },
+
+    getOutlierSensitivityLabel(level) {
+        const t = (k, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : fallback;
+        const map = {
+            1: t('ai_outlier_level_1', 'Strict (Régulier pur)'),
+            2: t('ai_outlier_level_2', 'Prudent (Équilibre)'),
+            3: t('ai_outlier_level_3', 'Équilibré'),
+            4: t('ai_outlier_level_4', 'Permissif'),
+            5: t('ai_outlier_level_5', 'Intégral (Tout inclure)')
+        };
+        return map[level] || map[2];
+    },
+
+    getOutlierSensitivityExplainer(level, excludedCount = 0, excludedTotal = 0) {
+        const t = (k, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : fallback;
+        const descMap = {
+            1: t('sim_outlier_desc_1', 'Filtre maximal : écarte tout achat inhabituel ou imprévu même modéré (> 250 €).'),
+            2: t('sim_outlier_desc_2', 'Recommandé : filtre les gros achats et imprévus majeurs (> 400 €) pour des dépenses régulières réalistes.'),
+            3: t('sim_outlier_desc_3', 'Filtre IQR standard : écarte uniquement les anomalies statistiques évidentes (> 600 €).'),
+            4: t('sim_outlier_desc_4', 'Permissif : ne filtre que les dépenses géantes hors norme (> 1 200 €).'),
+            5: t('sim_outlier_desc_5', 'Intégral : conserve 100% des dépenses historiques sans aucun filtrage.')
+        };
+        const desc = descMap[level] || descMap[2];
+        const isEn = (window.i18n && window.i18n.lang === 'en');
+        const formattedTotal = Math.round(excludedTotal).toLocaleString(isEn ? 'en-US' : 'fr-FR');
+        const badgeText = window.i18n.tp
+            ? window.i18n.tp('sim_outlier_excluded_badge', { count: excludedCount, total: formattedTotal })
+            : `${excludedCount} ${isEn ? 'expense(s) excluded' : 'dépense(s) exclue(s)'} (-${formattedTotal} €)`;
+        const noOutlierText = t('sim_outlier_none_detected', isEn ? 'No abnormal purchases detected' : 'Aucun achat anormal détecté');
+        const badgePart = excludedCount > 0
+            ? `<div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(16,185,129,0.12);color:#10b981;font-weight:700;padding:2px 7px;border-radius:4px;font-size:10px;">⚡ ${badgeText}</div>`
+            : `<div style="margin-top:4px;font-size:10px;color:var(--text-muted);opacity:0.75;">${noOutlierText}</div>`;
+        return `<div>${desc}</div>${badgePart}`;
+    },
+
+    onOutlierSensitivityInput(val) {
+        const intVal = Math.min(5, Math.max(1, parseInt(val) || 2));
+        this.outlierSensitivity = intVal;
+        const badge = document.getElementById('simOutlierBadge');
+        if (badge) {
+            badge.textContent = this.getOutlierSensitivityLabel(intVal);
+            badge.style.color = intVal === 1 ? '#ef4444' : (intVal === 2 ? '#10b981' : (intVal === 3 ? '#3b82f6' : (intVal === 4 ? '#f59e0b' : 'var(--text-muted)')));
+        }
+        const explainer = document.getElementById('simOutlierExplainer');
+        if (explainer) {
+            const excCount = (this.simulationData && this.simulationData.excluded_outliers_count) || 0;
+            const excTotal = (this.simulationData && this.simulationData.excluded_outliers_total) || 0;
+            explainer.innerHTML = this.getOutlierSensitivityExplainer(intVal, excCount, excTotal);
+        }
+        this._saveParam('sim_outlier_sensitivity', this.outlierSensitivity);
+        this._triggerLiveSimulation();
+
+        clearTimeout(this._tableDebounceTimer);
+        this._tableDebounceTimer = setTimeout(() => {
+            if (this.simulationData) {
+                const tableContainer = document.getElementById('simMonthlyTableContainer');
+                if (tableContainer) {
+                    tableContainer.innerHTML = this.renderMonthlyTable(this.simulationData);
+                }
+            }
+        }, 150);
+    },
+
+    async setOutlierSensitivity(level) {
+        const intVal = Math.min(5, Math.max(1, parseInt(level) || 2));
+        this.outlierSensitivity = intVal;
+        const slider = document.getElementById('simOutlierSlider');
+        if (slider) slider.value = intVal;
+        const badge = document.getElementById('simOutlierBadge');
+        if (badge) {
+            badge.textContent = this.getOutlierSensitivityLabel(intVal);
+            badge.style.color = intVal === 1 ? '#ef4444' : (intVal === 2 ? '#10b981' : (intVal === 3 ? '#3b82f6' : (intVal === 4 ? '#f59e0b' : 'var(--text-muted)')));
+        }
+        this._saveParam('sim_outlier_sensitivity', this.outlierSensitivity);
+        await this.runSimulation();
+        this.updateLiveSimulationView(true);
+    },
+
+    async onOutlierSensitivityChange(val) {
+        const intVal = Math.min(5, Math.max(1, parseInt(val) || 2));
+        this.outlierSensitivity = intVal;
+        this._saveParam('sim_outlier_sensitivity', this.outlierSensitivity);
+        await this.runSimulation();
+        this.updateLiveSimulationView(true);
+    },
+
+    getSeasonalityIntensityPct() {
+        return Math.round(((typeof this.seasonalityIntensity === 'number' && !isNaN(this.seasonalityIntensity)) ? this.seasonalityIntensity : 1.0) * 100);
+    },
+
+    getSeasonalityExplainer(data) {
+        const t = (k) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : k;
+        const mode = this.seasonalityMode || 'disabled';
+        const intensity = this.getSeasonalityIntensityPct();
+
+        if (mode === 'disabled') {
+            return `🍂 <strong>${t('sim_seasonality_mode_disabled')}</strong> : ${t('sim_seasonality_desc_disabled')}`;
+        }
+        if (mode === 'historical') {
+            const mCount = (data && data.seasonal_history_months) ? data.seasonal_history_months : 0;
+            if (mCount >= 6) {
+                const desc = (t('sim_seasonality_desc_historical') || '').replace('{months}', mCount);
+                return `📊 <strong>${t('sim_seasonality_mode_historical')} (${intensity}%)</strong> : ${desc}`;
+            } else {
+                const desc = (t('sim_seasonality_desc_historical_insufficient') || '').replace('{months}', mCount);
+                return `⚠️ <strong>${t('sim_seasonality_mode_historical')}</strong> : ${desc}`;
+            }
+        }
+        if (mode === 'preset_standard') {
+            return `🏖️ <strong>${t('sim_seasonality_mode_preset')} (${intensity}%)</strong> : ${t('sim_seasonality_desc_preset')}`;
+        }
+        return '';
+    },
+
+    renderSeasonality12MonthsStrip(data) {
+        if (!data) return '';
+        const coeffs = data.seasonal_expense_coefficients || {};
+        const locale = (window.i18n && window.i18n.lang === 'en') ? 'en-US' : 'fr-FR';
+        const monthNames = Array.from({length: 12}, (_, i) => {
+            const raw = new Date(2026, i, 1).toLocaleDateString(locale, { month: 'short' });
+            return raw.charAt(0).toUpperCase() + raw.slice(1).replace('.', '');
+        });
+        
+        return `
+            <div style="display:flex;gap:6px;min-width:780px;justify-content:space-between;">
+                ${monthNames.map((name, idx) => {
+                    const m = idx + 1;
+                    const coeff = coeffs[m] !== undefined ? coeffs[m] : 1.0;
+                    const pct = Math.round((coeff - 1.0) * 100);
+                    const sign = pct > 0 ? '+' : '';
+                    const color = pct > 0 ? (pct >= 25 ? '#ef4444' : '#f59e0b') : (pct < 0 ? '#10b981' : 'var(--text-muted)');
+                    const bg = pct > 0 ? 'rgba(245, 158, 11, 0.08)' : (pct < 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.02)');
+                    const icon = m === 12 ? '🎄' : (m === 7 || m === 8 ? '🏖️' : (m === 9 ? '🎒' : (m === 1 || m === 2 ? '❄️' : '')));
+
+                    return `
+                        <div style="flex:1;min-width:56px;background:${bg};border:1px solid var(--border-color);border-radius:6px;padding:5px 4px;text-align:center;display:flex;flex-direction:column;gap:2px;">
+                            <div style="font-size:10px;font-weight:700;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:2px;">
+                                <span>${name}</span>
+                                ${icon ? `<span style="font-size:10px;">${icon}</span>` : ''}
+                            </div>
+                            <div style="font-size:11px;font-weight:800;color:${color};">
+                                ${pct === 0 ? '0%' : `${sign}${pct}%`}
+                            </div>
+                            <div style="font-size:9.5px;color:var(--text-muted);opacity:0.8;">
+                                ${coeff.toFixed(2)}x
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    },
+
+    async setSeasonalityMode(mode) {
+        this.seasonalityMode = mode;
+        this._saveParam('sim_seasonality_mode', mode);
+        await this.runSimulation();
+        this.render();
+    },
+
+    onSeasonalityIntensityInput(val) {
+        const parsed = parseInt(val, 10);
+        const intVal = isNaN(parsed) ? 100 : Math.max(0, Math.min(100, parsed));
+        this.seasonalityIntensity = intVal / 100.0;
+        const badge = document.getElementById('simSeasonalityIntensityBadge');
+        if (badge) badge.textContent = `${intVal}%`;
+        const explainer = document.getElementById('simSeasonalityExplainer');
+        if (explainer) explainer.innerHTML = this.getSeasonalityExplainer(this.simulationData);
+        this._saveParam('sim_seasonality_intensity', this.seasonalityIntensity);
+        this._triggerLiveSimulation();
+
+        clearTimeout(this._tableDebounceTimer);
+        this._tableDebounceTimer = setTimeout(() => {
+            if (this.simulationData) {
+                const tableContainer = document.getElementById('simMonthlyTableContainer');
+                if (tableContainer) {
+                    tableContainer.innerHTML = this.renderMonthlyTable(this.simulationData);
+                }
+            }
+        }, 150);
+    },
+
+    async onSeasonalityIntensityChange(val) {
+        const parsed = parseInt(val, 10);
+        const intVal = isNaN(parsed) ? 100 : Math.max(0, Math.min(100, parsed));
+        this.seasonalityIntensity = intVal / 100.0;
+        this._saveParam('sim_seasonality_intensity', this.seasonalityIntensity);
+        await this.runSimulation();
+        this.updateLiveSimulationView(true);
+    },
+
+    async setSeasonalityIntensity(val) {
+        const parsed = parseFloat(val);
+        this.seasonalityIntensity = isNaN(parsed) ? 1.0 : Math.max(0.0, Math.min(1.0, parsed));
+        this._saveParam('sim_seasonality_intensity', this.seasonalityIntensity);
+        const slider = document.getElementById('simSeasonalityIntensitySlider');
+        if (slider) slider.value = this.getSeasonalityIntensityPct();
+        const badge = document.getElementById('simSeasonalityIntensityBadge');
+        if (badge) badge.textContent = `${this.getSeasonalityIntensityPct()}%`;
+        await this.runSimulation();
+        this.updateLiveSimulationView(true);
+    },
+
+    toggleSeasonalityProfile() {
+        this.isSeasonalityProfileOpen = !this.isSeasonalityProfileOpen;
+        this._saveParam('sim_seasonality_profile_open', this.isSeasonalityProfileOpen);
+        this.render();
+    },
+
+    async resetToRecommendedSettings() {
+        this.conservativeWeight = 0.20;
+        this.varExpenseAdjustmentPct = 0.0;
+        this.outlierSensitivity = 2;
+        this.seasonalityMode = 'disabled';
+        this.seasonalityIntensity = 1.0;
+        this.incomeMode = 'historical_n1';
+        this.customIncomeAmount = null;
+        this.inflationRate = 0.0;
+
+        this._batchSaveParams({
+            sim_conservative_weight: '0.20',
+            sim_var_expense_adj: '0.0',
+            sim_outlier_sensitivity: '2',
+            sim_seasonality_mode: 'disabled',
+            sim_seasonality_intensity: '1.0',
+            sim_income_mode: 'historical_n1',
+            sim_custom_income: '',
+            sim_inflation_rate: '0.0'
+        });
+
+        await this.runSimulation();
+        this.render();
+
+        if (typeof showToast === 'function') {
+            showToast(window.i18n.t('sim_toast_defaults_restored') || 'Paramètres recommandés restaurés avec succès', 'success');
+        }
     },
 
     toggleSection(section) {
@@ -1530,7 +2065,7 @@ window.SimulatorView = {
             if (body && chevron) {
                 const isOpen = body.classList.toggle('open');
                 chevron.classList.toggle('open', isOpen);
-                ProfileStorage.set('sim_advanced_open', isOpen);
+                this._saveParam('sim_advanced_open', isOpen);
             }
         } else if (section === 'table') {
             const body = document.getElementById('simTableBody');
@@ -1538,7 +2073,7 @@ window.SimulatorView = {
             if (body && chevron) {
                 const isOpen = body.classList.toggle('open');
                 chevron.classList.toggle('open', isOpen);
-                ProfileStorage.set('sim_table_open', isOpen);
+                this._saveParam('sim_table_open', isOpen);
                 if (isOpen && this.simulationData) {
                     const tableContainer = document.getElementById('simMonthlyTableContainer');
                     if (tableContainer && (!tableContainer.innerHTML || !tableContainer.innerHTML.trim())) {
@@ -1551,7 +2086,7 @@ window.SimulatorView = {
             const chevron = document.getElementById('simSourcesChevron');
             const isCurrentlyOpen = ProfileStorage.get('sim_sources_open') === 'true';
             const willBeOpen = !isCurrentlyOpen;
-            ProfileStorage.set('sim_sources_open', willBeOpen);
+            this._saveParam('sim_sources_open', willBeOpen);
             if (body) {
                 body.style.maxHeight = willBeOpen ? '500px' : '0';
                 body.style.opacity = willBeOpen ? '1' : '0';
@@ -1634,11 +2169,63 @@ window.SimulatorView = {
             compactSummaryParts.push(`🛡️ ${prudencePct === 0 ? (window.i18n.t('sim_prudence_badge_100real') || 'Recettes du modèle') : (prudencePct === 100 ? (window.i18n.t('sim_prudence_badge_100cons') || 'Recettes minimales') : `Prudence ${prudencePct}%`)}`);
             compactSummaryParts.push(`⚡ ${effortPct > 0 ? '+' : ''}${effortPct}%`);
             const incomeBadge = (!this.incomeMode || this.incomeMode === 'historical_n1' || this.incomeMode === 'auto')
-                ? 'Année passée'
-                : (this.incomeMode === 'average' ? `Moyenne${avgIncome > 0 ? ` (~${avgIncome.toLocaleString('fr-FR')} €)` : ''}` : (this.incomeMode === 'custom' ? `${(this.customIncomeAmount || 0).toLocaleString('fr-FR')} €` : 'Zéro salaire'));
+                ? (window.i18n.t('sim_income_badge_historical_n1') || 'Année passée')
+                : (this.incomeMode === 'average' ? `${window.i18n.t('sim_income_badge_average') || 'Moyenne'}${avgIncome > 0 ? ` (~${avgIncome.toLocaleString('fr-FR')} €)` : ''}` : (this.incomeMode === 'custom' ? `${(this.customIncomeAmount || 0).toLocaleString('fr-FR')} €` : (window.i18n.t('sim_income_badge_zero') || 'Zéro salaire')));
             compactSummaryParts.push(`💼 ${incomeBadge}`);
             if (this.inflationRate > 0) compactSummaryParts.push(`📈 ${(this.inflationRate * 100).toFixed(1)}%`);
+            const outlierLevel = this.outlierSensitivity || 2;
+            const outlierLabel = this.getOutlierSensitivityLabel(outlierLevel);
+            const excCount = (data && data.excluded_outliers_count) ? data.excluded_outliers_count : 0;
+            compactSummaryParts.push(`🧹 ${outlierLabel}${excCount > 0 ? ` (${excCount})` : ''}`);
+
+            // Seasonality summary badge
+            const seasPct = this.getSeasonalityIntensityPct();
+            if (this.seasonalityMode === 'historical') {
+                const seasMonths = (data && data.seasonal_history_months) ? data.seasonal_history_months : 0;
+                compactSummaryParts.push(`🍂 ${window.i18n.t('sim_seasonality_badge_historical') || 'Historique'} ${seasMonths}m (${seasPct}%)`);
+            } else if (this.seasonalityMode === 'preset_standard') {
+                compactSummaryParts.push(`🏖️ ${window.i18n.t('sim_seasonality_badge_preset') || 'Vacances & Fêtes'} (${seasPct}%)`);
+            } else {
+                compactSummaryParts.push(`🍂 ${window.i18n.t('sim_seasonality_badge_disabled') || 'Lissée'}`);
+            }
+
             summaryEl.innerHTML = compactSummaryParts.join('  <span style="opacity:0.3;">│</span>  ');
+        }
+
+        // Update Outlier Explainer & Badge
+        const outlierBadge = document.getElementById('simOutlierBadge');
+        if (outlierBadge) {
+            outlierBadge.textContent = this.getOutlierSensitivityLabel(this.outlierSensitivity || 2);
+            outlierBadge.style.color = (this.outlierSensitivity || 2) === 1 ? '#ef4444' : ((this.outlierSensitivity || 2) === 2 ? '#10b981' : ((this.outlierSensitivity || 2) === 3 ? '#3b82f6' : ((this.outlierSensitivity || 2) === 4 ? '#f59e0b' : 'var(--text-muted)')));
+        }
+        const outlierExplainer = document.getElementById('simOutlierExplainer');
+        if (outlierExplainer) {
+            const excCount = (data && data.excluded_outliers_count) || 0;
+            const excTotal = (data && data.excluded_outliers_total) || 0;
+            outlierExplainer.innerHTML = this.getOutlierSensitivityExplainer(this.outlierSensitivity || 2, excCount, excTotal);
+        }
+        const outlierSlider = document.getElementById('simOutlierSlider');
+        if (outlierSlider && document.activeElement !== outlierSlider) {
+            outlierSlider.value = this.outlierSensitivity || 2;
+        }
+
+        // Update Seasonality Explainer, Badge & Slider
+        const seasPct = this.getSeasonalityIntensityPct();
+        const seasExplainer = document.getElementById('simSeasonalityExplainer');
+        if (seasExplainer) {
+            seasExplainer.innerHTML = this.getSeasonalityExplainer(data);
+        }
+        const seasBadge = document.getElementById('simSeasonalityIntensityBadge');
+        if (seasBadge) {
+            seasBadge.textContent = `${seasPct}%`;
+        }
+        const seasSlider = document.getElementById('simSeasonalityIntensitySlider');
+        if (seasSlider && document.activeElement !== seasSlider) {
+            seasSlider.value = seasPct;
+        }
+        const seasStrip = document.getElementById('simSeasonalityProfileStrip');
+        if (seasStrip && this.isSeasonalityProfileOpen) {
+            seasStrip.innerHTML = this.renderSeasonality12MonthsStrip(data);
         }
 
         // 6. Update Monthly Table (only on demand or settled pause)
@@ -1652,11 +2239,11 @@ window.SimulatorView = {
 
     async onIncomeModeChange(val) {
         this.incomeMode = val;
-        ProfileStorage.set('sim_income_mode', val);
+        this._saveParam('sim_income_mode', val);
         if (val === 'custom' && !this.customIncomeAmount) {
             const defaultAmt = (this.simulationData && this.simulationData.predicted_salary) ? this.simulationData.predicted_salary : 2500;
             this.customIncomeAmount = defaultAmt;
-            ProfileStorage.set('sim_custom_income', defaultAmt);
+            this._saveParam('sim_custom_income', defaultAmt);
         }
         await this.runSimulation();
         this.render();
@@ -1664,21 +2251,21 @@ window.SimulatorView = {
 
     async onCustomIncomeChange(val) {
         this.customIncomeAmount = parseFloat(val) || 0;
-        ProfileStorage.set('sim_custom_income', this.customIncomeAmount);
+        this._saveParam('sim_custom_income', this.customIncomeAmount);
         await this.runSimulation();
         this.render();
     },
 
     async onHorizonChange(val) {
         this.horizonMonths = parseInt(val);
-        ProfileStorage.set('sim_horizon', this.horizonMonths);
+        this._saveParam('sim_horizon', this.horizonMonths);
         await this.runSimulation();
         this.render();
     },
 
     async onInflationChange(val) {
         this.inflationRate = (parseFloat(val) || 0) / 100;  // Convert from % to decimal
-        ProfileStorage.set('sim_inflation_rate', this.inflationRate);
+        this._saveParam('sim_inflation_rate', this.inflationRate);
         await this.runSimulation();
         this.render();
     },
@@ -1696,6 +2283,7 @@ window.SimulatorView = {
         }
 
         // Déclenchement temps réel fluide
+        this._saveParam('sim_var_expense_adj', this.varExpenseAdjustmentPct);
         this._triggerLiveSimulation();
 
         // Tableau mis à jour en différé pour maximiser les FPS du graphe
@@ -1713,7 +2301,7 @@ window.SimulatorView = {
     async onVarExpenseAdjustmentChange(val) {
         const intVal = parseInt(val) || 0;
         this.varExpenseAdjustmentPct = intVal / 100.0;
-        ProfileStorage.set('sim_var_expense_adj', this.varExpenseAdjustmentPct);
+        this._saveParam('sim_var_expense_adj', this.varExpenseAdjustmentPct);
         await this.runSimulation();
         this.updateLiveSimulationView(true);
     },
@@ -1722,7 +2310,7 @@ window.SimulatorView = {
         // Arrondi au pourcent supérieur (pas de 1%), plafonné à 100%
         let targetPct = Math.min(100, Math.ceil(pct));
         this.varExpenseAdjustmentPct = -(targetPct / 100.0);
-        ProfileStorage.set('sim_var_expense_adj', this.varExpenseAdjustmentPct);
+        this._saveParam('sim_var_expense_adj', this.varExpenseAdjustmentPct);
         await this.runSimulation();
         this.render();
         if (typeof showToast === 'function') {
@@ -1732,7 +2320,7 @@ window.SimulatorView = {
 
     async resetEffort() {
         this.varExpenseAdjustmentPct = 0.0;
-        ProfileStorage.set('sim_var_expense_adj', 0.0);
+        this._saveParam('sim_var_expense_adj', 0.0);
         await this.runSimulation();
         this.render();
     },
@@ -1740,14 +2328,14 @@ window.SimulatorView = {
 
     async onAccountChange(val) {
         this.accountId = val ? parseInt(val) : null;
-        ProfileStorage.set('sim_account', this.accountId);
+        this._saveParam('sim_account', this.accountId);
         await this.runSimulation();
         this.render();
     },
 
     async onScenarioChange(val) {
         this.activeScenarioId = val ? parseInt(val) : null;
-        ProfileStorage.set('sim_active_scenario', this.activeScenarioId);
+        this._saveParam('sim_active_scenario', this.activeScenarioId);
         await this.runSimulation();
         this.render();
     },
@@ -1842,7 +2430,7 @@ window.SimulatorView = {
             } else {
                 const res = await API.post('/api/simulator/scenarios', { name, description, color, events: [] });
                 this.activeScenarioId = res.id;
-                ProfileStorage.set('sim_active_scenario', res.id);
+                this._saveParam('sim_active_scenario', res.id);
                 showToast(window.i18n.t('sim_toast_scenario_created') || "Nouveau scénario créé", "success");
             }
             this.closeModal('simScenarioModal');
@@ -1860,7 +2448,7 @@ window.SimulatorView = {
                 showToast(window.i18n.t('sim_toast_scenario_deleted') || "Scénario supprimé", "info");
                 if (this.activeScenarioId === scenarioId) {
                     this.activeScenarioId = null;
-                    ProfileStorage.set('sim_active_scenario', null);
+                    this._saveParam('sim_active_scenario', null);
                 }
                 await this.loadData();
             } catch (err) {
@@ -1874,7 +2462,7 @@ window.SimulatorView = {
         try {
             const res = await API.post(`/api/simulator/scenarios/${scenarioId}/duplicate`);
             this.activeScenarioId = res.id;
-            ProfileStorage.set('sim_active_scenario', res.id);
+            this._saveParam('sim_active_scenario', res.id);
             showToast(window.i18n.t('sim_toast_scenario_duplicated') || "Scénario dupliqué", "success");
             await this.loadData();
         } catch (err) {
@@ -1957,7 +2545,7 @@ window.SimulatorView = {
             });
 
             this.activeScenarioId = created.id;
-            ProfileStorage.set('sim_active_scenario', created.id);
+            this._saveParam('sim_active_scenario', created.id);
             this.closeModal('simPresetsModal');
             const toastMsg = (window.i18n.t('sim_toast_preset_applied') || 'Modèle "{name}" appliqué').replace('{name}', pName);
             showToast(toastMsg, "success");

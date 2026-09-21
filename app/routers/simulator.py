@@ -233,7 +233,10 @@ def execute_simulation(payload: SimulationRunRequest, db: Session = Depends(get_
         inflation_rate=payload.inflation_rate or 0.0,
         variable_expense_adjustment_pct=payload.variable_expense_adjustment_pct or 0.0,
         projection_profile=payload.projection_profile or "realistic",
-        conservative_weight=payload.conservative_weight
+        conservative_weight=payload.conservative_weight,
+        outlier_sensitivity=payload.outlier_sensitivity if payload.outlier_sensitivity is not None else 2,
+        seasonality_mode=payload.seasonality_mode or "disabled",
+        seasonality_intensity=payload.seasonality_intensity if payload.seasonality_intensity is not None else 1.0
     )
     return result
 
