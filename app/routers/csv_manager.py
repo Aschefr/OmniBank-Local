@@ -810,10 +810,14 @@ async def save_batch(data: dict, request: Request, db: Session = Depends(get_db)
                 except Exception:
                     pass
 
+        raw_lbl = tx.get("raw_description") or tx.get("description")
+        clean_lbl = tx.get("description")
+
         new_tx = Transaction(
             date_operation=pd.to_datetime(tx['date_operation']).date(),
             date_saisie=pd.to_datetime(tx['date_operation']).date(),
             description=tx['description'],
+            raw_description=raw_lbl,
             amount=abs(float(tx['amount'])),
             type=tx_type,
             category=cat_name,
@@ -831,8 +835,6 @@ async def save_batch(data: dict, request: Request, db: Session = Depends(get_db)
         imported += 1
 
         # Auto-apprentissage Smart Label
-        raw_lbl = tx.get("raw_description") or tx.get("description")
-        clean_lbl = tx.get("description")
         if raw_lbl and clean_lbl:
             try:
                 from app.services.smart_label_service import learn_label_mapping

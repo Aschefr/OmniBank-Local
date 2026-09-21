@@ -192,19 +192,20 @@ def resolve_smart_label(
     # ---------------------------------------------------------
     cat_type_map = {c.name: c.type for c in db.query(Category).all() if c.name}
 
-    # Récupérer les couples description + catégorie récents distincts
+    # Récupérer les couples récents distincts (sur raw_description ou description)
+    distinct_lbl_expr = func.coalesce(Transaction.raw_description, Transaction.description)
     subquery = db.query(
-        Transaction.description,
+        distinct_lbl_expr.label('distinct_lbl'),
         Transaction.category,
         func.max(Transaction.date_operation).label('max_date')
     ).filter(
         Transaction.description.isnot(None),
         Transaction.description != ''
-    ).group_by(Transaction.description, Transaction.category).subquery()
+    ).group_by(distinct_lbl_expr, Transaction.category).subquery()
 
     all_recent_txs = db.query(Transaction).join(
         subquery,
-        (Transaction.description == subquery.c.description) &
+        (distinct_lbl_expr == subquery.c.distinct_lbl) &
         (Transaction.date_operation == subquery.c.max_date)
     ).order_by(Transaction.date_operation.desc()).all()
 
@@ -217,7 +218,12 @@ def resolve_smart_label(
     candidate_matches: List[Tuple[Transaction, float]] = []
 
     for tx in recent_txs:
-        score = _compute_match_score(pattern, tx.description)
+        score_desc = _compute_match_score(pattern, tx.description)
+        score_raw = 0.0
+        if tx.raw_description:
+            raw_norm = normalize_raw_label(tx.raw_description)
+            score_raw = _compute_match_score(pattern, raw_norm or tx.raw_description)
+        score = max(score_desc, score_raw)
         if score >= 0.75:
             candidate_matches.append((tx, score))
 
@@ -302,19 +308,20 @@ def resolve_smart_labels_batch(
     all_rules = db.query(BankLabelMapping).all()
     rule_by_pattern = {r.raw_pattern: r for r in all_rules}
 
-    # Pré-charger l'historique des descriptions et catégories distinctes
+    # Pré-charger l'historique des descriptions et catégories distinctes (sur raw_description ou description)
+    distinct_lbl_expr = func.coalesce(Transaction.raw_description, Transaction.description)
     subquery = db.query(
-        Transaction.description,
+        distinct_lbl_expr.label('distinct_lbl'),
         Transaction.category,
         func.max(Transaction.date_operation).label('max_date')
     ).filter(
         Transaction.description.isnot(None),
         Transaction.description != ''
-    ).group_by(Transaction.description, Transaction.category).subquery()
+    ).group_by(distinct_lbl_expr, Transaction.category).subquery()
 
     all_recent_txs = db.query(Transaction).join(
         subquery,
-        (Transaction.description == subquery.c.description) &
+        (distinct_lbl_expr == subquery.c.distinct_lbl) &
         (Transaction.date_operation == subquery.c.max_date)
     ).order_by(Transaction.date_operation.desc()).all()
 
@@ -338,7 +345,12 @@ def resolve_smart_labels_batch(
         c_clean = normalize_raw_label(tx.description)
         c_tokens = _tokenize(c_clean)
         c_sig = c_tokens - _GENERIC_TOKENS
-        cand_data.append((tx, c_clean, c_tokens, c_sig))
+
+        raw_clean = normalize_raw_label(tx.raw_description) if tx.raw_description else None
+        raw_tokens = _tokenize(raw_clean) if raw_clean else set()
+        raw_sig = raw_tokens - _GENERIC_TOKENS if raw_clean else set()
+
+        cand_data.append((tx, c_clean, c_tokens, c_sig, raw_clean, raw_tokens, raw_sig))
 
     results: Dict[str, Dict[str, Any]] = {}
 
@@ -470,8 +482,12 @@ def resolve_smart_labels_batch(
 
         # 3. Match historique (uniquement variables / recettes)
         candidate_matches = []
-        for tx, c_clean, c_tokens, c_sig in cand_data:
-            score = _compute_match_score_precomputed(pattern, p_tokens, p_sig, c_clean, c_tokens, c_sig)
+        for tx, c_clean, c_tokens, c_sig, raw_clean, raw_tokens, raw_sig in cand_data:
+            score_desc = _compute_match_score_precomputed(pattern, p_tokens, p_sig, c_clean, c_tokens, c_sig)
+            score_raw = 0.0
+            if raw_clean:
+                score_raw = _compute_match_score_precomputed(pattern, p_tokens, p_sig, raw_clean, raw_tokens, raw_sig)
+            score = max(score_desc, score_raw)
             if score >= 0.75:
                 candidate_matches.append((tx, score))
 
@@ -535,12 +551,19 @@ def resolve_smart_labels_batch(
                 from app.services.chat.ollama_client import call_ollama_batch, get_ollama_config
                 cfg = get_ollama_config(db)
                 if cfg and cfg.get("enabled"):
-                    active_cats = [
-                        c.name for c in db.query(Category.name).filter(
-                            (Category.is_closed == False) | (Category.is_closed == None)
-                        ).all()
-                        if c and c.name
-                    ]
+                    # Filtrer les catégories proposées si toutes les transactions partagent le même type (recette vs dépense)
+                    target_types = {tx_types.get(r) for raw_list in unresolved_by_clean.values() for r in raw_list if tx_types and tx_types.get(r)}
+                    cat_query = db.query(Category.name, Category.type).filter(
+                        (Category.is_closed == False) | (Category.is_closed == None)
+                    )
+                    if len(target_types) == 1:
+                        single_t = next(iter(target_types))
+                        if single_t == "income":
+                            cat_query = cat_query.filter(Category.type == "income")
+                        else:
+                            cat_query = cat_query.filter(Category.type.in_(("expense_var", "expense_fixed")))
+
+                    active_cats = [c[0] for c in cat_query.all() if c and c[0]]
                     if active_cats:
                         user_habits = get_user_habit_descriptions(db, limit=35) if include_user_habits else None
                         clean_descs = list(unresolved_by_clean.keys())
@@ -578,12 +601,26 @@ def resolve_smart_labels_batch(
                                 elif results[raw]["description"] == raw:
                                     results[raw]["description"] = clean_d
 
-                                # 2. Affectation de la catégorie validée
+                                # 2. Affectation de la catégorie validée avec garde-fou strict de cohérence Recette vs Dépense
                                 if candidate_cat:
-                                    results[raw]["category"] = candidate_cat
+                                    assigned_cat = candidate_cat
+                                    assigned_is_new = cat_is_new
+                                    expected_t = tx_types.get(raw) if tx_types else None
+                                    c_type = cat_type_map.get(candidate_cat)
+
+                                    if expected_t == "income" and c_type and c_type != "income":
+                                        logger.warning(f"[SmartLabel] Incohérence type pour '{raw}': catégorie '{candidate_cat}' ({c_type}) invalide pour une recette. Repli automatique.")
+                                        assigned_cat = resolve_fallback_category(db, "income")
+                                        assigned_is_new = False
+                                    elif expected_t in ("expense_var", "expense_fixed") and c_type == "income":
+                                        logger.warning(f"[SmartLabel] Incohérence type pour '{raw}': catégorie '{candidate_cat}' (income) invalide pour une dépense. Repli automatique.")
+                                        assigned_cat = resolve_fallback_category(db, "expense_var")
+                                        assigned_is_new = False
+
+                                    results[raw]["category"] = assigned_cat
                                     results[raw]["source"] = "ai"
                                     results[raw]["confidence"] = 0.85
-                                    if cat_is_new:
+                                    if assigned_is_new:
                                         results[raw]["smart_is_new_category"] = True
             except Exception as e:
                 logger.warning(f"[SmartLabel] Échec silencieux du fallback IA par lot : {e}")

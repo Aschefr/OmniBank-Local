@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Persistent Raw Bank Label (`raw_description`) & Bidirectional Smart Matching 🏷️💾**:
+  - **Immutable Statement Memory**: Added `raw_description` column and index to SQLite schema (migration v29), persistently preserving original technical bank/CSV labels independently of user-renamed descriptions.
+  - **Historical Fuzzy Matching (Level 2)**: Extended the Smart Label engine to match incoming statement strings against both `raw_description` and `description`, instantly resolving recurring transfers and charges even after complete user renamings.
+  - **Non-Polluting Memory on Edit**: Preserved `raw_description` during ledger edits so Level 2 history matching resolves identical future statements automatically without bloating the `BankLabelMapping` workshop with ephemeral one-off entries.
+  - **Origin Statement Hint in Edit Dialog**: Displayed the original raw bank label with a 1-click restore action inside the transaction edit modal whenever a sanitized custom description is present.
 - **Modular Automations & Auto-Pilot Readiness (Step 5 & 5.5) ⚙️🤖**:
   - **Independent Ingestion & Categorization Automations**: Added modular, opt-in automation toggles for transaction auto-reconciliation, direct recording of unambiguous expenses, automated dropzone closing, missing category creation, and continuous merchant rule learning.
   - **Universal In-Context Access**: Integrated `⚙️ Automatismes` toolbar buttons and dialogs directly across Dashboard, All Operations, Categories, Budgets, and Recurrences views.

@@ -1011,6 +1011,152 @@ def test_pending_sync_smart_source_ai_anti_demotion(db_session):
     assert tx_res["smart_is_fallback"] is False
 
 
+# ── TEST 31 : Garde-fou de cohérence de type Recette vs Dépense ──
+def test_autopilot_prevents_category_type_mismatch(db_session):
+    """Vérifie qu'un crédit ne peut recevoir une catégorie de dépense, et bascule sur le filet recette."""
+    from app.models import Account, Category, Transaction, GlobalConfig
+    from app.services.autopilot_service import process_incoming_batch
+
+    db_session.query(GlobalConfig).filter(GlobalConfig.key.in_(["auto_pilot_enabled", "auto_commit_incoming_transactions"])).delete()
+    db_session.add(GlobalConfig(key="auto_commit_incoming_transactions", value="true"))
+
+    acc = Account(name="Compte Courant Test Income", type="checking", initial_balance=1000.0)
+    db_session.add(acc)
+    db_session.add(Category(name="Informatique", type="expense_var"))
+    db_session.add(Category(name="Revenus divers", type="income"))
+    db_session.commit()
+
+    # Simuler une transaction positive avec une catégorie de dépense suggérée (ex: IA erronée)
+    preview = {
+        "accounts": [{
+            "account_id": acc.id,
+            "transactions": [{
+                "csv_id": "csv_tx_income_mismatch_01",
+                "date_operation": "2026-09-21",
+                "raw_description": "SHIFT4 LIMITED 143465985",
+                "description": "Shift4 Limited",
+                "category": "Informatique",
+                "amount": 129.74,
+                "raw_amount": 129.74,  # POSITIF = Recette
+                "is_reconciled": False,
+                "matched_db_id": None,
+                "is_coming": False,
+                "smart_suggested": True,
+                "smart_source": "ai",
+                "smart_confidence": 0.85
+            }]
+        }]
+    }
+
+    res = process_incoming_batch(db_session, 1, preview)
+    assert res["auto_committed"] == 1
+
+    created_tx = db_session.query(Transaction).filter(Transaction.csv_id == "csv_tx_income_mismatch_01").first()
+    assert created_tx is not None
+    assert created_tx.type == "income"
+    # Le garde-fou doit avoir corrigé la catégorie vers une catégorie de type recette (Revenus divers)
+    assert created_tx.category == "Revenus divers"
+
+
+def test_raw_description_persistence_and_level2_history_match(db_session):
+    """Vérifie que la persistance du raw_description permet au Niveau 2 (historique)
+    de résoudre un libellé brut même quand la description a été complètement renommée."""
+    from datetime import date
+    from app.models import Transaction, Category
+    from app.services.smart_label_service import resolve_smart_label
+
+    db_session.add(Category(name="Rembours. Hexcel", type="income"))
+    tx = Transaction(
+        date_operation=date.today(),
+        description="Remboursement Hexcel Notes de Frais",
+        raw_description="SHIFT4 LIMITED 143465985",
+        amount=129.74,
+        type="income",
+        category="Rembours. Hexcel"
+    )
+    db_session.add(tx)
+    db_session.commit()
+
+    res = resolve_smart_label(db_session, "SHIFT4 LIMITED 143465985")
+    assert res["source"] == "history"
+    assert res["description"] == "Remboursement Hexcel Notes de Frais"
+    assert res["category"] == "Rembours. Hexcel"
+    assert res["confidence"] >= 0.75
+
+
+def test_raw_description_batch_history_match(db_session):
+    """Vérifie la résolution par lot (batch) sur raw_description via l'historique."""
+    from datetime import date
+    from app.models import Transaction, Category
+    from app.services.smart_label_service import resolve_smart_labels_batch
+
+    db_session.add(Category(name="Rembours. Hexcel", type="income"))
+    tx = Transaction(
+        date_operation=date.today(),
+        description="Remboursement Hexcel Notes de Frais",
+        raw_description="SHIFT4 LIMITED 143465985",
+        amount=129.74,
+        type="income",
+        category="Rembours. Hexcel"
+    )
+    db_session.add(tx)
+    db_session.commit()
+
+    batch_res = resolve_smart_labels_batch(db_session, ["SHIFT4 LIMITED 143465985"])
+    assert "SHIFT4 LIMITED 143465985" in batch_res
+    item = batch_res["SHIFT4 LIMITED 143465985"]
+    assert item["source"] == "history"
+    assert item["description"] == "Remboursement Hexcel Notes de Frais"
+    assert item["category"] == "Rembours. Hexcel"
+    assert item["confidence"] >= 0.75
+
+
+def test_update_transaction_preserves_raw_description_and_matches_via_history(db_session):
+    """Vérifie que l'édition d'une transaction préserve son raw_description, ne pollue pas
+    BankLabelMapping, et permet au Niveau 2 (historique) de résoudre instantanément."""
+    from datetime import date
+    from app.models import Transaction, BankLabelMapping, Category
+    from app.routers.transactions import update_transaction
+    from app.schemas.api_schemas import TransactionUpdate
+    from app.services.smart_label_service import resolve_smart_label
+
+    db_session.add(Category(name="Rembours. Hexcel", type="income"))
+    tx = Transaction(
+        date_operation=date.today(),
+        description="Shift4 Limited",
+        raw_description="SHIFT4 LIMITED 99999",
+        amount=129.74,
+        type="income",
+        category=None
+    )
+    db_session.add(tx)
+    db_session.commit()
+
+    update_payload = TransactionUpdate(
+        description="Remboursement Hexcel Notes de Frais",
+        category="Rembours. Hexcel"
+    )
+    updated = update_transaction(tx_id=tx.id, tx_update=update_payload, db=db_session)
+    assert updated.description == "Remboursement Hexcel Notes de Frais"
+    assert updated.category == "Rembours. Hexcel"
+    assert updated.raw_description == "SHIFT4 LIMITED 99999"
+
+    # Vérifie que l'Atelier de règles n'a pas été pollué
+    rule = db_session.query(BankLabelMapping).filter(
+        BankLabelMapping.clean_description == "Remboursement Hexcel Notes de Frais"
+    ).first()
+    assert rule is None
+
+    # Mais la résolution via l'historique fonctionne immédiatement et parfaitement
+    res = resolve_smart_label(db_session, "SHIFT4 LIMITED 99999")
+    assert res["source"] == "history"
+    assert res["description"] == "Remboursement Hexcel Notes de Frais"
+    assert res["category"] == "Rembours. Hexcel"
+    assert res["confidence"] >= 0.75
+
+
+
+
 
 
 

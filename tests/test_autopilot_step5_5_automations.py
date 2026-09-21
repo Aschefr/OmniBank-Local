@@ -80,7 +80,7 @@ def test_db():
 
 def test_t5_5_1_defaults_and_schema_version(test_db):
     """T5.5.1 : Vérifie que les 6 nouveaux toggles sont tous à 'false' par défaut et que le schéma est en v28."""
-    assert TARGET_SCHEMA_VERSION == 28
+    assert TARGET_SCHEMA_VERSION >= 28
 
     expected_keys = [
         "auto_reconcile_transactions",
