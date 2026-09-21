@@ -347,6 +347,9 @@ class SimulationRunRequest(BaseModel):
     variable_expense_adjustment_pct: Optional[float] = 0.0  # Effort/adjustment on variable spending (-0.20 = -20%, +0.10 = +10%)
     projection_profile: Optional[str] = "blend"  # 'realistic', 'conservative', 'blend'
     conservative_weight: Optional[float] = 0.20  # Curseur continu de prudence : 0.0 (Recettes du modèle) à 1.0 (Recettes minimales), 0.20 par défaut
+    outlier_sensitivity: Optional[int] = 2  # 1: Strict, 2: Prudent, 3: Équilibré, 4: Permissif, 5: Intégral
+    seasonality_mode: Optional[str] = "disabled"  # 'disabled', 'historical', 'preset_standard'
+    seasonality_intensity: Optional[float] = 1.0  # 0.0 (lissage 100%) à 1.0 (effet plein)
 
 
 class AutopilotDecisionLogOut(BaseModel):
