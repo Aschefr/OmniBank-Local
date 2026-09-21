@@ -3338,6 +3338,84 @@ def test_iter_history_early_stopping():
         sync_mod._get_woob_storage = orig_get_storage
 
 
+def test_bank_sync_acronym_and_recurrence_matching():
+    """
+    Vérifie la résolution sans faute des rapprochements bancaires avec :
+    1. L'expansion automatique des acronymes bancaires (CA -> CREDIT AGRICOLE, BP -> BANQUE POPULAIRE, etc.).
+    2. La prise en compte du jour cible de la récurrence parente (day_of_month).
+    3. Le bonus d'unicité sur candidat isolé.
+    """
+    from datetime import date
+    from app.routers.csv_parser import check_reconciliation
+    from app.services.smart_label.normalization import _tokenize
+    from app.models import RecurrenceTemplate
+
+    # 1. Vérifier les tokens développés
+    tokens_ca = _tokenize("CA Assurance - Prius 3")
+    assert "CREDIT" in tokens_ca
+    assert "AGRICOLE" in tokens_ca
+
+    tokens_bp = _tokenize("Virement BP Salaire")
+    assert "BANQUE" in tokens_bp
+    assert "POPULAIRE" in tokens_bp
+
+    tokens_cpam = _tokenize("Virement CPAM Remboursement")
+    assert "SECURITE" in tokens_cpam or "AMELI" in tokens_cpam or "CPAM" in tokens_cpam
+
+    # 2. Test en base de données : Débit banque le 22/09/2026 avec libellé '0245902 CREDIT AGRICOLE CENTRE E'
+    # Transaction locale au 25/09/2026 rattachée à un RecurrenceTemplate au jour 22
+    test_db = next(fastapi_app.dependency_overrides[get_db]())
+
+    acc = Account(name="Compte Test Acronymes & Récurrence", initial_balance=1000.0)
+    test_db.add(acc)
+    test_db.commit()
+    test_db.refresh(acc)
+
+    tmpl = RecurrenceTemplate(
+        description="CA Assurance - Prius 3",
+        amount=68.18,
+        type="expense_fix",
+        category="Assurance",
+        day_of_month=22,
+        frequency="monthly",
+        from_account_id=acc.id
+    )
+    test_db.add(tmpl)
+    test_db.commit()
+    test_db.refresh(tmpl)
+
+    local_tx = Transaction(
+        description="CA Assurance - Prius 3",
+        amount=68.18,
+        type="expense_fix",
+        category="Assurance",
+        date_saisie=date(2026, 9, 25),
+        date_operation=date(2026, 9, 25),  # Décalé de +3j
+        reconciliation_date=None,
+        from_account_id=acc.id,
+        recurrence_id=tmpl.id
+    )
+    test_db.add(local_tx)
+    test_db.commit()
+    test_db.refresh(local_tx)
+
+    # Rapprochement bancaire simulé
+    res = check_reconciliation(
+        test_db,
+        tx_date=date(2026, 9, 22),
+        tx_amount=-68.18,
+        account_id=acc.id,
+        is_coming=True,
+        bank_label="0245902 CREDIT AGRICOLE CENTRE E"
+    )
+
+    assert res is not None, "L'opération doit être formellement rapprochée !"
+    assert res["id"] == local_tx.id
+    # Score attendu très élevé (> 85) grâce au montant (40) + date template (35) + texte (19) + unicité (5)
+    assert res["match_score"] >= 85, f"Score attendu >= 85, obtenu: {res['match_score']}"
+
+
+
 
 
 

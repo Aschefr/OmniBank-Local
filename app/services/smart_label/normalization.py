@@ -119,6 +119,31 @@ def is_probable_income_label(raw_label: str) -> bool:
     return bool(_INCOME_LABEL_REGEX.search(str(raw_label)))
 
 
-def _tokenize(text: str) -> Set[str]:
-    """Extrait les tokens signifiants (alphanumériques)."""
-    return {t for t in re.split(r'\s+', text.upper()) if t and t.isalnum()}
+# Table d'expansion des acronymes bancaires et institutionnels courants
+_BANK_ACRONYMS = {
+    'CA': {'CREDIT', 'AGRICOLE'},
+    'BP': {'BANQUE', 'POPULAIRE'},
+    'BRED': {'BANQUE', 'POPULAIRE', 'BRED'},
+    'CE': {'CAISSE', 'EPARGNE'},
+    'SG': {'SOCIETE', 'GENERALE'},
+    'SOGE': {'SOCIETE', 'GENERALE'},
+    'CIC': {'CREDIT', 'INDUSTRIEL', 'COMMERCIAL'},
+    'CM': {'CREDIT', 'MUTUEL'},
+    'LCL': {'CREDIT', 'LYONNAIS'},
+    'BNP': {'BNP', 'PARIBAS'},
+    'CPAM': {'SECURITE', 'SOCIALE', 'CPAM', 'AMELI'},
+    'CAF': {'ALLOCATIONS', 'FAMILIALES', 'CAF'},
+}
+
+
+def _tokenize(text: str, expand_acronyms: bool = True) -> Set[str]:
+    """Extrait les tokens signifiants (alphanumériques) avec expansion des acronymes bancaires."""
+    raw_tokens = {t for t in re.split(r'\s+', text.upper()) if t and t.isalnum()}
+    if not expand_acronyms:
+        return raw_tokens
+
+    expanded = set(raw_tokens)
+    for t in raw_tokens:
+        if t in _BANK_ACRONYMS:
+            expanded.update(_BANK_ACRONYMS[t])
+    return expanded

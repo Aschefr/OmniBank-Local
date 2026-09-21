@@ -18,8 +18,6 @@ def compute_temporal_score(candidate_dt, bank_dt) -> int:
     if not candidate_dt or not bank_dt:
         return 0
     delta = (candidate_dt - bank_dt).days
-    # delta < 0 : la date en base est antérieure au débit banque (ex: achat le 20, débité le 22 -> delta = -2)
-    # delta > 0 : la date en base est postérieure au débit banque (ex: prévu le 24, débité le 23 -> delta = +1)
     abs_delta = abs(delta)
     if abs_delta == 0:
         return 35
@@ -30,11 +28,11 @@ def compute_temporal_score(candidate_dt, bank_dt) -> int:
     elif delta in (-3, -4):
         return 20
     elif delta in (3, 4):
-        return 15
+        return 20  # Équilibré à 20 pts (débits anticipés de week-ends/fériés fréquents)
     elif delta in (-5, -6, -7):
         return 10
     elif delta in (5, 6, 7):
-        return 8
+        return 10  # Équilibré à 10 pts
     elif 8 <= abs_delta <= 15:
         return 5
     elif 16 <= abs_delta <= 30:
@@ -62,16 +60,37 @@ def compute_text_score(candidate_desc: Optional[str], raw_bank_label: Optional[s
         return 0
 
 
-def evaluate_candidate(candidate_tx: Transaction, target_dt, bank_label: Optional[str]) -> int:
+def evaluate_candidate(candidate_tx: Transaction, target_dt, bank_label: Optional[str], db: Optional[Session] = None) -> int:
     """Calcule le score composite total (0-100 pts) pour un candidat."""
     amt_score = 40
     t_dt = candidate_tx.date_operation if hasattr(candidate_tx.date_operation, "strftime") else (candidate_tx.date_operation if candidate_tx.date_operation else None)
     temp_score = compute_temporal_score(t_dt, target_dt)
+
+    # Si la transaction est issue d'une récurrence, évaluer également la proximité par rapport
+    # au jour théorique du modèle (template.day_of_month) pour absorber les dérives d'instances
+    if candidate_tx.recurrence_id and target_dt:
+        try:
+            from app.models import RecurrenceTemplate
+            session = db or Session.object_session(candidate_tx)
+            if session:
+                tmpl = session.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == candidate_tx.recurrence_id).first()
+                if tmpl and tmpl.day_of_month:
+                    import calendar
+                    from datetime import date
+                    max_day = calendar.monthrange(target_dt.year, target_dt.month)[1]
+                    target_day = min(tmpl.day_of_month, max_day)
+                    tmpl_dt = date(target_dt.year, target_dt.month, target_day)
+                    tmpl_score = compute_temporal_score(tmpl_dt, target_dt)
+                    if tmpl_score > temp_score:
+                        temp_score = tmpl_score
+        except Exception as e:
+            logger.debug(f"[Reconciliation] Note récurrence day_of_month ignorée: {e}")
+
     text_score = compute_text_score(candidate_tx.description, bank_label)
     return amt_score + temp_score + text_score
 
 
-def best_scored_tx(candidates: List[Transaction], target_dt, bank_label: Optional[str]) -> Tuple[Optional[Transaction], int, bool]:
+def best_scored_tx(candidates: List[Transaction], target_dt, bank_label: Optional[str], db: Optional[Session] = None) -> Tuple[Optional[Transaction], int, bool]:
     """
     Sélectionne le meilleur candidat parmi une liste avec tri score décroissant puis proximité date.
     Retourne (best_candidate, best_score, collision_detected).
@@ -80,7 +99,7 @@ def best_scored_tx(candidates: List[Transaction], target_dt, bank_label: Optiona
         return None, 0, False
     scored = []
     for c in candidates:
-        s = evaluate_candidate(c, target_dt, bank_label)
+        s = evaluate_candidate(c, target_dt, bank_label, db=db)
         if s >= 40:
             scored.append((s, c))
     if not scored:
@@ -102,6 +121,9 @@ def best_scored_tx(candidates: List[Transaction], target_dt, bank_label: Optiona
         second_score, _ = scored[1]
         if second_score >= 60 and (best_score - second_score) < 10:
             collision_detected = True
+    elif len(scored) == 1 and not collision_detected:
+        # Bonus d'unicité : un seul et unique candidat sans concurrence sur le compte (+5 pts)
+        best_score = min(100, best_score + 5)
 
     return best_candidate, best_score, collision_detected
 
@@ -224,11 +246,13 @@ def check_reconciliation(
         else:
             recon_query_filtered = recon_query
 
-        recon_match, recon_score, recon_collision = best_scored_tx(recon_query_filtered.all(), target_dt, bank_label)
+        recon_match, recon_score, recon_collision = best_scored_tx(recon_query_filtered.all(), target_dt, bank_label, db=db)
         if recon_match and recon_score >= 60:
             return {
                 "id": recon_match.id,
                 "description": recon_match.description,
+                "category": recon_match.category,
+                "type": recon_match.type,
                 "already_reconciled": True,
                 "match_score": recon_score,
                 "collision_detected": recon_collision,
@@ -260,11 +284,13 @@ def check_reconciliation(
         if matched_ids:
             available_op_query = op_query.filter(Transaction.id.notin_(matched_ids))
 
-        op_match, op_score, op_collision = best_scored_tx(available_op_query.all(), target_dt, bank_label)
+        op_match, op_score, op_collision = best_scored_tx(available_op_query.all(), target_dt, bank_label, db=db)
         if op_match and op_score >= 60:
             return {
                 "id": op_match.id,
                 "description": op_match.description,
+                "category": op_match.category,
+                "type": op_match.type,
                 "already_reconciled": False,
                 "match_score": op_score,
                 "collision_detected": op_collision,
@@ -357,6 +383,8 @@ def check_reconciliation(
         return {
             "id": best_cand.id,
             "description": best_cand.description,
+            "category": best_cand.category,
+            "type": best_cand.type,
             "already_reconciled": False,
             "is_amount_deviant": True,
             "original_forecast_amount": best_exp,
@@ -414,6 +442,8 @@ def check_reconciliation(
             return {
                 "id": mirror_match.id,
                 "description": mirror_match.description,
+                "category": mirror_match.category,
+                "type": mirror_match.type,
                 "already_reconciled": True,
                 "is_mirror_transfer": True,
                 "match_score": mirror_score,
@@ -461,6 +491,8 @@ def check_reconciliation(
             return {
                 "id": orphan_match.id,
                 "description": orphan_match.description,
+                "category": orphan_match.category,
+                "type": orphan_match.type,
                 "already_reconciled": False,
                 "is_orphan_transfer_link": True,
                 "orphan_account_id": other_acc_id,

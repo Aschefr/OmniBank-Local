@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Deterministic Bank Sync Reconciliation & Bank Acronym Expansion 🏦🎯**:
+  - **Banking & Institutional Acronym Normalization**: Added comprehensive acronym token expansion in `normalization.py` (`CA` ➔ `CREDIT AGRICOLE`, `BP`/`BRED` ➔ `BANQUE POPULAIRE`, `CE` ➔ `CAISSE EPARGNE`, `SG`/`SOGE` ➔ `SOCIETE GENERALE`, `CIC`/`CM` ➔ `CREDIT MUTUEL`, `CPAM`, `CAF`, etc.). Enables 100% deterministic text matching between abbreviated user descriptions (e.g. *"CA Assurance"*) and raw bank labels (e.g. *"CREDIT AGRICOLE CENTRE EST"*).
+  - **Recurrence Template Target Day Proximity**: Candidate evaluation now compares bank debit dates against both the scheduled transaction instance date and the parent recurrence template's theoretical target day (`day_of_month`), absorbing scheduling drift and advance weekend debits.
+  - **Temporal Scale Balancing & Uniqueness Bonus**: Balanced the temporal scoring scale so advance SEPA debits (3-4 days ahead) receive full parity (20 pts), and awarded an isolated candidate uniqueness bonus (+5 pts) when no conflicting operations exist on the account.
+  - **Matched Category & Type Cascade in Sas**: Serialized bank sync items matched with local database transactions now automatically inherit the confirmed database transaction's category (e.g. `Assurance`) and type rather than arbitrary fallback guesses.
 - **Misplaced Categories Diagnostic & Reclassification Maintenance Tool 🏷️🔧**:
   - **Automated Anomaly Audit**: Added a new maintenance tool in Settings (*Paramètres > Gestion des données*) that audits categories against real transaction and recurrence flows. It detects internal transfers misclassified as fixed/variable charges, single-account charges misclassified as transfers, and income/expense flow inversions.
   - **Interactive Reclassification Preview**: Displays a diagnostic breakdown modal with color-coded type transition badges (Current ➔ Recommended), detailed diagnostic reasons, transaction counts, and sample operations. Users can review, adjust, or accept recommendations with a single click.

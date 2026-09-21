@@ -403,9 +403,14 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                             tx_copy["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
                             tx_copy["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
                             tx_copy["orphan_account_id"] = rec_info.get("orphan_account_id")
-                            tx_copy["orphan_account_name"] = rec_info.get("orphan_account_name")
                             tx_copy["matched_db_id"] = rec_info.get("id")
                             tx_copy["db_description"] = rec_info.get("description")
+                            tx_copy["db_category"] = rec_info.get("category")
+                            tx_copy["db_type"] = rec_info.get("type")
+                            if rec_info.get("category"):
+                                tx_copy["category"] = rec_info.get("category")
+                            if rec_info.get("type"):
+                                tx_copy["type"] = rec_info.get("type")
                             tx_copy["match_score"] = rec_info.get("match_score", 0)
                             if rec_info.get("id"):
                                 matched_ids_global.add(rec_info.get("id"))
