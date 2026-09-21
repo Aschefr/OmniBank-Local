@@ -72,8 +72,13 @@ def test_auto_sync_cooldown_initial_state(step1_db):
     assert status["last_attempt_iso"] is None
 
 
-def test_auto_sync_cooldown_activation_and_bypass(step1_db):
+def test_auto_sync_cooldown_activation_and_bypass(step1_db, monkeypatch):
     """Une exécution active le cooldown 3h. force=False le respecte, force=True le contourne."""
+    monkeypatch.setenv("OMNIBANK_ENABLE_TEST_BACKGROUND_SYNC", "1")
+    conn = BankConnection(id=1, label="Test Bank", backend="cragr", is_active=True)
+    step1_db.add(conn)
+    step1_db.commit()
+
     with patch("threading.Thread.start"):
         # 1. Première exécution normale
         res1 = trigger_manual_auto_sync(

@@ -2415,8 +2415,9 @@ def dismiss_budget_suggestion(db: Session, decision_id: int) -> dict:
     if decision.raw_snapshot:
         try:
             snap = _json.loads(decision.raw_snapshot)
-            snap["dismissed_at"] = datetime.utcnow().isoformat()
-            snap["dismissed_period"] = datetime.utcnow().strftime("%Y-%m")
+            now_utc = datetime.now(timezone.utc)
+            snap["dismissed_at"] = now_utc.isoformat()
+            snap["dismissed_period"] = now_utc.strftime("%Y-%m")
             decision.raw_snapshot = _json.dumps(snap)
         except Exception:
             pass

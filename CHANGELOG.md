@@ -26,6 +26,9 @@ All notable changes to this project will be documented in this file.
   - **Zero-F5 Reactivity**: Real-time DOM updates across all views without requiring manual browser page refreshes.
   - **Modal & Toolbar Layout Hardening**: Pinned headers and footers in automations modals, horizontal alignment of toolbar search and action buttons, and crisp visual styling across all dark and light themes.
 
+### Fixed
+- **Auto-Pilot Engine & Lifecycle Reliability 🤖🛠️**: Cleanly evicted deleted recurrence forecasts in SQLAlchemy session during perennial rate hikes, replaced deprecated `datetime.utcnow()` calls in budget suggestion dismissals, and hardened the automated bank sync cooldown test harness.
+
 ## [1.1.8] - 2026-09-10
 
 ### Improved
