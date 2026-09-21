@@ -54,6 +54,9 @@ window.TimelineView = {
                         <button id="btnTimelineBgSync" class="btn btn-secondary toolbar-btn overview-bank-sync-btn" style="display: none;" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}">
                             <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
                         </button>
+                        <button id="btnTimelineAutomations" class="btn btn-secondary toolbar-btn" onclick="window.TimelineView.openAutomationsModal()" title="${window.i18n.t('op_automations_title') || 'Paramètres des automatismes d\'opérations'}">
+                            <span>⚙️</span> <span data-i18n="op_automations_btn">${window.i18n.t('op_automations_btn') || 'Automatismes'}</span>
+                        </button>
                         <button class="btn btn-primary toolbar-btn" onclick="window.TimelineView.showAddRow()" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation')}</button>
                     </div>
                 </div>
@@ -1105,6 +1108,12 @@ window.TimelineView = {
             } catch(err) { console.error('Shell open failed', err); }
         } else {
             window.open(fileUrl, '_blank');
+        }
+    },
+
+    openAutomationsModal() {
+        if (window.AllOperationsView && typeof window.AllOperationsView.openAutomationsModal === 'function') {
+            window.AllOperationsView.openAutomationsModal();
         }
     }
 };

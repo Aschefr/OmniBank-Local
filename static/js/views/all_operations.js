@@ -57,6 +57,9 @@ window.AllOperationsView = {
                         <button id="btnHistoryBgSync" class="btn btn-secondary toolbar-btn overview-bank-sync-btn" style="display: none;" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}">
                             <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
                         </button>
+                        <button id="btnOperationsAutomations" class="btn btn-secondary toolbar-btn" onclick="window.AllOperationsView.openAutomationsModal()" title="${window.i18n.t('op_automations_title') || 'Paramètres des automatismes des opérations'}">
+                            <span>⚙️</span> <span data-i18n="op_automations_btn">${window.i18n.t('op_automations_btn') || 'Automatismes'}</span>
+                        </button>
                         <button class="btn btn-primary toolbar-btn" onclick="window.TimelineView.showAddRow()" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation')}</button>
                     </div>
                 </div>
@@ -893,5 +896,223 @@ window.AllOperationsView = {
         await window.ReconciliationActions.toggle(id, {
             refreshView: () => this.loadData()
         });
+    },
+
+    async openAutomationsModal() {
+        const existing = document.getElementById('operationsAutomationsModal');
+        if (existing) existing.remove();
+
+        let cfg = {};
+        try {
+            cfg = await API.get('/api/config/');
+        } catch (err) {
+            console.error('[AllOperations] Erreur chargement config automatismes:', err);
+            cfg = window.app?.config || {};
+        }
+
+        const isReconcile = (cfg.auto_reconcile_transactions ?? 'false') === 'true';
+        const isCommit = (cfg.auto_commit_incoming_transactions ?? 'false') === 'true';
+        const isCloseSas = (cfg.auto_close_empty_import_sas ?? 'false') === 'true';
+
+        const modal = document.createElement('div');
+        modal.id = 'operationsAutomationsModal';
+        modal.className = 'modal-overlay';
+        modal.style.cssText = 'position: fixed; inset: 0; z-index: 10000; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: clamp(12px, 3vh, 24px) clamp(8px, 2vw, 16px); box-sizing: border-box;';
+
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+
+        const title = window.i18n?.t('op_automations_title') || 'Automatismes des Opérations & Relevés';
+        const desc = window.i18n?.t('op_automations_desc') || 'Configurez les comportements autonomes lors de l\'intégration de relevés bancaires (en ligne ou hors ligne).';
+
+        modal.innerHTML = `
+            <div class="modal op-automations-modal" style="width: 96%; max-width: 640px; min-width: 0; max-height: min(90vh, 90dvh); display: flex; flex-direction: column; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-md); padding: 0; overflow: hidden; animation: modalFadeIn 0.3s ease;">
+                
+                <!-- Pinned Header -->
+                <div style="flex-shrink: 0; padding: clamp(14px, 3vw, 18px) clamp(16px, 3.5vw, 24px); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; background: var(--bg-surface);">
+                    <div style="flex: 1; min-width: 0; padding-right: 12px;">
+                        <h3 style="margin: 0; font-size: clamp(16px, 3vw, 18px); font-weight: 700; display: flex; align-items: center; gap: 8px;">⚙️ ${title}</h3>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${desc}</div>
+                    </div>
+                    <button type="button" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); line-height: 1; padding: 2px 6px;" onclick="document.getElementById('operationsAutomationsModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
+                </div>
+
+                <!-- Form wrapping scrollable body + pinned footer -->
+                <form id="opAutomationsForm" onsubmit="event.preventDefault(); window.AllOperationsView.saveAutomationsConfig();" style="display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; margin: 0;">
+                    
+                    <!-- Scrollable Body -->
+                    <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: clamp(14px, 3vw, 20px) clamp(16px, 3.5vw, 24px); display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin;">
+                        
+                        <!-- Option 1 : Rapprochement bancaire automatique -->
+                        <div style="padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                                <input type="checkbox" id="cfg_auto_reconcile_transactions" ${isReconcile ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent, #6366f1); cursor: pointer;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>🔄</span> <span>${window.i18n?.t('op_auto_reconcile_label') || 'Rapprochement bancaire automatique'}</span></span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                        ${window.i18n?.t('op_auto_reconcile_desc') || 'Rapproche automatiquement les transactions détectées dans vos relevés avec les opérations en attente (écart ≤ 3 jours).'}
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Option 2 : Validation automatique des opérations -->
+                        <div style="padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                                <input type="checkbox" id="cfg_auto_commit_incoming_transactions" ${isCommit ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent, #6366f1); cursor: pointer;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>⚡</span> <span>${window.i18n?.t('op_auto_commit_label') || 'Validation automatique des opérations'}</span></span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                        ${window.i18n?.t('op_auto_commit_desc') || 'Crée et valide directement les nouvelles opérations bancaires sans passer par le sas d\'approbation manuelle.'}
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Option 3 : Fermeture automatique du sas d'import -->
+                        <div style="padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                                <input type="checkbox" id="cfg_auto_close_empty_import_sas" ${isCloseSas ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent, #6366f1); cursor: pointer;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>📦</span> <span>${window.i18n?.t('op_auto_close_sas_label') || 'Fermeture automatique du sas d\'import'}</span></span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                        ${window.i18n?.t('op_auto_close_sas_desc') || 'Ferme automatiquement la zone d\'importation lorsque toutes les opérations ont été traitées ou rapprochées.'}
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Bloc Historique des actions automatiques -->
+                        <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; background: var(--bg-surface);">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                    <span>📜</span> <span>${window.i18n?.t('op_auto_history_title') || 'Dernières actions automatisées'}</span>
+                                </span>
+                            </div>
+                            <div id="opRecentAutomationsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; padding-right: 2px; scrollbar-width: thin;">
+                                <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px;">
+                                    <span>⏳ Chargement...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Pinned Footer -->
+                    <div style="flex-shrink: 0; display: flex; justify-content: flex-end; gap: 10px; padding: 12px clamp(16px, 3.5vw, 24px); border-top: 1px solid var(--border-color); background: var(--bg-surface); border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; z-index: 2;">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('operationsAutomationsModal')?.remove()">
+                            ${window.i18n?.t('btn_cancel') || 'Annuler'}
+                        </button>
+                        <button type="submit" class="btn btn-primary" style="font-weight: 600;">
+                            ${window.i18n?.t('btn_save') || 'Enregistrer'}
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        this._loadRecentAutomationsInModal();
+    },
+
+    async _loadRecentAutomationsInModal() {
+        const listEl = document.getElementById('opRecentAutomationsList');
+        if (!listEl) return;
+
+        try {
+            const items = await API.get('/api/transactions/autopilot/history?limit=5');
+            if (!items || !items.length) {
+                listEl.innerHTML = `
+                    <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px; font-style: italic;">
+                        ${window.i18n?.t('op_auto_history_empty') || 'Aucune action automatisée récente.'}
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = items.map(it => {
+                const isRecon = it.decision_type === 'reconciliation' || it.action === 'AUTO_RECONCILED_DEVIANT';
+                const badgeBg = isRecon ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)';
+                const badgeColor = isRecon ? '#10b981' : 'var(--accent, #3b82f6)';
+                const badgeText = isRecon ? 'Rapprochement' : 'Création directe';
+                const dateStr = it.created_at ? new Date(it.created_at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+                const amtStr = typeof it.amount === 'number' ? (it.amount >= 0 ? `+${it.amount.toFixed(2)} €` : `${it.amount.toFixed(2)} €`) : '';
+
+                return `
+                    <div style="padding: 7px 10px; border-radius: 6px; background: var(--bg-base); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px;">
+                        <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+                            <span style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: ${badgeBg}; color: ${badgeColor}; white-space: nowrap;">
+                                ${badgeText}
+                            </span>
+                            <span style="font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${it.label || ''}">
+                                ${it.label || 'Opération'}
+                            </span>
+                            <span style="color: var(--text-muted); font-size: 10.5px; white-space: nowrap;">
+                                (${it.category || '—'})
+                            </span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                            <span style="font-weight: 700; color: var(--text-main);">
+                                ${amtStr}
+                            </span>
+                            <span style="font-size: 10px; color: var(--text-muted); white-space: nowrap;">
+                                ${dateStr}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (err) {
+            console.error('[AllOperations] Erreur chargement historique automatismes:', err);
+            listEl.innerHTML = `
+                <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px; font-style: italic;">
+                    ${window.i18n?.t('op_auto_history_empty') || 'Aucune action automatisée récente.'}
+                </div>
+            `;
+        }
+    },
+
+    async saveAutomationsConfig() {
+        const reconcileChk = document.getElementById('cfg_auto_reconcile_transactions');
+        const commitChk = document.getElementById('cfg_auto_commit_incoming_transactions');
+        const closeSasChk = document.getElementById('cfg_auto_close_empty_import_sas');
+
+        const payload = {
+            auto_reconcile_transactions: reconcileChk?.checked ? 'true' : 'false',
+            auto_commit_incoming_transactions: commitChk?.checked ? 'true' : 'false',
+            auto_close_empty_import_sas: closeSasChk?.checked ? 'true' : 'false',
+        };
+
+        try {
+            await API.post('/api/config/', payload);
+            if (window.app && window.app.config) {
+                Object.assign(window.app.config, payload);
+            }
+            if (typeof showToast === 'function') {
+                showToast(window.i18n?.t('op_auto_save_success') || 'Paramètres d\'automatisation des opérations enregistrés.', 'success');
+            }
+            document.getElementById('operationsAutomationsModal')?.remove();
+        } catch (err) {
+            console.error('[AllOperations] Erreur sauvegarde config automatismes:', err);
+            if (typeof showToast === 'function') {
+                showToast(window.i18n?.t('op_auto_save_error') || 'Erreur lors de l\'enregistrement des automatismes des opérations.', 'error');
+            }
+        }
     }
 };

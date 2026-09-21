@@ -95,6 +95,16 @@ def get_unique_descriptions(db: Session = Depends(get_db)):
     # Sort alphabetically by key
     return {k: result[k] for k in sorted(result.keys())}
 
+@router.get("/autopilot/history")
+def get_transactions_autopilot_history(limit: int = 5, db: Session = Depends(get_db)):
+    """Retourne les dernières actions automatiques appliquées aux transactions (rapprochements et nouvelles écritures)."""
+    from app.services.autopilot_service import get_operations_automations_history
+    try:
+        return get_operations_automations_history(db, limit=limit)
+    except Exception as e:
+        logger.error(f"[Transactions AutoPilot] Erreur récupération historique: {e}")
+        return []
+
 @router.post("/", response_model=TransactionOut)
 def create_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
     db_tx = Transaction(**tx.model_dump())

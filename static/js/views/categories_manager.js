@@ -25,8 +25,11 @@ window.CategoriesView = {
                 <div class="view-header-title-group">
                     <h2 class="view-header-title">🏷️ <span data-i18n="nav_categories">${window.i18n.t('nav_categories')}</span></h2>
                 </div>
-                <div class="view-header-toolbar">
-                    <input type="text" id="categoryViewSearch" class="inline-input" placeholder="🔍 ${window.i18n.t('cat_search_ph') || 'Rechercher...'}" data-i18n-placeholder="cat_search_ph" style="min-width: 200px; max-width: 320px; height: 36px; padding: 0 12px; border-radius: 10px;" oninput="window.CategoriesView.applyFilter()">
+                <div class="view-header-toolbar" style="display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;">
+                    <input type="text" id="categoryViewSearch" class="inline-input" placeholder="🔍 ${window.i18n.t('cat_search_ph') || 'Rechercher...'}" data-i18n-placeholder="cat_search_ph" style="width: 260px; min-width: 180px; max-width: 320px; height: 36px; padding: 0 12px; border-radius: 10px; box-sizing: border-box;" oninput="window.CategoriesView.applyFilter()">
+                    <button id="btnCategoriesAutomations" class="btn btn-secondary toolbar-btn" onclick="window.CategoriesView.openAutomationsModal()" title="${window.i18n?.t('smart_label_automations_title') || 'Paramètres des automatismes de catégorisation'}" style="height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; flex-shrink: 0; box-sizing: border-box; padding: 0 14px; border-radius: 8px; font-weight: 600;">
+                        <span>⚙️</span> <span data-i18n="smart_label_automations_btn">${window.i18n?.t('smart_label_automations_btn') || 'Automatismes'}</span>
+                    </button>
                 </div>
             </div>
             
@@ -343,6 +346,12 @@ window.CategoriesView = {
         } catch (e) {
             console.error(e);
             showInlineMessage(window.i18n.t('title_error'), window.i18n.t('msg_cannot_delete'));
+        }
+    },
+
+    openAutomationsModal() {
+        if (window.ConfigSmartLabels && typeof window.ConfigSmartLabels.openAutomationsModal === 'function') {
+            window.ConfigSmartLabels.openAutomationsModal();
         }
     }
 };

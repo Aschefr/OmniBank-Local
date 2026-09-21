@@ -46,7 +46,25 @@ AUTOPILOT_MANAGED_KEYS = (
     "auto_propagate_recurrence_hikes",
     "auto_skip_unreconciled_recurrences",
     "auto_close_unreconciled_recurrences",
+    # Étape 5.5 : Automatismes Opérations & Catégories
+    "auto_reconcile_transactions",
+    "auto_commit_incoming_transactions",
+    "auto_close_empty_import_sas",
+    "auto_create_missing_categories",
+    "auto_learn_merchant_rules",
+    "auto_assign_chameleon_fallback",
 )
+
+
+def _get_cfg_bool(db: Session, key: str, default: bool = False) -> bool:
+    """Helper pour lire un booléen depuis GlobalConfig."""
+    try:
+        cfg = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
+        if not cfg or not cfg.value:
+            return default
+        return cfg.value.strip().lower() in ("true", "1", "yes", "on")
+    except Exception:
+        return default
 
 
 def set_autopilot_enabled(db: Session, enabled: bool) -> None:
@@ -82,8 +100,18 @@ def set_autopilot_enabled(db: Session, enabled: bool) -> None:
         else:
             snap_cfg.value = json.dumps(snap)
 
-        # Activation en cascade des briques de suggestions essentielles
-        for sub_key in ("enable_budget_creation_suggestions", "enable_budget_recalibration_suggestions"):
+        # Activation en cascade des briques de suggestions essentielles et des automatismes
+        cascade_keys = (
+            "enable_budget_creation_suggestions",
+            "enable_budget_recalibration_suggestions",
+            "auto_reconcile_transactions",
+            "auto_commit_incoming_transactions",
+            "auto_close_empty_import_sas",
+            "auto_create_missing_categories",
+            "auto_learn_merchant_rules",
+            "auto_assign_chameleon_fallback",
+        )
+        for sub_key in cascade_keys:
             sc = db.query(GlobalConfig).filter(GlobalConfig.key == sub_key).first()
             if not sc:
                 db.add(GlobalConfig(key=sub_key, value="true"))
@@ -127,8 +155,16 @@ def process_incoming_batch(
     """
     pid = _resolve_profile_id(profile_id)
 
-    # 1. Si Auto-Pilote désactivé : délégation directe au Sas d'attente (comportement historique)
-    if not is_autopilot_enabled(db):
+    ap_enabled = is_autopilot_enabled(db)
+    cfg_auto_reconcile = ap_enabled or _get_cfg_bool(db, "auto_reconcile_transactions", False)
+    cfg_auto_commit = ap_enabled or _get_cfg_bool(db, "auto_commit_incoming_transactions", False)
+    cfg_auto_close_sas = ap_enabled or _get_cfg_bool(db, "auto_close_empty_import_sas", False)
+    cfg_auto_create_cats = ap_enabled or _get_cfg_bool(db, "auto_create_missing_categories", False)
+    cfg_auto_learn = ap_enabled or _get_cfg_bool(db, "auto_learn_merchant_rules", False)
+    cfg_chameleon_fallback = ap_enabled or _get_cfg_bool(db, "auto_assign_chameleon_fallback", False)
+
+    # 1. Si aucun automatisme n'est actif : délégation directe au Sas d'attente (comportement historique)
+    if not (ap_enabled or cfg_auto_reconcile or cfg_auto_commit or cfg_auto_learn):
         save_pending_sync_data(db, conn_id, preview_data, profile_id=pid)
         total_txs = sum(len(a.get("transactions", [])) for a in preview_data.get("accounts", []))
         return {
@@ -137,7 +173,10 @@ def process_incoming_batch(
             "auto_reconciled": 0,
             "auto_committed": 0,
             "pending": total_txs,
-            "total": total_txs
+            "total": total_txs,
+            "categories_created": 0,
+            "rules_learned": 0,
+            "auto_close_sas": False
         }
 
     batch_id = str(uuid.uuid4())
@@ -273,6 +312,8 @@ def process_incoming_batch(
 
     auto_reconciled_count = 0
     auto_committed_count = 0
+    categories_created_count = 0
+    rules_learned_count = 0
     pending_count = 0
     total_count = 0
 
@@ -296,7 +337,8 @@ def process_incoming_batch(
 
                 # Critère 1 : Auto-rapprochement haute certitude (Score >= 85, sans collision, non venant)
                 is_eligible_reconciliation = (
-                    is_rec
+                    cfg_auto_reconcile
+                    and is_rec
                     and not already_rec
                     and matched_id is not None
                     and match_score >= 85.0
@@ -381,8 +423,8 @@ def process_incoming_batch(
                 is_provisional = bool(tx.get("smart_is_provisional", False))
                 is_ignored = tx.get("smart_source") == "ignored" or tx.get("is_ignored", False)
                 is_fallback = bool(tx.get("smart_is_fallback", False))
-                is_new_cat = bool(tx.get("smart_is_new_category", False))
-                confidence = float(tx.get("smart_confidence") or 0.0)
+                is_new_cat = bool(tx.get("smart_is_new_category", False)) or (bool(category) and category not in valid_categories)
+                confidence = float(tx.get("smart_confidence") or tx.get("confidence") or 0.0)
 
                 has_valid_category = bool(category and (category in valid_categories or is_fallback or is_new_cat))
 
@@ -401,8 +443,11 @@ def process_incoming_batch(
                 elif is_multi_cat:
                     decision_reason = "chameleon_default"
 
+                chameleon_blocked = is_multi_cat and not cfg_chameleon_fallback and not tx.get("smart_is_manual")
                 is_eligible_new_entry = (
-                    not is_rec
+                    cfg_auto_commit
+                    and not chameleon_blocked
+                    and not is_rec
                     and matched_id is None
                     and not is_coming
                     and bool(acc_id)
@@ -420,10 +465,17 @@ def process_incoming_batch(
                     to_acc = acc_id if raw_amt >= 0 else None
 
                     # S'assurer de la présence de la catégorie en base SQLite
-                    from app.services.smart_label_service import ensure_category_exists
+                    from app.services.smart_label_service import ensure_category_exists, resolve_fallback_category
                     if category:
-                        ensure_category_exists(db, category, t_type)
-                        valid_categories.add(category)
+                        if is_new_cat and not cfg_auto_create_cats:
+                            # Repli forcé sur le filet de sécurité existant sans créer de catégorie
+                            category = resolve_fallback_category(db, t_type)
+                        else:
+                            existing_cat = db.query(Category).filter(Category.name == category.strip()).first()
+                            cat_obj = ensure_category_exists(db, category, t_type)
+                            if not existing_cat and cat_obj:
+                                categories_created_count += 1
+                            valid_categories.add(category)
 
                     op_date_str = tx.get("date_operation") or tx.get("date")
                     op_date = date.today()
@@ -496,19 +548,22 @@ def process_incoming_batch(
                     auto_committed_count += 1
 
                     # Auto-apprentissage transparent pour conforter la règle
-                    raw_lbl = tx.get("raw_description") or tx.get("raw_label") or tx.get("description")
-                    if raw_lbl and new_tx.description:
-                        try:
-                            from app.services.smart_label_service import learn_label_mapping
-                            learn_label_mapping(
-                                db,
-                                raw_label=raw_lbl,
-                                clean_description=new_tx.description,
-                                category=new_tx.category,
-                                is_manual=False
-                            )
-                        except Exception as ex_learn:
-                            logger.debug(f"[AutoPilot] Ignoré échec apprentissage: {ex_learn}")
+                    if cfg_auto_learn:
+                        raw_lbl = tx.get("raw_description") or tx.get("raw_label") or tx.get("description")
+                        if raw_lbl and new_tx.description:
+                            try:
+                                from app.services.smart_label_service import learn_label_mapping
+                                learned_rule = learn_label_mapping(
+                                    db,
+                                    raw_label=raw_lbl,
+                                    clean_description=new_tx.description,
+                                    category=new_tx.category,
+                                    is_manual=False
+                                )
+                                if learned_rule:
+                                    rules_learned_count += 1
+                            except Exception as ex_learn:
+                                logger.debug(f"[AutoPilot] Ignoré échec apprentissage: {ex_learn}")
 
                     continue
 
@@ -564,7 +619,10 @@ def process_incoming_batch(
             "auto_committed": auto_committed_count,
             "pending": pending_count,
             "total": total_count,
-            "promoted_recurrences": promoted_recurrences
+            "categories_created": categories_created_count,
+            "rules_learned": rules_learned_count,
+            "promoted_recurrences": promoted_recurrences,
+            "auto_close_sas": bool(cfg_auto_close_sas and pending_count == 0)
         }
 
     except Exception as e:
@@ -576,6 +634,70 @@ def process_incoming_batch(
         except Exception:
             pass
         raise e
+
+
+def get_operations_automations_history(db: Session, limit: int = 5) -> List[Dict[str, Any]]:
+    """Retourne l'historique des actions automatiques appliquées aux transactions (rapprochements et nouvelles écritures)."""
+    decisions = (
+        db.query(AutopilotDecisionLog)
+        .filter(
+            AutopilotDecisionLog.decision_type.in_(["reconciliation", "new_entry"]),
+            AutopilotDecisionLog.action.in_(["AUTO_COMMIT", "AUTO_RECONCILED_DEVIANT"]),
+            AutopilotDecisionLog.is_undone == False,
+        )
+        .order_by(AutopilotDecisionLog.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    results = []
+    for d in decisions:
+        snap = {}
+        if d.raw_snapshot:
+            try:
+                snap = json.loads(d.raw_snapshot)
+            except Exception:
+                pass
+        bank_tx = snap.get("bank_tx") or {}
+        raw_amt = bank_tx.get("raw_amount")
+        if raw_amt is None:
+            raw_amt = bank_tx.get("amount") or 0.0
+        results.append({
+            "id": d.id,
+            "decision_type": d.decision_type,
+            "action": d.action,
+            "label": bank_tx.get("description") or bank_tx.get("raw_description") or snap.get("after", {}).get("description") or "Opération bancaire",
+            "amount": float(raw_amt),
+            "category": bank_tx.get("category") or snap.get("after", {}).get("category") or "—",
+            "confidence_score": d.confidence_score,
+            "reason": snap.get("decision_reason") or ("deviant_reconciled" if d.action == "AUTO_RECONCILED_DEVIANT" else "high_confidence"),
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        })
+    return results
+
+
+def get_smart_labels_automations_history(db: Session, limit: int = 5) -> List[Dict[str, Any]]:
+    """Retourne les dernières règles de correspondances bancaires apprises automatiquement."""
+    from app.models import BankLabelMapping
+    learned_rules = (
+        db.query(BankLabelMapping)
+        .filter(BankLabelMapping.is_manual == False)
+        .order_by(BankLabelMapping.id.desc())
+        .limit(limit)
+        .all()
+    )
+    results = []
+    for r in learned_rules:
+        results.append({
+            "id": r.id,
+            "type": "learned_rule",
+            "raw_pattern": r.raw_pattern,
+            "clean_label": r.clean_description,
+            "category": r.category or "—",
+            "is_multi_category": bool(r.is_multi_category),
+            "is_provisional": False,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        })
+    return results
 
 
 # Alias pour conformité avec les spécifications de la roadmap
