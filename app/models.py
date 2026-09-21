@@ -35,6 +35,7 @@ class Transaction(Base):
     date_saisie = Column(Date)
     date_operation = Column(Date)
     description = Column(String)
+    raw_description = Column(String, nullable=True, index=True) # Libellé bancaire brut original
     
     amount = Column(Float) # Always positive/absolute value
     

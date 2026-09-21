@@ -464,14 +464,27 @@ def process_incoming_batch(
                     from_acc = acc_id if raw_amt < 0 else None
                     to_acc = acc_id if raw_amt >= 0 else None
 
-                    # S'assurer de la présence de la catégorie en base SQLite
+                    # S'assurer de la présence et de la cohérence de type de la catégorie en base SQLite
                     from app.services.smart_label_service import ensure_category_exists, resolve_fallback_category
                     if category:
+                        existing_cat = db.query(Category).filter(Category.name == category.strip()).first()
+                        # Garde-fou strict : une recette ne peut recevoir une catégorie de dépense, et inversement
+                        if existing_cat and not is_fallback:
+                            if t_type == "income" and existing_cat.type != "income":
+                                logger.warning(f"[AutoPilot] Incohérence type catégorie '{category}' ({existing_cat.type}) pour recette. Repli automatique sur filet de sécurité.")
+                                category = resolve_fallback_category(db, "income")
+                                is_fallback = True
+                                existing_cat = db.query(Category).filter(Category.name == category.strip()).first()
+                            elif t_type != "income" and existing_cat.type == "income":
+                                logger.warning(f"[AutoPilot] Incohérence type catégorie '{category}' (income) pour dépense. Repli automatique sur filet de sécurité.")
+                                category = resolve_fallback_category(db, "expense_var")
+                                is_fallback = True
+                                existing_cat = db.query(Category).filter(Category.name == category.strip()).first()
+
                         if is_new_cat and not cfg_auto_create_cats:
                             # Repli forcé sur le filet de sécurité existant sans créer de catégorie
                             category = resolve_fallback_category(db, t_type)
                         else:
-                            existing_cat = db.query(Category).filter(Category.name == category.strip()).first()
                             cat_obj = ensure_category_exists(db, category, t_type)
                             if not existing_cat and cat_obj:
                                 categories_created_count += 1
@@ -488,11 +501,13 @@ def process_incoming_batch(
                             except ValueError:
                                 pass
 
+                    raw_lbl = tx.get("raw_description") or tx.get("raw_label") or tx.get("description")
                     new_tx = Transaction(
                         csv_id=csv_id,
                         date_saisie=date.today(),
                         date_operation=op_date,
                         description=tx.get("description") or "Opération bancaire",
+                        raw_description=raw_lbl,
                         amount=amt,
                         type=t_type,
                         category=category,

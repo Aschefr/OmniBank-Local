@@ -15,6 +15,7 @@ class TransactionBase(BaseModel):
     date_saisie: Optional[date] = None
     date_operation: date
     description: str
+    raw_description: Optional[str] = None
     amount: float
     type: str
     category: Optional[str] = None
@@ -54,6 +55,7 @@ class TransactionCreate(TransactionBase):
 class TransactionUpdate(BaseModel):
     date_operation: Optional[date] = None
     description: Optional[str] = None
+    raw_description: Optional[str] = None
     amount: Optional[float] = None
     type: Optional[str] = None
     category: Optional[str] = None

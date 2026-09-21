@@ -19,10 +19,10 @@ from app.migrations.versions import ALL_MIGRATIONS
 
 
 def test_migration_order_and_registry():
-    """Vérifie que toutes les migrations de v02 à v27 sont consécutives, valides et complètes."""
-    assert len(ALL_MIGRATIONS) == 26, f"Nombre de migrations inattendu : {len(ALL_MIGRATIONS)}"
+    """Vérifie que toutes les migrations de v02 à TARGET_SCHEMA_VERSION sont consécutives, valides et complètes."""
+    assert len(ALL_MIGRATIONS) == TARGET_SCHEMA_VERSION - 1, f"Nombre de migrations inattendu : {len(ALL_MIGRATIONS)}"
 
-    expected_versions = list(range(2, 28))
+    expected_versions = list(range(2, TARGET_SCHEMA_VERSION + 1))
     actual_versions = [m.version for m in ALL_MIGRATIONS]
     assert actual_versions == expected_versions, f"Désalignement des versions : {actual_versions} vs {expected_versions}"
 
@@ -38,7 +38,7 @@ def test_fresh_database_full_migration():
 
     with engine.connect() as conn:
         current_v = get_current_schema_version(conn)
-        assert current_v == TARGET_SCHEMA_VERSION == 27
+        assert current_v == TARGET_SCHEMA_VERSION
 
         # Vérifier l'existence de toutes les tables créées au fil des versions
         critical_tables = [
@@ -91,10 +91,10 @@ def test_incremental_migration_from_intermediate_version():
 
     # Exécuter les migrations incrémentales
     final_v = run_migrations(engine)
-    assert final_v == 27
+    assert final_v == TARGET_SCHEMA_VERSION
 
     with engine.connect() as conn:
-        assert get_current_schema_version(conn) == 27
+        assert get_current_schema_version(conn) == TARGET_SCHEMA_VERSION
         # Les tables introduites après la v8 doivent exister
         assert table_exists(conn, "action_history")  # v11
         assert table_exists(conn, "exchange_rates")  # v16
@@ -103,6 +103,7 @@ def test_incremental_migration_from_intermediate_version():
         assert table_exists(conn, "autopilot_decision_log")  # v24
         assert column_exists(conn, "transactions", "comment")  # v26
         assert column_exists(conn, "budgets", "base_annual_amount")  # v27
+        assert column_exists(conn, "transactions", "raw_description")  # v29
 
 
 def test_migration_fast_path():
@@ -111,13 +112,13 @@ def test_migration_fast_path():
     Base.metadata.create_all(bind=engine)
 
     with engine.connect() as conn:
-        set_schema_version(conn, 27)
+        set_schema_version(conn, TARGET_SCHEMA_VERSION)
         conn.commit()
 
     # init_db doit court-circuiter (fast-path) sans erreur
     init_db(target_engine=engine)
     with engine.connect() as conn:
-        assert get_current_schema_version(conn) == 27
+        assert get_current_schema_version(conn) == TARGET_SCHEMA_VERSION
 
 
 def test_safe_add_column_idempotency():
@@ -147,7 +148,7 @@ def test_idempotent_multiple_init_db():
     init_db(target_engine=engine)
 
     with engine.connect() as conn:
-        assert get_current_schema_version(conn) == 27
+        assert get_current_schema_version(conn) == TARGET_SCHEMA_VERSION
 
 
 def test_init_all_profiles_db():

@@ -328,6 +328,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         document.getElementById('edit_day').addEventListener('input', () => window.RecurrenceView.updateEditPreviewDates());
         document.getElementById('edit_month').addEventListener('change', () => window.RecurrenceView.updateEditPreviewDates());
         document.getElementById('edit_amount').addEventListener('input', () => window.RecurrenceView.updateEditPreviewDates());
+        document.getElementById('edit_max_occurrences')?.addEventListener('input', () => window.RecurrenceView.updateEditPreviewDates());
         document.getElementById('edit_is_closed').addEventListener('change', (e) => {
             const container = document.getElementById('edit_preview_dates_container');
             if (container) {
@@ -425,7 +426,24 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             // Refresh UI
             window.app.refreshSidebar();
             await this.loadData();
-            showUndoToast(window.i18n.t('msg_saved') || 'Enregistré avec succès !', res.action_id, () => this.loadData());
+            
+            // Notification réactive globale (Règle Zero F5)
+            window.dispatchEvent(new CustomEvent('transactions:refresh'));
+            window.dispatchEvent(new CustomEvent('timeline:refresh'));
+            window.dispatchEvent(new CustomEvent('budgets:refresh'));
+            window.dispatchEvent(new CustomEvent('recurrences:updated'));
+            if (window.BankSyncView && typeof window.BankSyncView.refreshActiveViews === 'function') {
+                window.BankSyncView.refreshActiveViews();
+            }
+
+            showUndoToast(window.i18n.t('msg_saved') || 'Enregistré avec succès !', res.action_id, () => {
+                this.loadData();
+                window.dispatchEvent(new CustomEvent('transactions:refresh'));
+                window.dispatchEvent(new CustomEvent('timeline:refresh'));
+                if (window.BankSyncView && typeof window.BankSyncView.refreshActiveViews === 'function') {
+                    window.BankSyncView.refreshActiveViews();
+                }
+            });
         } catch (e) {
             console.error(e);
             showToast("Erreur lors de la mise à jour de la récurrence", "error");
@@ -441,6 +459,9 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const day = parseInt(document.getElementById('edit_day').value) || 1;
         const monthVal = document.getElementById('edit_month').value;
         const month = monthVal ? parseInt(monthVal) - 1 : null;
+        const maxOccVal = document.getElementById('edit_max_occurrences')?.value;
+        const maxOcc = (maxOccVal && parseInt(maxOccVal, 10) > 0) ? parseInt(maxOccVal, 10) : null;
+        const limit = maxOcc ? Math.min(maxOcc, 6) : 6;
         
         const list = document.getElementById('edit_preview_dates_list');
         if (!list) return;
@@ -451,8 +472,8 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const titleEl = document.getElementById('edit_preview_dates_title');
         if (titleEl) {
             const formattedAmt = `<span style="color: var(--accent, #6366f1); font-weight: 700;">${amountVal.toFixed(2).replace('.', ',')} €</span>`;
-            titleEl.innerHTML = (window.i18n.t('edit_preview_title') || 'Aperçu des 6 prochaines échéances (Montant : {amount}) :')
-                .replace('{amount}', formattedAmt);
+            const baseTitle = window.i18n.t('edit_preview_title') || 'Aperçu des 6 prochaines échéances (Montant : {amount}) :';
+            titleEl.innerHTML = baseTitle.replace('6', limit).replace('{amount}', formattedAmt);
         }
         
         const dates = [];
@@ -464,7 +485,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             if (base.getDate() > day) {
                 m++;
             }
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < limit; i++) {
                 let d = new Date(y, m + i, day);
                 dates.push(d);
             }
@@ -474,12 +495,12 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             if (base.getMonth() > targetM || (base.getMonth() === targetM && base.getDate() > day)) {
                 y++;
             }
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < limit; i++) {
                 let d = new Date(y + i, targetM, day);
                 dates.push(d);
             }
         } else if (freq === 'Weekly') {
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < limit; i++) {
                 let temp = new Date();
                 temp.setDate(base.getDate() + (i + 1) * 7);
                 dates.push(temp);
@@ -490,42 +511,31 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             if (base.getDate() > day) {
                 m++;
             }
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < limit; i++) {
                 let d = new Date(y, m + i * 3, day);
                 dates.push(d);
             }
         } else if (freq === 'Semi-Annually') {
             let y = base.getFullYear();
             let startMonth = month !== null ? month : base.getMonth();
-            // Determine starting point based on startMonth and startMonth + 6
             let m1 = startMonth;
             let m2 = (startMonth + 6) % 12;
-            
-            // Put in order relative to current year
-            let d1 = new Date(y, m1, day);
-            let d2 = new Date(y, m2, day);
-            if (m2 < m1) {
-                // if second month wrapped around, it belongs to the next year visually if sorting,
-                // but let's just find the first occurrence >= base date
-            }
             
             let possibleDates = [];
             for (let i = -1; i < 4; i++) {
                 possibleDates.push(new Date(y + i, m1, day));
                 possibleDates.push(new Date(y + i, m2, day));
             }
-            // Filter future dates (including today if base.getDate() <= day)
             let future = possibleDates.filter(d => {
                 const compDate = new Date(base.getFullYear(), base.getMonth(), base.getDate());
                 return d >= compDate;
             });
-            // Sort
             future.sort((a, b) => a - b);
-            for (let i = 0; i < 6; i++) {
-                dates.push(future[i] || new Date());
+            for (let i = 0; i < limit; i++) {
+                if (future[i]) dates.push(future[i]);
             }
         } else if (freq === 'Bi-Weekly') {
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < limit; i++) {
                 let temp = new Date();
                 temp.setDate(base.getDate() + (i + 1) * 14);
                 dates.push(temp);
@@ -536,7 +546,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             if (base.getDate() > day) {
                 m++;
             }
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < limit; i++) {
                 let d = new Date(y, m + i * 2, day);
                 dates.push(d);
             }
