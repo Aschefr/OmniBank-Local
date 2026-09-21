@@ -39,6 +39,24 @@ def get_simulator_presets() -> List[Dict[str, Any]]:
     return PRESET_TEMPLATES
 
 
+# Profil standard de saisonnalité (Vacances & Fêtes) : calibré pour représenter les variations calendaires typiques
+# (Pics été et Noël, creux d'hiver, somme et moyenne rigoureusement normalisées à 1.00 sur 12 mois)
+PRESET_STANDARD_SEASONALITY = {
+    1: 0.90,   # Janvier (-10%, creux post-fêtes)
+    2: 0.90,   # Février (-10%, hiver)
+    3: 0.95,   # Mars (-5%)
+    4: 0.95,   # Avril (-5%)
+    5: 1.00,   # Mai (neutre)
+    6: 1.05,   # Juin (+5%, début d'été)
+    7: 1.15,   # Juillet (+15%, vacances d'été)
+    8: 1.20,   # Août (+20%, vacances d'été, sorties, voyages)
+    9: 1.10,   # Septembre (+10%, rentrée scolaire)
+    10: 0.95,  # Octobre (-5%)
+    11: 0.90,  # Novembre (-10%)
+    12: 1.30   # Décembre (+30%, fêtes et cadeaux)
+}
+
+
 def _add_months(sourcedate: date, months: int) -> date:
     """Ajoute N mois à une date en gérant correctement la fin de mois."""
     month = sourcedate.month - 1 + months
@@ -59,16 +77,20 @@ def run_simulation(
     inflation_rate: float = 0.0,
     variable_expense_adjustment_pct: float = 0.0,
     projection_profile: str = "realistic",
-    conservative_weight: Optional[float] = None
+    conservative_weight: Optional[float] = None,
+    outlier_sensitivity: int = 2,
+    seasonality_mode: str = "disabled",
+    seasonality_intensity: float = 1.0
 ) -> Dict[str, Any]:
     """
     Exécute la projection sur `horizon_months` mois.
     Compare la trajectoire de base (réelle) avec la trajectoire simulée (What-If).
     Supporte un curseur continu de prudence / conservatisme `conservative_weight` (0.0 = 100% Réel, 1.0 = 100% Conservateur).
+    Supporte un curseur de sensibilité aux dépenses exceptionnelles `outlier_sensitivity` (1: Strict, 2: Prudent, 3: Équilibré, 4: Permissif, 5: Intégral).
+    Supporte une saisonnalité optionnelle `seasonality_mode` ('disabled', 'historical', 'preset_standard') et son intensité `seasonality_intensity` (0.0 à 1.0).
     Supporte 4 modes de revenu de référence : 'auto', 'historical_n1', 'custom', 'none'.
-    Inclut projection des dépenses variables (moyenne glissante 6 mois avec filtrage IQR),
-    saisonnalité (profil mensuel N-1), inflation optionnelle, curseur d'effort budgétaire,
-    calcul du point d'équilibre et bandes de confiance ±1σ.
+    Supporte toutes les fréquences de récurrence (mensuelle, annuelle, semestrielle, trimestrielle, bimestrielle, hebdo, bi-hebdo).
+    Gère la totalité du patrimoine liquide lorsqu'aucun compte précis n'est sélectionné (comptes courants + livrets d'épargne).
     Zéro modification de la base de données.
     """
     if conservative_weight is not None:
@@ -80,7 +102,19 @@ def run_simulation(
     else:
         conservative_weight = 0.20
 
-    logger.info(f"[Simulateur] Lancement projection sur {horizon_months} mois (scénario: {scenario_id}, compte: {account_id}, poids_conservateur: {conservative_weight:.2f}, mode_revenu: {income_mode}, inflation: {inflation_rate}, ajustement_var: {variable_expense_adjustment_pct})")
+    outlier_sens = max(1, min(int(outlier_sensitivity if outlier_sensitivity is not None else 2), 5))
+
+    valid_seasonality_modes = {"disabled", "historical", "preset_standard"}
+    if seasonality_mode not in valid_seasonality_modes:
+        seasonality_mode = "disabled"
+    try:
+        seasonality_intensity = max(0.0, min(float(seasonality_intensity if seasonality_intensity is not None else 1.0), 1.0))
+    except (ValueError, TypeError):
+        seasonality_intensity = 1.0
+    if seasonality_mode == "disabled":
+        seasonality_intensity = 0.0
+
+    logger.info(f"[Simulateur] Lancement projection sur {horizon_months} mois (scénario: {scenario_id}, compte: {account_id}, prudence: {conservative_weight:.2f}, outliers_sens: {outlier_sens}, saisonnalité: {seasonality_mode} [{seasonality_intensity:.0%}], mode_revenu: {income_mode}, inflation: {inflation_rate}, ajustement_var: {variable_expense_adjustment_pct})")
 
     horizon_months = max(1, min(horizon_months, 300))
     today = date.today()
@@ -101,14 +135,14 @@ def run_simulation(
             if main_acc:
                 target_accounts.append(main_acc)
     else:
-        # Si aucun compte spécifié, utiliser le compte courant principal
-        main_acc = get_main_account(db)
-        if main_acc:
-            target_accounts.append(main_acc)
-            initial_balance = balances.get(main_acc.id, 0.0)
-        else:
-            initial_balance = sum(balances.values())
+        # "Tous les comptes liquides" (Comptes courants + Livrets d'épargne)
+        target_accounts = db.query(Account).filter(
+            Account.is_closed == False,
+            Account.type != "Prêt / Emprunt"
+        ).all()
+        if not target_accounts:
             target_accounts = db.query(Account).filter(Account.is_closed == False).all()
+        initial_balance = sum(balances.get(a.id, 0.0) for a in target_accounts)
 
     target_acc_ids = {a.id for a in target_accounts}
 
@@ -187,11 +221,25 @@ def run_simulation(
             history = pay_info.get("history") or []
             salary_history_ids = {h.get("id") for h in history if h.get("id")}
             current_period_str = f"{today.year:04d}-{today.month:02d}"
-            current_entry = next((h for h in history if h.get("logical_period") == current_period_str), None)
-            if current_entry and current_entry.get("amount") is not None and not current_entry.get("is_placeholder"):
+
+            # Détection rigoureuse : la paie du mois en cours est-elle déjà encaissée et présente dans initial_balance ?
+            # 1. Transaction rapprochée de salaire déjà enregistrée pour ce mois calendaire
+            has_reconciled_salary_tx = db.query(Transaction).filter(
+                Transaction.reconciliation_date.isnot(None),
+                Transaction.date_operation >= date(today.year, today.month, 1),
+                Transaction.date_operation <= date(today.year, today.month, monthrange(today.year, today.month)[1]),
+                Transaction.type == "income",
+                (Transaction.is_salary == True) | (Transaction.amount >= (0.6 * predicted_salary if predicted_salary > 0 else 1000.0))
+            ).first() is not None
+
+            # 2. Le cycle logique a-t-il déjà basculé sur le mois suivant (paie validée/encaissée)
+            logical_period = pay_info.get("logical_period")
+            is_period_advanced = bool(logical_period and logical_period > current_period_str)
+
+            if is_period_advanced or has_reconciled_salary_tx or pay_info.get("is_period_validated"):
                 is_current_month_pay_received = True
-            elif pay_info.get("is_period_validated"):
-                is_current_month_pay_received = True
+            else:
+                is_current_month_pay_received = False
 
             for h in history:
                 if h.get("amount") is not None and not h.get("is_placeholder"):
@@ -199,6 +247,9 @@ def run_simulation(
                     if lp and "-" in lp:
                         try:
                             hy, hm = map(int, lp.split("-"))
+                            # Ne pas inclure le mois courant s'il n'est pas encore perçu pour éviter de fausser la saisonnalité N-1
+                            if (hy, hm) == (today.year, today.month) and not is_current_month_pay_received:
+                                continue
                             amt = float(h["amount"])
                             historical_salary_by_month[(hy, hm)] = amt
                             # Mémoriser la saisonnalité par mois calendaire (1..12) pour répétition pluriannuelle
@@ -240,18 +291,27 @@ def run_simulation(
             )
         var_exp_txs = var_exp_query.all()
 
-        # ── Filtrage des outliers (IQR) — même logique que chat_tools.py ──
+        # ── Filtrage des outliers (IQR) paramétrable selon outlier_sens (1..5) ──
         # Les achats exceptionnels (véhicule, gros électroménager) ne doivent pas
-        # gonfler la moyenne des dépenses variables projetées.
+        # gonfler artificiellement la moyenne des dépenses variables projetées.
+        exp_outlier_cfg = {
+            1: {"iqr_mult": 1.5, "min_thresh": 150.0, "median_mult": 2.0},
+            2: {"iqr_mult": 2.0, "min_thresh": 250.0, "median_mult": 3.0},
+            3: {"iqr_mult": 2.5, "min_thresh": 400.0, "median_mult": 4.0},
+            4: {"iqr_mult": 3.5, "min_thresh": 800.0, "median_mult": 6.0},
+            5: {"iqr_mult": 999999.0, "min_thresh": 999999999.0, "median_mult": 999999.0}
+        }
+        var_cfg = exp_outlier_cfg.get(outlier_sens, exp_outlier_cfg[2])
+
         excluded_outlier_txs = []
         filtered_var_txs = list(var_exp_txs)
 
-        if len(var_exp_txs) >= 5:
+        if len(var_exp_txs) >= 5 and outlier_sens < 5:
             amounts = sorted([abs(t.amount) for t in var_exp_txs])
             q1 = amounts[len(amounts) // 4]
             q3 = amounts[3 * len(amounts) // 4]
             iqr = q3 - q1
-            upper_fence = q3 + 3.0 * iqr  # 3×IQR — conservateur
+            upper_fence = q3 + var_cfg["iqr_mult"] * iqr
             import statistics as _stats
             median_amt = _stats.median(amounts)
 
@@ -259,20 +319,20 @@ def run_simulation(
             for t in var_exp_txs:
                 amt = abs(t.amount)
                 # Triple condition pour classifier comme outlier :
-                #  1. Dépasse le fence statistique (3×IQR)
-                #  2. Montant absolu > 500 € (petits montants jamais outliers)
-                #  3. Montant > 5× la médiane (vraiment exceptionnel)
+                #  1. Dépasse le fence statistique (IQR selon sensibilité)
+                #  2. Montant absolu > seuil plancher
+                #  3. Montant > N× la médiane (vraiment exceptionnel)
                 is_outlier = (
                     amt > upper_fence
-                    and amt > 500
-                    and amt > 5 * median_amt
+                    and amt > var_cfg["min_thresh"]
+                    and amt > var_cfg["median_mult"] * median_amt
                 )
                 if is_outlier:
                     excluded_outlier_txs.append(t)
                     logger.info(
                         f"[Simulateur] Outlier exclu de la projection variable : "
                         f"{t.description} — {amt:.2f} € "
-                        f"(fence={upper_fence:.2f}, médiane={median_amt:.2f})"
+                        f"(sensibilité={outlier_sens}, fence={upper_fence:.2f}, médiane={median_amt:.2f})"
                     )
                 else:
                     filtered_var_txs.append(t)
@@ -300,10 +360,11 @@ def run_simulation(
                 f"{f', outliers exclus: {excluded_outliers_count} ({excluded_outliers_total:.2f} €)' if excluded_outliers_count else ''}"
             )
 
-        # Saisonnalité sur 12 derniers mois (profil par mois calendaire 1-12 avec filtrage outliers)
+        # ── Saisonnalité sur 12 derniers mois (profil par mois calendaire 1-12 avec filtrage outliers) ──
+        # Restreint strictement aux dépenses variables (expense_var), les charges fixes ayant leur propre calendrier
         twelve_months_ago = _add_months(date(today.year, today.month, 1), -12)
         seasonal_query = db.query(Transaction).filter(
-            Transaction.type.in_(["expense_var", "expense_fixed"]),
+            Transaction.type == "expense_var",
             Transaction.date_operation >= twelve_months_ago,
             Transaction.date_operation < current_month_start,
             (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
@@ -315,40 +376,83 @@ def run_simulation(
             )
         seasonal_txs = seasonal_query.all()
 
-        # Filtrage outliers sur 12 mois pour des profils mensuels cohérents (ne pas répéter l'achat d'un véhicule ou gros travaux)
+        # Filtrage outliers sur 12 mois pour des profils mensuels cohérents
         filtered_seasonal_txs = list(seasonal_txs)
-        if len(seasonal_txs) >= 5:
+        if len(seasonal_txs) >= 5 and outlier_sens < 5:
             amounts_seas = sorted([abs(t.amount) for t in seasonal_txs])
             q1_s = amounts_seas[len(amounts_seas) // 4]
             q3_s = amounts_seas[3 * len(amounts_seas) // 4]
             iqr_s = q3_s - q1_s
-            upper_fence_s = q3_s + 3.0 * iqr_s
+            upper_fence_s = q3_s + var_cfg["iqr_mult"] * iqr_s
             import statistics as _stats
             median_s = _stats.median(amounts_seas)
             filtered_seasonal_txs = [
                 t for t in seasonal_txs
-                if not (abs(t.amount) > upper_fence_s and abs(t.amount) > 500 and abs(t.amount) > 5 * median_s)
+                if not (
+                    abs(t.amount) > upper_fence_s
+                    and abs(t.amount) > var_cfg["min_thresh"]
+                    and abs(t.amount) > var_cfg["median_mult"] * median_s
+                )
             ]
 
-        seasonal_totals = {}  # mois_cal (1..12) -> total dépenses
+        # Regrouper par (année, mois) pour dénombrer les mois d'historique effectifs
+        seasonal_monthly_sums = {}
         for t in filtered_seasonal_txs:
-            cm = t.date_operation.month
-            seasonal_totals.setdefault(cm, 0.0)
-            seasonal_totals[cm] += abs(t.amount)
+            k = (t.date_operation.year, t.date_operation.month)
+            seasonal_monthly_sums.setdefault(k, 0.0)
+            seasonal_monthly_sums[k] += abs(t.amount)
 
-        seasonal_history_months = len(seasonal_totals)
+        seasonal_history_months = len(seasonal_monthly_sums)
 
-        if seasonal_history_months >= 6:
-            # Calculer la moyenne globale mensuelle pour normaliser
-            global_monthly_avg = sum(seasonal_totals.values()) / seasonal_history_months
-            if global_monthly_avg > 0:
-                for cm, total in seasonal_totals.items():
-                    seasonal_expense_coefficients[cm] = total / global_monthly_avg
-                logger.info(f"[Simulateur] Coefficients saisonniers calculés sur {seasonal_history_months} mois: {seasonal_expense_coefficients}")
+        # Calcul des moyennes par mois calendaire (1..12)
+        cal_month_totals = {}
+        cal_month_counts = {}
+        for (yr, mo), total_amt in seasonal_monthly_sums.items():
+            cal_month_totals.setdefault(mo, 0.0)
+            cal_month_totals[mo] += total_amt
+            cal_month_counts.setdefault(mo, 0)
+            cal_month_counts[mo] += 1
+
+        cal_month_averages = {
+            mo: (cal_month_totals[mo] / cal_month_counts[mo])
+            for mo in cal_month_totals
+        }
+
+        # Profil historique normalisé (moyenne sur 12 mois = 1.00)
+        historical_coefficients = {cm: 1.0 for cm in range(1, 13)}
+        if seasonal_history_months >= 6 and cal_month_averages:
+            global_cal_avg = sum(cal_month_averages.values()) / len(cal_month_averages)
+            if global_cal_avg > 0:
+                raw_coeffs = {cm: (cal_month_averages[cm] / global_cal_avg if cm in cal_month_averages else 1.0) for cm in range(1, 13)}
+                mean_raw = sum(raw_coeffs.values()) / 12.0
+                if mean_raw > 0:
+                    historical_coefficients = {cm: round(raw_coeffs[cm] / mean_raw, 4) for cm in range(1, 13)}
+                logger.info(f"[Simulateur] Coefficients saisonniers historiques normalisés ({seasonal_history_months} mois): {historical_coefficients}")
         else:
-            logger.info(f"[Simulateur] Historique saisonnier insuffisant ({seasonal_history_months}/6 mois minimum) - moyenne brute utilisée")
+            logger.info(f"[Simulateur] Historique saisonnier insuffisant ({seasonal_history_months}/6 mois minimum pour historique réel)")
+
+        # Sélection du profil de base selon seasonality_mode
+        if seasonality_mode == "historical":
+            if seasonal_history_months >= 6:
+                base_seasonal_coeffs = historical_coefficients
+            else:
+                base_seasonal_coeffs = {cm: 1.0 for cm in range(1, 13)}
+        elif seasonality_mode == "preset_standard":
+            base_seasonal_coeffs = PRESET_STANDARD_SEASONALITY
+        else:
+            base_seasonal_coeffs = {cm: 1.0 for cm in range(1, 13)}
+
+        # Application de l'intensité (0.0 = lissage 100%, 1.0 = effet plein)
+        if seasonality_mode != "disabled" and seasonality_intensity > 0:
+            for cm in range(1, 13):
+                base_c = base_seasonal_coeffs.get(cm, 1.0)
+                seasonal_expense_coefficients[cm] = 1.0 + seasonality_intensity * (base_c - 1.0)
+        else:
+            seasonal_expense_coefficients = {cm: 1.0 for cm in range(1, 13)}
     except Exception as e:
         logger.warning(f"[Simulateur] Erreur calcul dépenses variables/saisonnalité: {e}")
+        historical_coefficients = {cm: 1.0 for cm in range(1, 13)}
+        seasonal_expense_coefficients = {cm: 1.0 for cm in range(1, 13)}
 
     # ── 3C. Calcul de l'empreinte historique réelle (Revenus réels complets & Charges fixes réelles observées) ──
     historical_real_income_avg = 0.0
@@ -399,14 +503,23 @@ def run_simulation(
         real_inc_txs = real_inc_query.all()
 
         # Filtrage statistique des rentrées exceptionnelles (outliers de recettes non répétitifs)
+        inc_outlier_cfg = {
+            1: {"iqr_mult": 1.5, "min_thresh": 500.0, "salary_mult": 1.3},
+            2: {"iqr_mult": 2.0, "min_thresh": 800.0, "salary_mult": 1.5},
+            3: {"iqr_mult": 3.0, "min_thresh": 1000.0, "salary_mult": 1.8},
+            4: {"iqr_mult": 4.5, "min_thresh": 2000.0, "salary_mult": 2.5},
+            5: {"iqr_mult": 999999.0, "min_thresh": 999999999.0, "salary_mult": 999999.0}
+        }
+        inc_cfg = inc_outlier_cfg.get(outlier_sens, inc_outlier_cfg[2])
+
         filtered_inc_txs = list(real_inc_txs)
         excluded_inc_outliers = []
-        if len(real_inc_txs) >= 4:
+        if len(real_inc_txs) >= 4 and outlier_sens < 5:
             inc_amounts = sorted([abs(t.amount) for t in real_inc_txs])
             q1_inc = inc_amounts[len(inc_amounts) // 4]
             q3_inc = inc_amounts[3 * len(inc_amounts) // 4]
             iqr_inc = q3_inc - q1_inc
-            upper_fence_inc = q3_inc + 3.0 * iqr_inc
+            upper_fence_inc = q3_inc + inc_cfg["iqr_mult"] * iqr_inc
             import statistics as _stats
             median_inc = _stats.median(inc_amounts)
             
@@ -418,29 +531,29 @@ def run_simulation(
                     filtered_inc_txs.append(t)
                     continue
 
-                # Si la transaction fait partie de l'historique détecté de paie ET reste cohérente avec la paie attendue (<= 1.8x)
-                if t.id and t.id in salary_history_ids and (predicted_salary == 0 or amt <= 1.8 * predicted_salary):
+                # Si la transaction fait partie de l'historique détecté de paie ET reste cohérente avec la paie attendue (<= N×)
+                if t.id and t.id in salary_history_ids and (predicted_salary == 0 or amt <= inc_cfg["salary_mult"] * predicted_salary):
                     filtered_inc_txs.append(t)
                     continue
 
                 if predicted_salary > 0:
                     is_outlier = (
                         amt > upper_fence_inc
-                        and amt > 1000.0
-                        and amt > 1.8 * predicted_salary
+                        and amt > inc_cfg["min_thresh"]
+                        and amt > inc_cfg["salary_mult"] * predicted_salary
                     )
                 else:
                     is_outlier = (
                         amt > upper_fence_inc
-                        and amt > 1000.0
-                        and amt > 4.0 * median_inc
+                        and amt > inc_cfg["min_thresh"]
+                        and amt > (inc_cfg["salary_mult"] * 2.2) * median_inc
                     )
 
                 if is_outlier:
                     excluded_inc_outliers.append(t)
                     logger.info(
                         f"[Simulateur] Outlier de recette exclu du modèle moyen : {t.description} — {amt:.2f} € "
-                        f"(fence={upper_fence_inc:.2f}, médiane={median_inc:.2f})"
+                        f"(sensibilité={outlier_sens}, fence={upper_fence_inc:.2f}, médiane={median_inc:.2f})"
                     )
                 else:
                     filtered_inc_txs.append(t)
@@ -502,8 +615,6 @@ def run_simulation(
     monthly_data = []
     current_baseline_bal = initial_balance
     current_simulated_bal = initial_balance
-    current_optimistic_bal = initial_balance
-    current_pessimistic_bal = initial_balance
 
     min_baseline_bal = initial_balance
     min_baseline_date = today.strftime("%Y-%m")
@@ -513,10 +624,26 @@ def run_simulation(
     first_overdraft_date = None
     max_overdraft_amount = 0.0
 
+    # Pré-calcul des occurrences déjà matérialisées en base pour les récurrences limitées (max_occurrences)
+    db_rec_occurrences = {}
+    for rec in active_recurrences:
+        if rec.max_occurrences:
+            db_rec_occurrences[rec.id] = db.query(Transaction).filter(
+                Transaction.recurrence_id == rec.id,
+                (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+            ).count()
+        else:
+            db_rec_occurrences[rec.id] = 0
+    sim_rec_occurrences = {rec.id: 0 for rec in active_recurrences}
+
     month_names_fr = [
         "", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
         "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
     ]
+
+    days_in_cur_m = monthrange(today.year, today.month)[1]
+    days_left_cur_m = max(0, days_in_cur_m - today.day)
+    prorata_m0 = max(0.05, min(1.0, days_left_cur_m / float(days_in_cur_m))) if days_in_cur_m > 0 else 1.0
 
     for m_offset in range(horizon_months):
         curr_date = _add_months(date(start_year, start_month, 1), m_offset)
@@ -527,7 +654,23 @@ def run_simulation(
         first_day = date(y, m, 1)
         last_day = date(y, m, monthrange(y, m)[1])
 
-        # Transactions déjà saisies en DB pour ce mois (uniquement non rapprochées pour éviter les doublons avec le solde initial)
+        # 1. Recensement de toutes les récurrences déjà honorées pour ce mois (rapprochées OU non)
+        # pour éviter d'ajouter des récurrences théoriques en double
+        month_all_rec_query = db.query(Transaction.recurrence_id).filter(
+            Transaction.date_operation >= first_day,
+            Transaction.date_operation <= last_day,
+            Transaction.recurrence_id.isnot(None),
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        )
+        if target_acc_ids:
+            month_all_rec_query = month_all_rec_query.filter(
+                (Transaction.from_account_id.in_(target_acc_ids)) |
+                (Transaction.to_account_id.in_(target_acc_ids))
+            )
+        existing_rec_template_ids = {r[0] for r in month_all_rec_query.all() if r[0]}
+
+        # 2. Transactions déjà saisies en DB mais non encore rapprochées
+        # (seules ces transactions doivent impacter le solde initial, car les rapprochées y sont déjà intégrées)
         tx_query = db.query(Transaction).filter(
             Transaction.reconciliation_date == None,
             Transaction.date_operation >= first_day,
@@ -539,10 +682,10 @@ def run_simulation(
 
         baseline_income = 0.0
         baseline_expense = 0.0
-        existing_rec_template_ids = set()
 
         existing_income_total = 0.0
         existing_fixed_total = 0.0
+        existing_var_total = 0.0
 
         for t in existing_txs:
             # Filtrer par compte cible si applicable
@@ -553,20 +696,17 @@ def run_simulation(
                 is_relevant = True
 
             if is_relevant:
-                if t.recurrence_id:
-                    existing_rec_template_ids.add(t.recurrence_id)
-
                 if t.type == "income" or (target_acc_ids and t.to_account_id in target_acc_ids and (not t.from_account_id or t.from_account_id not in target_acc_ids)):
                     existing_income_total += abs(t.amount)
                 elif t.type == "expense_fixed" or (target_acc_ids and t.from_account_id in target_acc_ids and (not t.to_account_id or t.to_account_id not in target_acc_ids) and t.type != "expense_var"):
                     existing_fixed_total += abs(t.amount)
                 elif t.type == "expense_var":
-                    baseline_expense += abs(t.amount)
+                    existing_var_total += abs(t.amount)
 
         baseline_income += existing_income_total
-        baseline_expense += existing_fixed_total
+        baseline_expense += (existing_fixed_total + existing_var_total)
 
-        # Calcul des récurrences théoriques pour ce mois m
+        # 3. Calcul des récurrences théoriques pour ce mois m
         theoretical_fixed_for_month = 0.0
         theoretical_income_for_month = 0.0
         for rec in active_recurrences:
@@ -594,48 +734,93 @@ def run_simulation(
             if not rec_match:
                 continue
 
-            freq = (rec.frequency or "monthly").lower()
+            # Si le mode de revenu est "custom" ou "none", ne pas injecter une récurrence de salaire
+            is_salary_rec = (rec.type == "income" and rec.amount >= 0.6 * (predicted_salary if predicted_salary > 0 else 1500.0))
+            if is_salary_rec and income_mode in ("custom", "none"):
+                continue
+
+            # Vérification du plafond max_occurrences (échéance finie)
+            if rec.max_occurrences and (db_rec_occurrences.get(rec.id, 0) + sim_rec_occurrences.get(rec.id, 0)) >= rec.max_occurrences:
+                continue
+
+            raw_freq = (rec.frequency or "monthly").strip().lower()
+            base_m = rec.month_of_year or 1
+            rec_amt = float(rec.amount or 0.0)
             should_apply = False
-            if freq in ("monthly", "mensuel"):
+            effective_amt = rec_amt
+
+            # 1. Mensuel
+            if raw_freq in ("monthly", "mensuel", "mensuelle"):
                 should_apply = True
-            elif freq in ("yearly", "annuel"):
-                if rec.month_of_year == m:
+                effective_amt = rec_amt
+            # 2. Annuel
+            elif "year" in raw_freq or "annuel" in raw_freq:
+                if m == base_m:
                     should_apply = True
-            elif freq in ("quarterly", "trimestriel"):
-                if (m - 1) % 3 == 0:
+                    effective_amt = rec_amt
+            # 3. Semestriel (tous les 6 mois, calé sur base_m, ex: Fév & Août)
+            elif "semi" in raw_freq or "semestr" in raw_freq:
+                m2 = (base_m + 5) % 12 + 1
+                if m in (base_m, m2):
                     should_apply = True
-            elif freq in ("semiannual", "semestriel"):
-                if (m - 1) % 6 == 0:
+                    effective_amt = rec_amt
+            # 4. Trimestriel (tous les 3 mois, calé sur base_m)
+            elif "quarter" in raw_freq or "trimestr" in raw_freq:
+                applicable_quarters = [(base_m - 1 + 3 * i) % 12 + 1 for i in range(4)]
+                if m in applicable_quarters:
                     should_apply = True
-            elif freq in ("weekly", "hebdomadaire"):
+                    effective_amt = rec_amt
+            # 5. Bimestriel (tous les 2 mois, calé sur base_m)
+            elif "bimestr" in raw_freq:
+                applicable_bimonthly = [(base_m - 1 + 2 * i) % 12 + 1 for i in range(6)]
+                if m in applicable_bimonthly:
+                    should_apply = True
+                    effective_amt = rec_amt
+            # 6. Bi-hebdomadaire / Quinzaine (toutes les 2 semaines -> 26 échéances / 12 mois = 2.167 par mois)
+            elif "bi-week" in raw_freq or "bi-hebdo" in raw_freq or "quinzain" in raw_freq or ("bi-month" in raw_freq and "bimestr" not in raw_freq):
                 should_apply = True
+                effective_amt = rec_amt * 2.167
+            # 7. Hebdomadaire (toutes les semaines -> 52 échéances / 12 mois = 4.333 par mois)
+            elif "week" in raw_freq or "hebdo" in raw_freq:
+                should_apply = True
+                effective_amt = rec_amt * 4.333
             else:
+                # Repli par défaut : mensuel
                 should_apply = True
+                effective_amt = rec_amt
 
             if should_apply:
-                amt = rec.amount if freq != "weekly" else (rec.amount * 4.33)
+                sim_rec_occurrences[rec.id] = sim_rec_occurrences.get(rec.id, 0) + 1
                 if is_incoming:
-                    theoretical_income_for_month += amt
+                    theoretical_income_for_month += effective_amt
                 elif is_outgoing:
-                    theoretical_fixed_for_month += amt
+                    theoretical_fixed_for_month += effective_amt
 
-        # Ajout des flux récurrents théoriques si pas déjà couverts par les transactions saisies
+        # Ajout des flux récurrents théoriques de recettes
         if theoretical_income_for_month > 0:
             if existing_income_total == 0:
                 baseline_income += theoretical_income_for_month
             elif existing_income_total < (0.6 * theoretical_income_for_month):
                 baseline_income += (theoretical_income_for_month - existing_income_total)
 
-        # 1. Charges fixes projetées : interpolation continue entre réel saisonnier et théorique
-        real_fixed_ref = seasonal_real_fixed_by_calendar_month.get(m, historical_real_fixed_avg if historical_real_fixed_avg > 0 else theoretical_fixed_for_month)
-        blended_fixed_for_month = (1.0 - conservative_weight) * real_fixed_ref + conservative_weight * theoretical_fixed_for_month
+        # 4. Charges fixes projetées :
+        if m_offset == 0:
+            # Pour le mois 0 : le solde initial intègre déjà les charges passées rapprochées.
+            # On ajoute uniquement les récurrences théoriques restantes d'ici la fin du mois
+            blended_fixed_for_month = theoretical_fixed_for_month
+            baseline_expense += theoretical_fixed_for_month
+        else:
+            # Pour les mois futurs : interpolation continue entre réel saisonnier et total contractuel théorique
+            total_contractual_fixed = existing_fixed_total + theoretical_fixed_for_month
+            real_fixed_ref = seasonal_real_fixed_by_calendar_month.get(m, historical_real_fixed_avg if historical_real_fixed_avg > 0 else total_contractual_fixed)
+            blended_fixed_for_month = (1.0 - conservative_weight) * real_fixed_ref + conservative_weight * total_contractual_fixed
 
-        if existing_fixed_total == 0:
-            baseline_expense += blended_fixed_for_month
-        elif existing_fixed_total < (0.6 * blended_fixed_for_month):
-            baseline_expense += (blended_fixed_for_month - existing_fixed_total)
+            if existing_fixed_total == 0:
+                baseline_expense += blended_fixed_for_month
+            elif existing_fixed_total < (0.6 * blended_fixed_for_month):
+                baseline_expense += (blended_fixed_for_month - existing_fixed_total)
 
-        # 2. Revenus projetés : interpolation continue entre réel et salaire de base plancher
+        # 5. Revenus projetés : interpolation continue entre réel et salaire de base plancher
         cons_salary_ref = predicted_salary_for_account
 
         if income_mode in ("historical_n1", "auto"):
@@ -671,56 +856,50 @@ def run_simulation(
                 for t in existing_txs
                 if (not target_acc_ids or t.to_account_id in target_acc_ids)
             ) if custom_val > 0 else False
-            if not is_salary_in_recurrence and not (m_offset == 0 and is_current_month_pay_received) and not has_main_salary:
+            if not (m_offset == 0 and is_current_month_pay_received) and not has_main_salary:
                 baseline_income += custom_val
         elif income_mode == "none":
             # 4. Désactivé (Scénario zéro salaire)
             pass
 
-
-        # ── Projection des dépenses variables pour les mois sans transactions réelles ──
-        has_real_variable_txs = any(
-            t.type == "expense_var" for t in existing_txs
-            if (not target_acc_ids or t.from_account_id in target_acc_ids or t.to_account_id in target_acc_ids)
-        )
-
+        # 6. Projection des dépenses variables (socle de vie courante)
         base_variable_projected = 0.0
         variable_expense_projected = 0.0
-        if avg_variable_expense > 0 and not has_real_variable_txs:
-            # Appliquer le coefficient saisonnier si disponible
-            coeff = seasonal_expense_coefficients.get(m, 1.0)
-            base_variable_projected = avg_variable_expense * coeff
-            # Appliquer le curseur d'ajustement utilisateur (-100% à +50%)
+        seasonal_coeff_m = seasonal_expense_coefficients.get(m, 1.0) if seasonality_mode != "disabled" else 1.0
+
+        if avg_variable_expense > 0:
+            if m_offset == 0:
+                # Mois 0 : prorata temporis des jours restants d'ici la fin du mois
+                base_variable_projected = avg_variable_expense * seasonal_coeff_m * prorata_m0
+            else:
+                base_variable_projected = avg_variable_expense * seasonal_coeff_m
+
+            # Appliquer le curseur d'effort budgétaire utilisateur (-100% à +50%)
             var_adj_factor = max(0.0, 1.0 + float(variable_expense_adjustment_pct or 0.0))
             variable_expense_projected = base_variable_projected * var_adj_factor
             baseline_expense += variable_expense_projected
 
-        # ── Facteur d'inflation ──
+        # 7. Facteur d'inflation (hors emprunts à taux fixe)
         inflation_factor = 1.0
+        inflation_delta = 0.0
         if inflation_rate > 0 and m_offset > 0:
             inflation_factor = (1 + inflation_rate) ** (m_offset / 12.0)
-            # L'inflation s'applique sur les dépenses projetées (pas sur les transactions réelles déjà saisies)
-            inflation_delta = baseline_expense * (inflation_factor - 1.0)
+            # Exclusion des emprunts/prêts à taux fixe de l'assiette d'inflation
+            loan_keywords = ("prêt", "pret", "emprunt", "crédit", "credit")
+            non_inflatable_fixed = 0.0
+            for rec in active_recurrences:
+                desc = (rec.description or "").lower()
+                cat = (rec.category or "").lower()
+                if any(k in desc or k in cat for k in loan_keywords):
+                    non_inflatable_fixed += rec.amount
+
+            inflatable_base = max(0.0, baseline_expense - non_inflatable_fixed)
+            inflation_delta = inflatable_base * (inflation_factor - 1.0)
             baseline_expense += inflation_delta
 
         baseline_net = baseline_income - baseline_expense
         month_start_baseline = current_baseline_bal
         current_baseline_bal += baseline_net
-
-        # ── Bandes de confiance ±1σ ──
-        # Optimiste = dépenses variables réduites de 1σ, Pessimiste = augmentées de 1σ
-        optimistic_net = baseline_net
-        pessimistic_net = baseline_net
-        if variable_expense_stddev > 0 and not has_real_variable_txs:
-            optimistic_net = baseline_net + variable_expense_stddev  # moins de dépenses → plus de solde
-            pessimistic_net = baseline_net - variable_expense_stddev  # plus de dépenses → moins de solde
-
-        month_start_optimistic = current_optimistic_bal
-        month_start_pessimistic = current_pessimistic_bal
-        current_optimistic_bal += optimistic_net
-        current_pessimistic_bal += pessimistic_net
-
-
 
 
         # ── B. Flux Simulés (What-If) ──
@@ -793,13 +972,30 @@ def run_simulation(
             if abs(current_simulated_bal) > max_overdraft_amount:
                 max_overdraft_amount = abs(current_simulated_bal)
 
-        # Calculer les bandes de confiance simulées (baseline ±σ + events)
-        optimistic_simulated = current_optimistic_bal + simulated_events_impact
-        pessimistic_simulated = current_pessimistic_bal + simulated_events_impact
+        # ── Bandes de confiance canoniques (Théorème Central Limite / Marche Aléatoire : ±σ√t) ──
+        # La dispersion d'une somme de variables aléatoires croît avec la racine carrée du temps (diffusion brownienne),
+        # évitant l'explosion linéaire artificielle du cône d'incertitude sur les horizons longs (12 à 36 mois).
+        t_eff = prorata_m0 if m_offset == 0 else (prorata_m0 + m_offset)
+        sigma_cumul = (variable_expense_stddev * math.sqrt(t_eff)) if (variable_expense_stddev > 0 and base_variable_projected > 0) else 0.0
+        optimistic_simulated = current_simulated_bal + sigma_cumul
+        pessimistic_simulated = current_simulated_bal - sigma_cumul
 
-        fixed_expense_actual = blended_fixed_for_month if existing_fixed_total == 0 else (existing_fixed_total + max(0.0, blended_fixed_for_month - existing_fixed_total))
-        var_expense_actual = variable_expense_projected if not has_real_variable_txs else sum(abs(t.amount) for t in existing_txs if t.type == "expense_var" and (not target_acc_ids or t.from_account_id in target_acc_ids or t.to_account_id in target_acc_ids))
+        if m_offset == 0:
+            fixed_expense_actual = existing_fixed_total + theoretical_fixed_for_month
+        else:
+            fixed_expense_actual = blended_fixed_for_month if existing_fixed_total == 0 else (existing_fixed_total + max(0.0, blended_fixed_for_month - existing_fixed_total))
+        var_expense_actual = variable_expense_projected + existing_var_total
         inflation_delta_actual = inflation_delta if (inflation_rate > 0 and m_offset > 0) else 0.0
+
+        seasonal_tag = None
+        if m == 12:
+            seasonal_tag = "holidays"
+        elif m in (7, 8):
+            seasonal_tag = "summer"
+        elif m == 9:
+            seasonal_tag = "back_to_school"
+        elif m in (1, 2):
+            seasonal_tag = "winter"
 
         monthly_data.append({
             "month": month_str,
@@ -822,6 +1018,9 @@ def run_simulation(
             "pessimistic_end_balance": round(pessimistic_simulated, 2),
             "base_variable_projected": round(base_variable_projected, 2),
             "variable_expense_projected": round(variable_expense_projected, 2),
+            "seasonal_factor": round(seasonal_coeff_m, 3),
+            "seasonal_pct": round((seasonal_coeff_m - 1.0) * 100),
+            "seasonal_tag": seasonal_tag if (seasonality_mode != "disabled" and seasonality_intensity > 0) else None,
             "inflation_factor": round(inflation_factor, 4),
             "difference": round(current_simulated_bal - current_baseline_bal, 2),
             "events_applied": events_applied_this_month,
@@ -887,8 +1086,9 @@ def run_simulation(
         projection_sources.append(f"income_outliers_excluded:{excluded_income_outliers_count}:{excluded_income_outliers_total:.2f}")
     if variable_expense_adjustment_pct != 0.0:
         projection_sources.append(f"variable_adjustment_pct:{variable_expense_adjustment_pct * 100:+.0f}%")
-    if seasonal_expense_coefficients:
-        projection_sources.append(f"seasonality_months:{seasonal_history_months}")
+    has_seasonality = bool(seasonality_mode != "disabled" and seasonality_intensity > 0 and any(abs(c - 1.0) > 0.01 for c in seasonal_expense_coefficients.values()))
+    if has_seasonality:
+        projection_sources.append(f"seasonality:{seasonality_mode}:{int(round(seasonality_intensity * 100))}%")
     if inflation_rate > 0:
         projection_sources.append(f"inflation_rate:{inflation_rate}")
     if predicted_salary > 0:
@@ -904,8 +1104,8 @@ def run_simulation(
         "initial_balance": round(initial_balance, 2),
         "baseline_final_balance": round(current_baseline_bal, 2),
         "simulated_final_balance": round(current_simulated_bal, 2),
-        "optimistic_final_balance": round(current_optimistic_bal, 2),
-        "pessimistic_final_balance": round(current_pessimistic_bal, 2),
+        "optimistic_final_balance": round(monthly_data[-1]["optimistic_end_balance"] if monthly_data else initial_balance, 2),
+        "pessimistic_final_balance": round(monthly_data[-1]["pessimistic_end_balance"] if monthly_data else initial_balance, 2),
         "total_difference": round(total_diff, 2),
         "percentage_difference": pct_diff,
         "min_baseline_balance": round(min_baseline_bal, 2),
@@ -921,12 +1121,38 @@ def run_simulation(
         "avg_variable_expense": round(avg_variable_expense, 2),
         "variable_expense_stddev": round(variable_expense_stddev, 2),
         "variable_expense_history_months": variable_expense_history_months,
+        "outlier_sensitivity": outlier_sens,
         "excluded_outliers_count": excluded_outliers_count,
         "excluded_outliers_total": round(excluded_outliers_total, 2),
+        "excluded_outliers_list": [
+            {
+                "id": t.id,
+                "description": t.description,
+                "amount": round(abs(t.amount), 2),
+                "date": str(t.date_operation),
+                "type": t.type
+            }
+            for t in excluded_outlier_txs
+        ],
         "excluded_income_outliers_count": excluded_income_outliers_count,
         "excluded_income_outliers_total": round(excluded_income_outliers_total, 2),
+        "excluded_income_outliers_list": [
+            {
+                "id": t.id,
+                "description": t.description,
+                "amount": round(abs(t.amount), 2),
+                "date": str(t.date_operation),
+                "type": t.type
+            }
+            for t in excluded_inc_outliers
+        ],
         "seasonal_history_months": seasonal_history_months,
-        "has_seasonality": bool(seasonal_expense_coefficients),
+        "seasonality_mode": seasonality_mode,
+        "seasonality_intensity": round(seasonality_intensity, 2),
+        "has_seasonality": has_seasonality,
+        "seasonal_expense_coefficients": {cm: round(seasonal_expense_coefficients.get(cm, 1.0), 3) for cm in range(1, 13)},
+        "historical_seasonal_coefficients": {cm: round(historical_coefficients.get(cm, 1.0), 3) for cm in range(1, 13)},
+        "preset_standard_coefficients": PRESET_STANDARD_SEASONALITY,
         "break_even_monthly_saving": break_even_monthly_saving,
         "break_even_var_reduction_pct": break_even_var_reduction_pct,
         "is_fixed_expenses_deficit": is_fixed_expenses_deficit,

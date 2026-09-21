@@ -37,6 +37,17 @@
     background: rgba(145, 158, 171, 0.16);
 }
 
+.btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+}
+
+.btn-ghost:hover {
+    background: rgba(145, 158, 171, 0.12);
+    color: var(--text-main);
+}
+
 .btn-danger {
     background: var(--danger);
     color: #ffffff;
