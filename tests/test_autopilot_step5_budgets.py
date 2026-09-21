@@ -821,7 +821,7 @@ def test_t5_18_reactivate_suggestion(test_db):
 
 def test_t5_19_dismissed_scoped_to_current_month(test_db):
     """T5.19 : Un recalibrage écarté le mois précédent ne bloque plus le mois en cours."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     b = Budget(
         name="Transport",
@@ -835,7 +835,7 @@ def test_t5_19_dismissed_scoped_to_current_month(test_db):
     test_db.commit()
 
     # Simuler une suggestion écartée il y a 40 jours (mois passé)
-    old_date = datetime.utcnow() - timedelta(days=40)
+    old_date = datetime.now(timezone.utc) - timedelta(days=40)
     snap = {
         "budget_id": b.id,
         "budget_name": "Transport",
