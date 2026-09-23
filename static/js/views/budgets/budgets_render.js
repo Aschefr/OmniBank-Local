@@ -1011,10 +1011,18 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             container.innerHTML = html;
         }
 
-        if (this._pendingHighlightName) {
+        if (this._pendingHighlightId || this._pendingHighlightName) {
+            const hid = this._pendingHighlightId;
             const name = this._pendingHighlightName;
+            this._pendingHighlightId = null;
             this._pendingHighlightName = null;
-            setTimeout(() => this._highlightByName(name), 100);
+            requestAnimationFrame(() => this._highlightBudget(hid, name));
+        } else if (this._pendingHighlightPeriod || this._pendingHighlightPeriodSub) {
+            const period = this._pendingHighlightPeriod;
+            const sub = this._pendingHighlightPeriodSub;
+            this._pendingHighlightPeriod = null;
+            this._pendingHighlightPeriodSub = null;
+            requestAnimationFrame(() => this._highlightSection(period, sub));
         }
 
         if (this.aiProposals && this.aiProposals.length > 0) {
@@ -1025,23 +1033,48 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     },
 
     _highlightByName(budgetName) {
+        this._highlightBudget(null, budgetName);
+    },
+
+    _highlightBudget(budgetId, budgetName) {
         const cards = document.querySelectorAll('[data-budget-id]');
         for (const card of cards) {
+            const bId = card.getAttribute('data-budget-id');
             const nameEl = card.querySelector('strong');
-            if (nameEl && nameEl.textContent.trim().startsWith(budgetName)) {
+            const matchesId = budgetId && String(bId) === String(budgetId);
+            const matchesName = budgetName && nameEl && nameEl.textContent.trim().toLowerCase().startsWith(budgetName.toLowerCase());
+            if (matchesId || matchesName) {
                 card.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 card.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease, transform 0.4s ease';
-                card.style.boxShadow = '0 0 0 2px var(--accent), 0 0 24px rgba(99,102,241,0.5)';
-                card.style.borderColor = 'var(--accent)';
-                card.style.transform = 'scale(1.02)';
+                card.style.setProperty('box-shadow', '0 0 0 2px var(--accent), 0 0 24px rgba(99,102,241,0.5)', 'important');
+                card.style.setProperty('border-color', 'var(--accent)', 'important');
+                card.style.setProperty('transform', 'scale(1.02)', 'important');
                 setTimeout(() => {
-                    card.style.boxShadow = '';
-                    card.style.borderColor = '';
-                    card.style.transform = '';
-                    setTimeout(() => { card.style.transition = ''; }, 500);
-                }, 4000);
+                    card.style.removeProperty('box-shadow');
+                    card.style.removeProperty('border-color');
+                    card.style.removeProperty('transform');
+                    setTimeout(() => { card.style.removeProperty('transition'); }, 500);
+                }, 3500);
                 break;
             }
+        }
+    },
+
+    _highlightSection(period, subKey) {
+        let target = subKey ? document.querySelector(`[data-budget-period-sub="${subKey}"]`) : null;
+        if (!target && period) {
+            target = document.querySelector(`[data-budget-period="${period}"]`);
+        }
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease';
+            target.style.setProperty('box-shadow', '0 0 0 3px var(--accent), 0 0 25px rgba(99,102,241,0.45)', 'important');
+            target.style.setProperty('border-color', 'var(--accent)', 'important');
+            setTimeout(() => {
+                target.style.removeProperty('box-shadow');
+                target.style.removeProperty('border-color');
+                setTimeout(() => { target.style.removeProperty('transition'); }, 500);
+            }, 3500);
         }
     },
 

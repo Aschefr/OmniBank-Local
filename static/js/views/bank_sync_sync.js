@@ -105,7 +105,9 @@ Object.assign(window.BankSyncView, {
                     (window.app && typeof window.app.loadNotifications === 'function') ? window.app.loadNotifications() : Promise.resolve(),
                     this.refreshActiveViews(),
                     (this.connections && this.connections.length > 0) ? this.loadConnections() : Promise.resolve()
-                ]);
+                ]).then(() => {
+                    window.dispatchEvent(new CustomEvent('bank_sync_completed'));
+                });
             }
         } catch (_) {}
     },
@@ -145,7 +147,9 @@ Object.assign(window.BankSyncView, {
                         (window.app && typeof window.app.loadNotifications === 'function') ? window.app.loadNotifications() : Promise.resolve(),
                         this.refreshActiveViews(),
                         (this.connections && this.connections.length > 0) ? this.loadConnections() : Promise.resolve()
-                    ]);
+                    ]).then(() => {
+                        window.dispatchEvent(new CustomEvent('bank_sync_completed'));
+                    });
                     return;
                 }
             } catch (e) {
@@ -432,7 +436,9 @@ Object.assign(window.BankSyncView, {
             progressBar.style.width = '100%';
             es.close();
             this.eventSource = null;
-            this.refreshActiveViews();
+            this.refreshActiveViews().then(() => {
+                window.dispatchEvent(new CustomEvent('bank_sync_completed'));
+            });
             const twoFAModal = document.getElementById('twoFAModal');
             if (twoFAModal) twoFAModal.style.display = 'none';
             setTimeout(() => {

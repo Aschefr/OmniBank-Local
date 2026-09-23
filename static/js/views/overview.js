@@ -16,6 +16,14 @@ window.OverviewView = {
     _transactions: [],
     _accountsMap: {},
     _pastOverdueTxs: [],
+    _apStatus: null,
+    _apDecisions: [],
+    _apPopoverTimer: null,
+    _apIsPopoverOpen: false,
+    _apListenerBound: false,
+    _apCountdownInterval: null,
+    _apTargetCountdownEnd: null,
+    _apSyncTriggered: false,
 
     render() {
         return `
@@ -38,6 +46,45 @@ window.OverviewView = {
                             </button>
                             <div class="overview-acc-menu" id="ovAccountMenu" role="listbox" style="display:none;"></div>
                         </div>
+
+                        <!-- Auto-Pilot Distinctive Dynamic Activation Button & Info-Bulle Popover -->
+                        <div class="overview-autopilot-widget" id="ovAutopilotWidget">
+                            <button type="button" 
+                                    class="overview-autopilot-btn is-inactive" 
+                                    id="ovAutopilotBtn" 
+                                    onclick="window.OverviewView.handleAutopilotBtnClick(event)" 
+                                    onmouseenter="window.OverviewView.showAutopilotPopover()" 
+                                    onmouseleave="window.OverviewView.scheduleHideAutopilotPopover()"
+                                    aria-haspopup="dialog" 
+                                    aria-expanded="false" 
+                                    data-i18n-title="overview_autopilot_btn"
+                                    title="${window.i18n.t('overview_autopilot_btn') || 'Auto-Pilote'}">
+                                <span class="overview-autopilot-icon">
+                                    <svg class="ov-autopilot-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="9.5"></circle>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                        <line x1="12" y1="15" x2="12" y2="21.5"></line>
+                                        <line x1="2.5" y1="12" x2="9" y2="12"></line>
+                                        <line x1="15" y1="12" x2="21.5" y2="12"></line>
+                                    </svg>
+                                </span>
+                                <span class="overview-autopilot-label" id="ovAutopilotLabel" data-i18n="overview_autopilot_btn">${window.i18n.t('overview_autopilot_btn') || 'Auto-Pilote'}</span>
+                                <span class="overview-autopilot-dot" id="ovAutopilotDot"></span>
+                                <span class="overview-autopilot-timer-chip" id="ovAutopilotTimerChip" style="display:none;"></span>
+                                <span class="overview-autopilot-badge" id="ovAutopilotBadge" style="display:none;">0</span>
+                            </button>
+                            <div class="overview-autopilot-popover" 
+                                 id="ovAutopilotPopover" 
+                                 style="display:none;" 
+                                 role="dialog" 
+                                 onmouseenter="window.OverviewView.keepAutopilotPopoverOpen()" 
+                                 onmouseleave="window.OverviewView.scheduleHideAutopilotPopover()">
+                                <div class="ov-ap-popover-body" style="padding: 16px; text-align: center; color: var(--text-muted);">
+                                    <span>⏳ Chargement...</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <button class="overview-bank-sync-btn" style="display: none;" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}">
                             <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
                         </button>
@@ -377,6 +424,7 @@ window.OverviewView = {
             if (horizonSelector) horizonSelector.style.display = isOrgMode ? 'none' : 'inline-flex';
             await this._checkBankConnections();
             await this._renderPendingBankSyncBanner();
+            await this._renderAutopilotWidget();
             this._renderUnreconciled(transactions);
             this._renderTop3(transactions);
             this._renderBudgets(stats);
@@ -449,6 +497,407 @@ window.OverviewView = {
         if (menu) menu.style.display = 'none';
         if (trigger) trigger.setAttribute('aria-expanded', 'false');
         if (container) container.classList.remove('open');
+    },
+
+    async _renderAutopilotWidget() {
+        const btn = document.getElementById('ovAutopilotBtn');
+        const label = document.getElementById('ovAutopilotLabel');
+        const badge = document.getElementById('ovAutopilotBadge');
+        const timerChip = document.getElementById('ovAutopilotTimerChip');
+        const popover = document.getElementById('ovAutopilotPopover');
+        if (!btn || !popover) return;
+
+        // Bind global event listener once for real-time reactivity without manual F5
+        if (!this._apListenerBound) {
+            this._apListenerBound = true;
+            window.addEventListener('autopilot_updated', () => {
+                const root = document.getElementById('overviewRoot');
+                if (root && root.offsetParent !== null) {
+                    this._renderAutopilotWidget().catch(e => console.warn('[OverviewView] Autopilot refresh error:', e));
+                }
+            });
+            window.addEventListener('bank_sync_completed', () => {
+                const root = document.getElementById('overviewRoot');
+                if (root && root.offsetParent !== null) {
+                    this._renderAutopilotWidget().catch(e => console.warn('[OverviewView] BankSync refresh error:', e));
+                }
+            });
+        }
+
+        try {
+            const [status, decisionsRes] = await Promise.all([
+                API.get('/api/autopilot/status').catch(() => null),
+                API.get('/api/autopilot/decisions?limit=4').catch(() => ({ items: [] }))
+            ]);
+
+            this._apStatus = status || { 
+                is_enabled: false, 
+                threshold: 85.0, 
+                unseen_decisions_count: 0,
+                last_execution_at: null,
+                next_execution_at: null,
+                next_execution_countdown_seconds: null
+            };
+            this._apDecisions = (decisionsRes && Array.isArray(decisionsRes.items)) ? decisionsRes.items : [];
+
+            const isEnabled = !!this._apStatus.is_enabled;
+            const threshold = Math.round(this._apStatus.threshold || 85);
+            const count = this._apStatus.unseen_decisions_count || 0;
+
+            // Set countdown target
+            if (this._apStatus.next_execution_countdown_seconds !== null && this._apStatus.next_execution_countdown_seconds !== undefined) {
+                this._apTargetCountdownEnd = Date.now() + (this._apStatus.next_execution_countdown_seconds * 1000);
+            } else {
+                this._apTargetCountdownEnd = null;
+            }
+
+            // Update Button State
+            if (isEnabled) {
+                btn.classList.add('is-active');
+                btn.classList.remove('is-inactive');
+                btn.setAttribute('title', window.i18n.t('overview_autopilot_btn_active') || 'Auto-Pilote (Actif)');
+            } else {
+                btn.classList.add('is-inactive');
+                btn.classList.remove('is-active');
+                btn.setAttribute('title', window.i18n.t('overview_autopilot_btn_inactive') || 'Auto-Pilote (En veille)');
+            }
+
+            if (label) {
+                label.textContent = window.i18n.t('overview_autopilot_btn') || 'Auto-Pilote';
+            }
+
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
+            // Format Last Execution and Next Execution
+            const lastExecIso = this._apStatus.last_execution_at || this._apStatus.last_run_at;
+            let lastExecDisplay = `<span style="color:var(--text-muted); font-size:11px;">${window.i18n.t('overview_autopilot_no_past_exec') || 'Aucune action'}</span>`;
+            let lastExecFull = '';
+            if (lastExecIso) {
+                try {
+                    const dt = new Date(lastExecIso);
+                    lastExecDisplay = `${this._formatRelativeTime(lastExecIso)} <span style="opacity:0.75; font-size:10px;">(${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</span>`;
+                    lastExecFull = dt.toLocaleString();
+                } catch (e) {}
+            }
+
+            let nextExecHtml = '';
+            if (!isEnabled) {
+                nextExecHtml = `<span style="color:var(--text-muted); font-size:11px;">⏸️ ${window.i18n.t('overview_autopilot_btn_inactive') || 'En veille'}</span>`;
+            } else if (this._apStatus.next_execution_countdown_seconds !== null && this._apStatus.next_execution_countdown_seconds !== undefined && this._apStatus.bank_auto_sync_enabled) {
+                const countdownStr = this._formatCountdown(this._apStatus.next_execution_countdown_seconds);
+                const vaultWarning = !this._apStatus.vault_unlocked ? `<span style="font-size:9.5px; color:#f59e0b; display:block; margin-top:2px;" title="${window.i18n.t('overview_autopilot_next_exec_vault_locked') || 'En attente de déverrouillage'}">⚠️ Coffre verrouillé</span>` : '';
+                nextExecHtml = `<span id="ovApNextCountdownBadge" class="ov-ap-countdown-badge">⏳ ${countdownStr}</span>${vaultWarning}`;
+            } else {
+                nextExecHtml = `<span style="color:var(--text-muted); font-size:11px;">⚡ ${window.i18n.t('overview_autopilot_next_exec_ondemand') || 'Au prochain import / relevé'}</span>`;
+            }
+
+            // Build Decisions Feed HTML
+            let decisionsHtml = '';
+            if (this._apDecisions.length > 0) {
+                decisionsHtml = this._apDecisions.map(d => {
+                    let badgeClass = 'badge-blue';
+                    let typeLabel = window.i18n.t('autopilot_action_committed') || 'Saisie directe';
+                    let icon = '✨';
+
+                    if (d.decision_type === 'reconciliation' || d.decision_type === 'reconcile') {
+                        badgeClass = 'badge-emerald';
+                        typeLabel = window.i18n.t('autopilot_action_reconciled') || 'Rapproché';
+                        icon = '⚡';
+                    } else if (d.decision_type === 'recurrence' || d.decision_type === 'recurrence_promoted' || d.decision_type === 'recurrence_promotion') {
+                        badgeClass = 'badge-purple';
+                        typeLabel = window.i18n.t('autopilot_action_promoted') || 'Récurrence';
+                        icon = '🔄';
+                    } else if (d.decision_type === 'budget' || d.decision_type === 'budget_adjustment' || d.decision_type === 'budget_suggestion') {
+                        badgeClass = 'badge-amber';
+                        typeLabel = window.i18n.t('autopilot_action_budget_recalibrated') || 'Budget';
+                        icon = '🎯';
+                    }
+
+                    const formattedAmount = (d.amount !== null && d.amount !== undefined)
+                        ? `${d.amount > 0 ? '+' : ''}${formatCurrency(d.amount)}`
+                        : '';
+                    const amountClass = (d.amount !== null && d.amount > 0) ? 'text-green' : 'text-main';
+                    const timeStr = d.created_at ? this._formatRelativeTime(d.created_at) : '';
+
+                    return `
+                        <div class="ov-ap-decision-card">
+                            <div class="ov-ap-decision-left">
+                                <div class="ov-ap-decision-badge ${badgeClass}">
+                                    <span>${icon}</span> <span>${typeLabel}</span>
+                                </div>
+                                <span class="ov-ap-decision-label" title="${escapeHtml(d.label || '')}">${escapeHtml(d.label || 'Opération')}</span>
+                                ${d.category ? `<span class="ov-ap-decision-cat">${escapeHtml(d.category)}</span>` : ''}
+                            </div>
+                            <div class="ov-ap-decision-right">
+                                <span class="ov-ap-decision-amount ${amountClass}">${formattedAmount}</span>
+                                <span class="ov-ap-decision-time">${timeStr}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                decisionsHtml = `
+                    <div class="ov-ap-empty-state">
+                        <div class="ov-ap-empty-icon">${isEnabled ? '🛡️' : '💤'}</div>
+                        <div class="ov-ap-empty-text">
+                            ${isEnabled 
+                                ? (window.i18n.t('overview_autopilot_no_actions_active') || 'Surveillance active : toutes vos opérations sont synchronisées.')
+                                : (window.i18n.t('overview_autopilot_no_actions_inactive') || 'Auto-Pilote en veille. Activez-le pour automatiser les rapprochements et saisies.')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            popover.innerHTML = `
+                <div class="ov-ap-popover-header">
+                    <div class="ov-ap-popover-title-row">
+                        <div class="ov-ap-popover-title">
+                            <svg class="ov-autopilot-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent);">
+                                <circle cx="12" cy="12" r="9.5"></circle>
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <line x1="12" y1="15" x2="12" y2="21.5"></line>
+                                <line x1="2.5" y1="12" x2="9" y2="12"></line>
+                                <line x1="15" y1="12" x2="21.5" y2="12"></line>
+                            </svg>
+                            <span>${window.i18n.t('overview_autopilot_popover_title') || 'Mode Auto-Pilote'}</span>
+                        </div>
+                        <div class="ov-ap-toggle-switch-wrapper">
+                            <span class="ov-ap-status-pill ${isEnabled ? 'is-active' : 'is-inactive'}">
+                                ${isEnabled ? (window.i18n.t('autopilot_status_active') || '🟢 Actif') : (window.i18n.t('autopilot_status_inactive') || '⚪ En veille')}
+                            </span>
+                            <label class="ov-ap-switch" title="${isEnabled ? 'Désactiver' : 'Activer'}">
+                                <input type="checkbox" id="ovApQuickToggle" ${isEnabled ? 'checked' : ''} onchange="window.OverviewView.toggleAutopilotState(event)">
+                                <span class="ov-ap-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Execution Timings (Last & Next) -->
+                    <div class="ov-ap-timing-grid">
+                        <div class="ov-ap-timing-card">
+                            <div class="ov-ap-timing-label">
+                                <span>⏱️</span>
+                                <span>${window.i18n.t('overview_autopilot_last_exec') || 'Dernière action'}</span>
+                            </div>
+                            <div class="ov-ap-timing-value" title="${escapeHtml(lastExecFull)}">
+                                ${lastExecDisplay}
+                            </div>
+                        </div>
+                        <div class="ov-ap-timing-card">
+                            <div class="ov-ap-timing-label">
+                                <span>⏳</span>
+                                <span>${window.i18n.t('overview_autopilot_next_exec') || 'Prochaine synchro'}</span>
+                            </div>
+                            <div class="ov-ap-timing-value" id="ovApNextTimingValue">
+                                ${nextExecHtml}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ov-ap-popover-sub" style="margin-top: 8px;">
+                        <span>🎯 ${window.i18n.t('overview_autopilot_tolerance') || 'Tolérance'} : <strong>${threshold}%</strong></span>
+                    </div>
+                </div>
+
+                <div class="ov-ap-popover-body">
+                    <div class="ov-ap-section-title">
+                        <span>⚡ ${window.i18n.t('overview_autopilot_recent_actions') || 'Dernières actions'}</span>
+                        ${this._apDecisions.length > 0 ? `<span class="ov-ap-actions-count">${this._apDecisions.length}</span>` : ''}
+                    </div>
+                    ${decisionsHtml}
+                </div>
+
+                <div class="ov-ap-popover-footer">
+                    <button type="button" class="ov-ap-footer-btn" onclick="window.OverviewView.closeAutopilotPopover(); window.app.loadView('autopilot');">
+                        <span>⚙️ ${window.i18n.t('overview_autopilot_open_center') || 'Accéder au Centre de Contrôle'}</span>
+                        <span class="ov-ap-footer-arrow">➔</span>
+                    </button>
+                </div>
+            `;
+            window.i18n.translateDOM(popover);
+
+            // Start live countdown ticker
+            this._startCountdownLoop();
+        } catch (e) {
+            console.error('[OverviewView] Error rendering autopilot widget:', e);
+        }
+    },
+
+    _startCountdownLoop() {
+        if (this._apCountdownInterval) {
+            clearInterval(this._apCountdownInterval);
+            this._apCountdownInterval = null;
+        }
+
+        const updateTick = () => {
+            const timerChip = document.getElementById('ovAutopilotTimerChip');
+            const popoverBadge = document.getElementById('ovApNextCountdownBadge');
+
+            if (!this._apStatus) return;
+            const isEnabled = !!this._apStatus.is_enabled;
+
+            if (!isEnabled) {
+                if (timerChip) {
+                    timerChip.textContent = '⏸️ ' + (window.i18n.t('overview_autopilot_btn_inactive') || 'En veille');
+                    timerChip.style.display = 'inline-flex';
+                }
+                return;
+            }
+
+            if (this._apTargetCountdownEnd) {
+                const now = Date.now();
+                const diffMs = this._apTargetCountdownEnd - now;
+                const remSec = Math.max(0, Math.floor(diffMs / 1000));
+
+                const formatted = this._formatCountdown(remSec);
+                const formattedShort = this._formatCountdownShort(remSec);
+
+                if (popoverBadge) {
+                    popoverBadge.textContent = '⏳ ' + formatted;
+                }
+                if (timerChip) {
+                    timerChip.textContent = '⏳ ' + formattedShort;
+                    timerChip.style.display = 'inline-flex';
+                }
+
+                if (remSec === 0 && !this._apSyncTriggered) {
+                    this._apSyncTriggered = true;
+                    setTimeout(() => {
+                        this._apSyncTriggered = false;
+                        this._renderAutopilotWidget().catch(() => {});
+                    }, 5000);
+                }
+            } else {
+                if (timerChip) {
+                    timerChip.textContent = '⚡ ' + (window.i18n.t('overview_autopilot_timer_chip_ondemand') || 'Au prochain import');
+                    timerChip.style.display = 'inline-flex';
+                }
+            }
+        };
+
+        updateTick();
+        this._apCountdownInterval = setInterval(updateTick, 1000);
+    },
+
+    _formatCountdown(seconds) {
+        if (seconds <= 0) return window.i18n.t('overview_autopilot_next_exec_imminent') || 'Imminente...';
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        if (hrs > 0) {
+            return `${hrs}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
+        }
+        return `${mins}m ${secs.toString().padStart(2, '0')}s`;
+    },
+
+    _formatCountdownShort(seconds) {
+        if (seconds <= 0) return 'Imminent';
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        if (hrs > 0) return `${hrs}h ${mins}m`;
+        return `${mins}m`;
+    },
+
+    _formatRelativeTime(isoString) {
+        if (!isoString) return '';
+        try {
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) return '';
+            const now = new Date();
+            const diffMs = now - date;
+            const diffSec = Math.floor(diffMs / 1000);
+            const diffMin = Math.floor(diffSec / 60);
+            const diffHrs = Math.floor(diffMin / 60);
+            const diffDays = Math.floor(diffHrs / 24);
+
+            if (diffSec < 60) return "À l'instant";
+            if (diffMin < 60) return `Il y a ${diffMin} min`;
+            if (diffHrs < 24) return `Il y a ${diffHrs} h`;
+            if (diffDays === 1) return `Hier ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            return date.toLocaleDateString([], { day: 'numeric', month: 'short' });
+        } catch (e) {
+            return '';
+        }
+    },
+
+    handleAutopilotBtnClick(e) {
+        if (e) e.stopPropagation();
+        const popover = document.getElementById('ovAutopilotPopover');
+        if (!popover) return;
+        if (popover.style.display !== 'none') {
+            this.closeAutopilotPopover();
+        } else {
+            this.showAutopilotPopover();
+        }
+    },
+
+    showAutopilotPopover() {
+        clearTimeout(this._apPopoverTimer);
+        const popover = document.getElementById('ovAutopilotPopover');
+        const btn = document.getElementById('ovAutopilotBtn');
+        if (!popover) return;
+
+        popover.style.display = 'block';
+        if (btn) btn.setAttribute('aria-expanded', 'true');
+
+        const onOutsideClick = (evt) => {
+            const widget = document.getElementById('ovAutopilotWidget');
+            if (widget && !widget.contains(evt.target)) {
+                this.closeAutopilotPopover();
+                document.removeEventListener('click', onOutsideClick);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', onOutsideClick), 20);
+    },
+
+    keepAutopilotPopoverOpen() {
+        clearTimeout(this._apPopoverTimer);
+    },
+
+    scheduleHideAutopilotPopover() {
+        clearTimeout(this._apPopoverTimer);
+        this._apPopoverTimer = setTimeout(() => {
+            this.closeAutopilotPopover();
+        }, 280);
+    },
+
+    closeAutopilotPopover() {
+        clearTimeout(this._apPopoverTimer);
+        const popover = document.getElementById('ovAutopilotPopover');
+        const btn = document.getElementById('ovAutopilotBtn');
+        if (popover) popover.style.display = 'none';
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+    },
+
+    async toggleAutopilotState(e) {
+        if (e) e.stopPropagation();
+        try {
+            const currentlyEnabled = !!(this._apStatus && this._apStatus.is_enabled);
+            const newState = !currentlyEnabled;
+            
+            const res = await API.post('/api/autopilot/toggle', { enabled: newState });
+            if (res) {
+                this._apStatus = res;
+            }
+            
+            const msg = newState
+                ? (window.i18n.t('overview_autopilot_toggled_on') || 'Mode Auto-Pilote activé')
+                : (window.i18n.t('overview_autopilot_toggled_off') || 'Mode Auto-Pilote mis en veille');
+            showToast(msg, 'success');
+
+            window.dispatchEvent(new CustomEvent('autopilot_updated'));
+            await this._renderAutopilotWidget();
+        } catch (err) {
+            console.error('[OverviewView] Failed to toggle autopilot:', err);
+            showToast('Erreur lors du changement d\'état', 'error');
+        }
     },
 
     selectAccount(accId) {

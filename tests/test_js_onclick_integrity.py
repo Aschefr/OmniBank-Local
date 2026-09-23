@@ -43,3 +43,25 @@ def test_js_onclick_handlers_integrity():
                 missing_methods.append(f"{filepath}: window.{obj_name}.{method_name}() est indéfinie !")
 
     assert not missing_methods, f"Erreurs d'intégrité inline onclick trouvées :\n" + "\n".join(missing_methods)
+
+
+def test_all_js_syntax_integrity():
+    """Valide la syntaxe de tous les fichiers JavaScript pour éviter tout blocage du chargement initial."""
+    import subprocess
+    import shutil
+
+    node_bin = shutil.which("node")
+    if not node_bin:
+        pytest.skip("Node.js non disponible pour la vérification syntaxique JS.")
+
+    syntax_errors = []
+    for root, _, files in os.walk(JS_DIR):
+        for file in files:
+            if file.endswith(".js"):
+                path = os.path.join(root, file)
+                res = subprocess.run([node_bin, "-c", path], capture_output=True, text=True)
+                if res.returncode != 0:
+                    syntax_errors.append(f"{file}:\n{res.stderr.strip()}")
+
+    assert not syntax_errors, f"Erreurs de syntaxe JavaScript détectées :\n" + "\n\n".join(syntax_errors)
+

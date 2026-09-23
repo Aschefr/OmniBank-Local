@@ -196,6 +196,15 @@ from app.services.diagnostic_service import DiagnosticLogHandler, record_backend
 
 # Attach memory log handler to root logger
 root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+logging.getLogger("app").setLevel(logging.INFO)
+
+if not any(type(h) is logging.StreamHandler for h in root_logger.handlers):
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(logging.Formatter("[%(levelname)s] [%(name)s] %(message)s"))
+    root_logger.addHandler(console_handler)
+
 diag_handler = DiagnosticLogHandler()
 diag_handler.setLevel(logging.INFO)
 diag_formatter = logging.Formatter("[%(levelname)s] [%(name)s] %(message)s")
@@ -229,7 +238,8 @@ from app.routers import (
     bank_sync_vault,
     bank_sync_pending,
     diagnostics,
-    smart_labels
+    smart_labels,
+    autopilot
 )
 
 app.include_router(transactions.router)
@@ -259,6 +269,7 @@ app.include_router(bank_sync_vault.router)
 app.include_router(bank_sync_pending.router)
 app.include_router(diagnostics.router)
 app.include_router(smart_labels.router)
+app.include_router(autopilot.router)
 
 from starlette.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException

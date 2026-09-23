@@ -196,11 +196,14 @@ Object.assign(window.BankSyncView, {
             if (typeof window.BudgetsView.renderStatus === 'function') {
                 window.BudgetsView.renderStatus();
             }
+        } else if (curView === 'autopilot' && window.AutopilotView && typeof window.AutopilotView.refresh === 'function') {
+            await window.AutopilotView.refresh();
         }
         if (window.app && typeof window.app.refreshSidebar === 'function') {
             await window.app.refreshSidebar();
         }
         window.dispatchEvent(new CustomEvent('budgets:refresh'));
+        window.dispatchEvent(new CustomEvent('bank_sync_completed'));
     },
 
     getConfirmedMatchesList(pendingData) {

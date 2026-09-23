@@ -469,21 +469,71 @@ window.AllOperationsView = {
                 backBtn.style.display = hasBack ? 'inline-flex' : 'none';
             }
 
-            this.renderTable();
-            this.updateMonthNavButtons();
-
-            // Check if we need to highlight a specific transaction (e.g. overdraft locate)
+            // Check if we need to highlight a specific transaction (e.g. autopilot or overdraft locate)
             if (this._pendingHighlightTxId) {
                 const txId = this._pendingHighlightTxId;
                 const cssClass = this._pendingHighlightCssClass || 'highlight-flash';
                 this._pendingHighlightTxId = null;
                 this._pendingHighlightCssClass = null;
-                // Small delay to let VirtualTable finish initial render
-                setTimeout(() => this.scrollToAndHighlight(txId, cssClass), 250);
+
+                const targetTx = (this.transactions || []).find(t => String(t.id) === String(txId));
+                if (targetTx) {
+                    const monthSelect = document.getElementById('historyMonthFilter');
+                    const accSelect = document.getElementById('historyAccountFilter');
+                    const searchInput = document.getElementById('historySearch');
+                    const typeSelect = document.getElementById('historyTypeFilter');
+                    const attachFilter = document.getElementById('historyAttachmentFilter');
+                    const unrecFilter = document.getElementById('historyUnreconciledFilter');
+
+                    if (searchInput && searchInput.value) {
+                        searchInput.value = '';
+                    }
+                    if (typeSelect && typeSelect.value) {
+                        typeSelect.value = '';
+                    }
+                    if (attachFilter && attachFilter.checked && !targetTx.attachments) {
+                        attachFilter.checked = false;
+                    }
+                    if (unrecFilter && unrecFilter.checked && targetTx.reconciliation_date) {
+                        unrecFilter.checked = false;
+                    }
+                    if (window.MultiSelect && typeof window.MultiSelect.reset === 'function') {
+                        window.MultiSelect.reset('historyCategoryFilter');
+                    }
+                    if (monthSelect && targetTx.date_operation) {
+                        const targetMonth = targetTx.date_operation.substring(0, 7);
+                        if (monthSelect.value && monthSelect.value !== targetMonth) {
+                            monthSelect.value = targetMonth;
+                        }
+                    }
+                    if (accSelect && accSelect.value) {
+                        const selAcc = parseInt(accSelect.value);
+                        if (targetTx.from_account_id !== selAcc && targetTx.to_account_id !== selAcc) {
+                            accSelect.value = '';
+                        }
+                    }
+                }
+
+                if (targetTx) {
+                    this.renderTable(false);
+                    this.updateMonthNavButtons();
+                    // Let VirtualTable finish initial render and geometry calculation
+                    setTimeout(() => this.scrollToAndHighlight(txId, cssClass), 150);
+                } else {
+                    this.renderTable(false);
+                    this.updateMonthNavButtons();
+                    if (typeof showToast === 'function') {
+                        const notFoundMsg = (window.i18n && window.i18n.t('autopilot_target_not_found')) || 'Opération introuvable ou supprimée de la base de données.';
+                        showToast(`⚠️ ${notFoundMsg}`, 'warning');
+                    }
+                }
+            } else {
+                this.renderTable();
+                this.updateMonthNavButtons();
             }
         } catch (e) {
             console.error("Failed to load operations", e);
-            const tbody = document.getElementById('historyBody');
+            const tbody = document.getElementById('allOperationsBody');
             if (tbody) {
                 const msg = (window.i18n && (window.i18n.t('error_loading') || window.i18n.t('msg_error_generic'))) || 'Erreur de chargement';
                 tbody.innerHTML = `<tr><td class="row-marker"></td><td colspan="15" style="text-align:center; padding: 25px; color: var(--text-muted); font-style: italic;">⚠️ ${msg}</td></tr>`;
@@ -810,23 +860,22 @@ window.AllOperationsView = {
 
     /**
      * Scroll to a transaction by ID and flash-highlight it.
-     * Injects a CSS class into the VirtualTable raw HTML so the
+     * Injects the highlight class into the VirtualTable raw HTML so the
      * highlight survives re-renders triggered by scrolling.
      */
-    scrollToAndHighlight(txId, cssClass) {
-        cssClass = cssClass || 'highlight-flash';
+    scrollToAndHighlight(txId, cssClass = 'highlight-flash') {
         const tbody = document.getElementById('allOperationsBody');
         if (!tbody) return;
 
         // Pick color based on highlight type
         const highlightColor = cssClass === 'overdraft-flash'
-            ? 'rgba(255, 86, 48, 0.35)'
-            : 'rgba(99, 102, 241, 0.35)';
+            ? 'rgba(255, 86, 48, 0.40)'
+            : 'rgba(139, 92, 246, 0.40)';
 
         let vtIdx = -1;
         let originalRowHtml = null;
 
-        // If using VirtualTable desktop mode, inject inline style into raw HTML
+        // If using VirtualTable desktop mode, inject class and inline style into raw HTML
         // so it survives scroll-triggered re-renders
         if (this._vt && this._vt._rows && this._vt._rows.length && !this._vt._isMobile()) {
             const needle = `data-id="${txId}"`;
@@ -835,50 +884,70 @@ window.AllOperationsView = {
                 originalRowHtml = this._vt._rows[vtIdx];
                 this._vt._rows[vtIdx] = originalRowHtml.replace(
                     /(<tr\s)/,
-                    `$1style="background-color: ${highlightColor} !important;" `
+                    `$1class="${cssClass} " style="background-color: ${highlightColor} !important; outline: 2px solid #8b5cf6;" `
                 );
                 this._vt._scrollToIndex(vtIdx);
             }
         }
 
-        // Wait for DOM to settle after potential scroll/render
+        // Wait for DOM to settle after scroll/render
         requestAnimationFrame(() => {
-            const row = tbody.querySelector(`tr[data-id="${txId}"]`);
-            if (!row) { console.log('[Highlight] Row not found in DOM for tx', txId); return; }
-
-            const isMobile = window.innerWidth <= 1024;
-            row.scrollIntoView({ behavior: isMobile ? 'auto' : 'smooth', block: 'center' });
-
-            // Apply highlight via inline styles (beats any CSS specificity)
-            row.style.setProperty('background-color', highlightColor, 'important');
-            row.querySelectorAll('td').forEach(td => {
-                td.style.setProperty('background-color', highlightColor, 'important');
-            });
-
-            // Fade out after 2 seconds
             setTimeout(() => {
-                row.style.transition = 'background-color 1s ease-out';
-                row.style.setProperty('background-color', 'transparent', 'important');
+                const row = tbody.querySelector(`tr[data-id="${txId}"]`);
+                if (!row) {
+                    console.log('[AllOperations Highlight] Row not found in DOM for tx', txId);
+                    if (typeof showToast === 'function') {
+                        const notFoundMsg = (window.i18n && window.i18n.t('autopilot_target_not_found')) || 'Opération introuvable ou supprimée de la base de données.';
+                        showToast(`⚠️ ${notFoundMsg}`, 'warning');
+                    }
+                    return;
+                }
+
+                const isMobile = window.innerWidth <= 1024;
+                row.scrollIntoView({ behavior: isMobile ? 'auto' : 'smooth', block: 'center' });
+
+                // Apply highlight classes and inline styles
+                row.classList.add(cssClass);
+                row.style.setProperty('background-color', highlightColor, 'important');
+                row.style.setProperty('outline', '2px solid #8b5cf6', 'important');
                 row.querySelectorAll('td').forEach(td => {
-                    td.style.transition = 'background-color 1s ease-out';
-                    td.style.setProperty('background-color', 'transparent', 'important');
+                    td.classList.add(cssClass);
+                    td.style.setProperty('background-color', highlightColor, 'important');
                 });
 
-                // Clean up inline styles after fade
+                // Fade out after 3.2 seconds
                 setTimeout(() => {
-                    row.style.removeProperty('background-color');
-                    row.style.removeProperty('transition');
+                    row.style.transition = 'background-color 1s ease-out, outline 1s ease-out';
+                    row.style.setProperty('background-color', 'transparent', 'important');
+                    row.style.setProperty('outline', '2px solid transparent', 'important');
                     row.querySelectorAll('td').forEach(td => {
-                        td.style.removeProperty('background-color');
-                        td.style.removeProperty('transition');
+                        td.style.transition = 'background-color 1s ease-out';
+                        td.style.setProperty('background-color', 'transparent', 'important');
                     });
-                    // Restore original VT HTML
-                    if (vtIdx >= 0 && originalRowHtml && this._vt && this._vt._rows) {
-                        this._vt._rows[vtIdx] = originalRowHtml;
-                    }
-                }, 1100);
-            }, 2000);
+
+                    // Clean up inline styles after fade
+                    setTimeout(() => {
+                        row.classList.remove(cssClass);
+                        row.style.removeProperty('background-color');
+                        row.style.removeProperty('outline');
+                        row.style.removeProperty('transition');
+                        row.querySelectorAll('td').forEach(td => {
+                            td.classList.remove(cssClass);
+                            td.style.removeProperty('background-color');
+                            td.style.removeProperty('transition');
+                        });
+                        // Restore original VT HTML
+                        if (vtIdx >= 0 && originalRowHtml && this._vt && this._vt._rows) {
+                            this._vt._rows[vtIdx] = originalRowHtml;
+                        }
+                    }, 1100);
+                }, 3200);
+            }, 60);
         });
+    },
+
+    highlightRow(txId, cssClass = 'highlight-flash') {
+        this.scrollToAndHighlight(txId, cssClass);
     },
 
     async _openAttachment(path) {
@@ -1114,5 +1183,6 @@ window.AllOperationsView = {
                 showToast(window.i18n?.t('op_auto_save_error') || 'Erreur lors de l\'enregistrement des automatismes des opérations.', 'error');
             }
         }
-    }
+    },
+
 };

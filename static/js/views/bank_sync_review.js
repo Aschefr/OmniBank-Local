@@ -924,10 +924,13 @@ Object.assign(window.BankSyncView, {
                 </div>
                 `;
 
-            const amountColor = isDebit ? '#ef4444' : '#10b981';
+            const amtVal = (typeof tx.amount === 'number' && !isNaN(tx.amount))
+                ? tx.amount
+                : (typeof tx.raw_amount !== 'undefined' ? Math.abs(parseFloat(tx.raw_amount) || 0) : 0);
+            const amountColor = isDebit ? 'var(--text-main)' : '#10b981';
             const amountInput = isRec 
-                ? `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(isDebit ? '-' : '+')} ${tx.amount.toFixed(2)} €</span>`
-                : `<input type="number" step="0.01" class="input-styled review-amount-input" value="${tx.amount.toFixed(2)}" style="width: 80px; text-align: right; padding: 4px; font-weight: 700; color: ${amountColor};" onchange="window.BankSyncView.updateTxAmount(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">`;
+                ? `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(isDebit ? '-' : '+')} ${amtVal.toFixed(2)} €</span>`
+                : `<input type="number" step="0.01" class="input-styled review-amount-input" value="${amtVal.toFixed(2)}" style="width: 80px; text-align: right; padding: 4px; font-weight: 700; color: ${amountColor};" onchange="window.BankSyncView.updateTxAmount(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">`;
 
             const directionPillHtml = `
                 <span class="direction-pill ${isDebit ? 'direction-debit' : 'direction-credit'}" style="font-size: 9.5px; padding: 1px 6px; margin-top: 3px;">

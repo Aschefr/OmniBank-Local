@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import BankConnection, GlobalConfig, Notification, Transaction
+from app.models import Account, BankConnection, GlobalConfig, Notification, Transaction
 from app.services.bank_sync_service import BankSyncService
 from app.services.credential_vault import CredentialVault, VaultSessionManager
 from app.services.history_service import record_action, snapshot_entity

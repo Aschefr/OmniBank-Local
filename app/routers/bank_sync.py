@@ -42,6 +42,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/bank-sync", tags=["bank-sync"])
 
 
+@router.get("/active-sync-status")
+def get_active_sync_status(profile_id: Optional[str] = None):
+    """Retourne l'état d'activité des synchronisations bancaires en cours (tâches de fond et interactives)."""
+    from app.services.bank_sync_scheduler import is_background_sync_running
+    active_pid = profile_id or get_active_profile().get("id", "default")
+    is_running = is_background_sync_running(profile_id=active_pid)
+    return {
+        "is_syncing": is_running,
+        "profile_id": active_pid
+    }
+
+
 @router.get("/backends", response_model=List[BankBackendInfo])
 def get_backends(force_refresh: bool = False):
     """Retourne la liste complète des backends bancaires disponibles (96+) et leurs champs de configuration."""

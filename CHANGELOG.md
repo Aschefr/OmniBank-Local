@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Standardized Auto-Pilot Decision Override Modal & CategoryPicker Integration ✏️🎨**:
+  - **Application-Standard Modal UI**: Overhauled the Auto-Pilot decision override modal to strictly adhere to OmniBank design tokens and layout standards: blurred backdrop filter, rounded card with accent top bar on Titanium themes, dedicated header with action icon badge and close button, and structured action buttons.
+  - **Integrated Searchable CategoryPicker**: Replaced the plain text input with the canonical `CategoryPicker` component, providing real-time search, directional badges (`🔴 Sortie (Débit)` / `🟢 Entrée (Crédit)`), type tabs (`Tout`, `Variables`, `Fixes`), and new category creation.
+  - **1-Click AI Classification (`✨`)**: Added an AI suggestion action button next to the category picker to clean and classify transaction descriptions on the fly using local AI models.
+  - **Zero-F5 Reactivity & Keyboard Ergonomics**: Added keyboard shortcuts (<kbd>Escape</kbd> and <kbd>Enter</kbd>), reliable category prefetching, and automated emission of `autopilot_updated` and `transactions_updated` events for instant live UI refreshes.
+- **Auto-Pilot Control Center, Decision Feed & Semantic Rollback (Step 6) 🤖🎛️**:
+  - **Dedicated Control Center View (`AutopilotView`)**: Introduced a 4-panel control center accessible via the primary navigation and header status badge:
+    - *Cockpit & KPIs*: Live status indicators, configurable tolerance threshold slider (70% to 99%), and efficiency metrics (total automated operations, precision rate, saved clicks, estimated hours).
+    - *Decision Feed*: Chronological audit feed of all autonomous actions (reconciliations, new entries, category mappings, recurrence promotions, budget recalibrations) grouped by batch cycle with type filters.
+    - *Retroaction & Reorientation Levers*: 1-click unpoint/dissociate for reconciliations, in-place category correction with optional merchant rule memorization, and batch cycle rollback.
+    - *Rules Workshop*: Live interactive directory of learned merchant rules (`BankLabelMapping`), blacklisted/excluded merchants, and locked budget envelopes (`is_locked`).
+  - **Full Semantic Cycle Rollback**: 1-click rollback of an entire ingestion batch (`POST /api/autopilot/rollback-cycle/{batch_id}`), deleting added entries, cleanly unpointing reconciled forecasts with snapshot restoration, and reconstituting the original batch transactions directly in the staging Sas (`_PENDING_SYNC_DATA`) for manual review.
+  - **Full-Auto Budget Mutations & Recurrence Synchronization**: Automated application of budget envelope recalibrations when `auto_apply_budget_suggestions` is enabled (with annual 25% drift safeguard), coupled with seamless envelope adjustments on recurrence promotions, perennial rate hikes ($N=3$), and contract terminations.
+  - **Desktop Shutdown Shield (Tauri 2.x)**: Safe window close handler (`WindowEvent::CloseRequested`) in Rust inspecting active bank sync state before termination to prevent abrupt process termination during atomic database commits.
+  - **Server-Side Unread Notification Badge**: Unread decision badge in the header and mobile navigation tracked via `GlobalConfig.autopilot_last_visit_at` across multi-browser and multi-device sessions without phantom counters.
 - **Persistent Raw Bank Label (`raw_description`) & Bidirectional Smart Matching 🏷️💾**:
   - **Immutable Statement Memory**: Added `raw_description` column and index to SQLite schema (migration v29), persistently preserving original technical bank/CSV labels independently of user-renamed descriptions.
   - **Historical Fuzzy Matching (Level 2)**: Extended the Smart Label engine to match incoming statement strings against both `raw_description` and `description`, instantly resolving recurring transfers and charges even after complete user renamings.
