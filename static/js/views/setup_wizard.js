@@ -1037,6 +1037,22 @@ window.SetupWizard = {
                     </div>
                 </div>
 
+                <!-- Mode Auto-Pilote Toggle -->
+                <div style="margin-top: 16px; padding: 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; text-align: left; max-width: 480px; width: 100%;">
+                    <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
+                        <div>
+                            <div style="font-weight:700; font-size:13px; color:var(--text-main);" data-i18n="autopilot_wizard_title">🤖 Mode Auto-Pilote (Recommandé)</div>
+                            <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;" data-i18n="autopilot_wizard_desc">
+                                Rapprochement haute confiance, détection des récurrences et synchronisation autonome avec réversibilité totale.
+                            </div>
+                        </div>
+                        <div class="wizard-toggle" style="margin-left: 14px; flex-shrink: 0;">
+                            <input type="checkbox" id="wizAutopilotToggle" checked>
+                            <span class="wizard-toggle-slider"></span>
+                        </div>
+                    </label>
+                </div>
+
                 <p class="wizard-hint" data-i18n="wizard_ai_optional">${window.i18n.t('wizard_ai_optional')}</p>
 
                 <div class="wizard-nav">
@@ -1122,25 +1138,43 @@ window.SetupWizard = {
 
     async _saveAI() {
         const enabled = document.getElementById('wizAIToggle')?.checked;
+        const apEnabled = document.getElementById('wizAutopilotToggle')?.checked;
+        const configToSave = {};
+
         if (enabled) {
             const url = document.getElementById('wizAIUrl').value.trim();
             const model = document.getElementById('wizAIModel')?.value || '';
             const reports = document.getElementById('wizAIReportsToggle')?.checked || false;
+            configToSave.enable_ai = 'true';
+            configToSave.ollama_url = url;
+            configToSave.ollama_model = model;
+            configToSave.ai_reports_enabled = reports ? 'true' : 'false';
+        }
+
+        if (apEnabled !== undefined) {
+            configToSave.auto_pilot_enabled = apEnabled ? 'true' : 'false';
+        }
+
+        if (Object.keys(configToSave).length > 0) {
             try {
-                await API.post('/api/config/', {
-                    enable_ai: 'true',
-                    ollama_url: url,
-                    ollama_model: model,
-                    ai_reports_enabled: reports ? 'true' : 'false'
-                });
+                await API.post('/api/config/', configToSave);
+                if (apEnabled) {
+                    try { await API.post('/api/autopilot/toggle', { enabled: true }); } catch (e) {}
+                }
             } catch (e) {
-                console.error('[SetupWizard] Erreur sauvegarde config IA', e);
+                console.error('[SetupWizard] Erreur sauvegarde config IA / Auto-Pilote', e);
             }
         }
         this._nav(1);
     },
 
-    _skipAI() {
+    async _skipAI() {
+        const apEnabled = document.getElementById('wizAutopilotToggle')?.checked;
+        if (apEnabled) {
+            try {
+                await API.post('/api/autopilot/toggle', { enabled: true });
+            } catch (e) {}
+        }
         this._nav(1);
     },
 

@@ -439,6 +439,9 @@ class App {
             });
         }
 
+        window.addEventListener('autopilot_updated', () => this.updateAutopilotBadge());
+        window.addEventListener('bank_sync_completed', () => this.updateAutopilotBadge());
+
         // Setup Undo / Redo Header Buttons
         const undoBtn = document.getElementById('headerUndoBtn');
         const redoBtn = document.getElementById('headerRedoBtn');
@@ -481,6 +484,34 @@ class App {
             };
         }
         this.updateHeaderHistoryState();
+        this.updateAutopilotBadge();
+    }
+
+    async updateAutopilotBadge() {
+        try {
+            const status = await API.get('/api/autopilot/status');
+            const count = status ? (status.unseen_decisions_count || 0) : 0;
+            const headerBadge = document.getElementById('autopilotHeaderBadge');
+            const mobileBadge = document.getElementById('autopilotMobileBadge');
+            if (headerBadge) {
+                if (count > 0) {
+                    headerBadge.textContent = count > 99 ? '99+' : count;
+                    headerBadge.style.display = 'inline-block';
+                } else {
+                    headerBadge.style.display = 'none';
+                }
+            }
+            if (mobileBadge) {
+                if (count > 0) {
+                    mobileBadge.textContent = count > 99 ? '99+' : count;
+                    mobileBadge.style.display = 'inline-block';
+                } else {
+                    mobileBadge.style.display = 'none';
+                }
+            }
+        } catch (e) {
+            // Silently ignore during initial boot
+        }
     }
 
     async refreshAll() {
@@ -608,7 +639,10 @@ class App {
         } else if (viewName === 'bank_sync' && window.BankSyncView) {
             main.innerHTML = window.BankSyncView.render();
             window.BankSyncView.init();
-
+        } else if (viewName === 'autopilot' && window.AutopilotView) {
+            main.innerHTML = window.AutopilotView.render();
+            window.AutopilotView.init();
+            this.updateAutopilotBadge();
         } else {
             main.innerHTML = `<h2>${window.i18n.t('nav_' + viewName)}</h2><p>${window.i18n.t('label_in_construction')}</p>`;
         }
@@ -631,46 +665,27 @@ class App {
     }
 
     async scrollToBudget(budgetId, viewName = 'budgets') {
+        if (window.BudgetsView) {
+            window.BudgetsView._pendingHighlightId = budgetId;
+        }
         if (this.currentView !== viewName) {
             this.loadView(viewName);
+        } else if (window.BudgetsView && typeof window.BudgetsView._highlightBudget === 'function') {
+            window.BudgetsView._highlightBudget(budgetId, null);
         }
-        const startTime = Date.now();
-        const poll = () => {
-            const card = document.querySelector(`[data-budget-id="${budgetId}"]`);
-            if (card) {
-                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                card.classList.add('budget-card-highlight-flash');
-                setTimeout(() => {
-                    card.classList.remove('budget-card-highlight-flash');
-                }, 3000);
-            } else if (Date.now() - startTime < 3000) {
-                setTimeout(poll, 100);
-            }
-        };
-        poll();
     }
 
     async scrollToBudgetSection(period, accKey = '__global__', viewName = 'budgets') {
+        const subKey = `${period}-${accKey}`;
+        if (window.BudgetsView) {
+            window.BudgetsView._pendingHighlightPeriod = period;
+            window.BudgetsView._pendingHighlightPeriodSub = subKey;
+        }
         if (this.currentView !== viewName) {
             this.loadView(viewName);
+        } else if (window.BudgetsView && typeof window.BudgetsView._highlightSection === 'function') {
+            window.BudgetsView._highlightSection(period, subKey);
         }
-        const startTime = Date.now();
-        const poll = () => {
-            let target = document.querySelector(`[data-budget-period-sub="${period}-${accKey}"]`);
-            if (!target) {
-                target = document.querySelector(`[data-budget-period="${period}"]`);
-            }
-            if (target) {
-                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                target.classList.add('budget-card-highlight-flash');
-                setTimeout(() => {
-                    target.classList.remove('budget-card-highlight-flash');
-                }, 3000);
-            } else if (Date.now() - startTime < 3000) {
-                setTimeout(poll, 100);
-            }
-        };
-        poll();
     }
 
     async navigateToDiagnostics() {

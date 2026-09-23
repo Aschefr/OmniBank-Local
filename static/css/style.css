@@ -25,6 +25,7 @@
 @import url('./views/recurrences.css');
 @import url('./views/chat.css');
 @import url('./views/settings.css');
+@import url('./views/autopilot.css');
 
 /* 4. Themes & Overrides */
 @import url('./themes/titanium.css');

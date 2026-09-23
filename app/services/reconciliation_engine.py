@@ -74,12 +74,19 @@ def evaluate_candidate(candidate_tx: Transaction, target_dt, bank_label: Optiona
             session = db or Session.object_session(candidate_tx)
             if session:
                 tmpl = session.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == candidate_tx.recurrence_id).first()
-                if tmpl and tmpl.day_of_month:
+                cand_dt = t_dt
+                if isinstance(cand_dt, str):
+                    from datetime import datetime
+                    try:
+                        cand_dt = datetime.strptime(cand_dt[:10], "%Y-%m-%d").date()
+                    except Exception:
+                        cand_dt = None
+                if tmpl and tmpl.day_of_month and cand_dt and hasattr(cand_dt, "year"):
                     import calendar
                     from datetime import date
-                    max_day = calendar.monthrange(target_dt.year, target_dt.month)[1]
+                    max_day = calendar.monthrange(cand_dt.year, cand_dt.month)[1]
                     target_day = min(tmpl.day_of_month, max_day)
-                    tmpl_dt = date(target_dt.year, target_dt.month, target_day)
+                    tmpl_dt = date(cand_dt.year, cand_dt.month, target_day)
                     tmpl_score = compute_temporal_score(tmpl_dt, target_dt)
                     if tmpl_score > temp_score:
                         temp_score = tmpl_score

@@ -359,6 +359,21 @@ fn main() {
 
             Ok(())
         })
+        .on_window_event(|_window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                // Check if background bank sync is actively running/committing
+                if let Ok(resp) = reqwest::blocking::get("http://127.0.0.1:8434/api/bank-sync/active-sync-status") {
+                    if resp.status().is_success() {
+                        if let Ok(json) = resp.json::<serde_json::Value>() {
+                            if json.get("is_syncing").and_then(|v| v.as_bool()).unwrap_or(false) {
+                                println!("[Tauri] Active bank sync in progress during close request, awaiting safe commit...");
+                                std::thread::sleep(Duration::from_millis(1500));
+                            }
+                        }
+                    }
+                }
+            }
+        })
         .build(tauri::generate_context!())
         .expect("error while building OmniBank")
         .run(|app_handle, event| {

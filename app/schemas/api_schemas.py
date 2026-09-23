@@ -1,5 +1,5 @@
-from pydantic import BaseModel, field_validator, ConfigDict
-from typing import Optional, List
+from pydantic import BaseModel, field_validator, ConfigDict, Field
+from typing import Optional, List, Dict, Any
 from datetime import date, datetime
 
 
@@ -375,3 +375,86 @@ class AutopilotDecisionLogOut(BaseModel):
 class FileAccountMappingRequest(BaseModel):
     section_title: str
     account_id: int
+
+
+class AutopilotToggleRequest(BaseModel):
+    enabled: bool
+
+
+class AutopilotThresholdIn(BaseModel):
+    threshold: float
+
+
+class AutopilotThresholdOut(BaseModel):
+    threshold: float
+
+
+class AutopilotStatusOut(BaseModel):
+    is_enabled: bool
+    threshold: float
+    managed_subtoggles: Dict[str, Any] = {}
+    last_run_at: Optional[str] = None
+    last_visit_at: Optional[str] = None
+    unseen_decisions_count: int = 0
+    is_syncing: bool = False
+    last_execution_at: Optional[str] = None
+    next_execution_at: Optional[str] = None
+    next_execution_type: Optional[str] = None
+    next_execution_countdown_seconds: Optional[int] = None
+    bank_auto_sync_enabled: bool = False
+    vault_unlocked: bool = False
+
+
+class AutopilotKPIOut(BaseModel):
+    total_decisions: int
+    auto_reconciled: int
+    auto_committed: int
+    promoted_recurrences: int
+    budget_mutations: int
+    undone_decisions: int
+    accuracy_rate: float
+    hours_saved_estimate: float
+
+
+class AutopilotDecisionItem(BaseModel):
+    id: int
+    batch_id: str
+    decision_type: str
+    action: str
+    entity_type: str
+    entity_id: Optional[int] = None
+    conn_id: Optional[int] = None
+    account_id: Optional[int] = None
+    account_name: Optional[str] = None
+    label: str
+    raw_label: Optional[str] = None
+    amount: float
+    category: Optional[str] = None
+    confidence_score: Optional[float] = None
+    reason: Optional[str] = None
+    is_undone: bool = False
+    undone_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    details: Optional[Dict[str, Any]] = None
+
+
+class AutopilotDecisionFeedOut(BaseModel):
+    items: List[AutopilotDecisionItem]
+    total: int
+    offset: int
+    limit: int
+
+
+class AutopilotOverrideRequest(BaseModel):
+    new_category: Optional[str] = None
+    new_description: Optional[str] = None
+    new_amount: Optional[float] = None
+    learn_rule: bool = True
+
+
+class AutopilotRollbackCycleOut(BaseModel):
+    success: bool
+    batch_id: str
+    undone_count: int
+    reconstituted_in_sas: bool
+    message: str

@@ -1481,7 +1481,11 @@ def suggest_new_envelopes(
 
     # Vérifier si l'option d'auto-création est activée
     cfg_auto_create = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_create_budget_envelopes").first()
-    is_auto_create = bool(cfg_auto_create and cfg_auto_create.value.strip().lower() == "true")
+    if cfg_auto_create and cfg_auto_create.value is not None:
+        is_auto_create = cfg_auto_create.value.strip().lower() in ("true", "1", "yes", "on")
+    else:
+        from app.services.autopilot_service import is_autopilot_enabled
+        is_auto_create = is_autopilot_enabled(db)
 
     # Moteur sélectionné (déterministe par défaut)
     engine_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_suggestion_engine").first()
@@ -1911,7 +1915,11 @@ def evaluate_monthly_budget_suggestions(
 
     # Option d'auto-application du recalibrage
     cfg_auto_apply = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_apply_budget_suggestions").first()
-    is_auto_apply = bool(cfg_auto_apply and cfg_auto_apply.value.strip().lower() == "true")
+    if cfg_auto_apply and cfg_auto_apply.value is not None:
+        is_auto_apply = cfg_auto_apply.value.strip().lower() in ("true", "1", "yes", "on")
+    else:
+        from app.services.autopilot_service import is_autopilot_enabled
+        is_auto_apply = is_autopilot_enabled(db)
 
     # Filtre d'éligibilité strict
     budgets = (
@@ -2591,4 +2599,89 @@ def get_budget_automations_history(db: Session, limit: int = 50) -> List[dict]:
             "created_at": d.created_at.isoformat() if d.created_at else None,
         })
     return results
+
+
+def sync_budget_from_recurrence_change(
+    db: Session,
+    category: str,
+    change_type: str,
+    amount_delta: float,
+    batch_id: Optional[str] = None,
+    profile_id: Optional[str] = None
+) -> Optional[dict]:
+    """
+    Synchronise de manière transparente et déterministe les enveloppes budgétaires
+    lors d'un changement de statut ou montant d'une charge récurrente.
+    - "promotion": charge récurrente détectée/créée -> ajuste ou crée l'enveloppe si option active
+    - "hike": hausse tarifaire pérenne propagée -> augmente l'enveloppe existante du delta
+    - "closed": abonnement résilié/échéance close -> réduit l'enveloppe du montant libéré
+    """
+    if not category or abs(amount_delta) < 0.01:
+        return None
+
+    from app.services.autopilot_service import is_autopilot_enabled
+    from app.services.bank_sync_scheduler import _resolve_profile_id
+    from app.services import stats_cache
+    import uuid as _uuid
+
+    pid = _resolve_profile_id(profile_id)
+    cfg_auto_apply = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_apply_budget_suggestions").first()
+    if cfg_auto_apply and cfg_auto_apply.value is not None:
+        auto_apply = cfg_auto_apply.value.strip().lower() in ("true", "1", "yes", "on")
+    else:
+        from app.services.autopilot_service import is_autopilot_enabled
+        auto_apply = is_autopilot_enabled(db)
+
+    if not auto_apply:
+        return None
+
+    budget_cat = db.query(BudgetCategory).filter(BudgetCategory.category_name == category).first()
+    if not budget_cat:
+        return None
+
+    budget = db.query(Budget).filter(
+        Budget.id == budget_cat.budget_id,
+        Budget.is_closed == False,
+        Budget.is_locked == False
+    ).first()
+    if not budget:
+        return None
+
+    old_amount = float(budget.monthly_amount or 0.0)
+    new_amount = max(0.0, round(old_amount + amount_delta, 2))
+
+    if round(old_amount, 2) == round(new_amount, 2):
+        return None
+
+    old_snap = snapshot_entity(budget, db)
+    budget.monthly_amount = new_amount
+    db.flush()
+    record_action(db, "budget", budget.id, "UPDATE", old_snap, snapshot_entity(budget, db), user_name="Automatisme (Sync Récurrence-Budget)")
+
+    bid = batch_id or str(_uuid.uuid4())
+    snap_payload = {
+        "budget_id": budget.id,
+        "budget_name": budget.name,
+        "category": category,
+        "change_type": change_type,
+        "amount_delta": amount_delta,
+        "old_amount": old_amount,
+        "new_amount": new_amount,
+    }
+    decision = AutopilotDecisionLog(
+        batch_id=bid,
+        decision_type="budget_recurrence_sync",
+        action="AUTO_COMMIT",
+        entity_type="budget",
+        entity_id=budget.id,
+        raw_snapshot=json.dumps(snap_payload, default=str),
+        confidence_score=100.0,
+        is_undone=False
+    )
+    db.add(decision)
+    db.commit()
+    stats_cache.invalidate(pid)
+    logger.info(f"[AutoPilot Budgets] Synchronisation budget '{budget.name}' suite à '{change_type}' ({old_amount} € -> {new_amount} €)")
+    return {"budget_id": budget.id, "old_amount": old_amount, "new_amount": new_amount}
+
 

@@ -1,3 +1,4 @@
+import logging
 from io import StringIO, BytesIO
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Form, Request
 from sqlalchemy.orm import Session
@@ -14,6 +15,8 @@ from app.services.csv_parser import (
     detect_multi_account_sections,
     extract_all_sections_parsed
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/csv", tags=["csv"])
 
@@ -475,7 +478,8 @@ async def import_to_pending(
     active_pid = active_profile.get("id", "default") if active_profile else "default"
 
     auto_summary = process_incoming_batch(db, CSV_IMPORT_CONN_ID, preview_data, profile_id=active_pid)
-    if auto_summary.get("status") == "completed":
+    autopilot_active = bool(auto_summary and auto_summary.get("status") == "completed")
+    if autopilot_active:
         preview_data["_autopilot_summary"] = auto_summary
 
     # Créer une notification in-app d'import de fichier
