@@ -56,10 +56,12 @@ _GATEWAY_PREFIX_REGEX = re.compile(
 # Nettoyage des caractères de ponctuation résiduels
 _PUNCT_REGEX = re.compile(r'[^A-Z0-9\sÀ-ÖØ-öø-ÿ]')
 
-# Mots-clés géographiques ou formes juridiques génériques non distinctifs
+# Mots-clés géographiques, formes juridiques et mots de liaison génériques non distinctifs
 _GENERIC_TOKENS = {
     'PARIS', 'FRANCE', 'COM', 'SAS', 'SARL', 'ONLINE', 'DIRECT', 'PAY',
-    'STORE', 'SHOP', 'SERVICE', 'SERVICES', 'FR', 'EU', 'SA', 'WEB'
+    'STORE', 'SHOP', 'SERVICE', 'SERVICES', 'FR', 'EU', 'SA', 'WEB',
+    # Mots de liaison et articles grammaticaux français (bruit non distinctif marchand)
+    'DE', 'DU', 'DES', 'LA', 'LE', 'LES', 'D', 'L', 'UN', 'UNE', 'ET', 'EN', 'AU', 'AUX', 'POUR'
 }
 
 

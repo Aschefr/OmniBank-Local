@@ -17,6 +17,7 @@ env/
 *.db
 *.db-wal
 *.db-shm
+*.db-journal
 *.db.test
 *.sqlite
 *.sqlite3

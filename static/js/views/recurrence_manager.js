@@ -346,13 +346,26 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             const allTx = await API.get('/api/transactions/?limit=10000');
             this.allTransactions = allTx;
             
+            // If a template is pending highlight, ensure correct year is selected
+            if (this._pendingHighlightTemplateId) {
+                const targetTx = (this.allTransactions || []).filter(tx => String(tx.recurrence_id) === String(this._pendingHighlightTemplateId) && tx.date_operation);
+                if (targetTx.length > 0) {
+                    const txYears = targetTx.map(tx => parseInt(tx.date_operation.substring(0, 4))).filter(y => !isNaN(y));
+                    if (txYears.length > 0 && !txYears.includes(this.selectedYear)) {
+                        this.selectedYear = txYears[txYears.length - 1];
+                        const yearDisplay = document.getElementById('recYearDisplay');
+                        if (yearDisplay) yearDisplay.textContent = this.selectedYear;
+                    }
+                }
+            }
+
             const activeTemplateIds = new Set(
                 allTx.filter(tx => tx.date_operation && parseInt(tx.date_operation.substring(0, 4)) === this.selectedYear && tx.recurrence_id != null)
                      .map(tx => tx.recurrence_id)
             );
             
             const displayTemplates = this.templates.filter(t => 
-                activeTemplateIds.has(t.id)
+                activeTemplateIds.has(t.id) || (this._pendingHighlightTemplateId && String(t.id) === String(this._pendingHighlightTemplateId))
             );
 
             let grandTotalAnnual = 0;
@@ -509,6 +522,13 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             this.renderTableView(tableContainer, filteredTemplates);
         }
 
+        // Check if there is a pending template to highlight
+        if (this._pendingHighlightTemplateId) {
+            const tid = this._pendingHighlightTemplateId;
+            this._pendingHighlightTemplateId = null;
+            requestAnimationFrame(() => this.scrollToAndHighlightTemplate(tid));
+        }
+
         // Dynamically compute the sticky offset so headers stick flush at the scroll viewport top
         requestAnimationFrame(() => {
             const main = document.querySelector('.app-main');
@@ -521,28 +541,58 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
 
     scrollToAndHighlightTemplate(templateId) {
         if (!templateId) return;
-        
-        setTimeout(() => {
-            const row = document.getElementById(`rec-row-${templateId}`);
-            if (row) {
-                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                
-                const originalBg = row.style.backgroundColor;
-                const originalTransition = row.style.transition;
-                
-                row.style.transition = 'background-color 0.3s ease, box-shadow 0.3s ease';
-                row.style.backgroundColor = 'rgba(99, 102, 241, 0.2)';
-                row.style.boxShadow = '0 0 15px rgba(99, 102, 241, 0.4)';
-                
-                setTimeout(() => {
-                    row.style.backgroundColor = originalBg;
-                    row.style.boxShadow = 'none';
-                    setTimeout(() => {
-                        row.style.transition = originalTransition;
-                    }, 300);
-                }, 2000);
+
+        const highlight = (row) => {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const main = document.getElementById('mainContent') || document.querySelector('.app-main');
+            if (main) {
+                const rowRect = row.getBoundingClientRect();
+                const mainRect = main.getBoundingClientRect();
+                const targetScroll = main.scrollTop + (rowRect.top - mainRect.top) - (main.clientHeight / 2) + (rowRect.height / 2);
+                main.scrollTo({ top: targetScroll, behavior: 'smooth' });
             }
-        }, 300);
+            
+            const originalBg = row.style.backgroundColor;
+            const originalBoxShadow = row.style.boxShadow;
+            const cells = row.querySelectorAll('td, .gantt-desc');
+
+            row.style.transition = 'background-color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease';
+            row.style.setProperty('background-color', 'rgba(99, 102, 241, 0.25)', 'important');
+            row.style.setProperty('box-shadow', '0 0 0 2px var(--accent), 0 0 20px rgba(99, 102, 241, 0.45)', 'important');
+            row.style.setProperty('border-color', 'var(--accent)', 'important');
+            cells.forEach(c => {
+                c.style.transition = 'background-color 0.3s ease';
+                c.style.setProperty('background-color', 'rgba(99, 102, 241, 0.25)', 'important');
+            });
+
+            setTimeout(() => {
+                row.style.transition = 'background-color 1s ease-out, box-shadow 1s ease-out, border-color 1s ease-out';
+                row.style.backgroundColor = originalBg || '';
+                row.style.boxShadow = originalBoxShadow || '';
+                row.style.borderColor = '';
+                cells.forEach(c => {
+                    c.style.transition = 'background-color 1s ease-out';
+                    c.style.removeProperty('background-color');
+                });
+                setTimeout(() => {
+                    row.style.removeProperty('background-color');
+                    row.style.removeProperty('box-shadow');
+                    row.style.removeProperty('border-color');
+                    row.style.removeProperty('transition');
+                    cells.forEach(c => c.style.removeProperty('transition'));
+                }, 1100);
+            }, 3000);
+        };
+
+        const row = document.getElementById(`rec-row-${templateId}`);
+        if (row) {
+            highlight(row);
+        } else {
+            setTimeout(() => {
+                const r = document.getElementById(`rec-row-${templateId}`);
+                if (r) highlight(r);
+            }, 250);
+        }
     },
     
     async restoreForecastAmount(txId) {
@@ -556,3 +606,6 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         }
     }
 });
+
+// Alias for cross-module compatibility
+window.RecurrenceManager = window.RecurrenceView;

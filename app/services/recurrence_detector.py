@@ -498,6 +498,20 @@ def process_recurrence_promotions(
                 except Exception as gen_err:
                     logger.warning(f"[AutoPilot] Erreur lors de la génération prévisionnelle pour le template {tpl.id}: {gen_err}")
 
+                # Synchronisation automatique de l'enveloppe budgétaire
+                try:
+                    from app.services.budget_service import sync_budget_from_recurrence_change
+                    sync_budget_from_recurrence_change(
+                        db,
+                        category=tpl.category,
+                        change_type="promotion",
+                        amount_delta=amt,
+                        batch_id=bid,
+                        profile_id=pid
+                    )
+                except Exception as sync_b_err:
+                    logger.debug(f"[AutoPilot] Sync budget promotion ignorée: {sync_b_err}")
+
     # 3. Détection et Auto-Propagation des hausses tarifaires pérennes (N=3)
     cfg_link = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_link_deviant_recurrences").first()
     link_enabled = (cfg_link.value.strip().lower() in ("true", "1", "yes")) if (cfg_link and cfg_link.value) else True
@@ -529,7 +543,7 @@ def process_recurrence_promotions(
             a3 = round(float(t3.amount or 0.0), 2)
             tpl_amt = round(float(tpl.amount or 0.0), 2)
 
-            if a1 == a2 == a3 and a1 != tpl_amt:
+            if a1 == a2 == a3 and a1 != tpl_amt and a1 > 0:
                 d1 = t1.date_operation
                 d2 = t2.date_operation
                 d3 = t3.date_operation
@@ -566,6 +580,20 @@ def process_recurrence_promotions(
                         db.add(decision)
                         propagated_hikes_count += 1
                         logger.info(f"[AutoPilot] Template #{tpl.id} ('{tpl.description}') : Hausse tarifaire pérenne propagée ({old_amt} € -> {a1} €)")
+
+                        # Synchronisation de l'enveloppe budgétaire suite à la hausse
+                        try:
+                            from app.services.budget_service import sync_budget_from_recurrence_change
+                            sync_budget_from_recurrence_change(
+                                db,
+                                category=tpl.category,
+                                change_type="hike",
+                                amount_delta=(a1 - old_amt),
+                                batch_id=bid,
+                                profile_id=pid
+                            )
+                        except Exception as sync_b_err:
+                            logger.debug(f"[AutoPilot] Sync budget hike ignorée: {sync_b_err}")
 
     db.commit()
     stats_cache.invalidate(pid)
