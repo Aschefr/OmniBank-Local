@@ -5,7 +5,7 @@ les opérations d'annulation/rollback sémantique et le réglage du seuil de tol
 """
 
 import logging
-from typing import Optional
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -14,16 +14,22 @@ from app.profile_manager import get_active_profile
 from app.schemas.api_schemas import (
     AutopilotStatusOut,
     AutopilotToggleRequest,
+    AutopilotSubtoggleRequest,
     AutopilotThresholdIn,
     AutopilotThresholdOut,
     AutopilotKPIOut,
     AutopilotDecisionFeedOut,
     AutopilotOverrideRequest,
     AutopilotRollbackCycleOut,
+    AutopilotReviewItem,
+    AutopilotReviewUpdateRequest,
+    AutopilotReviewLinkRequest,
+    AutopilotThresholdPreviewOut,
 )
 from app.services.autopilot_service import (
     get_autopilot_status,
     set_autopilot_enabled,
+    set_autopilot_subtoggle,
     get_auto_reconcile_threshold,
     set_auto_reconcile_threshold,
     get_autopilot_kpis,
@@ -33,6 +39,11 @@ from app.services.autopilot_service import (
     override_autopilot_decision,
     unpoint_autopilot_decision,
     mark_autopilot_visited,
+    get_review_queue,
+    validate_review_transaction,
+    update_review_transaction,
+    link_review_transaction,
+    preview_threshold_impact,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,6 +66,20 @@ def toggle_autopilot(payload: AutopilotToggleRequest, db: Session = Depends(get_
     return get_autopilot_status(db, profile_id=active_pid)
 
 
+@router.post("/subtoggle", response_model=AutopilotStatusOut)
+def toggle_subtoggle(payload: AutopilotSubtoggleRequest, db: Session = Depends(get_db)):
+    """Active ou désactive une brique élémentaire d'autonomie."""
+    active_pid = get_active_profile().get("id", "default")
+    try:
+        set_autopilot_subtoggle(db, key=payload.key, enabled=payload.enabled)
+        return get_autopilot_status(db, profile_id=active_pid)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"[AutoPilot] Erreur mise à jour brique {payload.key}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur mise à jour brique d'autonomie.")
+
+
 @router.get("/threshold", response_model=AutopilotThresholdOut)
 def get_threshold(db: Session = Depends(get_db)):
     """Retourne le seuil de tolérance (score de confiance) configuré."""
@@ -70,8 +95,90 @@ def update_threshold(payload: AutopilotThresholdIn, db: Session = Depends(get_db
             status_code=400,
             detail="Le seuil de tolérance doit être compris entre 70% et 99%."
         )
-    val = set_auto_reconcile_threshold(db, payload.threshold)
-    return {"threshold": val}
+    val, applied_count = set_auto_reconcile_threshold(db, payload.threshold, apply_to_existing=payload.apply_to_existing)
+    return {"threshold": val, "applied_count": applied_count}
+
+
+@router.get("/threshold-preview", response_model=AutopilotThresholdPreviewOut)
+def get_threshold_preview(
+    threshold: float = Query(..., ge=70.0, le=99.0),
+    db: Session = Depends(get_db)
+):
+    """Simule l'impact d'un seuil de tolérance sur les opérations ayant un score de confiance."""
+    return preview_threshold_impact(db, threshold)
+
+
+@router.get("/review-queue", response_model=List[AutopilotReviewItem])
+def get_autopilot_review_queue(db: Session = Depends(get_db)):
+    """Retourne les transactions enregistrées en attente de revue manuelle (needs_review == True)."""
+    active_pid = get_active_profile().get("id", "default")
+    return get_review_queue(db, profile_id=active_pid)
+
+
+@router.post("/review/{tx_id}/validate")
+def validate_review(tx_id: int, db: Session = Depends(get_db)):
+    """Acquitte et valide une opération de la file de revue."""
+    active_pid = get_active_profile().get("id", "default")
+    try:
+        return validate_review_transaction(db, tx_id=tx_id, profile_id=active_pid)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"[AutoPilot] Erreur validation revue tx {tx_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de la validation de la revue.")
+
+
+@router.post("/review/{tx_id}/update")
+def update_review(
+    tx_id: int,
+    payload: AutopilotReviewUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """Corrige la description ou catégorie d'une opération en attente de revue et l'acquitte (ou la lie)."""
+    active_pid = get_active_profile().get("id", "default")
+    try:
+        return update_review_transaction(
+            db,
+            tx_id=tx_id,
+            description=payload.description,
+            category=payload.category,
+            amount=payload.amount,
+            target_forecast_id=payload.target_forecast_id,
+            learn_rule=payload.learn_rule,
+            profile_id=active_pid
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"[AutoPilot] Erreur modification revue tx {tx_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de la modification de l'opération.")
+
+
+@router.post("/review/{tx_id}/link")
+def link_review(
+    tx_id: int,
+    payload: AutopilotReviewLinkRequest,
+    db: Session = Depends(get_db)
+):
+    """Fusionne et lie une opération de revue avec une prévision existante."""
+    active_pid = get_active_profile().get("id", "default")
+    try:
+        return link_review_transaction(
+            db,
+            tx_id=tx_id,
+            target_forecast_id=payload.target_forecast_id,
+            learn_rule=payload.learn_rule,
+            description=payload.description,
+            category=payload.category,
+            amount=payload.amount,
+            profile_id=active_pid
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"[AutoPilot] Erreur liaison revue tx {tx_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de la liaison de l'opération.")
+
 
 
 @router.get("/kpis", response_model=AutopilotKPIOut)

@@ -238,20 +238,46 @@ def test_t5_5_3_auto_commit_and_chameleon_guard(test_db):
     assert tx_created is not None
     assert tx_created.amount == 4.50
 
-    # Le marchand polyvalent doit être bloqué dans le sas pour arbitrage humain !
+    # Le marchand polyvalent est enregistré en base pour garantir l'alignement du solde, mais marqué needs_review = True
     res_cham_1 = process_incoming_batch(test_db, "conn_cham", batch_chameleon, profile_id="p1")
-    assert res_cham_1["auto_committed"] == 0
-    assert res_cham_1["pending"] == 1
-    assert test_db.query(Transaction).filter(Transaction.description.like("%AMAZON%")).first() is None
+    assert res_cham_1["auto_committed"] == 1
+    assert res_cham_1["needs_review"] == 1
+    tx_cham = test_db.query(Transaction).filter(Transaction.description.like("%AMAZON%")).first()
+    assert tx_cham is not None
+    assert tx_cham.needs_review is True
 
     # 3. Activation de auto_assign_chameleon_fallback = "true"
     test_db.query(GlobalConfig).filter(GlobalConfig.key == "auto_assign_chameleon_fallback").first().value = "true"
     test_db.commit()
 
-    res_cham_2 = process_incoming_batch(test_db, "conn_cham", batch_chameleon, profile_id="p1")
+    batch_chameleon_2 = {
+        "accounts": [
+            {
+                "account_id": 1,
+                "transactions": [
+                    {
+                        "csv_id": "tx_amazon_2",
+                        "date": t_date,
+                        "raw_amount": -15.00,
+                        "amount": 15.00,
+                        "description": "AMAZON EU SARL 2",
+                        "category": "Dépenses diverses",
+                        "confidence": 0.90,
+                        "smart_is_multi_category": True,
+                        "smart_suggested": True,
+                        "is_reconciled": False,
+                        "matched_db_id": None,
+                    }
+                ],
+            }
+        ]
+    }
+    res_cham_2 = process_incoming_batch(test_db, "conn_cham", batch_chameleon_2, profile_id="p1")
     assert res_cham_2["auto_committed"] == 1
-    tx_cham = test_db.query(Transaction).filter(Transaction.description.like("%AMAZON%")).first()
-    assert tx_cham is not None
+    assert res_cham_2["needs_review"] == 0
+    tx_cham_2 = test_db.query(Transaction).filter(Transaction.csv_id == "tx_amazon_2").first()
+    assert tx_cham_2 is not None
+    assert tx_cham_2.needs_review is False
 
 
 def test_t5_5_4_category_auto_creation_modularity(test_db):
@@ -455,3 +481,28 @@ def test_history_endpoints(test_db):
     assert data_sl[0]["category"] == "Santé"
 
     app.dependency_overrides.clear()
+
+
+def test_autopilot_subtoggle_endpoint(test_db):
+    """Vérifie le fonctionnement de POST /api/autopilot/subtoggle."""
+    app.dependency_overrides[get_db] = lambda: test_db
+    client = TestClient(app)
+
+    # 1. Tente de modifier une clé non gérée -> 400
+    res_bad = client.post("/api/autopilot/subtoggle", json={"key": "invalid_key_xyz", "enabled": True})
+    assert res_bad.status_code == 400
+
+    # 2. Modifie une clé valide (ex: bank_auto_sync_enabled)
+    res_ok = client.post("/api/autopilot/subtoggle", json={"key": "bank_auto_sync_enabled", "enabled": True})
+    assert res_ok.status_code == 200
+    data = res_ok.json()
+    assert data["managed_subtoggles"]["bank_auto_sync_enabled"] is True
+    assert len(data["managed_subtoggles"]) == 15
+
+    # 3. Désactive une autre clé (ex: auto_propagate_recurrence_hikes)
+    res_disable = client.post("/api/autopilot/subtoggle", json={"key": "auto_propagate_recurrence_hikes", "enabled": False})
+    assert res_disable.status_code == 200
+    assert res_disable.json()["managed_subtoggles"]["auto_propagate_recurrence_hikes"] is False
+
+    app.dependency_overrides.clear()
+

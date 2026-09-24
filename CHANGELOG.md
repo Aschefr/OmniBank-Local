@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Auto-Pilot Review Queue & Candidate Forecast Linking 🔗⚡**:
+  - **1-Click Candidate Forecast Linking**: Ingested transactions requiring confirmation now detect candidate recurrent forecasts (date/amount proximity), offering direct inline linking (`POST /api/autopilot/review/{id}/link`) to merge the statement with existing forecasts without creating duplicate entries.
+  - **2-Step Inline Confirmation**: Added smooth inline confirmation (`Lier ? [✓ Oui] [✕]`) on link buttons inside both the review queue table and modal to prevent accidental clicks while keeping the workflow fast and responsive.
+  - **Decision Feed & Audit Trail Synchronization**: Merging or updating review items dynamically updates the decision audit log with full details (actual description, real category, 100% confidence score, and clear reason badges like `🔗 Liaison prévision`).
+  - **Widened & Responsive Review Modal**: Expanded modal width to 640px with generous padding and robust data attributes, eliminating awkward line wraps on candidate forecast cards across desktop and mobile screens.
 - **Standardized Auto-Pilot Decision Override Modal & CategoryPicker Integration ✏️🎨**:
   - **Application-Standard Modal UI**: Overhauled the Auto-Pilot decision override modal to strictly adhere to OmniBank design tokens and layout standards: blurred backdrop filter, rounded card with accent top bar on Titanium themes, dedicated header with action icon badge and close button, and structured action buttons.
   - **Integrated Searchable CategoryPicker**: Replaced the plain text input with the canonical `CategoryPicker` component, providing real-time search, directional badges (`🔴 Sortie (Débit)` / `🟢 Entrée (Crédit)`), type tabs (`Tout`, `Variables`, `Fixes`), and new category creation.
