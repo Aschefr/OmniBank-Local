@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Financial Simulation Engine & Cash Flow Projection Accuracy 🔮📊**:
+  - **Comprehensive Seasonal Income Projection**: Fixed an issue where "Historical N-1" and "Auto" income modes erroneously fell back to the base paycheck amount only, faithfully projecting full historical seasonal receipts (bonuses, freelance inflows, family support, reimbursements) with smooth prudence blending.
+  - **Strict Internal Transfer Neutralization**: Liquid portfolio projections ("All liquid accounts") now strictly isolate external inflows and outflows, preventing internal transfers (e.g. monthly savings transfers from checking to savings accounts) from being erroneously recorded as lost expenses.
+  - **Decimal Precision & Clean Scope Filtering**: Aligned monthly line item sums with total projected expenses across all horizon months with zero drift.
 - **Auto-Pilot Review Queue & Candidate Forecast Linking 🔗⚡**:
   - **1-Click Candidate Forecast Linking**: Ingested transactions requiring confirmation now detect candidate recurrent forecasts (date/amount proximity), offering direct inline linking (`POST /api/autopilot/review/{id}/link`) to merge the statement with existing forecasts without creating duplicate entries.
   - **2-Step Inline Confirmation**: Added smooth inline confirmation (`Lier ? [✓ Oui] [✕]`) on link buttons inside both the review queue table and modal to prevent accidental clicks while keeping the workflow fast and responsive.

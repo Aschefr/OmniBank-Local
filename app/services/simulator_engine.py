@@ -286,8 +286,8 @@ def run_simulation(
         )
         if target_acc_ids:
             var_exp_query = var_exp_query.filter(
-                (Transaction.from_account_id.in_(target_acc_ids)) |
-                (Transaction.to_account_id.in_(target_acc_ids))
+                Transaction.from_account_id.in_(target_acc_ids),
+                (Transaction.to_account_id.is_(None) | ~Transaction.to_account_id.in_(target_acc_ids))
             )
         var_exp_txs = var_exp_query.all()
 
@@ -371,8 +371,8 @@ def run_simulation(
         )
         if target_acc_ids:
             seasonal_query = seasonal_query.filter(
-                (Transaction.from_account_id.in_(target_acc_ids)) |
-                (Transaction.to_account_id.in_(target_acc_ids))
+                Transaction.from_account_id.in_(target_acc_ids),
+                (Transaction.to_account_id.is_(None) | ~Transaction.to_account_id.in_(target_acc_ids))
             )
         seasonal_txs = seasonal_query.all()
 
@@ -499,7 +499,10 @@ def run_simulation(
             (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
         )
         if target_acc_ids:
-            real_inc_query = real_inc_query.filter(Transaction.to_account_id.in_(target_acc_ids))
+            real_inc_query = real_inc_query.filter(
+                Transaction.to_account_id.in_(target_acc_ids),
+                (Transaction.from_account_id.is_(None) | ~Transaction.from_account_id.in_(target_acc_ids))
+            )
         real_inc_txs = real_inc_query.all()
 
         # Filtrage statistique des rentrées exceptionnelles (outliers de recettes non répétitifs)
@@ -583,7 +586,10 @@ def run_simulation(
             (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
         )
         if target_acc_ids:
-            real_fix_query = real_fix_query.filter(Transaction.from_account_id.in_(target_acc_ids))
+            real_fix_query = real_fix_query.filter(
+                Transaction.from_account_id.in_(target_acc_ids),
+                (Transaction.to_account_id.is_(None) | ~Transaction.to_account_id.in_(target_acc_ids))
+            )
         real_fix_txs = real_fix_query.all()
 
         fix_by_month = {}
@@ -688,23 +694,16 @@ def run_simulation(
         existing_var_total = 0.0
 
         for t in existing_txs:
-            # Filtrer par compte cible si applicable
-            is_relevant = False
-            if not target_acc_ids:
-                is_relevant = True
-            elif t.from_account_id in target_acc_ids or t.to_account_id in target_acc_ids:
-                is_relevant = True
+            # Filtrer par compte cible si applicable (flux externes réels uniquement)
+            is_in = (not target_acc_ids or t.to_account_id in target_acc_ids) and (not t.from_account_id or not target_acc_ids or t.from_account_id not in target_acc_ids)
+            is_out = (not target_acc_ids or t.from_account_id in target_acc_ids) and (not t.to_account_id or not target_acc_ids or t.to_account_id not in target_acc_ids)
 
-            if is_relevant:
-                if t.type == "income" or (target_acc_ids and t.to_account_id in target_acc_ids and (not t.from_account_id or t.from_account_id not in target_acc_ids)):
-                    existing_income_total += abs(t.amount)
-                elif t.type == "expense_fixed" or (target_acc_ids and t.from_account_id in target_acc_ids and (not t.to_account_id or t.to_account_id not in target_acc_ids) and t.type != "expense_var"):
-                    existing_fixed_total += abs(t.amount)
-                elif t.type == "expense_var":
-                    existing_var_total += abs(t.amount)
-
-        baseline_income += existing_income_total
-        baseline_expense += (existing_fixed_total + existing_var_total)
+            if t.type == "income" and is_in:
+                existing_income_total += abs(t.amount)
+            elif t.type == "expense_fixed" and is_out:
+                existing_fixed_total += abs(t.amount)
+            elif t.type == "expense_var" and is_out:
+                existing_var_total += abs(t.amount)
 
         # 3. Calcul des récurrences théoriques pour ce mois m
         theoretical_fixed_for_month = 0.0
@@ -796,71 +795,55 @@ def run_simulation(
                 elif is_outgoing:
                     theoretical_fixed_for_month += effective_amt
 
-        # Ajout des flux récurrents théoriques de recettes
-        if theoretical_income_for_month > 0:
-            if existing_income_total == 0:
-                baseline_income += theoretical_income_for_month
-            elif existing_income_total < (0.6 * theoretical_income_for_month):
-                baseline_income += (theoretical_income_for_month - existing_income_total)
-
         # 4. Charges fixes projetées :
+        total_contractual_fixed = existing_fixed_total + theoretical_fixed_for_month
         if m_offset == 0:
             # Pour le mois 0 : le solde initial intègre déjà les charges passées rapprochées.
             # On ajoute uniquement les récurrences théoriques restantes d'ici la fin du mois
             blended_fixed_for_month = theoretical_fixed_for_month
-            baseline_expense += theoretical_fixed_for_month
+            baseline_expense = theoretical_fixed_for_month
         else:
             # Pour les mois futurs : interpolation continue entre réel saisonnier et total contractuel théorique
-            total_contractual_fixed = existing_fixed_total + theoretical_fixed_for_month
             real_fixed_ref = seasonal_real_fixed_by_calendar_month.get(m, historical_real_fixed_avg if historical_real_fixed_avg > 0 else total_contractual_fixed)
             blended_fixed_for_month = (1.0 - conservative_weight) * real_fixed_ref + conservative_weight * total_contractual_fixed
+            baseline_expense = blended_fixed_for_month
 
-            if existing_fixed_total == 0:
-                baseline_expense += blended_fixed_for_month
-            elif existing_fixed_total < (0.6 * blended_fixed_for_month):
-                baseline_expense += (blended_fixed_for_month - existing_fixed_total)
-
-        # 5. Revenus projetés : interpolation continue entre réel et salaire de base plancher
-        cons_salary_ref = predicted_salary_for_account
+        # 5. Revenus projetés : interpolation continue entre réel et socle contractuel/salaire
+        total_contractual_income = existing_income_total + theoretical_income_for_month
+        cons_income_ref = predicted_salary_for_account + (total_contractual_income if not is_salary_in_recurrence else 0.0)
 
         if income_mode in ("historical_n1", "auto"):
             # 1. Recettes réelles de l'année précédente (saisonnier mois par mois)
-            if predicted_salary_for_account > 0:
-                real_salary_ref = seasonal_salary_by_calendar_month.get(m, predicted_salary_for_account)
-            else:
-                real_salary_ref = seasonal_real_income_by_calendar_month.get(m, historical_real_income_avg)
-            blended_salary = (1.0 - conservative_weight) * real_salary_ref + conservative_weight * cons_salary_ref
-            has_main_salary = any(
-                t.type == "income" and abs(t.amount) >= (0.6 * blended_salary)
-                for t in existing_txs
-                if (not target_acc_ids or t.to_account_id in target_acc_ids)
-            ) if blended_salary > 0 else False
-            if not is_salary_in_recurrence and not (m_offset == 0 and is_current_month_pay_received) and not has_main_salary:
-                baseline_income += blended_salary
+            real_income_ref = seasonal_real_income_by_calendar_month.get(m, historical_real_income_avg if historical_real_income_avg > 0 else cons_income_ref)
+            blended_income = (1.0 - conservative_weight) * real_income_ref + conservative_weight * cons_income_ref
         elif income_mode in ("average", "historical_avg"):
             # 2. Recettes moyennes (moyenne mensuelle sur les 12 derniers mois ou mois existants)
-            avg_salary_ref = predicted_salary_for_account if predicted_salary_for_account > 0 else historical_real_income_avg
-            blended_salary = (1.0 - conservative_weight) * avg_salary_ref + conservative_weight * cons_salary_ref
-            has_main_salary = any(
-                t.type == "income" and abs(t.amount) >= (0.6 * blended_salary)
-                for t in existing_txs
-                if (not target_acc_ids or t.to_account_id in target_acc_ids)
-            ) if blended_salary > 0 else False
-            if not is_salary_in_recurrence and not (m_offset == 0 and is_current_month_pay_received) and not has_main_salary:
-                baseline_income += blended_salary
+            real_income_ref = historical_real_income_avg if historical_real_income_avg > 0 else cons_income_ref
+            blended_income = (1.0 - conservative_weight) * real_income_ref + conservative_weight * cons_income_ref
         elif income_mode == "custom":
             # 3. Montant personnalisé
-            custom_val = float(custom_income_amount or 0.0)
-            has_main_salary = any(
-                t.type == "income" and abs(t.amount) >= (0.6 * custom_val)
-                for t in existing_txs
-                if (not target_acc_ids or t.to_account_id in target_acc_ids)
-            ) if custom_val > 0 else False
-            if not (m_offset == 0 and is_current_month_pay_received) and not has_main_salary:
-                baseline_income += custom_val
+            blended_income = float(custom_income_amount or 0.0)
         elif income_mode == "none":
             # 4. Désactivé (Scénario zéro salaire)
-            pass
+            blended_income = 0.0
+        else:
+            blended_income = cons_income_ref
+
+        if m_offset == 0:
+            if is_current_month_pay_received:
+                baseline_income = total_contractual_income
+            else:
+                has_main_salary = any(
+                    t.type == "income" and abs(t.amount) >= (0.6 * (predicted_salary_for_account or 1000.0))
+                    for t in existing_txs
+                    if (not target_acc_ids or t.to_account_id in target_acc_ids)
+                ) if predicted_salary_for_account > 0 else False
+                if not is_salary_in_recurrence and not has_main_salary:
+                    baseline_income = total_contractual_income + (predicted_salary_for_account or blended_income)
+                else:
+                    baseline_income = total_contractual_income
+        else:
+            baseline_income = blended_income
 
         # 6. Projection des dépenses variables (socle de vie courante)
         base_variable_projected = 0.0
@@ -877,7 +860,9 @@ def run_simulation(
             # Appliquer le curseur d'effort budgétaire utilisateur (-100% à +50%)
             var_adj_factor = max(0.0, 1.0 + float(variable_expense_adjustment_pct or 0.0))
             variable_expense_projected = base_variable_projected * var_adj_factor
-            baseline_expense += variable_expense_projected
+            baseline_expense += (existing_var_total + variable_expense_projected)
+        else:
+            baseline_expense += existing_var_total
 
         # 7. Facteur d'inflation (hors emprunts à taux fixe)
         inflation_factor = 1.0
@@ -981,10 +966,10 @@ def run_simulation(
         pessimistic_simulated = current_simulated_bal - sigma_cumul
 
         if m_offset == 0:
-            fixed_expense_actual = existing_fixed_total + theoretical_fixed_for_month
+            fixed_expense_actual = theoretical_fixed_for_month
         else:
-            fixed_expense_actual = blended_fixed_for_month if existing_fixed_total == 0 else (existing_fixed_total + max(0.0, blended_fixed_for_month - existing_fixed_total))
-        var_expense_actual = variable_expense_projected + existing_var_total
+            fixed_expense_actual = blended_fixed_for_month
+        var_expense_actual = existing_var_total + variable_expense_projected
         inflation_delta_actual = inflation_delta if (inflation_rate > 0 and m_offset > 0) else 0.0
 
         seasonal_tag = None
