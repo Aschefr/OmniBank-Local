@@ -397,8 +397,8 @@ def commit_reviewed_sync(conn_id: int, data: Dict[str, Any], request: Request, d
                 db.commit()
 
         from app.services.bank_sync_scheduler import remove_committed_from_pending
-        # Ne purger du sas que les opérations confirmées (les opérations en attente/à venir restent dans le sas)
-        committed_csv_ids = [t.get("csv_id") for t in txs if t.get("csv_id") and not t.get("is_coming")]
+        # Purger du sas toutes les opérations enregistrées/pointées
+        committed_csv_ids = [t.get("csv_id") for t in txs if t.get("csv_id")]
         if committed_csv_ids:
             remove_committed_from_pending(db, committed_csv_ids)
         return res

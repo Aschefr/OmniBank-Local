@@ -1645,12 +1645,21 @@ window.OverviewView = {
                 : '';
 
             const reconBtnHtml = window.ReconciliationStates.resolve(tx, { view: 'overview', formatDate }).html;
+            const showRaw = tx.raw_description && tx.raw_description !== tx.description;
+            const rawSubHtml = showRaw ? `<div style="font-size: 10px; color: var(--text-muted); font-family: monospace; margin-top: 2px;">🏦 ${escapeHtml(tx.raw_description)}</div>` : '';
+            const reviewBadge = tx.needs_review ? `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;" onclick="window.handleReviewClick(${tx.id}, event)" title="Score de confiance: ${Math.round(tx.confidence_score || 0)}%. Cliquer pour vérifier et lier.">🔍 À vérifier (${Math.round(tx.confidence_score || 0)}%)</span>` : '';
 
             html += `
                 <tr id="ovRow_${tx.id}" class="overview-op-tr" data-id="${tx.id}">
                     <td class="ov-td-date">${renderDateWithStatus(tx)}</td>
                     <td class="ov-td-acc">${accBadgeHtml}</td>
-                    <td class="ov-td-desc" title="${escapeHtml(tx.description || '')}">${escapeHtml(tx.description || '—')}</td>
+                    <td class="ov-td-desc" title="${escapeHtml(tx.description || '')}">
+                        <div style="display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                            <span>${escapeHtml(tx.description || '—')}</span>
+                            ${reviewBadge}
+                        </div>
+                        ${rawSubHtml}
+                    </td>
                     <td class="ov-td-cat"><span class="overview-cat-badge">${escapeHtml(catLabel)}</span></td>
                     ${authorHtml}
                     <td class="ov-td-amt" style="text-align: right;"><span class="privacy-blur" style="color: ${amountColor}; font-weight: 700;">${formatCurrency(tx.amount)}</span></td>
@@ -2523,7 +2532,17 @@ window.OverviewView = {
         const skipLabel = window.i18n.t('tooltip_skip') || 'Ignorer cette occurrence';
         const delLabel = window.i18n.t('tooltip_delete') || 'Supprimer';
 
-        let itemsHtml = `
+        let itemsHtml = '';
+        if (tx.needs_review) {
+            itemsHtml += `
+                <button class="ov-action-menu-item" style="color: #f59e0b; font-weight: 600;" onclick="window.handleReviewClick(${id}, event); window.OverviewView.closeActionMenu();">
+                    <span>🔍</span> <span>${window.i18n ? (window.i18n.t('autopilot_review_context_menu') || 'Vérifier / Lier (Auto-Pilote)') : 'Vérifier / Lier (Auto-Pilote)'}</span>
+                </button>
+                <div style="height:1px; background:var(--border-color); margin:4px 0;"></div>
+            `;
+        }
+
+        itemsHtml += `
             <button class="ov-action-menu-item" onclick="window.OverviewView.edit(${id}); window.OverviewView.closeActionMenu();">
                 <span>✏️</span> <span>${editLabel}</span>
             </button>

@@ -86,6 +86,9 @@ class Transaction(Base):
     cross_profile_id = Column(String, nullable=True)
     cross_profile_label = Column(String, nullable=True)
     cross_profile_status = Column(String, nullable=True)   # "pending" | "accepted" | "rejected"
+    # Auto-Pilot / Full-Auto ingestion review flag
+    needs_review = Column(Boolean, default=False, nullable=False, index=True)
+    confidence_score = Column(Float, nullable=True)
 
 
 class GlobalConfig(Base):

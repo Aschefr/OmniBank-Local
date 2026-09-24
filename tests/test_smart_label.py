@@ -886,13 +886,17 @@ def test_autopilot_leaves_chameleon_and_provisional_in_pending(db_session):
 
     res = process_incoming_batch(db_session, 1, preview)
 
-    # Doivent rester dans le Sas d'attente pour arbitrage humain
+    # Mode Full-Auto : enregistrées en base pour garantir l'alignement du solde, avec needs_review = True
     assert res["status"] == "completed"
-    assert res["auto_committed"] == 0
-    assert res["pending"] == 2
+    assert res["auto_committed"] == 2
+    assert res["needs_review"] == 2
+    assert res["pending"] == 0
 
-    # Zéro transaction créée en base
-    assert db_session.query(Transaction).filter(Transaction.csv_id.in_(["csv_tx_amazon_01", "csv_tx_kiloshop_01"])).count() == 0
+    tx_list = db_session.query(Transaction).filter(Transaction.csv_id.in_(["csv_tx_amazon_01", "csv_tx_kiloshop_01"])).all()
+    assert len(tx_list) == 2
+    for t in tx_list:
+        assert t.needs_review is True
+
 
 
 # ── TEST 27 : Auto-Pilote inactif -> Délégation intégrale au Sas ──

@@ -13,10 +13,112 @@ window.AutopilotView = {
     _showUndone: true,
     _learnedRules: [],
     _autoRefreshTimer: null,
+    _drawerEscHandler: null,
+    _subtogglesDef: [
+        {
+            category: 'Opérations & Ingestion',
+            icon: '📥',
+            items: [
+                {
+                    key: 'auto_reconcile_transactions',
+                    label: 'Auto-Rapprochement haute certitude',
+                    desc: 'Pointe et réconcilie automatiquement les écritures bancaires avec vos prévisions lorsque le score de confiance atteint le seuil.'
+                },
+                {
+                    key: 'auto_commit_incoming_transactions',
+                    label: 'Enregistrement direct des écritures',
+                    desc: 'Intègre immédiatement les opérations confirmées en base pour garantir l\'alignement strict du solde bancaire.'
+                },
+                {
+                    key: 'auto_assign_chameleon_fallback',
+                    label: 'Catégorisation repli / caméléon',
+                    desc: 'Assigne une catégorie de repli temporaire sécurisée pour les marchands inconnus afin de ne bloquer aucun flux.'
+                },
+                {
+                    key: 'auto_close_empty_import_sas',
+                    label: 'Fermeture automatique du Sas d\'attente',
+                    desc: 'Clôture automatiquement le sas d\'import dès que l\'ensemble des écritures du lot ont été traitées.'
+                },
+                {
+                    key: 'bank_auto_sync_enabled',
+                    label: 'Synchronisation bancaire en arrière-plan',
+                    desc: 'Effectue le relevé bancaire périodique autonome (12h/24h/48h) lorsque le coffre-fort est déverrouillé.'
+                }
+            ]
+        },
+        {
+            category: 'Marchands & Catégories',
+            icon: '🏷️',
+            items: [
+                {
+                    key: 'auto_learn_merchant_rules',
+                    label: 'Apprentissage autonome des marchands',
+                    desc: 'Mémorise automatiquement vos arbitrages dans les règles marchands pour classifier sans faille les prochains relevés.'
+                },
+                {
+                    key: 'auto_create_missing_categories',
+                    label: 'Création autonome des catégories',
+                    desc: 'Crée automatiquement les catégories détectées lors de l\'enrichissement des flux bancaires.'
+                }
+            ]
+        },
+        {
+            category: 'Récurrences & Abonnements',
+            icon: '🔄',
+            items: [
+                {
+                    key: 'auto_link_deviant_recurrences',
+                    label: 'Rapprochement déviant tolérant',
+                    desc: 'Rapproche les prélèvements récurrents dont le montant fluctue dans une fourchette tolérée de ±15%.'
+                },
+                {
+                    key: 'auto_propagate_recurrence_hikes',
+                    label: 'Propagation automatique des hausses',
+                    desc: 'Ajuste le montant prévisionnel d\'un abonnement lorsqu\'une hausse tarifaire est constatée sur 3 échéances consécutives.'
+                },
+                {
+                    key: 'auto_skip_unreconciled_recurrences',
+                    label: 'Saut d\'échéance automatique',
+                    desc: 'Marque comme passée toute échéance récurrente non constatée à la fin du mois sans altérer le template.'
+                },
+                {
+                    key: 'auto_close_unreconciled_recurrences',
+                    label: 'Clôture après échéances manquées',
+                    desc: 'Désactive automatiquement un abonnement récurrent après N échéances consécutives jamais prélevées.'
+                }
+            ]
+        },
+        {
+            category: 'Budgets & Enveloppes',
+            icon: '📊',
+            items: [
+                {
+                    key: 'enable_budget_creation_suggestions',
+                    label: 'Suggestions de nouvelles enveloppes',
+                    desc: 'Analyse vos dépenses réelles pour proposer la création d\'enveloppes sur vos postes récurrents.'
+                },
+                {
+                    key: 'enable_budget_recalibration_suggestions',
+                    label: 'Suggestions de recalibrage mensuel',
+                    desc: 'Calcule des propositions d\'ajustement lissé (filtre EMA 3-6 mois) pour vos budgets sous ou sur-consommés.'
+                },
+                {
+                    key: 'auto_create_budget_envelopes',
+                    label: 'Création 100% autonome des enveloppes',
+                    desc: 'Valide et crée immédiatement les enveloppes suggérées sans attendre votre approbation manuelle.'
+                },
+                {
+                    key: 'auto_apply_budget_suggestions',
+                    label: 'Application 100% autonome des recalibrages',
+                    desc: 'Applique automatiquement les nouveaux plafonds budgétaires calculés au 1er de chaque mois.'
+                }
+            ]
+        }
+    ],
 
     render() {
         return `
-            <div class="autopilot-container" style="max-width: 1200px; margin: 0 auto; padding-bottom: 40px;">
+            <div class="autopilot-container" style="max-width: 1440px; width: 100%; margin: 0 auto; padding-bottom: 40px;">
                 <!-- Header / Cockpit Bar -->
                 <div class="view-header-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
                     <div class="view-header-title-group" style="display: flex; align-items: center; gap: 12px;">
@@ -31,7 +133,10 @@ window.AutopilotView = {
                             </p>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-secondary" onclick="window.AutopilotView.openSettingsDrawer()" title="Configurer les 15 briques et le seuil" style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12.5px;">
+                            <span>⚙️</span> <span>Réglages & Briques</span> <span id="apActiveBriquesBadge" class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 8px;">--/15</span>
+                        </button>
                         <button class="btn btn-secondary" onclick="window.AutopilotView.refresh()" title="Actualiser" style="display: flex; align-items: center; gap: 6px;">
                             <span>🔄</span> <span data-i18n="btn_refresh">${window.i18n.t('btn_refresh') || window.i18n.t('common.refresh') || 'Actualiser'}</span>
                         </button>
@@ -53,181 +158,272 @@ window.AutopilotView = {
                     </span>
                 </div>
 
-                <!-- Section 1 : Indicateurs & Performance (KPIs) - Rétractable -->
-                <div id="apKpiSection" class="ap-collapsible-card">
-                    <div class="ap-collapsible-header" onclick="window.AutopilotView.toggleSection('kpis')">
-                        <div class="ap-collapsible-title-group">
-                            <span class="ap-collapsible-icon">📊</span>
-                            <div>
-                                <h3 class="ap-collapsible-title">Indicateurs & Performance</h3>
-                                <p class="ap-collapsible-subtitle">Taux de précision, temps épargné et volume des actions automatisées</p>
+                <!-- Split Cockpit Layout : 2 Colonnes -->
+                <div class="ap-cockpit-layout" style="display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start;">
+                    <!-- COLONNE GAUCHE (280px) : KPIs Hero Verticaux -->
+                    <div class="ap-left-column" style="display: flex; flex-direction: column; gap: 14px;">
+                        <div style="background: var(--bg-card, var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                <span style="font-size: 16px;">📊</span>
+                                <h3 style="font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin: 0; color: var(--text-main);">
+                                    Indicateurs & Performance
+                                </h3>
                             </div>
-                        </div>
-                        <div class="ap-collapsible-actions">
-                            <span id="apKpiSummaryPill" class="ap-summary-pill">--% Précision • --h Épargnées</span>
-                            <span id="apKpiChevron" class="ap-chevron">▾</span>
-                        </div>
-                    </div>
-                    <div id="apKpiContent" class="ap-collapsible-content">
-                        <div class="autopilot-kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px;">
-                            <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; text-align: center;">
-                                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_accuracy">${window.i18n.t('autopilot_kpi_accuracy') || 'Taux de Précision'}</div>
-                                <div id="kpiAccuracy" style="font-size: 26px; font-weight: 800; color: #10b981; margin: 8px 0 2px;">--%</div>
-                                <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_accuracy_sub">${window.i18n.t('autopilot_kpi_accuracy_sub') || 'décisions sans rejet'}</div>
-                            </div>
-                            <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; text-align: center;">
-                                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_hours_saved">${window.i18n.t('autopilot_kpi_hours_saved') || 'Temps Épargné'}</div>
-                                <div id="kpiHoursSaved" style="font-size: 26px; font-weight: 800; color: var(--accent); margin: 8px 0 2px;">-- h</div>
-                                <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_hours_saved_sub">${window.i18n.t('autopilot_kpi_hours_saved_sub') || 'de saisie évitée'}</div>
-                            </div>
-                            <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; text-align: center;">
-                                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_reconciled">${window.i18n.t('autopilot_kpi_reconciled') || 'Rapprochements'}</div>
-                                <div id="kpiReconciled" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 8px 0 2px;">0</div>
-                                <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_reconciled_sub">${window.i18n.t('autopilot_kpi_reconciled_sub') || 'pointages validés'}</div>
-                            </div>
-                            <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; text-align: center;">
-                                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_committed">${window.i18n.t('autopilot_kpi_committed') || 'Nouvelles Écritures'}</div>
-                                <div id="kpiCommitted" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 8px 0 2px;">0</div>
-                                <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_committed_sub">${window.i18n.t('autopilot_kpi_committed_sub') || 'insérées automatiquement'}</div>
-                            </div>
-                            <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; text-align: center;">
-                                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_recurrences">${window.i18n.t('autopilot_kpi_recurrences') || 'Récurrences Promues'}</div>
-                                <div id="kpiRecurrences" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 8px 0 2px;">0</div>
-                                <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_recurrences_sub">${window.i18n.t('autopilot_kpi_recurrences_sub') || 'abonnements détectés'}</div>
-                            </div>
-                            <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; text-align: center;">
-                                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_budgets">${window.i18n.t('autopilot_kpi_budgets') || 'Mutations Budgets'}</div>
-                                <div id="kpiBudgets" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 8px 0 2px;">0</div>
-                                <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_budgets_sub">${window.i18n.t('autopilot_kpi_budgets_sub') || 'enveloppes synchronisées'}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                            <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 16px 0; line-height: 1.4;">
+                                Taux de précision, temps épargné et volume des actions automatisées
+                            </p>
 
-                <!-- Section 2 : Configuration & Briques Autonomes - Rétractable -->
-                <div id="apConfigSection" class="ap-collapsible-card">
-                    <div class="ap-collapsible-header" onclick="window.AutopilotView.toggleSection('config')">
-                        <div class="ap-collapsible-title-group">
-                            <span class="ap-collapsible-icon">⚙️</span>
-                            <div>
-                                <h3 class="ap-collapsible-title">Configuration & Briques d'Autonomie</h3>
-                                <p class="ap-collapsible-subtitle">Ajustement du seuil de tolérance algorithmique et contrôle des modules actifs</p>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
+                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_accuracy">${window.i18n.t('autopilot_kpi_accuracy') || 'Taux de Précision'}</div>
+                                    <div id="kpiAccuracy" style="font-size: 26px; font-weight: 800; color: #10b981; margin: 6px 0 2px;">--%</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_accuracy_sub">${window.i18n.t('autopilot_kpi_accuracy_sub') || 'décisions sans rejet'}</div>
+                                </div>
+                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
+                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_hours_saved">${window.i18n.t('autopilot_kpi_hours_saved') || 'Temps Épargné'}</div>
+                                    <div id="kpiHoursSaved" style="font-size: 26px; font-weight: 800; color: var(--accent); margin: 6px 0 2px;">-- h</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_hours_saved_sub">${window.i18n.t('autopilot_kpi_hours_saved_sub') || 'de saisie évitée'}</div>
+                                </div>
+                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
+                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_reconciled">${window.i18n.t('autopilot_kpi_reconciled') || 'Rapprochements'}</div>
+                                    <div id="kpiReconciled" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 6px 0 2px;">0</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_reconciled_sub">${window.i18n.t('autopilot_kpi_reconciled_sub') || 'pointages validés'}</div>
+                                </div>
+                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
+                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_committed">${window.i18n.t('autopilot_kpi_committed') || 'Nouvelles Écritures'}</div>
+                                    <div id="kpiCommitted" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 6px 0 2px;">0</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_committed_sub">${window.i18n.t('autopilot_kpi_committed_sub') || 'insérées automatiquement'}</div>
+                                </div>
+                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
+                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_recurrences">${window.i18n.t('autopilot_kpi_recurrences') || 'Récurrences Promues'}</div>
+                                    <div id="kpiRecurrences" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 6px 0 2px;">0</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_recurrences_sub">${window.i18n.t('autopilot_kpi_recurrences_sub') || 'abonnements détectés'}</div>
+                                </div>
+                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
+                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_budgets">${window.i18n.t('autopilot_kpi_budgets') || 'Mutations Budgets'}</div>
+                                    <div id="kpiBudgets" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 6px 0 2px;">0</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_budgets_sub">${window.i18n.t('autopilot_kpi_budgets_sub') || 'enveloppes synchronisées'}</div>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11.5px; color: var(--text-muted); line-height: 1.5;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                    <span>Dernier cycle :</span>
+                                    <strong id="apLastExecTime" style="color: var(--text-main);">--</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>Prochain relevé :</span>
+                                    <strong id="apNextExecTime" style="color: var(--text-main);">--</strong>
+                                </div>
                             </div>
                         </div>
-                        <div class="ap-collapsible-actions">
-                            <span id="apConfigSummaryPill" class="ap-summary-pill">Seuil: 85% • 8 modules actifs</span>
-                            <span id="apConfigChevron" class="ap-chevron">▾</span>
-                        </div>
                     </div>
-                    <div id="apConfigContent" class="ap-collapsible-content">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                            <!-- Tolerance Threshold Card -->
-                            <div style="background: var(--bg-card, var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 10px; padding: 18px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+
+                    <!-- COLONNE DROITE (1fr) : Tables et Données -->
+                    <div class="ap-right-column" style="display: flex; flex-direction: column; gap: 20px; min-width: 0;">
+                        <!-- Section 2.5 : Opérations à vérifier (Revue manuelle) -->
+                        <div id="apReviewSection" class="ap-collapsible-card" style="border: 1px solid rgba(245, 158, 11, 0.35); background: var(--bg-card, var(--bg-surface));">
+                            <div class="ap-collapsible-header" onclick="window.AutopilotView.toggleSection('review')">
+                                <div class="ap-collapsible-title-group">
+                                    <span class="ap-collapsible-icon">🔍</span>
                                     <div>
-                                        <h4 style="font-size: 14px; margin: 0 0 4px 0; font-weight: 700;" data-i18n="autopilot_threshold_title">
-                                            🎯 ${window.i18n.t('autopilot_threshold_title') || 'Seuil de Tolérance & Confiance'}
-                                        </h4>
-                                        <p style="font-size: 11.5px; color: var(--text-muted); margin: 0;" data-i18n="autopilot_threshold_desc">
-                                            ${window.i18n.t('autopilot_threshold_desc') || 'Score minimal requis pour exécuter un rapprochement ou une écriture en toute autonomie.'}
+                                        <h3 class="ap-collapsible-title" data-i18n="autopilot_review_title">
+                                            ${window.i18n.t('autopilot_review_title') || 'Opérations à vérifier (Revue manuelle)'}
+                                        </h3>
+                                        <p class="ap-collapsible-subtitle" data-i18n="autopilot_review_subtitle">
+                                            ${window.i18n.t('autopilot_review_subtitle') || 'Ces écritures ont été intégrées pour synchroniser vos soldes, mais nécessitent votre confirmation (confiance < seuil ou motif caméléon).'}
                                         </p>
                                     </div>
-                                    <span id="thresholdValBadge" class="badge" style="font-size: 14px; font-weight: 800; padding: 5px 12px; border-radius: 8px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent);">85%</span>
                                 </div>
-                                <div style="margin: 16px 0 8px;">
-                                    <input type="range" id="thresholdSlider" min="70" max="99" step="1" value="85" style="width: 100%; cursor: pointer;" oninput="window.AutopilotView.onThresholdSliderChange(this.value)" onchange="window.AutopilotView.saveThreshold(this.value)">
-                                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px;">
-                                        <span>70% (${window.i18n.t('autopilot_threshold_permissive') || 'Permissif'})</span>
-                                        <span>85% (${window.i18n.t('autopilot_threshold_balanced') || 'Équilibré'})</span>
-                                        <span>99% (${window.i18n.t('autopilot_threshold_strict') || 'Strict'})</span>
-                                    </div>
+                                <div class="ap-collapsible-actions">
+                                    <span id="apReviewSummaryPill" class="ap-summary-pill" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">0 à vérifier</span>
+                                    <span id="apReviewChevron" class="ap-chevron">▾</span>
+                                </div>
+                            </div>
+                            <div id="apReviewContent" class="ap-collapsible-content">
+                                <div id="apReviewListContainer" style="padding: 18px 20px;">
+                                    <!-- Injected dynamically -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 3 : Decision Feed Section (Main Volet) -->
+                        <div class="ap-collapsible-card">
+                            <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                                <div>
+                                    <h3 style="font-size: 16px; margin: 0 0 4px 0; font-weight: 700; color: var(--text-main);" data-i18n="autopilot_feed_title">
+                                        📋 ${window.i18n.t('autopilot_feed_title') || 'Journal d\'Audit & Flux des Décisions'}
+                                    </h3>
+                                    <p style="font-size: 12px; color: var(--text-muted); margin: 0;" data-i18n="autopilot_feed_desc">
+                                        ${window.i18n.t('autopilot_feed_desc') || 'Historique complet des arbitrages pris automatiquement avec traçabilité et réversibilité.'}
+                                    </p>
+                                </div>
+                                <!-- Filters & Batch Toggle Bar -->
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <select id="feedFilterType" class="form-control" style="font-size: 12px; padding: 4px 10px; border-radius: 6px;" onchange="window.AutopilotView.onFilterChange()">
+                                        <option value="" data-i18n="autopilot_filter_all">${window.i18n.t('autopilot_filter_all') || 'Toutes les décisions'}</option>
+                                        <option value="reconciliation" data-i18n="autopilot_filter_reconciliation">${window.i18n.t('autopilot_filter_reconciliation') || 'Rapprochements'}</option>
+                                        <option value="new_entry" data-i18n="autopilot_filter_new_entry">${window.i18n.t('autopilot_filter_new_entry') || 'Nouvelles Écritures'}</option>
+                                        <option value="recurrence_promotion" data-i18n="autopilot_filter_recurrence">${window.i18n.t('autopilot_filter_recurrence') || 'Récurrences'}</option>
+                                        <option value="budget_suggestion" data-i18n="autopilot_filter_budget">${window.i18n.t('autopilot_filter_budget') || 'Budgets'}</option>
+                                    </select>
+                                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
+                                        <input type="checkbox" id="feedShowUndone" checked onchange="window.AutopilotView.onFilterChange()">
+                                        <span data-i18n="autopilot_show_undone">${window.i18n.t('autopilot_show_undone') || 'Inclure annulées'}</span>
+                                    </label>
+                                    <button id="apToggleAllBatchesBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.toggleAllBatches()" style="font-size: 11.5px; padding: 4px 10px;">
+                                        Replier les lots
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Autopilot Sub-Toggles Summary Card -->
-                            <div style="background: var(--bg-card, var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 10px; padding: 18px;">
-                                <h4 style="font-size: 14px; margin: 0 0 12px 0; font-weight: 700;" data-i18n="autopilot_subtoggles_title">
-                                    ⚙️ ${window.i18n.t('autopilot_subtoggles_title') || 'Briques Autonomes Actives'}
-                                </h4>
-                                <div id="apSubtogglesList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+                            <div style="padding: 18px 20px;">
+                                <!-- Decision Items Container -->
+                                <div id="apDecisionsFeed" style="min-height: 200px;">
+                                    <div style="text-align: center; padding: 40px; color: var(--text-muted);" data-i18n="label_loading">
+                                        Chargement du journal d'audit...
+                                    </div>
+                                </div>
+
+                                <!-- Pagination -->
+                                <div id="apPaginationBar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 12px; color: var(--text-muted);">
+                                    <span id="apPaginationInfo"></span>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button id="apPrevPageBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.prevPage()" disabled>◀ Précédent</button>
+                                        <button id="apNextPageBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.nextPage()" disabled>Suivant ▶</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 4 : Atelier des Règles & Apprentissages - Rétractable -->
+                        <div id="apWorkshopSection" class="ap-collapsible-card">
+                            <div class="ap-collapsible-header" onclick="window.AutopilotView.toggleSection('workshop')">
+                                <div class="ap-collapsible-title-group">
+                                    <span class="ap-collapsible-icon">🧠</span>
+                                    <div>
+                                        <h3 class="ap-collapsible-title">Atelier des Règles & Apprentissages</h3>
+                                        <p class="ap-collapsible-subtitle">Correspondances marchands et motifs appris automatiquement au fil de vos opérations</p>
+                                    </div>
+                                </div>
+                                <div class="ap-collapsible-actions">
+                                    <span id="apWorkshopSummaryPill" class="ap-summary-pill">0 règle active</span>
+                                    <span id="apWorkshopChevron" class="ap-chevron">▾</span>
+                                </div>
+                            </div>
+                            <div id="apWorkshopContent" class="ap-collapsible-content">
+                                <div id="apLearnedRulesList" style="max-height: 320px; overflow-y: auto;">
                                     <!-- Injected dynamically -->
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Section 3 : Decision Feed Section (Main Volet) -->
-                <div class="ap-collapsible-card" style="margin-bottom: 20px;">
-                    <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+            <!-- Settings Drawer (Option B) -->
+            <div id="apSettingsDrawer" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px); z-index: 99998; justify-content: flex-end;" onclick="if(event.target === this) window.AutopilotView.closeSettingsDrawer()">
+                <div style="background: var(--bg-surface); width: 620px; max-width: 95vw; height: 100%; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.35); border-left: 1px solid var(--border-color); color: var(--text-main); animation: apDrawerSlideIn 0.22s ease-out;">
+                    <!-- Drawer Header -->
+                    <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                         <div>
-                            <h3 style="font-size: 16px; margin: 0 0 4px 0; font-weight: 700; color: var(--text-main);" data-i18n="autopilot_feed_title">
-                                📋 ${window.i18n.t('autopilot_feed_title') || 'Journal d\'Audit & Flux des Décisions'}
+                            <h3 style="margin: 0 0 3px 0; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                                <span>⚙️</span> <span>Réglages d'Autonomie & Briques Élémentaires</span>
                             </h3>
-                            <p style="font-size: 12px; color: var(--text-muted); margin: 0;" data-i18n="autopilot_feed_desc">
-                                ${window.i18n.t('autopilot_feed_desc') || 'Historique complet des arbitrages pris automatiquement avec traçabilité et réversibilité.'}
+                            <p style="margin: 0; font-size: 12px; color: var(--text-muted);">
+                                Seuil de tolérance et contrôle individuel des 15 automatismes
                             </p>
                         </div>
-                        <!-- Filters & Batch Toggle Bar -->
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <select id="feedFilterType" class="form-control" style="font-size: 12px; padding: 4px 10px; border-radius: 6px;" onchange="window.AutopilotView.onFilterChange()">
-                                <option value="" data-i18n="autopilot_filter_all">${window.i18n.t('autopilot_filter_all') || 'Toutes les décisions'}</option>
-                                <option value="reconciliation" data-i18n="autopilot_filter_reconciliation">${window.i18n.t('autopilot_filter_reconciliation') || 'Rapprochements'}</option>
-                                <option value="new_entry" data-i18n="autopilot_filter_new_entry">${window.i18n.t('autopilot_filter_new_entry') || 'Nouvelles Écritures'}</option>
-                                <option value="recurrence_promotion" data-i18n="autopilot_filter_recurrence">${window.i18n.t('autopilot_filter_recurrence') || 'Récurrences'}</option>
-                                <option value="budget_suggestion" data-i18n="autopilot_filter_budget">${window.i18n.t('autopilot_filter_budget') || 'Budgets'}</option>
-                            </select>
-                            <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
-                                <input type="checkbox" id="feedShowUndone" checked onchange="window.AutopilotView.onFilterChange()">
-                                <span data-i18n="autopilot_show_undone">${window.i18n.t('autopilot_show_undone') || 'Inclure annulées'}</span>
-                            </label>
-                            <button id="apToggleAllBatchesBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.toggleAllBatches()" style="font-size: 11.5px; padding: 4px 10px;">
-                                Replier les lots
-                            </button>
-                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.closeSettingsDrawer()" style="padding: 4px 9px; font-size: 15px; border-radius: 8px; line-height: 1;">✕</button>
                     </div>
 
-                    <div style="padding: 18px 20px;">
-                        <!-- Decision Items Container -->
-                        <div id="apDecisionsFeed" style="min-height: 200px;">
-                            <div style="text-align: center; padding: 40px; color: var(--text-muted);" data-i18n="label_loading">
-                                Chargement du journal d'audit...
+                    <!-- Drawer Body (Scrollable) -->
+                    <div style="flex: 1; overflow-y: auto; padding: 22px 24px; display: flex; flex-direction: column; gap: 20px;">
+                        <!-- Block 1 : Seuil de tolérance -->
+                        <div style="background: var(--bg-card, var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div>
+                                    <h4 style="font-size: 13.5px; margin: 0 0 4px 0; font-weight: 700;" data-i18n="autopilot_threshold_title">
+                                        🎯 ${window.i18n.t('autopilot_threshold_title') || 'Seuil de Tolérance & Confiance'}
+                                    </h4>
+                                    <p style="font-size: 11.5px; color: var(--text-muted); margin: 0;" data-i18n="autopilot_threshold_desc">
+                                        ${window.i18n.t('autopilot_threshold_desc') || 'Score minimal requis pour exécuter un rapprochement ou une écriture en toute autonomie.'}
+                                    </p>
+                                </div>
+                                <span id="thresholdValBadge" class="badge" style="font-size: 13.5px; font-weight: 800; padding: 4px 10px; border-radius: 8px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent);">85%</span>
+                            </div>
+                            <div style="margin: 14px 0 6px;">
+                                <input type="range" id="thresholdSlider" min="70" max="99" step="1" value="85" style="width: 100%; cursor: pointer;" oninput="window.AutopilotView.onThresholdSliderChange(this.value)" onchange="window.AutopilotView.saveThreshold(this.value)">
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                                    <span>70% (${window.i18n.t('autopilot_threshold_permissive') || 'Permissif'})</span>
+                                    <span>85% (${window.i18n.t('autopilot_threshold_balanced') || 'Équilibré'})</span>
+                                    <span>99% (${window.i18n.t('autopilot_threshold_strict') || 'Strict'})</span>
+                                </div>
+                            </div>
+                            <div id="thresholdLiveImpact" style="margin-top: 12px; padding: 10px 14px; background: rgba(99, 102, 241, 0.08); border: 1px dashed rgba(99, 102, 241, 0.3); border-radius: 8px; font-size: 11.5px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                                <div id="thresholdLiveImpactText" style="color: var(--text-main);">
+                                    📊 <span>${window.i18n.t('autopilot_threshold_preview_help') || 'Impact estimé'} : <strong id="previewStatsText">Déplacez le curseur pour simuler</strong></span>
+                                </div>
+                                <button id="btnApplyThresholdToExisting" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 10px; white-space: nowrap; display: none;" onclick="window.AutopilotView.applyThresholdToExisting()">
+                                    ${window.i18n.t('autopilot_threshold_apply_button') || 'Appliquer aux écritures existantes'}
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Pagination -->
-                        <div id="apPaginationBar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 12px; color: var(--text-muted);">
-                            <span id="apPaginationInfo"></span>
-                            <div style="display: flex; gap: 8px;">
-                                <button id="apPrevPageBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.prevPage()" disabled>◀ Précédent</button>
-                                <button id="apNextPageBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.nextPage()" disabled>Suivant ▶</button>
+                        <!-- Block 2 : 15 Briques Élémentaires Container -->
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h4 style="font-size: 13.5px; margin: 0; font-weight: 700;">
+                                    🧩 Les 15 Briques d'Autonomie Modulaires
+                                </h4>
+                                <span style="font-size: 11px; color: var(--text-muted);">Contrôle fin à la carte</span>
+                            </div>
+                            <div id="apSubtogglesDrawerList">
+                                <!-- Injected dynamically by renderSubtogglesInDrawer() -->
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Section 4 : Atelier des Règles & Apprentissages - Rétractable -->
-                <div id="apWorkshopSection" class="ap-collapsible-card">
-                    <div class="ap-collapsible-header" onclick="window.AutopilotView.toggleSection('workshop')">
-                        <div class="ap-collapsible-title-group">
-                            <span class="ap-collapsible-icon">🧠</span>
-                            <div>
-                                <h3 class="ap-collapsible-title">Atelier des Règles & Apprentissages</h3>
-                                <p class="ap-collapsible-subtitle">Correspondances marchands et motifs appris automatiquement au fil de vos opérations</p>
-                            </div>
-                        </div>
-                        <div class="ap-collapsible-actions">
-                            <span id="apWorkshopSummaryPill" class="ap-summary-pill">0 règle active</span>
-                            <span id="apWorkshopChevron" class="ap-chevron">▾</span>
-                        </div>
-                    </div>
-                    <div id="apWorkshopContent" class="ap-collapsible-content">
-                        <div id="apLearnedRulesList" style="max-height: 320px; overflow-y: auto;">
-                            <!-- Injected dynamically -->
-                        </div>
+                    <!-- Drawer Footer -->
+                    <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); flex-shrink: 0;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.resetToDefaultSubtoggles()">
+                            🔄 Rétablir la sélection recommandée
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="window.AutopilotView.closeSettingsDrawer()">
+                            Fermer
+                        </button>
                     </div>
                 </div>
             </div>
+
+            <style>
+            @media (max-width: 1024px) {
+                .ap-cockpit-layout {
+                    grid-template-columns: 1fr !important;
+                }
+            }
+            .ap-review-desktop-table {
+                display: table;
+                width: 100%;
+            }
+            .ap-review-mobile-cards {
+                display: none;
+            }
+            @media (max-width: 960px) {
+                .ap-review-desktop-table {
+                    display: none !important;
+                }
+                .ap-review-mobile-cards {
+                    display: flex !important;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+            }
+            @keyframes apDrawerSlideIn {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
+            }
+            </style>
 
             <!-- Override Modal -->
             <div id="apOverrideModal" class="modal-overlay ap-override-overlay" style="display: none;" onclick="if(event.target === this) window.AutopilotView.closeOverrideModal()">
@@ -250,7 +446,13 @@ window.AutopilotView = {
 
                     <!-- Corps de formulaire -->
                     <div class="ap-override-body">
+                        <input type="hidden" id="overrideMode" value="decision">
                         <input type="hidden" id="overrideDecisionId">
+                        <input type="hidden" id="overrideTxId">
+                        <input type="hidden" id="overrideTargetForecastId">
+
+                        <!-- Candidats prévisions détectés (mode review) -->
+                        <div id="overrideCandidateForecastsContainer" style="display: none; margin-bottom: 16px;"></div>
 
                         <!-- Champ Libellé -->
                         <div class="ap-override-field">
@@ -355,6 +557,22 @@ window.AutopilotView = {
         this.initCollapsibleSections();
         await this.refresh();
 
+        // If navigating to review a specific transaction
+        if (this._pendingReviewTxId) {
+            const txIdToOpen = this._pendingReviewTxId;
+            this._pendingReviewTxId = null;
+            setTimeout(() => {
+                const revSec = document.getElementById('apReviewSection');
+                if (revSec && revSec.classList.contains('collapsed')) {
+                    revSec.classList.remove('collapsed');
+                }
+                if (revSec) {
+                    revSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                this.openReviewModal(txIdToOpen);
+            }, 300);
+        }
+
         // Listen to reactive custom events
         this._bindEvents();
     },
@@ -370,12 +588,19 @@ window.AutopilotView = {
 
         window.removeEventListener('bank_sync_completed', handleRefresh);
         window.addEventListener('bank_sync_completed', handleRefresh);
+
+        window.removeEventListener('transactions_updated', handleRefresh);
+        window.addEventListener('transactions_updated', handleRefresh);
+
+        window.removeEventListener('transactions_changed', handleRefresh);
+        window.addEventListener('transactions_changed', handleRefresh);
     },
 
     async refresh() {
         await Promise.all([
             this.loadStatus(),
             this.loadKPIs(),
+            this.loadReviewQueue(),
             this.loadDecisions(),
             this.loadLearnedRules()
         ]);
@@ -400,12 +625,12 @@ window.AutopilotView = {
         const badge = document.getElementById('apStatusBadge');
         if (badge) {
             if (status.is_enabled) {
-                badge.textContent = window.i18n.t('autopilot_status_active') || 'ACTIF';
+                badge.textContent = window.i18n ? (window.i18n.t('autopilot_status_active') || 'ACTIF') : 'ACTIF';
                 badge.style.background = 'rgba(16,185,129,0.15)';
                 badge.style.color = '#10b981';
                 badge.style.border = '1px solid #10b981';
             } else {
-                badge.textContent = window.i18n.t('autopilot_status_inactive') || 'INACTIF';
+                badge.textContent = window.i18n ? (window.i18n.t('autopilot_status_inactive') || 'INACTIF') : 'INACTIF';
                 badge.style.background = 'rgba(107,114,128,0.15)';
                 badge.style.color = '#9ca3af';
                 badge.style.border = '1px solid #6b7280';
@@ -426,28 +651,16 @@ window.AutopilotView = {
             valBadge.textContent = `${status.threshold}%`;
         }
 
-        const subList = document.getElementById('apSubtogglesList');
-        if (subList && status.managed_subtoggles) {
-            const labels = {
-                auto_reconcile_transactions: 'Auto-Rapprochement',
-                auto_commit_incoming_transactions: 'Auto-Commit Écritures',
-                auto_create_missing_categories: 'Création Catégories',
-                auto_learn_merchant_rules: 'Apprentissage Marchands',
-                auto_create_budget_envelopes: 'Création Enveloppes',
-                auto_apply_budget_suggestions: 'Recalibrage Budgets',
-                auto_propagate_recurrence_hikes: 'Propagation Hausses (N=3)',
-                auto_skip_unreconciled_recurrences: 'Saut d\'échéance auto',
-            };
-            subList.innerHTML = Object.entries(labels).map(([k, lbl]) => {
-                const active = !!status.managed_subtoggles[k];
-                return `
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="color: ${active ? '#10b981' : '#6b7280'}; font-size: 14px;">${active ? '●' : '○'}</span>
-                        <span style="color: ${active ? 'var(--text-main)' : 'var(--text-muted)'};">${lbl}</span>
-                    </div>
-                `;
-            }).join('');
+        const lastExecEl = document.getElementById('apLastExecTime');
+        if (lastExecEl) {
+            lastExecEl.textContent = status.last_execution ? new Date(status.last_execution).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Récemment';
         }
+        const nextExecEl = document.getElementById('apNextExecTime');
+        if (nextExecEl) {
+            nextExecEl.textContent = status.next_execution ? new Date(status.next_execution).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'À l\'import de relevé';
+        }
+
+        this.renderSubtogglesInDrawer();
         this.updateSummaryPills();
     },
 
@@ -483,9 +696,55 @@ window.AutopilotView = {
         this.updateSummaryPills();
     },
 
+    _thresholdDebounceTimer: null,
     onThresholdSliderChange(val) {
         const valBadge = document.getElementById('thresholdValBadge');
         if (valBadge) valBadge.textContent = `${val}%`;
+
+        clearTimeout(this._thresholdDebounceTimer);
+        this._thresholdDebounceTimer = setTimeout(async () => {
+            try {
+                const res = await API.get(`/api/autopilot/threshold-preview?threshold=${val}`);
+                const previewText = document.getElementById('previewStatsText');
+                const btnApply = document.getElementById('btnApplyThresholdToExisting');
+                if (previewText && res) {
+                    const rel = res.becoming_reliable_count || 0;
+                    const rev = res.becoming_review_count || 0;
+                    previewText.innerHTML = `<strong>${rel}</strong> deviendront fiable(s), <strong>${rev}</strong> nécessiteront une vérification.`;
+                }
+                if (btnApply) {
+                    btnApply.style.display = 'inline-block';
+                }
+            } catch (e) {
+                console.warn('[AutopilotView] Erreur simulation seuil:', e);
+            }
+        }, 150);
+    },
+
+    async applyThresholdToExisting() {
+        const slider = document.getElementById('thresholdSlider');
+        if (!slider) return;
+        const val = parseFloat(slider.value);
+        const btn = document.getElementById('btnApplyThresholdToExisting');
+        try {
+            if (btn) btn.disabled = true;
+            const res = await API.put('/api/autopilot/threshold', {
+                threshold: val,
+                apply_to_existing: true
+            });
+            const applied = res.applied_count || 0;
+            showToast(`Seuil fixé à ${val}%. ${applied} écriture(s) mise(s) à jour.`, 'success');
+            await this.refresh();
+            if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+                window.app.updateAutopilotBadge();
+            }
+            window.dispatchEvent(new CustomEvent('autopilot_updated'));
+            window.dispatchEvent(new CustomEvent('transactions_updated'));
+        } catch (e) {
+            showToast('Erreur application seuil aux écritures', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
     },
 
     async saveThreshold(val) {
@@ -496,6 +755,362 @@ window.AutopilotView = {
             await this.loadStatus();
         } catch (e) {
             showToast('Erreur mise à jour seuil', 'error');
+        }
+    },
+
+    openSettingsDrawer() {
+        const drawer = document.getElementById('apSettingsDrawer');
+        if (!drawer) return;
+        drawer.style.display = 'flex';
+        if (!this._drawerEscHandler) {
+            this._drawerEscHandler = (e) => {
+                if (e.key === 'Escape') this.closeSettingsDrawer();
+            };
+            window.addEventListener('keydown', this._drawerEscHandler);
+        }
+        this.renderSubtogglesInDrawer();
+    },
+
+    closeSettingsDrawer() {
+        const drawer = document.getElementById('apSettingsDrawer');
+        if (drawer) drawer.style.display = 'none';
+        if (this._drawerEscHandler) {
+            window.removeEventListener('keydown', this._drawerEscHandler);
+            this._drawerEscHandler = null;
+        }
+    },
+
+    renderSubtogglesInDrawer() {
+        const container = document.getElementById('apSubtogglesDrawerList');
+        if (!container) return;
+
+        const subtoggles = this._status?.managed_subtoggles || {};
+
+        container.innerHTML = (this._subtogglesDef || []).map(group => {
+            const groupActiveCount = group.items.filter(it => !!subtoggles[it.key]).length;
+            return `
+                <div style="background: var(--bg-card, var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 16px; overflow: hidden;">
+                    <div style="padding: 12px 16px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">${group.icon}</span>
+                            <span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${group.category}</span>
+                        </div>
+                        <span class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.12); color: var(--accent);">
+                            ${groupActiveCount}/${group.items.length} actives
+                        </span>
+                    </div>
+                    <div style="padding: 10px 16px; display: flex; flex-direction: column; gap: 10px;">
+                        ${group.items.map(item => {
+                            const isChecked = !!subtoggles[item.key];
+                            return `
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="font-size: 12.5px; font-weight: 600; color: ${isChecked ? 'var(--text-main)' : 'var(--text-muted)'}; margin-bottom: 2px;">
+                                            ${item.label}
+                                        </div>
+                                        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.35;">
+                                            ${item.desc}
+                                        </div>
+                                    </div>
+                                    <label class="switch" style="margin: 0; flex-shrink: 0;">
+                                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="window.AutopilotView.toggleSubtoggle('${item.key}', this.checked)">
+                                        <span class="slider round"></span>
+                                    </label>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    async toggleSubtoggle(key, enabled) {
+        try {
+            await API.post('/api/autopilot/subtoggle', { key, enabled });
+            if (this._status) {
+                if (!this._status.managed_subtoggles) this._status.managed_subtoggles = {};
+                this._status.managed_subtoggles[key] = enabled;
+            }
+            this.renderSubtogglesInDrawer();
+            this.updateSummaryPills();
+            window.dispatchEvent(new CustomEvent('autopilot_updated'));
+        } catch (e) {
+            console.error('[AutopilotView] Erreur mise à jour subtoggle:', e);
+            showToast('Erreur lors de la mise à jour de l\'automatisme', 'error');
+            this.renderSubtogglesInDrawer();
+        }
+    },
+
+    async resetToDefaultSubtoggles() {
+        try {
+            const allKeys = [];
+            (this._subtogglesDef || []).forEach(cat => {
+                (cat.items || []).forEach(it => allKeys.push(it.key));
+            });
+            await Promise.all(allKeys.map(k => API.post('/api/autopilot/subtoggle', { key: k, enabled: true })));
+            showToast('Toutes les 15 briques d\'autonomie sont activées', 'success');
+            await this.loadStatus();
+        } catch (e) {
+            showToast('Erreur réinitialisation des briques', 'error');
+        }
+    },
+
+    async loadReviewQueue() {
+        const container = document.getElementById('apReviewListContainer');
+        if (!container) return;
+
+        try {
+            const res = await API.get('/api/autopilot/review-queue');
+            this._reviewQueue = Array.isArray(res) ? res : (res && res.items ? res.items : []);
+            this.renderReviewQueue();
+        } catch (e) {
+            console.warn('[AutopilotView] Erreur chargement file de revue:', e);
+            container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);">Erreur lors du chargement des opérations à vérifier.</div>`;
+        }
+    },
+
+    renderReviewQueue() {
+        const container = document.getElementById('apReviewListContainer');
+        const pill = document.getElementById('apReviewSummaryPill');
+        if (!container) return;
+
+        const count = (this._reviewQueue || []).length;
+        if (pill) {
+            pill.textContent = `${count} à vérifier`;
+            pill.style.background = count > 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.12)';
+            pill.style.color = count > 0 ? '#f59e0b' : '#10b981';
+            pill.style.borderColor = count > 0 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)';
+        }
+
+        if (count === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px;">
+                    ✅ <span>${window.i18n ? (window.i18n.t('autopilot_review_queue_empty') || 'Aucune opération en attente de vérification. Toutes vos opérations intégrées sont fiables.') : 'Aucune opération en attente de vérification.'}</span>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div style="overflow-x: auto; width: 100%;">
+                <!-- Desktop Table View -->
+                <table class="table ap-review-desktop-table" style="width: 100%; min-width: 780px; font-size: 12.5px; border-collapse: separate; border-spacing: 0 6px;">
+                    <thead>
+                        <tr style="text-align: left; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color);">
+                            <th style="padding: 8px 12px; width: 95px;">Date</th>
+                            <th style="padding: 8px 12px; width: 140px;">Compte</th>
+                            <th style="padding: 8px 12px; min-width: 260px;">Libellé Brut & Identifié</th>
+                            <th style="padding: 8px 12px; width: 130px;">Catégorie</th>
+                            <th style="padding: 8px 12px; width: 110px; text-align: right;">Montant</th>
+                            <th style="padding: 8px 12px; width: 90px; text-align: center;">Confiance</th>
+                            <th style="padding: 8px 12px; text-align: right; width: 180px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${this._reviewQueue.map(item => {
+                            const dateStr = typeof formatDate === 'function' ? formatDate(item.date_operation) : (item.date_operation || '');
+                            const amtStr = typeof formatCurrency === 'function' ? formatCurrency(item.amount) : `${Number(item.amount || 0).toFixed(2)} €`;
+                            const amtColor = item.type === 'income' ? 'var(--color-income, #10b981)' : 'var(--color-expense, #ef4444)';
+                            const conf = Math.round(item.confidence_score || 0);
+                            const bestCandidate = (item.candidate_forecasts && item.candidate_forecasts.length > 0) ? item.candidate_forecasts[0] : null;
+
+                            return `
+                            <tr style="background: var(--bg-surface); border-radius: 8px; transition: background 0.15s ease;">
+                                <td style="padding: 12px; white-space: nowrap; font-weight: 500; vertical-align: middle;">
+                                    ${dateStr}
+                                </td>
+                                <td style="padding: 12px; white-space: nowrap; vertical-align: middle;">
+                                    <span class="account-badge" style="background:${item.account_color || '#6366f1'}18; color:${item.account_color || '#6366f1'}; border-color:${item.account_color || '#6366f1'}40;">
+                                        <span class="acc-badge-dot" style="background:${item.account_color || '#6366f1'};"></span>
+                                        ${escapeHtml(item.account_name || 'Compte')}
+                                    </span>
+                                </td>
+                                <td style="padding: 12px; vertical-align: middle;">
+                                    <div style="font-weight: 600; font-size: 13px; color: var(--text-main); line-height: 1.3;">${escapeHtml(item.description || item.raw_description || '')}</div>
+                                    ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 2px;">${escapeHtml(item.raw_description)}</div>` : ''}
+                                    ${bestCandidate ? `
+                                        <div style="margin-top: 6px; font-size: 11.5px; color: var(--accent); background: rgba(99,102,241,0.08); padding: 4px 10px; border-radius: 6px; border: 1px dashed rgba(99,102,241,0.3); display: inline-flex; align-items: center; gap: 6px; line-height: 1.3;">
+                                            <span>💡 Prévision : <strong>${escapeHtml(bestCandidate.description)}</strong> (${Number(bestCandidate.amount).toFixed(2)} €)</span>
+                                        </div>
+                                    ` : ''}
+                                </td>
+                                <td style="padding: 12px; white-space: nowrap; vertical-align: middle;">
+                                    <span class="badge" style="font-size: 11px; font-weight: 600;">${escapeHtml(item.category || '—')}</span>
+                                </td>
+                                <td style="padding: 12px; text-align: right; white-space: nowrap; font-weight: 700; font-size: 13.5px; color: ${amtColor}; vertical-align: middle;">
+                                    ${amtStr}
+                                </td>
+                                <td style="padding: 12px; text-align: center; white-space: nowrap; vertical-align: middle;">
+                                    <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px;">
+                                        ⚠️ ${conf}%
+                                    </span>
+                                </td>
+                                <td style="padding: 12px; text-align: right; white-space: nowrap; vertical-align: middle;">
+                                    <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
+                                        ${bestCandidate ? `
+                                            <div class="candidate-forecast-action" style="display: inline-flex; align-items: center;">
+                                                <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 10px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})" title="Lier à la prévision '${escapeHtml(bestCandidate.description)}' sans créer de doublon">
+                                                    <span>🔗 Lier</span>
+                                                </button>
+                                            </div>
+                                        ` : `
+                                            <button class="btn btn-secondary btn-sm" style="padding: 5px 10px; font-size: 11.5px; color: #10b981; border-color: rgba(16, 185, 129, 0.3);" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_validate') || 'Valider sans modifier') : 'Valider sans modifier'}">
+                                                ✓ ${window.i18n ? (window.i18n.t('autopilot_review_btn_validate') || 'Valider') : 'Valider'}
+                                            </button>
+                                        `}
+                                        <button class="btn btn-primary btn-sm" style="padding: 5px 10px; font-size: 11.5px;" onclick="window.AutopilotView.openReviewModal(${item.id})" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Corriger libellé / catégorie') : 'Corriger libellé / catégorie'}">
+                                            ✏️ ${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Éditer') : 'Éditer'}
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+
+                <!-- Mobile Cards View -->
+                <div class="ap-review-mobile-cards">
+                    ${this._reviewQueue.map(item => {
+                        const dateStr = typeof formatDate === 'function' ? formatDate(item.date_operation) : (item.date_operation || '');
+                        const amtStr = typeof formatCurrency === 'function' ? formatCurrency(item.amount) : `${Number(item.amount || 0).toFixed(2)} €`;
+                        const amtColor = item.type === 'income' ? 'var(--color-income, #10b981)' : 'var(--color-expense, #ef4444)';
+                        const conf = Math.round(item.confidence_score || 0);
+                        const bestCandidate = (item.candidate_forecasts && item.candidate_forecasts.length > 0) ? item.candidate_forecasts[0] : null;
+
+                        return `
+                        <div class="ap-review-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="account-badge" style="background:${item.account_color || '#6366f1'}18; color:${item.account_color || '#6366f1'}; border-color:${item.account_color || '#6366f1'}40; font-size: 11px;">
+                                        <span class="acc-badge-dot" style="background:${item.account_color || '#6366f1'};"></span>
+                                        ${escapeHtml(item.account_name || 'Compte')}
+                                    </span>
+                                    <span style="font-size: 11.5px; color: var(--text-muted);">${dateStr}</span>
+                                </div>
+                                <div style="font-size: 15px; font-weight: 800; color: ${amtColor};">
+                                    ${amtStr}
+                                </div>
+                            </div>
+
+                            <div>
+                                <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">${escapeHtml(item.description || item.raw_description || '')}</div>
+                                ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 2px;">${escapeHtml(item.raw_description)}</div>` : ''}
+                            </div>
+
+                            ${bestCandidate ? `
+                                <div style="background: rgba(99,102,241,0.08); border: 1px dashed rgba(99,102,241,0.3); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--text-main);">
+                                    <div style="font-weight: 600; color: var(--accent); margin-bottom: 2px;">💡 Prévision suggérée :</div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span>${escapeHtml(bestCandidate.description)}</span>
+                                        <span style="font-weight: 700; color: var(--accent);">${Number(bestCandidate.amount).toFixed(2)} €</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-color); margin-top: 2px; flex-wrap: wrap; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="badge" style="font-size: 11px; font-weight: 600;">${escapeHtml(item.category || '—')}</span>
+                                    <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; font-size: 10.5px;">
+                                        ⚠️ ${conf}%
+                                    </span>
+                                </div>
+                                <div style="display: flex; gap: 6px;">
+                                    ${bestCandidate ? `
+                                        <div class="candidate-forecast-action" style="display: inline-flex; align-items: center;">
+                                            <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 12px; font-size: 12px; font-weight: 600;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})">
+                                                🔗 Lier
+                                            </button>
+                                        </div>
+                                    ` : `
+                                        <button class="btn btn-secondary btn-sm" style="padding: 5px 12px; font-size: 12px; color: #10b981; border-color: rgba(16, 185, 129, 0.3);" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)">
+                                            ✓ Valider
+                                        </button>
+                                    `}
+                                    <button class="btn btn-primary btn-sm" style="padding: 5px 12px; font-size: 12px;" onclick="window.AutopilotView.openReviewModal(${item.id})">
+                                        ✏️ Éditer
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    },
+
+    async validateReviewItem(txId, btn) {
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳';
+            }
+            await API.post(`/api/autopilot/review/${txId}/validate`, {});
+            showToast(window.i18n ? (window.i18n.t('autopilot_review_validated') || 'Opération confirmée avec succès') : 'Opération confirmée avec succès', 'success');
+            await this.refresh();
+            if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+                window.app.updateAutopilotBadge();
+            }
+            window.dispatchEvent(new CustomEvent('autopilot_updated'));
+            window.dispatchEvent(new CustomEvent('transactions_updated'));
+        } catch (e) {
+            showToast('Erreur lors de la validation', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '✓ Valider';
+            }
+        }
+    },
+
+    promptInlineLinkConfirm(btn, txId, forecastId) {
+        const parent = btn.parentElement;
+        if (!parent) return;
+        if (!parent._origHtml) {
+            parent._origHtml = parent.innerHTML;
+        }
+        parent.innerHTML = `
+            <div style="display: inline-flex; align-items: center; gap: 4px; background: rgba(16, 185, 129, 0.12); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);" onclick="event.stopPropagation();">
+                <span style="font-size: 11px; font-weight: 600; color: #10b981; white-space: nowrap;">Lier ?</span>
+                <button type="button" class="btn btn-success btn-sm" style="font-size: 11px; font-weight: 700; padding: 2px 8px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; line-height: 1.2;" onclick="event.stopPropagation(); window.AutopilotView.linkReviewItem(${txId}, ${forecastId}, this)">✓ Oui</button>
+                <button type="button" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; cursor: pointer; line-height: 1.2;" onclick="event.stopPropagation(); window.AutopilotView.cancelInlineLinkConfirm(this)">✕</button>
+            </div>
+        `;
+    },
+
+    cancelInlineLinkConfirm(btn) {
+        const container = btn.closest('.candidate-forecast-action') || btn.parentElement?.parentElement;
+        if (container && container._origHtml) {
+            container.innerHTML = container._origHtml;
+            delete container._origHtml;
+        }
+    },
+
+    async linkReviewItem(txId, targetForecastId, btn) {
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳';
+            }
+            const res = await API.post(`/api/autopilot/review/${txId}/link`, {
+                target_forecast_id: targetForecastId,
+                learn_rule: true
+            });
+            this.closeOverrideModal();
+            showToast(res.message || 'Opération liée à la prévision avec succès', 'success');
+            await this.refresh();
+            if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+                window.app.updateAutopilotBadge();
+            }
+            window.dispatchEvent(new CustomEvent('autopilot_updated'));
+            window.dispatchEvent(new CustomEvent('transactions_updated'));
+        } catch (e) {
+            showToast('Erreur lors de la liaison avec la prévision', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🔗 Lier';
+            }
         }
     },
 
@@ -593,6 +1208,25 @@ window.AutopilotView = {
         window.i18n.translateDOM(feed);
     },
 
+    formatReasonBadge(reason) {
+        if (!reason) return '';
+        const map = {
+            'linked_forecast': '🔗 Liaison prévision',
+            'manual_link_review': '🔗 Liaison prévision',
+            'reviewed_by_user': '✏️ Revue manuelle',
+            'rule': 'Règle',
+            'history': 'Historique',
+            'fallback_catchall': 'Catégorie par défaut',
+            'chameleon_default': 'Caméléon défaut',
+            'chameleon_ai': 'Caméléon IA',
+            'ai_existing': 'IA (existante)',
+            'ai_new_category': 'IA (nouvelle cat.)',
+            'provisional_auto_commit': 'Écriture prévisionnelle'
+        };
+        const label = map[reason] || reason;
+        return `<span class="ap-reason-badge" title="Raison de la décision : ${escapeHtml(reason)}">${escapeHtml(label)}</span>`;
+    },
+
     _renderDecisionItem(d) {
         const score = d.confidence_score !== null ? Math.round(d.confidence_score) : null;
         let scoreBadge = '';
@@ -650,7 +1284,7 @@ window.AutopilotView = {
                         <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
                             <span>🏷️ ${escapeHtml(d.category || '—')}</span>
                             ${d.account_name ? `<span>🏦 ${escapeHtml(d.account_name)}</span>` : ''}
-                            ${d.reason ? `<span class="ap-reason-badge">Raison: ${escapeHtml(d.reason)}</span>` : ''}
+                            ${this.formatReasonBadge(d.reason)}
                         </div>
                     </div>
                 </div>
@@ -829,7 +1463,27 @@ window.AutopilotView = {
     async openOverrideModal(decisionId, label, category, amount) {
         const modal = document.getElementById('apOverrideModal');
         if (!modal) return;
-        document.getElementById('overrideDecisionId').value = decisionId;
+
+        const modeInput = document.getElementById('overrideMode');
+        const txIdInput = document.getElementById('overrideTxId');
+        const decIdInput = document.getElementById('overrideDecisionId');
+        const tfInput = document.getElementById('overrideTargetForecastId');
+        if (modeInput) modeInput.value = 'decision';
+        if (decIdInput) decIdInput.value = decisionId;
+        if (txIdInput) txIdInput.value = '';
+        if (tfInput) tfInput.value = '';
+
+        const candContainer = document.getElementById('overrideCandidateForecastsContainer');
+        if (candContainer) {
+            candContainer.style.display = 'none';
+            candContainer.innerHTML = '';
+        }
+
+        const titleEl = modal.querySelector('.ap-override-title');
+        const subTitleEl = modal.querySelector('.ap-override-subtitle');
+        if (titleEl) titleEl.textContent = window.i18n ? (window.i18n.t('autopilot_override_modal_title') || 'Corriger la décision Auto-Pilote') : 'Corriger la décision Auto-Pilote';
+        if (subTitleEl) subTitleEl.textContent = window.i18n ? (window.i18n.t('autopilot_override_modal_subtitle') || 'Ajustez le libellé, la catégorie ou le montant retenus par le moteur') : 'Ajustez le libellé, la catégorie ou le montant retenus par le moteur';
+
         document.getElementById('overrideDescription').value = label || '';
         document.getElementById('overrideAmount').value = Math.abs(amount || 0);
         
@@ -903,6 +1557,175 @@ window.AutopilotView = {
         }, 50);
     },
 
+    onCandidateCardClick(cardEl) {
+        if (!cardEl) return;
+        const forecastId = parseInt(cardEl.dataset.forecastId, 10);
+        const desc = cardEl.dataset.desc || '';
+        const cat = cardEl.dataset.cat || '';
+        const amount = parseFloat(cardEl.dataset.amount) || 0;
+        this.selectCandidateForecastForOverride(forecastId, desc, cat, amount, cardEl);
+    },
+
+    selectCandidateForecastForOverride(forecastId, desc, cat, amount, cardEl) {
+        const tfInput = document.getElementById('overrideTargetForecastId');
+        if (tfInput) tfInput.value = forecastId;
+        const descInput = document.getElementById('overrideDescription');
+        if (descInput) descInput.value = desc;
+        if (cat && window.CategoryPicker) {
+            window.CategoryPicker.setValue('overrideCategory', cat, true);
+        }
+
+        const allCards = document.querySelectorAll('.candidate-forecast-card');
+        allCards.forEach(c => {
+            c.style.borderColor = 'var(--border-color)';
+            c.style.background = 'var(--bg-surface)';
+        });
+        if (cardEl) {
+            cardEl.style.borderColor = 'var(--accent)';
+            cardEl.style.background = 'rgba(99, 102, 241, 0.08)';
+        }
+
+        showToast(`Prévision '${desc}' sélectionnée pour fusion (cliquez sur "🔗 Lier" ou "Enregistrer")`, 'info');
+    },
+
+    async openReviewModal(txId, label, category, amount) {
+        if (!this._reviewQueue || this._reviewQueue.length === 0) {
+            try {
+                this._reviewQueue = await API.get('/api/autopilot/review-queue') || [];
+            } catch (e) {
+                // ignore
+            }
+        }
+        let item = (this._reviewQueue || []).find(x => x.id === txId);
+        if (!item && (!label || category === undefined || amount === undefined)) {
+            try {
+                const res = await API.get(`/api/transactions/${txId}`);
+                if (res) {
+                    item = {
+                        id: res.id,
+                        description: res.description,
+                        category: res.category,
+                        amount: res.amount,
+                        type: res.type
+                    };
+                }
+            } catch (e) {
+                console.warn('[AutopilotView] Impossible de charger transaction:', e);
+            }
+        }
+
+        const modal = document.getElementById('apOverrideModal');
+        if (!modal) return;
+
+        const modeInput = document.getElementById('overrideMode');
+        const txIdInput = document.getElementById('overrideTxId');
+        const decIdInput = document.getElementById('overrideDecisionId');
+        const tfInput = document.getElementById('overrideTargetForecastId');
+        if (modeInput) modeInput.value = 'review';
+        if (txIdInput) txIdInput.value = txId;
+        if (decIdInput) decIdInput.value = '';
+        if (tfInput) tfInput.value = '';
+
+        // Render candidate forecasts if available
+        const candContainer = document.getElementById('overrideCandidateForecastsContainer');
+        if (candContainer) {
+            if (item && item.candidate_forecasts && item.candidate_forecasts.length > 0) {
+                candContainer.style.display = 'block';
+                candContainer.innerHTML = `
+                    <div style="background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
+                        <div style="font-size: 11.5px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                            <span>💡</span> <span>Prévision(s) récurrente(s) suggérée(s) pour fusion :</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            ${item.candidate_forecasts.map(cf => `
+                                <div class="candidate-forecast-card" data-forecast-id="${cf.id}" data-desc="${escapeHtml(cf.description)}" data-cat="${escapeHtml(cf.category || '')}" data-amount="${cf.amount}" style="padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.15s ease; gap: 14px;" onclick="window.AutopilotView.onCandidateCardClick(this)" title="Sélectionner pour fusionner avec cette prévision">
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="font-weight: 600; font-size: 13px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(cf.description)}</div>
+                                        <div style="font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">Prévu le ${cf.date_operation} • Catégorie : <span style="color: var(--text-main); font-weight: 500;">${escapeHtml(cf.category || '—')}</span></div>
+                                    </div>
+                                    <div class="candidate-forecast-action" style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+                                        <span style="font-weight: 700; font-size: 13px; color: var(--accent); white-space: nowrap;">${Number(cf.amount).toFixed(2)} €</span>
+                                        <button type="button" class="btn btn-primary btn-sm" style="font-size: 11.5px; font-weight: 700; padding: 5px 12px; display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer;" onclick="event.stopPropagation(); window.AutopilotView.promptInlineLinkConfirm(this, ${txId}, ${cf.id})"><span>🔗 Lier</span></button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                candContainer.style.display = 'none';
+                candContainer.innerHTML = '';
+            }
+        }
+
+        const finalLabel = label || (item ? item.description : '');
+        const finalCategory = category !== undefined ? category : (item ? item.category : '');
+        const finalAmount = amount !== undefined ? amount : (item ? item.amount : 0);
+
+        document.getElementById('overrideDescription').value = finalLabel || '';
+        document.getElementById('overrideAmount').value = Math.abs(finalAmount || 0);
+
+        const checkEl = document.getElementById('overrideLearnRule');
+        if (checkEl) checkEl.checked = true;
+
+        // Update modal title for review
+        const titleEl = modal.querySelector('.ap-override-title');
+        const subTitleEl = modal.querySelector('.ap-override-subtitle');
+        if (titleEl) titleEl.textContent = window.i18n ? (window.i18n.t('autopilot_review_modal_title') || 'Vérifier / Corriger l\'opération') : 'Vérifier / Corriger l\'opération';
+        if (subTitleEl) subTitleEl.textContent = window.i18n ? (window.i18n.t('autopilot_review_modal_subtitle') || 'Ajustez le libellé et la catégorie avant de valider l\'intégration.') : 'Ajustez le libellé et la catégorie avant de valider.';
+
+        // Ensure categories list is loaded for CategoryPicker
+        if (!window.app?.categoriesList || window.app.categoriesList.length === 0) {
+            try {
+                window.app = window.app || {};
+                window.app.categoriesList = await API.get('/api/categories/');
+            } catch (e) {
+                window.app.categoriesList = [];
+            }
+        }
+
+        let isDebit = (item && item.type) ? (item.type !== 'income') : true;
+        const allowedTypes = isDebit ? ['expense_var', 'expense_fixed'] : ['income'];
+        const direction = isDebit ? 'debit' : 'credit';
+
+        const catContainer = document.getElementById('overrideCategoryContainer');
+        if (catContainer && window.CategoryPicker) {
+            catContainer.innerHTML = window.CategoryPicker.renderTriggerHtml({
+                id: 'overrideCategory',
+                value: finalCategory || '',
+                allowedTypes: allowedTypes,
+                direction: direction,
+                inputClass: 'input-styled',
+                placeholder: window.i18n ? (window.i18n.t('cat_picker_select') || '-- Catégorie --') : '-- Catégorie --'
+            });
+            window.CategoryPicker.setValue('overrideCategory', finalCategory || '', false);
+        } else if (catContainer) {
+            catContainer.innerHTML = `
+                <input type="text" id="overrideCategory" class="input-styled" value="${escapeHtml(finalCategory || '')}" placeholder="Catégorie">
+            `;
+        }
+
+        modal.style.display = 'flex';
+
+        if (this._overrideEscHandler) {
+            window.removeEventListener('keydown', this._overrideEscHandler);
+        }
+        this._overrideEscHandler = (e) => {
+            const catPop = document.getElementById('categoryPickerPopover');
+            if (catPop && catPop.style.display !== 'none') return;
+            if (e.key === 'Escape') this.closeOverrideModal();
+        };
+        window.addEventListener('keydown', this._overrideEscHandler);
+
+        setTimeout(() => {
+            const input = document.getElementById('overrideDescription');
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 50);
+    },
+
     closeOverrideModal() {
         const modal = document.getElementById('apOverrideModal');
         if (modal) modal.style.display = 'none';
@@ -955,12 +1778,48 @@ window.AutopilotView = {
     },
 
     async submitOverride() {
-        const decisionId = document.getElementById('overrideDecisionId').value;
+        const mode = document.getElementById('overrideMode')?.value || 'decision';
+        const decisionId = document.getElementById('overrideDecisionId')?.value;
+        const txId = document.getElementById('overrideTxId')?.value;
         const newDescription = document.getElementById('overrideDescription').value.trim();
         const newCategory = document.getElementById('overrideCategory').value.trim();
         const newAmount = parseFloat(document.getElementById('overrideAmount').value);
         const learnRule = document.getElementById('overrideLearnRule')?.checked ?? true;
         const submitBtn = document.getElementById('btnSubmitOverride');
+
+        if (mode === 'review') {
+            if (!txId) return;
+            const targetForecastId = document.getElementById('overrideTargetForecastId')?.value ? parseInt(document.getElementById('overrideTargetForecastId').value, 10) : null;
+            try {
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('is-loading');
+                }
+                const res = await API.post(`/api/autopilot/review/${txId}/update`, {
+                    description: newDescription || null,
+                    category: newCategory || null,
+                    amount: isNaN(newAmount) ? null : newAmount,
+                    target_forecast_id: targetForecastId,
+                    learn_rule: learnRule
+                });
+                showToast(res.message || (window.i18n ? (window.i18n.t('autopilot_review_updated') || 'Opération corrigée avec succès') : 'Opération corrigée avec succès'), 'success');
+                this.closeOverrideModal();
+                await this.refresh();
+                if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+                    window.app.updateAutopilotBadge();
+                }
+                window.dispatchEvent(new CustomEvent('autopilot_updated'));
+                window.dispatchEvent(new CustomEvent('transactions_updated'));
+            } catch (e) {
+                showToast('Erreur lors de la mise à jour de l\'opération', 'error');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('is-loading');
+                }
+            }
+            return;
+        }
 
         if (!decisionId) return;
 
@@ -978,6 +1837,9 @@ window.AutopilotView = {
             showToast(res.message || (window.i18n ? window.i18n.t('autopilot_override_success') : 'Opération mise à jour et règle apprise'), 'success');
             this.closeOverrideModal();
             await this.refresh();
+            if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+                window.app.updateAutopilotBadge();
+            }
             window.dispatchEvent(new CustomEvent('autopilot_updated'));
             window.dispatchEvent(new CustomEvent('transactions_updated'));
         } catch (e) {
@@ -1043,8 +1905,7 @@ window.AutopilotView = {
 
     toggleSection(key) {
         const sectionMap = {
-            kpis: 'apKpiSection',
-            config: 'apConfigSection',
+            review: 'apReviewSection',
             workshop: 'apWorkshopSection',
         };
         const elId = sectionMap[key];
@@ -1057,17 +1918,16 @@ window.AutopilotView = {
     },
 
     initCollapsibleSections() {
-        const sections = ['kpis', 'config', 'workshop'];
+        const sections = ['review', 'workshop'];
         sections.forEach(key => {
             const sectionMap = {
-                kpis: 'apKpiSection',
-                config: 'apConfigSection',
+                review: 'apReviewSection',
                 workshop: 'apWorkshopSection',
             };
             const el = document.getElementById(sectionMap[key]);
             if (!el) return;
             const saved = localStorage.getItem('autopilot_collapse_' + key);
-            // Default: workshop is collapsed by default, kpis & config are open by default
+            // Default: workshop is collapsed by default, review is open by default
             const shouldCollapse = (saved !== null) ? (saved === '1') : (key === 'workshop');
             el.classList.toggle('collapsed', shouldCollapse);
         });
@@ -1075,23 +1935,27 @@ window.AutopilotView = {
     },
 
     updateSummaryPills() {
-        // KPI pill
-        const kpiPill = document.getElementById('apKpiSummaryPill');
-        if (kpiPill && this._kpis) {
-            kpiPill.textContent = `🎯 ${this._kpis.accuracy_rate}% Précision • ⏱️ ${this._kpis.hours_saved_estimate}h Épargnées`;
+        // Header Briques Badge
+        const briquesBadge = document.getElementById('apActiveBriquesBadge');
+        if (briquesBadge && this._status) {
+            const subtoggles = this._status.managed_subtoggles || {};
+            const vals = Object.values(subtoggles);
+            const active = vals.filter(Boolean).length;
+            const total = this._subtogglesDef ? this._subtogglesDef.reduce((acc, cat) => acc + (cat.items?.length || 0), 0) : 15;
+            briquesBadge.textContent = `${active}/${total}`;
+            briquesBadge.title = `${active} sur ${total} automatismes actifs`;
         }
-        // Config pill
-        const cfgPill = document.getElementById('apConfigSummaryPill');
-        if (cfgPill && this._status) {
-            let activeCount = 0;
-            let totalCount = 0;
-            if (this._status.managed_subtoggles) {
-                const vals = Object.values(this._status.managed_subtoggles);
-                totalCount = vals.length;
-                activeCount = vals.filter(Boolean).length;
-            }
-            cfgPill.textContent = `🎯 Seuil : ${this._status.threshold || 85}% • ${activeCount}/${totalCount} briques actives`;
+
+        // Review pill
+        const revPill = document.getElementById('apReviewSummaryPill');
+        if (revPill) {
+            const count = (this._reviewQueue || []).length;
+            revPill.textContent = `${count} à vérifier`;
+            revPill.style.background = count > 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.12)';
+            revPill.style.color = count > 0 ? '#f59e0b' : '#10b981';
+            revPill.style.borderColor = count > 0 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)';
         }
+
         // Workshop pill
         const wPill = document.getElementById('apWorkshopSummaryPill');
         if (wPill) {

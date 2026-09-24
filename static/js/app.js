@@ -490,25 +490,49 @@ class App {
     async updateAutopilotBadge() {
         try {
             const status = await API.get('/api/autopilot/status');
-            const count = status ? (status.unseen_decisions_count || 0) : 0;
-            const headerBadge = document.getElementById('autopilotHeaderBadge');
-            const mobileBadge = document.getElementById('autopilotMobileBadge');
-            if (headerBadge) {
-                if (count > 0) {
-                    headerBadge.textContent = count > 99 ? '99+' : count;
-                    headerBadge.style.display = 'inline-block';
-                } else {
-                    headerBadge.style.display = 'none';
-                }
+            const reviewCount = status ? (status.review_queue_count || 0) : 0;
+            const unseenReviewCount = status ? (status.unseen_review_count ?? 0) : 0;
+            
+            const desktopIcon = document.getElementById('autopilotNavIcon') || document.querySelector('button[data-view="autopilot"] svg');
+            const mobileIcon = document.getElementById('autopilotMobileNavIcon') || document.querySelector('.mobile-nav button[data-view="autopilot"] svg');
+            
+            // Attirer l'oeil (ambre + lueur) uniquement s'il y a de nouvelles opérations à vérifier non encore consultées
+            const isCurrentlyOnAutopilotView = (this.currentView === 'autopilot');
+            const shouldAlert = !isCurrentlyOnAutopilotView && unseenReviewCount > 0;
+            const iconColor = shouldAlert ? '#f59e0b' : '';
+            
+            let tooltip = '';
+            if (shouldAlert) {
+                tooltip = `${unseenReviewCount} nouvelle(s) opération(s) à vérifier`;
+            } else if (reviewCount > 0) {
+                tooltip = `${reviewCount} opération(s) à vérifier`;
             }
-            if (mobileBadge) {
-                if (count > 0) {
-                    mobileBadge.textContent = count > 99 ? '99+' : count;
-                    mobileBadge.style.display = 'inline-block';
-                } else {
-                    mobileBadge.style.display = 'none';
+
+            [desktopIcon, mobileIcon].forEach(icon => {
+                if (icon) {
+                    icon.style.stroke = iconColor;
+                    if (shouldAlert) {
+                        icon.style.filter = 'drop-shadow(0 0 3px rgba(245, 158, 11, 0.6))';
+                        icon.setAttribute('title', tooltip);
+                    } else {
+                        icon.style.filter = '';
+                        if (tooltip) {
+                            icon.setAttribute('title', tooltip);
+                        } else {
+                            icon.removeAttribute('title');
+                        }
+                    }
                 }
-            }
+            });
+
+            const navBtns = document.querySelectorAll('button[data-view="autopilot"]');
+            navBtns.forEach(btn => {
+                if (tooltip) {
+                    btn.setAttribute('title', `Auto-Pilote (${tooltip})`);
+                } else {
+                    btn.removeAttribute('title');
+                }
+            });
         } catch (e) {
             // Silently ignore during initial boot
         }
@@ -747,4 +771,20 @@ if (window.AppModules) {
 
 window.app = new App();
 window.navigateToDiagnostics = () => window.app?.navigateToDiagnostics();
+window.handleReviewClick = function(txId, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (window.app) {
+        if (window.app.currentView !== 'autopilot') {
+            if (window.AutopilotView) {
+                window.AutopilotView._pendingReviewTxId = txId;
+            }
+            window.app.loadView('autopilot');
+        } else if (window.AutopilotView && typeof window.AutopilotView.openReviewModal === 'function') {
+            window.AutopilotView.openReviewModal(txId);
+        }
+    }
+};
 document.addEventListener('DOMContentLoaded', () => window.app.init());

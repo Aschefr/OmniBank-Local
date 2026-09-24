@@ -322,8 +322,8 @@ def link_ghost_to_transaction(data: Dict[str, Any], db: Session = Depends(get_db
     db.commit()
     db.refresh(tx)
 
-    # Purge du sas d'attente (uniquement si ce n'est pas une opération à venir)
-    if csv_id and not is_coming:
+    # Purge du sas d'attente
+    if csv_id:
         remove_committed_from_pending(db, [csv_id])
 
     record_action(db, "transaction", tx.id, "UPDATE", before_snap, snapshot_entity(tx), user_name="Banque (Liaison manuelle)")

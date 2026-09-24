@@ -169,14 +169,38 @@ def test_autopilot_threshold_validation_and_effect(client, test_db):
         ]
     }
     res_batch = process_incoming_batch(test_db, conn_id=1, preview_data=preview_data)
-    assert res_batch["auto_committed"] == 0
-    assert res_batch["pending"] == 1
+    assert res_batch["auto_committed"] == 1
+    assert res_batch["needs_review"] == 1
+    tx_created = test_db.query(Transaction).filter(Transaction.csv_id == "tx_thresh_1").first()
+    assert tx_created is not None
+    assert tx_created.needs_review is True
 
-    # Abaisser le seuil à 85% : l'opération à 90% devient éligible
+    # Abaisser le seuil à 85% pour un nouveau batch : l'opération à 90% est fiable (needs_review = False)
     set_auto_reconcile_threshold(test_db, 85.0)
-    res_batch2 = process_incoming_batch(test_db, conn_id=1, preview_data=preview_data)
+    preview_data2 = {
+        "accounts": [
+            {
+                "account_id": 1,
+                "transactions": [
+                    {
+                        "csv_id": "tx_thresh_2",
+                        "raw_amount": -50.0,
+                        "amount": 50.0,
+                        "description": "MONOPRIX COURSES 2",
+                        "category": "Alimentation",
+                        "smart_confidence": 0.90,  # 90% >= 85% threshold
+                        "is_reconciled": False,
+                    }
+                ]
+            }
+        ]
+    }
+    res_batch2 = process_incoming_batch(test_db, conn_id=1, preview_data=preview_data2)
     assert res_batch2["auto_committed"] == 1
-    assert res_batch2["pending"] == 0
+    assert res_batch2["needs_review"] == 0
+    tx_created2 = test_db.query(Transaction).filter(Transaction.csv_id == "tx_thresh_2").first()
+    assert tx_created2 is not None
+    assert tx_created2.needs_review is False
 
 
 def test_autopilot_kpis_calculation(client, test_db):
@@ -545,3 +569,121 @@ def test_i18n_keys_step6_presence():
         assert k in en_data, f"Clé manquante dans en.json: {k}"
         assert fr_data[k] != "", f"Valeur vide pour {k} dans fr.json"
         assert en_data[k] != "", f"Valeur vide pour {k} dans en.json"
+
+
+def test_autopilot_review_queue_lifecycle(client, test_db):
+    """Vérifie le cycle complet de consultation, validation et mise à jour de la file de revue."""
+    from app.models import Transaction, Account
+
+    acc = test_db.query(Account).filter(Account.id == 1).first()
+    if not acc:
+        acc = Account(id=1, name="Compte Test", color="#3366ff", account_type="checking")
+        test_db.add(acc)
+        test_db.commit()
+
+    tx = Transaction(
+        description="AMAZON UNCERTAIN",
+        raw_description="AMAZON PAYMENTS",
+        amount=42.0,
+        type="expense_var",
+        category="Dépenses diverses",
+        from_account_id=1,
+        date_operation=date.today(),
+        date_saisie=date.today(),
+        needs_review=True,
+        confidence_score=60.0
+    )
+    test_db.add(tx)
+    test_db.commit()
+
+    # 1. GET /api/autopilot/review-queue
+    res = client.get("/api/autopilot/review-queue")
+    assert res.status_code == 200
+    items = res.json()
+    assert any(i["id"] == tx.id for i in items)
+    target = next(i for i in items if i["id"] == tx.id)
+    assert target["confidence_score"] == 60.0
+    assert target["account_name"] == acc.name
+
+    # 2. POST /api/autopilot/review/{id}/update
+    res_up = client.post(f"/api/autopilot/review/{tx.id}/update", json={
+        "description": "Amazon - Livre Python",
+        "category": "Loisirs",
+        "learn_rule": True
+    })
+    assert res_up.status_code == 200
+    assert res_up.json()["success"] is True
+
+    test_db.refresh(tx)
+    assert tx.needs_review is False
+    assert tx.description == "Amazon - Livre Python"
+    assert tx.category == "Loisirs"
+
+    # Vérifier disparition de la file de revue
+    res_queue2 = client.get("/api/autopilot/review-queue")
+    assert not any(i["id"] == tx.id for i in res_queue2.json())
+
+    # 3. Test de validation directe (sans changement)
+    tx2 = Transaction(
+        description="BOULANGERIE MODERATE",
+        amount=5.0,
+        type="expense_var",
+        category="Alimentation",
+        from_account_id=1,
+        date_operation=date.today(),
+        date_saisie=date.today(),
+        needs_review=True,
+        confidence_score=75.0
+    )
+    test_db.add(tx2)
+    test_db.commit()
+
+    res_val = client.post(f"/api/autopilot/review/{tx2.id}/validate")
+    assert res_val.status_code == 200
+    assert res_val.json()["success"] is True
+    test_db.refresh(tx2)
+    assert tx2.needs_review is False
+
+
+def test_autopilot_threshold_preview_api(client, test_db):
+    """Vérifie la simulation de prévisualisation d'impact d'un seuil (/api/autopilot/threshold-preview)."""
+    from app.models import Transaction
+
+    # Créer deux transactions avec score de confiance
+    t1 = Transaction(
+        description="TX RELIABLE",
+        amount=10.0,
+        type="expense_var",
+        category="Courses",
+        date_operation=date.today(),
+        date_saisie=date.today(),
+        needs_review=False,
+        confidence_score=88.0
+    )
+    t2 = Transaction(
+        description="TX IN REVIEW",
+        amount=20.0,
+        type="expense_var",
+        category="Courses",
+        date_operation=date.today(),
+        date_saisie=date.today(),
+        needs_review=True,
+        confidence_score=75.0
+    )
+    test_db.add_all([t1, t2])
+    test_db.commit()
+
+    # Si on simule un seuil à 70% : t2 (75%) devient fiable !
+    res_prev_low = client.get("/api/autopilot/threshold-preview?threshold=70.0")
+    assert res_prev_low.status_code == 200
+    data_low = res_prev_low.json()
+    assert data_low["becoming_reliable_count"] >= 1
+    assert any(s["id"] == t2.id for s in data_low["becoming_reliable_samples"])
+
+    # Si on simule un seuil à 95% : t1 (88%) bascule en revue !
+    res_prev_high = client.get("/api/autopilot/threshold-preview?threshold=95.0")
+    assert res_prev_high.status_code == 200
+    data_high = res_prev_high.json()
+    assert data_high["becoming_review_count"] >= 1
+    assert any(s["id"] == t1.id for s in data_high["becoming_review_samples"])
+

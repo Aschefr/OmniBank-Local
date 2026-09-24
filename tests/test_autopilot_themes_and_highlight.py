@@ -65,21 +65,21 @@ def test_autopilot_view_collapsible_methods():
     with open(AUTOPILOT_VIEW_JS, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # HTML structure elements
-    assert 'id="apKpiSection"' in content
-    assert 'id="apConfigSection"' in content
-    assert 'id="apWorkshopSection"' in content
-    assert 'id="apKpiSummaryPill"' in content
-    assert 'id="apConfigSummaryPill"' in content
-    assert 'id="apWorkshopSummaryPill"' in content
-    assert 'id="apToggleAllBatchesBtn"' in content
+    # HTML structure elements (Cockpit Split Layout & Drawer)
+    assert 'id="apMasterSwitch"' in content
+    assert 'id="apActiveBriquesBadge"' in content
+    assert 'id="kpiAccuracy"' in content
+    assert 'id="kpiHoursSaved"' in content
+    assert 'id="kpiReconciled"' in content
+    assert 'id="kpiCommitted"' in content
+    assert 'id="apSettingsDrawer"' in content
 
     # Methods
-    assert "toggleSection(key)" in content
-    assert "initCollapsibleSections()" in content
-    assert "updateSummaryPills()" in content
-    assert "toggleBatch(batchId)" in content
-    assert "toggleAllBatches()" in content
+    assert "openSettingsDrawer()" in content
+    assert "closeSettingsDrawer()" in content
+    assert "toggleMasterSwitch(" in content
+    assert "rollbackDecision(" in content
+    assert "openReviewModal(" in content
 
     # Theme cleanups (no hardcoded rgba(255,255,255,0.05) in reasons)
     assert 'class="ap-reason-badge"' in content

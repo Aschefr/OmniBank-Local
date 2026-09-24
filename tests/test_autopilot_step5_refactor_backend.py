@@ -48,6 +48,8 @@ def test_db():
         GlobalConfig(key="budget_minimum_threshold", value="30.0"),
         GlobalConfig(key="enable_budget_creation_suggestions", value="true"),
         GlobalConfig(key="enable_budget_recalibration_suggestions", value="true"),
+        GlobalConfig(key="auto_create_budget_envelopes", value="false"),
+        GlobalConfig(key="auto_apply_budget_suggestions", value="false"),
     ])
     db.commit()
 
