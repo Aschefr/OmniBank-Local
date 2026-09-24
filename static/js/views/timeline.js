@@ -873,12 +873,14 @@ window.TimelineView = {
 
             const origSubtext = (tx.original_amount && tx.original_currency) ? `<div style="font-size: 10px; font-weight: 500; opacity: 0.8; color: var(--accent); white-space: nowrap;">🌐 ${formatCurrency(tx.original_amount, tx.original_currency)}</div>` : '';
 
+            const reviewBadge = tx.needs_review ? `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;" onclick="window.handleReviewClick(${tx.id}, event)" title="Score de confiance: ${Math.round(tx.confidence_score || 0)}%. Cliquer pour vérifier.">🔍 À vérifier (${Math.round(tx.confidence_score || 0)}%)</span>` : '';
+
             return `
             <tr data-id="${tx.id}" class="${rowClass}" ${idAttr}>
                 <td class="row-marker"></td>
                 <td class="col-dateSaisie" data-label="${window.i18n.t('dl_date_entry')}">${formatDate(tx.date_saisie)}</td>
                 <td class="col-date" data-label="${window.i18n.t('dl_date_op')}">${renderDateWithStatus(tx)}</td>
-                <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${(tx.description || '').replace(/"/g, '&quot;')}"><span class="desc-text">${tx.description}</span></td>
+                <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${(tx.description || '').replace(/"/g, '&quot;')}"><span class="desc-text">${tx.description}</span>${reviewBadge}</td>
                 <td class="col-type" data-label="${window.i18n.t('dl_type')}" title="${window.app.getTypeLabel(tx.type) || '-'}">${window.app.getTypeLabel(tx.type) || '-'}</td>
                 <td class="col-cat" data-label="${window.i18n.t('dl_category')}" style="white-space: nowrap;" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span class="cat-badge">${tx.category || '-'}</span></td>
                 <td class="col-amount" data-label="${window.i18n.t('dl_amount')}">

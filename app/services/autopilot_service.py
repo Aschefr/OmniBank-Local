@@ -63,6 +63,7 @@ AUTOPILOT_MANAGED_KEYS = (
     "auto_create_missing_categories",
     "auto_learn_merchant_rules",
     "auto_assign_chameleon_fallback",
+    "bank_auto_sync_enabled",
     "auto_reconcile_threshold",
 )
 
@@ -79,16 +80,29 @@ def get_auto_reconcile_threshold(db: Session) -> float:
     return 85.0
 
 
-def set_auto_reconcile_threshold(db: Session, threshold: float) -> float:
-    """Met à jour le seuil de tolérance (borné entre 70.0 et 99.0)."""
+def set_auto_reconcile_threshold(db: Session, threshold: float, apply_to_existing: bool = False) -> tuple[float, int]:
+    """Met à jour le seuil de tolérance (borné entre 70.0 et 99.0) et applique optionnellement aux opérations existantes."""
     val = round(max(70.0, min(99.0, float(threshold))), 1)
     cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_reconcile_threshold").first()
     if not cfg:
         db.add(GlobalConfig(key="auto_reconcile_threshold", value=str(val)))
     else:
         cfg.value = str(val)
+
+    applied_count = 0
+    if apply_to_existing:
+        from app.models import Transaction
+        txs = db.query(Transaction).filter(Transaction.confidence_score.isnot(None)).all()
+        for t in txs:
+            score = t.confidence_score or 0.0
+            old_needs_review = t.needs_review
+            new_needs_review = (score < val)
+            if old_needs_review != new_needs_review:
+                t.needs_review = new_needs_review
+                applied_count += 1
+
     db.commit()
-    return val
+    return val, applied_count
 
 
 def _get_cfg_bool(db: Session, key: str, default: bool = False) -> bool:
@@ -170,6 +184,34 @@ def set_autopilot_enabled(db: Session, enabled: bool) -> None:
 
     db.commit()
     logger.info(f"[AutoPilot] Mode Auto-Pilote configuré à : {val_str}")
+
+
+def set_autopilot_subtoggle(db: Session, key: str, enabled: bool) -> bool:
+    """Active ou désactive une brique élémentaire d'autonomie dans GlobalConfig."""
+    if key not in AUTOPILOT_MANAGED_KEYS and key != "bank_auto_sync_enabled":
+        raise ValueError(f"Clé d'automatisme inconnue : {key}")
+
+    val_str = "true" if enabled else "false"
+    cfg = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
+    if not cfg:
+        cfg = GlobalConfig(key=key, value=val_str)
+        db.add(cfg)
+    else:
+        cfg.value = val_str
+
+    # Si un snapshot des préférences existe, le maintenir à jour
+    snap_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_subtoggles_pre_activation_snapshot").first()
+    if snap_cfg and snap_cfg.value:
+        try:
+            snap = json.loads(snap_cfg.value)
+            snap[key] = val_str
+            snap_cfg.value = json.dumps(snap)
+        except Exception:
+            pass
+
+    db.commit()
+    logger.info(f"[AutoPilot] Brique élémentaire '{key}' mise à jour : {val_str}")
+    return enabled
 
 
 def process_incoming_batch(
@@ -291,7 +333,7 @@ def process_incoming_batch(
         for acc in preview_data.get("accounts", []):
             acc_id = acc.get("account_id")
             for tx in acc.get("transactions", []):
-                if not tx.get("is_reconciled") and tx.get("matched_db_id") is None and not tx.get("is_coming"):
+                if not tx.get("is_reconciled") and tx.get("matched_db_id") is None:
                     raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
                     op_d_str = tx.get("date_operation") or tx.get("date")
                     op_d = date.today()
@@ -310,6 +352,7 @@ def process_incoming_batch(
                         tx_date=op_d,
                         tx_amount=raw_amt,
                         account_id=acc_id,
+                        is_coming=bool(tx.get("is_coming", False)),
                         bank_label=lbl,
                         csv_id=c_id
                     )
@@ -357,6 +400,7 @@ def process_incoming_batch(
 
     auto_reconciled_count = 0
     auto_committed_count = 0
+    needs_review_count = 0
     categories_created_count = 0
     rules_learned_count = 0
     pending_count = 0
@@ -379,8 +423,15 @@ def process_incoming_batch(
                 match_score = float(tx.get("match_score", 0) or 0)
                 collision_detected = bool(tx.get("collision_detected", False))
                 is_coming = bool(tx.get("is_coming", False))
+                csv_id = tx.get("csv_id")
 
-                # Critère 1 : Auto-rapprochement haute certitude (Score >= threshold, sans collision, non venant)
+                # Critère 0 : Opération bancaire déjà enregistrée et pointée en base (historique bancaire déjà traité)
+                if is_rec and already_rec and not is_coming:
+                    continue
+                if csv_id and csv_id in existing_csv_ids and not is_coming:
+                    continue
+
+                # Critère 1 : Auto-rapprochement haute certitude (Score >= threshold, sans collision)
                 is_eligible_reconciliation = (
                     cfg_auto_reconcile
                     and is_rec
@@ -388,7 +439,6 @@ def process_incoming_batch(
                     and matched_id is not None
                     and match_score >= threshold
                     and not collision_detected
-                    and not is_coming
                 )
 
                 if is_rec and not is_eligible_reconciliation:
@@ -399,7 +449,6 @@ def process_incoming_batch(
                     if matched_id is None: reasons.append("pas de matched_db_id")
                     if match_score < threshold: reasons.append(f"score={match_score:.1f} < seuil={threshold}")
                     if collision_detected: reasons.append("collision détectée")
-                    if is_coming: reasons.append("is_coming=True")
                     logger.info(f"[AutoPilot] ⏭ Non éligible auto-rapprochement pour '{lbl}' : {', '.join(reasons)}")
 
                 if is_eligible_reconciliation:
@@ -407,8 +456,12 @@ def process_incoming_batch(
                     if existing and existing.reconciliation_date is None:
                         before_snap = snapshot_entity(existing)
 
-                        # Appliquer le rapprochement en base
-                        existing.reconciliation_date = date.today()
+                        # Appliquer le pointage uniquement si l'opération est confirmée (débitée)
+                        # Pour une opération à venir (is_coming), la transaction reste prévisionnelle (reconciliation_date=None)
+                        # mais est liée au csv_id bancaire pour être pointée dès réception du débit officiel.
+                        if not is_coming:
+                            existing.reconciliation_date = date.today()
+
                         if tx.get("is_amount_deviant"):
                             raw_val = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
                             existing.amount = abs(raw_val)
@@ -418,12 +471,14 @@ def process_incoming_batch(
 
                         if tx.get("csv_id"):
                             existing.csv_id = tx["csv_id"]
+                            existing_csv_ids.add(tx["csv_id"])
                         if tx.get("category"):
                             existing.category = tx["category"]
                         if tx.get("description"):
                             existing.description = tx["description"]
 
                         # Historisation Undo/Redo
+                        creator_user = "Automatisme (Liaison à venir)" if is_coming else "Automatisme (Rapprochement)"
                         record_action(
                             db,
                             "transaction",
@@ -431,7 +486,7 @@ def process_incoming_batch(
                             "UPDATE",
                             before_snap,
                             snapshot_entity(existing),
-                            user_name="Automatisme (Rapprochement)"
+                            user_name=creator_user
                         )
 
                         # Journalisation de la décision Auto-Pilote
@@ -442,16 +497,24 @@ def process_incoming_batch(
                             },
                             "matched_db_id": existing.id,
                             "is_amount_deviant": tx.get("is_amount_deviant", False),
+                            "is_coming": is_coming,
                             "original_amount": tx.get("original_forecast_amount"),
                             "actual_amount": existing.amount,
                             "before": before_snap,
                             "after": snapshot_entity(existing)
                         }
 
+                        if is_coming:
+                            dec_action = "LINKED_COMING"
+                        elif tx.get("is_amount_deviant"):
+                            dec_action = "AUTO_RECONCILED_DEVIANT"
+                        else:
+                            dec_action = "AUTO_COMMIT"
+
                         decision = AutopilotDecisionLog(
                             batch_id=batch_id,
                             decision_type="reconciliation",
-                            action="AUTO_RECONCILED_DEVIANT" if tx.get("is_amount_deviant") else "AUTO_COMMIT",
+                            action=dec_action,
                             entity_type="transaction",
                             entity_id=existing.id,
                             conn_id=conn_id if conn_id != CSV_IMPORT_CONN_ID else None,
@@ -498,17 +561,14 @@ def process_incoming_batch(
                     decision_reason = "chameleon_default"
 
                 chameleon_blocked = is_multi_cat and not cfg_chameleon_fallback and not tx.get("smart_is_manual")
+                
+                # Éligibilité Full-Auto : Toute nouvelle opération bancaire (confirmée ou à venir non rapprochée)
                 is_eligible_new_entry = (
                     cfg_auto_commit
-                    and not chameleon_blocked
                     and not is_rec
                     and matched_id is None
-                    and not is_coming
                     and bool(acc_id)
                     and not is_duplicate
-                    and has_valid_category
-                    and not is_ignored
-                    and confidence >= (threshold / 100.0)
                 )
 
                 if is_eligible_new_entry:
@@ -518,8 +578,23 @@ def process_incoming_batch(
                     from_acc = acc_id if raw_amt < 0 else None
                     to_acc = acc_id if raw_amt >= 0 else None
 
+                    # Évaluation du niveau de confiance / besoin de revue utilisateur
+                    is_reliable = (
+                        not chameleon_blocked
+                        and not is_ignored
+                        and has_valid_category
+                        and confidence >= (threshold / 100.0)
+                    )
+                    needs_review = not is_reliable
+                    if needs_review:
+                        needs_review_count += 1
+
                     # S'assurer de la présence et de la cohérence de type de la catégorie en base SQLite
                     from app.services.smart_label_service import ensure_category_exists, resolve_fallback_category
+                    if not category or not has_valid_category:
+                        category = resolve_fallback_category(db, t_type)
+                        is_fallback = True
+
                     if category:
                         existing_cat = db.query(Category).filter(Category.name == category.strip()).first()
                         # Garde-fou strict : une recette ne peut recevoir une catégorie de dépense, et inversement
@@ -556,6 +631,16 @@ def process_incoming_batch(
                                 pass
 
                     raw_lbl = tx.get("raw_description") or tx.get("raw_label") or tx.get("description")
+                    conf_score = round(confidence * 100, 1) if confidence <= 1.0 else confidence
+
+                    # Pointage : aujourd'hui si opération confirmée, None si opération à venir
+                    recon_date_val = None if is_coming else date.today()
+                    creator_label = (
+                        ("Automatisme (À venir)" if is_reliable else "Automatisme (À venir / À vérifier)")
+                        if is_coming
+                        else ("Automatisme (Écriture)" if is_reliable else "Automatisme (À vérifier)")
+                    )
+
                     new_tx = Transaction(
                         csv_id=csv_id,
                         date_saisie=date.today(),
@@ -565,12 +650,14 @@ def process_incoming_batch(
                         amount=amt,
                         type=t_type,
                         category=category,
-                        reconciliation_date=date.today(),
+                        reconciliation_date=recon_date_val,
                         from_account_id=from_acc,
                         to_account_id=to_acc,
                         attachments=tx.get("attachments"),
                         check_slip_number=tx.get("check_slip_number"),
-                        created_by="Automatisme (Écriture)"
+                        created_by=creator_label,
+                        needs_review=needs_review,
+                        confidence_score=conf_score
                     )
                     db.add(new_tx)
                     db.flush()
@@ -585,7 +672,7 @@ def process_incoming_batch(
                         "CREATE",
                         None,
                         snapshot_entity(new_tx),
-                        user_name="Automatisme (Rapprochement)"
+                        user_name="Automatisme (Rapprochement)" if not is_coming else "Automatisme (À venir)"
                     )
 
                     # Journalisation de la décision Auto-Pilote
@@ -596,27 +683,35 @@ def process_incoming_batch(
                         },
                         "created_tx_id": new_tx.id,
                         "decision_reason": decision_reason,
+                        "needs_review": needs_review,
+                        "is_coming": is_coming,
+                        "confidence_score": conf_score,
                         "before": None,
                         "after": snapshot_entity(new_tx)
                     }
 
+                    if is_coming:
+                        dec_act = "AUTO_COMMIT_COMING" if is_reliable else "AUTO_COMMIT_COMING_PENDING_REVIEW"
+                    else:
+                        dec_act = "AUTO_COMMIT" if is_reliable else "AUTO_COMMIT_PENDING_REVIEW"
+
                     decision = AutopilotDecisionLog(
                         batch_id=batch_id,
                         decision_type="new_entry",
-                        action="AUTO_COMMIT",
+                        action=dec_act,
                         entity_type="transaction",
                         entity_id=new_tx.id,
                         conn_id=conn_id if conn_id != CSV_IMPORT_CONN_ID else None,
                         account_id=acc_id,
                         raw_snapshot=json.dumps(snap_payload, default=str),
-                        confidence_score=round(confidence * 100, 1) if confidence <= 1.0 else confidence,
+                        confidence_score=conf_score,
                         is_undone=False
                     )
                     db.add(decision)
                     auto_committed_count += 1
 
-                    # Auto-apprentissage transparent pour conforter la règle
-                    if cfg_auto_learn:
+                    # Auto-apprentissage transparent pour conforter la règle uniquement si fiable
+                    if cfg_auto_learn and is_reliable:
                         raw_lbl = tx.get("raw_description") or tx.get("raw_label") or tx.get("description")
                         if raw_lbl and new_tx.description:
                             try:
@@ -685,6 +780,7 @@ def process_incoming_batch(
             "status": "completed",
             "auto_reconciled": auto_reconciled_count,
             "auto_committed": auto_committed_count,
+            "needs_review": needs_review_count,
             "pending": pending_count,
             "total": total_count,
             "categories_created": categories_created_count,
@@ -735,6 +831,20 @@ def get_autopilot_status(db: Session, profile_id: Optional[str] = None) -> Dict[
         except Exception:
             pass
     unseen_count = unseen_query.filter(AutopilotDecisionLog.is_undone == False).count()
+
+    seen_ids_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_seen_review_tx_ids").first()
+    seen_ids = set()
+    if seen_ids_cfg and seen_ids_cfg.value:
+        try:
+            seen_ids = set(json.loads(seen_ids_cfg.value))
+        except Exception:
+            pass
+
+    current_review_txs = db.query(Transaction.id).filter(Transaction.needs_review == True).all()
+    current_review_ids = {t[0] for t in current_review_txs}
+    unseen_review_ids = current_review_ids - seen_ids
+    unseen_review_count = len(unseen_review_ids)
+    review_queue_count = len(current_review_ids)
 
     is_syncing = is_background_sync_running(profile_id=pid)
 
@@ -822,6 +932,8 @@ def get_autopilot_status(db: Session, profile_id: Optional[str] = None) -> Dict[
         "last_run_at": last_run_str,
         "last_visit_at": last_visit_str,
         "unseen_decisions_count": unseen_count,
+        "review_queue_count": review_queue_count,
+        "unseen_review_count": unseen_review_count,
         "is_syncing": is_syncing,
         "last_execution_at": last_execution_str,
         "next_execution_at": next_execution_at,
@@ -892,6 +1004,12 @@ def get_autopilot_decisions_feed(
 
     acc_map = {acc.id: acc.name for acc in db.query(Account).all()}
 
+    tx_ids = [d.entity_id for d in decisions if d.entity_type == "transaction" and d.entity_id]
+    tx_map = {}
+    if tx_ids:
+        tx_records = db.query(Transaction).filter(Transaction.id.in_(tx_ids)).all()
+        tx_map = {t.id: t for t in tx_records}
+
     items = []
     for d in decisions:
         snap = {}
@@ -901,11 +1019,14 @@ def get_autopilot_decisions_feed(
             except Exception:
                 pass
 
+        live_tx = tx_map.get(d.entity_id) if (d.entity_type == "transaction" and d.entity_id) else None
+
         bank_tx = snap.get("bank_tx") or {}
         raw_amt = bank_tx.get("raw_amount")
         if raw_amt is None:
             raw_amt = (
-                bank_tx.get("amount")
+                (live_tx.amount if live_tx else None)
+                or bank_tx.get("amount")
                 or snap.get("actual_amount")
                 or snap.get("suggested_amount")
                 or snap.get("new_amount")
@@ -916,20 +1037,23 @@ def get_autopilot_decisions_feed(
             )
 
         lbl = (
-            bank_tx.get("description")
+            (live_tx.description if live_tx else None)
+            or snap.get("forecast_description")
+            or (snap.get("after") or {}).get("description")
+            or bank_tx.get("description")
             or snap.get("merchant")
             or snap.get("template_description")
             or snap.get("budget_name")
             or snap.get("name")
-            or (snap.get("after") or {}).get("description")
             or "Décision Auto-Pilote"
         )
-        raw_lbl = bank_tx.get("raw_description") or bank_tx.get("raw_label") or snap.get("raw_pattern")
+        raw_lbl = bank_tx.get("raw_description") or bank_tx.get("raw_label") or (live_tx.raw_description if live_tx else None) or snap.get("raw_pattern")
         
         # Résolution enrichie de la catégorie
         cat = (
-            bank_tx.get("category")
+            (live_tx.category if live_tx else None)
             or (snap.get("after") or {}).get("category")
+            or bank_tx.get("category")
             or snap.get("category")
             or snap.get("new_category")
             or (", ".join(snap.get("categories")[:3]) if isinstance(snap.get("categories"), list) and snap.get("categories") else None)
@@ -937,6 +1061,7 @@ def get_autopilot_decisions_feed(
         )
         reason = (
             snap.get("decision_reason")
+            or ("linked_forecast" if (live_tx and live_tx.raw_description and d.decision_type == "reconciliation") else None)
             or ("deviant_reconciled" if d.action == "AUTO_RECONCILED_DEVIANT" else None)
             or snap.get("capped_reason")
         )
@@ -1240,13 +1365,23 @@ def unpoint_autopilot_decision(db: Session, decision_id: int, profile_id: Option
 
 
 def mark_autopilot_visited(db: Session) -> str:
-    """Met à jour l'horodatage de dernière consultation du Centre de Contrôle Auto-Pilote."""
+    """Met à jour l'horodatage de dernière consultation du Centre de Contrôle Auto-Pilote et acquitte les revues en attente."""
     now_iso = datetime.utcnow().isoformat()
     cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_last_visit_at").first()
     if not cfg:
         db.add(GlobalConfig(key="autopilot_last_visit_at", value=now_iso))
     else:
         cfg.value = now_iso
+
+    # Mémoriser les transactions actuellement en attente de revue comme "vues"
+    current_review_txs = db.query(Transaction.id).filter(Transaction.needs_review == True).all()
+    current_review_ids = [t[0] for t in current_review_txs]
+    seen_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_seen_review_tx_ids").first()
+    if not seen_cfg:
+        db.add(GlobalConfig(key="autopilot_seen_review_tx_ids", value=json.dumps(current_review_ids)))
+    else:
+        seen_cfg.value = json.dumps(current_review_ids)
+
     db.commit()
     return now_iso
 
@@ -1317,3 +1452,437 @@ def get_smart_labels_automations_history(db: Session, limit: int = 5) -> List[Di
 
 # Alias pour conformité avec les spécifications de la roadmap
 process_incoming_transactions_batch = process_incoming_batch
+
+
+def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3) -> List[Dict[str, Any]]:
+    """Cherche les transactions prévisionnelles non pointées candidates au rapprochement."""
+    from datetime import timedelta
+    acc_id = tx.from_account_id or tx.to_account_id
+    if not acc_id or not tx.date_operation:
+        return []
+
+    start_d = tx.date_operation - timedelta(days=10)
+    end_d = tx.date_operation + timedelta(days=10)
+
+    is_exp = (tx.type != "income")
+
+    query = db.query(Transaction).filter(
+        Transaction.id != tx.id,
+        Transaction.needs_review == False,
+        Transaction.reconciliation_date == None,
+        Transaction.date_operation >= start_d,
+        Transaction.date_operation <= end_d,
+    )
+    if is_exp:
+        query = query.filter(Transaction.from_account_id == acc_id)
+    else:
+        query = query.filter(Transaction.to_account_id == acc_id)
+
+    candidates = query.all()
+    results = []
+    amt = float(tx.amount or 0.0)
+    raw_desc = (tx.raw_description or tx.description or "").lower().strip()
+    clean_desc = (tx.description or "").lower().strip()
+
+    for c in candidates:
+        c_amt = float(c.amount or 0.0)
+        amt_diff = abs(c_amt - amt)
+        date_diff = abs((c.date_operation - tx.date_operation).days)
+        c_desc = (c.description or "").lower().strip()
+
+        # Critères de pertinence stricte pour éviter les faux positifs (ex: Thai 17€ vs Carrefour 34€) :
+        # 1. Écart de montant faible (<= 20% ou <= 2.00 €)
+        # 2. OU similarité textuelle évidente entre libellés
+        # 3. OU prévision récurrente sur montant proche (<= 25%)
+        max_amt = max(amt, c_amt)
+        rel_diff = (amt_diff / max_amt) if max_amt > 0 else 0.0
+        has_close_amount = (rel_diff <= 0.20 or amt_diff <= 2.00)
+
+        # Similarité textuelle basique
+        has_text_match = bool(
+            c_desc and len(c_desc) >= 3 and (
+                c_desc in raw_desc or c_desc in clean_desc or
+                raw_desc in c_desc or clean_desc in c_desc
+            )
+        )
+
+        is_valid_candidate = False
+        if has_close_amount:
+            is_valid_candidate = True
+        elif has_text_match and rel_diff <= 0.50:
+            is_valid_candidate = True
+        elif c.recurrence_id is not None and rel_diff <= 0.25:
+            is_valid_candidate = True
+
+        if not is_valid_candidate:
+            continue
+
+        results.append({
+            "id": c.id,
+            "description": c.description,
+            "amount": c_amt,
+            "category": c.category,
+            "date_operation": c.date_operation.isoformat() if c.date_operation else None,
+            "recurrence_id": c.recurrence_id,
+            "amt_diff": amt_diff,
+            "date_diff": date_diff,
+        })
+
+    results.sort(key=lambda x: (x["amt_diff"], x["date_diff"]))
+    return results[:limit]
+
+
+def get_review_queue(db: Session, profile_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retourne la liste des transactions nécessitant une revue manuelle (needs_review == True)."""
+    from app.models import Transaction, Account
+    accounts = {a.id: a for a in db.query(Account).all()}
+
+    txs = (
+        db.query(Transaction)
+        .filter(Transaction.needs_review == True)
+        .order_by(Transaction.date_operation.desc(), Transaction.id.desc())
+        .all()
+    )
+    results = []
+    for t in txs:
+        acc_id = t.from_account_id or t.to_account_id
+        acc = accounts.get(acc_id)
+        candidates = find_candidate_forecasts_for_tx(db, t, limit=3)
+        results.append({
+            "id": t.id,
+            "date_operation": t.date_operation,
+            "raw_description": t.raw_description or t.description,
+            "description": t.description,
+            "amount": t.amount,
+            "type": t.type,
+            "category": t.category,
+            "account_id": acc_id,
+            "account_name": acc.name if acc else None,
+            "account_color": acc.color if acc else None,
+            "confidence_score": t.confidence_score,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+            "candidate_forecasts": candidates
+        })
+    return results
+
+
+def link_review_transaction(
+    db: Session,
+    tx_id: int,
+    target_forecast_id: int,
+    learn_rule: bool = True,
+    description: Optional[str] = None,
+    category: Optional[str] = None,
+    amount: Optional[float] = None,
+    profile_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Fusionne et lie une transaction de revue avec une prévision comptable existante.
+    Transfère les métadonnées bancaires sur la prévision, supprime la transaction de revue redondante,
+    et mémorise la règle de correspondance.
+    """
+    from app.models import Transaction, AutopilotDecisionLog
+    from app.services.history_service import record_action, snapshot_entity
+    from app.services.smart_label_service import ensure_category_exists, learn_label_mapping
+
+    pid = _resolve_profile_id(profile_id)
+
+    tx_review = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx_review:
+        raise ValueError(f"Transaction de revue #{tx_id} introuvable.")
+
+    tx_forecast = db.query(Transaction).filter(Transaction.id == target_forecast_id).first()
+    if not tx_forecast:
+        raise ValueError(f"Transaction prévisionnelle #{target_forecast_id} introuvable.")
+
+    before_snap_forecast = snapshot_entity(tx_forecast)
+    before_snap_review = snapshot_entity(tx_review)
+
+    bank_csv_id = tx_review.csv_id
+    bank_raw_lbl = tx_review.raw_description or tx_review.description
+    final_amount = amount if (amount is not None and amount > 0) else tx_review.amount
+    final_desc = description.strip() if (description and description.strip()) else tx_forecast.description
+    final_cat = category.strip() if (category and category.strip()) else tx_forecast.category
+
+    # Libérer le csv_id sur la transaction de revue avant de l'assigner à la prévision
+    tx_review.csv_id = None
+    db.flush()
+
+    if final_desc:
+        tx_forecast.description = final_desc
+    if final_cat:
+        ensure_category_exists(db, final_cat, tx_forecast.type)
+        tx_forecast.category = final_cat
+    if final_amount is not None and final_amount > 0:
+        orig_amt = tx_forecast.amount
+        tx_forecast.amount = final_amount
+        if orig_amt is not None and abs(orig_amt - final_amount) > 0.005:
+            tx_forecast.comment = f"Auto-ajusté : {orig_amt:.2f} € → {final_amount:.2f} €"
+
+    tx_forecast.raw_description = bank_raw_lbl
+    if bank_csv_id:
+        tx_forecast.csv_id = bank_csv_id
+    tx_forecast.needs_review = False
+
+    is_coming = bool(bank_csv_id and str(bank_csv_id).startswith("woob_coming_"))
+    if not is_coming:
+        tx_forecast.reconciliation_date = tx_review.reconciliation_date or tx_forecast.date_operation or date.today()
+
+    # Supprimer la transaction temporaire de revue
+    db.delete(tx_review)
+    record_action(
+        db,
+        "transaction",
+        tx_review.id,
+        "DELETE",
+        before_snap_review,
+        None,
+        user_name="Auto-Pilote (Fusion prévision)"
+    )
+
+    record_action(
+        db,
+        "transaction",
+        tx_forecast.id,
+        "UPDATE",
+        before_snap_forecast,
+        snapshot_entity(tx_forecast),
+        user_name="Auto-Pilote (Liaison prévision)"
+    )
+
+    learned = False
+    if learn_rule and bank_raw_lbl and tx_forecast.description and tx_forecast.category:
+        try:
+            learn_label_mapping(
+                db,
+                raw_label=bank_raw_lbl,
+                clean_description=tx_forecast.description,
+                category=tx_forecast.category,
+                is_manual=True
+            )
+            learned = True
+        except Exception as ex_l:
+            logger.warning(f"[AutoPilot] Échec apprentissage lors de la liaison: {ex_l}")
+
+    dlog = db.query(AutopilotDecisionLog).filter(
+        AutopilotDecisionLog.entity_type == "transaction",
+        AutopilotDecisionLog.entity_id == tx_review.id
+    ).first()
+    if dlog:
+        dlog.entity_id = tx_forecast.id
+        dlog.decision_type = "reconciliation"
+        dlog.action = "LINKED_COMING" if tx_forecast.reconciliation_date is None else "AUTO_COMMIT"
+        dlog.confidence_score = 100.0
+        snap_payload = {
+            "bank_tx": {
+                "raw_description": bank_raw_lbl,
+                "description": tx_forecast.description,
+                "category": tx_forecast.category,
+                "amount": tx_forecast.amount,
+                "decision_reason": "linked_forecast"
+            },
+            "linked_to_forecast_id": tx_forecast.id,
+            "forecast_description": tx_forecast.description,
+            "decision_reason": "linked_forecast",
+            "before": before_snap_forecast,
+            "after": snapshot_entity(tx_forecast)
+        }
+        dlog.raw_snapshot = json.dumps(snap_payload, default=str)
+
+    db.commit()
+    stats_cache.invalidate(pid)
+
+    return {
+        "success": True,
+        "id": tx_forecast.id,
+        "merged_into_id": tx_forecast.id,
+        "learned": learned,
+        "message": f"Opération liée avec succès à la prévision '{tx_forecast.description}'."
+    }
+
+
+def validate_review_transaction(db: Session, tx_id: int, profile_id: Optional[str] = None) -> Dict[str, Any]:
+    """Acquitte une transaction en attente de revue (needs_review = False)."""
+    from app.models import Transaction, AutopilotDecisionLog
+    from app.services.history_service import record_action, snapshot_entity
+
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx:
+        raise ValueError(f"Transaction #{tx_id} introuvable.")
+
+    # Si une prévision récurrente évidente existe sur la même date/montant, lier automatiquement
+    cands = find_candidate_forecasts_for_tx(db, tx, limit=1)
+    if cands and cands[0]["recurrence_id"] is not None and cands[0]["amt_diff"] <= 0.05:
+        return link_review_transaction(
+            db,
+            tx_id=tx_id,
+            target_forecast_id=cands[0]["id"],
+            learn_rule=True,
+            description=cands[0]["description"],
+            category=cands[0]["category"],
+            profile_id=profile_id
+        )
+
+    before_snap = snapshot_entity(tx)
+    tx.needs_review = False
+    db.flush()
+    after_snap = snapshot_entity(tx)
+
+    # Mettre à jour la décision Auto-Pilote associée si présente
+    dlog = db.query(AutopilotDecisionLog).filter(
+        AutopilotDecisionLog.entity_type == "transaction",
+        AutopilotDecisionLog.entity_id == tx.id,
+        AutopilotDecisionLog.action.in_(["AUTO_COMMIT_PENDING_REVIEW", "AUTO_COMMIT_COMING_PENDING_REVIEW"])
+    ).first()
+    if dlog:
+        dlog.action = "AUTO_COMMIT" if dlog.action == "AUTO_COMMIT_PENDING_REVIEW" else "AUTO_COMMIT_COMING"
+
+    record_action(
+        db,
+        "transaction",
+        tx.id,
+        "UPDATE",
+        before_snap,
+        after_snap,
+        user_name="Auto-Pilote (Revue validée)"
+    )
+    db.commit()
+    return {"success": True, "id": tx.id}
+
+
+def update_review_transaction(
+    db: Session,
+    tx_id: int,
+    description: Optional[str] = None,
+    category: Optional[str] = None,
+    amount: Optional[float] = None,
+    target_forecast_id: Optional[int] = None,
+    learn_rule: bool = True,
+    profile_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """Corrige une transaction en attente de revue et lève le drapeau needs_review."""
+    if target_forecast_id:
+        return link_review_transaction(
+            db,
+            tx_id=tx_id,
+            target_forecast_id=target_forecast_id,
+            learn_rule=learn_rule,
+            description=description,
+            category=category,
+            amount=amount,
+            profile_id=profile_id
+        )
+
+    from app.models import Transaction, AutopilotDecisionLog
+    from app.services.history_service import record_action, snapshot_entity
+    from app.services.smart_label_service import ensure_category_exists, learn_label_mapping
+
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx:
+        raise ValueError(f"Transaction #{tx_id} introuvable.")
+
+    # Détection automatique de fusion si le nouveau nom correspond à une prévision orpheline
+    if description and description.strip():
+        cands = find_candidate_forecasts_for_tx(db, tx, limit=1)
+        if cands and cands[0]["description"].strip().lower() == description.strip().lower():
+            return link_review_transaction(
+                db,
+                tx_id=tx_id,
+                target_forecast_id=cands[0]["id"],
+                learn_rule=learn_rule,
+                description=description,
+                category=category,
+                amount=amount,
+                profile_id=profile_id
+            )
+
+    before_snap = snapshot_entity(tx)
+
+    if description is not None and description.strip():
+        tx.description = description.strip()
+    if amount is not None and amount > 0:
+        tx.amount = amount
+    if category is not None and category.strip():
+        cleaned_cat = category.strip()
+        ensure_category_exists(db, cleaned_cat, tx.type)
+        tx.category = cleaned_cat
+
+    tx.needs_review = False
+    db.flush()
+    after_snap = snapshot_entity(tx)
+
+    # Apprentissage de la règle si demandé
+    learned = False
+    raw_lbl = tx.raw_description or tx.description
+    if learn_rule and raw_lbl and tx.category:
+        try:
+            learn_label_mapping(
+                db,
+                raw_label=raw_lbl,
+                clean_description=tx.description,
+                category=tx.category,
+                is_manual=True
+            )
+            learned = True
+        except Exception as ex_l:
+            logger.warning(f"[AutoPilot] Échec apprentissage lors de la revue: {ex_l}")
+
+    dlog = db.query(AutopilotDecisionLog).filter(
+        AutopilotDecisionLog.entity_type == "transaction",
+        AutopilotDecisionLog.entity_id == tx.id,
+        AutopilotDecisionLog.action.in_(["AUTO_COMMIT_PENDING_REVIEW", "AUTO_COMMIT_COMING_PENDING_REVIEW"])
+    ).first()
+    if dlog:
+        dlog.action = "AUTO_COMMIT" if dlog.action == "AUTO_COMMIT_PENDING_REVIEW" else "AUTO_COMMIT_COMING"
+
+    record_action(
+        db,
+        "transaction",
+        tx.id,
+        "UPDATE",
+        before_snap,
+        after_snap,
+        user_name="Auto-Pilote (Revue modifiée)"
+    )
+    db.commit()
+    return {"success": True, "id": tx.id, "learned": learned}
+
+
+def preview_threshold_impact(db: Session, simulated_threshold: float) -> Dict[str, Any]:
+    """Simule l'impact d'un changement de seuil sur les transactions ayant un score de confiance."""
+    from app.models import Transaction
+    current_threshold = get_auto_reconcile_threshold(db)
+
+    txs = db.query(Transaction).filter(Transaction.confidence_score.isnot(None)).all()
+
+    becoming_reliable = []
+    becoming_review = []
+
+    for t in txs:
+        score = t.confidence_score or 0.0
+        if t.needs_review and score >= simulated_threshold:
+            becoming_reliable.append({
+                "id": t.id,
+                "description": t.description,
+                "category": t.category,
+                "amount": t.amount,
+                "confidence_score": score
+            })
+        elif not t.needs_review and score < simulated_threshold:
+            becoming_review.append({
+                "id": t.id,
+                "description": t.description,
+                "category": t.category,
+                "amount": t.amount,
+                "confidence_score": score
+            })
+
+    return {
+        "current_threshold": current_threshold,
+        "simulated_threshold": simulated_threshold,
+        "becoming_reliable_count": len(becoming_reliable),
+        "becoming_review_count": len(becoming_review),
+        "becoming_reliable_samples": becoming_reliable[:5],
+        "becoming_review_samples": becoming_review[:5]
+    }
+

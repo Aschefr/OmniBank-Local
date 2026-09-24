@@ -1043,11 +1043,9 @@ def test_commit_reviewed_sync_preserves_coming_operations_unreconciled():
     # La catégorie peut être mise à jour
     assert local_tx.category == "Abonnements"
 
-    # Vérifier que l'opération à venir reste mémorisée dans le sas
+    # Vérifier que l'opération à venir validée a bien été retirée du sas
     pending_after = get_all_pending_sync(test_db)
-    assert pending_after["total_coming_matches"] == 1
-    assert local_tx.id in pending_after["matches_by_tx_id"]
-    assert pending_after["matches_by_tx_id"][local_tx.id]["is_coming"] is True
+    assert pending_after["total_coming_matches"] == 0
 
 
 def test_link_ghost_preserves_coming_unreconciled():

@@ -103,6 +103,24 @@ window.ReconciliationStates = {
             };
         }
 
+        // ── 3.5. Non rapprochée, en attente de vérification Auto-Pilote (needs_review) ──
+        if (tx.needs_review) {
+            const conf = Math.round(tx.confidence_score || 0);
+            const reviewTip = (i18n.t('autopilot_review_btn_tooltip') || `Opération en attente de vérification Auto-Pilote (confiance: ${conf}%). Cliquer pour vérifier ou lier.`).replace(/"/g, '&quot;');
+            const reviewBadgeText = i18n.t('autopilot_review_action_btn') || 'À vérifier';
+
+            if (view === 'overview') {
+                return {
+                    state: 'needs_review',
+                    html: `<button class="overview-review-action-btn" onclick="window.handleReviewClick(${tx.id}, event)" title="${reviewTip}"><span>🔍</span> <span>${reviewBadgeText}</span></button>`
+                };
+            }
+            return {
+                state: 'needs_review',
+                html: `<button class="recon-btn recon-btn-review" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700;" onclick="window.handleReviewClick(${tx.id}, event)" title="${reviewTip}">🔍 <span>${reviewBadgeText}</span></button>`
+            };
+        }
+
         // ── 4. Non rapprochée, aucun match ──
         const reconLabel = i18n.t('btn_reconcile') || '✓ Rapprocher';
         const toggleFn = this._getToggleFn(tx.id, view);

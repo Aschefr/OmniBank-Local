@@ -43,6 +43,8 @@ class TransactionBase(BaseModel):
     cross_profile_id: Optional[str] = None
     cross_profile_label: Optional[str] = None
     cross_profile_status: Optional[str] = None
+    needs_review: Optional[bool] = False
+    confidence_score: Optional[float] = None
 
     @field_validator('date_saisie', 'date_operation', 'reconciliation_date', mode='after')
     @classmethod
@@ -71,6 +73,8 @@ class TransactionUpdate(BaseModel):
     cross_profile_id: Optional[str] = None
     cross_profile_label: Optional[str] = None
     cross_profile_status: Optional[str] = None
+    needs_review: Optional[bool] = None
+    confidence_score: Optional[float] = None
     attachments: Optional[str] = None
     check_slip_number: Optional[str] = None
     from_account_id: Optional[int] = None
@@ -381,12 +385,19 @@ class AutopilotToggleRequest(BaseModel):
     enabled: bool
 
 
+class AutopilotSubtoggleRequest(BaseModel):
+    key: str
+    enabled: bool
+
+
 class AutopilotThresholdIn(BaseModel):
     threshold: float
+    apply_to_existing: bool = False
 
 
 class AutopilotThresholdOut(BaseModel):
     threshold: float
+    applied_count: Optional[int] = None
 
 
 class AutopilotStatusOut(BaseModel):
@@ -396,6 +407,8 @@ class AutopilotStatusOut(BaseModel):
     last_run_at: Optional[str] = None
     last_visit_at: Optional[str] = None
     unseen_decisions_count: int = 0
+    review_queue_count: int = 0
+    unseen_review_count: int = 0
     is_syncing: bool = False
     last_execution_at: Optional[str] = None
     next_execution_at: Optional[str] = None
@@ -458,3 +471,45 @@ class AutopilotRollbackCycleOut(BaseModel):
     undone_count: int
     reconstituted_in_sas: bool
     message: str
+
+
+class AutopilotReviewItem(BaseModel):
+    id: int
+    date_operation: date
+    raw_description: Optional[str] = None
+    description: str
+    amount: float
+    type: str
+    category: Optional[str] = None
+    account_id: Optional[int] = None
+    account_name: Optional[str] = None
+    account_color: Optional[str] = None
+    confidence_score: Optional[float] = None
+    created_at: Optional[str] = None
+    candidate_forecasts: List[Dict[str, Any]] = []
+
+
+class AutopilotReviewUpdateRequest(BaseModel):
+    description: Optional[str] = None
+    category: Optional[str] = None
+    amount: Optional[float] = None
+    target_forecast_id: Optional[int] = None
+    learn_rule: bool = True
+
+
+class AutopilotReviewLinkRequest(BaseModel):
+    target_forecast_id: int
+    learn_rule: bool = True
+    description: Optional[str] = None
+    category: Optional[str] = None
+    amount: Optional[float] = None
+
+
+class AutopilotThresholdPreviewOut(BaseModel):
+    current_threshold: float
+    simulated_threshold: float
+    becoming_reliable_count: int
+    becoming_review_count: int
+    becoming_reliable_samples: List[Dict[str, Any]] = []
+    becoming_review_samples: List[Dict[str, Any]] = []
+
