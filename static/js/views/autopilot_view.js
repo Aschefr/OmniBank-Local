@@ -14,10 +14,37 @@ window.AutopilotView = {
     _learnedRules: [],
     _autoRefreshTimer: null,
     _drawerEscHandler: null,
+
+    _icons: {
+        steeringWheel: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent); flex-shrink: 0;"><circle cx="12" cy="12" r="9.5"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="15" x2="12" y2="21.5"></line><line x1="2.5" y1="12" x2="9" y2="12"></line><line x1="15" y1="12" x2="21.5" y2="12"></line></svg>`,
+        steeringWheelMini: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="15" x2="12" y2="21.5"></line><line x1="2.5" y1="12" x2="9" y2="12"></line><line x1="15" y1="12" x2="21.5" y2="12"></line></svg>`,
+        gauge: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>`,
+        shield: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+        settings: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
+        alertCircle: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`,
+        list: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>`,
+        brain: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.54z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.54z"></path></svg>`,
+        inbox: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>`,
+        tag: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>`,
+        repeat: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>`,
+        chart: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`,
+        package: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"></path><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>`,
+        link: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`,
+        check: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+        edit: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+        undo: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>`,
+        unpoint: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>`,
+        search: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`,
+        target: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
+        sparkles: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>`,
+        save: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>`,
+        power: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>`
+    },
+
     _subtogglesDef: [
         {
             category: 'Opérations & Ingestion',
-            icon: '📥',
+            iconKey: 'inbox',
             items: [
                 {
                     key: 'auto_reconcile_transactions',
@@ -48,7 +75,7 @@ window.AutopilotView = {
         },
         {
             category: 'Marchands & Catégories',
-            icon: '🏷️',
+            iconKey: 'tag',
             items: [
                 {
                     key: 'auto_learn_merchant_rules',
@@ -64,7 +91,7 @@ window.AutopilotView = {
         },
         {
             category: 'Récurrences & Abonnements',
-            icon: '🔄',
+            iconKey: 'repeat',
             items: [
                 {
                     key: 'auto_link_deviant_recurrences',
@@ -90,7 +117,7 @@ window.AutopilotView = {
         },
         {
             category: 'Budgets & Enveloppes',
-            icon: '📊',
+            iconKey: 'chart',
             items: [
                 {
                     key: 'enable_budget_creation_suggestions',
@@ -118,11 +145,38 @@ window.AutopilotView = {
 
     render() {
         return `
-            <div class="autopilot-container" style="max-width: 1440px; width: 100%; margin: 0 auto; padding-bottom: 40px;">
+            <div class="autopilot-container" style="max-width: 1440px; width: 100%; margin: 0 auto; padding-bottom: 40px; position: relative;">
+                <!-- Cockpit Take Control / Engagement HUD Overlay -->
+                <div id="apEngagementHud" class="ap-engagement-hud" style="display: none;" onclick="window.AutopilotView.dismissEngagementHud(event)">
+                    <div class="ap-hud-backdrop-glow"></div>
+                    <div class="ap-hud-scan-beam"></div>
+                    <div class="ap-hud-banner" onclick="event.stopPropagation()">
+                        <div class="ap-hud-gyro-wrap">
+                            <div class="ap-hud-gyro-ring ring-1"></div>
+                            <div class="ap-hud-gyro-ring ring-2"></div>
+                            <div class="ap-hud-gyro-icon">${this._icons.steeringWheel}</div>
+                        </div>
+                        <div class="ap-hud-info">
+                            <div class="ap-hud-tag-row">
+                                <span class="ap-hud-status-badge">AUTO-PILOTE ENGAGÉ</span>
+                                <span class="ap-hud-live-indicator"><span class="ap-hud-live-dot"></span> EN MISSION</span>
+                            </div>
+                            <h3 class="ap-hud-title">OmniBank prend les commandes</h3>
+                            <p class="ap-hud-desc">Installez-vous confortablement : vos soldes, catégorisations et prévisions sont gérés et surveillés en toute autonomie.</p>
+                            <div class="ap-hud-pills-row">
+                                <span class="ap-hud-pill"><span>✓</span> Relevés Périodiques</span>
+                                <span class="ap-hud-pill"><span>✓</span> Pointage Auto Haute Confiance</span>
+                                <span class="ap-hud-pill"><span>✓</span> 15 Briques Armées</span>
+                            </div>
+                        </div>
+                        <button type="button" class="ap-hud-close-btn" onclick="window.AutopilotView.dismissEngagementHud(event)" title="Fermer">✕</button>
+                    </div>
+                </div>
+
                 <!-- Header / Cockpit Bar -->
                 <div class="view-header-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
                     <div class="view-header-title-group" style="display: flex; align-items: center; gap: 12px;">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent); flex-shrink: 0;"><circle cx="12" cy="12" r="9.5"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="15" x2="12" y2="21.5"></line><line x1="2.5" y1="12" x2="9" y2="12"></line><line x1="15" y1="12" x2="21.5" y2="12"></line></svg>
+                        ${this._icons.steeringWheel}
                         <div>
                             <h2 class="view-header-title" style="margin: 0; display: flex; align-items: center; gap: 10px;">
                                 <span data-i18n="autopilot_control_center_title">${window.i18n.t('autopilot_control_center_title') || 'Centre de Contrôle Auto-Pilote'}</span>
@@ -141,16 +195,37 @@ window.AutopilotView = {
                         </div>
 
                         <!-- Encadré 2 : Pilotage & Briques Modulaires -->
-                        <div class="autopilot-toolbar-group">
-                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="Configurer les 15 briques et le seuil">
-                                <span>⚙️</span> <span>Réglages & Briques</span> <span id="apActiveBriquesBadge" class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/15</span>
+                        <div class="autopilot-toolbar-group" style="gap: 10px;">
+                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="Configurer les 15 briques et le seuil" style="display: inline-flex; align-items: center; gap: 6px;">
+                                ${this._icons.settings} <span>Réglages & Briques</span> <span id="apActiveBriquesBadge" class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/15</span>
                             </button>
-                            <div class="autopilot-master-switch-wrapper">
-                                <span style="font-size: 12.5px; font-weight: 600;" data-i18n="autopilot_master_toggle">${window.i18n.t('autopilot_master_toggle') || 'Mode Auto-Pilote'}</span>
-                                <label class="switch" style="margin: 0;">
-                                    <input type="checkbox" id="apMasterSwitch" onchange="window.AutopilotView.toggleMasterSwitch(this.checked)">
-                                    <span class="slider round"></span>
-                                </label>
+
+                            <!-- Hero Master Cockpit Switch (Bouton d'activation Grand Format & Tactile) -->
+                            <div id="apHeroMasterSwitch" class="ap-hero-master-switch is-inactive" onclick="window.AutopilotView.onHeroSwitchClick(event)" title="Activer / Mettre en veille le mode Auto-Pilote">
+                                <div class="ap-hero-switch-knob">
+                                    <span class="ap-hero-switch-icon-inactive">${this._icons.power}</span>
+                                    <span class="ap-hero-switch-icon-active">${this._icons.steeringWheelMini}</span>
+                                </div>
+                                <div class="ap-hero-switch-content">
+                                    <div class="ap-hero-switch-header">
+                                        <span class="ap-hero-switch-title" data-i18n="autopilot_master_toggle">${window.i18n.t('autopilot_master_toggle') || 'Auto-Pilote'}</span>
+                                        <span class="ap-hero-switch-dot"></span>
+                                    </div>
+                                    <div id="apHeroSwitchStateText" class="ap-hero-switch-state">En veille</div>
+                                </div>
+
+                                <!-- Slot Compte à Rebours Cylon Scanner (Battlestar Galactica) -->
+                                <div id="apHeroCylonScanner" class="ap-cylon-scanner-slot" style="display: none;">
+                                    <div class="ap-cylon-track">
+                                        <div class="ap-cylon-eye"></div>
+                                    </div>
+                                    <div class="ap-cylon-content">
+                                        <span class="ap-cylon-label">PROCHAIN RELEVÉ</span>
+                                        <span id="apHeroCountdownTime" class="ap-cylon-time">--</span>
+                                    </div>
+                                </div>
+
+                                <input type="checkbox" id="apMasterSwitch" style="display: none;" onchange="window.AutopilotView.toggleMasterSwitch(this.checked)">
                             </div>
                         </div>
                     </div>
@@ -164,66 +239,62 @@ window.AutopilotView = {
                     </span>
                 </div>
 
-                <!-- Split Cockpit Layout : 2 Colonnes -->
-                <div class="ap-cockpit-layout" style="display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start;">
-                    <!-- COLONNE GAUCHE (280px) : KPIs Hero Verticaux -->
-                    <div class="ap-left-column" style="display: flex; flex-direction: column; gap: 14px;">
-                        <div style="background: var(--bg-card, var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                <span style="font-size: 16px;">📊</span>
-                                <h3 style="font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin: 0; color: var(--text-main);">
-                                    Indicateurs & Performance
-                                </h3>
-                            </div>
-                            <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 16px 0; line-height: 1.4;">
-                                Taux de précision, temps épargné et volume des actions automatisées
-                            </p>
-
-                            <div style="display: flex; flex-direction: column; gap: 10px;">
-                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
-                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_accuracy">${window.i18n.t('autopilot_kpi_accuracy') || 'Taux de Précision'}</div>
-                                    <div id="kpiAccuracy" style="font-size: 26px; font-weight: 800; color: #10b981; margin: 6px 0 2px;">--%</div>
-                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_accuracy_sub">${window.i18n.t('autopilot_kpi_accuracy_sub') || 'décisions sans rejet'}</div>
-                                </div>
-                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
-                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_hours_saved">${window.i18n.t('autopilot_kpi_hours_saved') || 'Temps Épargné'}</div>
-                                    <div id="kpiHoursSaved" style="font-size: 26px; font-weight: 800; color: var(--accent); margin: 6px 0 2px;">-- h</div>
-                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_hours_saved_sub">${window.i18n.t('autopilot_kpi_hours_saved_sub') || 'de saisie évitée'}</div>
-                                </div>
-                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
-                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_reconciled">${window.i18n.t('autopilot_kpi_reconciled') || 'Rapprochements'}</div>
-                                    <div id="kpiReconciled" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 6px 0 2px;">0</div>
-                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_reconciled_sub">${window.i18n.t('autopilot_kpi_reconciled_sub') || 'pointages validés'}</div>
-                                </div>
-                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
-                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_committed">${window.i18n.t('autopilot_kpi_committed') || 'Nouvelles Écritures'}</div>
-                                    <div id="kpiCommitted" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 6px 0 2px;">0</div>
-                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_committed_sub">${window.i18n.t('autopilot_kpi_committed_sub') || 'insérées automatiquement'}</div>
-                                </div>
-                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
-                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_recurrences">${window.i18n.t('autopilot_kpi_recurrences') || 'Récurrences Promues'}</div>
-                                    <div id="kpiRecurrences" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 6px 0 2px;">0</div>
-                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_recurrences_sub">${window.i18n.t('autopilot_kpi_recurrences_sub') || 'abonnements détectés'}</div>
-                                </div>
-                                <div class="kpi-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center;">
-                                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="autopilot_kpi_budgets">${window.i18n.t('autopilot_kpi_budgets') || 'Mutations Budgets'}</div>
-                                    <div id="kpiBudgets" style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 6px 0 2px;">0</div>
-                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_kpi_budgets_sub">${window.i18n.t('autopilot_kpi_budgets_sub') || 'enveloppes synchronisées'}</div>
+                <!-- Split Cockpit Layout : 2 Colonnes (Grisé quand inactif) -->
+                <div id="apCockpitLayout" class="ap-cockpit-layout" style="display: grid; grid-template-columns: 290px 1fr; gap: 24px; align-items: start;">
+                    <!-- COLONNE GAUCHE (290px) : KPIs & Performance Épurés -->
+                    <div class="ap-left-column">
+                        <div class="ap-kpi-panel">
+                            <div class="ap-kpi-panel-header">
+                                <span class="ap-kpi-panel-icon">${this._icons.gauge}</span>
+                                <div>
+                                    <h3 class="ap-kpi-panel-title">Performance</h3>
+                                    <p class="ap-kpi-panel-subtitle">Gains & précision de l'auto-pilote</p>
                                 </div>
                             </div>
 
-                            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11.5px; color: var(--text-muted); line-height: 1.6; display: flex; flex-direction: column; gap: 6px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Coffre-fort :</span>
-                                    <span id="apVaultStatusInline" style="font-weight: 700; color: var(--text-main);">--</span>
+                            <!-- Hero KPIs: Précision & Temps épargné -->
+                            <div class="ap-hero-kpi-grid">
+                                <div class="ap-hero-kpi-card ap-hero-kpi-emerald">
+                                    <span class="ap-kpi-label" data-i18n="autopilot_kpi_accuracy">${window.i18n.t('autopilot_kpi_accuracy') || 'Précision'}</span>
+                                    <div id="kpiAccuracy" class="ap-hero-kpi-val">--%</div>
+                                    <span class="ap-kpi-sub" data-i18n="autopilot_kpi_accuracy_sub">${window.i18n.t('autopilot_kpi_accuracy_sub') || 'sans rejet'}</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Dernier relevé :</span>
-                                    <strong id="apLastExecTime" style="color: var(--text-main); font-weight: 700;">--</strong>
+                                <div class="ap-hero-kpi-card ap-hero-kpi-accent">
+                                    <span class="ap-kpi-label" data-i18n="autopilot_kpi_hours_saved">${window.i18n.t('autopilot_kpi_hours_saved') || 'Temps Épargné'}</span>
+                                    <div id="kpiHoursSaved" class="ap-hero-kpi-val">-- h</div>
+                                    <span class="ap-kpi-sub" data-i18n="autopilot_kpi_hours_saved_sub">${window.i18n.t('autopilot_kpi_hours_saved_sub') || 'de saisie évitée'}</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Prochain relevé :</span>
-                                    <strong id="apNextExecTime" style="color: var(--text-main); font-weight: 700;">--</strong>
+                            </div>
+
+                            <!-- 2x2 Secondary Counters Grid -->
+                            <div class="ap-sec-kpi-grid">
+                                <div class="ap-sec-kpi-item">
+                                    <span class="ap-sec-kpi-label" data-i18n="autopilot_kpi_reconciled">${window.i18n.t('autopilot_kpi_reconciled') || 'Rapprochements'}</span>
+                                    <span id="kpiReconciled" class="ap-sec-kpi-val">0</span>
+                                </div>
+                                <div class="ap-sec-kpi-item">
+                                    <span class="ap-sec-kpi-label" data-i18n="autopilot_kpi_committed">${window.i18n.t('autopilot_kpi_committed') || 'Écritures'}</span>
+                                    <span id="kpiCommitted" class="ap-sec-kpi-val">0</span>
+                                </div>
+                                <div class="ap-sec-kpi-item">
+                                    <span class="ap-sec-kpi-label" data-i18n="autopilot_kpi_recurrences">${window.i18n.t('autopilot_kpi_recurrences') || 'Récurrences'}</span>
+                                    <span id="kpiRecurrences" class="ap-sec-kpi-val">0</span>
+                                </div>
+                                <div class="ap-sec-kpi-item">
+                                    <span class="ap-sec-kpi-label" data-i18n="autopilot_kpi_budgets">${window.i18n.t('autopilot_kpi_budgets') || 'Budgets'}</span>
+                                    <span id="kpiBudgets" class="ap-sec-kpi-val">0</span>
+                                </div>
+                            </div>
+
+                            <!-- System & Sync Info Footer -->
+                            <div class="ap-kpi-status-list">
+                                <div class="ap-kpi-status-row">
+                                    <span class="ap-kpi-status-label">Coffre-fort :</span>
+                                    <span id="apVaultStatusInline" class="ap-kpi-status-val">--</span>
+                                </div>
+                                <div class="ap-kpi-status-row">
+                                    <span class="ap-kpi-status-label">Dernier relevé :</span>
+                                    <span id="apLastExecTime" class="ap-kpi-status-val">--</span>
                                 </div>
                             </div>
                         </div>
@@ -235,7 +306,7 @@ window.AutopilotView = {
                         <div id="apReviewSection" class="ap-collapsible-card" style="border: 1px solid rgba(245, 158, 11, 0.35); background: var(--bg-card, var(--bg-surface));">
                             <div class="ap-collapsible-header" onclick="window.AutopilotView.toggleSection('review')">
                                 <div class="ap-collapsible-title-group">
-                                    <span class="ap-collapsible-icon">🔍</span>
+                                    <span class="ap-collapsible-icon" style="color: #f59e0b;">${this._icons.alertCircle}</span>
                                     <div>
                                         <h3 class="ap-collapsible-title" data-i18n="autopilot_review_title">
                                             ${window.i18n.t('autopilot_review_title') || 'Opérations à vérifier (Revue manuelle)'}
@@ -260,13 +331,16 @@ window.AutopilotView = {
                         <!-- Section 3 : Decision Feed Section (Main Volet) -->
                         <div class="ap-collapsible-card">
                             <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
-                                <div>
-                                    <h3 style="font-size: 16px; margin: 0 0 4px 0; font-weight: 700; color: var(--text-main);" data-i18n="autopilot_feed_title">
-                                        📋 ${window.i18n.t('autopilot_feed_title') || 'Journal d\'Audit & Flux des Décisions'}
-                                    </h3>
-                                    <p style="font-size: 12px; color: var(--text-muted); margin: 0;" data-i18n="autopilot_feed_desc">
-                                        ${window.i18n.t('autopilot_feed_desc') || 'Historique complet des arbitrages pris automatiquement avec traçabilité et réversibilité.'}
-                                    </p>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="color: var(--accent); display: inline-flex;">${this._icons.list}</span>
+                                    <div>
+                                        <h3 style="font-size: 15px; margin: 0 0 2px 0; font-weight: 700; color: var(--text-main);" data-i18n="autopilot_feed_title">
+                                            ${window.i18n.t('autopilot_feed_title') || 'Journal d\'Audit & Flux des Décisions'}
+                                        </h3>
+                                        <p style="font-size: 12px; color: var(--text-muted); margin: 0;" data-i18n="autopilot_feed_desc">
+                                            ${window.i18n.t('autopilot_feed_desc') || 'Historique complet des arbitrages pris automatiquement avec traçabilité et réversibilité.'}
+                                        </p>
+                                    </div>
                                 </div>
                                 <!-- Filters & Batch Toggle Bar -->
                                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -310,7 +384,7 @@ window.AutopilotView = {
                         <div id="apWorkshopSection" class="ap-collapsible-card">
                             <div class="ap-collapsible-header" onclick="window.AutopilotView.toggleSection('workshop')">
                                 <div class="ap-collapsible-title-group">
-                                    <span class="ap-collapsible-icon">🧠</span>
+                                    <span class="ap-collapsible-icon" style="color: var(--accent);">${this._icons.brain}</span>
                                     <div>
                                         <h3 class="ap-collapsible-title">Atelier des Règles & Apprentissages</h3>
                                         <p class="ap-collapsible-subtitle">Correspondances marchands et motifs appris automatiquement au fil de vos opérations</p>
@@ -330,6 +404,8 @@ window.AutopilotView = {
                     </div>
                 </div>
             </div>
+                </div>
+            </div>
 
             <!-- Settings Drawer (Option B) -->
             <div id="apSettingsDrawer" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px); z-index: 99998; justify-content: flex-end;" onclick="if(event.target === this) window.AutopilotView.closeSettingsDrawer()">
@@ -338,7 +414,7 @@ window.AutopilotView = {
                     <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                         <div>
                             <h3 style="margin: 0 0 3px 0; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                                <span>⚙️</span> <span>Réglages d'Autonomie & Briques Élémentaires</span>
+                                <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.settings}</span> <span>Réglages d'Autonomie & Briques Élémentaires</span>
                             </h3>
                             <p style="margin: 0; font-size: 12px; color: var(--text-muted);">
                                 Seuil de tolérance et contrôle individuel des 15 automatismes
@@ -353,8 +429,8 @@ window.AutopilotView = {
                         <div style="background: var(--bg-card, var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                 <div>
-                                    <h4 style="font-size: 13.5px; margin: 0 0 4px 0; font-weight: 700;" data-i18n="autopilot_threshold_title">
-                                        🎯 ${window.i18n.t('autopilot_threshold_title') || 'Seuil de Tolérance & Confiance'}
+                                    <h4 style="font-size: 13.5px; margin: 0 0 4px 0; font-weight: 700; display: flex; align-items: center; gap: 6px;" data-i18n="autopilot_threshold_title">
+                                        <span style="color: var(--accent); display: inline-flex;">${this._icons.target}</span> <span>${window.i18n.t('autopilot_threshold_title') || 'Seuil de Tolérance & Confiance'}</span>
                                     </h4>
                                     <p style="font-size: 11.5px; color: var(--text-muted); margin: 0;" data-i18n="autopilot_threshold_desc">
                                         ${window.i18n.t('autopilot_threshold_desc') || 'Score minimal requis pour exécuter un rapprochement ou une écriture en toute autonomie.'}
@@ -371,8 +447,8 @@ window.AutopilotView = {
                                 </div>
                             </div>
                             <div id="thresholdLiveImpact" style="margin-top: 12px; padding: 10px 14px; background: rgba(99, 102, 241, 0.08); border: 1px dashed rgba(99, 102, 241, 0.3); border-radius: 8px; font-size: 11.5px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                                <div id="thresholdLiveImpactText" style="color: var(--text-main);">
-                                    📊 <span>${window.i18n.t('autopilot_threshold_preview_help') || 'Impact estimé'} : <strong id="previewStatsText">Déplacez le curseur pour simuler</strong></span>
+                                <div id="thresholdLiveImpactText" style="color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                    <span style="color: var(--accent); display: inline-flex;">${this._icons.chart}</span> <span>${window.i18n.t('autopilot_threshold_preview_help') || 'Impact estimé'} : <strong id="previewStatsText">Déplacez le curseur pour simuler</strong></span>
                                 </div>
                                 <button id="btnApplyThresholdToExisting" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 10px; white-space: nowrap; display: none;" onclick="window.AutopilotView.applyThresholdToExisting()">
                                     ${window.i18n.t('autopilot_threshold_apply_button') || 'Appliquer aux écritures existantes'}
@@ -383,8 +459,8 @@ window.AutopilotView = {
                         <!-- Block 2 : 15 Briques Élémentaires Container -->
                         <div>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <h4 style="font-size: 13.5px; margin: 0; font-weight: 700;">
-                                    🧩 Les 15 Briques d'Autonomie Modulaires
+                                <h4 style="font-size: 13.5px; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                                    <span style="color: var(--accent); display: inline-flex;">${this._icons.package}</span> <span>Les 15 Briques d'Autonomie Modulaires</span>
                                 </h4>
                                 <span style="font-size: 11px; color: var(--text-muted);">Contrôle fin à la carte</span>
                             </div>
@@ -396,8 +472,8 @@ window.AutopilotView = {
 
                     <!-- Drawer Footer -->
                     <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); flex-shrink: 0;">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.resetToDefaultSubtoggles()">
-                            🔄 Rétablir la sélection recommandée
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.resetToDefaultSubtoggles()" style="display: inline-flex; align-items: center; gap: 6px;">
+                            ${this._icons.repeat} <span>Rétablir la sélection recommandée</span>
                         </button>
                         <button type="button" class="btn btn-primary btn-sm" onclick="window.AutopilotView.closeSettingsDrawer()">
                             Fermer
@@ -441,7 +517,7 @@ window.AutopilotView = {
                     <!-- En-tête -->
                     <div class="ap-override-header">
                         <div class="ap-override-title-group">
-                            <div class="ap-override-icon-badge">✏️</div>
+                            <div class="ap-override-icon-badge">${this._icons.edit}</div>
                             <div>
                                 <h3 class="ap-override-title" data-i18n="autopilot_override_modal_title">
                                     ${window.i18n ? window.i18n.t('autopilot_override_modal_title') : 'Corriger la décision Auto-Pilote'}
@@ -505,7 +581,7 @@ window.AutopilotView = {
                                         class="ap-override-ai-btn" 
                                         onclick="window.AutopilotView.classifyOverrideWithAI(this)" 
                                         title="${window.i18n ? (window.i18n.t('smart_label_ai_classify_tooltip') || 'Nommer et classifier avec l\'IA') : 'Nommer et classifier avec l\'IA'}">
-                                    ✨
+                                    ${this._icons.sparkles}
                                 </button>
                             </div>
                         </div>
@@ -545,8 +621,8 @@ window.AutopilotView = {
                         <button type="button" class="btn btn-secondary" onclick="window.AutopilotView.closeOverrideModal()" data-i18n="btn_cancel">
                             ${window.i18n ? window.i18n.t('btn_cancel') : 'Annuler'}
                         </button>
-                        <button type="button" id="btnSubmitOverride" class="btn btn-primary" onclick="window.AutopilotView.submitOverride()" style="gap: 6px;">
-                            <span>💾</span>
+                        <button type="button" id="btnSubmitOverride" class="btn btn-primary" onclick="window.AutopilotView.submitOverride()" style="display: inline-flex; align-items: center; gap: 6px;">
+                            ${this._icons.save}
                             <span data-i18n="btn_save">${window.i18n ? window.i18n.t('btn_save') : 'Enregistrer'}</span>
                         </button>
                     </div>
@@ -647,21 +723,27 @@ window.AutopilotView = {
             this._nextExecTimer = null;
         }
 
-        const nextExecEl = document.getElementById('apNextExecTime');
-        if (!nextExecEl) return;
+        const scannerEl = document.getElementById('apHeroCylonScanner');
+        const countdownTimeEl = document.getElementById('apHeroCountdownTime');
+        if (!scannerEl || !countdownTimeEl) return;
 
-        const isAutoSyncEnabled = !!status.bank_auto_sync_enabled;
-        const isVaultUnlocked = !!status.vault_unlocked;
-        const nextIso = status.next_execution_at;
-        const remSecFromStatus = status.next_execution_countdown_seconds;
+        const isEnabled = !!status?.is_enabled;
+        const isAutoSyncEnabled = !!status?.bank_auto_sync_enabled;
+        const isVaultUnlocked = !!status?.vault_unlocked;
+        const nextIso = status?.next_execution_at;
+        const remSecFromStatus = status?.next_execution_countdown_seconds;
 
-        if (!isAutoSyncEnabled) {
-            nextExecEl.innerHTML = `<span style="color: var(--text-muted); font-weight: 600;">Désactivé (Manuel)</span>`;
+        // Point 5 : Masquer le compte à rebours en mode désactivé ou sans auto-sync
+        if (!isEnabled || !isAutoSyncEnabled) {
+            scannerEl.style.display = 'none';
             return;
         }
 
+        // Visible en mode actif
+        scannerEl.style.display = 'flex';
+
         if (!isVaultUnlocked) {
-            nextExecEl.innerHTML = `<span style="color: #f59e0b; font-weight: 700; cursor: pointer;" onclick="window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="Déverrouiller le coffre pour reprendre les relevés">⚠️ En pause (Coffre verrouillé)</span>`;
+            countdownTimeEl.innerHTML = `<span style="color: #f59e0b; font-size: 11px; cursor: pointer;" onclick="event.stopPropagation(); window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="Déverrouiller le coffre pour reprendre les relevés">Coffre verrouillé</span>`;
             return;
         }
 
@@ -674,7 +756,7 @@ window.AutopilotView = {
         }
 
         if (!targetEnd) {
-            nextExecEl.textContent = 'À l\'import de relevé';
+            countdownTimeEl.textContent = 'À l\'import';
             return;
         }
 
@@ -686,17 +768,17 @@ window.AutopilotView = {
             const mins = Math.floor((seconds % 3600) / 60);
             const secs = Math.floor(seconds % 60);
             if (hrs > 0) {
-                return `dans ${hrs}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
+                return `${hrs}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
             }
             if (mins > 0) {
-                return `dans ${mins}m ${secs.toString().padStart(2, '0')}s`;
+                return `${mins}m ${secs.toString().padStart(2, '0')}s`;
             }
-            return `dans ${secs}s`;
+            return `${secs}s`;
         };
 
         const updateTick = () => {
-            const el = document.getElementById('apNextExecTime');
-            if (!el) {
+            const timeEl = document.getElementById('apHeroCountdownTime');
+            if (!timeEl) {
                 if (this._nextExecTimer) {
                     clearInterval(this._nextExecTimer);
                     this._nextExecTimer = null;
@@ -705,9 +787,9 @@ window.AutopilotView = {
             }
             const diffMs = this._targetNextExecEnd - Date.now();
             const remSec = Math.max(0, Math.floor(diffMs / 1000));
-            el.textContent = formatRem(remSec);
+            timeEl.textContent = formatRem(remSec);
             if (targetEnd) {
-                el.title = `Prévu le ${new Date(targetEnd).toLocaleString()}`;
+                timeEl.title = `Prochain relevé prévu le ${new Date(targetEnd).toLocaleString()}`;
             }
 
             if (remSec <= 0) {
@@ -728,14 +810,33 @@ window.AutopilotView = {
     },
 
     renderStatus(status) {
+        const isEnabled = !!status.is_enabled;
+
         const masterSwitch = document.getElementById('apMasterSwitch');
         if (masterSwitch) {
-            masterSwitch.checked = !!status.is_enabled;
+            masterSwitch.checked = isEnabled;
+        }
+
+        const heroSwitch = document.getElementById('apHeroMasterSwitch');
+        const heroStateText = document.getElementById('apHeroSwitchStateText');
+        if (heroSwitch) {
+            heroSwitch.classList.toggle('is-active', isEnabled);
+            heroSwitch.classList.toggle('is-inactive', !isEnabled);
+        }
+        if (heroStateText) {
+            heroStateText.textContent = isEnabled ? 'En mission (Actif)' : 'En veille';
+        }
+
+        // Point 2 : Griser / Dégriser la page en mode désactivé
+        const cockpit = document.getElementById('apCockpitLayout');
+        if (cockpit) {
+            cockpit.classList.toggle('is-ap-inactive', !isEnabled);
+            cockpit.classList.toggle('is-ap-active', isEnabled);
         }
 
         const badge = document.getElementById('apStatusBadge');
         if (badge) {
-            if (status.is_enabled) {
+            if (isEnabled) {
                 badge.textContent = window.i18n ? (window.i18n.t('autopilot_status_active') || 'ACTIF') : 'ACTIF';
                 badge.style.background = 'rgba(16,185,129,0.15)';
                 badge.style.color = '#10b981';
@@ -928,11 +1029,12 @@ window.AutopilotView = {
 
         container.innerHTML = (this._subtogglesDef || []).map(group => {
             const groupActiveCount = group.items.filter(it => !!subtoggles[it.key]).length;
+            const groupIcon = this._icons[group.iconKey] || '';
             return `
                 <div style="background: var(--bg-card, var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 16px; overflow: hidden;">
                     <div style="padding: 12px 16px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px;">${group.icon}</span>
+                            <span style="display: inline-flex; align-items: center; color: var(--accent);">${groupIcon}</span>
                             <span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${group.category}</span>
                         </div>
                         <span class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.12); color: var(--accent);">
@@ -1026,7 +1128,10 @@ window.AutopilotView = {
         if (count === 0) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px;">
-                    ✅ <span>${window.i18n ? (window.i18n.t('autopilot_review_queue_empty') || 'Aucune opération en attente de vérification. Toutes vos opérations intégrées sont fiables.') : 'Aucune opération en attente de vérification.'}</span>
+                    <div style="display: inline-flex; align-items: center; gap: 8px; color: #10b981; font-weight: 600;">
+                        ${this._icons.check}
+                        <span>${window.i18n ? (window.i18n.t('autopilot_review_queue_empty') || 'Aucune opération en attente de vérification. Toutes vos opérations intégrées sont fiables.') : 'Aucune opération en attente de vérification.'}</span>
+                    </div>
                 </div>
             `;
             return;
@@ -1071,7 +1176,7 @@ window.AutopilotView = {
                                     ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 2px;">${escapeHtml(item.raw_description)}</div>` : ''}
                                     ${bestCandidate ? `
                                         <div style="margin-top: 6px; font-size: 11.5px; color: var(--accent); background: rgba(99,102,241,0.08); padding: 4px 10px; border-radius: 6px; border: 1px dashed rgba(99,102,241,0.3); display: inline-flex; align-items: center; gap: 6px; line-height: 1.3;">
-                                            <span>💡 Prévision : <strong>${escapeHtml(bestCandidate.description)}</strong> (${Number(bestCandidate.amount).toFixed(2)} €)</span>
+                                            <span style="display: inline-flex; align-items: center; gap: 5px;">${this._icons.link} <span>Prévision : <strong>${escapeHtml(bestCandidate.description)}</strong> (${Number(bestCandidate.amount).toFixed(2)} €)</span></span>
                                         </div>
                                     ` : ''}
                                 </td>
@@ -1082,25 +1187,25 @@ window.AutopilotView = {
                                     ${amtStr}
                                 </td>
                                 <td style="padding: 12px; text-align: center; white-space: nowrap; vertical-align: middle;">
-                                    <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px;">
-                                        ⚠️ ${conf}%
+                                    <span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                                        ${this._icons.alertCircle} ${conf}%
                                     </span>
                                 </td>
                                 <td style="padding: 12px; text-align: right; white-space: nowrap; vertical-align: middle;">
                                     <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
                                         ${bestCandidate ? `
                                             <div class="candidate-forecast-action" style="display: inline-flex; align-items: center;">
-                                                <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 10px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})" title="Lier à la prévision '${escapeHtml(bestCandidate.description)}' sans créer de doublon">
-                                                    <span>🔗 Lier</span>
+                                                <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 10px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})" title="Lier à la prévision '${escapeHtml(bestCandidate.description)}' sans créer de doublon">
+                                                    ${this._icons.link} <span>Lier</span>
                                                 </button>
                                             </div>
                                         ` : `
-                                            <button class="btn btn-secondary btn-sm" style="padding: 5px 10px; font-size: 11.5px; color: #10b981; border-color: rgba(16, 185, 129, 0.3);" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_validate') || 'Valider sans modifier') : 'Valider sans modifier'}">
-                                                ✓ ${window.i18n ? (window.i18n.t('autopilot_review_btn_validate') || 'Valider') : 'Valider'}
+                                            <button class="btn btn-secondary btn-sm" style="padding: 5px 10px; font-size: 11.5px; color: #10b981; border-color: rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_validate') || 'Valider sans modifier') : 'Valider sans modifier'}">
+                                                ${this._icons.check} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_validate') || 'Valider') : 'Valider'}</span>
                                             </button>
                                         `}
-                                        <button class="btn btn-primary btn-sm" style="padding: 5px 10px; font-size: 11.5px;" onclick="window.AutopilotView.openReviewModal(${item.id})" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Corriger libellé / catégorie') : 'Corriger libellé / catégorie'}">
-                                            ✏️ ${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Éditer') : 'Éditer'}
+                                        <button class="btn btn-primary btn-sm" style="padding: 5px 10px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.openReviewModal(${item.id})" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Corriger libellé / catégorie') : 'Corriger libellé / catégorie'}">
+                                            ${this._icons.edit} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Éditer') : 'Éditer'}</span>
                                         </button>
                                     </div>
                                 </td>
@@ -1141,7 +1246,7 @@ window.AutopilotView = {
 
                             ${bestCandidate ? `
                                 <div style="background: rgba(99,102,241,0.08); border: 1px dashed rgba(99,102,241,0.3); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--text-main);">
-                                    <div style="font-weight: 600; color: var(--accent); margin-bottom: 2px;">💡 Prévision suggérée :</div>
+                                    <div style="font-weight: 600; color: var(--accent); margin-bottom: 2px; display: inline-flex; align-items: center; gap: 4px;">${this._icons.link} Prévision suggérée :</div>
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
                                         <span>${escapeHtml(bestCandidate.description)}</span>
                                         <span style="font-weight: 700; color: var(--accent);">${Number(bestCandidate.amount).toFixed(2)} €</span>
@@ -1152,24 +1257,24 @@ window.AutopilotView = {
                             <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-color); margin-top: 2px; flex-wrap: wrap; gap: 8px;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
                                     <span class="badge" style="font-size: 11px; font-weight: 600;">${escapeHtml(item.category || '—')}</span>
-                                    <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; font-size: 10.5px;">
-                                        ⚠️ ${conf}%
+                                    <span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 700; font-size: 10.5px; display: inline-flex; align-items: center; gap: 4px;">
+                                        ${this._icons.alertCircle} ${conf}%
                                     </span>
                                 </div>
                                 <div style="display: flex; gap: 6px;">
                                     ${bestCandidate ? `
                                         <div class="candidate-forecast-action" style="display: inline-flex; align-items: center;">
-                                            <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 12px; font-size: 12px; font-weight: 600;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})">
-                                                🔗 Lier
+                                            <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 12px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})">
+                                                ${this._icons.link} <span>Lier</span>
                                             </button>
                                         </div>
                                     ` : `
-                                        <button class="btn btn-secondary btn-sm" style="padding: 5px 12px; font-size: 12px; color: #10b981; border-color: rgba(16, 185, 129, 0.3);" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)">
-                                            ✓ Valider
+                                        <button class="btn btn-secondary btn-sm" style="padding: 5px 12px; font-size: 12px; color: #10b981; border-color: rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)">
+                                            ${this._icons.check} <span>Valider</span>
                                         </button>
                                     `}
-                                    <button class="btn btn-primary btn-sm" style="padding: 5px 12px; font-size: 12px;" onclick="window.AutopilotView.openReviewModal(${item.id})">
-                                        ✏️ Éditer
+                                    <button class="btn btn-primary btn-sm" style="padding: 5px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.openReviewModal(${item.id})">
+                                        ${this._icons.edit} <span>Éditer</span>
                                     </button>
                                 </div>
                             </div>
@@ -1185,7 +1290,7 @@ window.AutopilotView = {
         try {
             if (btn) {
                 btn.disabled = true;
-                btn.textContent = '⏳';
+                btn.innerHTML = '...';
             }
             await API.post(`/api/autopilot/review/${txId}/validate`, {});
             showToast(window.i18n ? (window.i18n.t('autopilot_review_validated') || 'Opération confirmée avec succès') : 'Opération confirmée avec succès', 'success');
@@ -1199,7 +1304,7 @@ window.AutopilotView = {
             showToast('Erreur lors de la validation', 'error');
             if (btn) {
                 btn.disabled = false;
-                btn.textContent = '✓ Valider';
+                btn.innerHTML = `${this._icons.check} <span>Valider</span>`;
             }
         }
     },
@@ -1231,7 +1336,7 @@ window.AutopilotView = {
         try {
             if (btn) {
                 btn.disabled = true;
-                btn.textContent = '⏳';
+                btn.innerHTML = '...';
             }
             const res = await API.post(`/api/autopilot/review/${txId}/link`, {
                 target_forecast_id: targetForecastId,
@@ -1249,9 +1354,61 @@ window.AutopilotView = {
             showToast('Erreur lors de la liaison avec la prévision', 'error');
             if (btn) {
                 btn.disabled = false;
-                btn.textContent = '🔗 Lier';
+                btn.innerHTML = `${this._icons.link} <span>Lier</span>`;
             }
         }
+    },
+
+    onHeroSwitchClick(event) {
+        if (event) event.preventDefault();
+        const checkbox = document.getElementById('apMasterSwitch');
+        const nextState = !this._status?.is_enabled;
+        if (checkbox) checkbox.checked = nextState;
+        this.toggleMasterSwitch(nextState);
+    },
+
+    _hudDismissTimer: null,
+    triggerEngagementExperience() {
+        const hud = document.getElementById('apEngagementHud');
+        if (!hud) return;
+
+        if (this._hudDismissTimer) {
+            clearTimeout(this._hudDismissTimer);
+            this._hudDismissTimer = null;
+        }
+
+        hud.classList.remove('ap-hud-leaving');
+        hud.style.display = 'flex';
+
+        // Trigger pulse on left performance panel
+        const kpiPanel = document.querySelector('.ap-kpi-panel');
+        if (kpiPanel) {
+            kpiPanel.classList.remove('ap-panel-engaged');
+            void kpiPanel.offsetWidth; // force DOM reflow
+            kpiPanel.classList.add('ap-panel-engaged');
+        }
+
+        // Auto dismiss after 2.8s
+        this._hudDismissTimer = setTimeout(() => {
+            this.dismissEngagementHud();
+        }, 2800);
+    },
+
+    dismissEngagementHud(event) {
+        if (event) event.stopPropagation();
+        const hud = document.getElementById('apEngagementHud');
+        if (!hud) return;
+
+        if (this._hudDismissTimer) {
+            clearTimeout(this._hudDismissTimer);
+            this._hudDismissTimer = null;
+        }
+
+        hud.classList.add('ap-hud-leaving');
+        setTimeout(() => {
+            hud.style.display = 'none';
+            hud.classList.remove('ap-hud-leaving');
+        }, 320);
     },
 
     async toggleMasterSwitch(enabled) {
@@ -1259,7 +1416,11 @@ window.AutopilotView = {
             const status = await API.post('/api/autopilot/toggle', { enabled });
             this._status = status;
             this.renderStatus(status);
-            showToast(enabled ? 'Mode Auto-Pilote activé' : 'Mode Auto-Pilote désactivé', 'info');
+            if (enabled) {
+                this.triggerEngagementExperience();
+            } else {
+                showToast('Mode Manuel repris — Auto-Pilote en veille', 'info');
+            }
             window.dispatchEvent(new CustomEvent('autopilot_updated'));
         } catch (e) {
             showToast('Erreur lors du basculement Auto-Pilote', 'error');
@@ -1297,7 +1458,7 @@ window.AutopilotView = {
         if (this._decisions.length === 0) {
             feed.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: var(--text-muted);">
-                    <span style="font-size: 32px; display: block; margin-bottom: 8px;">✨</span>
+                    <div style="display: flex; justify-content: center; margin-bottom: 8px; color: var(--accent);">${this._icons.steeringWheel}</div>
                     <div style="font-weight: 600;" data-i18n="autopilot_no_decisions">${window.i18n.t('autopilot_no_decisions') || 'Aucune décision enregistrée dans ce filtre.'}</div>
                     <div style="font-size: 12px; margin-top: 4px;">Les futures opérations traitées automatiquement apparaîtront ici.</div>
                 </div>
@@ -1324,15 +1485,15 @@ window.AutopilotView = {
                     <div class="ap-batch-header" onclick="window.AutopilotView.toggleBatch('${escapeHtml(batchId)}')">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span class="ap-batch-chevron">▾</span>
-                            <span style="font-size: 14px;">📦</span>
+                            <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.package}</span>
                             <span style="font-weight: 700; font-size: 12.5px; font-family: monospace;">Lot ${batchId.substring(0, 8)}...</span>
                             <span style="font-size: 11.5px; color: var(--text-muted);">${batchDate}</span>
                             <span class="badge" style="font-size: 10px; padding: 2px 8px; border-radius: 10px; background: rgba(99,102,241,0.1); color: var(--accent);">${items.length} action(s)</span>
                         </div>
                         <div onclick="event.stopPropagation()">
                             ${!isAllUndone && batchId !== 'unbatched' ? `
-                                <button class="btn btn-danger btn-sm" style="font-size: 11px; padding: 3px 8px;" data-batch-id="${escapeHtml(batchId)}" onclick="window.AutopilotView.onRollbackCycleClick(this)">
-                                    ↺ Annuler tout le lot
+                                <button class="btn btn-danger btn-sm" style="font-size: 11px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;" data-batch-id="${escapeHtml(batchId)}" onclick="window.AutopilotView.onRollbackCycleClick(this)">
+                                    ${this._icons.undo} <span>Annuler le lot</span>
                                 </button>
                             ` : (isAllUndone ? `<span style="font-size: 11px; color: #ef4444; font-style: italic;">Lot annulé</span>` : '')}
                         </div>
@@ -1351,16 +1512,16 @@ window.AutopilotView = {
     formatReasonBadge(reason) {
         if (!reason) return '';
         const map = {
-            'linked_forecast': '🔗 Liaison prévision',
-            'manual_link_review': '🔗 Liaison prévision',
-            'reviewed_by_user': '✏️ Revue manuelle',
+            'linked_forecast': 'Liaison prévision',
+            'manual_link_review': 'Liaison prévision',
+            'reviewed_by_user': 'Revue manuelle',
             'rule': 'Règle',
             'history': 'Historique',
             'fallback_catchall': 'Catégorie par défaut',
             'chameleon_default': 'Caméléon défaut',
             'chameleon_ai': 'Caméléon IA',
-            'ai_existing': 'IA (existante)',
-            'ai_new_category': 'IA (nouvelle cat.)',
+            'ai_existing': 'IA existante',
+            'ai_new_category': 'Nouvelle cat. IA',
             'provisional_auto_commit': 'Écriture prévisionnelle'
         };
         const label = map[reason] || reason;
@@ -1376,13 +1537,13 @@ window.AutopilotView = {
         }
 
         const typeLabels = {
-            reconciliation: '🔗 Rapprochement',
-            new_entry: '✍️ Écriture créée',
-            recurrence_promotion: '🔄 Récurrence promue',
-            recurrence_hike: '📈 Hausse tarifaire',
-            budget_suggestion: '🎯 Recalibrage Budget',
-            budget_creation_suggestion: '✨ Création Enveloppe',
-            budget_recurrence_sync: '🔄 Sync Budget-Récurrence',
+            reconciliation: 'Rapprochement',
+            new_entry: 'Écriture créée',
+            recurrence_promotion: 'Récurrence promue',
+            recurrence_hike: 'Hausse tarifaire',
+            budget_suggestion: 'Recalibrage Budget',
+            budget_creation_suggestion: 'Création Enveloppe',
+            budget_recurrence_sync: 'Sync Budget-Récurrence',
         };
         const typeLabel = typeLabels[d.decision_type] || d.decision_type;
 
@@ -1422,8 +1583,8 @@ window.AutopilotView = {
                             ${d.raw_label && d.raw_label !== d.label ? `<span style="font-size: 11px; color: var(--text-muted); font-weight: normal; margin-left: 6px;">(${escapeHtml(d.raw_label)})</span>` : ''}
                         </div>
                         <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-                            <span>🏷️ ${escapeHtml(d.category || '—')}</span>
-                            ${d.account_name ? `<span>🏦 ${escapeHtml(d.account_name)}</span>` : ''}
+                            <span style="display: inline-flex; align-items: center; gap: 4px;">${this._icons.tag} ${escapeHtml(d.category || '—')}</span>
+                            ${d.account_name ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${this._icons.shield} ${escapeHtml(d.account_name)}</span>` : ''}
                             ${this.formatReasonBadge(d.reason)}
                         </div>
                     </div>
@@ -1432,25 +1593,25 @@ window.AutopilotView = {
                     <span style="font-size: 13.5px; font-weight: 700; color: ${amtColor}; min-width: 80px; text-align: right;">${amtDisplay}</span>
                     ${scoreBadge}
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px;" onclick="window.AutopilotView.inspectDecisionEntity(${d.id})" title="${window.i18n.t('autopilot_inspect_item') || 'Localiser l\'élément concerné'}">
-                            🔍
+                        <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center;" onclick="window.AutopilotView.inspectDecisionEntity(${d.id})" title="${window.i18n.t('autopilot_inspect_item') || 'Localiser l\'élément concerné'}">
+                            ${this._icons.search}
                         </button>
                         ${isUndone ? `
                             <span class="badge" style="font-size: 10px; background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid #ef4444;">Annulé</span>
                         ` : `
                             <div style="display: flex; gap: 6px;">
                                 ${d.entity_type === 'transaction' && d.decision_type === 'reconciliation' ? `
-                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px;" onclick="window.AutopilotView.unpointDecision(${d.id}, this)" title="Dépointer la transaction">
-                                        🔓 Dépointer
+                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.unpointDecision(${d.id}, this)" title="Dépointer la transaction">
+                                        ${this._icons.unpoint} <span>Dépointer</span>
                                     </button>
                                 ` : `
-                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px;" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="Annuler cette décision">
-                                        ↺ Annuler
+                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="Annuler cette décision">
+                                        ${this._icons.undo} <span>Annuler</span>
                                     </button>
                                 `}
                                 ${d.entity_type === 'transaction' ? `
-                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px;" data-decision-id="${d.id}" data-label="${escapeHtml(d.label || '')}" data-category="${escapeHtml(d.category || '')}" data-amount="${d.amount}" onclick="window.AutopilotView.onOverrideClick(this)" title="Modifier et apprendre">
-                                        ✏️
+                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center;" data-decision-id="${d.id}" data-label="${escapeHtml(d.label || '')}" data-category="${escapeHtml(d.category || '')}" data-amount="${d.amount}" onclick="window.AutopilotView.onOverrideClick(this)" title="Modifier et apprendre">
+                                        ${this._icons.edit}
                                     </button>
                                 ` : ''}
                             </div>
@@ -1774,7 +1935,7 @@ window.AutopilotView = {
                 candContainer.innerHTML = `
                     <div style="background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
                         <div style="font-size: 11.5px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                            <span>💡</span> <span>Prévision(s) récurrente(s) suggérée(s) pour fusion :</span>
+                            <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.link}</span> <span>Prévision(s) récurrente(s) suggérée(s) pour fusion :</span>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 8px;">
                             ${item.candidate_forecasts.map(cf => `
@@ -1785,7 +1946,9 @@ window.AutopilotView = {
                                     </div>
                                     <div class="candidate-forecast-action" style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
                                         <span style="font-weight: 700; font-size: 13px; color: var(--accent); white-space: nowrap;">${Number(cf.amount).toFixed(2)} €</span>
-                                        <button type="button" class="btn btn-primary btn-sm" style="font-size: 11.5px; font-weight: 700; padding: 5px 12px; display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer;" onclick="event.stopPropagation(); window.AutopilotView.promptInlineLinkConfirm(this, ${txId}, ${cf.id})"><span>🔗 Lier</span></button>
+                                        <button type="button" class="btn btn-primary btn-sm" style="font-size: 11.5px; font-weight: 700; padding: 5px 12px; display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer;" onclick="event.stopPropagation(); window.AutopilotView.promptInlineLinkConfirm(this, ${txId}, ${cf.id})">
+                                            ${this._icons.link} <span>Lier</span>
+                                        </button>
                                     </div>
                                 </div>
                             `).join('')}
