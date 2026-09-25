@@ -253,7 +253,7 @@ window.AutopilotView = {
                                 </div>
 
                                 <!-- Slot Compte à Rebours Cylon Scanner (Battlestar Galactica) -->
-                                <div id="apHeroCylonScanner" class="ap-cylon-scanner-slot" style="display: none;">
+                                <div id="apHeroCylonScanner" class="ap-cylon-scanner-slot" style="display: none; cursor: pointer;" onclick="window.AutopilotView.onCylonScannerClick(event)" title="Cliquez pour forcer ou inspecter le relevé bancaire">
                                     <div class="ap-cylon-track">
                                         <div class="ap-cylon-eye"></div>
                                     </div>
@@ -718,6 +718,14 @@ window.AutopilotView = {
 
         window.removeEventListener('transactions_changed', handleRefresh);
         window.addEventListener('transactions_changed', handleRefresh);
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && window.app && window.app.currentView === 'autopilot') {
+                this.refresh();
+            }
+        };
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
     },
 
     _nextExecTimer: null,
@@ -755,6 +763,96 @@ window.AutopilotView = {
         }
     },
 
+    _syncTrackingTimer: null,
+    _isTrackingActiveSync: false,
+    _lastKnownExecutionAt: null,
+
+    _startActiveSyncTracker() {
+        if (this._syncTrackingTimer) return;
+        this._isTrackingActiveSync = true;
+
+        const poll = async () => {
+            try {
+                if (window.app && window.app.currentView !== 'autopilot') {
+                    this._stopActiveSyncTracker();
+                    return;
+                }
+                const status = await API.get('/api/autopilot/status');
+                const prevLastExec = this._lastKnownExecutionAt;
+                const newLastExec = status?.last_execution_at;
+                const isSyncing = !!status?.is_syncing;
+                const remSec = status?.next_execution_countdown_seconds;
+
+                // Si le relevé est terminé et que le nouveau décompte s'est réarmé (ou date d'exécution mise à jour)
+                if (!isSyncing && ((remSec !== null && remSec > 5) || (newLastExec && prevLastExec && newLastExec !== prevLastExec))) {
+                    this._stopActiveSyncTracker();
+                    this._status = status;
+                    this._lastKnownExecutionAt = newLastExec;
+                    await this.refresh();
+                    window.dispatchEvent(new CustomEvent('bank_sync_completed'));
+                    window.dispatchEvent(new CustomEvent('autopilot_updated'));
+                    window.dispatchEvent(new CustomEvent('transactions_updated'));
+                    window.dispatchEvent(new CustomEvent('transactions_changed'));
+                    if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+                        window.app.updateAutopilotBadge();
+                    }
+                    if (window.app && typeof window.app.loadNotifications === 'function') {
+                        window.app.loadNotifications();
+                    }
+                    return;
+                } else {
+                    // Toujours en cours d'exécution : maintenir l'affichage live
+                    this._status = status;
+                    const syncBanner = document.getElementById('apSyncingBanner');
+                    if (syncBanner) syncBanner.style.display = isSyncing ? 'flex' : 'none';
+                    const timeEl = document.getElementById('apHeroCountdownTime');
+                    if (timeEl && (isSyncing || remSec <= 0)) {
+                        timeEl.textContent = window.i18n ? window.i18n.t('autopilot_sync_running') : 'Relevé en cours...';
+                    }
+                }
+            } catch (e) {
+                console.warn('[AutopilotView] Erreur polling sync reactive:', e);
+            }
+            if (this._isTrackingActiveSync) {
+                this._syncTrackingTimer = setTimeout(poll, 2000);
+            }
+        };
+
+        this._syncTrackingTimer = setTimeout(poll, 1500);
+    },
+
+    _stopActiveSyncTracker() {
+        this._isTrackingActiveSync = false;
+        if (this._syncTrackingTimer) {
+            clearTimeout(this._syncTrackingTimer);
+            this._syncTrackingTimer = null;
+        }
+    },
+
+    async onCylonScannerClick(event) {
+        if (event) event.stopPropagation();
+        const isVaultUnlocked = !!this._status?.vault_unlocked;
+        if (!isVaultUnlocked) {
+            if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') {
+                window.BankSyncView.unlockVaultManually();
+            }
+            return;
+        }
+        if (this._status?.is_syncing) {
+            showToast(window.i18n ? (window.i18n.t('autopilot_sync_in_progress') || 'Un relevé automatique est déjà en cours...') : 'Un relevé automatique est déjà en cours...', 'info');
+            return;
+        }
+        try {
+            showToast(window.i18n ? (window.i18n.t('autopilot_sync_running') || 'Lancement du relevé...') : 'Lancement du relevé...', 'info');
+            const timeEl = document.getElementById('apHeroCountdownTime');
+            if (timeEl) timeEl.textContent = window.i18n ? window.i18n.t('autopilot_sync_running') : 'Relevé en cours...';
+            this._startActiveSyncTracker();
+            await API.post('/api/bank-sync/trigger-auto-sync', { force: true, trigger_source: 'manual' });
+        } catch (e) {
+            console.warn('[AutopilotView] Erreur déclenchement sync manuel:', e);
+        }
+    },
+
     startNextExecCountdown(status) {
         if (this._nextExecTimer) {
             clearInterval(this._nextExecTimer);
@@ -770,10 +868,12 @@ window.AutopilotView = {
         const isVaultUnlocked = !!status?.vault_unlocked;
         const nextIso = status?.next_execution_at;
         const remSecFromStatus = status?.next_execution_countdown_seconds;
+        this._lastKnownExecutionAt = status?.last_execution_at || null;
 
         // Point 5 : Masquer le compte à rebours en mode désactivé ou sans auto-sync
         if (!isEnabled || !isAutoSyncEnabled) {
             scannerEl.style.display = 'none';
+            this._stopActiveSyncTracker();
             return;
         }
 
@@ -781,7 +881,15 @@ window.AutopilotView = {
         scannerEl.style.display = 'flex';
 
         if (!isVaultUnlocked) {
+            this._stopActiveSyncTracker();
             countdownTimeEl.innerHTML = `<span style="color: #f59e0b; font-size: 11px; cursor: pointer;" onclick="event.stopPropagation(); window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="${window.i18n ? window.i18n.t('autopilot_vault_locked_title') : 'Déverrouiller le coffre pour reprendre les relevés'}">${window.i18n ? window.i18n.t('autopilot_vault_locked') : 'Coffre verrouillé'}</span>`;
+            return;
+        }
+
+        // Si le relevé est actuellement en cours sur le serveur ou que le compte à rebours est à 0
+        if (status?.is_syncing || (remSecFromStatus !== null && remSecFromStatus <= 0)) {
+            countdownTimeEl.textContent = window.i18n ? window.i18n.t('autopilot_sync_running') : 'Relevé en cours...';
+            this._startActiveSyncTracker();
             return;
         }
 
@@ -835,11 +943,10 @@ window.AutopilotView = {
                     clearInterval(this._nextExecTimer);
                     this._nextExecTimer = null;
                 }
-                setTimeout(() => {
-                    if (window.app && window.app.currentView === 'autopilot') {
-                        this.refresh();
-                    }
-                }, 5000);
+                timeEl.textContent = window.i18n ? window.i18n.t('autopilot_sync_running') : 'Relevé en cours...';
+                // Déclencher proactivement la synchronisation planifiée et démarrer le tracker réactif
+                API.post('/api/bank-sync/trigger-auto-sync', { force: false, trigger_source: 'scheduled' }).catch(() => {});
+                this._startActiveSyncTracker();
             }
         };
 
