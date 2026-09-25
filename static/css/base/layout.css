@@ -1100,6 +1100,26 @@ h3 {
 }
 
 /* Auto-Sync Widget & Vault Countdown styling */
+.bank-sync-vault-pill {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    cursor: pointer;
+    line-height: 1;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    white-space: nowrap;
+}
+
+.bank-sync-vault-pill:hover {
+    transform: translateY(-1px);
+}
+
 .bank-sync-auto-sync-widget {
     height: 36px;
     padding: 0 12px;
@@ -1113,7 +1133,6 @@ h3 {
     transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
     white-space: nowrap;
 }
-
 
 .bank-sync-auto-sync-widget:hover {
     transform: translateY(-1px);
@@ -1132,6 +1151,76 @@ h3 {
         box-shadow: 0 0 10px 2px rgba(245, 158, 11, 0.35);
         border-color: #fbbf24;
     }
+}
+
+/* ── Encadrés & Toolbar Cockpit Auto-Pilote ── */
+.autopilot-header-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.autopilot-toolbar-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 4px 6px;
+    box-sizing: border-box;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.autopilot-toolbar-group .bank-sync-vault-wrapper,
+.autopilot-toolbar-group .bank-sync-auto-sync-widget-slot {
+    display: inline-flex;
+    align-items: center;
+}
+
+.ap-header-btn {
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    padding: 0 14px !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+    border: 1px solid var(--border-color) !important;
+    background: var(--bg-card, var(--bg-surface)) !important;
+    color: var(--text-main) !important;
+    cursor: pointer !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease !important;
+}
+
+.ap-header-btn:hover {
+    transform: translateY(-1px);
+    background: rgba(145, 158, 171, 0.16) !important;
+    border-color: var(--accent) !important;
+}
+
+.autopilot-master-switch-wrapper {
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    box-sizing: border-box !important;
+    background: var(--bg-card, var(--bg-surface)) !important;
+    border: 1px solid var(--border-color) !important;
+    margin: 0 !important;
+    line-height: 1 !important;
 }
 
 .overview-add-btn {
