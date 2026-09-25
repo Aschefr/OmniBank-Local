@@ -43,100 +43,134 @@ window.AutopilotView = {
 
     _subtogglesDef: [
         {
+            categoryKey: 'autopilot_cat_operations',
             category: 'Opérations & Ingestion',
             iconKey: 'inbox',
             items: [
                 {
                     key: 'auto_reconcile_transactions',
+                    labelKey: 'autopilot_subtoggle_auto_reconcile_transactions',
                     label: 'Auto-Rapprochement haute certitude',
+                    descKey: 'autopilot_subtoggle_auto_reconcile_transactions_desc',
                     desc: 'Pointe et réconcilie automatiquement les écritures bancaires avec vos prévisions lorsque le score de confiance atteint le seuil.'
                 },
                 {
                     key: 'auto_commit_incoming_transactions',
+                    labelKey: 'autopilot_subtoggle_auto_commit_incoming_transactions',
                     label: 'Enregistrement direct des écritures',
+                    descKey: 'autopilot_subtoggle_auto_commit_incoming_transactions_desc',
                     desc: 'Intègre immédiatement les opérations confirmées en base pour garantir l\'alignement strict du solde bancaire.'
                 },
                 {
                     key: 'auto_assign_chameleon_fallback',
+                    labelKey: 'autopilot_subtoggle_auto_assign_chameleon_fallback',
                     label: 'Catégorisation repli / caméléon',
+                    descKey: 'autopilot_subtoggle_auto_assign_chameleon_fallback_desc',
                     desc: 'Assigne une catégorie de repli temporaire sécurisée pour les marchands inconnus afin de ne bloquer aucun flux.'
                 },
                 {
                     key: 'auto_close_empty_import_sas',
+                    labelKey: 'autopilot_subtoggle_auto_close_empty_import_sas',
                     label: 'Fermeture automatique du Sas d\'attente',
+                    descKey: 'autopilot_subtoggle_auto_close_empty_import_sas_desc',
                     desc: 'Clôture automatiquement le sas d\'import dès que l\'ensemble des écritures du lot ont été traitées.'
                 },
                 {
                     key: 'bank_auto_sync_enabled',
+                    labelKey: 'autopilot_subtoggle_bank_auto_sync_enabled',
                     label: 'Synchronisation bancaire en arrière-plan',
+                    descKey: 'autopilot_subtoggle_bank_auto_sync_enabled_desc',
                     desc: 'Effectue le relevé bancaire périodique autonome (3h à 48h) lorsque le coffre-fort est déverrouillé.'
                 }
             ]
         },
         {
+            categoryKey: 'autopilot_cat_merchants',
             category: 'Marchands & Catégories',
             iconKey: 'tag',
             items: [
                 {
                     key: 'auto_learn_merchant_rules',
+                    labelKey: 'autopilot_subtoggle_auto_learn_merchant_rules',
                     label: 'Apprentissage autonome des marchands',
+                    descKey: 'autopilot_subtoggle_auto_learn_merchant_rules_desc',
                     desc: 'Mémorise automatiquement vos arbitrages dans les règles marchands pour classifier sans faille les prochains relevés.'
                 },
                 {
                     key: 'auto_create_missing_categories',
+                    labelKey: 'autopilot_subtoggle_auto_create_missing_categories',
                     label: 'Création autonome des catégories',
+                    descKey: 'autopilot_subtoggle_auto_create_missing_categories_desc',
                     desc: 'Crée automatiquement les catégories détectées lors de l\'enrichissement des flux bancaires.'
                 }
             ]
         },
         {
+            categoryKey: 'autopilot_cat_recurrences',
             category: 'Récurrences & Abonnements',
             iconKey: 'repeat',
             items: [
                 {
                     key: 'auto_link_deviant_recurrences',
+                    labelKey: 'autopilot_subtoggle_auto_link_deviant_recurrences',
                     label: 'Rapprochement déviant tolérant',
+                    descKey: 'autopilot_subtoggle_auto_link_deviant_recurrences_desc',
                     desc: 'Rapproche les prélèvements récurrents dont le montant fluctue dans une fourchette tolérée de ±15%.'
                 },
                 {
                     key: 'auto_propagate_recurrence_hikes',
+                    labelKey: 'autopilot_subtoggle_auto_propagate_recurrence_hikes',
                     label: 'Propagation automatique des hausses',
+                    descKey: 'autopilot_subtoggle_auto_propagate_recurrence_hikes_desc',
                     desc: 'Ajuste le montant prévisionnel d\'un abonnement lorsqu\'une hausse tarifaire est constatée sur 3 échéances consécutives.'
                 },
                 {
                     key: 'auto_skip_unreconciled_recurrences',
+                    labelKey: 'autopilot_subtoggle_auto_skip_unreconciled_recurrences',
                     label: 'Saut d\'échéance automatique',
+                    descKey: 'autopilot_subtoggle_auto_skip_unreconciled_recurrences_desc',
                     desc: 'Marque comme passée toute échéance récurrente non constatée à la fin du mois sans altérer le template.'
                 },
                 {
                     key: 'auto_close_unreconciled_recurrences',
+                    labelKey: 'autopilot_subtoggle_auto_close_unreconciled_recurrences',
                     label: 'Clôture après échéances manquées',
+                    descKey: 'autopilot_subtoggle_auto_close_unreconciled_recurrences_desc',
                     desc: 'Désactive automatiquement un abonnement récurrent après N échéances consécutives jamais prélevées.'
                 }
             ]
         },
         {
+            categoryKey: 'autopilot_cat_budgets',
             category: 'Budgets & Enveloppes',
             iconKey: 'chart',
             items: [
                 {
                     key: 'enable_budget_creation_suggestions',
+                    labelKey: 'autopilot_subtoggle_enable_budget_creation_suggestions',
                     label: 'Suggestions de nouvelles enveloppes',
+                    descKey: 'autopilot_subtoggle_enable_budget_creation_suggestions_desc',
                     desc: 'Analyse vos dépenses réelles pour proposer la création d\'enveloppes sur vos postes récurrents.'
                 },
                 {
                     key: 'enable_budget_recalibration_suggestions',
+                    labelKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions',
                     label: 'Suggestions de recalibrage mensuel',
+                    descKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions_desc',
                     desc: 'Calcule des propositions d\'ajustement lissé (filtre EMA 3-6 mois) pour vos budgets sous ou sur-consommés.'
                 },
                 {
                     key: 'auto_create_budget_envelopes',
+                    labelKey: 'autopilot_subtoggle_auto_create_budget_envelopes',
                     label: 'Création 100% autonome des enveloppes',
+                    descKey: 'autopilot_subtoggle_auto_create_budget_envelopes_desc',
                     desc: 'Valide et crée immédiatement les enveloppes suggérées sans attendre votre approbation manuelle.'
                 },
                 {
                     key: 'auto_apply_budget_suggestions',
+                    labelKey: 'autopilot_subtoggle_auto_apply_budget_suggestions',
                     label: 'Application 100% autonome des recalibrages',
+                    descKey: 'autopilot_subtoggle_auto_apply_budget_suggestions_desc',
                     desc: 'Applique automatiquement les nouveaux plafonds budgétaires calculés au 1er de chaque mois.'
                 }
             ]
@@ -150,7 +184,7 @@ window.AutopilotView = {
                 <div id="apEngagementHud" class="ap-engagement-hud" style="display: none;" onclick="window.AutopilotView.dismissEngagementHud(event)">
                     <div class="ap-hud-backdrop-glow"></div>
                     <div class="ap-hud-scan-beam"></div>
-                    <div class="ap-hud-banner" onclick="event.stopPropagation()">
+                    <div class="ap-hud-banner" onclick="event.stopPropagation()" onmouseenter="window.AutopilotView.pauseHudTimer()" onmouseleave="window.AutopilotView.resumeHudTimer()">
                         <div class="ap-hud-gyro-wrap">
                             <div class="ap-hud-gyro-ring ring-1"></div>
                             <div class="ap-hud-gyro-ring ring-2"></div>
@@ -158,29 +192,34 @@ window.AutopilotView = {
                         </div>
                         <div class="ap-hud-info">
                             <div class="ap-hud-tag-row">
-                                <span class="ap-hud-status-badge">AUTO-PILOTE ENGAGÉ</span>
-                                <span class="ap-hud-live-indicator"><span class="ap-hud-live-dot"></span> EN MISSION</span>
+                                <span class="ap-hud-status-badge" data-i18n="autopilot_hud_status_engaged">${window.i18n ? window.i18n.t('autopilot_hud_status_engaged') : 'AUTO-PILOTE ENGAGÉ'}</span>
+                                <span class="ap-hud-live-indicator"><span class="ap-hud-live-dot"></span> <span data-i18n="autopilot_hud_status_mission">${window.i18n ? window.i18n.t('autopilot_hud_status_mission') : 'EN MISSION'}</span></span>
                             </div>
-                            <h3 class="ap-hud-title">OmniBank prend les commandes</h3>
-                            <p class="ap-hud-desc">Installez-vous confortablement : vos soldes, catégorisations et prévisions sont gérés et surveillés en toute autonomie.</p>
+                            <h3 class="ap-hud-title" data-i18n="autopilot_hud_title">${window.i18n ? window.i18n.t('autopilot_hud_title') : 'OmniBank prend les commandes'}</h3>
+                            <p class="ap-hud-desc" data-i18n="autopilot_hud_desc">${window.i18n ? window.i18n.t('autopilot_hud_desc') : 'Installez-vous confortablement : vos soldes, catégorisations et prévisions sont gérés et surveillés en toute autonomie.'}</p>
                             <div class="ap-hud-pills-row">
-                                <span class="ap-hud-pill"><span>✓</span> Relevés Périodiques</span>
-                                <span class="ap-hud-pill"><span>✓</span> Pointage Auto Haute Confiance</span>
-                                <span class="ap-hud-pill"><span>✓</span> 15 Briques Armées</span>
+                                <span class="ap-hud-pill" data-i18n="autopilot_hud_pill_sync"><span>✓</span> ${window.i18n ? window.i18n.t('autopilot_hud_pill_sync') : 'Relevés Périodiques'}</span>
+                                <span class="ap-hud-pill" data-i18n="autopilot_hud_pill_reconcile"><span>✓</span> ${window.i18n ? window.i18n.t('autopilot_hud_pill_reconcile') : 'Pointage Auto Haute Confiance'}</span>
+                                <span class="ap-hud-pill" data-i18n="autopilot_hud_pill_briques"><span>✓</span> ${window.i18n ? window.i18n.t('autopilot_hud_pill_briques') : '15 Briques Armées'}</span>
                             </div>
                         </div>
-                        <button type="button" class="ap-hud-close-btn" onclick="window.AutopilotView.dismissEngagementHud(event)" title="Fermer">✕</button>
+                        <button type="button" class="ap-hud-close-btn" onclick="window.AutopilotView.dismissEngagementHud(event)" title="${window.i18n ? window.i18n.t('autopilot_hud_close_title') : 'Fermer'}">✕</button>
+                        <div class="ap-hud-progress-track">
+                            <div id="apHudProgressBar" class="ap-hud-progress-bar"></div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Header / Cockpit Bar -->
                 <div class="view-header-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
                     <div class="view-header-title-group" style="display: flex; align-items: center; gap: 12px;">
-                        ${this._icons.steeringWheel}
+                        <span style="cursor: pointer; display: inline-flex;" onclick="window.AutopilotView.showEngagementHud()" title="${window.i18n ? window.i18n.t('autopilot_hud_tooltip') : 'Afficher le résumé de mission Auto-Pilote'}">
+                            ${this._icons.steeringWheel}
+                        </span>
                         <div>
                             <h2 class="view-header-title" style="margin: 0; display: flex; align-items: center; gap: 10px;">
                                 <span data-i18n="autopilot_control_center_title">${window.i18n.t('autopilot_control_center_title') || 'Centre de Contrôle Auto-Pilote'}</span>
-                                <span id="apStatusBadge" class="badge" style="font-size: 11px; padding: 3px 10px; border-radius: 12px; vertical-align: middle;"></span>
+                                <span id="apStatusBadge" class="badge" onclick="window.AutopilotView.showEngagementHud()" title="${window.i18n ? window.i18n.t('autopilot_status_badge_tooltip') : 'Cliquez pour afficher le résumé de mission Auto-Pilote'}" style="font-size: 11px; padding: 3px 10px; border-radius: 12px; vertical-align: middle; cursor: pointer; transition: transform 0.15s ease;"></span>
                             </h2>
                             <p style="margin: 3px 0 0 0; color: var(--text-muted); font-size: 13px;" data-i18n="autopilot_control_center_desc">
                                 ${window.i18n.t('autopilot_control_center_desc') || 'Supervisez l\'autonomie de vos flux bancaires, ajustez le seuil de tolérance et annulez des décisions en un clic.'}
@@ -188,20 +227,19 @@ window.AutopilotView = {
                         </div>
                     </div>
                     <div class="autopilot-header-toolbar">
-                        <!-- Encadré 1 : Flux Bancaire & Coffre-Fort -->
+                        <!-- Encadré 1 : Relevé Bancaire Automatique -->
                         <div id="apBankSyncGroup" class="autopilot-toolbar-group" style="display: none;">
-                            <span id="apVaultPill" class="bank-sync-vault-wrapper" style="display: none;"></span>
-                            <div id="apAutoSyncCompact" class="bank-sync-auto-sync-widget-slot" style="display: none;"></div>
+                            <div id="apAutoSyncCompact" class="bank-sync-auto-sync-widget-slot"></div>
                         </div>
 
                         <!-- Encadré 2 : Pilotage & Briques Modulaires -->
                         <div class="autopilot-toolbar-group" style="gap: 10px;">
-                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="Configurer les 15 briques et le seuil" style="display: inline-flex; align-items: center; gap: 6px;">
-                                ${this._icons.settings} <span>Réglages & Briques</span> <span id="apActiveBriquesBadge" class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/15</span>
+                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="${window.i18n ? window.i18n.t('autopilot_settings_btn_title') : 'Configurer les 15 briques et le seuil'}" style="display: inline-flex; align-items: center; gap: 6px;">
+                                ${this._icons.settings} <span data-i18n="autopilot_settings_and_bricks">${window.i18n ? window.i18n.t('autopilot_settings_and_bricks') : 'Réglages & Briques'}</span> <span id="apActiveBriquesBadge" class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/15</span>
                             </button>
 
                             <!-- Hero Master Cockpit Switch (Bouton d'activation Grand Format & Tactile) -->
-                            <div id="apHeroMasterSwitch" class="ap-hero-master-switch is-inactive" onclick="window.AutopilotView.onHeroSwitchClick(event)" title="Activer / Mettre en veille le mode Auto-Pilote">
+                            <div id="apHeroMasterSwitch" class="ap-hero-master-switch is-inactive" onclick="window.AutopilotView.onHeroSwitchClick(event)" title="${window.i18n ? window.i18n.t('autopilot_master_toggle_title') : 'Activer / Mettre en veille le mode Auto-Pilote'}">
                                 <div class="ap-hero-switch-knob">
                                     <span class="ap-hero-switch-icon-inactive">${this._icons.power}</span>
                                     <span class="ap-hero-switch-icon-active">${this._icons.steeringWheelMini}</span>
@@ -211,7 +249,7 @@ window.AutopilotView = {
                                         <span class="ap-hero-switch-title" data-i18n="autopilot_master_toggle">${window.i18n.t('autopilot_master_toggle') || 'Auto-Pilote'}</span>
                                         <span class="ap-hero-switch-dot"></span>
                                     </div>
-                                    <div id="apHeroSwitchStateText" class="ap-hero-switch-state">En veille</div>
+                                    <div id="apHeroSwitchStateText" class="ap-hero-switch-state" data-i18n="autopilot_state_standby">${window.i18n ? window.i18n.t('autopilot_state_standby') : 'En veille'}</div>
                                 </div>
 
                                 <!-- Slot Compte à Rebours Cylon Scanner (Battlestar Galactica) -->
@@ -220,7 +258,7 @@ window.AutopilotView = {
                                         <div class="ap-cylon-eye"></div>
                                     </div>
                                     <div class="ap-cylon-content">
-                                        <span class="ap-cylon-label">PROCHAIN RELEVÉ</span>
+                                        <span class="ap-cylon-label" data-i18n="autopilot_next_sync_label">${window.i18n ? window.i18n.t('autopilot_next_sync_label') : 'PROCHAIN RELEVÉ'}</span>
                                         <span id="apHeroCountdownTime" class="ap-cylon-time">--</span>
                                     </div>
                                 </div>
@@ -247,8 +285,8 @@ window.AutopilotView = {
                             <div class="ap-kpi-panel-header">
                                 <span class="ap-kpi-panel-icon">${this._icons.gauge}</span>
                                 <div>
-                                    <h3 class="ap-kpi-panel-title">Performance</h3>
-                                    <p class="ap-kpi-panel-subtitle">Gains & précision de l'auto-pilote</p>
+                                    <h3 class="ap-kpi-panel-title" data-i18n="autopilot_kpi_panel_title">${window.i18n ? window.i18n.t('autopilot_kpi_panel_title') : 'Performance'}</h3>
+                                    <p class="ap-kpi-panel-subtitle" data-i18n="autopilot_kpi_panel_subtitle">${window.i18n ? window.i18n.t('autopilot_kpi_panel_subtitle') : 'Gains & précision de l\'auto-pilote'}</p>
                                 </div>
                             </div>
 
@@ -289,11 +327,11 @@ window.AutopilotView = {
                             <!-- System & Sync Info Footer -->
                             <div class="ap-kpi-status-list">
                                 <div class="ap-kpi-status-row">
-                                    <span class="ap-kpi-status-label">Coffre-fort :</span>
+                                    <span class="ap-kpi-status-label" data-i18n="autopilot_kpi_vault_label">${window.i18n ? window.i18n.t('autopilot_kpi_vault_label') : 'Coffre-fort :'}</span>
                                     <span id="apVaultStatusInline" class="ap-kpi-status-val">--</span>
                                 </div>
                                 <div class="ap-kpi-status-row">
-                                    <span class="ap-kpi-status-label">Dernier relevé :</span>
+                                    <span class="ap-kpi-status-label" data-i18n="autopilot_kpi_last_sync_label">${window.i18n ? window.i18n.t('autopilot_kpi_last_sync_label') : 'Dernier relevé :'}</span>
                                     <span id="apLastExecTime" class="ap-kpi-status-val">--</span>
                                 </div>
                             </div>
@@ -317,7 +355,7 @@ window.AutopilotView = {
                                     </div>
                                 </div>
                                 <div class="ap-collapsible-actions">
-                                    <span id="apReviewSummaryPill" class="ap-summary-pill" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">0 à vérifier</span>
+                                    <span id="apReviewSummaryPill" class="ap-summary-pill" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);" data-i18n="autopilot_review_pill_initial">${window.i18n ? window.i18n.t('autopilot_review_pill_initial') : '0 à vérifier'}</span>
                                     <span id="apReviewChevron" class="ap-chevron">▾</span>
                                 </div>
                             </div>
@@ -355,8 +393,8 @@ window.AutopilotView = {
                                         <input type="checkbox" id="feedShowUndone" checked onchange="window.AutopilotView.onFilterChange()">
                                         <span data-i18n="autopilot_show_undone">${window.i18n.t('autopilot_show_undone') || 'Inclure annulées'}</span>
                                     </label>
-                                    <button id="apToggleAllBatchesBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.toggleAllBatches()" style="font-size: 11.5px; padding: 4px 10px;">
-                                        Replier les lots
+                                    <button id="apToggleAllBatchesBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.toggleAllBatches()" style="font-size: 11.5px; padding: 4px 10px;" data-i18n="autopilot_feed_collapse_batches">
+                                        ${window.i18n ? window.i18n.t('autopilot_feed_collapse_batches') : 'Replier les lots'}
                                     </button>
                                 </div>
                             </div>
@@ -364,8 +402,8 @@ window.AutopilotView = {
                             <div style="padding: 18px 20px;">
                                 <!-- Decision Items Container -->
                                 <div id="apDecisionsFeed" style="min-height: 200px;">
-                                    <div style="text-align: center; padding: 40px; color: var(--text-muted);" data-i18n="label_loading">
-                                        Chargement du journal d'audit...
+                                    <div style="text-align: center; padding: 40px; color: var(--text-muted);" data-i18n="autopilot_feed_loading">
+                                        ${window.i18n ? window.i18n.t('autopilot_feed_loading') : 'Chargement du journal d\'audit...'}
                                     </div>
                                 </div>
 
@@ -373,8 +411,8 @@ window.AutopilotView = {
                                 <div id="apPaginationBar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 12px; color: var(--text-muted);">
                                     <span id="apPaginationInfo"></span>
                                     <div style="display: flex; gap: 8px;">
-                                        <button id="apPrevPageBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.prevPage()" disabled>◀ Précédent</button>
-                                        <button id="apNextPageBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.nextPage()" disabled>Suivant ▶</button>
+                                        <button id="apPrevPageBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.prevPage()" disabled data-i18n="autopilot_feed_pagination_prev">${window.i18n ? window.i18n.t('autopilot_feed_pagination_prev') : '◀ Précédent'}</button>
+                                        <button id="apNextPageBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.nextPage()" disabled data-i18n="autopilot_feed_pagination_next">${window.i18n ? window.i18n.t('autopilot_feed_pagination_next') : 'Suivant ▶'}</button>
                                     </div>
                                 </div>
                             </div>
@@ -386,12 +424,12 @@ window.AutopilotView = {
                                 <div class="ap-collapsible-title-group">
                                     <span class="ap-collapsible-icon" style="color: var(--accent);">${this._icons.brain}</span>
                                     <div>
-                                        <h3 class="ap-collapsible-title">Atelier des Règles & Apprentissages</h3>
-                                        <p class="ap-collapsible-subtitle">Correspondances marchands et motifs appris automatiquement au fil de vos opérations</p>
+                                        <h3 class="ap-collapsible-title" data-i18n="autopilot_workshop_title">${window.i18n ? window.i18n.t('autopilot_workshop_title') : 'Atelier des Règles & Apprentissages'}</h3>
+                                        <p class="ap-collapsible-subtitle" data-i18n="autopilot_workshop_subtitle">${window.i18n ? window.i18n.t('autopilot_workshop_subtitle') : 'Correspondances marchands et motifs appris automatiquement au fil de vos opérations'}</p>
                                     </div>
                                 </div>
                                 <div class="ap-collapsible-actions">
-                                    <span id="apWorkshopSummaryPill" class="ap-summary-pill">0 règle active</span>
+                                    <span id="apWorkshopSummaryPill" class="ap-summary-pill" data-i18n="autopilot_workshop_pill_initial">${window.i18n ? window.i18n.t('autopilot_workshop_pill_initial') : '0 règle active'}</span>
                                     <span id="apWorkshopChevron" class="ap-chevron">▾</span>
                                 </div>
                             </div>
@@ -414,10 +452,10 @@ window.AutopilotView = {
                     <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                         <div>
                             <h3 style="margin: 0 0 3px 0; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                                <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.settings}</span> <span>Réglages d'Autonomie & Briques Élémentaires</span>
+                                <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.settings}</span> <span data-i18n="autopilot_drawer_title">${window.i18n ? window.i18n.t('autopilot_drawer_title') : 'Réglages d\'Autonomie & Briques Élémentaires'}</span>
                             </h3>
-                            <p style="margin: 0; font-size: 12px; color: var(--text-muted);">
-                                Seuil de tolérance et contrôle individuel des 15 automatismes
+                            <p style="margin: 0; font-size: 12px; color: var(--text-muted);" data-i18n="autopilot_drawer_subtitle">
+                                ${window.i18n ? window.i18n.t('autopilot_drawer_subtitle') : 'Seuil de tolérance et contrôle individuel des 15 automatismes'}
                             </p>
                         </div>
                         <button type="button" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.closeSettingsDrawer()" style="padding: 4px 9px; font-size: 15px; border-radius: 8px; line-height: 1;">✕</button>
@@ -460,9 +498,9 @@ window.AutopilotView = {
                         <div>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <h4 style="font-size: 13.5px; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-                                    <span style="color: var(--accent); display: inline-flex;">${this._icons.package}</span> <span>Les 15 Briques d'Autonomie Modulaires</span>
+                                    <span style="color: var(--accent); display: inline-flex;">${this._icons.package}</span> <span data-i18n="autopilot_drawer_briques_title">${window.i18n ? window.i18n.t('autopilot_drawer_briques_title') : 'Les 15 Briques d\'Autonomie Modulaires'}</span>
                                 </h4>
-                                <span style="font-size: 11px; color: var(--text-muted);">Contrôle fin à la carte</span>
+                                <span style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_drawer_briques_subtitle">${window.i18n ? window.i18n.t('autopilot_drawer_briques_subtitle') : 'Contrôle fin à la carte'}</span>
                             </div>
                             <div id="apSubtogglesDrawerList">
                                 <!-- Injected dynamically by renderSubtogglesInDrawer() -->
@@ -473,10 +511,10 @@ window.AutopilotView = {
                     <!-- Drawer Footer -->
                     <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); flex-shrink: 0;">
                         <button type="button" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.resetToDefaultSubtoggles()" style="display: inline-flex; align-items: center; gap: 6px;">
-                            ${this._icons.repeat} <span>Rétablir la sélection recommandée</span>
+                            ${this._icons.repeat} <span data-i18n="autopilot_drawer_reset_recommended">${window.i18n ? window.i18n.t('autopilot_drawer_reset_recommended') : 'Rétablir la sélection recommandée'}</span>
                         </button>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="window.AutopilotView.closeSettingsDrawer()">
-                            Fermer
+                        <button type="button" class="btn btn-primary btn-sm" onclick="window.AutopilotView.closeSettingsDrawer()" data-i18n="autopilot_drawer_close">
+                            ${window.i18n ? window.i18n.t('autopilot_drawer_close') : 'Fermer'}
                         </button>
                     </div>
                 </div>
@@ -574,7 +612,7 @@ window.AutopilotView = {
                                         direction: 'debit',
                                         inputClass: 'input-styled',
                                         placeholder: window.i18n ? (window.i18n.t('cat_picker_select') || '-- Catégorie --') : '-- Catégorie --'
-                                    }) : '<input type="text" id="overrideCategory" class="input-styled" placeholder="Catégorie">'}
+                                    }) : `<input type="text" id="overrideCategory" class="input-styled" placeholder="${window.i18n ? window.i18n.t('autopilot_override_category_placeholder') : 'Catégorie'}">`}
                                 </div>
                                 <button type="button" 
                                         id="btnOverrideAiClassify" 
@@ -597,7 +635,7 @@ window.AutopilotView = {
                                 </span>
                             </div>
                             <div class="ap-override-input-wrap">
-                                <input type="number" id="overrideAmount" step="0.01" class="input-styled" style="padding-right: 32px; font-weight: 600;" onkeydown="if(event.key==='Enter') window.AutopilotView.submitOverride()">
+                                <input type="number" id="overrideAmount" step="0.01" class="input-styled privacy-blur" style="padding-right: 32px; font-weight: 600;" onkeydown="if(event.key==='Enter') window.AutopilotView.submitOverride()">
                                 <span class="ap-override-input-icon" style="font-weight: 700;">€</span>
                             </div>
                         </div>
@@ -743,7 +781,7 @@ window.AutopilotView = {
         scannerEl.style.display = 'flex';
 
         if (!isVaultUnlocked) {
-            countdownTimeEl.innerHTML = `<span style="color: #f59e0b; font-size: 11px; cursor: pointer;" onclick="event.stopPropagation(); window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="Déverrouiller le coffre pour reprendre les relevés">Coffre verrouillé</span>`;
+            countdownTimeEl.innerHTML = `<span style="color: #f59e0b; font-size: 11px; cursor: pointer;" onclick="event.stopPropagation(); window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="${window.i18n ? window.i18n.t('autopilot_vault_locked_title') : 'Déverrouiller le coffre pour reprendre les relevés'}">${window.i18n ? window.i18n.t('autopilot_vault_locked') : 'Coffre verrouillé'}</span>`;
             return;
         }
 
@@ -756,14 +794,14 @@ window.AutopilotView = {
         }
 
         if (!targetEnd) {
-            countdownTimeEl.textContent = 'À l\'import';
+            countdownTimeEl.textContent = window.i18n ? window.i18n.t('autopilot_sync_on_import') : 'À l\'import';
             return;
         }
 
         this._targetNextExecEnd = targetEnd;
 
         const formatRem = (seconds) => {
-            if (seconds <= 0) return 'Relevé en cours...';
+            if (seconds <= 0) return window.i18n ? window.i18n.t('autopilot_sync_running') : 'Relevé en cours...';
             const hrs = Math.floor(seconds / 3600);
             const mins = Math.floor((seconds % 3600) / 60);
             const secs = Math.floor(seconds % 60);
@@ -789,7 +827,7 @@ window.AutopilotView = {
             const remSec = Math.max(0, Math.floor(diffMs / 1000));
             timeEl.textContent = formatRem(remSec);
             if (targetEnd) {
-                timeEl.title = `Prochain relevé prévu le ${new Date(targetEnd).toLocaleString()}`;
+                timeEl.title = window.i18n ? window.i18n.t('autopilot_sync_next_scheduled').replace('{datetime}', new Date(targetEnd).toLocaleString()) : `Prochain relevé prévu le ${new Date(targetEnd).toLocaleString()}`;
             }
 
             if (remSec <= 0) {
@@ -824,7 +862,7 @@ window.AutopilotView = {
             heroSwitch.classList.toggle('is-inactive', !isEnabled);
         }
         if (heroStateText) {
-            heroStateText.textContent = isEnabled ? 'En mission (Actif)' : 'En veille';
+            heroStateText.textContent = isEnabled ? (window.i18n ? window.i18n.t('autopilot_state_active') : 'En mission (Actif)') : (window.i18n ? window.i18n.t('autopilot_state_standby') : 'En veille');
         }
 
         // Point 2 : Griser / Dégriser la page en mode désactivé
@@ -836,16 +874,19 @@ window.AutopilotView = {
 
         const badge = document.getElementById('apStatusBadge');
         if (badge) {
+            badge.style.cursor = 'pointer';
             if (isEnabled) {
                 badge.textContent = window.i18n ? (window.i18n.t('autopilot_status_active') || 'ACTIF') : 'ACTIF';
                 badge.style.background = 'rgba(16,185,129,0.15)';
                 badge.style.color = '#10b981';
                 badge.style.border = '1px solid #10b981';
+                badge.title = window.i18n ? window.i18n.t('autopilot_status_active_tooltip') : 'Auto-Pilote actif — Cliquez pour revoir le résumé de mission';
             } else {
                 badge.textContent = window.i18n ? (window.i18n.t('autopilot_status_inactive') || 'INACTIF') : 'INACTIF';
                 badge.style.background = 'rgba(107,114,128,0.15)';
                 badge.style.color = '#9ca3af';
                 badge.style.border = '1px solid #6b7280';
+                badge.title = window.i18n ? window.i18n.t('autopilot_status_badge_tooltip') : 'Auto-Pilote en veille — Cliquez pour afficher le briefing';
             }
         }
 
@@ -878,19 +919,19 @@ window.AutopilotView = {
 
                     const timeStr = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     if (isToday) {
-                        lastExecEl.textContent = `Aujourd'hui à ${timeStr}`;
+                        lastExecEl.textContent = window.i18n ? window.i18n.t('autopilot_kpi_today_at').replace('{time}', timeStr) : `Aujourd'hui à ${timeStr}`;
                     } else if (isYesterday) {
-                        lastExecEl.textContent = `Hier à ${timeStr}`;
+                        lastExecEl.textContent = window.i18n ? window.i18n.t('autopilot_kpi_yesterday_at').replace('{time}', timeStr) : `Hier à ${timeStr}`;
                     } else {
                         const dateStr = dt.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
-                        lastExecEl.textContent = `${dateStr} à ${timeStr}`;
+                        lastExecEl.textContent = window.i18n ? window.i18n.t('autopilot_kpi_date_at').replace('{date}', dateStr).replace('{time}', timeStr) : `${dateStr} à ${timeStr}`;
                     }
                     lastExecEl.title = dt.toLocaleString();
                 } catch (e) {
-                    lastExecEl.textContent = 'Récemment';
+                    lastExecEl.textContent = window.i18n ? window.i18n.t('autopilot_kpi_recently') : 'Récemment';
                 }
             } else {
-                lastExecEl.textContent = 'Aucun relevé';
+                lastExecEl.textContent = window.i18n ? window.i18n.t('autopilot_kpi_no_sync') : 'Aucun relevé';
             }
         }
 
@@ -951,7 +992,7 @@ window.AutopilotView = {
                 if (previewText && res) {
                     const rel = res.becoming_reliable_count || 0;
                     const rev = res.becoming_review_count || 0;
-                    previewText.innerHTML = `<strong>${rel}</strong> deviendront fiable(s), <strong>${rev}</strong> nécessiteront une vérification.`;
+                    previewText.innerHTML = window.i18n ? window.i18n.t('autopilot_threshold_preview_result').replace('{rel}', rel).replace('{rev}', rev) : `<strong>${rel}</strong> deviendront fiable(s), <strong>${rev}</strong> nécessiteront une vérification.`;
                 }
                 if (btnApply) {
                     btnApply.style.display = 'inline-block';
@@ -974,7 +1015,7 @@ window.AutopilotView = {
                 apply_to_existing: true
             });
             const applied = res.applied_count || 0;
-            showToast(`Seuil fixé à ${val}%. ${applied} écriture(s) mise(s) à jour.`, 'success');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_threshold_applied').replace('{val}', val).replace('{applied}', applied) : `Seuil fixé à ${val}%. ${applied} écriture(s) mise(s) à jour.`, 'success');
             await this.refresh();
             if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
                 window.app.updateAutopilotBadge();
@@ -982,7 +1023,7 @@ window.AutopilotView = {
             window.dispatchEvent(new CustomEvent('autopilot_updated'));
             window.dispatchEvent(new CustomEvent('transactions_updated'));
         } catch (e) {
-            showToast('Erreur application seuil aux écritures', 'error');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_threshold_apply_error') : 'Erreur application seuil aux écritures', 'error');
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -992,10 +1033,10 @@ window.AutopilotView = {
         try {
             const num = parseFloat(val);
             await API.put('/api/autopilot/threshold', { threshold: num });
-            showToast(`Seuil de tolérance fixé à ${num}%`, 'success');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_threshold_saved').replace('{num}', num) : `Seuil de tolérance fixé à ${num}%`, 'success');
             await this.loadStatus();
         } catch (e) {
-            showToast('Erreur mise à jour seuil', 'error');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_threshold_error') : 'Erreur mise à jour seuil', 'error');
         }
     },
 
@@ -1030,28 +1071,31 @@ window.AutopilotView = {
         container.innerHTML = (this._subtogglesDef || []).map(group => {
             const groupActiveCount = group.items.filter(it => !!subtoggles[it.key]).length;
             const groupIcon = this._icons[group.iconKey] || '';
+            const catTitle = window.i18n ? (window.i18n.t(group.categoryKey) || group.category) : group.category;
             return `
                 <div style="background: var(--bg-card, var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 16px; overflow: hidden;">
                     <div style="padding: 12px 16px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="display: inline-flex; align-items: center; color: var(--accent);">${groupIcon}</span>
-                            <span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${group.category}</span>
+                            <span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${escapeHtml(catTitle)}</span>
                         </div>
                         <span class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.12); color: var(--accent);">
-                            ${groupActiveCount}/${group.items.length} actives
+                            ${groupActiveCount}/${group.items.length}
                         </span>
                     </div>
                     <div style="padding: 10px 16px; display: flex; flex-direction: column; gap: 10px;">
                         ${group.items.map(item => {
                             const isChecked = !!subtoggles[item.key];
+                            const itemLabel = window.i18n ? (window.i18n.t(item.labelKey) || item.label) : item.label;
+                            const itemDesc = window.i18n ? (window.i18n.t(item.descKey) || item.desc) : item.desc;
                             return `
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
                                     <div style="flex: 1; min-width: 0;">
                                         <div style="font-size: 12.5px; font-weight: 600; color: ${isChecked ? 'var(--text-main)' : 'var(--text-muted)'}; margin-bottom: 2px;">
-                                            ${item.label}
+                                            ${escapeHtml(itemLabel)}
                                         </div>
                                         <div style="font-size: 11px; color: var(--text-muted); line-height: 1.35;">
-                                            ${item.desc}
+                                            ${escapeHtml(itemDesc)}
                                         </div>
                                     </div>
                                     <label class="switch" style="margin: 0; flex-shrink: 0;">
@@ -1079,7 +1123,7 @@ window.AutopilotView = {
             window.dispatchEvent(new CustomEvent('autopilot_updated'));
         } catch (e) {
             console.error('[AutopilotView] Erreur mise à jour subtoggle:', e);
-            showToast('Erreur lors de la mise à jour de l\'automatisme', 'error');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_subtoggle_error') : 'Erreur lors de la mise à jour de l\'automatisme', 'error');
             this.renderSubtogglesInDrawer();
         }
     },
@@ -1091,10 +1135,10 @@ window.AutopilotView = {
                 (cat.items || []).forEach(it => allKeys.push(it.key));
             });
             await Promise.all(allKeys.map(k => API.post('/api/autopilot/subtoggle', { key: k, enabled: true })));
-            showToast('Toutes les 15 briques d\'autonomie sont activées', 'success');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_briques_reset') : 'Toutes les 15 briques d\'autonomie sont activées', 'success');
             await this.loadStatus();
         } catch (e) {
-            showToast('Erreur réinitialisation des briques', 'error');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_briques_reset_error') : 'Erreur réinitialisation des briques', 'error');
         }
     },
 
@@ -1108,7 +1152,7 @@ window.AutopilotView = {
             this.renderReviewQueue();
         } catch (e) {
             console.warn('[AutopilotView] Erreur chargement file de revue:', e);
-            container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);">Erreur lors du chargement des opérations à vérifier.</div>`;
+            container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);" data-i18n="autopilot_review_error">${window.i18n ? window.i18n.t('autopilot_review_error') : 'Erreur lors du chargement des opérations à vérifier.'}</div>`;
         }
     },
 
@@ -1119,7 +1163,7 @@ window.AutopilotView = {
 
         const count = (this._reviewQueue || []).length;
         if (pill) {
-            pill.textContent = `${count} à vérifier`;
+            pill.textContent = window.i18n ? window.i18n.t('autopilot_review_count_badge').replace('{count}', count) : `${count} à vérifier`;
             pill.style.background = count > 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.12)';
             pill.style.color = count > 0 ? '#f59e0b' : '#10b981';
             pill.style.borderColor = count > 0 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)';
@@ -1130,7 +1174,7 @@ window.AutopilotView = {
                 <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px;">
                     <div style="display: inline-flex; align-items: center; gap: 8px; color: #10b981; font-weight: 600;">
                         ${this._icons.check}
-                        <span>${window.i18n ? (window.i18n.t('autopilot_review_queue_empty') || 'Aucune opération en attente de vérification. Toutes vos opérations intégrées sont fiables.') : 'Aucune opération en attente de vérification.'}</span>
+                        <span data-i18n="autopilot_review_empty">${window.i18n ? (window.i18n.t('autopilot_review_empty') || 'Aucune opération en attente de vérification. Vos relevés sont parfaitement synchronisés !') : 'Aucune opération en attente de vérification.'}</span>
                     </div>
                 </div>
             `;
@@ -1143,13 +1187,13 @@ window.AutopilotView = {
                 <table class="table ap-review-desktop-table" style="width: 100%; min-width: 780px; font-size: 12.5px; border-collapse: separate; border-spacing: 0 6px;">
                     <thead>
                         <tr style="text-align: left; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color);">
-                            <th style="padding: 8px 12px; width: 95px;">Date</th>
-                            <th style="padding: 8px 12px; width: 140px;">Compte</th>
-                            <th style="padding: 8px 12px; min-width: 260px;">Libellé Brut & Identifié</th>
-                            <th style="padding: 8px 12px; width: 130px;">Catégorie</th>
-                            <th style="padding: 8px 12px; width: 110px; text-align: right;">Montant</th>
-                            <th style="padding: 8px 12px; width: 90px; text-align: center;">Confiance</th>
-                            <th style="padding: 8px 12px; text-align: right; width: 180px;">Actions</th>
+                            <th style="padding: 8px 12px; width: 95px;" data-i18n="autopilot_review_th_date">${window.i18n ? window.i18n.t('autopilot_review_th_date') : 'Date'}</th>
+                            <th style="padding: 8px 12px; width: 140px;" data-i18n="label_account">${window.i18n ? window.i18n.t('label_account') : 'Compte'}</th>
+                            <th style="padding: 8px 12px; min-width: 260px;" data-i18n="autopilot_review_th_desc">${window.i18n ? window.i18n.t('autopilot_review_th_desc') : 'Libellé Brut & Identifié'}</th>
+                            <th style="padding: 8px 12px; width: 130px;" data-i18n="autopilot_review_th_category">${window.i18n ? window.i18n.t('autopilot_review_th_category') : 'Catégorie'}</th>
+                            <th style="padding: 8px 12px; width: 110px; text-align: right;" data-i18n="autopilot_review_th_amount">${window.i18n ? window.i18n.t('autopilot_review_th_amount') : 'Montant'}</th>
+                            <th style="padding: 8px 12px; width: 90px; text-align: center;" data-i18n="autopilot_review_col_confidence">${window.i18n ? window.i18n.t('autopilot_review_col_confidence') : 'Confiance'}</th>
+                            <th style="padding: 8px 12px; text-align: right; width: 180px;" data-i18n="autopilot_review_th_actions">${window.i18n ? window.i18n.t('autopilot_review_th_actions') : 'Actions'}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1176,7 +1220,7 @@ window.AutopilotView = {
                                     ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 2px;">${escapeHtml(item.raw_description)}</div>` : ''}
                                     ${bestCandidate ? `
                                         <div style="margin-top: 6px; font-size: 11.5px; color: var(--accent); background: rgba(99,102,241,0.08); padding: 4px 10px; border-radius: 6px; border: 1px dashed rgba(99,102,241,0.3); display: inline-flex; align-items: center; gap: 6px; line-height: 1.3;">
-                                            <span style="display: inline-flex; align-items: center; gap: 5px;">${this._icons.link} <span>Prévision : <strong>${escapeHtml(bestCandidate.description)}</strong> (${Number(bestCandidate.amount).toFixed(2)} €)</span></span>
+                                            <span style="display: inline-flex; align-items: center; gap: 5px;">${this._icons.link} <span><span data-i18n="autopilot_review_forecast_detected">${window.i18n ? window.i18n.t('autopilot_review_forecast_detected') : 'Prévision :'}</span> <strong>${escapeHtml(bestCandidate.description)}</strong> (<span class="privacy-blur">${Number(bestCandidate.amount).toFixed(2)} €</span>)</span></span>
                                         </div>
                                     ` : ''}
                                 </td>
@@ -1184,7 +1228,7 @@ window.AutopilotView = {
                                     <span class="badge" style="font-size: 11px; font-weight: 600;">${escapeHtml(item.category || '—')}</span>
                                 </td>
                                 <td style="padding: 12px; text-align: right; white-space: nowrap; font-weight: 700; font-size: 13.5px; color: ${amtColor}; vertical-align: middle;">
-                                    ${amtStr}
+                                    <span class="privacy-blur">${amtStr}</span>
                                 </td>
                                 <td style="padding: 12px; text-align: center; white-space: nowrap; vertical-align: middle;">
                                     <span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
@@ -1195,8 +1239,8 @@ window.AutopilotView = {
                                     <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
                                         ${bestCandidate ? `
                                             <div class="candidate-forecast-action" style="display: inline-flex; align-items: center;">
-                                                <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 10px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})" title="Lier à la prévision '${escapeHtml(bestCandidate.description)}' sans créer de doublon">
-                                                    ${this._icons.link} <span>Lier</span>
+                                                <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 10px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})" title="${window.i18n ? window.i18n.t('autopilot_review_btn_link_title').replace('{desc}', escapeHtml(bestCandidate.description)) : `Lier à la prévision '${escapeHtml(bestCandidate.description)}' sans créer de doublon`}">
+                                                    ${this._icons.link} <span data-i18n="autopilot_review_btn_link">${window.i18n ? window.i18n.t('autopilot_review_btn_link') : 'Lier'}</span>
                                                 </button>
                                             </div>
                                         ` : `
@@ -1234,7 +1278,7 @@ window.AutopilotView = {
                                     </span>
                                     <span style="font-size: 11.5px; color: var(--text-muted);">${dateStr}</span>
                                 </div>
-                                <div style="font-size: 15px; font-weight: 800; color: ${amtColor};">
+                                <div class="privacy-blur" style="font-size: 15px; font-weight: 800; color: ${amtColor};">
                                     ${amtStr}
                                 </div>
                             </div>
@@ -1246,10 +1290,10 @@ window.AutopilotView = {
 
                             ${bestCandidate ? `
                                 <div style="background: rgba(99,102,241,0.08); border: 1px dashed rgba(99,102,241,0.3); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--text-main);">
-                                    <div style="font-weight: 600; color: var(--accent); margin-bottom: 2px; display: inline-flex; align-items: center; gap: 4px;">${this._icons.link} Prévision suggérée :</div>
+                                    <div style="font-weight: 600; color: var(--accent); margin-bottom: 2px; display: inline-flex; align-items: center; gap: 4px;">${this._icons.link} <span data-i18n="autopilot_review_suggested_forecast">${window.i18n ? window.i18n.t('autopilot_review_suggested_forecast') : 'Prévision suggérée :'}</span></div>
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
                                         <span>${escapeHtml(bestCandidate.description)}</span>
-                                        <span style="font-weight: 700; color: var(--accent);">${Number(bestCandidate.amount).toFixed(2)} €</span>
+                                        <span class="privacy-blur" style="font-weight: 700; color: var(--accent);">${Number(bestCandidate.amount).toFixed(2)} €</span>
                                     </div>
                                 </div>
                             ` : ''}
@@ -1274,7 +1318,7 @@ window.AutopilotView = {
                                         </button>
                                     `}
                                     <button class="btn btn-primary btn-sm" style="padding: 5px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.openReviewModal(${item.id})">
-                                        ${this._icons.edit} <span>Éditer</span>
+                                        ${this._icons.edit} <span data-i18n="autopilot_review_btn_edit">${window.i18n ? window.i18n.t('autopilot_review_btn_edit') : 'Éditer'}</span>
                                     </button>
                                 </div>
                             </div>
@@ -1301,7 +1345,7 @@ window.AutopilotView = {
             window.dispatchEvent(new CustomEvent('autopilot_updated'));
             window.dispatchEvent(new CustomEvent('transactions_updated'));
         } catch (e) {
-            showToast('Erreur lors de la validation', 'error');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_validate_error') : 'Erreur lors de la validation', 'error');
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = `${this._icons.check} <span>Valider</span>`;
@@ -1343,7 +1387,7 @@ window.AutopilotView = {
                 learn_rule: true
             });
             this.closeOverrideModal();
-            showToast(res.message || 'Opération liée à la prévision avec succès', 'success');
+            showToast(res.message || (window.i18n ? window.i18n.t('autopilot_toast_link_success') : 'Opération liée à la prévision avec succès'), 'success');
             await this.refresh();
             if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
                 window.app.updateAutopilotBadge();
@@ -1351,7 +1395,7 @@ window.AutopilotView = {
             window.dispatchEvent(new CustomEvent('autopilot_updated'));
             window.dispatchEvent(new CustomEvent('transactions_updated'));
         } catch (e) {
-            showToast('Erreur lors de la liaison avec la prévision', 'error');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_link_error') : 'Erreur lors de la liaison avec la prévision', 'error');
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = `${this._icons.link} <span>Lier</span>`;
@@ -1368,6 +1412,16 @@ window.AutopilotView = {
     },
 
     _hudDismissTimer: null,
+    _hudProgressInterval: null,
+    _hudRemainingMs: 3000,
+    _hudTotalMs: 3000,
+    _hudStartTime: 0,
+    _hudIsPaused: false,
+
+    showEngagementHud() {
+        this.triggerEngagementExperience();
+    },
+
     triggerEngagementExperience() {
         const hud = document.getElementById('apEngagementHud');
         if (!hud) return;
@@ -1375,6 +1429,10 @@ window.AutopilotView = {
         if (this._hudDismissTimer) {
             clearTimeout(this._hudDismissTimer);
             this._hudDismissTimer = null;
+        }
+        if (this._hudProgressInterval) {
+            clearInterval(this._hudProgressInterval);
+            this._hudProgressInterval = null;
         }
 
         hud.classList.remove('ap-hud-leaving');
@@ -1388,10 +1446,58 @@ window.AutopilotView = {
             kpiPanel.classList.add('ap-panel-engaged');
         }
 
-        // Auto dismiss after 2.8s
-        this._hudDismissTimer = setTimeout(() => {
-            this.dismissEngagementHud();
-        }, 2800);
+        this._hudTotalMs = 3000;
+        this._hudRemainingMs = 3000;
+        this._hudStartTime = Date.now();
+        this._hudIsPaused = false;
+
+        const progressBar = document.getElementById('apHudProgressBar');
+        if (progressBar) {
+            progressBar.style.width = '100%';
+        }
+
+        this._startHudCountdown();
+    },
+
+    _startHudCountdown() {
+        if (this._hudProgressInterval) clearInterval(this._hudProgressInterval);
+
+        this._hudStartTime = Date.now();
+
+        const progressBar = document.getElementById('apHudProgressBar');
+
+        this._hudProgressInterval = setInterval(() => {
+            if (this._hudIsPaused) return;
+            const elapsed = Date.now() - this._hudStartTime;
+            const remaining = Math.max(0, this._hudRemainingMs - elapsed);
+            const percent = (remaining / this._hudTotalMs) * 100;
+            if (progressBar) {
+                progressBar.style.width = `${percent}%`;
+            }
+            if (remaining <= 0) {
+                clearInterval(this._hudProgressInterval);
+                this._hudProgressInterval = null;
+                this.dismissEngagementHud();
+            }
+        }, 40);
+    },
+
+    pauseHudTimer() {
+        if (this._hudIsPaused) return;
+        this._hudIsPaused = true;
+        const elapsed = Date.now() - this._hudStartTime;
+        this._hudRemainingMs = Math.max(300, this._hudRemainingMs - elapsed);
+    },
+
+    resumeHudTimer() {
+        if (!this._hudIsPaused) return;
+        this._hudIsPaused = false;
+        this._hudStartTime = Date.now();
+        // Keep at least 1.5s after hover to leave smoothly
+        if (this._hudRemainingMs < 1500) {
+            this._hudRemainingMs = 1500;
+            this._hudTotalMs = Math.max(this._hudTotalMs, 1500);
+        }
     },
 
     dismissEngagementHud(event) {
@@ -1402,6 +1508,10 @@ window.AutopilotView = {
         if (this._hudDismissTimer) {
             clearTimeout(this._hudDismissTimer);
             this._hudDismissTimer = null;
+        }
+        if (this._hudProgressInterval) {
+            clearInterval(this._hudProgressInterval);
+            this._hudProgressInterval = null;
         }
 
         hud.classList.add('ap-hud-leaving');
@@ -1419,11 +1529,11 @@ window.AutopilotView = {
             if (enabled) {
                 this.triggerEngagementExperience();
             } else {
-                showToast('Mode Manuel repris — Auto-Pilote en veille', 'info');
+                showToast(window.i18n ? window.i18n.t('autopilot_toast_manual_mode') : 'Mode Manuel repris — Auto-Pilote en veille', 'info');
             }
             window.dispatchEvent(new CustomEvent('autopilot_updated'));
         } catch (e) {
-            showToast('Erreur lors du basculement Auto-Pilote', 'error');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_toggle_error') : 'Erreur lors du basculement Auto-Pilote', 'error');
             await this.loadStatus();
         }
     },
@@ -1447,7 +1557,7 @@ window.AutopilotView = {
             this.renderDecisions();
             this.updatePagination();
         } catch (e) {
-            feed.innerHTML = `<div style="text-align:center; padding:30px; color:#ef4444;">Erreur de chargement du flux de décisions.</div>`;
+            feed.innerHTML = `<div style="text-align:center; padding:30px; color:#ef4444;" data-i18n="autopilot_feed_error">${window.i18n ? window.i18n.t('autopilot_feed_error') : 'Erreur de chargement du flux de décisions.'}</div>`;
         }
     },
 
@@ -1459,8 +1569,8 @@ window.AutopilotView = {
             feed.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: var(--text-muted);">
                     <div style="display: flex; justify-content: center; margin-bottom: 8px; color: var(--accent);">${this._icons.steeringWheel}</div>
-                    <div style="font-weight: 600;" data-i18n="autopilot_no_decisions">${window.i18n.t('autopilot_no_decisions') || 'Aucune décision enregistrée dans ce filtre.'}</div>
-                    <div style="font-size: 12px; margin-top: 4px;">Les futures opérations traitées automatiquement apparaîtront ici.</div>
+                    <div style="font-weight: 600;" data-i18n="autopilot_feed_empty">${window.i18n ? window.i18n.t('autopilot_feed_empty') : 'Aucune décision enregistrée.'}</div>
+                    <div style="font-size: 12px; margin-top: 4px;" data-i18n="autopilot_feed_empty_sub">${window.i18n ? window.i18n.t('autopilot_feed_empty_sub') : 'Les futures opérations traitées automatiquement apparaîtront ici.'}</div>
                 </div>
             `;
             return;
@@ -1479,23 +1589,37 @@ window.AutopilotView = {
             const first = items[0];
             const batchDate = first.created_at ? new Date(first.created_at).toLocaleString() : '';
             const isAllUndone = items.every(x => x.is_undone);
+            const isUnbatched = batchId === 'unbatched';
+            const batchTitle = isUnbatched 
+                ? (window.i18n ? window.i18n.t('autopilot_feed_unbatched_title') : 'Actions individuelles (hors lot)')
+                : (window.i18n ? window.i18n.t('autopilot_feed_batch_id_title').replace('{batchId}', batchId) : `Identifiant du lot : ${batchId}`);
+            const batchLabel = isUnbatched
+                ? (window.i18n ? window.i18n.t('autopilot_feed_unbatched_label') : 'Hors lot')
+                : (window.i18n ? window.i18n.t('autopilot_feed_batch_label') : 'Lot');
+            const batchShortDisplay = isUnbatched 
+                ? (window.i18n ? window.i18n.t('autopilot_feed_unbatched_short') : 'Hors lot')
+                : `#${batchId.substring(0, 8)}`;
+            const actionsCountLabel = window.i18n ? window.i18n.t('autopilot_feed_actions_count').replace('{count}', items.length) : `${items.length} action(s)`;
 
             html += `
                 <div class="ap-batch-card" id="apBatch_${escapeHtml(batchId)}" data-batch-id="${escapeHtml(batchId)}" style="opacity: ${isAllUndone ? '0.6' : '1'};">
                     <div class="ap-batch-header" onclick="window.AutopilotView.toggleBatch('${escapeHtml(batchId)}')">
-                        <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             <span class="ap-batch-chevron">▾</span>
                             <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.package}</span>
-                            <span style="font-weight: 700; font-size: 12.5px; font-family: monospace;">Lot ${batchId.substring(0, 8)}...</span>
+                            <span class="ap-batch-label-group" title="${escapeHtml(batchTitle)}">
+                                <span style="font-weight: 700; font-size: 12.5px;">${escapeHtml(batchLabel)}</span>
+                                ${!isUnbatched ? `<code class="ap-batch-code">${escapeHtml(batchShortDisplay)}</code>` : ''}
+                            </span>
                             <span style="font-size: 11.5px; color: var(--text-muted);">${batchDate}</span>
-                            <span class="badge" style="font-size: 10px; padding: 2px 8px; border-radius: 10px; background: rgba(99,102,241,0.1); color: var(--accent);">${items.length} action(s)</span>
+                            <span class="badge" style="font-size: 10px; padding: 2px 8px; border-radius: 10px; background: rgba(99,102,241,0.1); color: var(--accent);">${escapeHtml(actionsCountLabel)}</span>
                         </div>
                         <div onclick="event.stopPropagation()">
-                            ${!isAllUndone && batchId !== 'unbatched' ? `
+                            ${!isAllUndone && !isUnbatched ? `
                                 <button class="btn btn-danger btn-sm" style="font-size: 11px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;" data-batch-id="${escapeHtml(batchId)}" onclick="window.AutopilotView.onRollbackCycleClick(this)">
-                                    ${this._icons.undo} <span>Annuler le lot</span>
+                                    ${this._icons.undo} <span data-i18n="autopilot_feed_batch_rollback">${window.i18n ? window.i18n.t('autopilot_feed_batch_rollback') : 'Annuler le lot'}</span>
                                 </button>
-                            ` : (isAllUndone ? `<span style="font-size: 11px; color: #ef4444; font-style: italic;">Lot annulé</span>` : '')}
+                            ` : (isAllUndone ? `<span style="font-size: 11px; color: #ef4444; font-style: italic;" data-i18n="autopilot_feed_batch_undone">${window.i18n ? window.i18n.t('autopilot_feed_batch_undone') : 'Lot annulé'}</span>` : '')}
                         </div>
                     </div>
                     <div class="ap-batch-body" style="padding: 10px 16px;">
@@ -1511,21 +1635,11 @@ window.AutopilotView = {
 
     formatReasonBadge(reason) {
         if (!reason) return '';
-        const map = {
-            'linked_forecast': 'Liaison prévision',
-            'manual_link_review': 'Liaison prévision',
-            'reviewed_by_user': 'Revue manuelle',
-            'rule': 'Règle',
-            'history': 'Historique',
-            'fallback_catchall': 'Catégorie par défaut',
-            'chameleon_default': 'Caméléon défaut',
-            'chameleon_ai': 'Caméléon IA',
-            'ai_existing': 'IA existante',
-            'ai_new_category': 'Nouvelle cat. IA',
-            'provisional_auto_commit': 'Écriture prévisionnelle'
-        };
-        const label = map[reason] || reason;
-        return `<span class="ap-reason-badge" title="Raison de la décision : ${escapeHtml(reason)}">${escapeHtml(label)}</span>`;
+        const key = 'autopilot_reason_' + reason;
+        const translated = window.i18n ? window.i18n.t(key) : null;
+        const label = (translated && translated !== key) ? translated : reason;
+        const tooltip = window.i18n ? window.i18n.t('autopilot_feed_reason_title').replace('{reason}', escapeHtml(reason)) : `Raison de la décision : ${escapeHtml(reason)}`;
+        return `<span class="ap-reason-badge" title="${tooltip}">${escapeHtml(label)}</span>`;
     },
 
     _renderDecisionItem(d) {
@@ -1536,16 +1650,9 @@ window.AutopilotView = {
             scoreBadge = `<span style="font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 6px; background: ${color}22; color: ${color}; border: 1px solid ${color}44;">${score}%</span>`;
         }
 
-        const typeLabels = {
-            reconciliation: 'Rapprochement',
-            new_entry: 'Écriture créée',
-            recurrence_promotion: 'Récurrence promue',
-            recurrence_hike: 'Hausse tarifaire',
-            budget_suggestion: 'Recalibrage Budget',
-            budget_creation_suggestion: 'Création Enveloppe',
-            budget_recurrence_sync: 'Sync Budget-Récurrence',
-        };
-        const typeLabel = typeLabels[d.decision_type] || d.decision_type;
+        const typeKey = 'autopilot_type_' + d.decision_type;
+        const translatedType = window.i18n ? window.i18n.t(typeKey) : null;
+        const typeLabel = (translatedType && translatedType !== typeKey) ? translatedType : (d.decision_type || '');
 
         const isUndone = d.is_undone;
         
@@ -1579,7 +1686,7 @@ window.AutopilotView = {
                     <span style="font-size: 11.5px; font-weight: 600; color: var(--text-muted); min-width: 130px;">${typeLabel}</span>
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            ${escapeHtml(d.label || 'Sans libellé')}
+                            ${escapeHtml(d.label || (window.i18n ? window.i18n.t('autopilot_feed_no_label') : 'Sans libellé'))}
                             ${d.raw_label && d.raw_label !== d.label ? `<span style="font-size: 11px; color: var(--text-muted); font-weight: normal; margin-left: 6px;">(${escapeHtml(d.raw_label)})</span>` : ''}
                         </div>
                         <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
@@ -1590,27 +1697,27 @@ window.AutopilotView = {
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 13.5px; font-weight: 700; color: ${amtColor}; min-width: 80px; text-align: right;">${amtDisplay}</span>
+                    <span class="privacy-blur" style="font-size: 13.5px; font-weight: 700; color: ${amtColor}; min-width: 80px; text-align: right;">${amtDisplay}</span>
                     ${scoreBadge}
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center;" onclick="window.AutopilotView.inspectDecisionEntity(${d.id})" title="${window.i18n.t('autopilot_inspect_item') || 'Localiser l\'élément concerné'}">
                             ${this._icons.search}
                         </button>
                         ${isUndone ? `
-                            <span class="badge" style="font-size: 10px; background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid #ef4444;">Annulé</span>
+                            <span class="badge" style="font-size: 10px; background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid #ef4444;" data-i18n="autopilot_feed_badge_undone">${window.i18n ? window.i18n.t('autopilot_feed_badge_undone') : 'Annulé'}</span>
                         ` : `
                             <div style="display: flex; gap: 6px;">
                                 ${d.entity_type === 'transaction' && d.decision_type === 'reconciliation' ? `
-                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.unpointDecision(${d.id}, this)" title="Dépointer la transaction">
-                                        ${this._icons.unpoint} <span>Dépointer</span>
+                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.unpointDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint_title') : 'Dépointer la transaction'}">
+                                        ${this._icons.unpoint} <span data-i18n="autopilot_feed_btn_unpoint">${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint') : 'Dépointer'}</span>
                                     </button>
                                 ` : `
-                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="Annuler cette décision">
-                                        ${this._icons.undo} <span>Annuler</span>
+                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_rollback_title') : 'Annuler cette décision'}">
+                                        ${this._icons.undo} <span data-i18n="autopilot_feed_btn_rollback">${window.i18n ? window.i18n.t('autopilot_feed_btn_rollback') : 'Annuler'}</span>
                                     </button>
                                 `}
                                 ${d.entity_type === 'transaction' ? `
-                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center;" data-decision-id="${d.id}" data-label="${escapeHtml(d.label || '')}" data-category="${escapeHtml(d.category || '')}" data-amount="${d.amount}" onclick="window.AutopilotView.onOverrideClick(this)" title="Modifier et apprendre">
+                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center;" data-decision-id="${d.id}" data-label="${escapeHtml(d.label || '')}" data-category="${escapeHtml(d.category || '')}" data-amount="${d.amount}" onclick="window.AutopilotView.onOverrideClick(this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_override_title') : 'Modifier et apprendre'}">
                                         ${this._icons.edit}
                                     </button>
                                 ` : ''}
@@ -1677,7 +1784,7 @@ window.AutopilotView = {
 
         const totalPages = Math.ceil(this._totalDecisions / this._pageSize) || 1;
         if (info) {
-            info.textContent = `Page ${this._currentPage + 1} sur ${totalPages} (${this._totalDecisions} décision(s))`;
+            info.textContent = window.i18n ? window.i18n.t('autopilot_feed_pagination_info').replace('{page}', this._currentPage + 1).replace('{totalPages}', totalPages).replace('{total}', this._totalDecisions) : `Page ${this._currentPage + 1} sur ${totalPages} (${this._totalDecisions} décision(s))`;
         }
         if (prevBtn) prevBtn.disabled = (this._currentPage <= 0);
         if (nextBtn) nextBtn.disabled = (this._currentPage >= totalPages - 1);
@@ -1708,40 +1815,40 @@ window.AutopilotView = {
     },
 
     async rollbackDecision(decisionId, btn) {
-        showInlineConfirm(btn, 'Confirmer l\'annulation de cette décision ?', async () => {
+        showInlineConfirm(btn, window.i18n ? window.i18n.t('autopilot_confirm_rollback_decision') : 'Confirmer l\'annulation de cette décision ?', async () => {
             try {
                 const res = await API.post(`/api/autopilot/decisions/${decisionId}/rollback`, {});
-                showToast(res.message || 'Décision annulée', 'success');
+                showToast(res.message || (window.i18n ? window.i18n.t('autopilot_toast_decision_undone') : 'Décision annulée'), 'success');
                 await this.refresh();
                 window.dispatchEvent(new CustomEvent('autopilot_updated'));
             } catch (e) {
-                showToast('Échec de l\'annulation', 'error');
+                showToast(window.i18n ? window.i18n.t('autopilot_toast_rollback_error') : 'Échec de l\'annulation', 'error');
             }
         });
     },
 
     async unpointDecision(decisionId, btn) {
-        showInlineConfirm(btn, 'Dépointer cette transaction et rétablir la prévision ?', async () => {
+        showInlineConfirm(btn, window.i18n ? window.i18n.t('autopilot_confirm_unpoint') : 'Dépointer cette transaction et rétablir la prévision ?', async () => {
             try {
                 const res = await API.post(`/api/autopilot/decisions/${decisionId}/unpoint`, {});
-                showToast(res.message || 'Transaction dépointée', 'success');
+                showToast(res.message || (window.i18n ? window.i18n.t('autopilot_toast_unpoint_success') : 'Transaction dépointée'), 'success');
                 await this.refresh();
                 window.dispatchEvent(new CustomEvent('autopilot_updated'));
             } catch (e) {
-                showToast('Échec du dépointage', 'error');
+                showToast(window.i18n ? window.i18n.t('autopilot_toast_unpoint_error') : 'Échec du dépointage', 'error');
             }
         });
     },
 
     async rollbackCycle(batchId, btn) {
-        showInlineConfirm(btn, `Annuler l'intégralité du lot ${batchId.substring(0, 8)} et le renvoyer dans le Sas d'attente ?`, async () => {
+        showInlineConfirm(btn, window.i18n ? window.i18n.t('autopilot_confirm_rollback_batch').replace('{batchId}', batchId.substring(0, 8)) : `Annuler l'intégralité du lot ${batchId.substring(0, 8)} et le renvoyer dans le Sas d'attente ?`, async () => {
             try {
                 const res = await API.post(`/api/autopilot/rollback-cycle/${batchId}`, {});
-                showToast(res.message || 'Lot annulé et renvoyé dans le Sas', 'success');
+                showToast(res.message || (window.i18n ? window.i18n.t('autopilot_toast_batch_rollback_success') : 'Lot annulé et renvoyé dans le Sas'), 'success');
                 await this.refresh();
                 window.dispatchEvent(new CustomEvent('autopilot_updated'));
             } catch (e) {
-                showToast('Échec du rollback de lot', 'error');
+                showToast(window.i18n ? window.i18n.t('autopilot_toast_batch_rollback_error') : 'Échec du rollback de lot', 'error');
             }
         });
     },
@@ -1827,7 +1934,7 @@ window.AutopilotView = {
             window.CategoryPicker.setValue('overrideCategory', category || '', false);
         } else if (catContainer) {
             catContainer.innerHTML = `
-                <input type="text" id="overrideCategory" class="input-styled" value="${escapeHtml(category || '')}" placeholder="Catégorie">
+                <input type="text" id="overrideCategory" class="input-styled" value="${escapeHtml(category || '')}" placeholder="${window.i18n ? window.i18n.t('autopilot_override_category_placeholder') : 'Catégorie'}">
             `;
         }
 
@@ -1886,7 +1993,7 @@ window.AutopilotView = {
             cardEl.style.background = 'rgba(99, 102, 241, 0.08)';
         }
 
-        showToast(`Prévision '${desc}' sélectionnée pour fusion (cliquez sur "🔗 Lier" ou "Enregistrer")`, 'info');
+        showToast(window.i18n ? window.i18n.t('autopilot_toast_forecast_selected').replace('{desc}', desc) : `Prévision '${desc}' sélectionnée pour fusion (cliquez sur "🔗 Lier" ou "Enregistrer")`, 'info');
     },
 
     async openReviewModal(txId, label, category, amount) {
@@ -1935,17 +2042,17 @@ window.AutopilotView = {
                 candContainer.innerHTML = `
                     <div style="background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
                         <div style="font-size: 11.5px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                            <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.link}</span> <span>Prévision(s) récurrente(s) suggérée(s) pour fusion :</span>
+                            <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.link}</span> <span data-i18n="autopilot_override_forecast_candidates_title">${window.i18n ? window.i18n.t('autopilot_override_forecast_candidates_title') : 'Prévision(s) récurrente(s) suggérée(s) pour fusion :'}</span>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 8px;">
                             ${item.candidate_forecasts.map(cf => `
-                                <div class="candidate-forecast-card" data-forecast-id="${cf.id}" data-desc="${escapeHtml(cf.description)}" data-cat="${escapeHtml(cf.category || '')}" data-amount="${cf.amount}" style="padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.15s ease; gap: 14px;" onclick="window.AutopilotView.onCandidateCardClick(this)" title="Sélectionner pour fusionner avec cette prévision">
+                                <div class="candidate-forecast-card" data-forecast-id="${cf.id}" data-desc="${escapeHtml(cf.description)}" data-cat="${escapeHtml(cf.category || '')}" data-amount="${cf.amount}" style="padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.15s ease; gap: 14px;" onclick="window.AutopilotView.onCandidateCardClick(this)" title="${window.i18n ? window.i18n.t('autopilot_override_forecast_select_title') : 'Sélectionner pour fusionner avec cette prévision'}">
                                     <div style="flex: 1; min-width: 0;">
                                         <div style="font-weight: 600; font-size: 13px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(cf.description)}</div>
-                                        <div style="font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">Prévu le ${cf.date_operation} • Catégorie : <span style="color: var(--text-main); font-weight: 500;">${escapeHtml(cf.category || '—')}</span></div>
+                                        <div style="font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">${window.i18n ? window.i18n.t('autopilot_override_forecast_candidate_due').replace('{date}', cf.date_operation).replace('{category}', escapeHtml(cf.category || '—')) : `Prévu le ${cf.date_operation} • Catégorie : ${escapeHtml(cf.category || '—')}`}</div>
                                     </div>
                                     <div class="candidate-forecast-action" style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
-                                        <span style="font-weight: 700; font-size: 13px; color: var(--accent); white-space: nowrap;">${Number(cf.amount).toFixed(2)} €</span>
+                                        <span class="privacy-blur" style="font-weight: 700; font-size: 13px; color: var(--accent); white-space: nowrap;">${Number(cf.amount).toFixed(2)} €</span>
                                         <button type="button" class="btn btn-primary btn-sm" style="font-size: 11.5px; font-weight: 700; padding: 5px 12px; display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer;" onclick="event.stopPropagation(); window.AutopilotView.promptInlineLinkConfirm(this, ${txId}, ${cf.id})">
                                             ${this._icons.link} <span>Lier</span>
                                         </button>
@@ -2004,7 +2111,7 @@ window.AutopilotView = {
             window.CategoryPicker.setValue('overrideCategory', finalCategory || '', false);
         } else if (catContainer) {
             catContainer.innerHTML = `
-                <input type="text" id="overrideCategory" class="input-styled" value="${escapeHtml(finalCategory || '')}" placeholder="Catégorie">
+                <input type="text" id="overrideCategory" class="input-styled" value="${escapeHtml(finalCategory || '')}" placeholder="${window.i18n ? window.i18n.t('autopilot_override_category_placeholder') : 'Catégorie'}">
             `;
         }
 
@@ -2071,7 +2178,7 @@ window.AutopilotView = {
                 showToast(window.i18n ? (window.i18n.t('smart_label_ai_suggested') || 'Classification IA appliquée') : 'Classification IA appliquée', 'success');
             }
         } catch (e) {
-            showToast('Erreur lors de la suggestion IA', 'error');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_ai_error') : 'Erreur lors de la suggestion IA', 'error');
         } finally {
             if (btnEl) {
                 btnEl.innerHTML = origHtml;
@@ -2114,7 +2221,7 @@ window.AutopilotView = {
                 window.dispatchEvent(new CustomEvent('autopilot_updated'));
                 window.dispatchEvent(new CustomEvent('transactions_updated'));
             } catch (e) {
-                showToast('Erreur lors de la mise à jour de l\'opération', 'error');
+                showToast(window.i18n ? window.i18n.t('autopilot_toast_update_error') : 'Erreur lors de la mise à jour de l\'opération', 'error');
             } finally {
                 if (submitBtn) {
                     submitBtn.disabled = false;
@@ -2146,7 +2253,7 @@ window.AutopilotView = {
             window.dispatchEvent(new CustomEvent('autopilot_updated'));
             window.dispatchEvent(new CustomEvent('transactions_updated'));
         } catch (e) {
-            showToast('Erreur lors de la modification', 'error');
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_override_error') : 'Erreur lors de la modification', 'error');
         } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;
@@ -2164,7 +2271,7 @@ window.AutopilotView = {
             this._learnedRules = rules || [];
             this.renderLearnedRules();
         } catch (e) {
-            list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);">Aucune règle apprise pour l'instant.</div>`;
+            list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);" data-i18n="autopilot_workshop_empty">${window.i18n ? window.i18n.t('autopilot_workshop_empty') : 'Aucune règle apprise pour l\'instant.'}</div>`;
         }
     },
 
@@ -2174,8 +2281,8 @@ window.AutopilotView = {
 
         if (this._learnedRules.length === 0) {
             list.innerHTML = `
-                <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12.5px;">
-                    Aucune règle de correspondance enregistrée. Les règles s'apprennent automatiquement dès que vous validez ou modifiez des opérations.
+                <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12.5px;" data-i18n="autopilot_workshop_empty_sub">
+                    ${window.i18n ? window.i18n.t('autopilot_workshop_empty_sub') : 'Aucune règle de correspondance enregistrée. Les règles s\'apprennent automatiquement dès que vous validez ou modifiez des opérations.'}
                 </div>
             `;
             return;
@@ -2185,10 +2292,10 @@ window.AutopilotView = {
             <table class="table" style="width: 100%; font-size: 12px; margin-top: 6px;">
                 <thead>
                     <tr style="text-align: left; color: var(--text-muted); border-bottom: 1px solid var(--border-color);">
-                        <th style="padding: 6px 8px;">Motif Brut Détecté</th>
-                        <th style="padding: 6px 8px;">Libellé Propre</th>
-                        <th style="padding: 6px 8px;">Catégorie</th>
-                        <th style="padding: 6px 8px; text-align: right;">Origine</th>
+                        <th style="padding: 6px 8px;" data-i18n="autopilot_workshop_th_raw">${window.i18n ? window.i18n.t('autopilot_workshop_th_raw') : 'Motif Brut Détecté'}</th>
+                        <th style="padding: 6px 8px;" data-i18n="autopilot_workshop_th_clean">${window.i18n ? window.i18n.t('autopilot_workshop_th_clean') : 'Libellé Propre'}</th>
+                        <th style="padding: 6px 8px;" data-i18n="autopilot_workshop_th_category">${window.i18n ? window.i18n.t('autopilot_workshop_th_category') : 'Catégorie'}</th>
+                        <th style="padding: 6px 8px; text-align: right;" data-i18n="autopilot_workshop_th_confidence">${window.i18n ? window.i18n.t('autopilot_workshop_th_confidence') : 'Origine'}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2246,14 +2353,14 @@ window.AutopilotView = {
             const active = vals.filter(Boolean).length;
             const total = this._subtogglesDef ? this._subtogglesDef.reduce((acc, cat) => acc + (cat.items?.length || 0), 0) : 15;
             briquesBadge.textContent = `${active}/${total}`;
-            briquesBadge.title = `${active} sur ${total} automatismes actifs`;
+            briquesBadge.title = window.i18n ? window.i18n.t('autopilot_header_briques_badge_tooltip').replace('{active}', active).replace('{total}', total) : `${active} sur ${total} automatismes actifs`;
         }
 
         // Review pill
         const revPill = document.getElementById('apReviewSummaryPill');
         if (revPill) {
             const count = (this._reviewQueue || []).length;
-            revPill.textContent = `${count} à vérifier`;
+            revPill.textContent = window.i18n ? window.i18n.t('autopilot_review_count_badge').replace('{count}', count) : `${count} à vérifier`;
             revPill.style.background = count > 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.12)';
             revPill.style.color = count > 0 ? '#f59e0b' : '#10b981';
             revPill.style.borderColor = count > 0 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)';
@@ -2263,7 +2370,7 @@ window.AutopilotView = {
         const wPill = document.getElementById('apWorkshopSummaryPill');
         if (wPill) {
             const count = (this._learnedRules || []).length;
-            wPill.textContent = `${count} règle${count > 1 ? 's' : ''} active${count > 1 ? 's' : ''}`;
+            wPill.textContent = window.i18n ? window.i18n.t('autopilot_workshop_active_rules').replace('{count}', count).replace('{s}', count > 1 ? 's' : '') : `${count} règle${count > 1 ? 's' : ''} active${count > 1 ? 's' : ''}`;
         }
     },
 
@@ -2274,7 +2381,7 @@ window.AutopilotView = {
         cards.forEach(card => card.classList.toggle('collapsed', this._allBatchesCollapsed));
         const btn = document.getElementById('apToggleAllBatchesBtn');
         if (btn) {
-            btn.textContent = this._allBatchesCollapsed ? 'Déplier les lots' : 'Replier les lots';
+            btn.textContent = this._allBatchesCollapsed ? (window.i18n ? window.i18n.t('autopilot_feed_expand_batches') : 'Déplier les lots') : (window.i18n ? window.i18n.t('autopilot_feed_collapse_batches') : 'Replier les lots');
         }
     },
 

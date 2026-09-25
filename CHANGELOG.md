@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Complete Auto-Pilot Internationalization & UI Parity (FR / EN) 🌐✨**:
+  - Full bilingual coverage across 100% of Auto-Pilot Control Center UI: cockpit engagement HUD, 15 modular autonomy building blocks, manual review queue, candidate forecast picker, decision feed badges & filters, batch rollback dialogues, and all feedback toasts.
+  - Integrated privacy blur support on financial amounts across all Auto-Pilot KPI cards, tables, and candidate preview tiles.
+  - Enhanced cockpit engagement HUD with pause-on-hover timer and streamlined header toolbar layout.
 - **Auto-Pilot Post-Action Sovereign Paradigm & Intelligent Reconciliation Engine 🤖⚡**:
   - **Post-Action Direct Ingestion & Zero Blocking Modals**: Automatically records and reconciles incoming transactions directly into the database when Auto-Pilot is enabled, keeping account balances and Reste à Vivre live in real time. Suggested matches (60-84% confidence) and unclassified items are auto-committed with `needs_review = True` for smooth, non-blocking asynchronous audit in the Auto-Pilot Control Center.
   - **Universal Semantic Alias Dictionary**: Integrated a built-in semantic lookup engine (`UNIVERSAL_MERCHANT_ALIASES`) for public institutions and major utility providers (e.g. `DIRECTION GENERALE DES FINANCES` / `DGFIP` $\leftrightarrow$ `Impôts / Taxes`, `CPAM` $\leftrightarrow$ `Santé`, `CAF`, `URSSAF`, `EDF`, telecoms) combined with `BankLabelMapping` lookups during text scoring.
