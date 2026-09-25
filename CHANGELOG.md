@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Zero-F5 Reactive Auto-Pilot Synchronisation & Live Lifecycle Engine ⚡🔄**:
+  - **Instant Scheduled Trigger**: Auto-Pilot now proactively triggers scheduled bank synchronization cycles as soon as the countdown timer hits `00:00`, eliminating background loop delay.
+  - **Dynamic Active Sync Tracker**: Seamlessly polls sync state every 1.5–2 seconds while a background bank statement fetch is in progress, automatically refreshing KPIs, review queue items, decision audit logs, and next cycle countdowns in place with zero manual page reloads (F5).
+  - **Multi-Event Reactive Broadcast**: Emits real-time `bank_sync_completed`, `autopilot_updated`, and `transactions_updated` DOM events to keep header badges, notification counters, and account balances synchronized across all views.
+  - **Interactive Cylon Scanner & Focus Reactivity**: Cylon scanner indicator is directly clickable to force an immediate manual sync or unlock the secure credential vault, and automatically resynchronizes on browser tab focus (`visibilitychange`).
 - **Complete Auto-Pilot Internationalization & UI Parity (FR / EN) 🌐✨**:
   - Full bilingual coverage across 100% of Auto-Pilot Control Center UI: cockpit engagement HUD, 15 modular autonomy building blocks, manual review queue, candidate forecast picker, decision feed badges & filters, batch rollback dialogues, and all feedback toasts.
   - Integrated privacy blur support on financial amounts across all Auto-Pilot KPI cards, tables, and candidate preview tiles.
