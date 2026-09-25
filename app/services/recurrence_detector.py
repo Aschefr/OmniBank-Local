@@ -140,7 +140,7 @@ def detect_candidate_recurring_expenses(
     grouped: Dict[Tuple[str, float], List[Transaction]] = {}
     for t in eligible_txs:
         # Si c'est un paiement fractionné, on utilise le provider comme clé
-        frac = parse_fractional_signature(t.description)
+        frac = parse_fractional_signature(t.raw_description or t.description)
         if frac:
             clean_merchant = frac[0]
         else:
@@ -224,7 +224,7 @@ def process_recurrence_promotions(
 
     fractional_groups: Dict[Tuple[str, float, int], List[Transaction]] = {}
     for tx in recent_txs:
-        frac = parse_fractional_signature(tx.description)
+        frac = parse_fractional_signature(tx.raw_description or tx.description)
         if frac:
             provider, current_m, total_n = frac
             amt = round(float(tx.amount or 0.0), 2)
@@ -239,7 +239,7 @@ def process_recurrence_promotions(
         ).first()
 
         latest_f_tx = f_txs[-1]
-        frac_latest = parse_fractional_signature(latest_f_tx.description)
+        frac_latest = parse_fractional_signature(latest_f_tx.raw_description or latest_f_tx.description)
         latest_m = frac_latest[1] if frac_latest else len(f_txs)
         is_final_installment = (latest_m >= total_n or len(f_txs) >= total_n)
 
@@ -357,7 +357,7 @@ def process_recurrence_promotions(
             if not _is_valid_expense_for_recurrence(tx):
                 continue
             # Exclure formellement les fractionnés de la promotion infinie
-            if parse_fractional_signature(tx.description):
+            if parse_fractional_signature(tx.raw_description or tx.description):
                 continue
 
             clean_merchant = get_clean_merchant(tx.description)

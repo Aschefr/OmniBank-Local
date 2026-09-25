@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Auto-Pilot Post-Action Sovereign Paradigm & Intelligent Reconciliation Engine 🤖⚡**:
+  - **Post-Action Direct Ingestion & Zero Blocking Modals**: Automatically records and reconciles incoming transactions directly into the database when Auto-Pilot is enabled, keeping account balances and Reste à Vivre live in real time. Suggested matches (60-84% confidence) and unclassified items are auto-committed with `needs_review = True` for smooth, non-blocking asynchronous audit in the Auto-Pilot Control Center.
+  - **Universal Semantic Alias Dictionary**: Integrated a built-in semantic lookup engine (`UNIVERSAL_MERCHANT_ALIASES`) for public institutions and major utility providers (e.g. `DIRECTION GENERALE DES FINANCES` / `DGFIP` $\leftrightarrow$ `Impôts / Taxes`, `CPAM` $\leftrightarrow$ `Santé`, `CAF`, `URSSAF`, `EDF`, telecoms) combined with `BankLabelMapping` lookups during text scoring.
+  - **Uncontested Match Bonus (+15 pts)**: Added automatic non-ambiguity score bonus when an eligible candidate ($\ge 60$ pts) has no competing transaction on exact amount and immediate date window ($\Delta \le 2\text{d}$), eliminating false hesitations on recurring tax or utility debits.
+  - **Strict User Description Preservation**: Auto-reconciliation now sanctuarizes user-defined custom descriptions (e.g. *"Floatplane"*) while safely recording raw technical banking labels (*"PayPal Europe S.a.r.l."*) into `raw_description`.
+  - **Auto-Pilot Header Controls & Granular Sync Intervals**: Added in-header vault status badge, countdown timer, time since last sync, and unlock button directly on the Auto-Pilot page with extended sync interval options (3h, 5h, 8h, 12h, 24h, 36h).
 - **Financial Simulation Engine & Cash Flow Projection Accuracy 🔮📊**:
   - **Comprehensive Seasonal Income Projection**: Fixed an issue where "Historical N-1" and "Auto" income modes erroneously fell back to the base paycheck amount only, faithfully projecting full historical seasonal receipts (bonuses, freelance inflows, family support, reimbursements) with smooth prudence blending.
   - **Strict Internal Transfer Neutralization**: Liquid portfolio projections ("All liquid accounts") now strictly isolate external inflows and outflows, preventing internal transfers (e.g. monthly savings transfers from checking to savings accounts) from being erroneously recorded as lost expenses.

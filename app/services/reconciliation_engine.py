@@ -13,6 +13,27 @@ from app.models import Transaction, Account
 logger = logging.getLogger(__name__)
 
 
+UNIVERSAL_MERCHANT_ALIASES: Dict[str, List[str]] = {
+    "FINANCES PUBLIQUES": ["impot", "taxe", "tresor public", "finances publiques", "dgfip", "foncier", "revenu"],
+    "DIRECTION GENERALE DES FINANCES": ["impot", "taxe", "tresor public", "finances publiques", "dgfip", "foncier", "revenu"],
+    "DGFIP": ["impot", "taxe", "tresor public", "finances publiques", "foncier", "revenu"],
+    "CPAM": ["sante", "remboursement", "secu", "ameli", "soins", "medical", "mutuelle"],
+    "AMELI": ["sante", "remboursement", "secu", "cpam", "soins", "medical", "mutuelle"],
+    "CAF": ["allocation", "prestations", "caf", "famille", "logement", "apl"],
+    "URSSAF": ["cotisations", "charges", "urssaf", "independant", "auto-entrepreneur"],
+    "POLE EMPLOI": ["france travail", "chomage", "indemnites", "allocation"],
+    "FRANCE TRAVAIL": ["pole emploi", "chomage", "indemnites", "allocation"],
+    "FREE MOBILE": ["free", "telecom", "mobile", "internet", "telephone", "forfait"],
+    "FREE TELECOM": ["free", "telecom", "mobile", "internet", "telephone", "forfait", "freebox"],
+    "ORANGE": ["telecom", "mobile", "internet", "telephone", "sosh", "livebox"],
+    "SFR": ["telecom", "mobile", "internet", "telephone", "red"],
+    "BOUYGUES": ["telecom", "mobile", "internet", "telephone", "bbox"],
+    "EDF": ["electricite", "energie", "edf"],
+    "ENGIE": ["gaz", "energie", "engie"],
+    "TOTALENERGIES": ["electricite", "gaz", "energie", "carburant", "essence"],
+}
+
+
 def compute_temporal_score(candidate_dt, bank_dt) -> int:
     """Calcule le score de proximité temporelle (0 à 35 pts)."""
     if not candidate_dt or not bank_dt:
@@ -41,17 +62,47 @@ def compute_temporal_score(candidate_dt, bank_dt) -> int:
         return 0
 
 
-def compute_text_score(candidate_desc: Optional[str], raw_bank_label: Optional[str]) -> int:
-    """Calcule le score de similarité textuelle marchand (0 à 25 pts)."""
+def compute_text_score(
+    candidate_desc: Optional[str],
+    raw_bank_label: Optional[str],
+    candidate_cat: Optional[str] = None,
+    db: Optional[Session] = None
+) -> int:
+    """Calcule le score de similarité textuelle marchand (0 à 25 pts) avec sémantique et alias."""
     if not candidate_desc or not raw_bank_label:
         return 0
     try:
-        from app.services.smart_label_service import _compute_match_score
+        from app.services.smart_label_service import _compute_match_score, normalize_raw_label
         from app.services.recurrence_detector import parse_fractional_signature
         frac_bank = parse_fractional_signature(raw_bank_label)
         cand_upper = candidate_desc.strip().upper()
         if frac_bank and (cand_upper.startswith(frac_bank[0]) or frac_bank[0] in cand_upper):
             return 25
+
+        # 1. Vérification par dictionnaire sémantique universel
+        norm_bank = normalize_raw_label(raw_bank_label).upper()
+        norm_cand = (normalize_raw_label(candidate_desc) + " " + normalize_raw_label(candidate_cat or "")).upper()
+
+        for alias_key, target_keywords in UNIVERSAL_MERCHANT_ALIASES.items():
+            if alias_key in norm_bank or alias_key in raw_bank_label.upper():
+                if any(kw.upper() in norm_cand for kw in target_keywords):
+                    return 25
+
+        # 2. Vérification par règles BankLabelMapping si db disponible
+        if db:
+            try:
+                from app.models import BankLabelMapping
+                mappings = db.query(BankLabelMapping).filter(
+                    BankLabelMapping.is_ignored == False
+                ).all()
+                for m in mappings:
+                    if m.raw_pattern and m.raw_pattern.upper() in norm_bank:
+                        clean_m = (m.clean_description or "").upper()
+                        cat_m = (m.category or "").upper()
+                        if (clean_m and clean_m in norm_cand) or (cat_m and cat_m in norm_cand):
+                            return 25
+            except Exception:
+                pass
 
         ratio = _compute_match_score(raw_bank_label, candidate_desc)
         return round(ratio * 25)
@@ -60,7 +111,12 @@ def compute_text_score(candidate_desc: Optional[str], raw_bank_label: Optional[s
         return 0
 
 
-def evaluate_candidate(candidate_tx: Transaction, target_dt, bank_label: Optional[str], db: Optional[Session] = None) -> int:
+def evaluate_candidate(
+    candidate_tx: Transaction,
+    target_dt,
+    bank_label: Optional[str],
+    db: Optional[Session] = None
+) -> int:
     """Calcule le score composite total (0-100 pts) pour un candidat."""
     amt_score = 40
     t_dt = candidate_tx.date_operation if hasattr(candidate_tx.date_operation, "strftime") else (candidate_tx.date_operation if candidate_tx.date_operation else None)
@@ -93,11 +149,22 @@ def evaluate_candidate(candidate_tx: Transaction, target_dt, bank_label: Optiona
         except Exception as e:
             logger.debug(f"[Reconciliation] Note récurrence day_of_month ignorée: {e}")
 
-    text_score = compute_text_score(candidate_tx.description, bank_label)
+    session_for_text = db or Session.object_session(candidate_tx)
+    text_score = compute_text_score(
+        candidate_tx.description,
+        bank_label,
+        candidate_cat=candidate_tx.category,
+        db=session_for_text
+    )
     return amt_score + temp_score + text_score
 
 
-def best_scored_tx(candidates: List[Transaction], target_dt, bank_label: Optional[str], db: Optional[Session] = None) -> Tuple[Optional[Transaction], int, bool]:
+def best_scored_tx(
+    candidates: List[Transaction],
+    target_dt,
+    bank_label: Optional[str],
+    db: Optional[Session] = None
+) -> Tuple[Optional[Transaction], int, bool]:
     """
     Sélectionne le meilleur candidat parmi une liste avec tri score décroissant puis proximité date.
     Retourne (best_candidate, best_score, collision_detected).
@@ -121,16 +188,26 @@ def best_scored_tx(candidates: List[Transaction], target_dt, bank_label: Optiona
     )
     best_score, best_candidate = scored[0]
 
-    # Anti-collision : conflit si au moins 2 candidats ont un score éligible (>= 60)
-    # et que la marge discriminante est insuffisante (< 10 pts ou égalité)
+    # Détection des candidats concurrents crédibles (score >= 60)
+    eligible_candidates = [item for item in scored if item[0] >= 60]
+
     collision_detected = False
-    if len(scored) > 1:
-        second_score, _ = scored[1]
-        if second_score >= 60 and (best_score - second_score) < 10:
+    if len(eligible_candidates) > 1:
+        second_score, _ = eligible_candidates[1]
+        if (best_score - second_score) < 10:
             collision_detected = True
-    elif len(scored) == 1 and not collision_detected:
-        # Bonus d'unicité : un seul et unique candidat sans concurrence sur le compte (+5 pts)
-        best_score = min(100, best_score + 5)
+    elif len(eligible_candidates) == 1 and not collision_detected:
+        # Candidat unique sans concurrent immédiat au centime près :
+        # Si la date est très proche (delta <= 2j), bonus d'unicité évident (+15 pts, max 100)
+        c_dt = best_candidate.date_operation
+        if c_dt and hasattr(c_dt, "strftime"):
+            delta_d = abs((c_dt - target_dt).days)
+            if delta_d <= 2:
+                best_score = min(100, best_score + 15)
+            else:
+                best_score = min(100, best_score + 5)
+        else:
+            best_score = min(100, best_score + 5)
 
     return best_candidate, best_score, collision_detected
 
@@ -212,8 +289,12 @@ def check_reconciliation(
     # 1. Recherche d'un doublon déjà rapproché / existant
     def _find_already_reconciled():
         if is_coming:
-            start_op_limit_c = tx_date - timedelta(days=15)
-            end_op_limit_c = tx_date + timedelta(days=15)
+            # Pour une opération à venir (autorisation CB récente / débit annoncé),
+            # elle ne peut correspondre à une opération déjà pointée que si le pointage ou l'opération
+            # a eu lieu dans un intervalle temporel ultra-resserré (max 2 jours).
+            # Une opération pointée il y a plus de 2 jours (ex: 13 jours) est une opération passée distincte.
+            start_op_limit_c = tx_date - timedelta(days=2)
+            end_op_limit_c = tx_date + timedelta(days=2)
             recon_query = db.query(Transaction).filter(
                 Transaction.reconciliation_date != None,
                 Transaction.amount >= abs_amount - epsilon,
@@ -255,6 +336,13 @@ def check_reconciliation(
 
         recon_match, recon_score, recon_collision = best_scored_tx(recon_query_filtered.all(), target_dt, bank_label, db=db)
         if recon_match and recon_score >= 60:
+            cand_dt = recon_match.date_operation
+            if cand_dt and is_coming:
+                delta_days = abs((target_dt - cand_dt).days)
+                if delta_days > 2:
+                    logger.debug(f"[Reconciliation] Candidat déjà pointé écarté car delta={delta_days}j > 2j pour op à venir")
+                    return None
+
             return {
                 "id": recon_match.id,
                 "description": recon_match.description,

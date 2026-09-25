@@ -35,11 +35,13 @@ Le mode **Auto-Pilote** n'est pas une boîte noire opaque ni une refonte complè
 │    ├── Mode Hors Ligne (Fichier) : Ingestion automatique dès le glisser-déposer (CSV, XLSX, Relevé IA)
 │    └── Mode En Ligne (Woob)      : Relevé planifié (12h/24h/48h) ou immédiat au déverrouillage du coffre en RAM
 ├── Pipeline d'ingestion : SmartLabelService (Règles -> Historique -> Inférence IA)
-├── Ingestion comptable :
+├── Ingestion comptable & Paradigme Post-Action (Zéro Modale Bloquante) :
 │    ├── Score certitude >= 85%  ──>  Rapprochement direct ou Enregistrement DB direct
-│    └── Score certitude < 85%   ──>  Sas d'attente (Cockpit) pour arbitrage humain 1-clic
+│    ├── Score 60% <= Score < 85% ─>  Auto-Commit DB direct avec drapeau `needs_review = True` (Solde & Reste à Vivre à jour)
+│    └── Opérations ambiguës/inconnues ─> Ingestion DB directe avec `needs_review = True` & acheminement vers la File de Revue Post-Action
+├── File de Revue Asynchrone : Consultation dans le Centre de Contrôle (1-clic Valider, Dépointer, Modifier & Apprendre)
 ├── Budgets dynamiques : Analyse & suggestion mensuelle lissée (filtre EMA 3-6 mois, opt-in Full-Auto)
-├── Restitution silencieuse : Badge discret dans l'en-tête, zéro blocage, consultation 100% facultative
+├── Restitution silencieuse : Badge discret dans l'en-tête, zéro modale bloquante, consultation 100% facultative
 └── Souveraineté & Contrôle : Page dédiée pour auditer les décisions, dépointer, réorienter ou annuler
 ```
 
@@ -61,10 +63,10 @@ L'Auto-Pilote est **universel** : il s'applique avec la même intelligence compt
  ├── 🤖 L'Auto-Pilote prend le relais instantanément sur le lot :
  │    ├── Calcule un csv_id déterministe (hash SHA-256 date/montant/marchand) garantissant l'idempotence
  │    ├── Normalise les libellés commerciaux (SmartLabelService)
- │    ├── Rapproche automatiquement les correspondances parfaites (≥ 85%)
+ │    ├── Rapproche automatiquement les correspondances à haute certitude (≥ 85%) ou suggérées (60-84%)
  │    ├── Enregistre les dépenses courantes directes en base sans friction
- │    └── Ne dépose dans le Sas d'attente (Cockpit) QUE les doutes ou opérations ambiguës
- └── Bilan comptable et solde actualisés au centime d'euro en un éclair !
+ │    └── Marque les doutes éventuels avec `needs_review = True` pour la File de Revue Post-Action
+ └── Bilan comptable et Reste à Vivre actualisés au centime d'euro en un éclair !
 ```
 
 #### Parcours 2 : Mode Synchronisation en Ligne (Woob) — Optionnel avec Coffre-fort
@@ -200,22 +202,25 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 > **Dette Technique Soldée — Refactoring `check_reconciliation` (Étape 0)** :
 > La fonction `check_reconciliation` a été extraite avec succès depuis le routeur `csv_parser.py` vers son module dédié [`app/services/reconciliation_engine.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/reconciliation_engine.py) (Jalon 0.1), éliminant la dépendance inversée et préparant l'orchestration par `AutoPilotService`.
 
-* **État d'avancement actuel : 100% — ✅ LIVRÉ (Étape 2)**
+* **État d'avancement actuel : 100% — ✅ LIVRÉ (Étape 2 / v1.1.5)**
   - ✅ Score composite de matching (0 à 100 points) :
     - Empreinte bancaire unique (`csv_id`) : 100 pts.
     - Montant exact ($\pm 0.01$ €) : 40 pts.
     - Proximité temporelle asymétrique : 0 à 35 pts (privilégie les débits 1 à 3 jours après la date prévue).
-    - Similarité textuelle : 0 à 25 pts.
+    - Similarité textuelle enrichie avec **Dictionnaire Sémantique Universel** (`UNIVERSAL_MERCHANT_ALIASES` : DGFIP/Finances $\leftrightarrow$ Impôts, CPAM/Ameli $\leftrightarrow$ Santé, etc.) et règles `BankLabelMapping` : 0 à 25 pts.
+    - **Règle d'Unicité Évidente (Non-ambiguïté)** : Si un candidat unique sans concurrent crédible ($\ge 60$ pts) concorde sur le montant exact et la date ($\Delta \le 2\text{j}$), attribution d'un bonus d'unicité de **+15 pts** (score $\ge 90\% \to$ Auto-Commit immédiat).
+  - ✅ **Préservation Stricte des Libellés de Prévision (`existing.description`)** : Le rapprochement automatique ne remplace jamais le libellé métier défini par l'utilisateur (ex: *"Floatplane"* reste *"Floatplane"* ; le libellé bancaire technique *"PayPal Europe..."* est consigné dans `raw_description`).
+  - ✅ **Gestion Transparente du Cycle de Vie des Opérations à Venir (`is_coming`)** : Liaison provisionnelle sans pointage comptable (`reconciliation_date = None`), puis bascule automatique vers le pointage officiel et définitif dès confirmation du débit bancaire.
   - ✅ Gestion des virements internes compte à compte (transferts miroirs).
   - ✅ Distinction nette entre opérations confirmées et opérations à venir (`is_coming`).
   - ✅ Empreinte idempotente des fichiers (`csv_id` déterministe SHA-256 + index intra-lot dans `csv_parser.py` — Jalon 0.3).
   - ✅ Modèle de traçabilité `AutopilotDecisionLog` dans `app/models.py`, schéma v24 SQLite et DTO Pydantic `AutopilotDecisionLogOut` (Jalons 0.4, 0.5, 0.6).
   - ✅ **Séparation Stricte : Évaluation Pure vs Mutation Orchestrée** : `check_reconciliation` (`reconciliation_engine.py`) reste une fonction pure d'évaluation sans mutation, tandis que `AutoPilotService.process_incoming_batch()` (`autopilot_service.py`) orchestre l'auto-commit DB, le journal de bord `AutopilotDecisionLog`, la traçabilité Undo/Redo `ActionHistory` et l'invalidation du cache de statistiques.
-  - ✅ **Politique d'Auto-Validation (Auto-Commit Threshold)** :
+  - ✅ **Politique d'Auto-Validation & Paradigme Post-Action (Auto-Commit Threshold)** :
     - **Zone Verte ($\ge 85$ pts ou `csv_id` identique sans collision)** : Rapprochement automatique instantané en base.
-    - **Zone Orange ($60 \le \text{Score} < 85$ pts)** : Maintien dans le Sas d'attente (Cockpit) avec statut *"Rapprochement suggéré"*.
-    - **Zone Rouge ($< 60$ pts)** : Traitée comme nouvelle opération distincte.
-  - ✅ **Détection Anti-Collision sur Montants Homonymes** : Si plusieurs prévisions concordent au centime près, l'arbitrage textuel départage les candidats ; en l'absence de discriminant, `collision_detected = True` neutralise l'auto-commit et bascule l'opération dans le sas d'attente pour arbitrage humain.
+    - **Zone Suggérée Post-Action ($60 \le \text{Score} < 85$ pts)** : Rapprochement automatique en base avec drapeau `needs_review = True` (solde et Reste à Vivre à jour en temps réel) et acheminement vers la file de revue asynchrone du Centre de Contrôle, sans jamais bloquer dans un Sas pré-action.
+    - **Zone Rouge ($< 60$ pts)** : Traitée comme nouvelle opération distincte (auto-commitée avec `needs_review` si incertaine).
+  - ✅ **Détection Anti-Collision sur Montants Homonymes** : Si plusieurs prévisions concordent au centime près, l'arbitrage textuel départage les candidats ; en l'absence de discriminant, `collision_detected = True` neutralise l'auto-commit direct et oriente vers la revue humaine.
   - ✅ **Suite de tests unitaires et d'intégration validée** : 100% de succès sur le Pack de Test 2 (T2.1 à T2.8 dans `tests/test_autopilot_step2.py`).
 
 ### Brique 4 : Détection & Promotion des Récurrences (Anticipation Reste à Vivre)
@@ -399,21 +404,23 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 
 ---
 
-### Brique 6 : Sas d'Attente ("Pending Sync") & Matrice d'Arbitrage
-*Le sas d'attente devient le filtre d'exception de l'Auto-Pilote pour tous les modes d'entrée.*
+### Brique 6 : Sas d'Attente ("Pending Sync") & Matrice d'Arbitrage (Mode Manuel vs Auto-Pilote)
+*Le Sas d'attente constitue la passerelle de revue pré-action en mode Manuel (`auto_pilot_enabled == False`), et se trouve court-circuité en mode Auto-Pilote au profit d'une ingestion/rapprochement direct avec file de revue post-action asynchrone.*
 
 * **Fichiers concernés** :
   - [`app/services/autopilot_service.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/autopilot_service.py) (Point d'entrée unique de traitement des lots entrants)
   - [`app/services/bank_sync_scheduler.py`](file:///d:/Code%20Projects/OmniBank-Local/app/services/bank_sync_scheduler.py) (`save_pending_sync_data`, `_PENDING_SYNC_DATA`)
   - [`app/routers/csv_manager.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/csv_manager.py) (`import_to_pending`)
   - [`app/routers/bank_sync.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/bank_sync.py)
-* **État d'avancement actuel : 100% — ✅ LIVRÉ (Étape 3)**
+* **État d'avancement actuel : 100% — ✅ LIVRÉ (Étape 3 & Évolutions Post-Action)**
   - ✅ Sas d'attente persistant (RAM + `GlobalConfig`).
   - ✅ Déduplication automatique entre imports de fichiers CSV et connexions bancaires en ligne.
-  - ✅ Cockpit visuel ergonomique permettant d'ignorer, modifier ou valider les opérations.
+  - ✅ Cockpit visuel ergonomique permettant d'ignorer, modifier ou valider les opérations en mode manuel.
   - ✅ Support multi-onglets XLSX & multi-sections CSV avec mémorisation de mapping par compte (`GlobalConfig.file_account_mapping`) et ré-évaluation dynamique instantanée du rapprochement (Phase B / v1.1.3).
-  - ✅ **Unification du Pipeline d'Ingestion & Routage Dynamique** : Les relevés Woob (`execute_auto_sync_for_connection`) et les imports de fichiers (`import_to_pending`) transitent désormais par le point d'entrée unique `AutoPilotService.process_incoming_batch()`.
-  - ✅ **Routage Conditionnel Transparent** : Si l'Auto-Pilote est désactivé, 100% des opérations vont dans le Sas (comportement manuel classique 100% intact). S'il est activé, les rapprochements à haute certitude court-circuitent le Sas avec audit et notification enrichie.
+  - ✅ **Unification du Pipeline d'Ingestion & Routage Dynamique** : Les relevés Woob (`execute_auto_sync_for_connection`) et les imports de fichiers (`import_to_pending`) transitent par le point d'entrée unique `AutoPilotService.process_incoming_batch()`.
+  - ✅ **Dichotomie des Paradigmes (Manuel Pré-Action vs Auto-Pilote Post-Action)** :
+    * **Mode Manuel (`auto_pilot_enabled == "false"`)** : 100% des opérations sont déposées dans le Sas d'attente (`_PENDING_SYNC_DATA`) pour revue ligne à ligne bloquante avant tout enregistrement en base.
+    * **Mode Auto-Pilote (`auto_pilot_enabled == "true"`)** : Court-circuit complet du Sas bloquant. 100% des opérations (rapprochements certains $\ge 85\%$, rapprochements suggérés $60 \le \text{Score} < 85$, écritures directes) sont ingérées immédiatement en base SQLite avec mise à jour instantanée des soldes et du Reste à Vivre. Les opérations nécessitant un arbitrage humain sont étiquetées `needs_review = True` et consultables dans la File de Revue Post-Action du Centre de Contrôle.
   - ✅ **Adaptation Dropzone CSV / Excel (`import_wizard.js` — Jalon 3.9)** : Fermeture automatique de la modale avec toast de confirmation récapitulatif enrichi lorsque 100% des opérations d'un lot sont traitées de manière autonome (`pending === 0`), sans ouvrir de modale de revue vide.
 
 ---
@@ -459,14 +466,21 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 │ KPIs  : 42 opérations gérées | Précision : 100% | 0 anomalie | 120 clics éco│
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ 📜 FLUX DES DÉCISIONS AUTOMATIQUES (Decision Feed)                          │
-│ Filtres : [ Tous ] [ 🟢 Rapprochements ] [ 🏷️ Catégories ] [ 🔄 Récurrences ]│
+│ Filtres : [ Tous ] [ ⚠️ À vérifier (1) ] [ 🟢 Rapprochements ] [ 🏷️ Catégories ]│
 │                                                                             │
-│ ▼ Cycle de Relevé du 06/09/2026 à 08:34 (BoursoBank)   [ ⏪ Annuler ce cycle ]│
+│ ▼ Cycle de Relevé du 25/09/2026 à 08:34 (BoursoBank)   [ ⏪ Annuler ce cycle ]│
 │ ┌─────────────────────────────────────────────────────────────────────────┐ │
-│ │ 🟢 RAPPROCHEMENT COMPTABLE                                (Score: 94%) │ │
-│ │ Débit de 65,00 € "PRLV EDF" rapproché avec prévision #412               │ │
-│ │ Motif : Montant exact + échéance calendaire concordante (+1 jour)       │ │
+│ │ 🟢 RAPPROCHEMENT COMPTABLE                                (Score: 100%)│ │
+│ │ Débit 331,00 € "DIRECTION GENERALE DES FINANCES" rapproché avec         │ │
+│ │ prévision #3343 "Impots - Complément 2025"                              │ │
+│ │ Motif : Montant exact + alias universel DGFIP/Impôts + unicité          │ │
 │ │ [ ↩️ Dépointer / Dissocier ]  [ 🔍 Voir l'écriture ]                     │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ ⚠️ RAPPROCHEMENT SUGGÉRÉ (À VÉRIFIER)                      (Score: 78%) │ │
+│ │ Débit de 45,00 € "PRLV ASSURANCE" rapproché avec prévision #108         │ │
+│ │ Motif : Score de confiance modéré (Auto-Commit avec drapeau de revue)   │ │
+│ │ [ ✅ Confirmer ]  [ ↩️ Dépointer / Dissocier ]  [ ✏️ Modifier ]           │ │
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │ ┌─────────────────────────────────────────────────────────────────────────┐ │
 │ │ 🏷️ NOUVELLE ÉCRITURE & CATÉGORISATION                     (Confiance: 92%)│ │
@@ -488,27 +502,35 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 
 #### 4. Les Leviers de Contrôle : Revenir dessus, Modifier & Réorienter
 
-1. **Revenir dessus (Défaire / Annuler sans risque)** :
+1. **La File de Revue Post-Action (Asynchrone & Non-Bloquante)** :
+   - Les opérations dont le score de certitude est modéré ($60\% \le \text{Score} < 85\%$) ou les opérations sans certitude absolue sont **immédiatement intégrées en base** avec le drapeau `needs_review = True`.
+   - **Avantage décisif** : Les soldes réels, le Reste à Vivre et les projections sont **toujours à jour en direct**, sans qu'aucune fenêtre modale intrusive ne vienne interrompre le travail de l'utilisateur.
+   - **Actions 1-clic dans le Centre de Contrôle** :
+     * **[✅ Confirmer]** : Valide l'association, efface le drapeau `needs_review` et clôture l'audit.
+     * **[↩️ Dépointer / Dissocier]** : Dissocie l'opération et rétablit la prévision sans perte.
+     * **[✏️ Modifier & Apprendre]** : Corrige l'intitulé ou la catégorie tout en proposant d'enregistrer une règle permanente dans `BankLabelMapping`.
+
+2. **Revenir dessus (Défaire / Annuler sans risque)** :
    - **[Dépointer / Dissocier]** : Rompt instantanément le rapprochement d'une opération si l'association était erronée (ex: deux prélèvements au montant homonyme). L'opération bancaire et la prévision redeviennent indépendantes (`reconciliation_date = NULL`), et la décision est marquée `is_undone = True` sans aucune perte de données.
    - **[Rollback Global de Cycle (1-Clic)]** : Situé sur l'en-tête de chaque groupe de synchronisation, ce bouton permet d'annuler en bloc l'ensemble des décisions d'un cycle précis (`batch_id`). Le moteur applique une logique sémantique stricte selon `decision_type` :
      * **Pour `decision_type == 'new_entry'`** : L'écriture créée est purement supprimée de la table `Transaction`.
      * **Pour `decision_type == 'reconciliation'`** : L'écriture existante n'est **JAMAIS supprimée** (préservant intégralement les prévisions de l'utilisateur) ; elle est dissociée (`reconciliation_date = NULL`) et ses champs restaurés depuis son `raw_snapshot`.
      * **Pour `decision_type == 'recurrence_promotion'`** : Le template créé est clôturé ou supprimé.
      * **Statut d'Audit** : Toutes les lignes `AutopilotDecisionLog` du cycle passent à `is_undone = True` avec `undone_at = now()`.
-     * **Reconstitution du Sas** : Grâce aux snapshots JSON, le lot original d'opérations est réinjecté fidèlement dans le Sas d'attente (`_PENDING_SYNC_DATA`) pour examen manuel dans le Cockpit.
+     * **Reconstitution du Sas** : Grâce aux snapshots JSON, le lot original d'opérations est réinjecté fidèlement dans le Sas d'attente (`_PENDING_SYNC_DATA`) pour examen manuel dans le Cockpit si le mode manuel est réactivé.
 
-2. **Modifier la Décision (Rectification immédiate)** :
+3. **Modifier la Décision (Rectification immédiate)** :
    - **[Changer de Catégorie]** : Menu déroulant direct dans la tuile de décision pour corriger instantanément une affectation erronée.
    - **[Ajuster le Libellé Nettoyé]** : Rectifier le nom commercial simplifié attribué par le robot.
    - **[Ajuster l'Enveloppe Budgétaire]** : Modifier le montant issu du lissage sans attendre le cycle suivant.
 
-3. **Réorienter pour le Futur (Directives & Éducation de l'Auto-Pilote)** :
+4. **Réorienter pour le Futur (Directives & Éducation de l'Auto-Pilote)** :
    - **Apprentissage Dirigé Instantané** : Dès que l'utilisateur modifie la catégorie d'une transaction, l'interface affiche une invite élégante :
      *« Mémoriser cette orientation ? Voulez-vous que tous les futurs débits de ce marchand soient automatiquement classés dans cette catégorie ? »*
      $\rightarrow$ En un clic, la règle est gravée dans `BankLabelMapping`.
-   - **Blacklist / Exclusion de Marchands** : Bouton *« Ne plus jamais auto-catégoriser ce marchand »*. Les opérations futures de ce commerçant seront systématiquement laissées dans le Sas d'attente pour validation humaine (via `is_ignored = True` dans `BankLabelMapping`).
+   - **Blacklist / Exclusion de Marchands** : Bouton *« Ne plus jamais auto-catégoriser ce marchand »*. Les opérations futures de ce commerçant seront systématiquement orientées vers la revue post-action (via `is_ignored = True` dans `BankLabelMapping`).
    - **Verrouillage d'Enveloppe Budgétaire (Cadenas)** : Un bouton cadenas sur chaque enveloppe bascule `Budget.is_locked = True` et protège les catégories sensibles (ex: Épargne, Loisirs) du recalcul automatique par l'Auto-Pilote.
-   - **Réglage des Seuils de Tolérance** : Possibilité d'ajuster le curseur d'exigence (ex: exiger 90% ou 95% au lieu de 85% pour l'auto-rapprochement).
+   - **Réglage des Seuils de Tolérance** : Possibilité d'ajuster le curseur d'exigence (ex: exiger 90% ou 95% au lieu de 85% pour l'auto-rapprochement direct).
 
 #### 5. L'Atelier des Directives (Rules Workshop)
 - Un panneau dédié en bas de page regroupe l'ensemble des connaissances acquises par l'Auto-Pilote (en s'appuyant directement sur le routeur existant [`app/routers/smart_labels.py`](file:///d:/Code%20Projects/OmniBank-Local/app/routers/smart_labels.py)) :
@@ -522,9 +544,13 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 
 | Domaine | Piège identifié | Risque encouru | Solution architecturale requise |
 | :--- | :--- | :--- | :--- |
+| **Paradigme UX** | Choc Pré-Action vs Post-Action (Sas bloquant intempestif) | L'utilisateur subit une modale bloquante à chaque ouverture, détruisant la promesse d'autonomie. | **Ingestion Directe + File Post-Action** : Auto-commit DB direct avec drapeau `needs_review = True`, solde/RAV toujours à jour, revue asynchrone non-bloquante. |
+| **Sémantique** | Écart de libellé bancaire vs libellé métier (ex: DGFIP $\leftrightarrow$ Impôts) | Score textuel à 0/25 privant l'opération du seuil $\ge 85\%$. | **Dictionnaire Sémantique Universel** (`UNIVERSAL_MERCHANT_ALIASES`) + lookup `BankLabelMapping` dans `compute_text_score`. |
+| **Comptable** | Neutralisation du bonus d'unicité sur récurrences futures | Des échéances générées pour les mois futurs font monter `len(candidates)` et bloquent le bonus +15 pts. | **Filtre de fenêtre immédiate ($\Delta \le 2\text{j}$)** : Si 1 seul candidat crédible ($\ge 60$ pts) sans rival, bonus +15 pts accordé. |
+| **Comptable** | Écrasement du libellé personnalisé par le libellé brut bancaire | Perte du libellé clair de l'utilisateur (ex: "Floatplane" renommé en "PayPal Europe..."). | **Sanctuarisation de `existing.description`** : Le rapprochement préserve l'intitulé métier et stocke le libellé brut dans `raw_description`. |
 | **Bancaire** | Sollicitation excessive (Polling trop fréquent) | Blocage d'IP, bannissement temporaire ou demande intempestive de 2FA. | **Cooldown strict** : Intervalle minimal de 2h à 6h entre deux relevés, même en cas de déverrouillages répétitifs du coffre. |
 | **Bancaire** | Blocage sur challenge 2FA en tâche de fond | Thread gelé, application ralentie ou crash silencieux. | Exécution asynchrone isolée, timeout strict (120s max), émission d'une alerte in-app non intrusive si une action mobile est requise. |
-| **Comptable** | Rapprochement sur doublon de montant | Rapprochement de la mauvaise opération (ex: 2 prélèvements identiques de 15,00 €). | Exiger la concordance textuelle et/ou l'unicité temporelle. Si ambiguïté, transférer au Sas d'attente. |
+| **Comptable** | Rapprochement sur doublon de montant | Rapprochement de la mauvaise opération (ex: 2 prélèvements identiques de 15,00 €). | Exiger la concordance textuelle et/ou l'unicité temporelle. Si ambiguïté réelle, marquer `needs_review = True`. |
 | **Comptable** | Écritures fantômes / double débit | Incohérence des soldes, écart avec le relevé de compte officiel. | Règle d'or : une écriture passée ne peut être validée qu'une seule fois. Vérification stricte via `csv_id`. |
 | **Budgets** | Hyper-réactivité / Effet "Yoyo" | Les budgets changent chaque semaine, créant anxiété et illisibilité. | **Isolation stricte** : Aucun ajustement d'enveloppe pendant les syncs quotidiennes. Lissage EMA sur 3 à 6 mois au 1er du mois. |
 | **Cold Start** | Extrapolation sur données partielles | Création d'enveloppes aberrantes après seulement 10 jours d'utilisation. | Pendant les 90 premiers jours, borner les estimations par les modèles de récurrence (`RecurrenceTemplate`) et imposer un plafond de variation. |
@@ -532,6 +558,37 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
 | **Récurrences** | Abandon de contrat non détecté | Échéances fantômes persistant indéfiniment et bloquant le Reste à Vivre. | **Triple verrou d'auto-saut** (|Δ solde| < 0.005 €, Sas vide, période échue) + auto-clôture après 3 sauts consécutifs. |
 | **UX** | Syndrome de la "Boîte Noire" | L'utilisateur ne sait plus ce qui a été fait, perte de confiance. | Journal d'activité clair : *"Auto-Pilote : 3 opérations rapprochées, 1 ajoutée. Tout est équilibré."* + Rollback 1-clic. |
 | **Cycle de Vie (Tauri)** | Fermeture brutale [X] pendant la synchronisation | Données partielles ou coupure abrupte du process Python. | **Bouclier de Fermeture Sécurisée** : Interception événementielle conjointe au niveau natif Rust dans `src-tauri/src/main.rs` (`WindowEvent::CloseRequested` en plus de `RunEvent::Exit`) et côté webview (`tauri://close-requested`), consultation de l'état de synchronisation en cours via l'API locale, court écran d'attente (2 à 4s) si actif avec **fermeture automatique** dès le commit terminé. Transactions SQLite atomiques (`with db.begin():`) garantissant zéro corruption de base. |
+
+### Rétrospective & Évolution : Le Choc des Paradigmes (Pré-Action vs Post-Action)
+
+L'observation des cas réels en production (*PayPal/Floatplane* et *DGFIP 331 €*) a mis en lumière un décalage entre la conception initiale et les exigences d'un Auto-Pilote moderne :
+
+```mermaid
+graph TD
+    subgraph "Ancien Paradigme (Pré-Action / Sas Bloquant)"
+        A1["Relevé Bancaire"] --> B1{"Score >= 85% ?"}
+        B1 -- Oui --> C1["Enregistrement en Base"]
+        B1 -- Non (< 85%) --> D1["Sas d'Attente Bloquant (Modale Sync)"]
+        D1 --> E1["Blocage UI à l'ouverture de l'app"]
+        D1 --> F1["Solde & Reste à Vivre PAS à jour tant que non validé"]
+    end
+
+    subgraph "Nouveau Paradigme (Post-Action / Souveraineté & Continuité)"
+        A2["Relevé Bancaire"] --> B2["Enregistrement & Rapprochement Directs en DB"]
+        B2 --> C2["Solde & Reste à Vivre 100% à jour en temps réel"]
+        B2 --> D2{"Score >= 85% ou Unicité ?"}
+        D2 -- Oui --> E2["Validé Silencieusement"]
+        D2 -- Score 60-84% --> F2["Marqué needs_review = True"]
+        F2 --> G2["File de Revue Post-Action dans le Centre de Contrôle"]
+        G2 --> H2["Contrôle Souverain 1-Clic : Confirmer / Dépointer / Corriger & Apprendre"]
+    end
+```
+
+#### Enseignements Clés Intégrés :
+1. **La continuité financière prime sur la perfection instantanée** : Il est toujours préférable d'avoir une opération inscrite en base (même avec une incertitude signalée) que de bloquer l'affichage des comptes et du Reste à Vivre derrière une modale.
+2. **L'asymétrie sémantique est la norme** : Les banques utilisent des raisons sociales légales (`DIRECTION GENERALE DES FINANCES PUBLIQUES`, `CPAM DE PARIS`) tandis que les utilisateurs saisissent des libellés fonctionnels (`Impôts`, `Santé`). L'intelligence du rapprochement doit faire le pont via des dictionnaires d'alias universels et des correspondances apprises.
+3. **L'unicité évidente lève l'ambiguïté temporelle** : Lorsqu'un débit bancaire de 331,00 € survient le 25 du mois et qu'il n'existe qu'une seule et unique prévision de 331,00 € sur cette quinzaine, l'absence de concurrent direct est un signal de certitude quasi-absolu (+15 pts).
+4. **La mémoire utilisateur est sacrée** : Un libellé de prévision renommé avec soin par l'utilisateur (ex: *"Floatplane"*) ne doit jamais être écrasé par la passerelle de paiement technique (*"PayPal Europe S.a.r.l."*). Le libellé technique trouve sa place naturelle dans `raw_description`.
 
 ---
 
@@ -882,7 +939,7 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 | Réf | Scénario & Conditions Initiales | Action Déclenchée | Résultat Attendu Pré-établi | Critère de Succès (PASS) | Statut |
 | :--- | :--- | :--- | :--- | :--- | :---: |
 | **T2.1** | Prévision existante : Loyer 750,00 € au 01/10. Relevé bancaire : Débit 750,00 € "PRLV LOYER" le 02/10. | Exécution du moteur de rapprochement Auto-Pilote. | Score composite $\ge 90$ pts. Rapprochement automatique instantané en base (`reconciliation_date` renseigné). | L'opération est pointée, statut "Rapproché" vert, 0 clic utilisateur requis. | ✅ **PASS** |
-| **T2.2** | Prévision existante : Retrait DAB 40,00 € au 05/10. Relevé : Débit 40,00 € "RETRAIT DAB" le 18/10 (écart de 13 jours). | Exécution du moteur de rapprochement. | Score composite calculé : 65 pts ($60 \le \text{Score} < 85$). | L'opération est maintenue dans le Sas d'attente avec statut *"Rapprochement suggéré"*. | ✅ **PASS** |
+| **T2.2** | Prévision existante : Retrait DAB 40,00 € au 05/10. Relevé : Débit 40,00 € "RETRAIT DAB" le 18/10 (écart de 13 jours). | Exécution du moteur de rapprochement. | Score composite calculé : 65 pts ($60 \le \text{Score} < 85$). Rapprochement automatique en base avec drapeau `needs_review = True` (`AUTO_COMMIT_PENDING_REVIEW`). | Rapprochement effectué en base, 0 sas bloquant, soldes à jour, décision dans la file de revue du Centre de Contrôle. | ✅ **PASS** |
 | **T2.3** | Deux prévisions identiques : Abonnement A (15,00 €) et Abonnement B (15,00 €). Débit bancaire : 15,00 € "ABO A". | Exécution du moteur avec détection d'anti-collision. | Rapprochement sur la prévision A grâce à la similarité textuelle. La prévision B reste ouverte. | Prévision A pointée, Prévision B intacte. | ✅ **PASS** |
 | **T2.4** | Deux prévisions identiques : 25,00 € sans indice textuel. Débit bancaire : 25,00 € "DEBIT RETRAIT". | Exécution du moteur sans discriminant textuel. | Détection de collision homonyme : aucune prévision n'est auto-pointée, opération basculée dans le Sas d'attente. | `collision_detected = True`, décision laissée à l'arbitrage humain. | ✅ **PASS** |
 | **T2.5** | Mode Auto-Pilote inactif (`auto_pilot_enabled = "false"`), correspondance parfaite (100 pts). | Ingestion d'un relevé bancaire. | Zéro auto-commit en base, 100% des opérations envoyées dans le Sas d'attente. | Workflow manuel classique rigoureusement préservé sans régression. | ✅ **PASS** |

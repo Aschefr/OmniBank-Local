@@ -367,17 +367,18 @@ def process_incoming_batch(
                         )
 
                         # Si l'opération en face est déjà pointée dans le passé :
-                        # une charge récurrente du mois précédent (écart >= 20 jours ou score < threshold)
+                        # une charge récurrente du mois précédent (écart > 2j pour coming ou > 7j pour confirmed, ou score < threshold)
                         # ne doit pas être prise pour un doublon bloquant
                         is_past_cycle = False
                         if is_already:
                             matched_tx = db.query(Transaction).filter(Transaction.id == rec_info["id"]).first()
                             if matched_tx and matched_tx.date_operation:
                                 delta_days = abs((op_d - matched_tx.date_operation).days)
-                                if delta_days >= 20 or score < threshold:
+                                max_allowed = 2 if tx.get("is_coming") else 7
+                                if delta_days > max_allowed or score < threshold:
                                     is_past_cycle = True
                                     logger.info(
-                                        f"[AutoPilot] → Ignoré (cycle passé) : delta_jours={delta_days}, score={score:.1f} < seuil={threshold}"
+                                        f"[AutoPilot] → Ignoré (cycle passé) : delta_jours={delta_days} > {max_allowed}, score={score:.1f} < seuil={threshold}"
                                     )
 
                         if not is_past_cycle:
@@ -425,19 +426,19 @@ def process_incoming_batch(
                 is_coming = bool(tx.get("is_coming", False))
                 csv_id = tx.get("csv_id")
 
-                # Critère 0 : Opération bancaire déjà enregistrée et pointée en base (historique bancaire déjà traité)
-                if is_rec and already_rec and not is_coming:
+                # Critère 0 : Opération bancaire déjà enregistrée en base (historique pointé ou opération à venir déjà traitée/liée)
+                if is_rec and already_rec:
                     continue
-                if csv_id and csv_id in existing_csv_ids and not is_coming:
+                if csv_id and csv_id in existing_csv_ids:
                     continue
 
-                # Critère 1 : Auto-rapprochement haute certitude (Score >= threshold, sans collision)
+                # Critère 1 : Auto-rapprochement (Haute certitude directe ou Rapprochement avec revue post-action)
                 is_eligible_reconciliation = (
                     cfg_auto_reconcile
                     and is_rec
                     and not already_rec
                     and matched_id is not None
-                    and match_score >= threshold
+                    and match_score >= 60.0
                     and not collision_detected
                 )
 
@@ -447,7 +448,7 @@ def process_incoming_batch(
                     if not cfg_auto_reconcile: reasons.append("auto_reconcile désactivé")
                     if already_rec: reasons.append("already_reconciled")
                     if matched_id is None: reasons.append("pas de matched_db_id")
-                    if match_score < threshold: reasons.append(f"score={match_score:.1f} < seuil={threshold}")
+                    if match_score < 60.0: reasons.append(f"score={match_score:.1f} < 60")
                     if collision_detected: reasons.append("collision détectée")
                     logger.info(f"[AutoPilot] ⏭ Non éligible auto-rapprochement pour '{lbl}' : {', '.join(reasons)}")
 
@@ -455,6 +456,12 @@ def process_incoming_batch(
                     existing = db.query(Transaction).filter(Transaction.id == matched_id).first()
                     if existing and existing.reconciliation_date is None:
                         before_snap = snapshot_entity(existing)
+                        is_confident = (match_score >= threshold)
+                        rec_needs_review = not is_confident
+                        if rec_needs_review:
+                            needs_review_count += 1
+                            existing.needs_review = True
+                            existing.confidence_score = match_score
 
                         # Appliquer le pointage uniquement si l'opération est confirmée (débitée)
                         # Pour une opération à venir (is_coming), la transaction reste prévisionnelle (reconciliation_date=None)
@@ -472,13 +479,15 @@ def process_incoming_batch(
                         if tx.get("csv_id"):
                             existing.csv_id = tx["csv_id"]
                             existing_csv_ids.add(tx["csv_id"])
-                        if tx.get("category"):
+                        if tx.get("category") and not existing.category:
                             existing.category = tx["category"]
-                        if tx.get("description"):
+                        if tx.get("raw_description") or tx.get("description"):
+                            existing.raw_description = tx.get("raw_description") or tx.get("description")
+                        if not existing.description and tx.get("description"):
                             existing.description = tx["description"]
 
                         # Historisation Undo/Redo
-                        creator_user = "Automatisme (Liaison à venir)" if is_coming else "Automatisme (Rapprochement)"
+                        creator_user = "Automatisme (Liaison à venir)" if is_coming else ("Automatisme (Rapprochement)" if is_confident else "Automatisme (Rapprochement à vérifier)")
                         record_action(
                             db,
                             "transaction",
@@ -496,8 +505,10 @@ def process_incoming_batch(
                                 if not k.startswith("_") and not isinstance(v, (datetime, date))
                             },
                             "matched_db_id": existing.id,
+                            "forecast_description": existing.description,
                             "is_amount_deviant": tx.get("is_amount_deviant", False),
                             "is_coming": is_coming,
+                            "needs_review": rec_needs_review,
                             "original_amount": tx.get("original_forecast_amount"),
                             "actual_amount": existing.amount,
                             "before": before_snap,
@@ -505,11 +516,11 @@ def process_incoming_batch(
                         }
 
                         if is_coming:
-                            dec_action = "LINKED_COMING"
+                            dec_action = "LINKED_COMING" if is_confident else "LINKED_COMING_PENDING_REVIEW"
                         elif tx.get("is_amount_deviant"):
-                            dec_action = "AUTO_RECONCILED_DEVIANT"
+                            dec_action = "AUTO_RECONCILED_DEVIANT" if is_confident else "AUTO_RECONCILED_DEVIANT_PENDING_REVIEW"
                         else:
-                            dec_action = "AUTO_COMMIT"
+                            dec_action = "AUTO_COMMIT" if is_confident else "AUTO_COMMIT_PENDING_REVIEW"
 
                         decision = AutopilotDecisionLog(
                             batch_id=batch_id,
@@ -869,6 +880,13 @@ def get_autopilot_status(db: Session, profile_id: Optional[str] = None) -> Dict[
             exec_timestamps.append(dt_sync)
         except Exception:
             pass
+
+    for conn in db.query(BankConnection).all():
+        if conn.last_sync_at:
+            dt_conn = conn.last_sync_at
+            if dt_conn.tzinfo is None:
+                dt_conn = dt_conn.replace(tzinfo=timezone.utc)
+            exec_timestamps.append(dt_conn)
 
     if last_run_str:
         try:

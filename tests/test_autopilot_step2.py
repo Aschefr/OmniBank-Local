@@ -224,18 +224,19 @@ def test_t2_2_suggested_match_arbitration_zone(test_db):
 
     res = process_incoming_batch(test_db, conn_id=1, preview_data=preview_data, profile_id="default")
 
-    # Vérifications : 0 auto-reconciled, 1 pending dans le Sas
-    assert res["auto_reconciled"] == 0
-    assert res["pending"] == 1
+    # Vérifications Paradigme Post-Action : auto-reconciled = 1, pending = 0 (zéro sas bloquant)
+    assert res["auto_reconciled"] == 1
+    assert res["pending"] == 0
 
-    # La prévision en base ne doit PAS être modifiée
+    # La prévision en base est rapprochée avec drapeau de revue post-action
     test_db.refresh(tx_dab)
-    assert tx_dab.reconciliation_date is None
+    assert tx_dab.reconciliation_date is not None
 
-    # L'opération doit résider dans le sas d'attente
-    pending_sas = _PENDING_SYNC_DATA.get("default", {})
-    assert 1 in pending_sas
-    assert len(pending_sas[1]["accounts"][0]["transactions"]) == 1
+    # L'action est consignée dans AutopilotDecisionLog avec statut AUTO_COMMIT_PENDING_REVIEW
+    log = test_db.query(AutopilotDecisionLog).filter_by(entity_id=102).first()
+    assert log is not None
+    assert log.action == "AUTO_COMMIT_PENDING_REVIEW"
+    assert log.confidence_score == rec_info["match_score"]
 
 
 def test_t2_3_anti_collision_with_textual_discriminant(test_db):
