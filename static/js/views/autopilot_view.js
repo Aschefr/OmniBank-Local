@@ -42,7 +42,7 @@ window.AutopilotView = {
                 {
                     key: 'bank_auto_sync_enabled',
                     label: 'Synchronisation bancaire en arrière-plan',
-                    desc: 'Effectue le relevé bancaire périodique autonome (12h/24h/48h) lorsque le coffre-fort est déverrouillé.'
+                    desc: 'Effectue le relevé bancaire périodique autonome (3h à 48h) lorsque le coffre-fort est déverrouillé.'
                 }
             ]
         },
@@ -133,19 +133,25 @@ window.AutopilotView = {
                             </p>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                        <button class="btn btn-secondary" onclick="window.AutopilotView.openSettingsDrawer()" title="Configurer les 15 briques et le seuil" style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12.5px;">
-                            <span>⚙️</span> <span>Réglages & Briques</span> <span id="apActiveBriquesBadge" class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 8px;">--/15</span>
-                        </button>
-                        <button class="btn btn-secondary" onclick="window.AutopilotView.refresh()" title="Actualiser" style="display: flex; align-items: center; gap: 6px;">
-                            <span>🔄</span> <span data-i18n="btn_refresh">${window.i18n.t('btn_refresh') || window.i18n.t('common.refresh') || 'Actualiser'}</span>
-                        </button>
-                        <div class="autopilot-master-switch-wrapper" style="display: flex; align-items: center; gap: 10px; background: var(--bg-surface); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border-color);">
-                            <span style="font-size: 12.5px; font-weight: 600;" data-i18n="autopilot_master_toggle">${window.i18n.t('autopilot_master_toggle') || 'Mode Auto-Pilote'}</span>
-                            <label class="switch" style="margin: 0;">
-                                <input type="checkbox" id="apMasterSwitch" onchange="window.AutopilotView.toggleMasterSwitch(this.checked)">
-                                <span class="slider round"></span>
-                            </label>
+                    <div class="autopilot-header-toolbar">
+                        <!-- Encadré 1 : Flux Bancaire & Coffre-Fort -->
+                        <div id="apBankSyncGroup" class="autopilot-toolbar-group" style="display: none;">
+                            <span id="apVaultPill" class="bank-sync-vault-wrapper" style="display: none;"></span>
+                            <div id="apAutoSyncCompact" class="bank-sync-auto-sync-widget-slot" style="display: none;"></div>
+                        </div>
+
+                        <!-- Encadré 2 : Pilotage & Briques Modulaires -->
+                        <div class="autopilot-toolbar-group">
+                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="Configurer les 15 briques et le seuil">
+                                <span>⚙️</span> <span>Réglages & Briques</span> <span id="apActiveBriquesBadge" class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/15</span>
+                            </button>
+                            <div class="autopilot-master-switch-wrapper">
+                                <span style="font-size: 12.5px; font-weight: 600;" data-i18n="autopilot_master_toggle">${window.i18n.t('autopilot_master_toggle') || 'Mode Auto-Pilote'}</span>
+                                <label class="switch" style="margin: 0;">
+                                    <input type="checkbox" id="apMasterSwitch" onchange="window.AutopilotView.toggleMasterSwitch(this.checked)">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -206,14 +212,18 @@ window.AutopilotView = {
                                 </div>
                             </div>
 
-                            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11.5px; color: var(--text-muted); line-height: 1.5;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                    <span>Dernier cycle :</span>
-                                    <strong id="apLastExecTime" style="color: var(--text-main);">--</strong>
+                            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11.5px; color: var(--text-muted); line-height: 1.6; display: flex; flex-direction: column; gap: 6px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Coffre-fort :</span>
+                                    <span id="apVaultStatusInline" style="font-weight: 700; color: var(--text-main);">--</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Dernier relevé :</span>
+                                    <strong id="apLastExecTime" style="color: var(--text-main); font-weight: 700;">--</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <span>Prochain relevé :</span>
-                                    <strong id="apNextExecTime" style="color: var(--text-main);">--</strong>
+                                    <strong id="apNextExecTime" style="color: var(--text-main); font-weight: 700;">--</strong>
                                 </div>
                             </div>
                         </div>
@@ -596,14 +606,29 @@ window.AutopilotView = {
         window.addEventListener('transactions_changed', handleRefresh);
     },
 
+    _nextExecTimer: null,
+    _targetNextExecEnd: null,
+
     async refresh() {
-        await Promise.all([
+        const tasks = [
             this.loadStatus(),
             this.loadKPIs(),
             this.loadReviewQueue(),
             this.loadDecisions(),
             this.loadLearnedRules()
-        ]);
+        ];
+        if (window.BankSyncView) {
+            if (typeof window.BankSyncView.loadConnections === 'function') {
+                tasks.push(window.BankSyncView.loadConnections().catch(() => {}));
+            }
+            if (typeof window.BankSyncView.loadVaultStatus === 'function') {
+                tasks.push(window.BankSyncView.loadVaultStatus().catch(() => {}));
+            }
+            if (typeof window.BankSyncView.loadAutoSyncSettings === 'function') {
+                tasks.push(window.BankSyncView.loadAutoSyncSettings().catch(() => {}));
+            }
+        }
+        await Promise.all(tasks);
     },
 
     async loadStatus() {
@@ -614,6 +639,92 @@ window.AutopilotView = {
         } catch (e) {
             console.warn('[AutopilotView] Erreur chargement statut:', e);
         }
+    },
+
+    startNextExecCountdown(status) {
+        if (this._nextExecTimer) {
+            clearInterval(this._nextExecTimer);
+            this._nextExecTimer = null;
+        }
+
+        const nextExecEl = document.getElementById('apNextExecTime');
+        if (!nextExecEl) return;
+
+        const isAutoSyncEnabled = !!status.bank_auto_sync_enabled;
+        const isVaultUnlocked = !!status.vault_unlocked;
+        const nextIso = status.next_execution_at;
+        const remSecFromStatus = status.next_execution_countdown_seconds;
+
+        if (!isAutoSyncEnabled) {
+            nextExecEl.innerHTML = `<span style="color: var(--text-muted); font-weight: 600;">Désactivé (Manuel)</span>`;
+            return;
+        }
+
+        if (!isVaultUnlocked) {
+            nextExecEl.innerHTML = `<span style="color: #f59e0b; font-weight: 700; cursor: pointer;" onclick="window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="Déverrouiller le coffre pour reprendre les relevés">⚠️ En pause (Coffre verrouillé)</span>`;
+            return;
+        }
+
+        let targetEnd = null;
+        if (nextIso) {
+            const parsed = new Date(nextIso).getTime();
+            if (!isNaN(parsed)) targetEnd = parsed;
+        } else if (remSecFromStatus !== null && remSecFromStatus !== undefined) {
+            targetEnd = Date.now() + remSecFromStatus * 1000;
+        }
+
+        if (!targetEnd) {
+            nextExecEl.textContent = 'À l\'import de relevé';
+            return;
+        }
+
+        this._targetNextExecEnd = targetEnd;
+
+        const formatRem = (seconds) => {
+            if (seconds <= 0) return 'Relevé en cours...';
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            if (hrs > 0) {
+                return `dans ${hrs}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
+            }
+            if (mins > 0) {
+                return `dans ${mins}m ${secs.toString().padStart(2, '0')}s`;
+            }
+            return `dans ${secs}s`;
+        };
+
+        const updateTick = () => {
+            const el = document.getElementById('apNextExecTime');
+            if (!el) {
+                if (this._nextExecTimer) {
+                    clearInterval(this._nextExecTimer);
+                    this._nextExecTimer = null;
+                }
+                return;
+            }
+            const diffMs = this._targetNextExecEnd - Date.now();
+            const remSec = Math.max(0, Math.floor(diffMs / 1000));
+            el.textContent = formatRem(remSec);
+            if (targetEnd) {
+                el.title = `Prévu le ${new Date(targetEnd).toLocaleString()}`;
+            }
+
+            if (remSec <= 0) {
+                if (this._nextExecTimer) {
+                    clearInterval(this._nextExecTimer);
+                    this._nextExecTimer = null;
+                }
+                setTimeout(() => {
+                    if (window.app && window.app.currentView === 'autopilot') {
+                        this.refresh();
+                    }
+                }, 5000);
+            }
+        };
+
+        updateTick();
+        this._nextExecTimer = setInterval(updateTick, 1000);
     },
 
     renderStatus(status) {
@@ -651,13 +762,42 @@ window.AutopilotView = {
             valBadge.textContent = `${status.threshold}%`;
         }
 
+        // Format du dernier relevé / cycle
         const lastExecEl = document.getElementById('apLastExecTime');
         if (lastExecEl) {
-            lastExecEl.textContent = status.last_execution ? new Date(status.last_execution).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Récemment';
+            const lastIso = status.last_execution_at || status.last_execution || status.last_run_at;
+            if (lastIso) {
+                try {
+                    const dt = new Date(lastIso);
+                    const now = new Date();
+                    const isToday = dt.toDateString() === now.toDateString();
+                    const yesterday = new Date(now);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const isYesterday = dt.toDateString() === yesterday.toDateString();
+
+                    const timeStr = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    if (isToday) {
+                        lastExecEl.textContent = `Aujourd'hui à ${timeStr}`;
+                    } else if (isYesterday) {
+                        lastExecEl.textContent = `Hier à ${timeStr}`;
+                    } else {
+                        const dateStr = dt.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+                        lastExecEl.textContent = `${dateStr} à ${timeStr}`;
+                    }
+                    lastExecEl.title = dt.toLocaleString();
+                } catch (e) {
+                    lastExecEl.textContent = 'Récemment';
+                }
+            } else {
+                lastExecEl.textContent = 'Aucun relevé';
+            }
         }
-        const nextExecEl = document.getElementById('apNextExecTime');
-        if (nextExecEl) {
-            nextExecEl.textContent = status.next_execution ? new Date(status.next_execution).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'À l\'import de relevé';
+
+        // Lancement du compte à rebours dynamique live
+        this.startNextExecCountdown(status);
+
+        if (window.BankSyncView && typeof window.BankSyncView.renderVaultStatusBar === 'function') {
+            window.BankSyncView.renderVaultStatusBar();
         }
 
         this.renderSubtogglesInDrawer();
