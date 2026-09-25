@@ -223,6 +223,11 @@ Object.assign(window.BankSyncView, {
             }
             autoSyncBox.style.display = 'inline-flex';
 
+            const isAutopilot = autoSyncBox.id === 'apAutoSyncCompact' || !!autoSyncBox.closest('#apBankSyncGroup') || !!autoSyncBox.closest('.autopilot-toolbar-group');
+            const boxHeight = isAutopilot ? '40px' : '36px';
+            const boxRadius = '9px';
+            const boxPadding = '0 12px';
+
             const autoSyncLabel = window.i18n ? window.i18n.t('bank_sync_auto_sync_label') : 'Relevé auto';
             const autoSyncActive = window.i18n ? window.i18n.t('bank_sync_auto_sync_active') : 'Actif';
             const unlockBtnText = window.i18n ? window.i18n.t('bank_sync_auto_sync_unlock_btn') : 'Déverrouiller';
@@ -232,13 +237,13 @@ Object.assign(window.BankSyncView, {
                 autoSyncBox.className = 'bank-sync-auto-sync-widget is-locked-warning';
                 autoSyncBox.style.cssText = `
                     display: inline-flex;
-                    height: 36px;
+                    height: ${boxHeight};
                     align-items: center;
                     gap: 8px;
-                    padding: 0 12px;
+                    padding: ${boxPadding};
                     background: rgba(245, 158, 11, 0.12);
                     border: 1.5px dashed #f59e0b;
-                    border-radius: 9px;
+                    border-radius: ${boxRadius};
                     font-size: 12px;
                     font-weight: 600;
                     color: #f59e0b;
@@ -266,17 +271,18 @@ Object.assign(window.BankSyncView, {
                 autoSyncBox.className = 'bank-sync-auto-sync-widget is-active';
                 autoSyncBox.style.cssText = `
                     display: inline-flex;
-                    height: 36px;
+                    height: ${boxHeight};
                     align-items: center;
                     gap: 8px;
-                    padding: 0 12px;
+                    padding: ${boxPadding};
                     background: rgba(16, 185, 129, 0.08);
                     border: 1px solid rgba(16, 185, 129, 0.4);
-                    border-radius: 9px;
+                    border-radius: ${boxRadius};
                     font-size: 12px;
                     font-weight: 600;
                     color: var(--text-main);
                     box-sizing: border-box;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
                     transition: all 0.25s ease;
                 `;
                 const activeTooltipTpl = window.i18n ? window.i18n.t('bank_sync_auto_sync_active_tooltip') : `Relevé automatique programmé toutes les {interval}h (coffre déverrouillé).`;
@@ -299,17 +305,18 @@ Object.assign(window.BankSyncView, {
                 autoSyncBox.className = 'bank-sync-auto-sync-widget is-disabled';
                 autoSyncBox.style.cssText = `
                     display: inline-flex;
-                    height: 36px;
+                    height: ${boxHeight};
                     align-items: center;
                     gap: 8px;
-                    padding: 0 12px;
+                    padding: ${boxPadding};
                     background: var(--bg-card);
                     border: 1px solid var(--border-color);
-                    border-radius: 9px;
+                    border-radius: ${boxRadius};
                     font-size: 12px;
                     font-weight: 600;
                     color: var(--text-muted);
                     box-sizing: border-box;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
                     transition: all 0.25s ease;
                 `;
                 autoSyncBox.title = isServerUnlocked ? (window.i18n ? window.i18n.t('bank_sync_auto_sync_enable_tooltip') : "Activer le relevé automatique en arrière-plan.") : (window.i18n ? window.i18n.t('bank_sync_auto_sync_enable_locked_tooltip') : "Activer le relevé automatique (nécessite de déverrouiller le coffre).");

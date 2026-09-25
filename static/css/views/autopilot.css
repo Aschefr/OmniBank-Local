@@ -364,6 +364,24 @@
     transform: rotate(-90deg);
 }
 
+.ap-batch-label-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ap-batch-code {
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(99, 102, 241, 0.12);
+    padding: 1px 7px;
+    border-radius: 6px;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    letter-spacing: 0.3px;
+}
+
 /* Reason badge in decision row */
 .ap-reason-badge {
     background: var(--accent-subtle, rgba(99, 102, 241, 0.08));
@@ -1279,21 +1297,24 @@ body.theme-titanium-light .ap-override-rule-card {
 }
 
 .ap-header-btn {
-    background: var(--bg-surface);
+    height: 40px;
+    background: var(--bg-card, var(--bg-surface));
     border: 1px solid var(--border-color);
     color: var(--text-main);
     font-size: 12.5px;
     font-weight: 600;
-    padding: 7px 12px;
-    border-radius: 8px;
+    padding: 0 14px;
+    border-radius: 9px;
     transition: all 0.2s ease;
     cursor: pointer;
+    box-sizing: border-box;
 }
 
 .ap-header-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: var(--bg-card);
+    background: var(--bg-surface-hover, var(--bg-card));
+    transform: translateY(-1px);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1457,11 +1478,12 @@ body.theme-titanium-light .ap-override-rule-card {
     margin-left: 6px;
     background: rgba(15, 23, 42, 0.75);
     border: 1px solid rgba(16, 185, 129, 0.45);
-    border-radius: 14px;
+    border-radius: 12px;
     overflow: hidden;
     min-width: 148px;
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5), 0 0 14px rgba(16, 185, 129, 0.18);
     animation: fadeIn 0.25s ease;
+    box-sizing: border-box;
 }
 
 .ap-cylon-track {
@@ -1633,6 +1655,26 @@ body.theme-titanium-light .ap-override-rule-card {
     align-items: center;
     gap: 18px;
     color: #ffffff;
+    overflow: hidden;
+}
+
+.ap-hud-progress-track {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3.5px;
+    background: rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.ap-hud-progress-bar {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #06b6d4 100%);
+    box-shadow: 0 0 8px #10b981;
+    transform-origin: left;
+    transition: width 0.05s linear;
 }
 
 .ap-hud-gyro-wrap {
@@ -1810,5 +1852,29 @@ body.theme-titanium-light .ap-override-rule-card {
         box-shadow: 0 0 0 rgba(16, 185, 129, 0);
     }
 }
+
+/* ═══════════════════════════════════════════════════════
+   Privacy Mode Support for Autopilot Control Center
+   ═══════════════════════════════════════════════════════ */
+body.privacy-mode .ap-review-card .privacy-blur,
+body.privacy-mode .ap-review-desktop-table .privacy-blur,
+body.privacy-mode .ap-decision-row .privacy-blur,
+body.privacy-mode .candidate-forecast-card .privacy-blur,
+body.privacy-mode input.privacy-blur {
+    filter: blur(5px);
+    opacity: 0.7;
+    transition: filter 0.25s ease, opacity 0.25s ease;
+}
+
+body.privacy-mode .ap-review-card .privacy-blur:hover,
+body.privacy-mode .ap-review-desktop-table .privacy-blur:hover,
+body.privacy-mode .ap-decision-row .privacy-blur:hover,
+body.privacy-mode .candidate-forecast-card .privacy-blur:hover,
+body.privacy-mode input.privacy-blur:hover,
+body.privacy-mode input.privacy-blur:focus {
+    filter: blur(0px);
+    opacity: 1;
+}
+
 
 
