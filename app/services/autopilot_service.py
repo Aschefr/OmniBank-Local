@@ -437,14 +437,27 @@ def process_incoming_batch(
                             tx["collision_detected"] = rec_info.get("collision_detected", False)
                             tx["is_amount_deviant"] = rec_info.get("is_amount_deviant", False)
                             tx["original_forecast_amount"] = rec_info.get("original_forecast_amount")
+                            tx["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
+                            tx["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
+                            tx["orphan_account_id"] = rec_info.get("orphan_account_id")
     except Exception as rec_eval_err:
         logger.debug(f"[AutoPilot] Évaluation réconciliation non appliquée: {rec_eval_err}")
 
     # 3. Indexer les csv_id existants en base et les catégories valides
     from app.models import Category
-    existing_csv_ids = set(
-        row[0] for row in db.query(Transaction.csv_id).filter(Transaction.csv_id.isnot(None)).all()
+    existing_reconciled_csv_ids = set(
+        row[0] for row in db.query(Transaction.csv_id).filter(
+            Transaction.csv_id.isnot(None),
+            Transaction.reconciliation_date.isnot(None)
+        ).all()
     )
+    existing_unreconciled_csv_ids = set(
+        row[0] for row in db.query(Transaction.csv_id).filter(
+            Transaction.csv_id.isnot(None),
+            Transaction.reconciliation_date.is_(None)
+        ).all()
+    )
+    existing_csv_ids = existing_reconciled_csv_ids | existing_unreconciled_csv_ids
     valid_categories = {c.name for c in db.query(Category.name).all() if c.name}
 
     auto_reconciled_count = 0
@@ -474,10 +487,15 @@ def process_incoming_batch(
                 is_coming = bool(tx.get("is_coming", False))
                 csv_id = tx.get("csv_id")
 
-                # Critère 0 : Opération bancaire déjà enregistrée en base (historique pointé ou opération à venir déjà traitée/liée)
+                # Critère 0 : Opération bancaire déjà enregistrée et pointée en base
                 if is_rec and already_rec:
                     continue
-                if csv_id and csv_id in existing_csv_ids:
+                if csv_id and csv_id in existing_reconciled_csv_ids:
+                    continue
+                if csv_id and csv_id in existing_unreconciled_csv_ids and is_coming:
+                    # Déjà liée/créée en base lors d'une synchronisation précédente, maintien dans le Sas pour badge "À venir"
+                    residual_txs.append(tx)
+                    pending_count += 1
                     continue
 
                 # Critère 1 : Auto-rapprochement (Haute certitude directe ou Rapprochement avec revue post-action)
@@ -502,7 +520,10 @@ def process_incoming_batch(
 
                 if is_eligible_reconciliation:
                     existing = db.query(Transaction).filter(Transaction.id == matched_id).first()
-                    if existing and existing.reconciliation_date is None:
+                    is_orphan_link = bool(tx.get("is_orphan_transfer_link", False))
+                    is_mirror_transfer = bool(tx.get("is_mirror_transfer", False))
+
+                    if existing and (existing.reconciliation_date is None or is_orphan_link or is_mirror_transfer):
                         before_snap = snapshot_entity(existing)
                         is_confident = (match_score >= threshold)
                         rec_needs_review = not is_confident
@@ -511,31 +532,58 @@ def process_incoming_batch(
                             existing.needs_review = True
                             existing.confidence_score = match_score
 
+                        raw_val = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
+
+                        if is_orphan_link:
+                            # Auto-linking de virement interne asynchrone entre deux comptes locaux
+                            if raw_val < 0:
+                                existing.from_account_id = acc_id
+                            else:
+                                existing.to_account_id = acc_id
+                            existing.type = "transfer"
+                            creator_user = "Automatisme (Liaison Virement)" if is_confident else "Automatisme (Virement à vérifier)"
+                            dec_action = "AUTO_LINKED_TRANSFER" if is_confident else "AUTO_LINKED_TRANSFER_PENDING_REVIEW"
+                        elif is_mirror_transfer:
+                            creator_user = "Automatisme (Virement Miroir)"
+                            dec_action = "AUTO_RECONCILED_MIRROR_TRANSFER"
+                        else:
+                            creator_user = "Automatisme (Liaison à venir)" if is_coming else ("Automatisme (Rapprochement)" if is_confident else "Automatisme (Rapprochement à vérifier)")
+                            if is_coming:
+                                dec_action = "LINKED_COMING" if is_confident else "LINKED_COMING_PENDING_REVIEW"
+                            elif tx.get("is_amount_deviant"):
+                                dec_action = "AUTO_RECONCILED_DEVIANT" if is_confident else "AUTO_RECONCILED_DEVIANT_PENDING_REVIEW"
+                            else:
+                                dec_action = "AUTO_COMMIT" if is_confident else "AUTO_COMMIT_PENDING_REVIEW"
+
                         # Appliquer le pointage uniquement si l'opération est confirmée (débitée)
                         # Pour une opération à venir (is_coming), la transaction reste prévisionnelle (reconciliation_date=None)
                         # mais est liée au csv_id bancaire pour être pointée dès réception du débit officiel.
                         if not is_coming:
                             existing.reconciliation_date = date.today()
 
-                        if tx.get("is_amount_deviant"):
-                            raw_val = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
+                        if tx.get("is_amount_deviant") and not is_orphan_link:
                             existing.amount = abs(raw_val)
                             orig_amt = tx.get("original_forecast_amount")
                             if not existing.comment and orig_amt is not None:
                                 existing.comment = f"Auto-ajusté : {orig_amt:.2f} € → {existing.amount:.2f} €"
 
                         if tx.get("csv_id"):
-                            existing.csv_id = tx["csv_id"]
+                            if is_orphan_link:
+                                if not existing.csv_id:
+                                    existing.csv_id = tx["csv_id"]
+                            else:
+                                existing.csv_id = tx["csv_id"]
+                            existing_unreconciled_csv_ids.add(tx["csv_id"])
                             existing_csv_ids.add(tx["csv_id"])
                         if tx.get("category") and not existing.category:
                             existing.category = tx["category"]
-                        if tx.get("raw_description") or tx.get("description"):
-                            existing.raw_description = tx.get("raw_description") or tx.get("description")
-                        if not existing.description and tx.get("description"):
-                            existing.description = tx["description"]
+                        if not is_orphan_link:
+                            if tx.get("raw_description") or tx.get("description"):
+                                existing.raw_description = tx.get("raw_description") or tx.get("description")
+                            if not existing.description and tx.get("description"):
+                                existing.description = tx["description"]
 
                         # Historisation Undo/Redo
-                        creator_user = "Automatisme (Liaison à venir)" if is_coming else ("Automatisme (Rapprochement)" if is_confident else "Automatisme (Rapprochement à vérifier)")
                         record_action(
                             db,
                             "transaction",
@@ -555,6 +603,8 @@ def process_incoming_batch(
                             "matched_db_id": existing.id,
                             "forecast_description": existing.description,
                             "is_amount_deviant": tx.get("is_amount_deviant", False),
+                            "is_orphan_transfer_link": is_orphan_link,
+                            "is_mirror_transfer": is_mirror_transfer,
                             "is_coming": is_coming,
                             "needs_review": rec_needs_review,
                             "original_amount": tx.get("original_forecast_amount"),
@@ -563,16 +613,9 @@ def process_incoming_batch(
                             "after": snapshot_entity(existing)
                         }
 
-                        if is_coming:
-                            dec_action = "LINKED_COMING" if is_confident else "LINKED_COMING_PENDING_REVIEW"
-                        elif tx.get("is_amount_deviant"):
-                            dec_action = "AUTO_RECONCILED_DEVIANT" if is_confident else "AUTO_RECONCILED_DEVIANT_PENDING_REVIEW"
-                        else:
-                            dec_action = "AUTO_COMMIT" if is_confident else "AUTO_COMMIT_PENDING_REVIEW"
-
                         decision = AutopilotDecisionLog(
                             batch_id=batch_id,
-                            decision_type="reconciliation",
+                            decision_type="transfer_link" if is_orphan_link else "reconciliation",
                             action=dec_action,
                             entity_type="transaction",
                             entity_id=existing.id,
@@ -584,6 +627,9 @@ def process_incoming_batch(
                         )
                         db.add(decision)
                         auto_reconciled_count += 1
+                        if is_coming:
+                            residual_txs.append(tx)
+                            pending_count += 1
                         continue
                     else:
                         # Transaction cible introuvable ou déjà réconciliée -> maintien dans le Sas
@@ -721,6 +767,7 @@ def process_incoming_batch(
                     db.add(new_tx)
                     db.flush()
                     if csv_id:
+                        existing_unreconciled_csv_ids.add(csv_id)
                         existing_csv_ids.add(csv_id)
 
                     # Historisation Undo/Redo
@@ -787,6 +834,14 @@ def process_incoming_batch(
                             except Exception as ex_learn:
                                 logger.debug(f"[AutoPilot] Ignoré échec apprentissage: {ex_learn}")
 
+                    if is_coming:
+                        # Nouvelle opération à venir créée : maintien dans le Sas pour badge "À venir"
+                        tx_coming_copy = dict(tx)
+                        tx_coming_copy["matched_db_id"] = new_tx.id
+                        tx_coming_copy["is_reconciled"] = True
+                        tx_coming_copy["already_reconciled"] = False
+                        residual_txs.append(tx_coming_copy)
+                        pending_count += 1
                     continue
 
                 # Critère 3 : Opération en zone d'arbitrage ou à venir -> maintien dans le Sas

@@ -390,8 +390,9 @@ window.TrendsView = {
         this.chartMode = mode;
         this.saveConfig({ trends_chart_mode: mode });
         // Mettre à jour les boutons de mode
-        document.querySelectorAll('.ov-mode-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${mode}'`));
+        document.querySelectorAll('.overview-trend-mode-toggle .ov-mode-btn').forEach(btn => {
+            const onclickStr = btn.getAttribute('onclick') || '';
+            btn.classList.toggle('active', onclickStr.includes(`'${mode}'`));
         });
         this.renderChart();
     },

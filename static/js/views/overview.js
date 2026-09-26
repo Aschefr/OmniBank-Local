@@ -26,6 +26,25 @@ window.OverviewView = {
     _apSyncTriggered: false,
 
     render() {
+        if (window.ProfileStorage) {
+            const savedTop6 = window.ProfileStorage.get('overview_top6_filter');
+            if (savedTop6) this._top6Filter = savedTop6;
+            const savedHorizon = window.ProfileStorage.get('overview_horizon');
+            if (savedHorizon) this._horizon = savedHorizon;
+            const savedGranularity = window.ProfileStorage.get('overview_stats_granularity');
+            if (savedGranularity) this._statsGranularity = savedGranularity;
+            const savedLookback = window.ProfileStorage.get('overview_stats_lookback');
+            if (savedLookback) this._statsLookback = savedLookback;
+            const savedTrend = window.ProfileStorage.get('overview_trend_mode');
+            if (savedTrend) this._trendMode = savedTrend;
+        } else if (window.app?.config) {
+            if (window.app.config.overview_top6_filter) this._top6Filter = window.app.config.overview_top6_filter;
+            if (window.app.config.overview_horizon) this._horizon = window.app.config.overview_horizon;
+            if (window.app.config.overview_stats_granularity) this._statsGranularity = window.app.config.overview_stats_granularity;
+            if (window.app.config.overview_stats_lookback) this._statsLookback = window.app.config.overview_stats_lookback;
+            if (window.app.config.overview_trend_mode) this._trendMode = window.app.config.overview_trend_mode;
+        }
+
         return `
             <div id="overviewRoot" class="overview-root">
                 <!-- Header / Health Badge, Account Selector & Quick Actions -->
@@ -402,6 +421,8 @@ window.OverviewView = {
                 if (savedGranularity) this._statsGranularity = savedGranularity;
                 const savedLookback = window.ProfileStorage.get('overview_stats_lookback');
                 if (savedLookback) this._statsLookback = savedLookback;
+                const savedTrend = window.ProfileStorage.get('overview_trend_mode');
+                if (savedTrend) this._trendMode = savedTrend;
             }
 
             this._stats = stats;
@@ -414,6 +435,7 @@ window.OverviewView = {
             this._updateActiveTabUI();
             this._updateHorizonUI();
             this._updateTrendModeUI();
+            this._updateTop6FilterUI();
             this._updateStatsGranularityUI();
             this._updateStatsLookbackUI();
             this._renderHealthBadge(stats);
@@ -1869,14 +1891,18 @@ window.OverviewView = {
 
     setTrendMode(mode) {
         this._trendMode = mode;
+        if (window.ProfileStorage) {
+            window.ProfileStorage.set('overview_trend_mode', mode);
+        }
         this.saveConfig({ overview_trend_mode: this._trendMode });
         this._updateTrendModeUI();
         this._renderTrend();
     },
 
     _updateTrendModeUI() {
-        document.querySelectorAll('.ov-mode-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${this._trendMode}'`));
+        document.querySelectorAll('.overview-trend-mode-toggle .ov-mode-btn').forEach(btn => {
+            const onclickStr = btn.getAttribute('onclick') || '';
+            btn.classList.toggle('active', onclickStr.includes(`'${this._trendMode}'`));
         });
     },
 
