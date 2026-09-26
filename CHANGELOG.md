@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Smart Label Direct Category Resolution & Mutual Coverage Harmonization 🏷️🎯**:
+  - **Direct Active Category Matching (Level 2.5)**: The Smart Label engine directly checks labels against the user's active SQLite categories before generic fallback, accurately suggesting explicit categories like *"Remboursement"* on credit inflows (e.g. *"Remboursement Amazon Bouilloire"* $\rightarrow$ *"Remboursement"*) with 95% confidence.
+  - **Balanced Token Coverage Safeguard**: Tightened mutual token coverage thresholds in `matcher.py` to prevent isolated 1-word merchants (e.g. *"Amazon"*) from hijacking 3+ word phrases while preserving multi-word brand matches (*"Crédit Agricole"*, *"Banque Populaire"*).
+  - **Directional & Unified Classification Across Views**: Propagated transaction flow direction (`tx_type: 'income'` vs `'expense_var'`) and harmonized single-row suggestion buttons, tooltips (*"Suggérer la catégorie automatiquement"* vs *"Nommer et classifier avec l'IA"*), and feedback toasts across the Auto-Pilot Review modal, Bank Sync Review table, and CSV Import Wizard.
 - **Zero-F5 Reactive Auto-Pilot Synchronisation & Live Lifecycle Engine ⚡🔄**:
   - **Instant Scheduled Trigger**: Auto-Pilot now proactively triggers scheduled bank synchronization cycles as soon as the countdown timer hits `00:00`, eliminating background loop delay.
   - **Dynamic Active Sync Tracker**: Seamlessly polls sync state every 1.5–2 seconds while a background bank statement fetch is in progress, automatically refreshing KPIs, review queue items, decision audit logs, and next cycle countdowns in place with zero manual page reloads (F5).

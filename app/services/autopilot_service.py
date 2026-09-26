@@ -67,6 +67,35 @@ AUTOPILOT_MANAGED_KEYS = (
     "auto_reconcile_threshold",
 )
 
+AUTOPILOT_BALANCED_KEYS = (
+    "auto_reconcile_transactions",
+    "auto_commit_incoming_transactions",
+    "auto_assign_chameleon_fallback",
+    "auto_close_empty_import_sas",
+    "auto_create_missing_categories",
+    "auto_learn_merchant_rules",
+    "enable_budget_creation_suggestions",
+    "enable_budget_recalibration_suggestions",
+)
+
+AUTOPILOT_FULL_KEYS = (
+    "auto_reconcile_transactions",
+    "auto_commit_incoming_transactions",
+    "auto_assign_chameleon_fallback",
+    "auto_close_empty_import_sas",
+    "auto_create_missing_categories",
+    "auto_learn_merchant_rules",
+    "enable_budget_creation_suggestions",
+    "enable_budget_recalibration_suggestions",
+    "bank_auto_sync_enabled",
+    "auto_link_deviant_recurrences",
+    "auto_propagate_recurrence_hikes",
+    "auto_skip_unreconciled_recurrences",
+    "auto_close_unreconciled_recurrences",
+    "auto_create_budget_envelopes",
+    "auto_apply_budget_suggestions",
+)
+
 
 def get_auto_reconcile_threshold(db: Session) -> float:
     """Retourne le seuil de certitude pour l'auto-rapprochement et l'auto-commit (70.0 - 99.0, défaut 85.0)."""
@@ -116,13 +145,38 @@ def _get_cfg_bool(db: Session, key: str, default: bool = False) -> bool:
         return default
 
 
-def set_autopilot_enabled(db: Session, enabled: bool) -> None:
+def set_autopilot_preset(db: Session, preset: str) -> Dict[str, Any]:
+    """Applique un profil d'autonomie ('balanced', 'full' ou 'custom')."""
+    if preset not in ("balanced", "full", "custom"):
+        raise ValueError(f"Profil d'autonomie inconnu : {preset}")
+    
+    if preset in ("balanced", "full"):
+        target_keys = set(AUTOPILOT_FULL_KEYS if preset == "full" else AUTOPILOT_BALANCED_KEYS)
+        for sub_key in AUTOPILOT_MANAGED_KEYS:
+            if sub_key == "auto_reconcile_threshold":
+                continue
+            is_target_on = sub_key in target_keys
+            val_str = "true" if is_target_on else "false"
+            sc = db.query(GlobalConfig).filter(GlobalConfig.key == sub_key).first()
+            if not sc:
+                db.add(GlobalConfig(key=sub_key, value=val_str))
+            else:
+                sc.value = val_str
+            
+    cfg_preset = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_preset").first()
+    if not cfg_preset:
+        db.add(GlobalConfig(key="autopilot_preset", value=preset))
+    else:
+        cfg_preset.value = preset
+        
+    db.commit()
+    logger.info(f"[AutoPilot] Profil d'autonomie appliqué : {preset}")
+    return {"preset": preset}
+
+
+def set_autopilot_enabled(db: Session, enabled: bool, preset: Optional[str] = None) -> None:
     """Active ou désactive le mode Auto-Pilote dans global_config.
-    Quand le commutateur maître est activé (0 -> 1) :
-      - Mémorise un snapshot des réglages manuels fins dans 'autopilot_subtoggles_pre_activation_snapshot'.
-      - Active en cascade les modules autonomes essentiels.
-    Quand le commutateur maître est désactivé (1 -> 0) :
-      - Restaure fidèlement le snapshot des réglages manuels préalables.
+    Préserve strictement les 15 réglages fins personnalisés lors des bascules marche/veille.
     """
     val_str = "true" if enabled else "false"
     cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_pilot_enabled").first()
@@ -135,52 +189,24 @@ def set_autopilot_enabled(db: Session, enabled: bool) -> None:
         cfg.value = val_str
 
     if enabled and not was_enabled:
-        # 0 -> 1 : Sauvegarder l'état actuel des réglages personnalisés
-        snap = {}
-        for sub_key in AUTOPILOT_MANAGED_KEYS:
-            row = db.query(GlobalConfig).filter(GlobalConfig.key == sub_key).first()
-            if row and row.value is not None:
-                snap[sub_key] = row.value
-        
-        snap_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_subtoggles_pre_activation_snapshot").first()
-        if not snap_cfg:
-            snap_cfg = GlobalConfig(key="autopilot_subtoggles_pre_activation_snapshot", value=json.dumps(snap))
-            db.add(snap_cfg)
-        else:
-            snap_cfg.value = json.dumps(snap)
-
-        # Activation en cascade des briques de suggestions essentielles et des automatismes
-        cascade_keys = (
-            "enable_budget_creation_suggestions",
-            "enable_budget_recalibration_suggestions",
-            "auto_reconcile_transactions",
-            "auto_commit_incoming_transactions",
-            "auto_close_empty_import_sas",
-            "auto_create_missing_categories",
-            "auto_learn_merchant_rules",
-            "auto_assign_chameleon_fallback",
-        )
-        for sub_key in cascade_keys:
-            sc = db.query(GlobalConfig).filter(GlobalConfig.key == sub_key).first()
-            if not sc:
-                db.add(GlobalConfig(key=sub_key, value="true"))
+        # Si un profil prédéfini est explicitement spécifié lors de l'activation
+        if preset and preset in ("balanced", "full"):
+            target_keys = set(AUTOPILOT_FULL_KEYS if preset == "full" else AUTOPILOT_BALANCED_KEYS)
+            for sub_key in AUTOPILOT_MANAGED_KEYS:
+                if sub_key == "auto_reconcile_threshold":
+                    continue
+                is_target_on = sub_key in target_keys
+                v_str = "true" if is_target_on else "false"
+                sc = db.query(GlobalConfig).filter(GlobalConfig.key == sub_key).first()
+                if not sc:
+                    db.add(GlobalConfig(key=sub_key, value=v_str))
+                else:
+                    sc.value = v_str
+            cfg_p = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_preset").first()
+            if not cfg_p:
+                db.add(GlobalConfig(key="autopilot_preset", value=preset))
             else:
-                sc.value = "true"
-
-    elif not enabled and was_enabled:
-        # 1 -> 0 : Restaurer le snapshot préalable
-        snap_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_subtoggles_pre_activation_snapshot").first()
-        if snap_cfg and snap_cfg.value:
-            try:
-                saved_state = json.loads(snap_cfg.value)
-                for sub_key, saved_val in saved_state.items():
-                    sc = db.query(GlobalConfig).filter(GlobalConfig.key == sub_key).first()
-                    if sc:
-                        sc.value = saved_val
-                    else:
-                        db.add(GlobalConfig(key=sub_key, value=saved_val))
-            except Exception as e:
-                logger.warning(f"[AutoPilot] Échec restauration snapshot préférences: {e}")
+                cfg_p.value = preset
 
     db.commit()
     logger.info(f"[AutoPilot] Mode Auto-Pilote configuré à : {val_str}")
@@ -199,6 +225,28 @@ def set_autopilot_subtoggle(db: Session, key: str, enabled: bool) -> bool:
     else:
         cfg.value = val_str
 
+    # Détecter et enregistrer le preset correspondant
+    subtoggles = {}
+    for k in AUTOPILOT_MANAGED_KEYS:
+        if k == "auto_reconcile_threshold":
+            continue
+        sc = db.query(GlobalConfig).filter(GlobalConfig.key == k).first()
+        subtoggles[k] = bool(sc and sc.value and sc.value.strip().lower() in ("true", "1", "yes", "on"))
+    
+    active_keys = set(k for k, v in subtoggles.items() if v)
+    if active_keys == set(AUTOPILOT_FULL_KEYS):
+        detected_preset = "full"
+    elif active_keys == set(AUTOPILOT_BALANCED_KEYS):
+        detected_preset = "balanced"
+    else:
+        detected_preset = "custom"
+
+    cfg_p = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_preset").first()
+    if not cfg_p:
+        db.add(GlobalConfig(key="autopilot_preset", value=detected_preset))
+    else:
+        cfg_p.value = detected_preset
+
     # Si un snapshot des préférences existe, le maintenir à jour
     snap_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_subtoggles_pre_activation_snapshot").first()
     if snap_cfg and snap_cfg.value:
@@ -210,7 +258,7 @@ def set_autopilot_subtoggle(db: Session, key: str, enabled: bool) -> bool:
             pass
 
     db.commit()
-    logger.info(f"[AutoPilot] Brique élémentaire '{key}' mise à jour : {val_str}")
+    logger.info(f"[AutoPilot] Brique élémentaire '{key}' mise à jour : {val_str} (preset={detected_preset})")
     return enabled
 
 
@@ -943,9 +991,18 @@ def get_autopilot_status(db: Session, profile_id: Optional[str] = None) -> Dict[
                 next_execution_countdown_seconds = rem_sec
                 next_execution_type = "bank_sync"
 
+    active_sub_keys = set(k for k, v in subtoggles.items() if v)
+    if active_sub_keys == set(AUTOPILOT_FULL_KEYS):
+        detected_preset = "full"
+    elif active_sub_keys == set(AUTOPILOT_BALANCED_KEYS):
+        detected_preset = "balanced"
+    else:
+        detected_preset = "custom"
+
     return {
         "is_enabled": enabled,
         "threshold": threshold,
+        "preset": detected_preset,
         "managed_subtoggles": subtoggles,
         "last_run_at": last_run_str,
         "last_visit_at": last_visit_str,

@@ -1031,12 +1031,24 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             console.error('[Budgets] Erreur chargement config/statut automatismes:', err);
         }
 
+        const isAutopilotActive = (autoStatus?.is_enabled ?? (cfg.auto_pilot_enabled === 'true' || cfg.auto_pilot_enabled === true)) ?? false;
         const isAiEnabled = (cfg.enable_ai === 'true' || cfg.enable_ai === true) || (window.BudgetsView?.aiEnabled === true);
         const isEnableCreation = (cfg.enable_budget_creation_suggestions ?? 'true') === 'true';
         const isAutoCreate = (cfg.auto_create_budget_envelopes ?? 'false') === 'true';
         const isEnableRecalib = (cfg.enable_budget_recalibration_suggestions ?? 'true') === 'true';
         const isAutoApply = (cfg.auto_apply_budget_suggestions ?? 'false') === 'true';
         const currentEngine = isAiEnabled ? (cfg.budget_suggestion_engine || 'deterministic') : 'deterministic';
+
+        const isEnableCreationAp = isAutopilotActive && isEnableCreation;
+        const isAutoCreateAp = isAutopilotActive && isAutoCreate;
+        const isEnableRecalibAp = isAutopilotActive && isEnableRecalib;
+        const isAutoApplyAp = isAutopilotActive && isAutoApply;
+
+        const apBadgeHtml = `
+            <span class="badge" title="${window.i18n.t('autopilot_badge_driven_hint') || 'Cet automatisme est actuellement actif sous le contrôle de l\'Auto-Pilote.'}" style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 4px;">
+                🤖 ${window.i18n.t('autopilot_badge_driven') || 'Auto-Pilote'}
+            </span>
+        `;
 
         const lastRunIso = autoStatus?.last_run_at;
         const relativeLastRun = lastRunIso ? this._formatRelativeTime(lastRunIso) : null;
@@ -1116,12 +1128,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         </div>
 
                         <!-- Section 1 : Suggestions de création d'enveloppes (Volet A) -->
-                        <div style="padding: 13px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base); display: flex; flex-direction: column; gap: 12px;">
+                        <div style="padding: 13px 14px; border-radius: 10px; border: ${isEnableCreationAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isEnableCreationAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isEnableCreationAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; display: flex; flex-direction: column; gap: 12px; transition: all 0.2s ease;">
                             <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                <input type="checkbox" id="cfg_enable_budget_creation_suggestions" ${isEnableCreation ? 'checked' : ''} onchange="window.BudgetsView.updateBudgetAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); cursor: pointer;">
+                                <input type="checkbox" id="cfg_enable_budget_creation_suggestions" ${isEnableCreation ? 'checked' : ''} onchange="window.BudgetsView.updateBudgetAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isEnableCreationAp ? '#10b981' : 'var(--accent)'}; cursor: pointer;">
                                 <div style="flex: 1; min-width: 0;">
-                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                                        <span>✨</span> <span>${window.i18n.t('budget_auto_enable_creation_title') || "Suggestions de création d'enveloppes"}</span>
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>✨</span> <span>${window.i18n.t('budget_auto_enable_creation_title') || "Suggestions de création d'enveloppes"}</span></span>
+                                        ${isEnableCreationAp ? apBadgeHtml : ''}
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                         ${window.i18n.t('budget_auto_enable_creation_desc') || "Détecte les dépenses régulières orphelines (au moins 2 mois d'historique) et suggère de nouvelles enveloppes."}
@@ -1130,7 +1143,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             </label>
 
                             <!-- Branche dépendante : Moteur de suggestion + Auto-création -->
-                            <div id="branch_auto_create" style="margin-left: clamp(8px, 2vw, 16px); border-left: 2px solid var(--accent); padding-left: clamp(8px, 2vw, 14px); display: flex; flex-direction: column; gap: 10px; transition: opacity 0.2s ease, border-color 0.2s ease;">
+                            <div id="branch_auto_create" style="margin-left: clamp(8px, 2vw, 16px); border-left: 2px solid ${isEnableCreationAp ? '#10b981' : 'var(--accent)'}; padding-left: clamp(8px, 2vw, 14px); display: flex; flex-direction: column; gap: 10px; transition: opacity 0.2s ease, border-color 0.2s ease;">
                                 
                                 <!-- Sélecteur de moteur : Déterministe vs IA -->
                                 <div id="box_engine_budget_suggestions" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: opacity 0.2s ease;">
@@ -1175,13 +1188,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 </div>
 
                                 <!-- Auto-création -->
-                                <div id="box_auto_create_budget_envelopes" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: opacity 0.2s ease;">
+                                <div id="box_auto_create_budget_envelopes" style="padding: 10px 12px; border-radius: 8px; border: ${isAutoCreateAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isAutoCreateAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-surface)'}; box-shadow: ${isAutoCreateAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
                                     <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                        <input type="checkbox" id="cfg_auto_create_budget_envelopes" ${isAutoCreate ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); cursor: pointer;">
+                                        <input type="checkbox" id="cfg_auto_create_budget_envelopes" ${isAutoCreate ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isAutoCreateAp ? '#10b981' : 'var(--accent)'}; cursor: pointer;">
                                         <div style="flex: 1; min-width: 0;">
                                             <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
                                                 <span>${window.i18n.t('budget_auto_create_title') || 'Auto-création sans validation'}</span>
-                                                <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; white-space: nowrap;">${window.i18n.t('budget_auto_badge_autonomous') || 'Option autonome'}</span>
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    ${isAutoCreateAp ? apBadgeHtml : ''}
+                                                    <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; white-space: nowrap;">${window.i18n.t('budget_auto_badge_autonomous') || 'Option autonome'}</span>
+                                                </div>
                                             </div>
                                             <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                                 ${window.i18n.t('budget_auto_create_desc') || 'Crée automatiquement les enveloppes pour les nouvelles catégories régulières détectées, sans confirmation préalable.'}
@@ -1193,12 +1209,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         </div>
 
                         <!-- Section 2 : Suggestions de recalibrage mensuel (Volet B) -->
-                        <div style="padding: 13px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base); display: flex; flex-direction: column; gap: 12px;">
+                        <div style="padding: 13px 14px; border-radius: 10px; border: ${isEnableRecalibAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isEnableRecalibAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isEnableRecalibAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; display: flex; flex-direction: column; gap: 12px; transition: all 0.2s ease;">
                             <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                <input type="checkbox" id="cfg_enable_budget_recalibration_suggestions" ${isEnableRecalib ? 'checked' : ''} onchange="window.BudgetsView.updateBudgetAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); cursor: pointer;">
+                                <input type="checkbox" id="cfg_enable_budget_recalibration_suggestions" ${isEnableRecalib ? 'checked' : ''} onchange="window.BudgetsView.updateBudgetAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isEnableRecalibAp ? '#10b981' : 'var(--accent)'}; cursor: pointer;">
                                 <div style="flex: 1; min-width: 0;">
-                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                                        <span>📊</span> <span>${window.i18n.t('budget_auto_enable_recalib_title') || 'Suggestions de recalibrage mensuel'}</span>
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>📊</span> <span>${window.i18n.t('budget_auto_enable_recalib_title') || 'Suggestions de recalibrage mensuel'}</span></span>
+                                        ${isEnableRecalibAp ? apBadgeHtml : ''}
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                         ${window.i18n.t('budget_auto_enable_recalib_desc') || 'Analyse vos dépenses réelles chaque mois et propose des ajustements budgétaires lissés (EMA).'}
@@ -1207,14 +1224,17 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             </label>
 
                             <!-- Branche dépendante : Auto-application -->
-                            <div id="branch_auto_apply" style="margin-left: clamp(8px, 2vw, 16px); border-left: 2px solid var(--accent); padding-left: clamp(8px, 2vw, 14px); display: flex; flex-direction: column; gap: 8px; transition: opacity 0.2s ease, border-color 0.2s ease;">
-                                <div id="box_auto_apply_budget_suggestions" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-surface); transition: opacity 0.2s ease;">
+                            <div id="branch_auto_apply" style="margin-left: clamp(8px, 2vw, 16px); border-left: 2px solid ${isEnableRecalibAp ? '#10b981' : 'var(--accent)'}; padding-left: clamp(8px, 2vw, 14px); display: flex; flex-direction: column; gap: 8px; transition: opacity 0.2s ease, border-color 0.2s ease;">
+                                <div id="box_auto_apply_budget_suggestions" style="padding: 10px 12px; border-radius: 8px; border: ${isAutoApplyAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isAutoApplyAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-surface)'}; box-shadow: ${isAutoApplyAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
                                     <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                        <input type="checkbox" id="cfg_auto_apply_budget_suggestions" ${isAutoApply ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); cursor: pointer;">
+                                        <input type="checkbox" id="cfg_auto_apply_budget_suggestions" ${isAutoApply ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isAutoApplyAp ? '#10b981' : 'var(--accent)'}; cursor: pointer;">
                                         <div style="flex: 1; min-width: 0;">
                                             <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
                                                 <span>${window.i18n.t('budget_auto_apply_title') || 'Auto-application sans validation'}</span>
-                                                <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; white-space: nowrap;">${window.i18n.t('budget_auto_badge_autonomous') || 'Option autonome'}</span>
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    ${isAutoApplyAp ? apBadgeHtml : ''}
+                                                    <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; white-space: nowrap;">${window.i18n.t('budget_auto_badge_autonomous') || 'Option autonome'}</span>
+                                                </div>
                                             </div>
                                             <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                                 ${window.i18n.t('budget_auto_apply_desc') || 'Applique automatiquement les ajustements EMA mensuels lissés (bornes de sécurité : ±10%/mois et ±25%/an).'}

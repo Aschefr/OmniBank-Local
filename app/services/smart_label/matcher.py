@@ -83,15 +83,17 @@ def _compute_match_score_precomputed(
         coverage_cand = len(common_sig) / max(len(sig_cand), 1)
         mut_coverage = min(coverage_pat, coverage_cand)
 
-        # Pour matcher, il faut que le mot commun représente une part significative des deux côtés
-        if mut_coverage >= 0.33 or jaccard >= 0.25:
+        # Pour matcher, il faut au moins 2 mots forts en commun (ex: 'CREDIT AGRICOLE', 'BANQUE POPULAIRE')
+        # OU que le mot commun représente au moins 40% des tokens significatifs des deux côtés
+        if (len(strong_matches) >= 2 and sum(len(t) for t in strong_matches) >= 8) or (mut_coverage >= 0.40 and jaccard >= 0.25):
             return min(1.0, 0.70 + 0.20 * jaccard + 0.10 * ratio)
 
     if intersection:
         jaccard = len(intersection) / len(pat_tokens.union(cand_tokens))
-        coverage = len(intersection) / len(pat_tokens)
-        if coverage >= 0.5 and jaccard >= 0.30:
-            return 0.72 + 0.28 * jaccard
+        coverage_pat = len(intersection) / len(pat_tokens)
+        coverage_cand = len(intersection) / len(cand_tokens)
+        if coverage_pat >= 0.50 and coverage_cand >= 0.50 and jaccard >= 0.30:
+            return min(1.0, 0.72 + 0.28 * jaccard)
 
     if ratio >= 0.75:
         return ratio

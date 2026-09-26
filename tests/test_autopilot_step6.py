@@ -461,7 +461,7 @@ def test_override_decision_and_learn_rule(client, test_db):
 
 def test_recurrence_to_budget_sync(test_db):
     """Vérifie l'ajustement automatique de l'enveloppe budgétaire lors d'une promotion, hausse ou clôture de récurrence."""
-    set_autopilot_enabled(test_db, True)
+    set_autopilot_enabled(test_db, True, preset="full")
 
     # Créer une enveloppe budgétaire pour 'Abonnements' à 30 € / mois
     b = Budget(
@@ -686,4 +686,59 @@ def test_autopilot_threshold_preview_api(client, test_db):
     data_high = res_prev_high.json()
     assert data_high["becoming_review_count"] >= 1
     assert any(s["id"] == t1.id for s in data_high["becoming_review_samples"])
+
+
+def test_autopilot_presets_balanced_and_full(client, test_db):
+    """Vérifie l'application des préréglages Équilibré (8/15) et Autonomie Totale (15/15)."""
+    from app.models import GlobalConfig
+    from app.services.autopilot_service import (
+        AUTOPILOT_BALANCED_KEYS,
+        AUTOPILOT_FULL_KEYS,
+        set_autopilot_subtoggle
+    )
+
+    def get_cfg(key: str) -> str:
+        row = test_db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
+        return row.value if row else None
+
+    # Activer l'Auto-Pilote d'abord
+    res_toggle = client.post("/api/autopilot/toggle", json={"enabled": True})
+    assert res_toggle.status_code == 200
+    assert res_toggle.json()["is_enabled"] is True
+
+    # 1. Appliquer le preset 'balanced'
+    res_bal = client.post("/api/autopilot/preset", json={"preset": "balanced"})
+    assert res_bal.status_code == 200
+    data_bal = res_bal.json()
+    assert data_bal["is_enabled"] is True
+    assert data_bal["preset"] == "balanced"
+    active_bal = sum(1 for v in data_bal["managed_subtoggles"].values() if v)
+    assert active_bal == 8
+
+    # Vérifier que les 8 clés sont à true et que les autres clés sont à false
+    for k in AUTOPILOT_BALANCED_KEYS:
+        assert get_cfg(k) == "true"
+    for k in (set(AUTOPILOT_FULL_KEYS) - set(AUTOPILOT_BALANCED_KEYS)):
+        assert get_cfg(k) == "false"
+
+    # 2. Appliquer le preset 'full'
+    res_full = client.post("/api/autopilot/preset", json={"preset": "full"})
+    assert res_full.status_code == 200
+    data_full = res_full.json()
+    assert data_full["is_enabled"] is True
+    assert data_full["preset"] == "full"
+    active_full = sum(1 for v in data_full["managed_subtoggles"].values() if v)
+    assert active_full == 15
+
+    for k in AUTOPILOT_FULL_KEYS:
+        assert get_cfg(k) == "true"
+
+    # 3. Modification manuelle d'une clé -> le preset devient 'custom'
+    set_autopilot_subtoggle(test_db, "auto_propagate_recurrence_hikes", False)
+    res_status = client.get("/api/autopilot/status")
+    assert res_status.status_code == 200
+    data_custom = res_status.json()
+    assert data_custom["preset"] == "custom"
+    active_custom = sum(1 for v in data_custom["managed_subtoggles"].values() if v)
+    assert active_custom == 14
 

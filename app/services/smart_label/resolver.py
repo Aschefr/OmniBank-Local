@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.models import BankLabelMapping, Category, Transaction
 from .ai_guard import validate_ai_suggested_name
-from .categories import resolve_fallback_category
+from .categories import match_category_from_text, resolve_fallback_category
 from .learning import get_user_habit_descriptions
 from .matcher import _compute_match_score, _compute_match_score_precomputed
 from .normalization import (
@@ -34,7 +34,8 @@ def resolve_smart_label(
     db: Session,
     raw_label: str,
     use_ai_fallback: bool = False,
-    auto_fallback_category: bool = False
+    auto_fallback_category: bool = False,
+    tx_type: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Résout un libellé bancaire brut via le pipeline :
@@ -77,6 +78,35 @@ def resolve_smart_label(
 
         # Marchand multi-catégories configuré explicitement ou marchand caméléon sans catégorie manuelle
         if exact_rule.is_multi_category or (not exact_rule.is_manual and is_multi_category_merchant(pattern) and not exact_rule.category):
+            cat_match = match_category_from_text(db, raw_str, tx_type=tx_type)
+            if not cat_match and pattern != raw_str:
+                cat_match = match_category_from_text(db, pattern, tx_type=tx_type)
+
+            if cat_match:
+                cat_name, conf, src_type = cat_match
+                return {
+                    "description": exact_rule.clean_description or pattern.title(),
+                    "category": cat_name,
+                    "source": src_type,
+                    "confidence": conf,
+                    "mapping_id": exact_rule.id,
+                    "is_manual": bool(exact_rule.is_manual),
+                    "is_multi_category": True
+                }
+
+            if use_ai_fallback:
+                batch_res = resolve_smart_labels_batch(
+                    db,
+                    [raw_str],
+                    use_ai_fallback=True,
+                    tx_types={raw_str: tx_type} if tx_type else None,
+                    auto_fallback_category=auto_fallback_category
+                )
+                if raw_str in batch_res and batch_res[raw_str].get("category"):
+                    res = batch_res[raw_str]
+                    res["description"] = exact_rule.clean_description or res.get("description")
+                    return res
+
             return {
                 "description": exact_rule.clean_description or pattern.title(),
                 "category": None,
@@ -138,6 +168,35 @@ def resolve_smart_label(
             }
 
         if best_rule.is_multi_category or (not best_rule.is_manual and is_multi_category_merchant(pattern) and not best_rule.category):
+            cat_match = match_category_from_text(db, raw_str, tx_type=tx_type)
+            if not cat_match and pattern != raw_str:
+                cat_match = match_category_from_text(db, pattern, tx_type=tx_type)
+
+            if cat_match:
+                cat_name, conf, src_type = cat_match
+                return {
+                    "description": best_rule.clean_description or pattern.title(),
+                    "category": cat_name,
+                    "source": src_type,
+                    "confidence": conf,
+                    "mapping_id": best_rule.id,
+                    "is_manual": bool(best_rule.is_manual),
+                    "is_multi_category": True
+                }
+
+            if use_ai_fallback:
+                batch_res = resolve_smart_labels_batch(
+                    db,
+                    [raw_str],
+                    use_ai_fallback=True,
+                    tx_types={raw_str: tx_type} if tx_type else None,
+                    auto_fallback_category=auto_fallback_category
+                )
+                if raw_str in batch_res and batch_res[raw_str].get("category"):
+                    res = batch_res[raw_str]
+                    res["description"] = best_rule.clean_description or res.get("description")
+                    return res
+
             return {
                 "description": best_rule.clean_description or pattern.title(),
                 "category": None,
@@ -177,6 +236,33 @@ def resolve_smart_label(
     # NIVEAU 1.5 : Marchand caméléon natif sans règle enregistrée
     # ---------------------------------------------------------
     if is_multi_category_merchant(pattern):
+        cat_match = match_category_from_text(db, raw_str, tx_type=tx_type)
+        if not cat_match and pattern != raw_str:
+            cat_match = match_category_from_text(db, pattern, tx_type=tx_type)
+
+        if cat_match:
+            cat_name, conf, src_type = cat_match
+            return {
+                "description": pattern.title(),
+                "category": cat_name,
+                "source": src_type,
+                "confidence": conf,
+                "mapping_id": None,
+                "is_manual": False,
+                "is_multi_category": True
+            }
+
+        if use_ai_fallback:
+            batch_res = resolve_smart_labels_batch(
+                db,
+                [raw_str],
+                use_ai_fallback=True,
+                tx_types={raw_str: tx_type} if tx_type else None,
+                auto_fallback_category=auto_fallback_category
+            )
+            if raw_str in batch_res and batch_res[raw_str].get("category"):
+                return batch_res[raw_str]
+
         return {
             "description": pattern.title(),
             "category": None,
@@ -261,6 +347,26 @@ def resolve_smart_label(
         }
 
     # ---------------------------------------------------------
+    # NIVEAU 2.5 : Correspondance sémantique directe avec les catégories actives SQLite
+    # ---------------------------------------------------------
+    cat_match = match_category_from_text(db, raw_str, tx_type=tx_type)
+    if not cat_match and pattern != raw_str:
+        cat_match = match_category_from_text(db, pattern, tx_type=tx_type)
+
+    if cat_match:
+        cat_name, conf, src_type = cat_match
+        clean_desc = normalize_raw_label(raw_str).title() if pattern else raw_str
+        return {
+            "description": clean_desc if clean_desc and len(clean_desc) >= 2 else raw_str,
+            "category": cat_name,
+            "source": src_type,
+            "confidence": conf,
+            "mapping_id": None,
+            "is_manual": False,
+            "is_multi_category": False
+        }
+
+    # ---------------------------------------------------------
     # NIVEAU 3 : Aucun match mathématique -> Étage 3 IA ou fallback brut
     # ---------------------------------------------------------
     if use_ai_fallback or auto_fallback_category:
@@ -268,6 +374,7 @@ def resolve_smart_label(
             db,
             [raw_str],
             use_ai_fallback=use_ai_fallback,
+            tx_types={raw_str: tx_type} if tx_type else None,
             auto_fallback_category=auto_fallback_category
         )
         if raw_str in batch_res:
@@ -376,11 +483,16 @@ def resolve_smart_labels_batch(
                     "is_multi_category": False
                 }
             elif r.is_multi_category or (not r.is_manual and is_multi_category_merchant(pattern) and not r.category):
+                expected_t = tx_types.get(raw_str) if tx_types else None
+                cat_match = match_category_from_text(db, raw_str, tx_type=expected_t)
+                if not cat_match and pattern != raw_str:
+                    cat_match = match_category_from_text(db, pattern, tx_type=expected_t)
+
                 results[raw_str] = {
                     "description": r.clean_description or pattern.title(),
-                    "category": None,
-                    "source": "multi_category",
-                    "confidence": 1.0,
+                    "category": cat_match[0] if cat_match else None,
+                    "source": cat_match[2] if cat_match else "multi_category",
+                    "confidence": cat_match[1] if cat_match else 1.0,
                     "mapping_id": r.id,
                     "is_manual": bool(r.is_manual),
                     "is_multi_category": True
@@ -432,11 +544,16 @@ def resolve_smart_labels_batch(
                     "is_multi_category": False
                 }
             elif best_rule.is_multi_category or (not best_rule.is_manual and is_multi_category_merchant(pattern) and not best_rule.category):
+                expected_t = tx_types.get(raw_str) if tx_types else None
+                cat_match = match_category_from_text(db, raw_str, tx_type=expected_t)
+                if not cat_match and pattern != raw_str:
+                    cat_match = match_category_from_text(db, pattern, tx_type=expected_t)
+
                 results[raw_str] = {
                     "description": best_rule.clean_description or pattern.title(),
-                    "category": None,
-                    "source": "multi_category",
-                    "confidence": round(best_rule_score, 2),
+                    "category": cat_match[0] if cat_match else None,
+                    "source": cat_match[2] if cat_match else "multi_category",
+                    "confidence": cat_match[1] if cat_match else round(best_rule_score, 2),
                     "mapping_id": best_rule.id,
                     "is_manual": bool(best_rule.is_manual),
                     "is_multi_category": True
@@ -469,11 +586,16 @@ def resolve_smart_labels_batch(
 
         # 2.5 Marchand caméléon natif sans règle
         if is_multi_category_merchant(pattern):
+            expected_t = tx_types.get(raw_str) if tx_types else None
+            cat_match = match_category_from_text(db, raw_str, tx_type=expected_t)
+            if not cat_match and pattern != raw_str:
+                cat_match = match_category_from_text(db, pattern, tx_type=expected_t)
+
             results[raw_str] = {
                 "description": pattern.title(),
-                "category": None,
-                "source": "multi_category",
-                "confidence": 1.0,
+                "category": cat_match[0] if cat_match else None,
+                "source": cat_match[2] if cat_match else "multi_category",
+                "confidence": cat_match[1] if cat_match else 1.0,
                 "mapping_id": None,
                 "is_manual": False,
                 "is_multi_category": True
@@ -517,6 +639,25 @@ def resolve_smart_labels_batch(
                 "source": "history",
                 "confidence": min(1.0, round(best_score, 2)),
                 "mapping_id": None
+            }
+            continue
+
+        # 3.5 Match catégorie directe / sémantique
+        expected_t = tx_types.get(raw_str) if tx_types else None
+        cat_match = match_category_from_text(db, raw_str, tx_type=expected_t)
+        if not cat_match and pattern != raw_str:
+            cat_match = match_category_from_text(db, pattern, tx_type=expected_t)
+
+        if cat_match:
+            cat_name, conf, src_type = cat_match
+            results[raw_str] = {
+                "description": pattern.title() if pattern else raw_str,
+                "category": cat_name,
+                "source": src_type,
+                "confidence": conf,
+                "mapping_id": None,
+                "is_manual": False,
+                "is_multi_category": False
             }
             continue
 

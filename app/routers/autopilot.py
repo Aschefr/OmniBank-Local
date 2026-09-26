@@ -14,6 +14,7 @@ from app.profile_manager import get_active_profile
 from app.schemas.api_schemas import (
     AutopilotStatusOut,
     AutopilotToggleRequest,
+    AutopilotPresetRequest,
     AutopilotSubtoggleRequest,
     AutopilotThresholdIn,
     AutopilotThresholdOut,
@@ -29,6 +30,7 @@ from app.schemas.api_schemas import (
 from app.services.autopilot_service import (
     get_autopilot_status,
     set_autopilot_enabled,
+    set_autopilot_preset,
     set_autopilot_subtoggle,
     get_auto_reconcile_threshold,
     set_auto_reconcile_threshold,
@@ -62,8 +64,22 @@ def get_status(db: Session = Depends(get_db)):
 def toggle_autopilot(payload: AutopilotToggleRequest, db: Session = Depends(get_db)):
     """Active ou désactive le mode maître Auto-Pilote."""
     active_pid = get_active_profile().get("id", "default")
-    set_autopilot_enabled(db, payload.enabled)
+    set_autopilot_enabled(db, payload.enabled, preset=payload.preset)
     return get_autopilot_status(db, profile_id=active_pid)
+
+
+@router.post("/preset", response_model=AutopilotStatusOut)
+def change_preset(payload: AutopilotPresetRequest, db: Session = Depends(get_db)):
+    """Applique un profil d'autonomie ('balanced' ou 'full')."""
+    active_pid = get_active_profile().get("id", "default")
+    try:
+        set_autopilot_preset(db, preset=payload.preset)
+        return get_autopilot_status(db, profile_id=active_pid)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"[AutoPilot] Erreur application profil {payload.preset}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur application profil d'autonomie.")
 
 
 @router.post("/subtoggle", response_model=AutopilotStatusOut)

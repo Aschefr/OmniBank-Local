@@ -383,6 +383,11 @@ class FileAccountMappingRequest(BaseModel):
 
 class AutopilotToggleRequest(BaseModel):
     enabled: bool
+    preset: Optional[str] = None
+
+
+class AutopilotPresetRequest(BaseModel):
+    preset: str
 
 
 class AutopilotSubtoggleRequest(BaseModel):
@@ -403,6 +408,7 @@ class AutopilotThresholdOut(BaseModel):
 class AutopilotStatusOut(BaseModel):
     is_enabled: bool
     threshold: float
+    preset: Optional[str] = "balanced"
     managed_subtoggles: Dict[str, Any] = {}
     last_run_at: Optional[str] = None
     last_visit_at: Optional[str] = None

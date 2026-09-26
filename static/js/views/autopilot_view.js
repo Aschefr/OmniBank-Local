@@ -192,15 +192,15 @@ window.AutopilotView = {
                         </div>
                         <div class="ap-hud-info">
                             <div class="ap-hud-tag-row">
-                                <span class="ap-hud-status-badge" data-i18n="autopilot_hud_status_engaged">${window.i18n ? window.i18n.t('autopilot_hud_status_engaged') : 'AUTO-PILOTE ENGAGÉ'}</span>
-                                <span class="ap-hud-live-indicator"><span class="ap-hud-live-dot"></span> <span data-i18n="autopilot_hud_status_mission">${window.i18n ? window.i18n.t('autopilot_hud_status_mission') : 'EN MISSION'}</span></span>
+                                <span class="ap-hud-status-badge" id="apHudStatusBadge" data-i18n="autopilot_hud_status_engaged">${window.i18n ? window.i18n.t('autopilot_hud_status_engaged') : 'AUTO-PILOTE ENGAGÉ'}</span>
+                                <span class="ap-hud-live-indicator"><span class="ap-hud-live-dot"></span> <span id="apHudLiveText" data-i18n="autopilot_hud_status_mission">${window.i18n ? window.i18n.t('autopilot_hud_status_mission') : 'EN MISSION'}</span></span>
                             </div>
-                            <h3 class="ap-hud-title" data-i18n="autopilot_hud_title">${window.i18n ? window.i18n.t('autopilot_hud_title') : 'OmniBank prend les commandes'}</h3>
-                            <p class="ap-hud-desc" data-i18n="autopilot_hud_desc">${window.i18n ? window.i18n.t('autopilot_hud_desc') : 'Installez-vous confortablement : vos soldes, catégorisations et prévisions sont gérés et surveillés en toute autonomie.'}</p>
-                            <div class="ap-hud-pills-row">
+                            <h3 class="ap-hud-title" id="apHudTitle" data-i18n="autopilot_hud_title">${window.i18n ? window.i18n.t('autopilot_hud_title') : 'OmniBank prend les commandes'}</h3>
+                            <p class="ap-hud-desc" id="apHudDesc" data-i18n="autopilot_hud_desc">${window.i18n ? window.i18n.t('autopilot_hud_desc') : 'Installez-vous confortablement : vos soldes, catégorisations et prévisions sont gérés et surveillés en toute autonomie.'}</p>
+                            <div class="ap-hud-pills-row" id="apHudPillsRow">
                                 <span class="ap-hud-pill" data-i18n="autopilot_hud_pill_sync"><span>✓</span> ${window.i18n ? window.i18n.t('autopilot_hud_pill_sync') : 'Relevés Périodiques'}</span>
                                 <span class="ap-hud-pill" data-i18n="autopilot_hud_pill_reconcile"><span>✓</span> ${window.i18n ? window.i18n.t('autopilot_hud_pill_reconcile') : 'Pointage Auto Haute Confiance'}</span>
-                                <span class="ap-hud-pill" data-i18n="autopilot_hud_pill_briques"><span>✓</span> ${window.i18n ? window.i18n.t('autopilot_hud_pill_briques') : '15 Briques Armées'}</span>
+                                <span class="ap-hud-pill" data-i18n="autopilot_hud_pill_briques"><span>✓</span> ${window.i18n ? window.i18n.t('autopilot_hud_pill_briques') : '15 Automatismes Actifs'}</span>
                             </div>
                         </div>
                         <button type="button" class="ap-hud-close-btn" onclick="window.AutopilotView.dismissEngagementHud(event)" title="${window.i18n ? window.i18n.t('autopilot_hud_close_title') : 'Fermer'}">✕</button>
@@ -210,9 +210,9 @@ window.AutopilotView = {
                     </div>
                 </div>
 
-                <!-- Header / Cockpit Bar -->
-                <div class="view-header-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
-                    <div class="view-header-title-group" style="display: flex; align-items: center; gap: 12px;">
+                <!-- Header / Cockpit Bar (Contrôles ancrés de manière stable sous le titre) -->
+                <div class="view-header-bar ap-header-bar" style="display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-bottom: 20px;">
+                    <div class="view-header-title-group" style="display: flex; align-items: center; gap: 12px; width: 100%;">
                         <span style="cursor: pointer; display: inline-flex;" onclick="window.AutopilotView.showEngagementHud()" title="${window.i18n ? window.i18n.t('autopilot_hud_tooltip') : 'Afficher le résumé de mission Auto-Pilote'}">
                             ${this._icons.steeringWheel}
                         </span>
@@ -226,16 +226,16 @@ window.AutopilotView = {
                             </p>
                         </div>
                     </div>
-                    <div class="autopilot-header-toolbar">
+                    <div class="autopilot-header-toolbar" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                         <!-- Encadré 1 : Relevé Bancaire Automatique -->
                         <div id="apBankSyncGroup" class="autopilot-toolbar-group" style="display: none;">
                             <div id="apAutoSyncCompact" class="bank-sync-auto-sync-widget-slot"></div>
                         </div>
 
-                        <!-- Encadré 2 : Pilotage & Briques Modulaires -->
+                        <!-- Encadré 2 : Pilotage & Automatismes Modulaires -->
                         <div class="autopilot-toolbar-group" style="gap: 10px;">
-                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="${window.i18n ? window.i18n.t('autopilot_settings_btn_title') : 'Configurer les 15 briques et le seuil'}" style="display: inline-flex; align-items: center; gap: 6px;">
-                                ${this._icons.settings} <span data-i18n="autopilot_settings_and_bricks">${window.i18n ? window.i18n.t('autopilot_settings_and_bricks') : 'Réglages & Briques'}</span> <span id="apActiveBriquesBadge" class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/15</span>
+                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="${window.i18n ? window.i18n.t('autopilot_settings_btn_title') : 'Configurer les 15 automatismes et le seuil'}" style="display: inline-flex; align-items: center; gap: 6px;">
+                                ${this._icons.settings} <span data-i18n="autopilot_settings_and_bricks">${window.i18n ? window.i18n.t('autopilot_settings_and_bricks') : 'Réglages & Automatismes'}</span> <span id="apActiveBriquesBadge" class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/15</span>
                             </button>
 
                             <!-- Hero Master Cockpit Switch (Bouton d'activation Grand Format & Tactile) -->
@@ -452,7 +452,7 @@ window.AutopilotView = {
                     <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                         <div>
                             <h3 style="margin: 0 0 3px 0; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                                <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.settings}</span> <span data-i18n="autopilot_drawer_title">${window.i18n ? window.i18n.t('autopilot_drawer_title') : 'Réglages d\'Autonomie & Briques Élémentaires'}</span>
+                                <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.settings}</span> <span data-i18n="autopilot_drawer_title">${window.i18n ? window.i18n.t('autopilot_drawer_title') : 'Réglages d\'Autonomie & Automatismes'}</span>
                             </h3>
                             <p style="margin: 0; font-size: 12px; color: var(--text-muted);" data-i18n="autopilot_drawer_subtitle">
                                 ${window.i18n ? window.i18n.t('autopilot_drawer_subtitle') : 'Seuil de tolérance et contrôle individuel des 15 automatismes'}
@@ -494,11 +494,60 @@ window.AutopilotView = {
                             </div>
                         </div>
 
-                        <!-- Block 2 : 15 Briques Élémentaires Container -->
+                        <!-- Block 1.5 : Profils d'Autonomie (Option 3 : Mode Équilibré vs Autonomie Totale) -->
+                        <div style="background: var(--bg-card, var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <h4 style="font-size: 13.5px; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                                    <span style="color: var(--accent); display: inline-flex;">${this._icons.shield}</span>
+                                    <span data-i18n="autopilot_preset_title">${window.i18n ? window.i18n.t('autopilot_preset_title') : 'Profils d\'autonomie'}</span>
+                                </h4>
+                                <span id="apCurrentPresetBadge" class="badge" style="font-size: 11px; padding: 2px 8px; border-radius: 6px; background: rgba(99,102,241,0.15); color: var(--accent);">--</span>
+                            </div>
+                            <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 12px 0;" data-i18n="autopilot_preset_desc">
+                                ${window.i18n ? window.i18n.t('autopilot_preset_desc') : 'Sélectionnez un mode préconfiguré ou personnalisez vos automatismes :'}
+                            </p>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px;">
+                                <button type="button" id="btnPresetBalanced" class="btn ap-preset-btn" onclick="window.AutopilotView.applyPreset('balanced')" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border-color); background: var(--bg-base); cursor: pointer; position: relative; width: 100%; box-sizing: border-box;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                        <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                            <span>🛡️</span> <span data-i18n="autopilot_preset_balanced">${window.i18n ? window.i18n.t('autopilot_preset_balanced') : 'Mode Équilibré (8)'}</span>
+                                        </div>
+                                        <span id="presetCheckBalanced" style="font-size: 10.5px; font-weight: 700; color: var(--accent); display: none; background: rgba(99, 102, 241, 0.15); padding: 1px 6px; border-radius: 4px;">✓ Actif</span>
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; line-height: 1.35;" data-i18n="autopilot_preset_balanced_desc">
+                                        ${window.i18n ? window.i18n.t('autopilot_preset_balanced_desc') : 'Flux quotidien & suggestions assistées sans modification structurelle'}
+                                    </div>
+                                </button>
+                                <button type="button" id="btnPresetFull" class="btn ap-preset-btn" onclick="window.AutopilotView.applyPreset('full')" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border-color); background: var(--bg-base); cursor: pointer; position: relative; width: 100%; box-sizing: border-box;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                        <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                            <span>⚡</span> <span data-i18n="autopilot_preset_full">${window.i18n ? window.i18n.t('autopilot_preset_full') : 'Autonomie Totale (15)'}</span>
+                                        </div>
+                                        <span id="presetCheckFull" style="font-size: 10.5px; font-weight: 700; color: #10b981; display: none; background: rgba(16, 185, 129, 0.15); padding: 1px 6px; border-radius: 4px;">✓ Actif</span>
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; line-height: 1.35;" data-i18n="autopilot_preset_full_desc">
+                                        ${window.i18n ? window.i18n.t('autopilot_preset_full_desc') : 'Exécution 100% autonome de tous les cycles, récurrences et budgets'}
+                                    </div>
+                                </button>
+                                <button type="button" id="btnPresetCustom" class="btn ap-preset-btn" onclick="window.AutopilotView.focusCustomSubtoggles()" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border-color); background: var(--bg-base); cursor: pointer; position: relative; width: 100%; box-sizing: border-box;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                        <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                            <span>🛠️</span> <span><span data-i18n="autopilot_preset_custom_card">${window.i18n ? (window.i18n.t('autopilot_preset_custom_card') || 'Personnalisé') : 'Personnalisé'}</span> (<span id="presetCustomCountVal">--</span>/15)</span>
+                                        </div>
+                                        <span id="presetCheckCustom" style="font-size: 10.5px; font-weight: 700; color: #f59e0b; display: none; background: rgba(245, 158, 11, 0.15); padding: 1px 6px; border-radius: 4px;">✓ Actif</span>
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; line-height: 1.35;" data-i18n="autopilot_preset_custom_desc">
+                                        ${window.i18n ? (window.i18n.t('autopilot_preset_custom_desc') || 'Sélection sur-mesure de vos 15 briques modulaires ci-dessous') : 'Sélection sur-mesure de vos 15 briques modulaires ci-dessous'}
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Block 2 : 15 Automatismes Modulaires Container -->
                         <div>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <h4 style="font-size: 13.5px; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-                                    <span style="color: var(--accent); display: inline-flex;">${this._icons.package}</span> <span data-i18n="autopilot_drawer_briques_title">${window.i18n ? window.i18n.t('autopilot_drawer_briques_title') : 'Les 15 Briques d\'Autonomie Modulaires'}</span>
+                                    <span style="color: var(--accent); display: inline-flex;">${this._icons.package}</span> <span data-i18n="autopilot_drawer_briques_title">${window.i18n ? window.i18n.t('autopilot_drawer_briques_title') : 'Les 15 Automatismes d\'Auto-Pilote'}</span>
                                 </h4>
                                 <span style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_drawer_briques_subtitle">${window.i18n ? window.i18n.t('autopilot_drawer_briques_subtitle') : 'Contrôle fin à la carte'}</span>
                             </div>
@@ -861,6 +910,7 @@ window.AutopilotView = {
 
         const scannerEl = document.getElementById('apHeroCylonScanner');
         const countdownTimeEl = document.getElementById('apHeroCountdownTime');
+        const cylonLabelEl = scannerEl?.querySelector('.ap-cylon-label');
         if (!scannerEl || !countdownTimeEl) return;
 
         const isEnabled = !!status?.is_enabled;
@@ -870,19 +920,23 @@ window.AutopilotView = {
         const remSecFromStatus = status?.next_execution_countdown_seconds;
         this._lastKnownExecutionAt = status?.last_execution_at || null;
 
-        // Point 5 : Masquer le compte à rebours en mode désactivé ou sans auto-sync
+        // Si l'Auto-Pilote est désactivé OU si le relevé bancaire périodique est désactivé : pas de widget Cylon
         if (!isEnabled || !isAutoSyncEnabled) {
             scannerEl.style.display = 'none';
             this._stopActiveSyncTracker();
             return;
         }
 
-        // Visible en mode actif
+        // Visible uniquement si Auto-Pilote ET Relevé auto sont actifs
         scannerEl.style.display = 'flex';
+
+        if (cylonLabelEl) {
+            cylonLabelEl.textContent = window.i18n ? window.i18n.t('autopilot_next_sync_label') : 'PROCHAIN RELEVÉ';
+        }
 
         if (!isVaultUnlocked) {
             this._stopActiveSyncTracker();
-            countdownTimeEl.innerHTML = `<span style="color: #f59e0b; font-size: 11px; cursor: pointer;" onclick="event.stopPropagation(); window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="${window.i18n ? window.i18n.t('autopilot_vault_locked_title') : 'Déverrouiller le coffre pour reprendre les relevés'}">${window.i18n ? window.i18n.t('autopilot_vault_locked') : 'Coffre verrouillé'}</span>`;
+            countdownTimeEl.innerHTML = `<span style="color: #f59e0b; font-size: 11px; cursor: pointer; font-weight:700;" onclick="event.stopPropagation(); window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="${window.i18n ? window.i18n.t('autopilot_vault_locked_title') : 'Déverrouiller le coffre pour reprendre les relevés'}">🔒 ${window.i18n ? window.i18n.t('autopilot_vault_locked') : 'Coffre verrouillé'}</span>`;
             return;
         }
 
@@ -967,9 +1021,36 @@ window.AutopilotView = {
         if (heroSwitch) {
             heroSwitch.classList.toggle('is-active', isEnabled);
             heroSwitch.classList.toggle('is-inactive', !isEnabled);
+            heroSwitch.classList.remove('preset-balanced', 'preset-full', 'preset-custom');
+            if (isEnabled) {
+                const preset = status.preset || 'balanced';
+                heroSwitch.classList.add(`preset-${preset}`);
+            }
         }
         if (heroStateText) {
-            heroStateText.textContent = isEnabled ? (window.i18n ? window.i18n.t('autopilot_state_active') : 'En mission (Actif)') : (window.i18n ? window.i18n.t('autopilot_state_standby') : 'En veille');
+            if (!isEnabled) {
+                heroStateText.textContent = window.i18n ? (window.i18n.t('autopilot_state_standby') || 'En veille') : 'En veille';
+            } else {
+                let activeCount = 0;
+                if (status.managed_subtoggles && typeof status.managed_subtoggles === 'object') {
+                    activeCount = Object.values(status.managed_subtoggles).filter(Boolean).length;
+                } else if (Array.isArray(status.subtoggles)) {
+                    activeCount = status.subtoggles.filter(s => s && s.enabled).length;
+                } else if (status.subtoggles && typeof status.subtoggles === 'object') {
+                    activeCount = Object.values(status.subtoggles).filter(Boolean).length;
+                }
+                if (activeCount === 0) {
+                    activeCount = status.preset === 'full' ? 15 : (status.preset === 'balanced' ? 8 : 0);
+                }
+
+                if (status.preset === 'full') {
+                    heroStateText.textContent = window.i18n ? (window.i18n.t('autopilot_state_full') || `Autonomie Totale (15/15)`) : `Autonomie Totale (15/15)`;
+                } else if (status.preset === 'balanced') {
+                    heroStateText.textContent = window.i18n ? (window.i18n.tp('autopilot_state_balanced', { count: activeCount }) || `Mode Équilibré (${activeCount}/15)`) : `Mode Équilibré (${activeCount}/15)`;
+                } else {
+                    heroStateText.textContent = window.i18n ? (window.i18n.tp('autopilot_state_custom', { count: activeCount }) || `Personnalisé (${activeCount}/15)`) : `Personnalisé (${activeCount}/15)`;
+                }
+            }
         }
 
         // Point 2 : Griser / Dégriser la page en mode désactivé
@@ -1051,6 +1132,7 @@ window.AutopilotView = {
 
         this.renderSubtogglesInDrawer();
         this.updateSummaryPills();
+        this.updatePresetButtonsUI();
     },
 
     async loadKPIs() {
@@ -1158,6 +1240,7 @@ window.AutopilotView = {
             window.addEventListener('keydown', this._drawerEscHandler);
         }
         this.renderSubtogglesInDrawer();
+        this.updatePresetButtonsUI();
     },
 
     closeSettingsDrawer() {
@@ -1193,13 +1276,19 @@ window.AutopilotView = {
                     <div style="padding: 10px 16px; display: flex; flex-direction: column; gap: 10px;">
                         ${group.items.map(item => {
                             const isChecked = !!subtoggles[item.key];
+                            const isAutopilotDriven = isChecked && this._status?.is_enabled;
                             const itemLabel = window.i18n ? (window.i18n.t(item.labelKey) || item.label) : item.label;
                             const itemDesc = window.i18n ? (window.i18n.t(item.descKey) || item.desc) : item.desc;
                             return `
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
                                     <div style="flex: 1; min-width: 0;">
-                                        <div style="font-size: 12.5px; font-weight: 600; color: ${isChecked ? 'var(--text-main)' : 'var(--text-muted)'}; margin-bottom: 2px;">
-                                            ${escapeHtml(itemLabel)}
+                                        <div style="font-size: 12.5px; font-weight: 600; color: ${isChecked ? 'var(--text-main)' : 'var(--text-muted)'}; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                            <span>${escapeHtml(itemLabel)}</span>
+                                            ${isAutopilotDriven ? `
+                                                <span class="badge" style="font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                                    🤖 ${window.i18n ? window.i18n.t('autopilot_badge_driven') : 'Auto-Pilote'}
+                                                </span>
+                                            ` : ''}
                                         </div>
                                         <div style="font-size: 11px; color: var(--text-muted); line-height: 1.35;">
                                             ${escapeHtml(itemDesc)}
@@ -1207,7 +1296,7 @@ window.AutopilotView = {
                                     </div>
                                     <label class="switch" style="margin: 0; flex-shrink: 0;">
                                         <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="window.AutopilotView.toggleSubtoggle('${item.key}', this.checked)">
-                                        <span class="slider round"></span>
+                                        <span class="slider round" style="${isAutopilotDriven ? 'background-color: #10b981 !important;' : ''}"></span>
                                     </label>
                                 </div>
                             `;
@@ -1220,13 +1309,11 @@ window.AutopilotView = {
 
     async toggleSubtoggle(key, enabled) {
         try {
-            await API.post('/api/autopilot/subtoggle', { key, enabled });
-            if (this._status) {
-                if (!this._status.managed_subtoggles) this._status.managed_subtoggles = {};
-                this._status.managed_subtoggles[key] = enabled;
-            }
+            const res = await API.post('/api/autopilot/subtoggle', { key, enabled });
+            this._status = res;
             this.renderSubtogglesInDrawer();
             this.updateSummaryPills();
+            this.updatePresetButtonsUI();
             window.dispatchEvent(new CustomEvent('autopilot_updated'));
         } catch (e) {
             console.error('[AutopilotView] Erreur mise à jour subtoggle:', e);
@@ -1235,18 +1322,132 @@ window.AutopilotView = {
         }
     },
 
-    async resetToDefaultSubtoggles() {
-        try {
-            const allKeys = [];
-            (this._subtogglesDef || []).forEach(cat => {
-                (cat.items || []).forEach(it => allKeys.push(it.key));
-            });
-            await Promise.all(allKeys.map(k => API.post('/api/autopilot/subtoggle', { key: k, enabled: true })));
-            showToast(window.i18n ? window.i18n.t('autopilot_toast_briques_reset') : 'Toutes les 15 briques d\'autonomie sont activées', 'success');
-            await this.loadStatus();
-        } catch (e) {
-            showToast(window.i18n ? window.i18n.t('autopilot_toast_briques_reset_error') : 'Erreur réinitialisation des briques', 'error');
+    async applyPreset(presetName) {
+        const btnBalanced = document.getElementById('btnPresetBalanced');
+        const btnFull = document.getElementById('btnPresetFull');
+        if (presetName === 'full' && btnFull) {
+            btnFull.style.opacity = '0.7';
+        } else if (presetName === 'balanced' && btnBalanced) {
+            btnBalanced.style.opacity = '0.7';
         }
+
+        try {
+            const res = await API.post('/api/autopilot/preset', { preset: presetName });
+            this._status = res;
+            if (btnBalanced) btnBalanced.style.opacity = '1';
+            if (btnFull) btnFull.style.opacity = '1';
+            this.renderSubtogglesInDrawer();
+            this.updateSummaryPills();
+            this.updatePresetButtonsUI();
+            const label = presetName === 'full' 
+                ? (window.i18n ? window.i18n.t('autopilot_preset_full') : 'Autonomie Totale (15)')
+                : (window.i18n ? window.i18n.t('autopilot_preset_balanced') : 'Mode Équilibré (8)');
+            showToast(
+                window.i18n ? window.i18n.t('autopilot_toast_preset_applied').replace('{preset}', label) : `Profil d'autonomie '${label}' activé`,
+                'success'
+            );
+            window.dispatchEvent(new CustomEvent('autopilot_updated'));
+        } catch (e) {
+            console.error('[AutopilotView] Erreur application profil:', e);
+            showToast('Erreur lors de l\'application du profil d\'autonomie', 'error');
+            if (btnBalanced) btnBalanced.style.opacity = '1';
+            if (btnFull) btnFull.style.opacity = '1';
+        }
+    },
+
+    focusCustomSubtoggles() {
+        const container = document.getElementById('apSubtogglesDrawerList');
+        if (container) {
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            container.style.transition = 'box-shadow 0.3s ease';
+            container.style.boxShadow = '0 0 16px rgba(245, 158, 11, 0.25)';
+            setTimeout(() => { if (container) container.style.boxShadow = 'none'; }, 1200);
+        }
+    },
+
+    updatePresetButtonsUI() {
+        const btnBalanced = document.getElementById('btnPresetBalanced');
+        const btnFull = document.getElementById('btnPresetFull');
+        const btnCustom = document.getElementById('btnPresetCustom');
+        const badge = document.getElementById('apCurrentPresetBadge');
+        const checkBalanced = document.getElementById('presetCheckBalanced');
+        const checkFull = document.getElementById('presetCheckFull');
+        const checkCustom = document.getElementById('presetCheckCustom');
+        const customCountVal = document.getElementById('presetCustomCountVal');
+        if (!this._status) return;
+
+        const preset = this._status.preset || 'balanced';
+        const subtoggles = this._status.managed_subtoggles || {};
+        const activeCount = Object.values(subtoggles).filter(Boolean).length;
+
+        if (customCountVal) {
+            customCountVal.textContent = activeCount;
+        }
+
+        if (btnBalanced) {
+            if (preset === 'balanced') {
+                btnBalanced.style.borderColor = 'var(--accent)';
+                btnBalanced.style.background = 'rgba(99, 102, 241, 0.12)';
+                btnBalanced.style.boxShadow = '0 0 12px rgba(99, 102, 241, 0.2)';
+                if (checkBalanced) checkBalanced.style.display = 'inline-block';
+            } else {
+                btnBalanced.style.borderColor = 'var(--border-color)';
+                btnBalanced.style.background = 'var(--bg-base)';
+                btnBalanced.style.boxShadow = 'none';
+                if (checkBalanced) checkBalanced.style.display = 'none';
+            }
+        }
+
+        if (btnFull) {
+            if (preset === 'full') {
+                btnFull.style.borderColor = '#10b981';
+                btnFull.style.background = 'rgba(16, 185, 129, 0.12)';
+                btnFull.style.boxShadow = '0 0 12px rgba(16, 185, 129, 0.2)';
+                if (checkFull) checkFull.style.display = 'inline-block';
+            } else {
+                btnFull.style.borderColor = 'var(--border-color)';
+                btnFull.style.background = 'var(--bg-base)';
+                btnFull.style.boxShadow = 'none';
+                if (checkFull) checkFull.style.display = 'none';
+            }
+        }
+
+        if (btnCustom) {
+            if (preset === 'custom') {
+                btnCustom.style.borderColor = '#f59e0b';
+                btnCustom.style.background = 'rgba(245, 158, 11, 0.12)';
+                btnCustom.style.boxShadow = '0 0 12px rgba(245, 158, 11, 0.2)';
+                if (checkCustom) checkCustom.style.display = 'inline-block';
+            } else {
+                btnCustom.style.borderColor = 'var(--border-color)';
+                btnCustom.style.background = 'var(--bg-base)';
+                btnCustom.style.boxShadow = 'none';
+                if (checkCustom) checkCustom.style.display = 'none';
+            }
+        }
+
+        if (badge) {
+            if (preset === 'balanced') {
+                badge.textContent = window.i18n ? window.i18n.t('autopilot_preset_balanced') : 'Mode Équilibré (8)';
+                badge.style.background = 'rgba(99, 102, 241, 0.15)';
+                badge.style.color = 'var(--accent)';
+                badge.style.border = '1px solid var(--accent)';
+            } else if (preset === 'full') {
+                badge.textContent = window.i18n ? window.i18n.t('autopilot_preset_full') : 'Autonomie Totale (15)';
+                badge.style.background = 'rgba(16, 185, 129, 0.15)';
+                badge.style.color = '#10b981';
+                badge.style.border = '1px solid #10b981';
+            } else {
+                badge.textContent = window.i18n ? (window.i18n.tp ? window.i18n.tp('autopilot_preset_custom', { active: activeCount }) : window.i18n.t('autopilot_preset_custom').replace('{active}', activeCount)) : `Personnalisé (${activeCount}/15)`;
+                badge.style.background = 'rgba(245, 158, 11, 0.15)';
+                badge.style.color = '#f59e0b';
+                badge.style.border = '1px solid #f59e0b';
+            }
+        }
+    },
+
+    async resetToDefaultSubtoggles() {
+        return this.applyPreset('balanced');
     },
 
     async loadReviewQueue() {
@@ -1551,6 +1752,62 @@ window.AutopilotView = {
             kpiPanel.classList.remove('ap-panel-engaged');
             void kpiPanel.offsetWidth; // force DOM reflow
             kpiPanel.classList.add('ap-panel-engaged');
+        }
+
+        // Adapt HUD contents dynamically based on active preset & status
+        const preset = this._status?.preset || 'balanced';
+        const subtoggles = this._status?.managed_subtoggles || {};
+        const activeCount = Object.values(subtoggles).filter(Boolean).length;
+        const isAutoSync = !!this._status?.bank_auto_sync_enabled;
+        const threshold = this._status?.threshold || 85;
+
+        const tagBadge = document.getElementById('apHudStatusBadge');
+        const descEl = document.getElementById('apHudDesc');
+        const pillsRow = document.getElementById('apHudPillsRow');
+
+        if (tagBadge) {
+            if (preset === 'full') {
+                tagBadge.textContent = window.i18n ? (window.i18n.t('autopilot_preset_full') || 'Autonomie Totale (15)') : 'Autonomie Totale (15)';
+                tagBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+                tagBadge.style.color = '#10b981';
+                tagBadge.style.borderColor = '#10b981';
+            } else if (preset === 'balanced') {
+                tagBadge.textContent = window.i18n ? (window.i18n.t('autopilot_preset_balanced') || 'Mode Équilibré (8)') : 'Mode Équilibré (8)';
+                tagBadge.style.background = 'rgba(99, 102, 241, 0.2)';
+                tagBadge.style.color = 'var(--accent)';
+                tagBadge.style.borderColor = 'var(--accent)';
+            } else {
+                tagBadge.textContent = window.i18n ? (window.i18n.t('autopilot_preset_custom')?.replace('{active}', activeCount) || `Personnalisé (${activeCount}/15)`) : `Personnalisé (${activeCount}/15)`;
+                tagBadge.style.background = 'rgba(245, 158, 11, 0.2)';
+                tagBadge.style.color = '#f59e0b';
+                tagBadge.style.borderColor = '#f59e0b';
+            }
+        }
+
+        if (descEl) {
+            if (preset === 'full') {
+                descEl.textContent = window.i18n ? (window.i18n.t('autopilot_hud_desc_full') || 'Délégation totale : récurrences, budgets, synchronisation et écritures gérés en toute autonomie.') : 'Délégation totale : récurrences, budgets, synchronisation et écritures gérés en toute autonomie.';
+            } else if (preset === 'balanced') {
+                descEl.textContent = window.i18n ? (window.i18n.t('autopilot_hud_desc_balanced') || 'Flux quotidien, auto-pointage et suggestions budgétaires gérés en toute sécurité sans modification structurelle.') : 'Flux quotidien, auto-pointage et suggestions budgétaires gérés en toute sécurité sans modification structurelle.';
+            } else {
+                descEl.textContent = window.i18n ? (window.i18n.t('autopilot_hud_desc_custom')?.replace('{active}', activeCount) || `Vos ${activeCount} automatismes configurés sur-mesure sont actifs et supervisés en temps réel.`) : `Vos ${activeCount} automatismes configurés sur-mesure sont actifs et supervisés en temps réel.`;
+            }
+        }
+
+        if (pillsRow) {
+            const syncLabel = isAutoSync 
+                ? (window.i18n ? (window.i18n.t('autopilot_hud_pill_sync') || 'Relevés Périodiques') : 'Relevés Périodiques')
+                : (window.i18n ? (window.i18n.t('autopilot_hud_pill_sync_import') || 'Relevés à l\'import') : 'Relevés à l\'import');
+            const reconcileLabel = window.i18n ? (window.i18n.t('autopilot_hud_pill_reconcile_threshold')?.replace('{threshold}', threshold) || `Pointage Auto (${threshold}%)`) : `Pointage Auto (${threshold}%)`;
+            const countLabel = window.i18n ? (window.i18n.t('autopilot_hud_pill_automations_count')?.replace('{count}', activeCount) || `${activeCount} Automatismes Actifs`) : `${activeCount} Automatismes Actifs`;
+            const presetLabel = preset === 'full' ? 'Autonomie 100%' : (preset === 'balanced' ? 'Mode Équilibré' : 'Sur-Mesure');
+
+            pillsRow.innerHTML = `
+                <span class="ap-hud-pill"><span>✓</span> ${escapeHtml(presetLabel)}</span>
+                <span class="ap-hud-pill"><span>✓</span> ${escapeHtml(syncLabel)}</span>
+                <span class="ap-hud-pill"><span>✓</span> ${escapeHtml(reconcileLabel)}</span>
+                <span class="ap-hud-pill"><span>✓</span> ${escapeHtml(countLabel)}</span>
+            `;
         }
 
         this._hudTotalMs = 3000;
@@ -2024,6 +2281,7 @@ window.AutopilotView = {
                 else if (catObj.type === 'income') isDebit = false;
             }
         }
+        this._currentOverrideTxType = isDebit ? 'expense_var' : 'income';
         const allowedTypes = isDebit ? ['expense_var', 'expense_fixed'] : ['income'];
         const direction = isDebit ? 'debit' : 'credit';
 
@@ -2046,6 +2304,14 @@ window.AutopilotView = {
         }
 
         modal.style.display = 'flex';
+
+        const aiBtn = document.getElementById('btnOverrideAiClassify');
+        const isAiActive = Boolean(window.app?.config?.enable_ai === 'true' || window.app?.config?.enable_ai === true);
+        if (aiBtn) {
+            aiBtn.title = isAiActive
+                ? (window.i18n ? (window.i18n.t('smart_label_ai_classify_tooltip') || 'Nommer et classifier avec l\'IA') : 'Nommer et classifier avec l\'IA')
+                : (window.i18n ? (window.i18n.t('smart_label_auto_classify_tooltip') || 'Suggérer la catégorie automatiquement') : 'Suggérer la catégorie automatiquement');
+        }
 
         // Keyboard handler (Escape to close)
         if (this._overrideEscHandler) {
@@ -2201,7 +2467,15 @@ window.AutopilotView = {
             }
         }
 
-        let isDebit = (item && item.type) ? (item.type !== 'income') : true;
+        let isDebit = (item && item.type) ? (item.type !== 'income') : ((item && item.amount !== undefined) ? (item.amount < 0) : ((amount !== undefined && amount !== 0) ? (amount < 0) : true));
+        if (window.CategoryPicker && typeof window.CategoryPicker._findCategory === 'function') {
+            const catObj = window.CategoryPicker._findCategory(finalCategory);
+            if (catObj) {
+                if (catObj.type === 'expense_var' || catObj.type === 'expense_fixed') isDebit = true;
+                else if (catObj.type === 'income') isDebit = false;
+            }
+        }
+        this._currentOverrideTxType = isDebit ? 'expense_var' : 'income';
         const allowedTypes = isDebit ? ['expense_var', 'expense_fixed'] : ['income'];
         const direction = isDebit ? 'debit' : 'credit';
 
@@ -2223,6 +2497,14 @@ window.AutopilotView = {
         }
 
         modal.style.display = 'flex';
+
+        const aiBtn = document.getElementById('btnOverrideAiClassify');
+        const isAiActive = Boolean(window.app?.config?.enable_ai === 'true' || window.app?.config?.enable_ai === true);
+        if (aiBtn) {
+            aiBtn.title = isAiActive
+                ? (window.i18n ? (window.i18n.t('smart_label_ai_classify_tooltip') || 'Nommer et classifier avec l\'IA') : 'Nommer et classifier avec l\'IA')
+                : (window.i18n ? (window.i18n.t('smart_label_auto_classify_tooltip') || 'Suggérer la catégorie automatiquement') : 'Suggérer la catégorie automatiquement');
+        }
 
         if (this._overrideEscHandler) {
             window.removeEventListener('keydown', this._overrideEscHandler);
@@ -2272,7 +2554,8 @@ window.AutopilotView = {
         try {
             const res = await API.post('/api/smart-labels/simulate', {
                 raw_label: rawLabel,
-                use_ai_fallback: true
+                use_ai_fallback: true,
+                tx_type: this._currentOverrideTxType || 'expense_var'
             });
 
             if (res) {
@@ -2282,7 +2565,11 @@ window.AutopilotView = {
                 if (res.category && window.CategoryPicker) {
                     window.CategoryPicker.setValue('overrideCategory', res.category, true);
                 }
-                showToast(window.i18n ? (window.i18n.t('smart_label_ai_suggested') || 'Classification IA appliquée') : 'Classification IA appliquée', 'success');
+                const isAiSource = (res.source === 'ai');
+                const successMsg = isAiSource
+                    ? (window.i18n ? (window.i18n.t('smart_label_ai_suggested') || 'Classification IA appliquée') : 'Classification IA appliquée')
+                    : (window.i18n ? (window.i18n.t('smart_label_suggested_success') || 'Catégorie suggérée appliquée') : 'Catégorie suggérée appliquée');
+                showToast(successMsg, 'success');
             }
         } catch (e) {
             showToast(window.i18n ? window.i18n.t('autopilot_toast_ai_error') : 'Erreur lors de la suggestion IA', 'error');
@@ -2452,7 +2739,7 @@ window.AutopilotView = {
     },
 
     updateSummaryPills() {
-        // Header Briques Badge
+        // Header Automatismes Badge
         const briquesBadge = document.getElementById('apActiveBriquesBadge');
         if (briquesBadge && this._status) {
             const subtoggles = this._status.managed_subtoggles || {};
