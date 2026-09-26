@@ -85,6 +85,8 @@ class SimulateRequest(BaseModel):
     raw_label: str
     use_ai_fallback: Optional[bool] = True
     auto_fallback_category: Optional[bool] = False
+    tx_type: Optional[str] = None
+    amount: Optional[float] = None
 
 
 @router.post("/resolve-batch")
@@ -104,18 +106,23 @@ def resolve_batch(req: ResolveBatchRequest, db: Session = Depends(get_db)):
 def simulate_smart_label(req: SimulateRequest, db: Session = Depends(get_db)):
     """
     Simule la résolution complète d'un libellé brut bancaire via le pipeline Smart Label
-    (Règles déterministes -> Historique -> Fallback IA avec habitudes et garde-fous).
+    (Règles déterministes -> Historique -> Correspondance directe catégories -> Fallback IA avec habitudes et garde-fous).
     Permet à l'utilisateur de tester en direct ou de déclencher à la demande une classification unitaire.
     """
     raw_label = (req.raw_label or "").strip()
     if not raw_label:
         raise HTTPException(status_code=400, detail="Le libellé brut ne peut pas être vide")
 
+    tx_type = req.tx_type
+    if not tx_type and req.amount is not None:
+        tx_type = "income" if req.amount > 0 else "expense_var"
+
     res = resolve_smart_label(
         db,
         raw_label,
         use_ai_fallback=bool(req.use_ai_fallback),
-        auto_fallback_category=bool(req.auto_fallback_category)
+        auto_fallback_category=bool(req.auto_fallback_category),
+        tx_type=tx_type
     )
 
     source = res.get("source", "none")
@@ -135,6 +142,8 @@ def simulate_smart_label(req: SimulateRequest, db: Session = Depends(get_db)):
         explanation = "Enseigne multi-catégories détectée : libellé propre extrait, catégorie laissée libre."
     elif source == "history":
         explanation = "Correspondance sémantique déduite de votre historique de transactions réelles."
+    elif source in ("category_match", "category_keyword"):
+        explanation = f"Correspondance directe identifiée avec votre catégorie active '{category}'."
     elif source == "ai":
         explanation = "Nommé et classé par inférence de votre modèle d'IA locale selon vos habitudes."
     elif source == "ambiguous":

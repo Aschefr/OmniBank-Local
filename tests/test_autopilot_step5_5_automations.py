@@ -388,8 +388,8 @@ def test_t5_5_5_merchant_rule_auto_learning(test_db):
     assert mapping_b.category == "Transports"
 
 
-def test_t5_5_6_autopilot_cascading_snapshot_and_restore(test_db):
-    """T5.5.6 : L'activation globale active toutes les briques, et la désactivation restaure fidèlement les choix utilisateurs."""
+def test_t5_5_6_autopilot_custom_preferences_preservation(test_db):
+    """T5.5.6 : La configuration personnalisée de l'utilisateur est strictement préservée lors des cycles marche/veille."""
     # 1. L'utilisateur configure des choix personnalisés
     custom_prefs = {
         "auto_reconcile_transactions": "true",
@@ -403,30 +403,30 @@ def test_t5_5_6_autopilot_cascading_snapshot_and_restore(test_db):
         test_db.query(GlobalConfig).filter(GlobalConfig.key == k).first().value = v
     test_db.commit()
 
-    # 2. Passage de l'Auto-Pilote à ON (0 -> 1)
+    # 2. Passage de l'Auto-Pilote à ON (0 -> 1) sans écraser la personnalisation
     set_autopilot_enabled(test_db, True)
     assert is_autopilot_enabled(test_db) is True
 
-    # Toutes les clés gérées doivent être passées à "true"
-    for k in custom_prefs.keys():
-        val = test_db.query(GlobalConfig).filter(GlobalConfig.key == k).first().value
-        assert val == "true", f"La clé {k} doit être 'true' en mode Auto-Pilote"
-
-    # Vérifier que le snapshot a bien mémorisé les préférences d'origine
-    snap_cfg = test_db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_subtoggles_pre_activation_snapshot").first()
-    assert snap_cfg is not None and snap_cfg.value
-    snap = json.loads(snap_cfg.value)
+    # Les réglages personnalisés doivent être intacts et actifs
     for k, v in custom_prefs.items():
-        assert snap.get(k) == v, f"Snapshot altéré pour {k}: {snap.get(k)} != {v}"
+        val = test_db.query(GlobalConfig).filter(GlobalConfig.key == k).first().value
+        assert val == v, f"Préférence altérée pour {k} à l'activation: attendu '{v}', obtenu '{val}'"
 
     # 3. Passage de l'Auto-Pilote à OFF (1 -> 0)
     set_autopilot_enabled(test_db, False)
     assert is_autopilot_enabled(test_db) is False
 
-    # Restauration exacte des préférences personnalisées
+    # Les préférences personnalisées restent intactes en veille
     for k, v in custom_prefs.items():
         val = test_db.query(GlobalConfig).filter(GlobalConfig.key == k).first().value
-        assert val == v, f"Restauration échouée pour {k} : attendu '{v}', obtenu '{val}'"
+        assert val == v, f"Préférence altérée pour {k} en veille : attendu '{v}', obtenu '{val}'"
+
+    # 4. Ré-activation de l'Auto-Pilote (0 -> 1)
+    set_autopilot_enabled(test_db, True)
+    assert is_autopilot_enabled(test_db) is True
+    for k, v in custom_prefs.items():
+        val = test_db.query(GlobalConfig).filter(GlobalConfig.key == k).first().value
+        assert val == v, f"Préférence altérée pour {k} à la ré-activation : attendu '{v}', obtenu '{val}'"
 
 
 def test_history_endpoints(test_db):

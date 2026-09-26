@@ -402,8 +402,8 @@ def test_commit_reviewed_transactions_triggers_budget_discovery(test_db):
     assert any("Loisirs" in (d.raw_snapshot or "") for d in decisions)
 
 
-def test_autopilot_master_switch_snapshot_and_restore(test_db):
-    """Vérifie que basculer l'auto-pilote de 0 à 1 active les modules, et que le retour à 0 restaure fidèlement les réglages personnalisés."""
+def test_autopilot_master_switch_preservation(test_db):
+    """Vérifie que basculer l'auto-pilote de 0 à 1 et de 1 à 0 préserve fidèlement les réglages personnalisés de l'utilisateur."""
     from app.services.autopilot_service import set_autopilot_enabled, is_autopilot_enabled
 
     # 1. Initialiser le Master Switch à 0 (OFF)
@@ -428,18 +428,19 @@ def test_autopilot_master_switch_snapshot_and_restore(test_db):
     # 3. Activer le Master Switch (0 -> 1)
     set_autopilot_enabled(test_db, True)
     assert is_autopilot_enabled(test_db) is True
-    # Vérifier que les sous-options ont été basculées à true
-    for k in ("enable_budget_creation_suggestions", "enable_budget_recalibration_suggestions"):
+    # Vérifier que les sous-options personnalisées restent fidèlement préservées
+    for k, v in custom_settings.items():
         cfg = test_db.query(GlobalConfig).filter_by(key=k).first()
-        assert cfg is not None and cfg.value == "true"
+        assert cfg is not None and cfg.value == v
 
     # 4. Désactiver le Master Switch (1 -> 0)
     set_autopilot_enabled(test_db, False)
     assert is_autopilot_enabled(test_db) is False
 
-    # 5. Vérifier que la configuration personnalisée initiale a été fidèlement restaurée
-    cfg_create = test_db.query(GlobalConfig).filter_by(key="enable_budget_creation_suggestions").first()
-    assert cfg_create is not None and cfg_create.value == "false", "La sous-option personnalisée de création aurait dû être restaurée à 'false'"
+    # 5. Vérifier que la configuration personnalisée initiale reste fidèlement préservée en veille
+    for k, v in custom_settings.items():
+        cfg = test_db.query(GlobalConfig).filter_by(key=k).first()
+        assert cfg is not None and cfg.value == v
 
 
 def test_budget_enrichment_detection_approval_and_undo(test_db):

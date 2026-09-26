@@ -83,6 +83,15 @@ async def categorize_transaction(data: dict, db: Session = Depends(get_db)):
     if not description:
         return {"category": None}
 
+    # 1. Vérification prioritaire via le Smart Label Engine (règles, historique, sémantique directe)
+    try:
+        from app.services.smart_label_service import resolve_smart_label
+        smart_res = resolve_smart_label(db, description, use_ai_fallback=False)
+        if smart_res and smart_res.get("category"):
+            return {"category": smart_res["category"], "source": smart_res.get("source")}
+    except Exception:
+        pass
+
     cats = db.query(Category).all()
     cat_names = [c.name for c in cats if c.name]
 
@@ -100,15 +109,34 @@ async def categorize_batch(data: dict, db: Session = Depends(get_db)):
     if not descriptions:
         return {"categories": {}}
 
+    resolved_map = {}
+    unresolved_descs = []
+
+    # 1. Résolution groupée prioritaire via le Smart Label Engine
+    try:
+        from app.services.smart_label_service import resolve_smart_labels_batch
+        smart_results = resolve_smart_labels_batch(db, descriptions, use_ai_fallback=False)
+        for d in descriptions:
+            if d in smart_results and smart_results[d].get("category"):
+                resolved_map[d] = smart_results[d]["category"]
+            else:
+                unresolved_descs.append(d)
+    except Exception:
+        unresolved_descs = descriptions
+
+    if not unresolved_descs:
+        return {"categories": resolved_map}
+
     cats = db.query(Category).all()
     cat_names = [c.name for c in cats if c.name]
 
     from app.services.chat.ollama_client import call_ollama_batch_async
     try:
-        categories_map = await call_ollama_batch_async(descriptions, cat_names, db=db)
-        return {"categories": categories_map}
+        categories_map = await call_ollama_batch_async(unresolved_descs, cat_names, db=db)
+        resolved_map.update(categories_map)
+        return {"categories": resolved_map}
     except Exception as e:
-        return {"categories": {}, "error": str(e)}
+        return {"categories": resolved_map, "error": str(e)}
 
 @router.post("/import_csv")
 async def import_csv_ai(

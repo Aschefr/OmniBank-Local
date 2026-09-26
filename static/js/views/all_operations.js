@@ -981,9 +981,20 @@ window.AllOperationsView = {
             cfg = window.app?.config || {};
         }
 
+        const isAutopilotActive = (cfg.auto_pilot_enabled ?? 'false') === 'true';
         const isReconcile = (cfg.auto_reconcile_transactions ?? 'false') === 'true';
         const isCommit = (cfg.auto_commit_incoming_transactions ?? 'false') === 'true';
         const isCloseSas = (cfg.auto_close_empty_import_sas ?? 'false') === 'true';
+
+        const isReconcileAp = isAutopilotActive && isReconcile;
+        const isCommitAp = isAutopilotActive && isCommit;
+        const isCloseSasAp = isAutopilotActive && isCloseSas;
+
+        const apBadgeHtml = `
+            <span class="badge" title="${window.i18n?.t('autopilot_badge_driven_hint') || 'Cet automatisme est actuellement actif sous le contrôle de l\'Auto-Pilote.'}" style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 4px;">
+                🤖 ${window.i18n?.t('autopilot_badge_driven') || 'Auto-Pilote'}
+            </span>
+        `;
 
         const modal = document.createElement('div');
         modal.id = 'operationsAutomationsModal';
@@ -1024,12 +1035,13 @@ window.AllOperationsView = {
                     <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: clamp(14px, 3vw, 20px) clamp(16px, 3.5vw, 24px); display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin;">
                         
                         <!-- Option 1 : Rapprochement bancaire automatique -->
-                        <div style="padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                        <div style="padding: 12px 14px; border-radius: 10px; border: ${isReconcileAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isReconcileAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isReconcileAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
                             <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                <input type="checkbox" id="cfg_auto_reconcile_transactions" ${isReconcile ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent, #6366f1); cursor: pointer;">
+                                <input type="checkbox" id="cfg_auto_reconcile_transactions" ${isReconcile ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isReconcileAp ? '#10b981' : 'var(--accent, #6366f1)'}; cursor: pointer;">
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
                                         <span style="display: flex; align-items: center; gap: 6px;"><span>🔄</span> <span>${window.i18n?.t('op_auto_reconcile_label') || 'Rapprochement bancaire automatique'}</span></span>
+                                        ${isReconcileAp ? apBadgeHtml : ''}
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                         ${window.i18n?.t('op_auto_reconcile_desc') || 'Rapproche automatiquement les transactions détectées dans vos relevés avec les opérations en attente (écart ≤ 3 jours).'}
@@ -1039,12 +1051,13 @@ window.AllOperationsView = {
                         </div>
 
                         <!-- Option 2 : Validation automatique des opérations -->
-                        <div style="padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                        <div style="padding: 12px 14px; border-radius: 10px; border: ${isCommitAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isCommitAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isCommitAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
                             <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                <input type="checkbox" id="cfg_auto_commit_incoming_transactions" ${isCommit ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent, #6366f1); cursor: pointer;">
+                                <input type="checkbox" id="cfg_auto_commit_incoming_transactions" ${isCommit ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isCommitAp ? '#10b981' : 'var(--accent, #6366f1)'}; cursor: pointer;">
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
                                         <span style="display: flex; align-items: center; gap: 6px;"><span>⚡</span> <span>${window.i18n?.t('op_auto_commit_label') || 'Validation automatique des opérations'}</span></span>
+                                        ${isCommitAp ? apBadgeHtml : ''}
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                         ${window.i18n?.t('op_auto_commit_desc') || 'Crée et valide directement les nouvelles opérations bancaires sans passer par le sas d\'approbation manuelle.'}
@@ -1054,12 +1067,13 @@ window.AllOperationsView = {
                         </div>
 
                         <!-- Option 3 : Fermeture automatique du sas d'import -->
-                        <div style="padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                        <div style="padding: 12px 14px; border-radius: 10px; border: ${isCloseSasAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isCloseSasAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isCloseSasAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
                             <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                <input type="checkbox" id="cfg_auto_close_empty_import_sas" ${isCloseSas ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent, #6366f1); cursor: pointer;">
+                                <input type="checkbox" id="cfg_auto_close_empty_import_sas" ${isCloseSas ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isCloseSasAp ? '#10b981' : 'var(--accent, #6366f1)'}; cursor: pointer;">
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
                                         <span style="display: flex; align-items: center; gap: 6px;"><span>📦</span> <span>${window.i18n?.t('op_auto_close_sas_label') || 'Fermeture automatique du sas d\'import'}</span></span>
+                                        ${isCloseSasAp ? apBadgeHtml : ''}
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                         ${window.i18n?.t('op_auto_close_sas_desc') || 'Ferme automatiquement la zone d\'importation lorsque toutes les opérations ont été traitées ou rapprochées.'}

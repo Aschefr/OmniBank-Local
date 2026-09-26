@@ -31,6 +31,7 @@ from .categories import (
     _FALLBACK_INCOME_SYNONYMS,
     ensure_category_exists,
     is_fallback_category,
+    match_category_from_text,
     resolve_fallback_category,
 )
 
@@ -74,6 +75,7 @@ __all__ = [
     "_FALLBACK_EXPENSE_SYNONYMS",
     "_FALLBACK_INCOME_SYNONYMS",
     "is_fallback_category",
+    "match_category_from_text",
     "resolve_fallback_category",
     "ensure_category_exists",
 

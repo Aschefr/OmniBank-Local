@@ -23,13 +23,14 @@ CONFIG_DEFAULTS = {
     "enable_budget_creation_suggestions": "true",
     "enable_budget_recalibration_suggestions": "true",
     "budget_suggestion_engine": "deterministic",
-    # Étape 5.5 : Automatismes Opérations & Catégories (Défauts à false)
     "auto_reconcile_transactions": "false",
     "auto_commit_incoming_transactions": "false",
     "auto_close_empty_import_sas": "false",
     "auto_create_missing_categories": "false",
     "auto_learn_merchant_rules": "false",
     "auto_assign_chameleon_fallback": "false",
+    "auto_pilot_enabled": "false",
+    "autopilot_preset": "balanced",
     # Simulateur de Projets & Scénarios (Persistance multi-appareils)
     "sim_horizon": "36",
     "sim_conservative_weight": "0.20",
