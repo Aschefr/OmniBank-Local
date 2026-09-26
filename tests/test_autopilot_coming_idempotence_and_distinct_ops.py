@@ -20,6 +20,7 @@ from app.models import (
     Category,
     AutopilotDecisionLog,
     GlobalConfig,
+    BankConnection,
 )
 from app.services.reconciliation_engine import check_reconciliation
 from app.services.autopilot_service import process_incoming_batch
@@ -258,3 +259,113 @@ def test_is_coming_transition_to_confirmed(db_session):
     db_session.refresh(tx)
     assert tx.reconciliation_date == date.today()
     assert tx.csv_id == "woob_cragr_chanchai_01_confirmed"
+
+
+def test_existing_forecast_coming_operation_preserved_in_pending_matches(db_session):
+    """
+    Vérifie qu'une transaction prévisionnelle existante (ex: Google One) matchée
+    avec une opération 'is_coming' est conservée dans get_all_pending_sync avec is_coming=True,
+    permettant l'affichage du badge/bouton '⏳ À venir' sur le Dashboard et la Timeline.
+    """
+    conn = BankConnection(id=1, backend="cragr", label="CA Courant", is_active=True)
+    account = Account(name="Compte Courant", initial_balance=2500.0)
+    db_session.add_all([conn, account])
+    db_session.commit()
+
+    # 1. Opération prévisionnelle récurrente en base (non pointée)
+    forecast_tx = Transaction(
+        date_saisie=date(2026, 9, 26),
+        date_operation=date(2026, 9, 26),
+        description="Google One Abonnement IA+ 5To",
+        amount=21.99,
+        type="expense_fixed",
+        category="IA",
+        reconciliation_date=None,
+        from_account_id=account.id,
+        created_by="Manuel"
+    )
+    db_session.add(forecast_tx)
+    db_session.commit()
+
+    # 2. La banque annonce l'opération en attente (is_coming = True)
+    preview = {
+        "accounts": [
+            {
+                "account_id": account.id,
+                "transactions": [
+                    {
+                        "date_operation": "2026-09-26",
+                        "description": "Google One Abonnement IA+ 5To",
+                        "raw_description": "GOOGLE ONE 5TO DUBLIN",
+                        "amount": 21.99,
+                        "raw_amount": -21.99,
+                        "category": "IA",
+                        "csv_id": "woob_coming_google_2609",
+                        "is_coming": True,
+                        "is_reconciled": True,
+                        "already_reconciled": False,
+                        "matched_db_id": forecast_tx.id,
+                        "match_score": 100.0
+                    }
+                ]
+            }
+        ]
+    }
+
+    # 3. Traitement par l'Auto-Pilote
+    res = process_incoming_batch(db_session, conn_id=1, preview_data=preview)
+    assert res["auto_reconciled"] == 1
+
+    # 4. La transaction reste prévisionnelle en base mais liée
+    db_session.refresh(forecast_tx)
+    assert forecast_tx.reconciliation_date is None
+    assert forecast_tx.csv_id == "woob_coming_google_2609"
+
+    # 5. get_all_pending_sync doit renvoyer le match 'is_coming' pour le frontend
+    pending = get_all_pending_sync(db_session)
+    assert pending["total_coming_matches"] == 1
+    assert forecast_tx.id in pending["matches_by_tx_id"]
+    assert pending["matches_by_tx_id"][forecast_tx.id]["is_coming"] is True
+
+    # 6. Deuxième sync (idempotence tant que l'opération reste à venir)
+    res2 = process_incoming_batch(db_session, conn_id=1, preview_data=preview)
+    assert res2["auto_reconciled"] == 0
+    pending2 = get_all_pending_sync(db_session)
+    assert pending2["total_coming_matches"] == 1
+    assert forecast_tx.id in pending2["matches_by_tx_id"]
+
+    # 7. La banque confirme le débit (is_coming = False)
+    confirmed_preview = {
+        "accounts": [
+            {
+                "account_id": account.id,
+                "transactions": [
+                    {
+                        "date_operation": "2026-09-28",
+                        "description": "GOOGLE ONE 5TO DUBLIN",
+                        "raw_description": "GOOGLE ONE 5TO DUBLIN",
+                        "amount": 21.99,
+                        "raw_amount": -21.99,
+                        "csv_id": "woob_confirmed_google_2809",
+                        "is_coming": False,
+                        "is_reconciled": True,
+                        "already_reconciled": False,
+                        "matched_db_id": forecast_tx.id,
+                        "match_score": 100.0
+                    }
+                ]
+            }
+        ]
+    }
+    res_conf = process_incoming_batch(db_session, conn_id=1, preview_data=confirmed_preview)
+    assert res_conf["auto_reconciled"] == 1
+
+    # 8. Désormais pointée et purgée du Sas
+    db_session.refresh(forecast_tx)
+    assert forecast_tx.reconciliation_date == date.today()
+    assert forecast_tx.csv_id == "woob_confirmed_google_2809"
+
+    pending3 = get_all_pending_sync(db_session)
+    assert pending3["total_coming_matches"] == 0
+    assert forecast_tx.id not in pending3["matches_by_tx_id"]
+
