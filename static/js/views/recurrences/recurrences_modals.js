@@ -569,6 +569,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             console.error('Erreur chargement config automatismes:', err);
         }
 
+        const isAutopilotActive = (cfg.auto_pilot_enabled ?? 'false') === 'true';
         const isPromote = (cfg.auto_promote_recurrences ?? 'false') === 'true';
         let promoteSince = cfg.auto_promote_recurrences_since || '';
         if (!promoteSince) {
@@ -580,6 +581,18 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const isHike = (cfg.auto_propagate_recurrence_hikes ?? 'false') === 'true';
         const isSkip = (cfg.auto_skip_unreconciled_recurrences ?? 'false') === 'true';
         const isClose = (cfg.auto_close_unreconciled_recurrences ?? 'false') === 'true';
+
+        const isPromoteAp = isAutopilotActive && isPromote;
+        const isDeviantAp = isAutopilotActive && isDeviant;
+        const isHikeAp = isAutopilotActive && isHike;
+        const isSkipAp = isAutopilotActive && isSkip;
+        const isCloseAp = isAutopilotActive && isClose;
+
+        const apBadgeHtml = `
+            <span class="badge" title="${window.i18n?.t('autopilot_badge_driven_hint') || 'Cet automatisme est actuellement actif sous le contrôle de l\'Auto-Pilote.'}" style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 4px;">
+                🤖 ${window.i18n?.t('autopilot_badge_driven') || 'Auto-Pilote'}
+            </span>
+        `;
 
         const modal = document.createElement('div');
         modal.id = 'recurrenceAutomationsModal';
@@ -601,12 +614,13 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                 
                 <form id="recurrenceAutomationsForm" style="display: flex; flex-direction: column; gap: 14px;" onsubmit="event.preventDefault(); window.RecurrenceView.saveAutomationsConfig();">
                     <!-- Option : Promotion automatique N>=3 avec date d'effet verrouillée -->
-                    <div style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                    <div style="padding: 12px; border-radius: 8px; border: ${isPromoteAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isPromoteAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isPromoteAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
                         <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                            <input type="checkbox" id="cfg_auto_promote_recurrences" ${isPromote ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primary-color, #6366f1); cursor: pointer;">
+                            <input type="checkbox" id="cfg_auto_promote_recurrences" ${isPromote ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isPromoteAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
                             <div style="flex: 1; min-width: 0;">
                                 <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
                                     <span style="display: flex; align-items: center; gap: 6px;"><span>🔄</span> <span>${window.i18n.t('rec_auto_promote_title', 'Promotion automatique des abonnements réguliers (N≥3)')}</span></span>
+                                    ${isPromoteAp ? apBadgeHtml : ''}
                                 </div>
                                 <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                     ${window.i18n.t('rec_auto_promote_desc', 'Détecte et officialise automatiquement en modèle actif les abonnements observés sur au moins 3 échéances consécutives.')}
@@ -623,13 +637,16 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     </div>
 
                     <!-- Option Racine : Déviations & Hors-forfait -->
-                    <div style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-base);">
+                    <div style="padding: 12px; border-radius: 8px; border: ${isDeviantAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isDeviantAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isDeviantAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
                         <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                            <input type="checkbox" id="cfg_auto_link_deviant_recurrences" ${isDeviant ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primary-color, #6366f1); cursor: pointer;">
+                            <input type="checkbox" id="cfg_auto_link_deviant_recurrences" ${isDeviant ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isDeviantAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
                             <div style="flex: 1; min-width: 0;">
                                 <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
                                     <span style="display: flex; align-items: center; gap: 6px;"><span>⚡</span> <span>${window.i18n.t('rec_auto_link_deviant_title', 'Auto-liaison des déviations et hors-forfait')}</span></span>
-                                    <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(99, 102, 241, 0.15); color: #6366f1; white-space: nowrap;">${window.i18n.t('rec_auto_master_badge', 'Option principale')}</span>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        ${isDeviantAp ? apBadgeHtml : ''}
+                                        <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(99, 102, 241, 0.15); color: #6366f1; white-space: nowrap;">${window.i18n.t('rec_auto_master_badge', 'Option principale')}</span>
+                                    </div>
                                 </div>
                                 <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                     ${window.i18n.t('rec_auto_link_deviant_desc', 'Lie automatiquement l’opération du Sas à l’échéance prévue si le montant diffère dans une tolérance de ratio (1/3 à 3x), sans altérer le montant du modèle.')}
@@ -639,15 +656,16 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     </div>
 
                     <!-- Branche Hiérarchique Conditionnée par l'Auto-Liaison -->
-                    <div id="subAutomationsBranch" style="margin-left: clamp(10px, 2.5vw, 20px); border-left: 2px solid var(--primary-color, #6366f1); padding-left: clamp(8px, 2vw, 14px); display: flex; flex-direction: column; gap: 12px; transition: opacity 0.2s ease, border-color 0.2s ease;">
+                    <div id="subAutomationsBranch" style="margin-left: clamp(10px, 2.5vw, 20px); border-left: 2px solid ${isDeviantAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; padding-left: clamp(8px, 2vw, 14px); display: flex; flex-direction: column; gap: 12px; transition: opacity 0.2s ease, border-color 0.2s ease;">
                         
                         <!-- Sous-Option 1 : Hausse tarifaire pérenne N=3 -->
-                        <div id="box_auto_propagate_recurrence_hikes" style="padding: 11px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-base); transition: opacity 0.2s ease;">
+                        <div id="box_auto_propagate_recurrence_hikes" style="padding: 11px 12px; border-radius: 8px; border: ${isHikeAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isHikeAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isHikeAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
                             <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                <input type="checkbox" id="cfg_auto_propagate_recurrence_hikes" ${isHike ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primary-color, #6366f1); cursor: pointer;">
+                                <input type="checkbox" id="cfg_auto_propagate_recurrence_hikes" ${isHike ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isHikeAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
                                 <div style="flex: 1; min-width: 0;">
-                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                                        <span>📈</span> <span>${window.i18n.t('rec_auto_propagate_hikes_title', 'Actualisation auto sur hausse pérenne (N=3)')}</span>
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>📈</span> <span>${window.i18n.t('rec_auto_propagate_hikes_title', 'Actualisation auto sur hausse pérenne (N=3)')}</span></span>
+                                        ${isHikeAp ? apBadgeHtml : ''}
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                         ${window.i18n.t('rec_auto_propagate_hikes_desc', 'Met à jour automatiquement le modèle de récurrence et les prévisions futures après 3 mois consécutifs au même nouveau montant.')}
@@ -657,12 +675,13 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                         </div>
 
                         <!-- Sous-Option 2 : Auto-saut des échéances non prélevées -->
-                        <div id="box_auto_skip_unreconciled_recurrences" style="padding: 11px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-base); transition: opacity 0.2s ease;">
+                        <div id="box_auto_skip_unreconciled_recurrences" style="padding: 11px 12px; border-radius: 8px; border: ${isSkipAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isSkipAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isSkipAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
                             <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                <input type="checkbox" id="cfg_auto_skip_unreconciled_recurrences" ${isSkip ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primary-color, #6366f1); cursor: pointer;">
+                                <input type="checkbox" id="cfg_auto_skip_unreconciled_recurrences" ${isSkip ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isSkipAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
                                 <div style="flex: 1; min-width: 0;">
-                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                                        <span>⏭️</span> <span>${window.i18n.t('rec_auto_skip_title', 'Auto-saut des échéances non prélevées')}</span>
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>⏭️</span> <span>${window.i18n.t('rec_auto_skip_title', 'Auto-saut des échéances non prélevées')}</span></span>
+                                        ${isSkipAp ? apBadgeHtml : ''}
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                         ${window.i18n.t('rec_auto_skip_desc', 'Marque comme sautée une échéance dépassée (période + 3 jours) si le solde bancaire est strictement conforme au centime près et le Sas vide.')}
@@ -673,10 +692,11 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                             <!-- Sous-Sous-Option : Auto-clôture après 3 sauts consécutifs -->
                             <div id="box_auto_close_unreconciled_recurrences" style="margin-top: 10px; margin-left: clamp(8px, 2vw, 16px); border-left: 2px dashed var(--border-color); padding-left: clamp(6px, 1.5vw, 12px); transition: opacity 0.2s ease;">
                                 <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin: 0;">
-                                    <input type="checkbox" id="cfg_auto_close_unreconciled_recurrences" ${isClose ? 'checked' : ''} style="margin-top: 3px; width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--primary-color, #6366f1); cursor: pointer;">
+                                    <input type="checkbox" id="cfg_auto_close_unreconciled_recurrences" ${isClose ? 'checked' : ''} style="margin-top: 3px; width: 17px; height: 17px; flex-shrink: 0; accent-color: ${isCloseAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
                                     <div style="flex: 1; min-width: 0;">
-                                        <div style="font-size: 12.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                                            <span>🛑</span> <span>${window.i18n.t('rec_auto_close_title', 'Auto-clôture après 3 échéances consécutives sautées')}</span>
+                                        <div style="font-size: 12.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                            <span style="display: flex; align-items: center; gap: 6px;"><span>🛑</span> <span>${window.i18n.t('rec_auto_close_title', 'Auto-clôture après 3 échéances consécutives sautées')}</span></span>
+                                            ${isCloseAp ? apBadgeHtml : ''}
                                         </div>
                                         <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.35;">
                                             ${window.i18n.t('rec_auto_close_desc', 'Clôture définitivement le modèle récurrent si 3 échéances successives n\'ont pas été prélevées (contrats résiliés ou abandonnés).')}

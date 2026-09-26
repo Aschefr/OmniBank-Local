@@ -1159,6 +1159,111 @@ def test_update_transaction_preserves_raw_description_and_matches_via_history(db
     assert res["confidence"] >= 0.75
 
 
+# ── TEST 25 : Correspondance directe avec les catégories actives (Niveau 2.5) ────────
+def test_direct_category_matching_refund_bouilloire(db_session):
+    """Vérifie que 'Remboursement Bouilloire Amazon' trouve directement la catégorie 'Remboursement'."""
+    from app.models import Category
+    from app.services.smart_label_service import resolve_smart_label, match_category_from_text
+
+    db_session.add(Category(name="Remboursement", type="income", is_closed=False))
+    db_session.add(Category(name="Revenus divers", type="income", is_closed=False))
+    db_session.commit()
+
+    # 1. Test unitaire du matcher
+    match = match_category_from_text(db_session, "Remboursement Bouilloire Amazon", tx_type="income")
+    assert match is not None
+    cat_name, score, src = match
+    assert cat_name == "Remboursement"
+    assert score >= 0.90
+    assert src == "category_match"
+
+    # 2. Test du resolver complet
+    res = resolve_smart_label(
+        db_session,
+        "Remboursement Bouilloire Amazon",
+        use_ai_fallback=False,
+        tx_type="income"
+    )
+    assert res["category"] == "Remboursement"
+    assert res["source"] == "category_match"
+    assert res["confidence"] >= 0.90
+
+
+def test_simulate_endpoint_with_direct_category_and_tx_type(client, db_session):
+    """Vérifie l'endpoint /api/smart-labels/simulate avec suggestion directe et tx_type."""
+    from app.models import Category
+
+    db_session.add(Category(name="Remboursement", type="income", is_closed=False))
+    db_session.add(Category(name="Santé", type="expense_var", is_closed=False))
+    db_session.commit()
+
+    # Simulation d'un remboursement (crédit)
+    resp = client.post("/api/smart-labels/simulate", json={
+        "raw_label": "Remboursement Bouilloire Amazon",
+        "tx_type": "income",
+        "use_ai_fallback": True
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["category"] == "Remboursement"
+    assert data["source"] == "category_match"
+    assert "Remboursement" in data["explanation"]
+
+    # Simulation avec amount positif (doit déduire income)
+    resp2 = client.post("/api/smart-labels/simulate", json={
+        "raw_label": "Remboursement Bouilloire Amazon",
+        "amount": 45.99,
+        "use_ai_fallback": True
+    })
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["category"] == "Remboursement"
+    assert data2["source"] == "category_match"
+
+    # Simulation dépense santé
+    resp3 = client.post("/api/smart-labels/simulate", json={
+        "raw_label": "Pharmacie du Centre",
+        "tx_type": "expense_var",
+        "use_ai_fallback": True
+    })
+    assert resp3.status_code == 200
+    data3 = resp3.json()
+    assert data3["category"] == "Santé"
+    assert data3["source"] == "category_keyword"
+
+
+def test_multi_category_rule_preserves_explicit_category_match(client, db_session):
+    """Vérifie que même si une règle multi-catégories 'Amazon' existe sans catégorie,
+    un libellé 'Remboursement Amazon Bouilloire' assigne la catégorie 'Remboursement'."""
+    from app.models import BankLabelMapping, Category
+    from app.services.smart_label_service import resolve_smart_label
+
+    db_session.add(Category(name="Remboursement", type="income", is_closed=False))
+    db_session.add(BankLabelMapping(
+        raw_pattern="AMAZON",
+        clean_description="Amazon",
+        category=None,
+        is_multi_category=True,
+        match_count=5
+    ))
+    db_session.commit()
+
+    res = resolve_smart_label(db_session, "Remboursement Amazon Bouilloire", tx_type="income", use_ai_fallback=True)
+    assert res["category"] == "Remboursement"
+    assert res["source"] == "category_match"
+
+    # Test via l'API simulate
+    resp = client.post("/api/smart-labels/simulate", json={
+        "raw_label": "Remboursement Amazon Bouilloire",
+        "tx_type": "income",
+        "use_ai_fallback": True
+    })
+    assert resp.status_code == 200
+    assert resp.json()["category"] == "Remboursement"
+
+
+
+
 
 
 

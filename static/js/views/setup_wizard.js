@@ -15,6 +15,87 @@ window.SetupWizard = {
     _activeProfileName: '',
     overlay: null,
 
+    _autopilotEnabled: true,
+    _autopilotPreset: 'balanced',
+    _autopilotThreshold: 85,
+    _autopilotSubtoggles: {},
+    _autopilotAccordionOpen: false,
+
+    _balancedKeys: [
+        'auto_reconcile_transactions',
+        'auto_commit_incoming_transactions',
+        'auto_assign_chameleon_fallback',
+        'auto_close_empty_import_sas',
+        'auto_create_missing_categories',
+        'auto_learn_merchant_rules',
+        'enable_budget_creation_suggestions',
+        'enable_budget_recalibration_suggestions'
+    ],
+
+    _fullKeys: [
+        'auto_reconcile_transactions',
+        'auto_commit_incoming_transactions',
+        'auto_assign_chameleon_fallback',
+        'auto_close_empty_import_sas',
+        'auto_create_missing_categories',
+        'auto_learn_merchant_rules',
+        'enable_budget_creation_suggestions',
+        'enable_budget_recalibration_suggestions',
+        'bank_auto_sync_enabled',
+        'auto_link_deviant_recurrences',
+        'auto_propagate_recurrence_hikes',
+        'auto_skip_unreconciled_recurrences',
+        'auto_close_unreconciled_recurrences',
+        'auto_create_budget_envelopes',
+        'auto_apply_budget_suggestions'
+    ],
+
+    _subtogglesDef: [
+        {
+            categoryKey: 'autopilot_cat_operations',
+            category: 'Opérations & Ingestion',
+            icon: '📥',
+            items: [
+                { key: 'auto_reconcile_transactions', labelKey: 'autopilot_subtoggle_auto_reconcile_transactions', label: 'Auto-Rapprochement haute certitude', descKey: 'autopilot_subtoggle_auto_reconcile_transactions_desc', desc: 'Pointe et réconcilie automatiquement les écritures bancaires avec vos prévisions lorsque le score de confiance atteint le seuil.' },
+                { key: 'auto_commit_incoming_transactions', labelKey: 'autopilot_subtoggle_auto_commit_incoming_transactions', label: 'Enregistrement direct des écritures', descKey: 'autopilot_subtoggle_auto_commit_incoming_transactions_desc', desc: 'Intègre immédiatement les opérations confirmées en base pour garantir l\'alignement strict du solde bancaire.' },
+                { key: 'auto_assign_chameleon_fallback', labelKey: 'autopilot_subtoggle_auto_assign_chameleon_fallback', label: 'Catégorisation repli / caméléon', descKey: 'autopilot_subtoggle_auto_assign_chameleon_fallback_desc', desc: 'Assigne une catégorie de repli temporaire sécurisée pour les marchands inconnus afin de ne bloquer aucun flux.' },
+                { key: 'auto_close_empty_import_sas', labelKey: 'autopilot_subtoggle_auto_close_empty_import_sas', label: 'Fermeture automatique du Sas d\'attente', descKey: 'autopilot_subtoggle_auto_close_empty_import_sas_desc', desc: 'Clôture automatiquement le sas d\'import dès que l\'ensemble des écritures du lot ont été traitées.' },
+                { key: 'bank_auto_sync_enabled', labelKey: 'autopilot_subtoggle_bank_auto_sync_enabled', label: 'Synchronisation bancaire en arrière-plan', descKey: 'autopilot_subtoggle_bank_auto_sync_enabled_desc', desc: 'Effectue le relevé bancaire périodique autonome (3h à 48h) lorsque le coffre-fort est déverrouillé.' }
+            ]
+        },
+        {
+            categoryKey: 'autopilot_cat_merchants',
+            category: 'Marchands & Catégories',
+            icon: '🏷️',
+            items: [
+                { key: 'auto_learn_merchant_rules', labelKey: 'autopilot_subtoggle_auto_learn_merchant_rules', label: 'Apprentissage autonome des marchands', descKey: 'autopilot_subtoggle_auto_learn_merchant_rules_desc', desc: 'Mémorise automatiquement vos arbitrages dans les règles marchands pour classifier sans faille les prochains relevés.' },
+                { key: 'auto_create_missing_categories', labelKey: 'autopilot_subtoggle_auto_create_missing_categories', label: 'Création autonome des catégories', descKey: 'autopilot_subtoggle_auto_create_missing_categories_desc', desc: 'Crée automatiquement les catégories détectées lors de l\'enrichissement des flux bancaires.' }
+            ]
+        },
+        {
+            categoryKey: 'autopilot_cat_recurrences',
+            category: 'Récurrences & Abonnements',
+            icon: '🔁',
+            items: [
+                { key: 'auto_link_deviant_recurrences', labelKey: 'autopilot_subtoggle_auto_link_deviant_recurrences', label: 'Rapprochement déviant tolérant', descKey: 'autopilot_subtoggle_auto_link_deviant_recurrences_desc', desc: 'Rapproche les prélèvements récurrents dont le montant fluctue dans une fourchette tolérée de ±15%.' },
+                { key: 'auto_propagate_recurrence_hikes', labelKey: 'autopilot_subtoggle_auto_propagate_recurrence_hikes', label: 'Propagation automatique des hausses', descKey: 'autopilot_subtoggle_auto_propagate_recurrence_hikes_desc', desc: 'Ajuste le montant prévisionnel d\'un abonnement lorsqu\'une hausse tarifaire est constatée sur 3 échéances consécutives.' },
+                { key: 'auto_skip_unreconciled_recurrences', labelKey: 'autopilot_subtoggle_auto_skip_unreconciled_recurrences', label: 'Saut d\'échéance automatique', descKey: 'autopilot_subtoggle_auto_skip_unreconciled_recurrences_desc', desc: 'Marque comme passée toute échéance récurrente non constatée à la fin du mois sans altérer le template.' },
+                { key: 'auto_close_unreconciled_recurrences', labelKey: 'autopilot_subtoggle_auto_close_unreconciled_recurrences', label: 'Clôture après échéances manquées', descKey: 'autopilot_subtoggle_auto_close_unreconciled_recurrences_desc', desc: 'Désactive automatiquement un abonnement récurrent après N échéances consécutives jamais prélevées.' }
+            ]
+        },
+        {
+            categoryKey: 'autopilot_cat_budgets',
+            category: 'Budgets & Enveloppes',
+            icon: '📊',
+            items: [
+                { key: 'enable_budget_creation_suggestions', labelKey: 'autopilot_subtoggle_enable_budget_creation_suggestions', label: 'Suggestions de nouvelles enveloppes', descKey: 'autopilot_subtoggle_enable_budget_creation_suggestions_desc', desc: 'Analyse vos dépenses réelles pour proposer la création d\'enveloppes sur vos postes récurrents.' },
+                { key: 'enable_budget_recalibration_suggestions', labelKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions', label: 'Suggestions de recalibrage mensuel', descKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions_desc', desc: 'Calcule des propositions d\'ajustement lissé (filtre EMA 3-6 mois) pour vos budgets sous ou sur-consommés.' },
+                { key: 'auto_create_budget_envelopes', labelKey: 'autopilot_subtoggle_auto_create_budget_envelopes', label: 'Création 100% autonome des enveloppes', descKey: 'autopilot_subtoggle_auto_create_budget_envelopes_desc', desc: 'Valide et crée immédiatement les enveloppes suggérées sans attendre votre approbation manuelle.' },
+                { key: 'auto_apply_budget_suggestions', labelKey: 'autopilot_subtoggle_auto_apply_budget_suggestions', label: 'Application 100% autonome des recalibrages', descKey: 'autopilot_subtoggle_auto_apply_budget_suggestions_desc', desc: 'Applique automatiquement les nouveaux plafonds budgétaires calculés au 1er de chaque mois.' }
+            ]
+        }
+    ],
+
     async checkAndShow() {
         try {
             const data = await API.get('/api/setup/status');
@@ -68,6 +149,24 @@ window.SetupWizard = {
         // 5. Thème actuel
         if (window.ThemeManager) {
             this._selectedTheme = window.ThemeManager.currentThemeId || 'dark';
+        }
+
+        // 6. Charger l'état actuel de l'Auto-Pilote
+        try {
+            const apStatus = await API.get('/api/autopilot/status');
+            this._autopilotEnabled = apStatus.enabled !== false;
+            this._autopilotPreset = apStatus.preset || 'balanced';
+            this._autopilotThreshold = apStatus.threshold || 85;
+            this._autopilotSubtoggles = { ...(apStatus.subtoggles || {}) };
+        } catch (e) {
+            this._autopilotEnabled = true;
+            this._autopilotPreset = 'balanced';
+            this._autopilotThreshold = 85;
+            this._autopilotSubtoggles = {};
+            this._balancedKeys.forEach(k => { this._autopilotSubtoggles[k] = true; });
+            this._fullKeys.forEach(k => {
+                if (this._autopilotSubtoggles[k] === undefined) this._autopilotSubtoggles[k] = false;
+            });
         }
 
         this._buildOverlay();
@@ -990,21 +1089,108 @@ window.SetupWizard = {
         this._nav(1);
     },
 
-    // ── Étape 5 : Assistant IA / Ollama ────────────────────────────
+    // ── Étape 5 : Assistant IA & Auto-Pilote ─────────────────────
     _stepAI(body) {
+        const activeCount = Object.values(this._autopilotSubtoggles).filter(Boolean).length;
+
         body.innerHTML = `
             <div class="wizard-step-content wizard-center">
                 <h2 class="wizard-step-title">🤖 ${window.i18n.t('wizard_ai_title')}</h2>
                 <p class="wizard-step-desc" data-i18n="wizard_ai_desc">${window.i18n.t('wizard_ai_desc')}</p>
 
-                <div class="wizard-ai-features">
-                    <div class="wizard-ai-feature"><span>💡</span> ${window.i18n.t('wizard_ai_feat_advice')}</div>
-                    <div class="wizard-ai-feature"><span>🏷️</span> ${window.i18n.t('wizard_ai_feat_categorize')}</div>
-                    <div class="wizard-ai-feature"><span>📈</span> ${window.i18n.t('wizard_ai_feat_trends')}</div>
-                    <div class="wizard-ai-feature"><span>📂</span> ${window.i18n.t('wizard_ai_feat_import')}</div>
+                <!-- Mode Auto-Pilote & Automatismes -->
+                <div class="wizard-autopilot-card">
+                    <div class="wizard-ap-header">
+                        <div>
+                            <div class="wizard-ap-title" data-i18n="autopilot_wizard_title">
+                                🤖 ${window.i18n.t('autopilot_wizard_title') || 'Mode Auto-Pilote (Recommandé)'}
+                            </div>
+                            <div class="wizard-ap-desc" data-i18n="autopilot_wizard_desc">
+                                ${window.i18n.t('autopilot_wizard_desc') || 'Prise en charge autonome des flux, réconciliation et classification avec réversibilité totale.'}
+                            </div>
+                        </div>
+                        <div class="wizard-toggle" style="flex-shrink: 0; margin-left: 12px;">
+                            <input type="checkbox" id="wizAutopilotToggle" ${this._autopilotEnabled ? 'checked' : ''} onchange="window.SetupWizard._toggleAutopilotMaster(this.checked)">
+                            <span class="wizard-toggle-slider"></span>
+                        </div>
+                    </div>
+
+                    <div id="wizAutopilotBody" class="wizard-ap-body" style="${this._autopilotEnabled ? 'display:flex;' : 'display:none;'}">
+                        <!-- Sélecteur de profil d'autonomie -->
+                        <div class="wizard-presets-grid">
+                            <div id="wizPresetBalanced" class="wizard-preset-card ${this._autopilotPreset === 'balanced' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('balanced')">
+                                <span class="wizard-preset-badge">🛡️ 8/15 • Recommandé</span>
+                                <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_balanced">${window.i18n.t('autopilot_wizard_preset_balanced') || 'Mode Équilibré'}</div>
+                                <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_balanced_desc">
+                                    ${window.i18n.t('autopilot_wizard_preset_balanced_desc') || 'Rapprochements haute certitude, apprentissage marchands, synchro en arrière-plan et suggestions budgétaires avec validation.'}
+                                </div>
+                            </div>
+                            <div id="wizPresetFull" class="wizard-preset-card full-preset ${this._autopilotPreset === 'full' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('full')">
+                                <span class="wizard-preset-badge">⚡ 15/15 • Max</span>
+                                <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_full">${window.i18n.t('autopilot_wizard_preset_full') || 'Autonomie Totale'}</div>
+                                <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_full_desc">
+                                    ${window.i18n.t('autopilot_wizard_preset_full_desc') || '100% autonome : auto-création d\'enveloppes, auto-application des budgets, auto-clôture des récurrences.'}
+                                </div>
+                            </div>
+                            <div id="wizPresetCustom" class="wizard-preset-card custom-preset ${this._autopilotPreset === 'custom' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('custom')">
+                                <span class="wizard-preset-badge" id="wizPresetCustomBadge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35);">🛠️ <span id="wizPresetCustomActiveCount">${activeCount}</span>/15 • Sur-mesure</span>
+                                <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_custom">${window.i18n.t('autopilot_wizard_preset_custom') || 'Personnalisé'}</div>
+                                <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_custom_desc">
+                                    ${window.i18n.t('autopilot_wizard_preset_custom_desc') || 'Configurez à la carte chacune des 15 briques modulaires ci-dessous.'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Curseur de seuil de tolérance -->
+                        <div class="wizard-threshold-box">
+                            <div class="wizard-threshold-header">
+                                <span data-i18n="autopilot_wizard_threshold_title">${window.i18n.t('autopilot_wizard_threshold_title') || 'Seuil de certitude pour auto-rapprochement :'}</span>
+                                <span id="wizThresholdVal" class="wizard-threshold-val">${this._autopilotThreshold}%</span>
+                            </div>
+                            <input type="range" class="wizard-threshold-slider" min="70" max="99" step="1" value="${this._autopilotThreshold}" oninput="window.SetupWizard._updateThreshold(this.value)">
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px;" data-i18n="autopilot_wizard_threshold_desc">
+                                ${window.i18n.t('autopilot_wizard_threshold_desc') || 'Les opérations dont le score de confiance est supérieur ou égal au seuil sont automatiquement pointées et rapprochées.'}
+                            </div>
+                        </div>
+
+                        <!-- Accordéon déroulant pour les 15 automatismes -->
+                        <div>
+                            <button type="button" class="wizard-accordion-btn" onclick="window.SetupWizard._toggleAutopilotAccordion()">
+                                <span style="display:flex; align-items:center; gap:6px;">
+                                    ⚙️ <span data-i18n="autopilot_wizard_customize_btn">${window.i18n.t('autopilot_wizard_customize_btn') || 'Personnaliser les 15 automatismes'}</span>
+                                    <span id="wizSubtoggleCountBadge" class="wizard-preset-badge" style="font-size:10px;">${activeCount}/15</span>
+                                </span>
+                                <span id="wizAccordionIcon">${this._autopilotAccordionOpen ? '▲' : '▼'}</span>
+                            </button>
+
+                            <div id="wizSubtogglesContainer" class="wizard-accordion-content" style="${this._autopilotAccordionOpen ? 'display:flex;' : 'display:none;'} margin-top: 8px;">
+                                ${this._subtogglesDef.map(cat => `
+                                    <div class="wizard-subtoggle-group">
+                                        <div class="wizard-subtoggle-group-title">
+                                            <span>${cat.icon}</span>
+                                            <span data-i18n="${cat.categoryKey}">${window.i18n.t(cat.categoryKey) || cat.category}</span>
+                                        </div>
+                                        ${cat.items.map(item => {
+                                            const isChecked = Boolean(this._autopilotSubtoggles[item.key]);
+                                            return `
+                                                <label class="wizard-subtoggle-item" style="cursor:pointer;">
+                                                    <div class="wizard-subtoggle-item-info">
+                                                        <span class="wizard-subtoggle-item-label" data-i18n="${item.labelKey}">${window.i18n.t(item.labelKey) || item.label}</span>
+                                                        <span class="wizard-subtoggle-item-desc" data-i18n="${item.descKey}">${window.i18n.t(item.descKey) || item.desc}</span>
+                                                    </div>
+                                                    <input type="checkbox" id="wizSub_${item.key}" ${isChecked ? 'checked' : ''} style="accent-color:var(--accent); cursor:pointer;" onchange="window.SetupWizard._toggleSubtoggle('${item.key}', this.checked)">
+                                                </label>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="wizard-ai-setup">
+                <!-- Section Moteur IA Local (Ollama) -->
+                <div class="wizard-ai-setup" style="margin-top: 8px;">
                     <label class="wizard-ai-toggle-row">
                         <span data-i18n="wizard_ai_enable">${window.i18n.t('wizard_ai_enable')}</span>
                         <div class="wizard-toggle">
@@ -1035,22 +1221,6 @@ window.SetupWizard = {
                             </label>
                         </div>
                     </div>
-                </div>
-
-                <!-- Mode Auto-Pilote Toggle -->
-                <div style="margin-top: 16px; padding: 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; text-align: left; max-width: 480px; width: 100%;">
-                    <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
-                        <div>
-                            <div style="font-weight:700; font-size:13px; color:var(--text-main);" data-i18n="autopilot_wizard_title">🤖 Mode Auto-Pilote (Recommandé)</div>
-                            <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;" data-i18n="autopilot_wizard_desc">
-                                Rapprochement haute confiance, détection des récurrences et synchronisation autonome avec réversibilité totale.
-                            </div>
-                        </div>
-                        <div class="wizard-toggle" style="margin-left: 14px; flex-shrink: 0;">
-                            <input type="checkbox" id="wizAutopilotToggle" checked>
-                            <span class="wizard-toggle-slider"></span>
-                        </div>
-                    </label>
                 </div>
 
                 <p class="wizard-hint" data-i18n="wizard_ai_optional">${window.i18n.t('wizard_ai_optional')}</p>
@@ -1084,56 +1254,156 @@ window.SetupWizard = {
         }
     },
 
+    _toggleAutopilotMaster(checked) {
+        this._autopilotEnabled = checked;
+        const bodyEl = document.getElementById('wizAutopilotBody');
+        if (bodyEl) {
+            bodyEl.style.display = checked ? 'flex' : 'none';
+        }
+    },
+
+    _selectAutopilotPreset(preset) {
+        this._autopilotPreset = preset;
+        if (preset === 'balanced') {
+            this._fullKeys.forEach(k => {
+                this._autopilotSubtoggles[k] = this._balancedKeys.includes(k);
+            });
+        } else if (preset === 'full') {
+            this._fullKeys.forEach(k => {
+                this._autopilotSubtoggles[k] = true;
+            });
+        } else if (preset === 'custom') {
+            if (!this._autopilotAccordionOpen) {
+                this._toggleAutopilotAccordion();
+            }
+        }
+        this._updatePresetUI();
+    },
+
+    _toggleSubtoggle(key, checked) {
+        this._autopilotSubtoggles[key] = checked;
+        const isAllFull = this._fullKeys.every(k => Boolean(this._autopilotSubtoggles[k]));
+        const isBalanced = this._balancedKeys.every(k => Boolean(this._autopilotSubtoggles[k])) &&
+                           this._fullKeys.filter(k => !this._balancedKeys.includes(k)).every(k => !this._autopilotSubtoggles[k]);
+
+        if (isAllFull) {
+            this._autopilotPreset = 'full';
+        } else if (isBalanced) {
+            this._autopilotPreset = 'balanced';
+        } else {
+            this._autopilotPreset = 'custom';
+        }
+        this._updatePresetUI();
+    },
+
+    _updateThreshold(val) {
+        this._autopilotThreshold = Number(val);
+        const valEl = document.getElementById('wizThresholdVal');
+        if (valEl) valEl.textContent = `${val}%`;
+    },
+
+    _toggleAutopilotAccordion() {
+        this._autopilotAccordionOpen = !this._autopilotAccordionOpen;
+        const container = document.getElementById('wizSubtogglesContainer');
+        const icon = document.getElementById('wizAccordionIcon');
+        if (container) {
+            container.style.display = this._autopilotAccordionOpen ? 'flex' : 'none';
+        }
+        if (icon) {
+            icon.textContent = this._autopilotAccordionOpen ? '▲' : '▼';
+        }
+    },
+
+    _updatePresetUI() {
+        const balancedCard = document.getElementById('wizPresetBalanced');
+        const fullCard = document.getElementById('wizPresetFull');
+        const customCard = document.getElementById('wizPresetCustom');
+        const customActiveCount = document.getElementById('wizPresetCustomActiveCount');
+
+        if (balancedCard) {
+            balancedCard.classList.toggle('active', this._autopilotPreset === 'balanced');
+        }
+        if (fullCard) {
+            fullCard.classList.toggle('active', this._autopilotPreset === 'full');
+        }
+        if (customCard) {
+            customCard.classList.toggle('active', this._autopilotPreset === 'custom');
+        }
+
+        this._fullKeys.forEach(k => {
+            const chk = document.getElementById(`wizSub_${k}`);
+            if (chk) chk.checked = Boolean(this._autopilotSubtoggles[k]);
+        });
+
+        const activeCount = Object.values(this._autopilotSubtoggles).filter(Boolean).length;
+        if (customActiveCount) {
+            customActiveCount.textContent = activeCount;
+        }
+        const countBadge = document.getElementById('wizSubtoggleCountBadge');
+        if (countBadge) {
+            countBadge.textContent = `${activeCount}/15`;
+        }
+    },
+
     _toggleAIFields() {
-        const checked = document.getElementById('wizAIToggle').checked;
-        document.getElementById('wizAIFields').style.display = checked ? 'flex' : 'none';
+        const checked = document.getElementById('wizAIToggle')?.checked;
+        const el = document.getElementById('wizAIFields');
+        if (el) el.style.display = checked ? 'flex' : 'none';
         if (checked) {
             this._testOllama();
         }
     },
 
     async _testOllama() {
-        const url = document.getElementById('wizAIUrl').value.trim();
+        const url = document.getElementById('wizAIUrl')?.value.trim();
         const status = document.getElementById('wizAIStatus');
         const btn = document.getElementById('wizTestBtn');
         const repRow = document.getElementById('wizAIReportsRow');
 
         if (!url) {
-            status.innerHTML = `<span class="wizard-status-error">❌ ${window.i18n.t('wizard_ai_url_empty')}</span>`;
+            if (status) status.innerHTML = `<span class="wizard-status-error">❌ ${window.i18n.t('wizard_ai_url_empty')}</span>`;
             return;
         }
 
-        btn.disabled = true;
-        btn.textContent = '⏳ ...';
-        status.innerHTML = `<span class="wizard-status-loading">⏳ ${window.i18n.t('wizard_ai_testing')}</span>`;
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳ ...';
+        }
+        if (status) status.innerHTML = `<span class="wizard-status-loading">⏳ ${window.i18n.t('wizard_ai_testing')}</span>`;
 
         try {
             await API.post('/api/config/', { ollama_url: url });
             const data = await API.get('/api/config/ollama/models');
 
             if (data.models && data.models.length > 0) {
-                status.innerHTML = `<span class="wizard-status-ok">✅ ${window.i18n.tp('wizard_ai_found_models', { count: data.models.length })}</span>`;
+                if (status) status.innerHTML = `<span class="wizard-status-ok">✅ ${window.i18n.tp('wizard_ai_found_models', { count: data.models.length })}</span>`;
                 const container = document.getElementById('wizAIModelContainer');
                 const select = document.getElementById('wizAIModel');
-                select.innerHTML = data.models.map(m =>
-                    `<option value="${m.name}">${m.name} (${(m.size / 1024 / 1024 / 1024).toFixed(1)} GB)</option>`
-                ).join('');
-                container.style.display = 'block';
+                if (select) {
+                    select.innerHTML = data.models.map(m =>
+                        `<option value="${m.name}">${m.name} (${(m.size / 1024 / 1024 / 1024).toFixed(1)} GB)</option>`
+                    ).join('');
+                }
+                if (container) container.style.display = 'block';
                 if (repRow) repRow.style.display = 'block';
             } else {
-                status.innerHTML = `<span class="wizard-status-error">⚠️ ${window.i18n.t('wizard_ai_no_models')}</span>`;
+                if (status) status.innerHTML = `<span class="wizard-status-error">⚠️ ${window.i18n.t('wizard_ai_no_models')}</span>`;
             }
         } catch (e) {
-            status.innerHTML = `
-                <div style="font-size:12px; color:var(--text-muted); line-height:1.4; padding:8px; background:rgba(255,86,48,0.08); border-radius:8px; border:1px solid rgba(255,86,48,0.2);">
-                    <div style="color:var(--danger); font-weight:700; margin-bottom:4px;">❌ ${window.i18n.t('wizard_ai_ollama_not_found') || 'Ollama n\'est pas détecté en local.'}</div>
-                    <div>${window.i18n.t('wizard_ai_install_hint') || 'Vous pouvez télécharger Ollama sur ollama.com et exécuter <code>ollama run gemma2</code> dans un terminal.'}</div>
-                </div>
-            `;
+            if (status) {
+                status.innerHTML = `
+                    <div style="font-size:12px; color:var(--text-muted); line-height:1.4; padding:8px; background:rgba(255,86,48,0.08); border-radius:8px; border:1px solid rgba(255,86,48,0.2);">
+                        <div style="color:var(--danger); font-weight:700; margin-bottom:4px;">❌ ${window.i18n.t('wizard_ai_ollama_not_found') || 'Ollama n\'est pas détecté en local.'}</div>
+                        <div>${window.i18n.t('wizard_ai_install_hint') || 'Vous pouvez télécharger Ollama sur ollama.com et exécuter <code>ollama run gemma2</code> dans un terminal.'}</div>
+                    </div>
+                `;
+            }
         }
 
-        btn.disabled = false;
-        btn.textContent = `🔄 ${window.i18n.t('wizard_ai_test')}`;
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = `🔄 ${window.i18n.t('wizard_ai_test')}`;
+        }
     },
 
     async _saveAI() {
@@ -1142,7 +1412,7 @@ window.SetupWizard = {
         const configToSave = {};
 
         if (enabled) {
-            const url = document.getElementById('wizAIUrl').value.trim();
+            const url = document.getElementById('wizAIUrl')?.value.trim();
             const model = document.getElementById('wizAIModel')?.value || '';
             const reports = document.getElementById('wizAIReportsToggle')?.checked || false;
             configToSave.enable_ai = 'true';
@@ -1151,30 +1421,53 @@ window.SetupWizard = {
             configToSave.ai_reports_enabled = reports ? 'true' : 'false';
         }
 
-        if (apEnabled !== undefined) {
-            configToSave.auto_pilot_enabled = apEnabled ? 'true' : 'false';
-        }
-
         if (Object.keys(configToSave).length > 0) {
             try {
                 await API.post('/api/config/', configToSave);
-                if (apEnabled) {
-                    try { await API.post('/api/autopilot/toggle', { enabled: true }); } catch (e) {}
-                }
             } catch (e) {
-                console.error('[SetupWizard] Erreur sauvegarde config IA / Auto-Pilote', e);
+                console.error('[SetupWizard] Erreur sauvegarde config IA', e);
             }
         }
+
+        // Sauvegarde Auto-Pilote
+        try {
+            if (apEnabled) {
+                await API.post('/api/autopilot/toggle', { enabled: true, preset: this._autopilotPreset });
+                await API.put('/api/autopilot/threshold', { threshold: this._autopilotThreshold });
+                if (this._autopilotPreset === 'custom') {
+                    for (const [k, v] of Object.entries(this._autopilotSubtoggles)) {
+                        await API.post('/api/autopilot/subtoggle', { key: k, enabled: Boolean(v) });
+                    }
+                } else {
+                    await API.post('/api/autopilot/preset', { preset: this._autopilotPreset });
+                }
+            } else {
+                await API.post('/api/autopilot/toggle', { enabled: false });
+            }
+        } catch (e) {
+            console.error('[SetupWizard] Erreur configuration Auto-Pilote', e);
+        }
+
         this._nav(1);
     },
 
     async _skipAI() {
         const apEnabled = document.getElementById('wizAutopilotToggle')?.checked;
-        if (apEnabled) {
-            try {
-                await API.post('/api/autopilot/toggle', { enabled: true });
-            } catch (e) {}
-        }
+        try {
+            if (apEnabled) {
+                await API.post('/api/autopilot/toggle', { enabled: true, preset: this._autopilotPreset });
+                await API.put('/api/autopilot/threshold', { threshold: this._autopilotThreshold });
+                if (this._autopilotPreset === 'custom') {
+                    for (const [k, v] of Object.entries(this._autopilotSubtoggles)) {
+                        await API.post('/api/autopilot/subtoggle', { key: k, enabled: Boolean(v) });
+                    }
+                } else {
+                    await API.post('/api/autopilot/preset', { preset: this._autopilotPreset });
+                }
+            } else {
+                await API.post('/api/autopilot/toggle', { enabled: false });
+            }
+        } catch (e) {}
         this._nav(1);
     },
 
@@ -1199,6 +1492,14 @@ window.SetupWizard = {
         const homeName = this.preferredHome === 'overview'
             ? 'Vue d\'ensemble (Bento)'
             : 'Journal des opérations classique';
+
+        const activeCount = Object.values(this._autopilotSubtoggles).filter(Boolean).length;
+        const presetNames = {
+            'balanced': window.i18n.t('autopilot_wizard_preset_balanced') || 'Mode Équilibré',
+            'full': window.i18n.t('autopilot_wizard_preset_full') || 'Autonomie Totale',
+            'custom': window.i18n.t('autopilot_wizard_preset_custom') || 'Personnalisé'
+        };
+        const selectedPresetName = presetNames[this._autopilotPreset] || this._autopilotPreset;
 
         body.innerHTML = `
             <div class="wizard-step-content wizard-center">
@@ -1225,7 +1526,25 @@ window.SetupWizard = {
                     </div>
 
                     <div class="wizard-recap-section">
-                        <h4>🤖 ${window.i18n.t('wizard_recap_ai')}</h4>
+                        <h4>🤖 ${window.i18n.t('autopilot_wizard_recap_title') || 'Auto-Pilote & Automatismes'}</h4>
+                        <div class="wizard-recap-item">
+                            <span>Statut</span>
+                            <strong>${this._autopilotEnabled ? '✅ ' + (window.i18n.t('autopilot_wizard_recap_active') || 'Activé') : '⏸️ ' + (window.i18n.t('autopilot_wizard_recap_inactive') || 'En veille / Inactif')}</strong>
+                        </div>
+                        ${this._autopilotEnabled ? `
+                        <div class="wizard-recap-item">
+                            <span data-i18n="autopilot_wizard_recap_preset">${window.i18n.t('autopilot_wizard_recap_preset') || 'Profil d\'autonomie'}</span>
+                            <strong>${selectedPresetName} (${activeCount}/15)</strong>
+                        </div>
+                        <div class="wizard-recap-item">
+                            <span data-i18n="autopilot_wizard_recap_threshold">${window.i18n.t('autopilot_wizard_recap_threshold') || 'Seuil de confiance'}</span>
+                            <strong>${this._autopilotThreshold}%</strong>
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="wizard-recap-section">
+                        <h4>🧠 ${window.i18n.t('wizard_recap_ai')}</h4>
                         <p>${aiEnabled ? '✅ ' + window.i18n.t('wizard_recap_ai_on') : '⏭️ ' + window.i18n.t('wizard_recap_ai_off')}</p>
                     </div>
                 </div>

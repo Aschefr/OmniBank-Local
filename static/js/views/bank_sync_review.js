@@ -911,8 +911,12 @@ Object.assign(window.BankSyncView, {
                 onChangeName: `(val) => window.BankSyncView.updateTxCat(${this.currentAccountIndex}, '${tx.csv_id}', val)`
             });
 
-            const aiButtonHtml = (!isRec && aiEnabled) ? `
-                <button class="btn btn-secondary review-ai-btn" style="padding: 3px 6px; font-size: 11px; border-radius: 6px;" onclick="window.BankSyncView.classifyRowWithAI('${tx.csv_id}', this)" title="${(window.i18n ? window.i18n.t('smart_label_ai_classify_tooltip') || 'Nommer et classifier avec l\'IA' : 'Nommer et classifier avec l\'IA').replace(/"/g, '&quot;')}">✨</button>
+            const aiBtnTitle = aiEnabled
+                ? (window.i18n ? (window.i18n.t('smart_label_ai_classify_tooltip') || 'Nommer et classifier avec l\'IA') : 'Nommer et classifier avec l\'IA')
+                : (window.i18n ? (window.i18n.t('smart_label_auto_classify_tooltip') || 'Suggérer la catégorie automatiquement') : 'Suggérer la catégorie automatiquement');
+
+            const aiButtonHtml = (!isRec) ? `
+                <button class="btn btn-secondary review-ai-btn" style="padding: 3px 6px; font-size: 11px; border-radius: 6px;" onclick="window.BankSyncView.classifyRowWithAI('${tx.csv_id}', this)" title="${aiBtnTitle.replace(/"/g, '&quot;')}">✨</button>
             ` : '';
 
             const catSelect = isRec 
@@ -1349,10 +1353,8 @@ Object.assign(window.BankSyncView, {
         }
     },
 
-    // ── AUTO-CATÉGORISATION & NOMMAGE IA (Conditionnelle) ───────────
+    // ── AUTO-CATÉGORISATION & NOMMAGE (Déterministe & IA) ───────────
     async classifyRowWithAI(csvId, btnEl) {
-        if (!this.isAIEnabled()) return;
-
         const currentAcc = this.previewData.accounts[this.currentAccountIndex];
         const tx = currentAcc?.transactions.find(t => t.csv_id === csvId);
         if (!tx) return;
@@ -1368,9 +1370,12 @@ Object.assign(window.BankSyncView, {
 
         try {
             const rawLabel = tx.raw_description || tx.description;
+            const txType = tx.type || (tx.amount && parseFloat(tx.amount) > 0 ? 'income' : 'expense_var');
             const res = await API.post('/api/smart-labels/simulate', { 
                 raw_label: rawLabel,
-                use_ai_fallback: true 
+                use_ai_fallback: this.isAIEnabled(),
+                tx_type: txType,
+                amount: tx.amount ? parseFloat(tx.amount) : null
             });
 
             tx._ai_analyzing = false;
@@ -1403,9 +1408,15 @@ Object.assign(window.BankSyncView, {
                     if (rowEl) rowEl.classList.remove('is-ai-updated');
                 }, 3500);
 
+                const isAi = (res.source === 'ai');
                 const catName = res.category || (window.i18n ? window.i18n.t('uncategorized') || 'Non catégorisé' : 'Non catégorisé');
-                const toastTpl = window.i18n ? window.i18n.t('smart_label_ai_classified_toast') : "✨ Nommé '{name}' et classé dans '{category}'";
-                const toastMsg = (toastTpl || "✨ Nommé '{name}' et classé dans '{category}'").replace('{name}', res.description).replace('{category}', catName);
+                let toastMsg = '';
+                if (isAi) {
+                    const toastTpl = window.i18n ? window.i18n.t('smart_label_ai_classified_toast') : "✨ Nommé '{name}' et classé dans '{category}'";
+                    toastMsg = (toastTpl || "✨ Nommé '{name}' et classé dans '{category}'").replace('{name}', res.description || tx.description).replace('{category}', catName);
+                } else {
+                    toastMsg = window.i18n ? (window.i18n.t('smart_label_suggested_success') || 'Catégorie suggérée appliquée') : 'Catégorie suggérée appliquée';
+                }
                 this.showToast(toastMsg, 'success');
             } else {
                 this.renderReviewTable();
@@ -1413,7 +1424,7 @@ Object.assign(window.BankSyncView, {
         } catch (err) {
             tx._ai_analyzing = false;
             this.renderReviewTable();
-            this.showToast('Erreur IA : ' + (err.detail || err.message), 'error');
+            this.showToast('Erreur : ' + (err.detail || err.message), 'error');
         } finally {
             if (btnEl) {
                 btnEl.innerText = originalText;

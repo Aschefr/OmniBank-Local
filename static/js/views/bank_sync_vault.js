@@ -224,6 +224,9 @@ Object.assign(window.BankSyncView, {
             autoSyncBox.style.display = 'inline-flex';
 
             const isAutopilot = autoSyncBox.id === 'apAutoSyncCompact' || !!autoSyncBox.closest('#apBankSyncGroup') || !!autoSyncBox.closest('.autopilot-toolbar-group');
+            const isAutopilotMasterEnabled = !!(window.AutopilotView && window.AutopilotView._status && window.AutopilotView._status.is_enabled);
+            const isEffectiveAutoSyncActive = isAutopilot ? (isAutoSyncEnabled && isAutopilotMasterEnabled) : isAutoSyncEnabled;
+
             const boxHeight = isAutopilot ? '40px' : '36px';
             const boxRadius = '9px';
             const boxPadding = '0 12px';
@@ -232,7 +235,7 @@ Object.assign(window.BankSyncView, {
             const autoSyncActive = window.i18n ? window.i18n.t('bank_sync_auto_sync_active') : 'Actif';
             const unlockBtnText = window.i18n ? window.i18n.t('bank_sync_auto_sync_unlock_btn') : 'Déverrouiller';
 
-            if (isAutoSyncEnabled && !isServerUnlocked) {
+            if (isEffectiveAutoSyncActive && !isServerUnlocked) {
                 // ÉTAT ALERTE CRITIQUE : Relevé auto programmé mais Coffre verrouillé !
                 autoSyncBox.className = 'bank-sync-auto-sync-widget is-locked-warning';
                 autoSyncBox.style.cssText = `
