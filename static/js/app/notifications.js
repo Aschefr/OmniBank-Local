@@ -150,7 +150,7 @@ window.AppModules.notifications = {
                         this._knownNotifIds.add(n.id);
                         foundNew = true;
                         newUnread.push(n);
-                        if (n.type === 'bank_sync' || n.type === 'file_import') {
+                        if (n.type === 'bank_sync' || n.type === 'file_import' || n.type === 'autopilot') {
                             hasBankSyncNotif = true;
                         }
                     }
@@ -209,6 +209,9 @@ window.AppModules.notifications = {
                             window.BankSyncView.refreshActiveViews();
                         } else if (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') {
                             window.BankSyncView.loadPendingSync();
+                        }
+                        if (window.AutopilotView && typeof window.AutopilotView.refreshStatus === 'function') {
+                            window.AutopilotView.refreshStatus();
                         }
                     }
                     this.setFastNotificationsPolling(false);
@@ -382,6 +385,59 @@ window.AppModules.notifications = {
                 content = window.i18n.tp('notif_file_import_content', { filename: fname, details: detailsList.join(', ') });
             }
         }
+        // 5. Notification Auto-Pilote (ingestion / relevé automatique en mode Auto-Pilote)
+        else if (n.type === 'autopilot' || title.includes('Auto-Pilote') || title.includes('Autopilot')) {
+            const connLabel = linkMeta.conn_label || title.replace(/^🤖\s*(?:Auto-Pilote\s*:|Autopilot\s*:)\s*/i, '').trim();
+            title = `🤖 ${window.i18n ? window.i18n.tp('notif_autopilot_sync_title', { label: connLabel }) : title}`;
+
+            let detailsList = [];
+            const autoRec = typeof linkMeta.auto_reconciled === 'number' ? linkMeta.auto_reconciled : 0;
+            const autoComm = typeof linkMeta.auto_committed === 'number' ? linkMeta.auto_committed : 0;
+            const promoRec = typeof linkMeta.promoted === 'number' ? linkMeta.promoted : 0;
+            const matchesCount = typeof linkMeta.matches === 'number' ? linkMeta.matches : 0;
+            const comingCount = typeof linkMeta.coming === 'number' ? linkMeta.coming : 0;
+            const newCount = typeof linkMeta.new_txs === 'number' ? linkMeta.new_txs : 0;
+
+            if (autoRec === 1) {
+                detailsList.push(window.i18n ? window.i18n.t('notif_autopilot_details_auto_reconciled_1') : '1 opération auto-rapprochée');
+            } else if (autoRec > 1) {
+                detailsList.push(window.i18n ? window.i18n.tp('notif_autopilot_details_auto_reconciled_n', { count: autoRec }) : `${autoRec} opérations auto-rapprochées`);
+            }
+
+            if (autoComm === 1) {
+                detailsList.push(window.i18n ? window.i18n.t('notif_autopilot_details_auto_committed_1') : '1 écriture enregistrée');
+            } else if (autoComm > 1) {
+                detailsList.push(window.i18n ? window.i18n.tp('notif_autopilot_details_auto_committed_n', { count: autoComm }) : `${autoComm} écritures enregistrées`);
+            }
+
+            if (promoRec === 1) {
+                detailsList.push(window.i18n ? window.i18n.t('notif_autopilot_details_promoted_1') : '1 récurrence détectée');
+            } else if (promoRec > 1) {
+                detailsList.push(window.i18n ? window.i18n.tp('notif_autopilot_details_promoted_n', { count: promoRec }) : `${promoRec} récurrences détectées`);
+            }
+
+            if (matchesCount === 1) {
+                detailsList.push(window.i18n ? window.i18n.t('notif_autopilot_details_matches_1') : '1 opération à rapprocher');
+            } else if (matchesCount > 1) {
+                detailsList.push(window.i18n ? window.i18n.tp('notif_autopilot_details_matches_n', { count: matchesCount }) : `${matchesCount} opérations à rapprocher`);
+            }
+
+            if (comingCount === 1) {
+                detailsList.push(window.i18n ? window.i18n.t('notif_autopilot_details_coming_1') : '1 opération en attente');
+            } else if (comingCount > 1) {
+                detailsList.push(window.i18n ? window.i18n.tp('notif_autopilot_details_coming_n', { count: comingCount }) : `${comingCount} opérations en attente`);
+            }
+
+            if (newCount === 1) {
+                detailsList.push(window.i18n ? window.i18n.t('notif_autopilot_details_new_1') : '1 opération à classer');
+            } else if (newCount > 1) {
+                detailsList.push(window.i18n ? window.i18n.tp('notif_autopilot_details_new_n', { count: newCount }) : `${newCount} opérations à classer`);
+            }
+
+            if (detailsList.length > 0 && window.i18n) {
+                content = window.i18n.tp('notif_autopilot_sync_content', { label: connLabel, details: detailsList.join(', ') });
+            }
+        }
 
         return { title, content };
     },
@@ -537,7 +593,7 @@ window.AppModules.notifications = {
                 const t = n.type || '';
                 if (t === 'bank_sync' || t === 'bank_sync_error' || t === 'file_import') {
                     groupMap.bank.items.push(n);
-                } else if (t === 'ai_report' || t === 'ai_chat' || t.includes('ai') || t.includes('chat')) {
+                } else if (t === 'ai_report' || t === 'ai_chat' || t === 'autopilot' || t.includes('ai') || t.includes('chat') || t.includes('autopilot')) {
                     groupMap.ai.items.push(n);
                 } else {
                     groupMap.system.items.push(n);
@@ -659,9 +715,12 @@ window.AppModules.notifications = {
                 } else if (isVaultOrPasswordIssue) {
                     const lblVault = window.i18n ? window.i18n.t('notif_btn_unlock_vault') || 'Déverrouiller le coffre' : 'Déverrouiller le coffre';
                     contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifAction(${n.id})">🔐 ${lblVault}</button>`;
-                } else if (linkObj.action === 'open_pending' || (linkObj.matches > 0 || linkObj.new_txs > 0)) {
+                } else if (linkObj.action === 'open_pending' || linkObj.action === 'last_statement' || (linkObj.matches > 0 || linkObj.new_txs > 0) || (n.type === 'autopilot' && (linkObj.auto_reconciled > 0 || linkObj.auto_committed > 0))) {
                     const lblExamine = window.i18n ? window.i18n.t('notif_btn_examine') || 'Examiner' : 'Examiner';
                     contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifAction(${n.id})">🔍 ${lblExamine}</button>`;
+                } else if (linkObj.view === 'autopilot' || n.type === 'autopilot') {
+                    const lblAp = window.i18n ? window.i18n.t('notif_btn_view_autopilot') || "Voir l'Auto-Pilote" : "Voir l'Auto-Pilote";
+                    contextActionBtn = `<button class="btn-notif-action-main notif-action-btn" onclick="event.stopPropagation(); window.app.handleNotifAction(${n.id})">🤖 ${lblAp}</button>`;
                 } else if (linkObj.view === 'accounts' || linkObj.view === 'accounts_manager' || linkObj.action === 'bank_sync' || n.type === 'bank_sync_error') {
                     const lblAcc = (n.type === 'bank_sync_error') 
                         ? (window.i18n ? window.i18n.t('notif_btn_manage_connections') || 'Gérer les connexions' : 'Gérer les connexions')
@@ -771,10 +830,20 @@ window.AppModules.notifications = {
                     if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') {
                         window.BankSyncView.unlockVaultManually();
                     }
-                } else if (linkObj.action === 'open_pending' || (linkObj.matches > 0 || linkObj.new_txs > 0)) {
+                } else if (linkObj.view === 'autopilot' && linkObj.action === 'open_feed') {
+                    if (notifMenu) notifMenu.style.display = 'none';
+                    if (this.currentView !== 'autopilot') {
+                        this.loadView('autopilot');
+                    }
+                } else if (linkObj.action === 'open_pending' || linkObj.action === 'last_statement' || (linkObj.matches > 0 || linkObj.new_txs > 0) || (n.type === 'autopilot' && (linkObj.auto_reconciled > 0 || linkObj.auto_committed > 0))) {
                     if (notifMenu) notifMenu.style.display = 'none';
                     if (window.BankSyncView && window.BankSyncView.openPendingReviewModal) {
-                        window.BankSyncView.openPendingReviewModal();
+                        window.BankSyncView.openPendingReviewModal(null, null, linkObj.conn_id);
+                    }
+                } else if (linkObj.view === 'autopilot' || n.type === 'autopilot') {
+                    if (notifMenu) notifMenu.style.display = 'none';
+                    if (this.currentView !== 'autopilot') {
+                        this.loadView('autopilot');
                     }
                 } else if (linkObj.view === 'accounts' || linkObj.view === 'accounts_manager' || linkObj.action === 'bank_sync' || n.type === 'bank_sync_error') {
                     if (notifMenu) notifMenu.style.display = 'none';

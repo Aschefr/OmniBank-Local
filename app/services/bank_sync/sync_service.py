@@ -540,6 +540,7 @@ class BankSyncService:
                     matched_id = None
                     db_desc = None
                     match_score = 0
+                    rec_cat = None
 
                     if rec_info:
                         is_reconciled = True
@@ -551,6 +552,7 @@ class BankSyncService:
                         matched_id = rec_info.get("id")
                         db_desc = rec_info.get("description")
                         match_score = rec_info.get("match_score", 0)
+                        rec_cat = rec_info.get("category")
                         if matched_id:
                             matched_ids_global.add(matched_id)
 
@@ -569,7 +571,8 @@ class BankSyncService:
                         "matched_db_id": matched_id,
                         "db_description": db_desc,
                         "match_score": match_score,
-                        "category": None,
+                        "category": rec_cat,
+                        "db_category": rec_cat,
                         "csv_id": item["csv_id"],
                         "account_id": local_acc.id,
                         "account_name": local_acc.name,
@@ -600,6 +603,7 @@ class BankSyncService:
                     matched_id = None
                     db_desc = None
                     match_score = 0
+                    rec_cat = None
 
                     if rec_info:
                         is_reconciled = True
@@ -611,6 +615,7 @@ class BankSyncService:
                         matched_id = rec_info.get("id")
                         db_desc = rec_info.get("description")
                         match_score = rec_info.get("match_score", 0)
+                        rec_cat = rec_info.get("category")
                         if matched_id:
                             matched_ids_global.add(matched_id)
 
@@ -629,7 +634,8 @@ class BankSyncService:
                         "matched_db_id": matched_id,
                         "db_description": db_desc,
                         "match_score": match_score,
-                        "category": None,
+                        "category": rec_cat,
+                        "db_category": rec_cat,
                         "csv_id": item["csv_id"],
                         "account_id": local_acc.id,
                         "account_name": local_acc.name,

@@ -324,7 +324,7 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
   - ✅ Encadré d'historique discret dans `⚙️ Automatismes` : liste repliée des 5 dernières actions automatiques avec détails d'impact et terminologie neutre (Jalon 5.11).
   - ✅ Architecture modale 3 zones (Pinned Header / Scrollable Body / Pinned Footer) : élimination des débordements et défilement fluide garanti sur mobile et desktop (Jalon 5.11).
   - ✅ Réactivité 100% Zero-F5 : actualisation dynamique en direct de la vue Budgets lors des imports, approbations et déclenchements de fond.
-  - ⬜ Mode Full-Auto (mutation directe en tâche de fond) et synchronisation automatique des `RecurrenceTemplate` vers les enveloppes — jalons d'orchestration globale prévus à l'**Étape 6** (post-Centre de Contrôle).
+  - ✅ **Mode Full-Auto & Synchronisation Récurrences $\to$ Enveloppes** : Mutation automatique contrôlée en tâche de fond (toggle `auto_apply_budget_suggestions`), protection anti-dérive ($\pm 25\%$) et synchronisation dynamique des hausses ($N=3$), promotions et clôtures de templates vers les enveloppes — **LIVRÉ (Étape 6.2)**.
 * **Architecture Complète des Deux Volets Budgétaires** :
 
   #### Volet A : Découverte & Suggestion de Création d'Enveloppes (Cold-Start & Nouvelles Catégories)
@@ -905,6 +905,12 @@ graph TD
 - [x] **Jalon 6.6 : Clés i18n Bilingues & Suite de Tests Dédiée (Pack de Test 6)** :
   - 53 clés de traduction complètes FR/EN encodées strictement en UTF-8 BOM (`utf-8-sig`).
   - 100% de succès sur la suite complète de 10 tests automatisés T6.1 à T6.6 (`tests/test_autopilot_step6.py`).
+- [x] **Jalon 6.7 : Robustesse Opérationnelle, Réconciliation Asynchrone des Virements & Affinages UX** :
+  - **Réconciliation Asynchrone des Virements Internes (Option B)** : Prise en charge des décalages de relevé entre comptes locaux ; lorsque la 2nde jambe arrive dans un lot ultérieur, l'Auto-Pilote fusionne automatiquement les deux jambes en une seule transaction `type="transfer"` (`from_account_id` $\to$ `to_account_id`), la pointe et évite tout doublon dépense/recette (`AUTO_LINKED_TRANSFER`).
+  - **Rétention des Opérations « ⏳ À venir » (`is_coming`)** : Maintien dynamique dans le sas d'attente (`pending_store`) avec badge ambre `⏳ À venir` sur le Dashboard et la Timeline jusqu'à ce que la banque confirme formellement le débit (`is_coming: false`).
+  - **Ergonomie du Popover d'Engagement HUD** : Déplacement de la modale d'intronisation/démarrage de l'Auto-Pilote sur la droite de l'écran sous l'en-tête pour ne pas masquer les métriques centrales.
+  - **Persistance des Filtres de Visualisation** : Sauvegarde et restauration automatique du filtre actif des Top 6 Dépenses dans l'Overview et les Tendances au rechargement de page.
+  - **Validation Automatisée Étendue** : 100% de succès sur [`tests/test_autopilot_internal_transfer_linking.py`](file:///d:/Code%20Projects/OmniBank-Local/tests/test_autopilot_internal_transfer_linking.py) et [`tests/test_autopilot_coming_idempotence_and_distinct_ops.py`](file:///d:/Code%20Projects/OmniBank-Local/tests/test_autopilot_coming_idempotence_and_distinct_ops.py).
 
 #### Étape 7 : Tauri System Tray & Finitions Desktop (Minimisation en tâche de fond, cycle de vie passif)
 - **Minimisation en barre d'état système (System Tray / Zone de notification près de l'horloge)** :
@@ -1072,6 +1078,8 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 | **T6.4** | Un relevé de 6 opérations a été auto-validé ce matin à 08:30 (4 nouvelles écritures, 2 rapprochements de prévisions). | L'utilisateur clique sur `[⏪ Annuler ce cycle]` sur l'en-tête du relevé. | Les 4 écritures créées (`new_entry`) sont supprimées de `Transaction`, les 2 prévisions rapprochées (`reconciliation`) sont dissociées (`reconciliation_date = NULL` et snapshot restauré sans suppression), et le lot complet de 6 opérations est replacé dans le Sas `_PENDING_SYNC_DATA`. Toutes les décisions passent à `is_undone = True`. | Retour à l'état exact antérieur au centime près, prévisions de l'utilisateur intactes, données restaurées dans le Sas. | ✅ **PASS** |
 | **T6.5** | Une enveloppe "Loisirs" (150 €) a été cadenassée par l'utilisateur. | Recalibrage mensuel au 1er du mois (dépenses réelles constatées = 220 €). | L'Auto-Pilote détecte le cadenas et ignore l'enveloppe Loisirs. | Montant conservé à 150,00 € sans modification. Décision notée : *"Enveloppe protégée"*. | ✅ **PASS** |
 | **T6.6** | Synchronisation en cours d'écriture (commit de 20 opérations). | L'utilisateur clique sur la croix [X] de la fenêtre Tauri Desktop. | Rust (`src-tauri/src/main.rs`) intercepte `WindowEvent::CloseRequested`, consulte `/api/bank-sync/active-sync-status`, termine le commit atomique puis ferme proprement le sidecar. | Base SQLite saine (0 écriture partielle), fermeture auto réussie sans crash ni corruption. | ✅ **PASS** |
+| **T6.7** | Virement interne asynchrone entre 2 comptes locaux (jambe 1 relevée au J0, jambe 2 au J+3). | Ingestion de la 2nde jambe par `process_incoming_batch`. | Rapprochement automatique sur la 1ère jambe via `check_reconciliation`, conversion en `type="transfer"`, pointage sans créer de transaction doublon. | Transaction unifiée avec `from_account_id` et `to_account_id`, 0 doublon. | ✅ **PASS** |
+| **T6.8** | Opération prévisionnelle récurrente avec annonce bancaire `is_coming: True`. | Synchronisation bancaire via Auto-Pilote. | La transaction reste non pointée en base (`reconciliation_date = None`), conservée dans le Sas `pending_store` avec `is_coming = True` (badge ambre) jusqu'à confirmation du débit effectif. | Badge `⏳ À venir` affiché sur Dashboard/Timeline, pointage différé à confirmation. | ✅ **PASS** |
 
 ---
 

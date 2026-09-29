@@ -32,6 +32,8 @@ from app.services.bank_sync.pending_store import (
     remove_committed_from_pending,
     remove_dismissed_transaction,
     save_pending_sync_data,
+    save_last_statement_snapshot,
+    get_last_statement_snapshot,
 )
 
 # 2. Imports et re-exports de l'auto-sync et gestion des threads (auto_sync)
@@ -181,6 +183,8 @@ __all__ = [
     "dismiss_pending_transaction",
     "remove_committed_from_pending",
     "save_pending_sync_data",
+    "save_last_statement_snapshot",
+    "get_last_statement_snapshot",
     "get_all_pending_sync",
     "clear_pending_sync_for_conn",
     "execute_auto_sync_for_connection",

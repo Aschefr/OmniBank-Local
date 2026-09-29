@@ -27,6 +27,7 @@ from app.services.history_service import record_action, snapshot_entity
 from app.services import stats_cache
 from app.services.bank_sync_scheduler import (
     save_pending_sync_data,
+    save_last_statement_snapshot,
     clear_pending_sync_for_connection,
     CSV_IMPORT_CONN_ID,
     _resolve_profile_id
@@ -291,7 +292,27 @@ def process_incoming_batch(
     # 1. Si aucun automatisme n'est actif : délégation directe au Sas d'attente (comportement historique)
     if not (ap_enabled or cfg_auto_reconcile or cfg_auto_commit or cfg_auto_learn):
         save_pending_sync_data(db, conn_id, preview_data, profile_id=pid)
-        total_txs = sum(len(a.get("transactions", [])) for a in preview_data.get("accounts", []))
+        import copy
+        delegated_snap = copy.deepcopy(preview_data)
+        for acc in delegated_snap.get("accounts", []):
+            for tx in acc.get("transactions", []):
+                if tx.get("is_reconciled") and tx.get("already_reconciled"):
+                    tx["audit_status"] = "already_reconciled"
+                elif tx.get("is_reconciled"):
+                    tx["audit_status"] = "pending_review"
+                else:
+                    tx["audit_status"] = "pending_review"
+        total_txs = sum(len(a.get("transactions", [])) for a in delegated_snap.get("accounts", []))
+        save_last_statement_snapshot(db, conn_id, {
+            "batch_id": None,
+            "conn_id": conn_id,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "total_count": total_txs,
+            "auto_reconciled_count": 0,
+            "auto_committed_count": 0,
+            "pending_count": total_txs,
+            "accounts": delegated_snap.get("accounts", [])
+        }, profile_id=pid)
         return {
             "batch_id": None,
             "status": "delegated_to_sas",
@@ -469,14 +490,18 @@ def process_incoming_batch(
     total_count = 0
 
     residual_accounts = []
+    import copy
+    statement_snapshot_accounts = copy.deepcopy(preview_data.get("accounts", []))
 
     try:
-        for acc in preview_data.get("accounts", []):
+        for acc_idx, acc in enumerate(preview_data.get("accounts", [])):
             acc_id = acc.get("account_id")
             account_txs = acc.get("transactions", []) or []
+            snap_acc = statement_snapshot_accounts[acc_idx]
             residual_txs = []
 
-            for tx in account_txs:
+            for tx_idx, tx in enumerate(account_txs):
+                snap_tx = snap_acc["transactions"][tx_idx]
                 total_count += 1
 
                 is_rec = bool(tx.get("is_reconciled", False))
@@ -488,12 +513,33 @@ def process_incoming_batch(
                 csv_id = tx.get("csv_id")
 
                 # Critère 0 : Opération bancaire déjà enregistrée et pointée en base
-                if is_rec and already_rec:
-                    continue
-                if csv_id and csv_id in existing_reconciled_csv_ids:
+                if (is_rec and already_rec) or (csv_id and csv_id in existing_reconciled_csv_ids):
+                    snap_tx["audit_status"] = "already_reconciled"
+                    snap_tx["audit_action"] = "ALREADY_RECONCILED"
+                    target_id = matched_id
+                    if not target_id and csv_id:
+                        db_t0 = db.query(Transaction).filter(Transaction.csv_id == csv_id).first()
+                        if db_t0:
+                            target_id = db_t0.id
+                            snap_tx["matched_db_id"] = target_id
+                            if db_t0.category:
+                                snap_tx["category"] = snap_tx.get("category") or db_t0.category
+                                snap_tx["audit_category"] = db_t0.category
+                            if db_t0.description:
+                                snap_tx["db_description"] = snap_tx.get("db_description") or db_t0.description
+                    elif target_id:
+                        db_t0 = db.query(Transaction).filter(Transaction.id == target_id).first()
+                        if db_t0:
+                            if db_t0.category:
+                                snap_tx["category"] = snap_tx.get("category") or db_t0.category
+                                snap_tx["audit_category"] = db_t0.category
+                            if db_t0.description:
+                                snap_tx["db_description"] = snap_tx.get("db_description") or db_t0.description
                     continue
                 if csv_id and csv_id in existing_unreconciled_csv_ids and is_coming:
                     # Déjà liée/créée en base lors d'une synchronisation précédente, maintien dans le Sas pour badge "À venir"
+                    snap_tx["audit_status"] = "coming"
+                    snap_tx["audit_action"] = "COMING_UNRECONCILED"
                     residual_txs.append(tx)
                     pending_count += 1
                     continue
@@ -626,13 +672,28 @@ def process_incoming_batch(
                             is_undone=False
                         )
                         db.add(decision)
+                        snap_tx["audit_status"] = "auto_reconciled"
+                        snap_tx["audit_action"] = dec_action
+                        snap_tx["audit_matched_id"] = existing.id
+                        snap_tx["audit_matched_desc"] = existing.description
+                        snap_tx["audit_score"] = match_score
+                        snap_tx["audit_needs_review"] = rec_needs_review
+                        snap_tx["audit_creator"] = creator_user
+                        snap_tx["audit_category"] = existing.category
+                        if existing.category:
+                            snap_tx["category"] = snap_tx.get("category") or existing.category
+                        if existing.description:
+                            snap_tx["db_description"] = snap_tx.get("db_description") or existing.description
                         auto_reconciled_count += 1
                         if is_coming:
+                            snap_tx["audit_is_coming"] = True
                             residual_txs.append(tx)
                             pending_count += 1
                         continue
                     else:
                         # Transaction cible introuvable ou déjà réconciliée -> maintien dans le Sas
+                        snap_tx["audit_status"] = "pending_review"
+                        snap_tx["audit_action"] = "TARGET_UNAVAILABLE"
                         residual_txs.append(tx)
                         pending_count += 1
                         continue
@@ -814,6 +875,14 @@ def process_incoming_batch(
                         is_undone=False
                     )
                     db.add(decision)
+                    snap_tx["audit_status"] = "auto_committed"
+                    snap_tx["audit_action"] = dec_act
+                    snap_tx["audit_created_id"] = new_tx.id
+                    snap_tx["audit_category"] = category
+                    snap_tx["audit_confidence"] = conf_score
+                    snap_tx["audit_needs_review"] = needs_review
+                    snap_tx["description"] = new_tx.description
+                    snap_tx["category"] = category
                     auto_committed_count += 1
 
                     # Auto-apprentissage transparent pour conforter la règle uniquement si fiable
@@ -836,6 +905,7 @@ def process_incoming_batch(
 
                     if is_coming:
                         # Nouvelle opération à venir créée : maintien dans le Sas pour badge "À venir"
+                        snap_tx["audit_is_coming"] = True
                         tx_coming_copy = dict(tx)
                         tx_coming_copy["matched_db_id"] = new_tx.id
                         tx_coming_copy["is_reconciled"] = True
@@ -845,6 +915,14 @@ def process_incoming_batch(
                     continue
 
                 # Critère 3 : Opération en zone d'arbitrage ou à venir -> maintien dans le Sas
+                snap_tx["audit_status"] = "pending_review"
+                snap_tx["audit_action"] = "ARBITRAGE_NEEDED"
+                if tx.get("is_dismissed"):
+                    snap_tx["audit_status"] = "dismissed"
+                elif tx.get("is_auto_dismissed"):
+                    snap_tx["audit_status"] = "auto_dismissed"
+                elif is_coming:
+                    snap_tx["audit_is_coming"] = True
                 residual_txs.append(tx)
                 pending_count += 1
 
@@ -860,6 +938,19 @@ def process_incoming_batch(
         else:
             # 100% des opérations traitées avec succès, libération du sas
             clear_pending_sync_for_connection(db, conn_id, profile_id=pid)
+
+        # 3.B Sauvegarde du relevé intégral pour consultation ("Sas de consultation")
+        statement_snapshot = {
+            "batch_id": batch_id,
+            "conn_id": conn_id,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "total_count": total_count,
+            "auto_reconciled_count": auto_reconciled_count,
+            "auto_committed_count": auto_committed_count,
+            "pending_count": pending_count,
+            "accounts": statement_snapshot_accounts
+        }
+        save_last_statement_snapshot(db, conn_id, statement_snapshot, profile_id=pid)
 
         db.commit()
         stats_cache.invalidate(pid)
@@ -908,6 +999,13 @@ def process_incoming_batch(
         logger.error(f"[AutoPilot] Échec critique lors du traitement du lot {batch_id}: {e}", exc_info=True)
         try:
             save_pending_sync_data(db, conn_id, preview_data, profile_id=pid)
+            save_last_statement_snapshot(db, conn_id, {
+                "batch_id": batch_id,
+                "conn_id": conn_id,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "error": str(e),
+                "accounts": preview_data.get("accounts", [])
+            }, profile_id=pid)
         except Exception:
             pass
         raise e
@@ -967,20 +1065,14 @@ def get_autopilot_status(db: Session, profile_id: Optional[str] = None) -> Dict[
         AutopilotDecisionLog.is_undone == False
     ).order_by(AutopilotDecisionLog.created_at.desc()).first()
 
-    exec_timestamps = []
-    if latest_decision and latest_decision.created_at:
-        dt_dec = latest_decision.created_at
-        if dt_dec.tzinfo is None:
-            dt_dec = dt_dec.replace(tzinfo=timezone.utc)
-        exec_timestamps.append(dt_dec)
-
+    bank_sync_timestamps = []
     cfg_last_sync_att = db.query(GlobalConfig).filter(GlobalConfig.key == "last_auto_sync_attempt").first()
     if cfg_last_sync_att and cfg_last_sync_att.value:
         try:
             dt_sync = datetime.fromisoformat(cfg_last_sync_att.value)
             if dt_sync.tzinfo is None:
                 dt_sync = dt_sync.replace(tzinfo=timezone.utc)
-            exec_timestamps.append(dt_sync)
+            bank_sync_timestamps.append(dt_sync)
         except Exception:
             pass
 
@@ -989,7 +1081,16 @@ def get_autopilot_status(db: Session, profile_id: Optional[str] = None) -> Dict[
             dt_conn = conn.last_sync_at
             if dt_conn.tzinfo is None:
                 dt_conn = dt_conn.replace(tzinfo=timezone.utc)
-            exec_timestamps.append(dt_conn)
+            bank_sync_timestamps.append(dt_conn)
+
+    last_bank_sync_str = max(bank_sync_timestamps).isoformat() if bank_sync_timestamps else None
+
+    exec_timestamps = list(bank_sync_timestamps)
+    if latest_decision and latest_decision.created_at:
+        dt_dec = latest_decision.created_at
+        if dt_dec.tzinfo is None:
+            dt_dec = dt_dec.replace(tzinfo=timezone.utc)
+        exec_timestamps.append(dt_dec)
 
     if last_run_str:
         try:
@@ -1065,6 +1166,7 @@ def get_autopilot_status(db: Session, profile_id: Optional[str] = None) -> Dict[
         "review_queue_count": review_queue_count,
         "unseen_review_count": unseen_review_count,
         "is_syncing": is_syncing,
+        "last_bank_sync_at": last_bank_sync_str,
         "last_execution_at": last_execution_str,
         "next_execution_at": next_execution_at,
         "next_execution_type": next_execution_type,
