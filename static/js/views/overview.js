@@ -10,6 +10,7 @@ window.OverviewView = {
     _top6Filter: 'all', // 'all', 'fixed', 'var'
     _statsGranularity: 'month', // 'month', 'week', 'day', 'hour'
     _statsLookback: '6m', // 'all', '12m', '6m', '3m', '1m', '1w'
+    _displayMode: 'cockpit', // 'cockpit' (simplifié) ou 'full' (tableau de bord complet)
     _cachedMonthlyAverages: { income: 0, fixed: 0, variable: 0 },
     _stats: null,
     _accounts: [],
@@ -37,21 +38,32 @@ window.OverviewView = {
             if (savedLookback) this._statsLookback = savedLookback;
             const savedTrend = window.ProfileStorage.get('overview_trend_mode');
             if (savedTrend) this._trendMode = savedTrend;
+            const savedDisplayMode = window.ProfileStorage.get('overview_display_mode');
+            if (savedDisplayMode) this._displayMode = savedDisplayMode;
         } else if (window.app?.config) {
             if (window.app.config.overview_top6_filter) this._top6Filter = window.app.config.overview_top6_filter;
             if (window.app.config.overview_horizon) this._horizon = window.app.config.overview_horizon;
             if (window.app.config.overview_stats_granularity) this._statsGranularity = window.app.config.overview_stats_granularity;
             if (window.app.config.overview_stats_lookback) this._statsLookback = window.app.config.overview_stats_lookback;
             if (window.app.config.overview_trend_mode) this._trendMode = window.app.config.overview_trend_mode;
+            if (window.app.config.overview_display_mode) this._displayMode = window.app.config.overview_display_mode;
         }
 
         return `
-            <div id="overviewRoot" class="overview-root">
+            <div id="overviewRoot" class="overview-root ${this._displayMode === 'cockpit' ? 'cockpit-active' : ''}">
                 <!-- Header / Health Badge, Account Selector & Quick Actions -->
                 <div class="overview-top-bar">
                     <div class="overview-header-main">
                         <div class="overview-title-group">
                             <h2 class="overview-main-title">👀 <span data-i18n="nav_overview">${window.i18n.t('nav_overview')}</span></h2>
+                            <div class="overview-mode-toggle" id="ovModeToggle">
+                                <button class="overview-mode-btn ${this._displayMode === 'cockpit' ? 'active' : ''}" onclick="window.OverviewView.setDisplayMode('cockpit')" data-i18n-title="overview_mode_cockpit_tooltip" title="${window.i18n.t('overview_mode_cockpit_tooltip') || 'Vue simplifiée avec jauges visuelles'}">
+                                    🎛️ <span data-i18n="overview_mode_cockpit">${window.i18n.t('overview_mode_cockpit') || 'Cockpit'}</span>
+                                </button>
+                                <button class="overview-mode-btn ${this._displayMode === 'full' ? 'active' : ''}" onclick="window.OverviewView.setDisplayMode('full')" data-i18n-title="overview_mode_full_tooltip" title="${window.i18n.t('overview_mode_full_tooltip') || 'Tableau de bord complet avec toutes les sections'}">
+                                    📊 <span data-i18n="overview_mode_full">${window.i18n.t('overview_mode_full') || 'Complet'}</span>
+                                </button>
+                            </div>
                             <div id="ovOrgTag" class="overview-org-tag" style="display:none;">🏢 <span data-i18n="overview_org_badge">${window.i18n.t('overview_org_badge') || 'Mode Organisation'}</span></div>
                             <div id="ovHealthBadge" class="overview-health-badge">—</div>
                         </div>
@@ -363,6 +375,12 @@ window.OverviewView = {
                         </div>
                     </div>
                 </div>
+
+                <!-- Cockpit Mode (Simplified View with Gauges) -->
+                <div class="cockpit-container" id="ovCockpitContainer">
+                    <div class="cockpit-gauges-row" id="ovCockpitGauges"></div>
+                    <div class="cockpit-cards-row" id="ovCockpitCards"></div>
+                </div>
             </div>
         `;
     },
@@ -423,6 +441,8 @@ window.OverviewView = {
                 if (savedLookback) this._statsLookback = savedLookback;
                 const savedTrend = window.ProfileStorage.get('overview_trend_mode');
                 if (savedTrend) this._trendMode = savedTrend;
+                const savedMode = window.ProfileStorage.get('overview_display_mode');
+                if (savedMode) this._displayMode = savedMode;
             }
 
             this._stats = stats;
@@ -452,6 +472,7 @@ window.OverviewView = {
             this._renderBudgets(stats);
             this._renderSavings(stats);
             await this._renderTrend();
+            this._renderCockpit();
 
             if (this._pendingHighlightTxId) {
                 const txId = this._pendingHighlightTxId;
@@ -2619,6 +2640,273 @@ window.OverviewView = {
     closeActionMenu() {
         const existing = document.getElementById('ovFloatingActionMenu');
         if (existing) existing.remove();
+    },
+
+    // ── Cockpit Mode: Simplified View ──────────────────────────────────────
+
+    setDisplayMode(mode) {
+        if (mode === this._displayMode) return;
+        this._displayMode = mode;
+
+        // Persist preference
+        if (window.ProfileStorage) {
+            window.ProfileStorage.set('overview_display_mode', mode);
+        }
+        this.saveConfig({ overview_display_mode: mode });
+
+        // Toggle root class
+        const root = document.getElementById('overviewRoot');
+        if (root) {
+            root.classList.toggle('cockpit-active', mode === 'cockpit');
+        }
+
+        // Update toggle buttons
+        const toggle = document.getElementById('ovModeToggle');
+        if (toggle) {
+            toggle.querySelectorAll('.overview-mode-btn').forEach(btn => {
+                const isCockpit = btn.textContent.includes(window.i18n.t('overview_mode_cockpit') || 'Cockpit');
+                btn.classList.toggle('active', isCockpit ? mode === 'cockpit' : mode === 'full');
+            });
+        }
+
+        // Render cockpit content if switching to cockpit
+        if (mode === 'cockpit') {
+            this._renderCockpit();
+        }
+
+        console.log(`[OverviewView] Mode d'affichage changé : ${mode}`);
+    },
+
+    _renderCockpit() {
+        const gaugesContainer = document.getElementById('ovCockpitGauges');
+        const cardsContainer = document.getElementById('ovCockpitCards');
+        if (!gaugesContainer || !cardsContainer) return;
+
+        const stats = this._stats;
+        if (!stats) return;
+
+        const t = (key, fallback) => window.i18n.t(key) || fallback;
+        const tp = (key, params, fallback) => (window.i18n.tp ? window.i18n.tp(key, params) : null) || fallback;
+
+        // ── Gauge 1: Reste à vivre (% du revenu moyen) ──
+        const avgIncome = this._cachedMonthlyAverages?.income || 0;
+        const rav = stats.rest_to_live || 0;
+        let ravPercent = avgIncome > 0 ? Math.round((rav / avgIncome) * 100) : 0;
+        ravPercent = Math.max(0, Math.min(ravPercent, 100));
+
+        let ravColorClass = 'gauge-green';
+        if (ravPercent < 20) ravColorClass = 'gauge-red';
+        else if (ravPercent < 50) ravColorClass = 'gauge-orange';
+
+        const ravDetailText = avgIncome > 0
+            ? (tp('cockpit_rav_detail', { income: formatCurrency(avgIncome) }, `sur ${formatCurrency(avgIncome)} de revenus`))
+            : (t('cockpit_no_income_data', 'Pas de données de revenus'));
+
+        // ── Gauge 2: Progression du cycle (mois ou paye) ──
+        const today = new Date();
+        let cycleStart, cycleEnd, cycleDayLabel;
+        const isOrgMode = window.app?.config?.enable_org_mode === 'true' || window.app?.config?.enable_org_mode === true;
+
+        if (stats.next_pay_date && !isOrgMode) {
+            // Cycle basé sur la paye
+            cycleEnd = new Date(stats.next_pay_date);
+            // Approximation : le cycle a commencé il y a ~30 jours avant la prochaine paye
+            cycleStart = new Date(cycleEnd);
+            cycleStart.setDate(cycleStart.getDate() - 30);
+        } else {
+            // Cycle calendaire (1er → dernier jour du mois)
+            cycleStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            cycleEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        }
+
+        const totalCycleDays = Math.max(1, Math.ceil((cycleEnd - cycleStart) / (1000 * 60 * 60 * 24)));
+        const elapsedDays = Math.max(0, Math.ceil((today - cycleStart) / (1000 * 60 * 60 * 24)));
+        const cyclePercent = Math.min(100, Math.round((elapsedDays / totalCycleDays) * 100));
+        const remainingDays = Math.max(0, totalCycleDays - elapsedDays);
+
+        cycleDayLabel = tp('cockpit_cycle_day', { current: elapsedDays, total: totalCycleDays }, `Jour ${elapsedDays}/${totalCycleDays}`);
+        const cycleDetailText = tp('cockpit_cycle_remaining', { days: remainingDays },
+            `${remainingDays} jour${remainingDays > 1 ? 's' : ''} restant${remainingDays > 1 ? 's' : ''}`);
+
+        // ── Build Gauges HTML ──
+        gaugesContainer.innerHTML = `
+            <div class="cockpit-gauge-card ${ravColorClass}" data-gauge="rav">
+                <div class="cockpit-gauge-wrapper">
+                    ${this._buildGaugeSVG(ravPercent, 'rav')}
+                    <div class="cockpit-gauge-center">
+                        <div class="cockpit-gauge-percent">${ravPercent}%</div>
+                        <div class="cockpit-gauge-sublabel">${t('cockpit_rav_label', 'Reste à vivre')}</div>
+                    </div>
+                </div>
+                <div class="cockpit-gauge-caption">
+                    <div class="cockpit-gauge-amount privacy-blur">${formatCurrency(rav)}</div>
+                    <div class="cockpit-gauge-detail">${ravDetailText}</div>
+                </div>
+            </div>
+            <div class="cockpit-gauge-card" data-gauge="cycle">
+                <div class="cockpit-gauge-wrapper">
+                    ${this._buildGaugeSVG(cyclePercent, 'cycle')}
+                    <div class="cockpit-gauge-center">
+                        <div class="cockpit-gauge-percent">${cyclePercent}%</div>
+                        <div class="cockpit-gauge-sublabel">${cycleDayLabel}</div>
+                    </div>
+                </div>
+                <div class="cockpit-gauge-caption">
+                    <div class="cockpit-gauge-amount">📅 ${cycleDetailText}</div>
+                    <div class="cockpit-gauge-detail">${stats.next_pay_date && !isOrgMode
+                        ? (t('cockpit_cycle_pay', 'Cycle jusqu\'à la paye'))
+                        : (t('cockpit_cycle_month', 'Cycle calendaire'))}</div>
+                </div>
+            </div>
+        `;
+
+        // ── Build Cards HTML ──
+        // Card 1: Projection Fin de Mois
+        let projAmount = 0;
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        const todayISO = today.toISOString().split('T')[0];
+        const lastDayISO = lastDay.toISOString().split('T')[0];
+        let baseBalance = stats.net_worth || 0;
+        if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
+            baseBalance = this._accountsMap[this._selectedAccountId].balance;
+        }
+        const upcomingTxs = (this._transactions || []).filter(tx => {
+            if (tx.reconciliation_date || tx.is_skipped) return false;
+            if (tx.date_operation < todayISO || tx.date_operation > lastDayISO) return false;
+            if (this._selectedAccountId) {
+                return String(tx.from_account_id) === String(this._selectedAccountId) || String(tx.to_account_id) === String(this._selectedAccountId);
+            }
+            return true;
+        });
+        let projDiff = 0;
+        upcomingTxs.forEach(tx => {
+            if (tx.type === 'income') projDiff += tx.amount;
+            else projDiff -= tx.amount;
+        });
+        projAmount = baseBalance + projDiff;
+
+        const projColorClass = projAmount >= 0 ? 'text-green' : 'text-red';
+        const isEn = window.i18n.lang === 'en';
+        const monthName = today.toLocaleDateString(isEn ? 'en-US' : 'fr-FR', { month: 'long' });
+        const dayNum = lastDay.getDate();
+        const projSubText = isOrgMode
+            ? (t('overview_org_forecast_sub', `Solde prévisionnel au ${dayNum} ${monthName}`))
+            : (isEn ? `Forecast balance as of ${monthName} ${dayNum}` : `Solde estimé au ${dayNum} ${monthName}`);
+
+        // Card 2: AutoPilot Status
+        const apStatus = this._apStatus || {};
+        const apEnabled = !!apStatus.is_enabled;
+        const apCount = apStatus.unseen_decisions_count || 0;
+        const apBadgeClass = apEnabled ? 'badge-active' : 'badge-inactive';
+        const apDotClass = apEnabled ? 'active' : 'inactive';
+        const apLabel = apEnabled
+            ? (t('autopilot_status_active', '🟢 Actif'))
+            : (t('autopilot_status_inactive', '⚪ En veille'));
+
+        // Card 3: Operations to reconcile
+        const unreconciledCount = this._getCockpitUnreconciledCount();
+
+        cardsContainer.innerHTML = `
+            <div class="cockpit-compact-card">
+                <div class="cockpit-card-header">
+                    <div class="cockpit-card-title">
+                        <span class="cockpit-card-icon">🔮</span>
+                        <span>${t('cockpit_projection_title', 'Projection')}</span>
+                    </div>
+                </div>
+                <div class="cockpit-card-value privacy-blur ${projColorClass}">${formatCurrency(projAmount)}</div>
+                <div class="cockpit-card-sub">${projSubText}</div>
+            </div>
+            <div class="cockpit-compact-card clickable" onclick="window.OverviewView.showAutopilotPopover()">
+                <div class="cockpit-card-header">
+                    <div class="cockpit-card-title">
+                        <span class="cockpit-card-icon">🎯</span>
+                        <span>AutoPilot</span>
+                    </div>
+                    <span class="cockpit-card-badge ${apBadgeClass}">
+                        <span class="cockpit-ap-dot ${apDotClass}"></span>
+                        ${apEnabled ? (t('cockpit_ap_active', 'Actif')) : (t('cockpit_ap_inactive', 'Veille'))}
+                    </span>
+                </div>
+                <div class="cockpit-card-sub" style="margin-top: auto;">
+                    ${apCount > 0
+                        ? `<span class="cockpit-ap-actions">⚡ ${apCount} ${t('cockpit_ap_actions', 'action' + (apCount > 1 ? 's récentes' : ' récente'))}</span>`
+                        : `<span style="color:var(--text-muted); font-size: 12px;">${t('cockpit_ap_no_actions', 'Aucune action en attente')}</span>`
+                    }
+                </div>
+            </div>
+            <div class="cockpit-compact-card clickable" onclick="window.OverviewView.setDisplayMode('full')">
+                <div class="cockpit-card-header">
+                    <div class="cockpit-card-title">
+                        <span class="cockpit-card-icon">📋</span>
+                        <span>${t('cockpit_reconcile_title', 'À rapprocher')}</span>
+                    </div>
+                </div>
+                <div class="cockpit-card-value">${unreconciledCount}</div>
+                <div class="cockpit-card-sub">${t('cockpit_reconcile_sub', 'opérations en attente')}</div>
+                <span class="cockpit-card-arrow">→</span>
+            </div>
+        `;
+
+        // ── Animate gauge arcs after DOM insert ──
+        requestAnimationFrame(() => {
+            const size = 180;
+            const strokeWidth = 12;
+            const radius = (size - strokeWidth) / 2;
+            const circumference = 2 * Math.PI * radius;
+
+            const ravArc = document.getElementById('cockpitArc_rav');
+            if (ravArc) {
+                const target = circumference - (ravPercent / 100) * circumference;
+                ravArc.style.strokeDashoffset = target;
+            }
+
+            const cycleArc = document.getElementById('cockpitArc_cycle');
+            if (cycleArc) {
+                const target = circumference - (cyclePercent / 100) * circumference;
+                cycleArc.style.strokeDashoffset = target;
+            }
+        });
+    },
+
+    _buildGaugeSVG(percent, id) {
+        // SVG donut gauge with animated arc
+        const size = 180;
+        const strokeWidth = 12;
+        const radius = (size - strokeWidth) / 2;
+        const circumference = 2 * Math.PI * radius;
+        // Start from top (270°, via rotation)
+        const dashOffset = circumference - (percent / 100) * circumference;
+
+        return `
+            <svg class="cockpit-gauge-svg" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+                <circle class="cockpit-gauge-bg"
+                    cx="${size / 2}" cy="${size / 2}" r="${radius}"
+                    stroke-width="${strokeWidth}" />
+                <circle class="cockpit-gauge-arc"
+                    id="cockpitArc_${id}"
+                    cx="${size / 2}" cy="${size / 2}" r="${radius}"
+                    stroke-width="${strokeWidth}"
+                    stroke-dasharray="${circumference}"
+                    stroke-dashoffset="${circumference}"
+                    transform="rotate(-90 ${size / 2} ${size / 2})" />
+            </svg>
+        `;
+        // Animation is triggered after DOM insert via requestAnimationFrame below
+    },
+
+    _getCockpitUnreconciledCount() {
+        const transactions = this._transactions || [];
+        const todayISO = new Date().toISOString().split('T')[0];
+        let count = 0;
+        for (const tx of transactions) {
+            if (tx.reconciliation_date) continue;
+            if (tx.is_skipped) continue;
+            if (tx.cross_profile_status === 'pending') continue;
+            if (tx.date_operation > todayISO) continue;
+            count++;
+        }
+        return count;
     },
 
     destroy() {
