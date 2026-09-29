@@ -5,103 +5,26 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
-- **Historical Fingerprint Safeguard & Statement Inversion Guardrail 🛡️🏦**:
-  - **Account Fingerprint Integrity Evaluation (`evaluate_historical_fingerprint`)**: Automated overlap analysis comparing incoming statement transactions against recent database history for established accounts.
-  - **Autonomous Execution Freeze on Mismatch**: Automatically suspends `AUTO_COMMIT` and `AUTO_RECONCILE` if an established account receives a statement with zero historical overlap, preventing cross-account statement contaminations (e.g. savings statement attributed to checking account).
-  - **In-App Warning & Review Banners**: Displays a prominent security banner with retry and dismiss options in the Bank Sync Review cockpit alongside system notifications.
-- **Vault Unlock Accessibility & Modal Tree Structure Fix 🔐🛠️**:
-  - **Restored Master Password Modal Flow**: Fixed an unclosed container tag in `bank_sync.js` that caused `#masterPasswordModal` to be swallowed by a hidden parent modal, ensuring the unlock modal opens reliably on click.
-  - **Comprehensive HTML Tag & DOM Audit**: Audited live DOM trees across all routes via Playwright and verified tag pairing in all 58 frontend modules, including closing an unclosed `<form>` in `budgets_autopilot.js`.
-- **Asynchronous Cross-Batch Internal Transfer Linking 🔄↔️**:
-  - **Bidirectional Mirror Recognition**: Automatically recognizes and pairs delayed or separate-batch internal transfer debits and credits between checking and savings accounts (e.g. Livret A $\leftrightarrow$ Compte Courant).
-
-- **Auto-Pilot Mobile Usability, Touch Interactions & Overview Popover Caging 📱🎛️**:
-  - **Overview Popover Viewport Containment**: Repositioned the Auto-Pilot popover widget on mobile and tablet devices (≤ 1024px) from right-aligned (`right: 0`) to viewport-contained left-aligned (`left: 0; right: auto; width: calc(100vw - 24px); max-width: 390px;`), completely eliminating horizontal off-screen clipping.
-  - **Mobile Touch Interaction Refinements**: Restricted `onmouseenter` opening to desktop screens (> 1024px), neutralized automatic `mouseleave` auto-hide on mobile devices, and introduced tap debouncing in `handleAutopilotBtnClick` to prevent instant flicker-close on touch screens.
-  - **Mobile Header Close Button**: Added an inline close button (`✕`) in the popover header on mobile viewports for effortless single-tap dismissal alongside existing backdrop clicks.
-  - **Header & Badge Alignment**: Scoped Auto-Sync status badge CSS to preserve circular status dots (6px) without vertical stretching, expanded master profile badge max-width on mobile to avoid premature "Mo..." truncation, and harmonized mobile header icon positioning.
-  - **Direct Ledger Navigation from Review Queue**: Added direct "Voir cette opération dans le grand livre" navigation from review items to All Operations with signed amount direction matching and temporary row pulse highlight.
-- **Smart Label Direct Category Resolution & Mutual Coverage Harmonization 🏷️🎯**:
-  - **Direct Active Category Matching (Level 2.5)**: The Smart Label engine directly checks labels against the user's active SQLite categories before generic fallback, accurately suggesting explicit categories like *"Remboursement"* on credit inflows (e.g. *"Remboursement Amazon Bouilloire"* $\rightarrow$ *"Remboursement"*) with 95% confidence.
-  - **Balanced Token Coverage Safeguard**: Tightened mutual token coverage thresholds in `matcher.py` to prevent isolated 1-word merchants (e.g. *"Amazon"*) from hijacking 3+ word phrases while preserving multi-word brand matches (*"Crédit Agricole"*, *"Banque Populaire"*).
-  - **Directional & Unified Classification Across Views**: Propagated transaction flow direction (`tx_type: 'income'` vs `'expense_var'`) and harmonized single-row suggestion buttons, tooltips (*"Suggérer la catégorie automatiquement"* vs *"Nommer et classifier avec l'IA"*), and feedback toasts across the Auto-Pilot Review modal, Bank Sync Review table, and CSV Import Wizard.
-- **Zero-F5 Reactive Auto-Pilot Synchronisation & Live Lifecycle Engine ⚡🔄**:
-  - **Instant Scheduled Trigger**: Auto-Pilot now proactively triggers scheduled bank synchronization cycles as soon as the countdown timer hits `00:00`, eliminating background loop delay.
-  - **Dynamic Active Sync Tracker**: Seamlessly polls sync state every 1.5–2 seconds while a background bank statement fetch is in progress, automatically refreshing KPIs, review queue items, decision audit logs, and next cycle countdowns in place with zero manual page reloads (F5).
-  - **Multi-Event Reactive Broadcast**: Emits real-time `bank_sync_completed`, `autopilot_updated`, and `transactions_updated` DOM events to keep header badges, notification counters, and account balances synchronized across all views.
-  - **Interactive Cylon Scanner & Focus Reactivity**: Cylon scanner indicator is directly clickable to force an immediate manual sync or unlock the secure credential vault, and automatically resynchronizes on browser tab focus (`visibilitychange`).
-- **Complete Auto-Pilot Internationalization & UI Parity (FR / EN) 🌐✨**:
-  - Full bilingual coverage across 100% of Auto-Pilot Control Center UI: cockpit engagement HUD, 15 modular autonomy building blocks, manual review queue, candidate forecast picker, decision feed badges & filters, batch rollback dialogues, and all feedback toasts.
-  - Integrated privacy blur support on financial amounts across all Auto-Pilot KPI cards, tables, and candidate preview tiles.
-  - Enhanced cockpit engagement HUD with pause-on-hover timer and streamlined header toolbar layout.
-- **Auto-Pilot Post-Action Sovereign Paradigm & Intelligent Reconciliation Engine 🤖⚡**:
-  - **Post-Action Direct Ingestion & Zero Blocking Modals**: Automatically records and reconciles incoming transactions directly into the database when Auto-Pilot is enabled, keeping account balances and Reste à Vivre live in real time. Suggested matches (60-84% confidence) and unclassified items are auto-committed with `needs_review = True` for smooth, non-blocking asynchronous audit in the Auto-Pilot Control Center.
-  - **Universal Semantic Alias Dictionary**: Integrated a built-in semantic lookup engine (`UNIVERSAL_MERCHANT_ALIASES`) for public institutions and major utility providers (e.g. `DIRECTION GENERALE DES FINANCES` / `DGFIP` $\leftrightarrow$ `Impôts / Taxes`, `CPAM` $\leftrightarrow$ `Santé`, `CAF`, `URSSAF`, `EDF`, telecoms) combined with `BankLabelMapping` lookups during text scoring.
-  - **Uncontested Match Bonus (+15 pts)**: Added automatic non-ambiguity score bonus when an eligible candidate ($\ge 60$ pts) has no competing transaction on exact amount and immediate date window ($\Delta \le 2\text{d}$), eliminating false hesitations on recurring tax or utility debits.
-  - **Strict User Description Preservation**: Auto-reconciliation now sanctuarizes user-defined custom descriptions (e.g. *"Floatplane"*) while safely recording raw technical banking labels (*"PayPal Europe S.a.r.l."*) into `raw_description`.
-  - **Auto-Pilot Header Controls & Granular Sync Intervals**: Added in-header vault status badge, countdown timer, time since last sync, and unlock button directly on the Auto-Pilot page with extended sync interval options (3h, 5h, 8h, 12h, 24h, 36h).
-- **Financial Simulation Engine & Cash Flow Projection Accuracy 🔮📊**:
-  - **Comprehensive Seasonal Income Projection**: Fixed an issue where "Historical N-1" and "Auto" income modes erroneously fell back to the base paycheck amount only, faithfully projecting full historical seasonal receipts (bonuses, freelance inflows, family support, reimbursements) with smooth prudence blending.
-  - **Strict Internal Transfer Neutralization**: Liquid portfolio projections ("All liquid accounts") now strictly isolate external inflows and outflows, preventing internal transfers (e.g. monthly savings transfers from checking to savings accounts) from being erroneously recorded as lost expenses.
-  - **Decimal Precision & Clean Scope Filtering**: Aligned monthly line item sums with total projected expenses across all horizon months with zero drift.
-- **Auto-Pilot Review Queue & Candidate Forecast Linking 🔗⚡**:
-  - **1-Click Candidate Forecast Linking**: Ingested transactions requiring confirmation now detect candidate recurrent forecasts (date/amount proximity), offering direct inline linking (`POST /api/autopilot/review/{id}/link`) to merge the statement with existing forecasts without creating duplicate entries.
-  - **2-Step Inline Confirmation**: Added smooth inline confirmation (`Lier ? [✓ Oui] [✕]`) on link buttons inside both the review queue table and modal to prevent accidental clicks while keeping the workflow fast and responsive.
-  - **Decision Feed & Audit Trail Synchronization**: Merging or updating review items dynamically updates the decision audit log with full details (actual description, real category, 100% confidence score, and clear reason badges like `🔗 Liaison prévision`).
-  - **Widened & Responsive Review Modal**: Expanded modal width to 640px with generous padding and robust data attributes, eliminating awkward line wraps on candidate forecast cards across desktop and mobile screens.
-- **Standardized Auto-Pilot Decision Override Modal & CategoryPicker Integration ✏️🎨**:
-  - **Application-Standard Modal UI**: Overhauled the Auto-Pilot decision override modal to strictly adhere to OmniBank design tokens and layout standards: blurred backdrop filter, rounded card with accent top bar on Titanium themes, dedicated header with action icon badge and close button, and structured action buttons.
-  - **Integrated Searchable CategoryPicker**: Replaced the plain text input with the canonical `CategoryPicker` component, providing real-time search, directional badges (`🔴 Sortie (Débit)` / `🟢 Entrée (Crédit)`), type tabs (`Tout`, `Variables`, `Fixes`), and new category creation.
-  - **1-Click AI Classification (`✨`)**: Added an AI suggestion action button next to the category picker to clean and classify transaction descriptions on the fly using local AI models.
-  - **Zero-F5 Reactivity & Keyboard Ergonomics**: Added keyboard shortcuts (<kbd>Escape</kbd> and <kbd>Enter</kbd>), reliable category prefetching, and automated emission of `autopilot_updated` and `transactions_updated` events for instant live UI refreshes.
-- **Auto-Pilot Control Center, Decision Feed & Semantic Rollback (Step 6) 🤖🎛️**:
-  - **Dedicated Control Center View (`AutopilotView`)**: Introduced a 4-panel control center accessible via the primary navigation and header status badge:
-    - *Cockpit & KPIs*: Live status indicators, configurable tolerance threshold slider (70% to 99%), and efficiency metrics (total automated operations, precision rate, saved clicks, estimated hours).
-    - *Decision Feed*: Chronological audit feed of all autonomous actions (reconciliations, new entries, category mappings, recurrence promotions, budget recalibrations) grouped by batch cycle with type filters.
-    - *Retroaction & Reorientation Levers*: 1-click unpoint/dissociate for reconciliations, in-place category correction with optional merchant rule memorization, and batch cycle rollback.
-    - *Rules Workshop*: Live interactive directory of learned merchant rules (`BankLabelMapping`), blacklisted/excluded merchants, and locked budget envelopes (`is_locked`).
-  - **Full Semantic Cycle Rollback**: 1-click rollback of an entire ingestion batch (`POST /api/autopilot/rollback-cycle/{batch_id}`), deleting added entries, cleanly unpointing reconciled forecasts with snapshot restoration, and reconstituting the original batch transactions directly in the staging Sas (`_PENDING_SYNC_DATA`) for manual review.
-  - **Full-Auto Budget Mutations & Recurrence Synchronization**: Automated application of budget envelope recalibrations when `auto_apply_budget_suggestions` is enabled (with annual 25% drift safeguard), coupled with seamless envelope adjustments on recurrence promotions, perennial rate hikes ($N=3$), and contract terminations.
-  - **Desktop Shutdown Shield (Tauri 2.x)**: Safe window close handler (`WindowEvent::CloseRequested`) in Rust inspecting active bank sync state before termination to prevent abrupt process termination during atomic database commits.
-  - **Server-Side Unread Notification Badge**: Unread decision badge in the header and mobile navigation tracked via `GlobalConfig.autopilot_last_visit_at` across multi-browser and multi-device sessions without phantom counters.
-- **Persistent Raw Bank Label (`raw_description`) & Bidirectional Smart Matching 🏷️💾**:
-  - **Immutable Statement Memory**: Added `raw_description` column and index to SQLite schema (migration v29), persistently preserving original technical bank/CSV labels independently of user-renamed descriptions.
-  - **Historical Fuzzy Matching (Level 2)**: Extended the Smart Label engine to match incoming statement strings against both `raw_description` and `description`, instantly resolving recurring transfers and charges even after complete user renamings.
-  - **Non-Polluting Memory on Edit**: Preserved `raw_description` during ledger edits so Level 2 history matching resolves identical future statements automatically without bloating the `BankLabelMapping` workshop with ephemeral one-off entries.
-  - **Origin Statement Hint in Edit Dialog**: Displayed the original raw bank label with a 1-click restore action inside the transaction edit modal whenever a sanitized custom description is present.
-- **Modular Automations & Auto-Pilot Readiness (Step 5 & 5.5) ⚙️🤖**:
-  - **Independent Ingestion & Categorization Automations**: Added modular, opt-in automation toggles for transaction auto-reconciliation, direct recording of unambiguous expenses, automated dropzone closing, missing category creation, and continuous merchant rule learning.
-  - **Universal In-Context Access**: Integrated `⚙️ Automatismes` toolbar buttons and dialogs directly across Dashboard, All Operations, Categories, Budgets, and Recurrences views.
-  - **Offline-First & Deterministic Sovereignty**: All automations default to OFF (`false`), leaving users in total control. Operates 100% offline using deterministic rules and statement data without requiring AI, while seamlessly incorporating Ollama semantic inference when enabled.
-  - **Master Switch Snapshot & Restore**: Activating the global Auto-Pilot switch snapshots fine-grained user sub-preferences (`autopilot_subtoggles_pre_activation_snapshot`), while turning it off faithfully restores custom granular choices.
-- **What-If Projection Simulator & Outlier Sensitivity Slider 🔮📈**:
-  - **Cross-Device Slider & Settings Persistence**: Persisted all simulator sliders and projection parameters (time horizon, prudence weight, variable expense adjustment, outlier sensitivity level, seasonality mode & intensity, income mode, inflation rate, active scenario and accordion states) into the SQLite database (`GlobalConfig`) per user profile. Sliders seamlessly synchronize and roam across browsers, devices, and sessions with a 350ms debounced auto-sync engine while maintaining instant local cache responsiveness.
-  - **Modular & Optional Expense Seasonality**: Added fully optional variable spending seasonality with three selectable modes: *Disabled (Smoothed)* (default for envelope-based budgeters), *Historical data* (detects past variable expenditure patterns across 12+ months with outlier filtering), and *Holidays & Vacations profile* (curated annual baseline with summer +15%/+20% and Christmas +30% peaks, mathematically balanced to 1.00 annual neutrality).
-  - **Continuous Seasonality Intensity Slider & 12-Month Strip**: Interactive intensity slider (0% to 100%) to soften or emphasize calendar swings, accompanied by quick buttons (`0%`, `50%`, `100%`), an interactive 12-month variation strip preview, and contextual calendar tags (`🎄`, `🏖️`, `🎒`, `❄️`) in the monthly breakdown table. Fixed a jitter bug where dragging to 0% erroneously defaulted back to 100%.
-  - **1-Click Recommended Settings Restoration**: Added a dedicated `🔄 Restore recommended settings` button in Advanced Controls to instantly reset all simulation parameters (Prudence 20%, Effort 0%, Outliers Level 2, Smoothed seasonality, N-1 Income, Inflation 0%) with real-time recalculation and persistent storage.
-  - **Explicit Month-by-Month Financial Breakdown**: Overhauled the month-by-month projection table with dedicated, color-coded columns for Starting Balance, Net Income (+), Fixed Expenses (-), Variable Expenses (-), What-If Events, Net Flow, and Ending Balance, accompanied by a comprehensive cumulative summary footer (`Total période`).
-  - **Universal Recurrence Frequency Engine**: Full support for all recurrence frequencies (Monthly, Yearly, Semi-Annually, Quarterly, Bi-Monthly, Bi-Weekly, Weekly) and finite schedules (`max_occurrences`), eliminating false charges for non-monthly bills.
-  - **Interactive Outlier Sensitivity Slider**: Added a 5-level sensitivity slider in Advanced Controls (Strict, Prudent, Balanced, Permissive, Full) matching the budget envelope wizard, with instant reactive recalculation, live badges, and transparent visibility into excluded exceptional transactions.
-  - **Canonical Brownian Diffusion Confidence Cone ($\sigma \sqrt{t}$)**: Replaced unrealistic linear uncertainty accumulation ($N \times \sigma$) with canonical square-root of time random walk diffusion, yielding a realistic parabolic confidence envelope without artificial multi-thousand euro overdrafts.
-  - **Liquid Net Worth Pooling & Savings Neutralization**: Selecting "All liquid accounts" pools checking and savings reserves, properly treating internal savings transfers as neutral cash movements instead of outgoing expenses.
-- **Dynamic Budget Envelopes & Lifecycle Management (Step 5) 🎯📊**:
-  - **Deterministic Discovery & Smoothed Recalibration**: Intelligent envelope proposals for unbudgeted categories and monthly EMA recalibration ($\alpha=0.20$) protected by double drift guards ($\pm 10\%$/mo, $\pm 25\%$/yr).
-  - **Smart Envelope Enrichment**: Suggests attaching orphan categories to related active envelopes (e.g. Bakery into Food & Groceries) with 1-click approvals and audit history.
-  - **Compact Surveillance Strip & Activity Hub**: Sleek 1-line monitoring banner with a 2-tab activity dialog separating executed actions from dismissed recommendations.
-  - **Envelope Safeguards & Custom Floor**: Dedicated padlock action (`🔒`) to lock envelopes from auto-adjustments, and a configurable minimum floor threshold down to 1.00 €.
-- **Autonomous Recurrence Lifecycle (Step 4 & 4.5) 🔄⚡**:
-  - **Tolerant Subscription Linking**: Automatically absorbs out-of-plan charge variances (up to a 3× safety factor) while quarantining large outliers in the staging cockpit.
-  - **Perennial Rate Hike Propagation & Skip Triple-Lock**: Propagates 3-month recurring price increases to future forecasts and safely marks uncharged recurrences as skipped without cash flow drift.
-- **Enhanced Categorization, Acronym Expansion & Bank Reconciliation 🏷️🏦**:
-  - **Banking Acronym Normalization**: Expansion of bank shorthand (`CA`, `BP`, `CE`, `SG`, `CIC`, `CM`, `CPAM`) for reliable text matching against statement descriptions.
-  - **Strict Directional Category Filtering**: Contextual category picker restricting debits to expenses, credits to income, and transfers to internal accounts.
-  - **Misplaced Categories Diagnostic**: Automated audit tool in Settings detecting and reclassifying mislabeled categories, internal transfers, and flow inversions across all historical records.
-- **UI Reactivity & Layout Polish ✨**:
-  - **Zero-F5 Reactivity**: Real-time DOM updates across all views without requiring manual browser page refreshes.
-  - **Modal & Toolbar Layout Hardening**: Pinned headers and footers in automations modals, horizontal alignment of toolbar search and action buttons, and crisp visual styling across all dark and light themes.
+- **Auto-Pilot Control Center & Autonomous Banking Operations 🤖⚡**:
+  - Hands-free financial automation engine: direct transaction recording, high-certainty auto-reconciliation, real-time decision feed with 1-click batch rollback, and candidate recurrence forecast linking.
+  - Zero-F5 reactive lifecycle engine: scheduled background bank sync cycles trigger instantly with live status tracker and real-time DOM updates across all views without manual browser refreshes.
+- **Historical Fingerprint Safeguard & Statement Protection 🛡️🏦**:
+  - Automated statement overlap analysis compares incoming transactions against account history, automatically halting autonomous actions on suspected account inversions with clear in-app warning banners.
+  - Asynchronous cross-batch transfer auto-linking recognizes and pairs delayed debit/credit transactions between checking and savings accounts.
+- **What-If Financial Projection Simulator 🔮📈**:
+  - Interactive multi-month cash flow forecasting with canonical square-root Brownian confidence cones, customizable spending seasonality profiles (summer/holiday peaks), and outlier sensitivity controls.
+  - Cross-device parameter persistence: simulation preferences and horizon sliders automatically synchronize across browsers and sessions.
+- **Smart Labeling & Directional Classification Engine 🏷️🎯**:
+  - Direct active category resolution and immutable raw bank description memory (`raw_description`), preventing merchant workshop pollution while resolving renamed charges.
+  - Directional category picker enforcing debits as expenses and credits as income, combined with built-in semantic lookup for public institutions and major utility providers.
+- **Dynamic Budget Envelopes & Recurrence Lifecycle 📊🔄**:
+  - Automated envelope discovery and smoothed monthly EMA recalibration protected by drift guardrails ($\pm 10\%$/mo, $\pm 25\%$/yr), coupled with out-of-plan charge variance tolerance and perennial rate hike propagation.
+- **Mobile Ergonomics, Touch Controls & Design Polish 📱✨**:
+  - Mobile-optimized Auto-Pilot popovers with viewport containment, dedicated mobile dismiss controls, tap debouncing, standardized decision override modals with integrated `CategoryPicker`, and full English/French bilingual parity with privacy blur support.
 
 ### Fixed
-- **Auto-Pilot Engine & Lifecycle Reliability 🤖🛠️**: Cleanly evicted deleted recurrence forecasts in SQLAlchemy session during perennial rate hikes, replaced deprecated `datetime.utcnow()` calls in budget suggestion dismissals, and hardened the automated bank sync cooldown test harness.
+- **Vault Unlock & Modal Tree Structure 🔐**: Restored immediate master password modal display upon clicking vault unlock by correcting modal DOM nesting, and validated balanced tag structure across all application views.
+- **Simulation Accuracy & Cash Flow Isolation 🧮**: Fixed portfolio projection to treat internal savings transfers as neutral liquidity, corrected historical seasonal income projections, and cleanly evicted deleted recurrence forecasts during price adjustments.
 
 ## [1.1.8] - 2026-09-10
 
