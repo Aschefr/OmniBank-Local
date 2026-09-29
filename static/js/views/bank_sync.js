@@ -681,6 +681,29 @@ window.BankSyncView = {
                     </div>
                 </div>
 
+                <!-- Bannière d'alerte Garde-fou d'empreinte historique (suspicions d'inversion de compte / désynchronisation) -->
+                <div id="reviewSuspiciousBanner" style="display: none; margin: 10px 24px 0 24px; padding: 12px 16px; border-radius: 8px; font-size: 12px; font-weight: 500; align-items: center; justify-content: space-between; gap: 12px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); color: var(--text-main);">
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                        <span style="font-size: 20px; line-height: 1;">🛡️</span>
+                        <div>
+                            <div style="font-weight: 700; color: #ef4444; margin-bottom: 2px;">
+                                <span id="reviewSuspiciousTitle" data-i18n="bank_sync_guard_suspicious_title">${window.i18n ? window.i18n.t('bank_sync_guard_suspicious_title') || "Garde-fou d'intégrité activé" : "Garde-fou d'intégrité activé"}</span>
+                            </div>
+                            <div id="reviewSuspiciousText" style="color: var(--text-muted); font-size: 12px; line-height: 1.4;">
+                                ${window.i18n ? window.i18n.t('bank_sync_guard_suspicious_desc') || "Aucune des opérations reçues ne correspond à l'historique récent de ce compte en base. Par sécurité, l'enregistrement automatique a été suspendu." : "Aucune des opérations reçues ne correspond à l'historique récent de ce compte en base. Par sécurité, l'enregistrement automatique a été suspendu."}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="window.BankSyncView.retryAccountSync()" style="font-size: 11px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px;">
+                            <span>🔄</span> <span data-i18n="bank_sync_guard_retry">${window.i18n ? window.i18n.t('bank_sync_guard_retry') || 'Relancer le relevé' : 'Relancer le relevé'}</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="window.BankSyncView.dismissSuspiciousAlert()" style="font-size: 11px; padding: 5px 12px;">
+                            <span data-i18n="bank_sync_guard_dismiss">${window.i18n ? window.i18n.t('bank_sync_guard_dismiss') || 'Ignorer' : 'Ignorer'}</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div id="reviewStatementBanner" style="display: none; margin: 10px 24px 0 24px; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 500; align-items: center; justify-content: space-between; gap: 10px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); color: var(--text-main);">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 16px;">📋</span>

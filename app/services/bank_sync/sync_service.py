@@ -84,6 +84,86 @@ def _safe_unload_backend(w: Any, instance_name: str):
             logger.debug(f"[BankSync] Erreur lors du déchargement de '{instance_name}': {err}")
 
 
+def evaluate_historical_fingerprint(
+    db: Session,
+    account_id: int,
+    incoming_txs: List[Dict[str, Any]],
+    cutoff_date: Optional[date] = None,
+    min_history_threshold: int = 5
+) -> Dict[str, Any]:
+    """
+    Garde-fou d'intégrité basé sur l'empreinte historique des relevés bancaires.
+    Compare les transactions du relevé entrant avec les opérations déjà connues en base.
+
+    Règles :
+    - Cold Start : si le compte possède moins de `min_history_threshold` transactions
+      récentes en base (ex: compte neuf ou importé), aucun blocage n'est appliqué.
+    - Compte Établi (Warm) : si le compte possède >= `min_history_threshold` transactions
+      en base dans la fenêtre temporelle et que le relevé entrant contient des opérations (> 0)
+      mais qu'AUCUNE ne correspond à l'historique connu (matched_count == 0) :
+      -> Déclenche une alerte de relevé suspect (suspicion d'inversion de compte / désynchronisation de curseur distant).
+    """
+    recent_query = db.query(Transaction).filter(
+        (Transaction.from_account_id == account_id) | (Transaction.to_account_id == account_id)
+    )
+    if cutoff_date:
+        recent_query = recent_query.filter(Transaction.date_operation >= cutoff_date)
+    db_recent_count = recent_query.count()
+
+    is_cold_start = db_recent_count < min_history_threshold
+    incoming_count = len(incoming_txs) if incoming_txs else 0
+
+    if is_cold_start:
+        return {
+            "is_suspicious": False,
+            "is_cold_start": True,
+            "db_recent_count": db_recent_count,
+            "matched_count": 0,
+            "incoming_count": incoming_count,
+            "overlap_ratio": 0.0,
+            "reason": None,
+            "warning_message": None
+        }
+
+    matched_count = 0
+    for tx in (incoming_txs or []):
+        if tx.get("is_reconciled") or tx.get("already_reconciled") or tx.get("matched_db_id"):
+            matched_count += 1
+        elif tx.get("csv_id"):
+            exists = db.query(Transaction.id).filter(
+                Transaction.csv_id == tx["csv_id"],
+                (Transaction.from_account_id == account_id) | (Transaction.to_account_id == account_id)
+            ).first()
+            if exists:
+                matched_count += 1
+
+    overlap_ratio = round(matched_count / incoming_count, 3) if incoming_count > 0 else 0.0
+
+    is_suspicious = False
+    reason = None
+    warning_message = None
+
+    if incoming_count > 0 and matched_count == 0:
+        is_suspicious = True
+        reason = "zero_db_overlap"
+        warning_message = (
+            f"Garde-fou d'intégrité activé : aucune opération de ce relevé ({incoming_count} reçue(s)) "
+            f"ne correspond à l'historique connu en base ({db_recent_count} opérations récentes connues). "
+            f"Par précaution contre une inversion de compte bancaire, les écritures automatiques ont été suspendues."
+        )
+
+    return {
+        "is_suspicious": is_suspicious,
+        "is_cold_start": False,
+        "db_recent_count": db_recent_count,
+        "matched_count": matched_count,
+        "incoming_count": incoming_count,
+        "overlap_ratio": overlap_ratio,
+        "reason": reason,
+        "warning_message": warning_message
+    }
+
+
 class BankSyncService:
     @staticmethod
     def test_connection_and_list_accounts(
@@ -646,6 +726,21 @@ class BankSyncService:
                 # Tri chronologique décroissant des opérations (les plus récentes en premier)
                 parsed_txs.sort(key=lambda x: str(x.get("date_operation") or ""), reverse=True)
 
+                fingerprint = evaluate_historical_fingerprint(
+                    db,
+                    local_acc.id,
+                    parsed_txs,
+                    cutoff_date=cutoff_date
+                )
+                if fingerprint.get("is_suspicious"):
+                    logger.warning(
+                        f"[BankSync] [GARDE-FOU EMPREINTE] Compte #{local_acc.id} [{acc_label}] : {fingerprint.get('warning_message')}"
+                    )
+                    for tx in parsed_txs:
+                        tx["is_suspicious"] = True
+                        tx["needs_review"] = True
+                        tx["_blocked_by_guard"] = True
+
                 accounts_preview.append({
                     "remote_id": remote_id,
                     "account_id": local_acc.id,
@@ -653,6 +748,8 @@ class BankSyncService:
                     "account_type": local_acc.type,
                     "bank_balance": bank_balance,
                     "local_reconciled_balance": local_reconciled_bal,
+                    "is_suspicious_statement": fingerprint.get("is_suspicious", False),
+                    "suspicious_fingerprint": fingerprint,
                     "transactions": parsed_txs
                 })
 

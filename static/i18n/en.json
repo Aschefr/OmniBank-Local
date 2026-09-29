@@ -3306,5 +3306,9 @@
   "autopilot_settings_short": "Settings",
   "autopilot_state_full_short": "Full (15/15)",
   "autopilot_state_balanced_short": "Balanced ({count}/15)",
-  "autopilot_state_custom_short": "Custom ({count}/15)"
+  "autopilot_state_custom_short": "Custom ({count}/15)",
+  "bank_sync_guard_suspicious_title": "Integrity Guard Activated",
+  "bank_sync_guard_suspicious_desc": "None of the incoming transactions match the recent history of this account in database ({count} recent operations known). To prevent account mismatch, automatic entries were suspended.",
+  "bank_sync_guard_retry": "Retry statement",
+  "bank_sync_guard_dismiss": "Dismiss guard"
 }

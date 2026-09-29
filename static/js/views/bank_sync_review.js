@@ -297,6 +297,8 @@ Object.assign(window.BankSyncView, {
         if (csvBar) csvBar.style.display = 'none';
         const stmtBanner = document.getElementById('reviewStatementBanner');
         if (stmtBanner) stmtBanner.style.display = 'none';
+        const suspBanner = document.getElementById('reviewSuspiciousBanner');
+        if (suspBanner) suspBanner.style.display = 'none';
         const dateBadge = document.getElementById('statementDateBadge');
         if (dateBadge) dateBadge.style.display = 'none';
         const tabPending = document.getElementById('btnReviewModePending');
@@ -679,6 +681,47 @@ Object.assign(window.BankSyncView, {
         }
     },
 
+    _renderSuspiciousBanner() {
+        const banner = document.getElementById('reviewSuspiciousBanner');
+        if (!banner) return;
+        const currentAcc = this.previewData?.accounts?.[this.currentAccountIndex || 0];
+        if (!currentAcc || !currentAcc.is_suspicious_statement || currentAcc._suspicious_dismissed) {
+            banner.style.display = 'none';
+            return;
+        }
+
+        const fp = currentAcc.suspicious_fingerprint || {};
+        const count = fp.db_recent_count || 0;
+        const textEl = document.getElementById('reviewSuspiciousText');
+        if (textEl) {
+            const rawMsg = (window.i18n && window.i18n.tp)
+                ? window.i18n.tp('bank_sync_guard_suspicious_desc', { count: count })
+                : `Aucune des opérations reçues ne correspond à l'historique récent de ce compte en base (${count} opérations récentes connues). Par sécurité contre une inversion de compte bancaire, les écritures automatiques ont été suspendues.`;
+            textEl.textContent = rawMsg;
+        }
+        banner.style.display = 'flex';
+    },
+
+    retryAccountSync() {
+        const currentAcc = this.previewData?.accounts?.[this.currentAccountIndex || 0];
+        const connId = this.activeConnId || currentAcc?.connection_id || this.previewData?.connection_id || 1;
+        this.closeReviewModal();
+        if (window.BankSyncView && typeof window.BankSyncView.syncConnection === 'function') {
+            window.BankSyncView.syncConnection(connId);
+        }
+    },
+
+    dismissSuspiciousAlert() {
+        const currentAcc = this.previewData?.accounts?.[this.currentAccountIndex || 0];
+        if (currentAcc) {
+            currentAcc._suspicious_dismissed = true;
+        }
+        const banner = document.getElementById('reviewSuspiciousBanner');
+        if (banner) banner.style.display = 'none';
+        this.renderAccountTabs();
+        this.renderReviewTable();
+    },
+
     async onCsvAccountChanged() {
         if (this._reviewSource !== 'csv_import' || !this.previewData) return;
         const accSelect = document.getElementById('reviewCsvAccountSelect');
@@ -724,7 +767,9 @@ Object.assign(window.BankSyncView, {
 
         const accs = this.previewData.accounts;
         if (accs.length <= 1) {
-            container.innerHTML = `<span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${!accs[0]?.account_id ? '⚠️ ' : ''}${accs[0]?.account_name || 'Compte'}</span>`;
+            const isSusp0 = Boolean(accs[0]?.is_suspicious_statement && !accs[0]?._suspicious_dismissed);
+            const prefix0 = isSusp0 ? '🛡️ ' : (!accs[0]?.account_id ? '⚠️ ' : '');
+            container.innerHTML = `<span style="font-weight: 700; font-size: 13px; color: ${isSusp0 ? '#ef4444' : 'var(--text-main)'};">${prefix0}${accs[0]?.account_name || 'Compte'}</span>`;
             return;
         }
 
@@ -738,11 +783,15 @@ Object.assign(window.BankSyncView, {
                 ? `<span style="background: ${idx === this.currentAccountIndex ? 'rgba(255,255,255,0.25)' : 'rgba(217,119,6,0.2)'}; color: ${idx === this.currentAccountIndex ? '#fff' : '#d97706'}; padding: 1px 6px; border-radius: 10px; font-size: 11px; margin-left: 6px; font-weight: 700;">${pendingCount}</span>`
                 : '';
 
+            const isSusp = Boolean(acc.is_suspicious_statement && !acc._suspicious_dismissed);
+            const prefixIcon = isSusp ? '🛡️ ' : (!acc.account_id ? '⚠️ ' : '');
+            const suspStyle = isSusp ? 'border-color: #ef4444; color: #ef4444;' : '';
+
             return `
             <button class="btn btn-sm ${idx === this.currentAccountIndex ? 'btn-primary' : 'btn-secondary'}" 
                     onclick="window.BankSyncView.switchAccountTab(${idx})" 
-                    style="padding: 4px 12px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center;">
-                <span>${!acc.account_id ? '⚠️ ' : ''}${acc.account_name || acc.section_title || 'Compte'}</span>
+                    style="padding: 4px 12px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; ${suspStyle}">
+                <span>${prefixIcon}${acc.account_name || acc.section_title || 'Compte'}</span>
                 ${badgeHtml}
             </button>
             `;
@@ -758,6 +807,7 @@ Object.assign(window.BankSyncView, {
         if (this._reviewSource === 'csv_import') {
             this._renderCsvAlerts();
         }
+        this._renderSuspiciousBanner();
         this.renderAccountTabs();
         this.renderReviewTable();
     },
@@ -933,6 +983,8 @@ Object.assign(window.BankSyncView, {
     renderReviewTable() {
         const tbody = document.getElementById('bankSyncReviewBody');
         if (!tbody || !this.previewData || !this.previewData.accounts) return;
+
+        this._renderSuspiciousBanner();
 
         const currentAcc = this.previewData.accounts[this.currentAccountIndex];
         if (!currentAcc || !currentAcc.transactions) {

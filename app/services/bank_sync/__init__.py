@@ -8,7 +8,10 @@ Modularisation propre par sous-domaines :
 """
 
 from app.services.bank_sync.import_engine import re_evaluate_preview_data
-from app.services.bank_sync.sync_service import BankSyncService
+from app.services.bank_sync.sync_service import (
+    BankSyncService,
+    evaluate_historical_fingerprint,
+)
 from app.services.bank_sync.twofa_manager import (
     _TWOFA_LOCK,
     _TWOFA_SESSIONS,
@@ -33,6 +36,7 @@ from app.services.bank_sync.woob_adapter import (
 
 __all__ = [
     "BankSyncService",
+    "evaluate_historical_fingerprint",
     "re_evaluate_preview_data",
     "get_woob",
     "get_woob_storage",
