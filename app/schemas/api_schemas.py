@@ -416,6 +416,7 @@ class AutopilotStatusOut(BaseModel):
     review_queue_count: int = 0
     unseen_review_count: int = 0
     is_syncing: bool = False
+    last_bank_sync_at: Optional[str] = None
     last_execution_at: Optional[str] = None
     next_execution_at: Optional[str] = None
     next_execution_type: Optional[str] = None

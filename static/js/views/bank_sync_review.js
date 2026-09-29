@@ -3,13 +3,14 @@
 
 Object.assign(window.BankSyncView, {
 
-    async openReviewModal(connId, previewData, targetAccountId = null) {
+    async openReviewModal(connId, previewData, targetAccountId = null, options = {}) {
         this.ensureModalsExist();
+        options = options || {};
         if (!previewData) {
             if (this.previewData && this.previewData.accounts && this.previewData.accounts.length > 0) {
                 previewData = this.previewData;
             } else if (typeof this.openPendingReviewModal === 'function') {
-                return await this.openPendingReviewModal(null, targetAccountId);
+                return await this.openPendingReviewModal(null, targetAccountId, connId);
             }
         }
         if (!window.app?.categoriesList || window.app.categoriesList.length === 0) {
@@ -22,6 +23,53 @@ Object.assign(window.BankSyncView, {
         this.activeConnId = connId;
         this._reviewSource = previewData?._source || 'bank_sync';
         const isCsvImport = this._reviewSource === 'csv_import';
+
+        // Sauvegarder les opérations à traiter (sas classique)
+        this.pendingSyncData = previewData;
+
+        // Charger le snapshot du dernier relevé pour le mode consultation
+        if (options.statementData) {
+            this.statementData = options.statementData;
+        } else {
+            try {
+                const url = (connId && connId !== -1)
+                    ? `/api/bank-sync/last-statement?conn_id=${connId}`
+                    : '/api/bank-sync/last-statement';
+                const st = await API.get(url);
+                this.statementData = (st && st.accounts && st.accounts.length > 0) ? st : null;
+            } catch (err) {
+                console.warn('[BankSync] Erreur chargement last-statement:', err);
+                this.statementData = null;
+            }
+        }
+
+        // Calcul des compteurs respectifs
+        let pendingCount = 0;
+        (this.pendingSyncData?.accounts || []).forEach(acc => {
+            (acc.transactions || []).forEach(tx => {
+                const isIgnored = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
+                if (!isIgnored) pendingCount++;
+            });
+        });
+
+        let statementCount = 0;
+        (this.statementData?.accounts || []).forEach(acc => {
+            statementCount += (acc.transactions || []).length;
+        });
+
+        const badgePending = document.getElementById('badgeReviewModePendingCount');
+        if (badgePending) badgePending.textContent = pendingCount;
+        const badgeStmt = document.getElementById('badgeReviewModeStatementCount');
+        if (badgeStmt) badgeStmt.textContent = statementCount;
+
+        // Déterminer le mode initial :
+        // 1. Si explicitement demandé via options.initialMode ('statement' ou 'pending')
+        // 2. Si 0 opérations à traiter et le dernier relevé contient des écritures -> bascule automatique sur 'statement' !
+        let targetMode = options.initialMode;
+        if (!targetMode) {
+            targetMode = (pendingCount === 0 && statementCount > 0) ? 'statement' : 'pending';
+        }
+        this.reviewMode = targetMode;
 
         // Charger les descriptions historiques pour l'autocomplétion / saisie assistée
         try {
@@ -46,6 +94,7 @@ Object.assign(window.BankSyncView, {
                 const refreshed = await API.post('/api/bank-sync/re-evaluate-preview', payload);
                 if (refreshed && refreshed.accounts) {
                     previewData = refreshed;
+                    this.pendingSyncData = refreshed;
                     if (connId) {
                         this.saveCachedPreview(connId, previewData);
                     }
@@ -66,13 +115,13 @@ Object.assign(window.BankSyncView, {
             });
         }
 
-        this.previewData = previewData;
+        this.previewData = (targetMode === 'statement' && this.statementData) ? this.statementData : previewData;
         let selectedIdx = -1;
         if (targetAccountId != null) {
-            selectedIdx = (previewData?.accounts || []).findIndex(acc => String(acc.account_id) === String(targetAccountId));
+            selectedIdx = (this.previewData?.accounts || []).findIndex(acc => String(acc.account_id) === String(targetAccountId));
         }
         if (selectedIdx < 0) {
-            selectedIdx = (previewData?.accounts || []).findIndex(acc => {
+            selectedIdx = (this.previewData?.accounts || []).findIndex(acc => {
                 return (acc.transactions || []).some(tx => {
                     const isIgnored = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
                     return !isIgnored;
@@ -80,7 +129,7 @@ Object.assign(window.BankSyncView, {
             });
         }
         this.currentAccountIndex = selectedIdx >= 0 ? selectedIdx : 0;
-        this.currentFilter = 'pending';
+        this.currentFilter = (targetMode === 'statement') ? 'all' : 'pending';
         this.showMatchScores = localStorage.getItem('omnibank_review_show_scores') === 'true';
 
         const scoreBtn = document.getElementById('btnSyncToggleScores');
@@ -217,7 +266,8 @@ Object.assign(window.BankSyncView, {
         }
 
         this.renderAccountTabs();
-        this.setReviewFilter('pending');
+        this.switchReviewMode(targetMode, false);
+        this.setReviewFilter(targetMode === 'statement' ? 'all' : 'pending');
 
         // 2. Consultation asynchrone non-bloquante de l'IA locale (une seule fois à la découverte du sas, puis à la demande)
         const batchSig = this._getBatchSignature(previewData);
@@ -226,7 +276,7 @@ Object.assign(window.BankSyncView, {
             (batchSig && this._isBatchAnalyzed(batchSig))
         );
 
-        if (this.isAIEnabled() && !alreadyAnalyzed) {
+        if (this.isAIEnabled() && !alreadyAnalyzed && targetMode !== 'statement') {
             this.runAsyncAiClassification();
         } else {
             this.hideAiBanner();
@@ -234,13 +284,135 @@ Object.assign(window.BankSyncView, {
     },
 
     closeReviewModal() {
-        document.getElementById('bankSyncReviewModal').style.display = 'none';
+        const modal = document.getElementById('bankSyncReviewModal');
+        if (modal) modal.style.display = 'none';
         this.hideAiBanner();
         this.previewData = null;
+        this.pendingSyncData = null;
+        this.statementData = null;
+        this.reviewMode = 'pending';
         this._reviewSource = 'bank_sync';
         // Masquer la barre CSV
         const csvBar = document.getElementById('reviewCsvBar');
         if (csvBar) csvBar.style.display = 'none';
+        const stmtBanner = document.getElementById('reviewStatementBanner');
+        if (stmtBanner) stmtBanner.style.display = 'none';
+        const dateBadge = document.getElementById('statementDateBadge');
+        if (dateBadge) dateBadge.style.display = 'none';
+        const tabPending = document.getElementById('btnReviewModePending');
+        const tabStmt = document.getElementById('btnReviewModeStatement');
+        if (tabPending) tabPending.classList.add('active');
+        if (tabStmt) tabStmt.classList.remove('active');
+    },
+
+    viewTransactionInApp(txId) {
+        if (!txId) return;
+        this.closeReviewModal();
+        if (window.AllOperationsView) window.AllOperationsView._pendingHighlightTxId = txId;
+        if (window.TimelineView) window.TimelineView._pendingHighlightTxId = txId;
+        if (window.OverviewView) window.OverviewView._pendingHighlightTxId = txId;
+        if (window.app && typeof window.app.loadView === 'function') {
+            window.app.loadView('all_operations');
+        }
+    },
+
+    switchReviewMode(mode, reRender = true) {
+        this.reviewMode = mode;
+        const btnPending = document.getElementById('btnReviewModePending');
+        const btnStmt = document.getElementById('btnReviewModeStatement');
+        if (btnPending) btnPending.classList.toggle('active', mode === 'pending');
+        if (btnStmt) btnStmt.classList.toggle('active', mode === 'statement');
+
+        const stmtBanner = document.getElementById('reviewStatementBanner');
+        const dateBadge = document.getElementById('statementDateBadge');
+        const dateText = document.getElementById('statementDateText');
+        const commitBtn = document.getElementById('btnCommitSync');
+        const purgeBtn = document.querySelector('.review-btn-purge');
+        const aiBtn = document.getElementById('btnSyncCategorizeAllAI');
+        const checkAll = document.getElementById('syncCheckAll');
+        const checkAllMobile = document.getElementById('syncCheckAllMobile');
+
+        // Boutons de filtres
+        const filterPending = document.getElementById('btnSyncFilterPending');
+        const filterAdd = document.getElementById('btnSyncFilterAdd');
+        const filterReconcile = document.getElementById('btnSyncFilterReconcile');
+        const filterIgnored = document.getElementById('btnSyncFilterIgnored');
+        const filterAutoRec = document.getElementById('btnSyncFilterAutoReconciled');
+        const filterAutoCom = document.getElementById('btnSyncFilterAutoCommitted');
+        const filterAlreadyInDb = document.getElementById('btnSyncFilterAlreadyInDb');
+
+        if (mode === 'statement') {
+            this.previewData = this.statementData || { accounts: [] };
+
+            if (stmtBanner) stmtBanner.style.display = 'flex';
+            if (this.statementData?.updated_at && dateText) {
+                try {
+                    const d = new Date(this.statementData.updated_at);
+                    dateText.textContent = d.toLocaleString();
+                    if (dateBadge) dateBadge.style.display = 'inline-flex';
+                } catch (_) {
+                    if (dateBadge) dateBadge.style.display = 'none';
+                }
+            } else if (dateBadge) {
+                dateBadge.style.display = 'none';
+            }
+
+            const statsContainer = document.getElementById('reviewStatementStatsBadges');
+            if (statsContainer && this.statementData) {
+                const total = this.statementData.total_count ?? 0;
+                const autoRec = this.statementData.auto_reconciled_count ?? 0;
+                const autoCom = this.statementData.auto_committed_count ?? 0;
+                const pending = this.statementData.pending_count ?? 0;
+                statsContainer.innerHTML = `
+                    <span class="badge" style="background: rgba(255,255,255,0.08); color: var(--text-main); font-size: 11px; padding: 2px 7px; border-radius: 6px;">Total : <strong>${total}</strong></span>
+                    ${autoRec > 0 ? `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 11px; padding: 2px 7px; border-radius: 6px;">🤖 Auto-rapprochées : <strong>${autoRec}</strong></span>` : ''}
+                    ${autoCom > 0 ? `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.35); font-size: 11px; padding: 2px 7px; border-radius: 6px;">🤖 Auto-enregistrées : <strong>${autoCom}</strong></span>` : ''}
+                    ${pending > 0 ? `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-size: 11px; padding: 2px 7px; border-radius: 6px;">⚡ À traiter : <strong>${pending}</strong></span>` : ''}
+                `;
+            }
+
+            if (filterPending) filterPending.style.display = 'none';
+            if (filterAdd) filterAdd.style.display = 'none';
+            if (filterReconcile) filterReconcile.style.display = 'none';
+            if (filterIgnored) filterIgnored.style.display = 'none';
+            if (filterAutoRec) filterAutoRec.style.display = 'inline-flex';
+            if (filterAutoCom) filterAutoCom.style.display = 'inline-flex';
+            if (filterAlreadyInDb) filterAlreadyInDb.style.display = 'inline-flex';
+
+            if (aiBtn) aiBtn.style.display = 'none';
+            if (commitBtn) commitBtn.style.display = 'none';
+            if (purgeBtn) purgeBtn.style.display = 'none';
+            if (checkAll) { checkAll.disabled = true; checkAll.style.opacity = '0.3'; }
+            if (checkAllMobile) { checkAllMobile.disabled = true; checkAllMobile.style.opacity = '0.3'; }
+        } else {
+            this.previewData = this.pendingSyncData || { accounts: [] };
+
+            if (stmtBanner) stmtBanner.style.display = 'none';
+            if (dateBadge) dateBadge.style.display = 'none';
+
+            if (filterPending) filterPending.style.display = 'inline-flex';
+            if (filterAdd) filterAdd.style.display = 'inline-flex';
+            if (filterReconcile) filterReconcile.style.display = 'inline-flex';
+            if (filterIgnored) filterIgnored.style.display = 'inline-flex';
+            if (filterAutoRec) filterAutoRec.style.display = 'none';
+            if (filterAutoCom) filterAutoCom.style.display = 'none';
+            if (filterAlreadyInDb) filterAlreadyInDb.style.display = 'none';
+
+            if (aiBtn) aiBtn.style.display = this.isAIEnabled() ? 'inline-flex' : 'none';
+            if (commitBtn) commitBtn.style.display = 'inline-flex';
+            if (purgeBtn) purgeBtn.style.display = 'inline-flex';
+            if (checkAll) { checkAll.disabled = false; checkAll.style.opacity = '1'; }
+            if (checkAllMobile) { checkAllMobile.disabled = false; checkAllMobile.style.opacity = '1'; }
+        }
+
+        if (!this.previewData?.accounts || this.currentAccountIndex >= this.previewData.accounts.length) {
+            this.currentAccountIndex = 0;
+        }
+
+        this.renderAccountTabs();
+        if (reRender) {
+            this.setReviewFilter(mode === 'statement' ? 'all' : 'pending');
+        }
     },
 
     _getBatchSignature(previewData) {
@@ -593,7 +765,11 @@ Object.assign(window.BankSyncView, {
     setReviewFilter(filter) {
         this.currentFilter = filter;
 
-        ['btnSyncFilterPending', 'btnSyncFilterAll', 'btnSyncFilterAdd', 'btnSyncFilterReconcile', 'btnSyncFilterComing', 'btnSyncFilterIgnored'].forEach(id => {
+        [
+            'btnSyncFilterPending', 'btnSyncFilterAll', 'btnSyncFilterAdd',
+            'btnSyncFilterReconcile', 'btnSyncFilterComing', 'btnSyncFilterIgnored',
+            'btnSyncFilterAutoReconciled', 'btnSyncFilterAutoCommitted', 'btnSyncFilterAlreadyInDb'
+        ].forEach(id => {
             const btn = document.getElementById(id);
             if (btn) {
                 btn.style.background = 'transparent';
@@ -608,12 +784,32 @@ Object.assign(window.BankSyncView, {
             'add': 'btnSyncFilterAdd',
             'reconcile': 'btnSyncFilterReconcile',
             'coming': 'btnSyncFilterComing',
-            'ignored': 'btnSyncFilterIgnored'
+            'ignored': 'btnSyncFilterIgnored',
+            'auto_reconciled': 'btnSyncFilterAutoReconciled',
+            'auto_committed': 'btnSyncFilterAutoCommitted',
+            'already_in_db': 'btnSyncFilterAlreadyInDb'
         };
         const activeBtn = document.getElementById(activeMap[filter]);
         if (activeBtn) {
-            activeBtn.style.background = filter === 'coming' ? '#d97706' : (filter === 'pending' ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' : 'var(--accent)');
-            activeBtn.style.borderColor = filter === 'coming' ? '#d97706' : (filter === 'pending' ? '#92400e' : 'var(--accent)');
+            if (filter === 'coming') {
+                activeBtn.style.background = '#d97706';
+                activeBtn.style.borderColor = '#d97706';
+            } else if (filter === 'pending') {
+                activeBtn.style.background = 'linear-gradient(135deg, #d97706 0%, #b45309 100%)';
+                activeBtn.style.borderColor = '#92400e';
+            } else if (filter === 'auto_reconciled') {
+                activeBtn.style.background = '#10b981';
+                activeBtn.style.borderColor = '#10b981';
+            } else if (filter === 'auto_committed') {
+                activeBtn.style.background = 'var(--accent)';
+                activeBtn.style.borderColor = 'var(--accent)';
+            } else if (filter === 'already_in_db') {
+                activeBtn.style.background = '#0ea5e9';
+                activeBtn.style.borderColor = '#0ea5e9';
+            } else {
+                activeBtn.style.background = 'var(--accent)';
+                activeBtn.style.borderColor = 'var(--accent)';
+            }
             activeBtn.style.color = 'white';
         }
 
@@ -763,6 +959,8 @@ Object.assign(window.BankSyncView, {
             }
         });
 
+        const isStatementMode = (this.reviewMode === 'statement');
+
         let visibleTxs = txs.filter(tx => {
             const isIgnoredOrExcluded = tx._excluded || tx.is_dismissed || tx.is_auto_dismissed || (tx.is_reconciled && tx.already_reconciled && !tx.is_coming);
             if (this.currentFilter === 'pending') {
@@ -770,10 +968,13 @@ Object.assign(window.BankSyncView, {
                 return !isIgnoredOrExcluded;
             }
             if (this.currentFilter === 'all') return true;
-            if (this.currentFilter === 'coming') return !!tx.is_coming;
-            if (this.currentFilter === 'ignored') return isIgnoredOrExcluded;
+            if (this.currentFilter === 'coming') return !!(tx.is_coming || tx.audit_is_coming);
+            if (this.currentFilter === 'ignored') return isIgnoredOrExcluded || tx.audit_status === 'dismissed' || tx.audit_status === 'auto_dismissed';
             if (this.currentFilter === 'reconcile') return (tx.is_reconciled && !tx.already_reconciled && !tx.is_coming && !tx._excluded && !tx.is_dismissed);
             if (this.currentFilter === 'add') return (!tx.is_reconciled && !tx.is_coming && !tx._excluded && !tx.is_dismissed && !tx.is_auto_dismissed);
+            if (this.currentFilter === 'auto_reconciled') return tx.audit_status === 'auto_reconciled' || (tx.is_reconciled && !tx.already_reconciled && !tx.is_coming);
+            if (this.currentFilter === 'auto_committed') return tx.audit_status === 'auto_committed';
+            if (this.currentFilter === 'already_in_db') return tx.audit_status === 'already_reconciled' || (tx.is_reconciled && tx.already_reconciled);
             return true;
         });
 
@@ -808,13 +1009,25 @@ Object.assign(window.BankSyncView, {
                 ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}"><span>🎯</span> <span>${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span></span>`
                 : '';
 
-            if (tx.is_dismissed) {
+            if (isStatementMode && tx.audit_status === 'auto_reconciled') {
+                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><span>🤖</span> <span>${window.i18n ? window.i18n.t('bank_sync_status_auto_reconciled') || 'Auto-rapprochée' : 'Auto-rapprochée'}</span></span>`;
+                actionText = window.i18n ? window.i18n.t('bank_sync_action_auto_reconciled') || 'Rapprochée automatiquement' : 'Rapprochée automatiquement';
+                actionColor = `color: #10b981; font-weight: 600;`;
+            } else if (isStatementMode && tx.audit_status === 'auto_committed') {
+                statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.35); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><span>🤖</span> <span>${window.i18n ? window.i18n.t('bank_sync_status_auto_committed') || 'Auto-enregistrée' : 'Auto-enregistrée'}</span></span>`;
+                actionText = window.i18n ? window.i18n.t('bank_sync_action_auto_committed') || 'Écriture enregistrée' : 'Écriture enregistrée';
+                actionColor = `color: var(--accent); font-weight: 600;`;
+            } else if (isStatementMode && tx.audit_status === 'pending_review') {
+                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><span>⚡</span> <span>${window.i18n ? window.i18n.t('bank_sync_status_arbitrage') || 'À arbitrer' : 'À arbitrer'}</span></span>`;
+                actionText = 'À arbitrer dans le sas';
+                actionColor = `color: #d97706; font-weight: 600;`;
+            } else if (tx.is_dismissed || (isStatementMode && tx.audit_status === 'dismissed')) {
                 const badgeLabel = (window.i18n && window.i18n.t('bank_sync_status_dismissed')) || '🚫 Ignorée';
                 const badgeTip = (window.i18n ? window.i18n.t('bank_sync_dismissed_tooltip') || 'Opération ignorée manuellement.' : 'Opération ignorée manuellement.').replace(/"/g, '&quot;');
                 statusBadge = `<span class="badge" style="background:var(--bg-surface); color:var(--text-muted); border:1px solid var(--border-color); cursor:help; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${badgeTip}">${badgeLabel}</span>`;
                 actionText = (window.i18n && window.i18n.t('bank_sync_action_dismissed')) || 'Ignorée (manuelle)';
                 actionColor = `color: var(--text-muted);`;
-            } else if (tx.is_auto_dismissed) {
+            } else if (tx.is_auto_dismissed || (isStatementMode && tx.audit_status === 'auto_dismissed')) {
                 const badgeLabel = (window.i18n && window.i18n.t('bank_sync_status_conformed_ignored')) || '🛡️ Solde conforme';
                 const badgeTip = (window.i18n ? window.i18n.t('bank_sync_conformed_balance_tip') || 'Compte déjà conforme : ancienne opération ignorée automatiquement.' : 'Compte déjà conforme : ancienne opération ignorée automatiquement.').replace(/"/g, '&quot;');
                 statusBadge = `<span class="badge" style="background:rgba(16, 185, 129, 0.12); color:#10b981; border:1px solid rgba(16, 185, 129, 0.35); font-weight:600; cursor:help; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${badgeTip}">${badgeLabel}</span>`;
@@ -995,19 +1208,47 @@ Object.assign(window.BankSyncView, {
                 deleteOrRestoreBtn = `<button class="btn-action-del" onclick="window.BankSyncView.removeTxRow('${tx.csv_id}')" title="${lblIgnoreRow}">✕</button>`;
             }
 
+            // Cellules personnalisées selon le mode (Sas d'attente vs Consultation du relevé)
+            let checkCellHtml = '';
+            let dateCellHtml = '';
+            let descCellHtml = '';
+            let catCellHtml = '';
+            let amountCellHtml = '';
+            let actionBtnsHtml = '';
+
+            if (isStatementMode) {
+                checkCellHtml = `<span style="opacity: 0.7; font-size: 14px;" title="${window.i18n ? window.i18n.t('bank_sync_mode_statement', 'Mode consultation') : 'Mode consultation'}">📋</span>`;
+                dateCellHtml = `<div class="review-date-wrap" style="font-weight: 500; color: var(--text-main);">${comingDateIcon}${tx.date_operation || ''}</div>`;
+                descCellHtml = `${dbDesc}<span class="sync-desc" style="display: block; font-weight: 500; color: var(--text-main); padding: 4px 0;">${window.escapeHtml ? window.escapeHtml(tx.description || '') : (tx.description || '')}</span>${descSublineHtml}`;
+                const displayCategory = tx.category || tx.audit_category || tx.db_category || '--';
+                catCellHtml = `<span class="badge" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); color: var(--text-main); font-size: 11.5px; padding: 3px 8px; border-radius: 6px;">${window.escapeHtml ? window.escapeHtml(displayCategory) : displayCategory}</span>`;
+                amountCellHtml = `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(isDebit ? '-' : '+')} ${amtVal.toFixed(2)} €</span>`;
+                const inspectId = tx.audit_matched_id || tx.audit_created_id || tx.matched_db_id;
+                if (inspectId) {
+                    actionBtnsHtml = `<button class="btn-action-icon" style="color: var(--accent); padding: 3px 6px; font-size: 13px;" onclick="window.BankSyncView.viewTransactionInApp(${inspectId})" title="${window.i18n ? window.i18n.t('bank_sync_view_tx_tooltip', 'Voir cette opération dans l\'historique') : 'Voir cette opération dans l\'historique'}"><span>👁️</span></button>`;
+                }
+            } else {
+                checkCellHtml = `<input type="checkbox" class="sync-row-check" ${isExcluded ? '' : 'checked'} onchange="window.BankSyncView.toggleTxCheck(${this.currentAccountIndex}, '${tx.csv_id}', this.checked)" title="${lblRowCheck}" style="cursor: pointer; transform: scale(1.15);">`;
+                dateCellHtml = `<div class="review-date-wrap">${comingDateIcon}<input type="date" class="input-styled sync-date" value="${tx.date_operation}" style="width: 120px; padding: 4px;" ${isRec ? 'disabled' : ''} onchange="window.BankSyncView.updateTxDate(${this.currentAccountIndex}, '${tx.csv_id}', this.value)"></div>`;
+                descCellHtml = descInput;
+                catCellHtml = catSelect;
+                amountCellHtml = amountInput;
+                actionBtnsHtml = `${linkActionBtn}${deleteOrRestoreBtn}`;
+            }
+
             return `
             <tr id="syncRow_${tx.csv_id}" class="review-tx-row ${isExcluded ? 'is-excluded' : ''} ${tx.is_coming ? 'is-coming' : ''} ${alreadyRec ? 'is-already-rec' : ''}${extraClass}" style="${rowStyle}">
                 <td class="review-cell-check" style="padding: 10px 14px; text-align: center;">
-                    <input type="checkbox" class="sync-row-check" ${isExcluded ? '' : 'checked'} onchange="window.BankSyncView.toggleTxCheck(${this.currentAccountIndex}, '${tx.csv_id}', this.checked)" title="${lblRowCheck}" style="cursor: pointer; transform: scale(1.15);">
+                    ${checkCellHtml}
                 </td>
                 <td class="review-cell-date" style="padding: 10px 14px; white-space: nowrap;">
-                    <div class="review-date-wrap">${comingDateIcon}<input type="date" class="input-styled sync-date" value="${tx.date_operation}" style="width: 120px; padding: 4px;" ${isRec ? 'disabled' : ''} onchange="window.BankSyncView.updateTxDate(${this.currentAccountIndex}, '${tx.csv_id}', this.value)"></div>
+                    ${dateCellHtml}
                 </td>
-                <td class="review-cell-desc" style="padding: 10px 14px;">${descInput}</td>
-                <td class="review-cell-cat" style="padding: 10px 14px;">${catSelect}</td>
+                <td class="review-cell-desc" style="padding: 10px 14px;">${descCellHtml}</td>
+                <td class="review-cell-cat" style="padding: 10px 14px;">${catCellHtml}</td>
                 <td class="review-cell-amount" style="padding: 10px 14px; text-align: right;">
                     <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                        ${amountInput}
+                        ${amountCellHtml}
                         ${directionPillHtml}
                     </div>
                 </td>
@@ -1024,8 +1265,7 @@ Object.assign(window.BankSyncView, {
                     <div class="review-actions-wrap">
                         <span class="review-action-text" style="${actionColor}">${actionText}</span>
                         <div class="review-action-btns">
-                            ${linkActionBtn}
-                            ${deleteOrRestoreBtn}
+                            ${actionBtnsHtml}
                         </div>
                     </div>
                 </td>
@@ -1062,6 +1302,7 @@ Object.assign(window.BankSyncView, {
     },
 
     toggleCheckAll(isChecked) {
+        if (this.reviewMode === 'statement') return;
         if (!this.previewData || !this.previewData.accounts) return;
         const currentAcc = this.previewData.accounts[this.currentAccountIndex];
         if (!currentAcc || !currentAcc.transactions) return;
@@ -1093,6 +1334,18 @@ Object.assign(window.BankSyncView, {
     _updateMasterCheckboxState() {
         const masterCheck = document.getElementById('syncCheckAll');
         const masterCheckMobile = document.getElementById('syncCheckAllMobile');
+
+        if (this.reviewMode === 'statement') {
+            const chks = [masterCheck, masterCheckMobile].filter(Boolean);
+            chks.forEach(c => {
+                c.disabled = true;
+                c.checked = false;
+                c.indeterminate = false;
+                c.style.opacity = '0.3';
+            });
+            return;
+        }
+
         if (!this.previewData?.accounts) return;
         const currentAcc = this.previewData.accounts[this.currentAccountIndex];
         if (!currentAcc || !currentAcc.transactions) return;
@@ -1702,6 +1955,24 @@ Object.assign(window.BankSyncView, {
                 const lblReconciled = (rawReconciled && rawReconciled !== 'bank_sync_reconciled_word') ? rawReconciled : 'Rapproché';
                 balanceBadgeHtml = `<span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;" title="${deltaTip}"><span>⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart'} : ${diffFormatted} (Banque: ${currentAcc.bank_balance.toFixed(2)} € • ${lblReconciled}: ${currentAcc.local_reconciled_balance.toFixed(2)} €)${explanationText}</span>${shouldShowAdjustBtn ? adjustBtnHtml : ''}</span>`;
             }
+        }
+
+        if (this.reviewMode === 'statement') {
+            const accTxs = currentAcc?.transactions || [];
+            const countAutoRec = accTxs.filter(t => t.audit_status === 'auto_reconciled' || (t.is_reconciled && !t.already_reconciled && !t.is_coming)).length;
+            const countAutoCom = accTxs.filter(t => t.audit_status === 'auto_committed').length;
+            const countPending = accTxs.filter(t => t.audit_status === 'pending_review' || (!t.audit_status && !t.is_reconciled && !t.is_dismissed && !t.is_auto_dismissed)).length;
+            const countAlready = accTxs.filter(t => t.audit_status === 'already_reconciled' || (t.is_reconciled && t.already_reconciled)).length;
+
+            box.innerHTML = `
+                <span title="Opérations visualisées">📋 <strong>${accTxs.length} opération(s) au relevé</strong></span>
+                ${countAutoRec > 0 ? `<span style="color: #10b981;">🤖 <strong>${countAutoRec} auto-rapprochée(s)</strong></span>` : ''}
+                ${countAutoCom > 0 ? `<span style="color: var(--accent);">🤖 <strong>${countAutoCom} auto-enregistrée(s)</strong></span>` : ''}
+                ${countPending > 0 ? `<span style="color: #d97706;">⚡ <strong>${countPending} à arbitrer</strong></span>` : ''}
+                ${countAlready > 0 ? `<span style="color: var(--text-muted);">✅ <strong>${countAlready} déjà en base</strong></span>` : ''}
+                ${balanceBadgeHtml ? `<span style="border-left: 1px solid var(--border-color); padding-left: 12px; margin-left: 4px;">${balanceBadgeHtml}</span>` : ''}
+            `;
+            return;
         }
 
         box.innerHTML = `

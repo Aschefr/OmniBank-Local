@@ -1058,7 +1058,42 @@ Object.assign(window.BankSyncView, {
         }
     },
 
-    async openPendingReviewModal(triggerEl = null, targetAccountId = null) {
+    async openLastStatementModal(connId = null) {
+        if (this._isOpeningPendingReview) return;
+        this._isOpeningPendingReview = true;
+        try {
+            this.ensureModalsExist();
+            const url = (connId && connId !== -1)
+                ? `/api/bank-sync/last-statement?conn_id=${connId}`
+                : '/api/bank-sync/last-statement';
+            const statementData = await API.get(url);
+            let pendingData = null;
+            try {
+                pendingData = await API.get('/api/bank-sync/pending');
+            } catch (_) {}
+
+            const hasStmt = statementData && statementData.accounts && statementData.accounts.length > 0;
+            const hasPend = pendingData && pendingData.accounts && pendingData.accounts.length > 0;
+
+            if (!hasStmt && !hasPend) {
+                this.showToast(window.i18n ? window.i18n.t('bank_sync_no_statement_available') || 'Aucun relevé récent enregistré.' : 'Aucun relevé récent enregistré.', 'info');
+                return;
+            }
+
+            const targetConnId = connId || statementData?.conn_id || (pendingData?.accounts?.[0]?.connection_id) || 1;
+            await this.openReviewModal(targetConnId, pendingData || { accounts: [] }, null, {
+                initialMode: 'statement',
+                statementData: statementData
+            });
+        } catch (e) {
+            console.error('[BankSync] Erreur ouverture dernier relevé:', e);
+            this.showToast('Erreur ouverture dernier relevé : ' + (e.message || e), 'error');
+        } finally {
+            this._isOpeningPendingReview = false;
+        }
+    },
+
+    async openPendingReviewModal(triggerEl = null, targetAccountId = null, preferredConnId = null) {
         if (this._isOpeningPendingReview) return;
         this._isOpeningPendingReview = true;
 
@@ -1084,15 +1119,35 @@ Object.assign(window.BankSyncView, {
 
         try {
             this.ensureModalsExist();
-            let data = await API.get('/api/bank-sync/pending');
-            if (data && data.accounts && data.accounts.length > 0) {
-                const firstConnId = data.accounts[0]?.connection_id != null ? data.accounts[0].connection_id : (this.connections?.[0]?.id || 1);
+            let data = null;
+            try {
+                data = await API.get('/api/bank-sync/pending');
+            } catch (_) {}
+
+            let statementData = null;
+            try {
+                const stmtUrl = (preferredConnId && preferredConnId !== -1)
+                    ? `/api/bank-sync/last-statement?conn_id=${preferredConnId}`
+                    : '/api/bank-sync/last-statement';
+                statementData = await API.get(stmtUrl);
+            } catch (_) {}
+
+            const hasPendingTxs = (data?.accounts || []).some(acc =>
+                (acc.transactions || []).some(tx => !tx._excluded && !tx.is_dismissed && !tx.is_auto_dismissed && (!tx.is_reconciled || !tx.already_reconciled || tx.is_coming))
+            );
+            const hasStatementTxs = (statementData?.accounts || []).some(acc => (acc.transactions || []).length > 0);
+
+            if (hasPendingTxs || hasStatementTxs) {
+                const firstConnId = preferredConnId || (data?.accounts?.[0]?.connection_id != null ? data.accounts[0].connection_id : (statementData?.conn_id != null ? statementData.conn_id : (this.connections?.[0]?.id || 1)));
                 const isCsv = firstConnId === -1;
                 await this.openReviewModal(firstConnId, {
                     _source: isCsv ? 'csv_import' : 'bank_sync',
                     connection_id: firstConnId,
-                    accounts: data.accounts
-                }, targetAccountId);
+                    accounts: data?.accounts || []
+                }, targetAccountId, {
+                    initialMode: hasPendingTxs ? 'pending' : 'statement',
+                    statementData: statementData
+                });
                 return;
             }
 
@@ -1107,7 +1162,7 @@ Object.assign(window.BankSyncView, {
                 }
             }
 
-            this.showToast('Aucune opération en attente de revue.', 'info');
+            this.showToast(window.i18n ? window.i18n.t('bank_sync_no_statement_available') || 'Aucun relevé récent enregistré.' : 'Aucun relevé récent enregistré.', 'info');
         } catch (e) {
             console.error('[BankSync] Erreur ouverture des opérations en attente:', e);
             this.showToast('Erreur ouverture des opérations en attente : ' + (e.message || e), 'error');

@@ -9,14 +9,32 @@
 
 /* ── Header Cockpit Fixe : Titre puis Toolbar sous le titre ── */
 .autopilot-container .view-header-bar {
+    position: relative !important;
+    top: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 6px !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: flex-start !important;
     gap: 14px !important;
+    margin-bottom: 20px !important;
 }
 
 .autopilot-container .view-header-title-group {
     width: 100%;
+}
+
+.autopilot-container .ap-header-title-icon {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.autopilot-container .ap-header-title-icon:hover {
+    transform: rotate(30deg) scale(1.1);
 }
 
 .autopilot-container .autopilot-header-toolbar {
@@ -698,6 +716,25 @@ body.theme-classic-light .ap-decision-row:hover {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.ov-ap-close-btn {
+    display: none;
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #94a3b8);
+    font-size: 16px;
+    padding: 2px 6px;
+    cursor: pointer;
+    border-radius: 6px;
+    line-height: 1;
+    transition: background 0.15s ease, color 0.15s ease;
+    margin-left: 2px;
+}
+
+.ov-ap-close-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main, #ffffff);
 }
 
 .ov-ap-status-pill {
@@ -1990,6 +2027,524 @@ body.privacy-mode input.privacy-blur:focus {
 }
 .ap-preset-btn:active {
     transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Auto-Pilot Role & Philosophy Panel (Left Column)
+   ═══════════════════════════════════════════════════════ */
+.ap-role-card {
+    background: var(--bg-card, var(--bg-surface));
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ap-role-card:hover {
+    border-color: rgba(99, 102, 241, 0.35);
+}
+
+.ap-role-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.ap-role-header-left {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+
+.ap-role-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.ap-role-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+    color: var(--text-main);
+    line-height: 1.2;
+}
+
+.ap-role-card-subtitle {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    margin: 1px 0 0 0;
+    line-height: 1.2;
+}
+
+.ap-role-badge-optional {
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.ap-role-quote {
+    background: rgba(99, 102, 241, 0.05);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 8px 10px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--text-main);
+    font-style: italic;
+}
+
+.ap-role-pillars {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ap-role-pillar-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 8px 10px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+
+.ap-role-pillar-item:hover {
+    border-color: rgba(99, 102, 241, 0.35);
+    background: var(--bg-surface-hover, rgba(255, 255, 255, 0.02));
+    transform: translateX(2px);
+}
+
+.ap-role-pillar-icon {
+    font-size: 14px;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.ap-role-pillar-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.ap-role-pillar-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 2px;
+    line-height: 1.2;
+}
+
+.ap-role-pillar-desc {
+    font-size: 10px;
+    color: var(--text-muted);
+    line-height: 1.35;
+    margin: 0;
+}
+
+.ap-role-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    margin-top: 2px;
+}
+
+.ap-role-action-btn:hover {
+    background: rgba(99, 102, 241, 0.16);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
+@media (max-width: 900px) {
+    .ap-cockpit-layout {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Mobile Responsive Cockpit & Toolbar (<= 768px, <= 480px, <= 360px)
+   ═══════════════════════════════════════════════════════ */
+
+.ap-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ap-btn-label {
+    white-space: nowrap;
+}
+
+.ap-btn-label-short {
+    display: none;
+}
+
+.ap-btn-label-full {
+    display: inline;
+}
+
+.ap-state-full {
+    display: inline;
+}
+
+.ap-state-short {
+    display: none;
+}
+
+.ap-toolbar-actions-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ap-toolbar-sync-group {
+    display: inline-flex;
+    align-items: center;
+}
+
+@media (max-width: 768px) {
+    .autopilot-container .view-header-bar {
+        position: relative !important;
+        top: 0 !important;
+        margin-top: 0 !important;
+        padding: 12px 14px 0 14px !important;
+        gap: 10px !important;
+    }
+
+    .autopilot-container .view-header-title {
+        font-size: 18px !important;
+        flex-wrap: wrap;
+        gap: 6px !important;
+    }
+
+    .autopilot-container .view-header-desc {
+        font-size: 12.5px !important;
+    }
+
+    .autopilot-container .autopilot-header-toolbar {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        width: 100% !important;
+    }
+
+    /* Ordre tactile ergonomique mobile :
+       1. Master Switch (Actif/Veille + Prochain relevé)
+       2. Relevé auto intervalle
+       3. Boutons d'actions rapides (Dernier relevé / Réglages)
+    */
+    .autopilot-container #apHeroMasterSwitch {
+        order: 1;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        height: 48px !important;
+        padding: 4px 10px 4px 6px !important;
+        border-radius: 24px !important;
+        margin: 0 !important;
+    }
+
+    .autopilot-container #apBankSyncGroup {
+        order: 2;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        justify-content: center !important;
+        padding: 4px 8px !important;
+        border-radius: 12px !important;
+    }
+
+    .autopilot-container #apActionButtonsGroup {
+        order: 3;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 4px 6px !important;
+        border-radius: 12px !important;
+    }
+
+    /* Boutons d'actions rapides en 50/50 parfait */
+    .autopilot-container .ap-toolbar-actions-group .ap-header-btn {
+        flex: 1 1 0 !important;
+        width: 50% !important;
+        min-width: 0 !important;
+        height: 38px !important;
+        min-height: 38px !important;
+        max-height: 38px !important;
+        padding: 0 10px !important;
+        font-size: 12px !important;
+        white-space: nowrap !important;
+        justify-content: center !important;
+        gap: 6px !important;
+        border-radius: 8px !important;
+    }
+
+    .autopilot-container .ap-toolbar-actions-group .ap-header-btn span {
+        white-space: nowrap !important;
+    }
+
+    .autopilot-container .ap-hero-switch-knob {
+        width: 38px !important;
+        height: 38px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .autopilot-container .ap-hero-switch-content {
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+        margin-left: 6px !important;
+    }
+
+    .autopilot-container .ap-hero-switch-title {
+        font-size: 12px !important;
+        white-space: nowrap !important;
+    }
+
+    .autopilot-container .ap-hero-switch-state {
+        font-size: 10px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .autopilot-container .ap-cylon-scanner-slot {
+        min-width: 115px !important;
+        max-width: 140px !important;
+        padding: 3px 8px !important;
+        margin-left: 6px !important;
+        flex-shrink: 0 !important;
+        border-radius: 10px !important;
+    }
+
+    .autopilot-container .ap-cylon-label {
+        font-size: 8px !important;
+        letter-spacing: 0.5px !important;
+        white-space: nowrap !important;
+    }
+
+    .autopilot-container .ap-cylon-time {
+        font-size: 11px !important;
+        white-space: nowrap !important;
+    }
+
+    /* Auto-Sync Widget mobile full-width */
+    .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget-slot {
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+    }
+
+    .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget {
+        width: 100% !important;
+        justify-content: space-between !important;
+        padding: 0 10px !important;
+        height: 38px !important;
+        min-height: 38px !important;
+        max-height: 38px !important;
+        border-radius: 8px !important;
+    }
+
+    .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget label {
+        font-size: 11.5px !important;
+        white-space: nowrap !important;
+        gap: 4px !important;
+    }
+
+    .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget select {
+        height: 24px !important;
+        font-size: 11px !important;
+        padding: 0 4px !important;
+    }
+
+    .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget button {
+        height: 24px !important;
+        font-size: 11px !important;
+        padding: 0 6px !important;
+        white-space: nowrap !important;
+    }
+
+    /* Badge d'état externe (Actif / Déverrouillé) */
+    .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget > span {
+        height: 24px !important;
+        font-size: 11px !important;
+        padding: 0 8px !important;
+        white-space: nowrap !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+        border-radius: 6px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Le point lumineux circulaire à l'intérieur du badge (jamais étiré en ovale) */
+    .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget > span > span,
+    .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget span[style*="border-radius: 50%"] {
+        width: 6px !important;
+        height: 6px !important;
+        min-width: 6px !important;
+        max-width: 6px !important;
+        min-height: 6px !important;
+        max-height: 6px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border-radius: 50% !important;
+        display: inline-block !important;
+        flex-shrink: 0 !important;
+    }
+}
+
+@media (max-width: 1024px) {
+    .overview-autopilot-popover {
+        position: absolute !important;
+        top: calc(100% + 8px) !important;
+        left: 0 !important;
+        right: auto !important;
+        width: calc(100vw - 24px) !important;
+        max-width: 390px !important;
+        max-height: calc(100vh - 120px) !important;
+        overflow-y: auto !important;
+        z-index: 1000 !important;
+        margin: 0 !important;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 25px rgba(16, 185, 129, 0.15) !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .ov-ap-close-btn {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .autopilot-container .ap-toolbar-actions-group .ap-btn-label-full {
+        display: none !important;
+    }
+
+    .autopilot-container .ap-toolbar-actions-group .ap-btn-label-short {
+        display: inline !important;
+    }
+
+    .autopilot-container .ap-toolbar-actions-group .ap-header-btn {
+        padding: 0 8px !important;
+        font-size: 11.5px !important;
+        gap: 5px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .ap-state-full {
+        display: none !important;
+    }
+
+    .ap-state-short {
+        display: inline !important;
+    }
+
+    .autopilot-container .ap-toolbar-actions-group .ap-header-btn {
+        padding: 0 6px !important;
+        font-size: 11.5px !important;
+        gap: 4px !important;
+    }
+
+    .autopilot-container .ap-briques-badge {
+        font-size: 9.5px !important;
+        padding: 1px 4px !important;
+    }
+
+    .autopilot-container .view-header-title {
+        font-size: 17px !important;
+    }
+
+    .autopilot-container .ap-cylon-scanner-slot {
+        min-width: 105px !important;
+        max-width: 130px !important;
+        padding: 2px 6px !important;
+        margin-left: 4px !important;
+    }
+
+    .autopilot-container .ap-cylon-label {
+        font-size: 7.5px !important;
+    }
+
+    .autopilot-container .ap-cylon-time {
+        font-size: 10.5px !important;
+    }
+
+    /* Tiroir de réglages en plein écran sur smartphone */
+    #apSettingsDrawer > div {
+        width: 100% !important;
+        max-width: 100vw !important;
+        border-left: none !important;
+    }
+}
+
+@media (max-width: 360px) {
+    .overview-autopilot-popover {
+        left: 0 !important;
+        right: auto !important;
+        width: calc(100vw - 16px) !important;
+        max-width: calc(100vw - 16px) !important;
+    }
+
+    .autopilot-container .ap-cylon-scanner-slot {
+        min-width: 90px !important;
+        max-width: 110px !important;
+        padding: 2px 5px !important;
+    }
+
+    .autopilot-container .ap-cylon-time {
+        font-size: 9.5px !important;
+    }
+
+    .autopilot-container .ap-toolbar-actions-group .ap-header-btn {
+        font-size: 10px !important;
+        padding: 0 4px !important;
+    }
 }
 
 

@@ -307,12 +307,11 @@ Object.assign(window.BankSyncView, {
                     `;
                 }
 
-                const cachedPreview = this.getCachedPreview ? this.getCachedPreview(conn.id) : null;
-                const cachedBtn = cachedPreview ? `
-                    <button class="btn btn-secondary bank-conn-btn" onclick="window.BankSyncView.openCachedPreviewDirectly(${conn.id})" title="${window.i18n ? window.i18n.t('bank_sync_cached_preview_tooltip') : 'Dernier aperçu'}">
-                        <span>📋</span> <span data-i18n="bank_sync_cached_preview_btn">${window.i18n ? window.i18n.t('bank_sync_cached_preview_btn') : 'Dernier aperçu'}</span>
+                const lastStatementBtn = `
+                    <button class="btn btn-secondary bank-conn-btn" onclick="window.BankSyncView.openLastStatementModal(${conn.id})" title="${window.i18n ? window.i18n.t('bank_sync_statement_btn_tooltip') || 'Consulter le dernier relevé bancaire synchronisé' : 'Consulter le dernier relevé bancaire synchronisé'}">
+                        <span>📋</span> <span data-i18n="bank_sync_statement_btn">${window.i18n ? window.i18n.t('bank_sync_statement_btn') || 'Dernier relevé' : 'Dernier relevé'}</span>
                     </button>
-                ` : '';
+                `;
 
                 return `
                 <div class="bank-connection-item">
@@ -336,7 +335,7 @@ Object.assign(window.BankSyncView, {
                     </div>
 
                     <div class="bank-connection-actions">
-                        ${cachedBtn}
+                        ${lastStatementBtn}
                         <button class="btn btn-primary bank-conn-btn" onclick="window.BankSyncView.promptAndSync(${conn.id})" title="${window.i18n ? window.i18n.t('bank_sync_sync_btn_tooltip') : 'Synchroniser'}">
                             <span>🔄</span> <span data-i18n="bank_sync_sync_btn">${window.i18n ? window.i18n.t('bank_sync_sync_btn') : 'Synchroniser'}</span>
                         </button>

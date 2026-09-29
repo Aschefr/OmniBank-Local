@@ -45,7 +45,7 @@
     }
 
     .profile-name {
-        max-width: 80px !important;
+        max-width: 140px !important;
     }
 
     .app-sidebar {
@@ -985,7 +985,7 @@
     }
 
     .profile-name {
-        max-width: 55px !important;
+        max-width: 120px !important;
     }
 
     .header-actions button:not(#notifMenu *):not(#themeMenu *):not(#langMenu *):not(.user-switcher-btn):not(.notif-action-btn):not(#langToggleBtn):not(.profile-badge):not(#profileBtn) {
@@ -1028,7 +1028,7 @@
     }
 
     .profile-name {
-        max-width: 40px !important;
+        max-width: 80px !important;
     }
 
     .overview-rhythm-badges {

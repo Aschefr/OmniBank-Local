@@ -571,3 +571,78 @@ def clear_pending_sync_for_conn(db: Session, conn_id: int, profile_id: Optional[
     clear_pending_sync_for_connection(db, conn_id, profile_id)
 
 
+# ── SNAPSHOT DU DERNIER RELEVÉ BANCAIRE POUR CONSULTATION ───────────────────────
+_LAST_STATEMENT_SNAPSHOTS: Dict[str, Dict[int, Dict[str, Any]]] = {}
+
+
+def save_last_statement_snapshot(
+    db: Session,
+    conn_id: int,
+    statement_data: Dict[str, Any],
+    profile_id: Optional[str] = None
+):
+    """
+    Sauvegarde le snapshot intégral du dernier relevé bancaire synchronisé pour consultation.
+    Permet à l'utilisateur de réexaminer à tout moment l'ensemble des opérations du relevé
+    et leur classification (auto-rapprochées, auto-enregistrées, en attente, etc.).
+    """
+    global _LAST_STATEMENT_SNAPSHOTS
+    pid = _resolve_profile_id(profile_id)
+    cid = _normalize_conn_id(conn_id)
+    if pid not in _LAST_STATEMENT_SNAPSHOTS:
+        _LAST_STATEMENT_SNAPSHOTS[pid] = {}
+
+    entry = {
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "conn_id": cid,
+        **statement_data
+    }
+    _LAST_STATEMENT_SNAPSHOTS[pid][cid] = entry
+
+    try:
+        serializable = {str(k): v for k, v in _LAST_STATEMENT_SNAPSHOTS[pid].items()}
+        key = f"bank_last_statement_cache_{pid}" if pid != "default" else "bank_last_statement_cache"
+        _set_config_value(db, key, json.dumps(serializable, default=str))
+    except Exception as e:
+        logger.warning(f"[BankPendingStore] Erreur sauvegarde last_statement_snapshot: {e}")
+
+
+def get_last_statement_snapshot(
+    db: Session,
+    conn_id: Optional[int] = None,
+    profile_id: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Récupère le snapshot du dernier relevé pour consultation.
+    Si conn_id est None, renvoie le plus récent toutes connexions confondues.
+    """
+    global _LAST_STATEMENT_SNAPSHOTS
+    pid = _resolve_profile_id(profile_id)
+    if pid not in _LAST_STATEMENT_SNAPSHOTS or not _LAST_STATEMENT_SNAPSHOTS[pid]:
+        key = f"bank_last_statement_cache_{pid}" if pid != "default" else "bank_last_statement_cache"
+        raw = _get_config_value(db, key, "")
+        if raw:
+            try:
+                cached = json.loads(raw)
+                _LAST_STATEMENT_SNAPSHOTS[pid] = {_normalize_conn_id(k): v for k, v in cached.items()}
+            except Exception:
+                _LAST_STATEMENT_SNAPSHOTS[pid] = {}
+
+    conn_map = _LAST_STATEMENT_SNAPSHOTS.get(pid, {})
+    if not conn_map:
+        return None
+
+    if conn_id is not None:
+        cid = _normalize_conn_id(conn_id)
+        return conn_map.get(cid)
+
+    # Prendre le plus récent
+    sorted_stmts = sorted(
+        conn_map.values(),
+        key=lambda s: s.get("updated_at", ""),
+        reverse=True
+    )
+    return sorted_stmts[0] if sorted_stmts else None
+
+
+

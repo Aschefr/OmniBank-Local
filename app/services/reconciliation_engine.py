@@ -234,19 +234,39 @@ def check_reconciliation(
     if tx_date is None or tx_amount is None:
         return None
     try:
-        abs_amount = abs(float(tx_amount))
+        raw_val = float(tx_amount)
+        abs_amount = abs(raw_val)
     except (ValueError, TypeError):
         return None
 
     epsilon = 0.01
+    is_credit = (raw_val > 0)
 
-    # Clause de filtre par compte si fourni
+    # Clause de filtre par compte et par sens de flux (crédit vs débit)
+    # Empêche strictement d'apparier une recette/remboursement bancaire avec une dépense en base, ou inversement
     acc_filter = None
     if account_id:
-        acc_filter = or_(
-            Transaction.from_account_id == account_id,
-            Transaction.to_account_id == account_id
-        )
+        if is_credit:
+            acc_filter = or_(
+                Transaction.to_account_id == account_id,
+                and_(Transaction.type == "income", Transaction.from_account_id == account_id)
+            )
+        else:
+            acc_filter = or_(
+                and_(Transaction.from_account_id == account_id, Transaction.type != "income"),
+                and_(Transaction.to_account_id == None, Transaction.from_account_id == account_id)
+            )
+    else:
+        if is_credit:
+            acc_filter = or_(
+                Transaction.type == "income",
+                and_(Transaction.type == "transfer", Transaction.to_account_id.isnot(None))
+            )
+        else:
+            acc_filter = or_(
+                Transaction.type.notin_(["income"]),
+                and_(Transaction.type == "transfer", Transaction.from_account_id.isnot(None))
+            )
 
     # ── PASSE 0 : Correspondance exacte et prioritaire par empreinte bancaire (csv_id) ──
     if csv_id:
@@ -277,6 +297,8 @@ def check_reconciliation(
             return {
                 "id": exact_csv_match.id,
                 "description": exact_csv_match.description,
+                "category": exact_csv_match.category,
+                "type": exact_csv_match.type,
                 "already_reconciled": is_already,
                 "match_score": 100,
                 "collision_detected": False,

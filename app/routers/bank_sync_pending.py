@@ -20,17 +20,101 @@ from app.services.bank_sync_scheduler import (
     clear_all_pending_sync,
     dismiss_pending_transaction,
     get_all_pending_sync,
+    get_last_statement_snapshot,
     remove_committed_from_pending,
     remove_dismissed_transaction,
+    save_last_statement_snapshot,
     save_pending_sync_data,
 )
 from app.services.history_service import record_action, snapshot_entity
+from app.services.reconciliation_engine import check_reconciliation
 from app.services.smart_label_service import resolve_smart_labels_batch
 from app.services import stats_cache
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/bank-sync", tags=["bank-sync"])
+
+
+@router.get("/last-statement")
+def get_last_statement_endpoint(conn_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """Retourne le dernier relevé bancaire synchronisé pour consultation (avec les statuts d'audit de l'Auto-Pilote)."""
+    active_pid = get_active_profile().get("id", "default")
+    snapshot = get_last_statement_snapshot(db, conn_id=conn_id, profile_id=active_pid)
+    if not snapshot:
+        return {"accounts": [], "updated_at": None, "conn_id": conn_id}
+
+    snapshot_modified = False
+    # Enrichissement dynamique, validation et réparation du sens de flux (crédit vs débit)
+    for acc in snapshot.get("accounts", []):
+        acc_id = acc.get("account_id")
+        for tx in acc.get("transactions", []):
+            raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else tx.get("amount", 0.0))
+            is_credit = (raw_amt > 0)
+
+            # Vérifier si l'appariement existant a un sens inversé (ex: crédit bancaire apparié par erreur à une dépense en base)
+            db_id = tx.get("audit_matched_id") or tx.get("matched_db_id")
+            if db_id and acc_id:
+                db_tx = db.query(Transaction).filter(Transaction.id == db_id).first()
+                if db_tx:
+                    db_is_credit = (db_tx.to_account_id == acc_id or db_tx.type == "income")
+                    if is_credit != db_is_credit:
+                        # Inversion détectée : recalculer le rapprochement conforme
+                        tx_date_str = tx.get("date_operation")
+                        tx_d = None
+                        if tx_date_str:
+                            try:
+                                tx_d = date.fromisoformat(str(tx_date_str)[:10])
+                            except Exception:
+                                pass
+                        if tx_d:
+                            corrected_rec = check_reconciliation(
+                                db,
+                                tx_d,
+                                raw_amt,
+                                account_id=acc_id,
+                                is_coming=bool(tx.get("is_coming")),
+                                bank_label=tx.get("raw_description") or tx.get("description"),
+                                csv_id=tx.get("csv_id")
+                            )
+                            if corrected_rec and corrected_rec.get("id"):
+                                new_id = corrected_rec["id"]
+                                tx["matched_db_id"] = new_id
+                                tx["db_description"] = corrected_rec.get("description")
+                                tx["category"] = corrected_rec.get("category")
+                                tx["db_category"] = corrected_rec.get("category")
+                                if "audit_matched_id" in tx:
+                                    tx["audit_matched_id"] = new_id
+                                if "audit_matched_desc" in tx:
+                                    tx["audit_matched_desc"] = corrected_rec.get("description")
+                                if "audit_category" in tx:
+                                    tx["audit_category"] = corrected_rec.get("category")
+                                snapshot_modified = True
+
+            # Si la catégorie est encore manquante, la charger depuis la transaction en base
+            if not tx.get("category") or tx.get("category") == "--":
+                curr_id = tx.get("audit_matched_id") or tx.get("audit_created_id") or tx.get("matched_db_id")
+                if curr_id:
+                    db_t = db.query(Transaction).filter(Transaction.id == curr_id).first()
+                    if db_t and db_t.category:
+                        tx["category"] = db_t.category
+                        tx["db_category"] = db_t.category
+                        snapshot_modified = True
+                elif tx.get("csv_id"):
+                    db_t = db.query(Transaction).filter(Transaction.csv_id == tx["csv_id"]).first()
+                    if db_t and db_t.category:
+                        tx["category"] = db_t.category
+                        tx["db_category"] = db_t.category
+                        if not tx.get("matched_db_id"):
+                            tx["matched_db_id"] = db_t.id
+                        snapshot_modified = True
+
+    if snapshot_modified:
+        target_conn = snapshot.get("conn_id") or conn_id
+        if target_conn is not None:
+            save_last_statement_snapshot(db, target_conn, snapshot, profile_id=active_pid)
+
+    return snapshot
 
 
 @router.get("/pending")

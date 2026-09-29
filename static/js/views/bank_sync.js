@@ -633,6 +633,21 @@ window.BankSyncView = {
                     </div>
                 </div>
 
+                <!-- Sélecteur de mode : Triage Opérations à traiter VS Consultation Dernier relevé -->
+                <div id="reviewModeBar" class="review-mode-bar">
+                    <button type="button" id="btnReviewModePending" class="review-mode-tab active" onclick="window.BankSyncView.switchReviewMode('pending')">
+                        <span>⚡</span> <span id="lblReviewModePending" data-i18n="bank_sync_mode_pending">${window.i18n ? window.i18n.t('bank_sync_mode_pending') || 'Opérations à traiter' : 'Opérations à traiter'}</span>
+                        <span id="badgeReviewModePendingCount" class="badge" style="background: var(--accent); color: #fff; padding: 1px 7px; border-radius: 10px; font-size: 11px;">0</span>
+                    </button>
+                    <button type="button" id="btnReviewModeStatement" class="review-mode-tab" onclick="window.BankSyncView.switchReviewMode('statement')">
+                        <span>📋</span> <span id="lblReviewModeStatement" data-i18n="bank_sync_mode_statement">${window.i18n ? window.i18n.t('bank_sync_mode_statement') || 'Dernier relevé synchronisé' : 'Dernier relevé synchronisé'}</span>
+                        <span id="badgeReviewModeStatementCount" class="badge" style="background: rgba(255,255,255,0.1); color: var(--text-main); padding: 1px 7px; border-radius: 10px; font-size: 11px;">0</span>
+                    </button>
+                    <div id="statementDateBadge" style="display: none; margin-left: auto; font-size: 12px; color: var(--text-muted); align-items: center; gap: 5px;">
+                        <span>🕒</span> <span id="statementDateText">--</span>
+                    </div>
+                </div>
+
                 <div class="review-modal-toolbar">
                     <div id="reviewAccountTabs" class="review-account-tabs"></div>
                     <div class="review-filter-container">
@@ -649,18 +664,29 @@ window.BankSyncView = {
                                 <span>✨</span> <span data-i18n="bank_categorize_all_ai">${window.i18n.t('bank_categorize_all_ai')}</span>
                             </button>
 
-                            <span class="review-filter-label" data-i18n="bank_sync_filter_label">${window.i18n.t('bank_sync_filter_label')}</span>
+                            <span class="review-filter-label" id="lblReviewFilterLabel" data-i18n="bank_sync_filter_label">${window.i18n.t('bank_sync_filter_label')}</span>
                             <button class="btn btn-sm review-filter-pill" id="btnSyncFilterPending" onclick="window.BankSyncView.setReviewFilter('pending')"><span>⚡</span> <span data-i18n="bank_sync_filter_pending">${window.i18n ? window.i18n.t('bank_sync_filter_pending') || 'À traiter' : 'À traiter'}</span></button>
                             <button class="btn btn-sm review-filter-pill" id="btnSyncFilterAll" onclick="window.BankSyncView.setReviewFilter('all')" data-i18n="bank_sync_filter_all">${window.i18n.t('bank_sync_filter_all')}</button>
+                            <button class="btn btn-sm review-filter-pill" id="btnSyncFilterAutoReconciled" onclick="window.BankSyncView.setReviewFilter('auto_reconciled')" style="display: none;">🤖 <span data-i18n="bank_sync_filter_auto_reconciled">${window.i18n ? window.i18n.t('bank_sync_filter_auto_reconciled') || 'Auto-rapprochées' : 'Auto-rapprochées'}</span></button>
+                            <button class="btn btn-sm review-filter-pill" id="btnSyncFilterAutoCommitted" onclick="window.BankSyncView.setReviewFilter('auto_committed')" style="display: none;">🤖 <span data-i18n="bank_sync_filter_auto_committed">${window.i18n ? window.i18n.t('bank_sync_filter_auto_committed') || 'Auto-enregistrées' : 'Auto-enregistrées'}</span></button>
                             <button class="btn btn-sm review-filter-pill" id="btnSyncFilterAdd" onclick="window.BankSyncView.setReviewFilter('add')" data-i18n="bank_sync_filter_add">${window.i18n.t('bank_sync_filter_add')}</button>
                             <button class="btn btn-sm review-filter-pill" id="btnSyncFilterReconcile" onclick="window.BankSyncView.setReviewFilter('reconcile')" data-i18n="bank_sync_filter_reconcile">${window.i18n.t('bank_sync_filter_reconcile')}</button>
                             <button class="btn btn-sm review-filter-pill" id="btnSyncFilterComing" onclick="window.BankSyncView.setReviewFilter('coming')" data-i18n="bank_sync_filter_coming">⏳ ${window.i18n.t('bank_sync_filter_coming')}</button>
+                            <button class="btn btn-sm review-filter-pill" id="btnSyncFilterAlreadyInDb" onclick="window.BankSyncView.setReviewFilter('already_in_db')" style="display: none;">✅ <span data-i18n="bank_sync_filter_already_in_db">${window.i18n ? window.i18n.t('bank_sync_filter_already_in_db') || 'Déjà pointées' : 'Déjà pointées'}</span></button>
                             <button class="btn btn-sm review-filter-pill" id="btnSyncFilterIgnored" onclick="window.BankSyncView.setReviewFilter('ignored')" data-i18n="bank_sync_filter_ignored">${window.i18n.t('bank_sync_filter_ignored')}</button>
                             <button class="btn btn-sm review-filter-pill" id="btnSyncToggleScores" onclick="window.BankSyncView.toggleReviewScores()" title="${window.i18n ? window.i18n.t('bank_sync_toggle_scores_tooltip') : 'Affiche le score de confiance du rapprochement automatique. Plus le score est élevé, plus la correspondance entre l\'opération bancaire et votre opération locale est fiable.'}">
                                 <span>🎯</span> <span data-i18n="bank_sync_toggle_scores">${window.i18n ? window.i18n.t('bank_sync_toggle_scores') : 'Scores'}</span>
                             </button>
                         </div>
                     </div>
+                </div>
+
+                <div id="reviewStatementBanner" style="display: none; margin: 10px 24px 0 24px; padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 500; align-items: center; justify-content: space-between; gap: 10px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); color: var(--text-main);">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px;">📋</span>
+                        <span id="reviewStatementBannerText" data-i18n="bank_sync_statement_banner_info">${window.i18n ? window.i18n.t('bank_sync_statement_banner_info') || 'Mode Consultation : Visualisation intégrale du dernier relevé bancaire synchronisé.' : 'Mode Consultation : Visualisation intégrale du dernier relevé bancaire synchronisé.'}</span>
+                    </div>
+                    <div id="reviewStatementStatsBadges" style="display: flex; gap: 8px; align-items: center;"></div>
                 </div>
 
                 <div id="reviewAiStatusBanner" style="display: none; margin: 0 0 10px 0; padding: 9px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; align-items: center; justify-content: space-between; gap: 10px; transition: all 0.3s ease;">

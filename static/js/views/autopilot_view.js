@@ -18,6 +18,8 @@ window.AutopilotView = {
     _icons: {
         steeringWheel: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent); flex-shrink: 0;"><circle cx="12" cy="12" r="9.5"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="15" x2="12" y2="21.5"></line><line x1="2.5" y1="12" x2="9" y2="12"></line><line x1="15" y1="12" x2="21.5" y2="12"></line></svg>`,
         steeringWheelMini: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="15" x2="12" y2="21.5"></line><line x1="2.5" y1="12" x2="9" y2="12"></line><line x1="15" y1="12" x2="21.5" y2="12"></line></svg>`,
+        info: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
+        compass: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>`,
         gauge: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>`,
         shield: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
         settings: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
@@ -211,60 +213,66 @@ window.AutopilotView = {
                 </div>
 
                 <!-- Header / Cockpit Bar (Contrôles ancrés de manière stable sous le titre) -->
-                <div class="view-header-bar ap-header-bar" style="display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-bottom: 20px;">
+                <div class="view-header-bar ap-header-bar" style="position: relative; top: 0; margin-top: 0; padding-top: 6px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-bottom: 20px;">
                     <div class="view-header-title-group" style="display: flex; align-items: center; gap: 12px; width: 100%;">
-                        <span style="cursor: pointer; display: inline-flex;" onclick="window.AutopilotView.showEngagementHud()" title="${window.i18n ? window.i18n.t('autopilot_hud_tooltip') : 'Afficher le résumé de mission Auto-Pilote'}">
-                            ${this._icons.steeringWheel}
-                        </span>
-                        <div>
-                            <h2 class="view-header-title" style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 100%;">
+                            <h2 class="view-header-title" style="margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <span class="ap-header-title-icon" style="cursor: pointer; display: inline-flex; align-items: center;" onclick="window.AutopilotView.showEngagementHud()" title="${window.i18n ? window.i18n.t('autopilot_hud_tooltip') : 'Afficher le résumé de mission Auto-Pilote'}">
+                                    ${this._icons.steeringWheel}
+                                </span>
                                 <span data-i18n="autopilot_control_center_title">${window.i18n.t('autopilot_control_center_title') || 'Centre de Contrôle Auto-Pilote'}</span>
                                 <span id="apStatusBadge" class="badge" onclick="window.AutopilotView.showEngagementHud()" title="${window.i18n ? window.i18n.t('autopilot_status_badge_tooltip') : 'Cliquez pour afficher le résumé de mission Auto-Pilote'}" style="font-size: 11px; padding: 3px 10px; border-radius: 12px; vertical-align: middle; cursor: pointer; transition: transform 0.15s ease;"></span>
                             </h2>
-                            <p style="margin: 3px 0 0 0; color: var(--text-muted); font-size: 13px;" data-i18n="autopilot_control_center_desc">
+                            <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 13px;" data-i18n="autopilot_control_center_desc">
                                 ${window.i18n.t('autopilot_control_center_desc') || 'Supervisez l\'autonomie de vos flux bancaires, ajustez le seuil de tolérance et annulez des décisions en un clic.'}
                             </p>
                         </div>
                     </div>
-                    <div class="autopilot-header-toolbar" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div class="autopilot-header-toolbar">
                         <!-- Encadré 1 : Relevé Bancaire Automatique -->
-                        <div id="apBankSyncGroup" class="autopilot-toolbar-group" style="display: none;">
+                        <div id="apBankSyncGroup" class="autopilot-toolbar-group ap-toolbar-sync-group" style="display: none;">
                             <div id="apAutoSyncCompact" class="bank-sync-auto-sync-widget-slot"></div>
                         </div>
 
-                        <!-- Encadré 2 : Pilotage & Automatismes Modulaires -->
-                        <div class="autopilot-toolbar-group" style="gap: 10px;">
-                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="${window.i18n ? window.i18n.t('autopilot_settings_btn_title') : 'Configurer les 15 automatismes et le seuil'}" style="display: inline-flex; align-items: center; gap: 6px;">
-                                ${this._icons.settings} <span data-i18n="autopilot_settings_and_bricks">${window.i18n ? window.i18n.t('autopilot_settings_and_bricks') : 'Réglages & Automatismes'}</span> <span id="apActiveBriquesBadge" class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/15</span>
+                        <!-- Encadré 2 : Actions Rapides & Automatismes -->
+                        <div id="apActionButtonsGroup" class="autopilot-toolbar-group ap-toolbar-actions-group">
+                            <button type="button" class="btn ap-header-btn" onclick="window.BankSyncView ? window.BankSyncView.openLastStatementModal() : null" title="${window.i18n ? window.i18n.t('autopilot_view_last_statement_tooltip') || 'Consulter le dernier relevé bancaire et l\'audit des actions de l\'Auto-Pilote' : 'Consulter le dernier relevé bancaire et l\'audit des actions de l\'Auto-Pilote'}">
+                                <span class="ap-btn-icon">📋</span> <span class="ap-btn-label" data-i18n="autopilot_view_last_statement_btn">${window.i18n ? window.i18n.t('autopilot_view_last_statement_btn') || 'Dernier relevé' : 'Dernier relevé'}</span>
                             </button>
+                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="${window.i18n ? window.i18n.t('autopilot_settings_btn_title') : 'Configurer les 15 automatismes et le seuil'}">
+                                <span class="ap-btn-icon">${this._icons.settings}</span>
+                                <span class="ap-btn-label ap-btn-label-full" data-i18n="autopilot_settings_and_bricks">${window.i18n ? window.i18n.t('autopilot_settings_and_bricks') : 'Réglages & Automatismes'}</span>
+                                <span class="ap-btn-label ap-btn-label-short" data-i18n="autopilot_settings_short" style="display: none;">${window.i18n ? (window.i18n.t('autopilot_settings_short') || 'Réglages') : 'Réglages'}</span>
+                                <span id="apActiveBriquesBadge" class="badge ap-briques-badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/15</span>
+                            </button>
+                        </div>
 
-                            <!-- Hero Master Cockpit Switch (Bouton d'activation Grand Format & Tactile) -->
-                            <div id="apHeroMasterSwitch" class="ap-hero-master-switch is-inactive" onclick="window.AutopilotView.onHeroSwitchClick(event)" title="${window.i18n ? window.i18n.t('autopilot_master_toggle_title') : 'Activer / Mettre en veille le mode Auto-Pilote'}">
-                                <div class="ap-hero-switch-knob">
-                                    <span class="ap-hero-switch-icon-inactive">${this._icons.power}</span>
-                                    <span class="ap-hero-switch-icon-active">${this._icons.steeringWheelMini}</span>
-                                </div>
-                                <div class="ap-hero-switch-content">
-                                    <div class="ap-hero-switch-header">
-                                        <span class="ap-hero-switch-title" data-i18n="autopilot_master_toggle">${window.i18n.t('autopilot_master_toggle') || 'Auto-Pilote'}</span>
-                                        <span class="ap-hero-switch-dot"></span>
-                                    </div>
-                                    <div id="apHeroSwitchStateText" class="ap-hero-switch-state" data-i18n="autopilot_state_standby">${window.i18n ? window.i18n.t('autopilot_state_standby') : 'En veille'}</div>
-                                </div>
-
-                                <!-- Slot Compte à Rebours Cylon Scanner (Battlestar Galactica) -->
-                                <div id="apHeroCylonScanner" class="ap-cylon-scanner-slot" style="display: none; cursor: pointer;" onclick="window.AutopilotView.onCylonScannerClick(event)" title="Cliquez pour forcer ou inspecter le relevé bancaire">
-                                    <div class="ap-cylon-track">
-                                        <div class="ap-cylon-eye"></div>
-                                    </div>
-                                    <div class="ap-cylon-content">
-                                        <span class="ap-cylon-label" data-i18n="autopilot_next_sync_label">${window.i18n ? window.i18n.t('autopilot_next_sync_label') : 'PROCHAIN RELEVÉ'}</span>
-                                        <span id="apHeroCountdownTime" class="ap-cylon-time">--</span>
-                                    </div>
-                                </div>
-
-                                <input type="checkbox" id="apMasterSwitch" style="display: none;" onchange="window.AutopilotView.toggleMasterSwitch(this.checked)">
+                        <!-- Hero Master Cockpit Switch (Bouton d'activation Grand Format & Tactile) -->
+                        <div id="apHeroMasterSwitch" class="ap-hero-master-switch is-inactive" onclick="window.AutopilotView.onHeroSwitchClick(event)" title="${window.i18n ? window.i18n.t('autopilot_master_toggle_title') : 'Activer / Mettre en veille le mode Auto-Pilote'}">
+                            <div class="ap-hero-switch-knob">
+                                <span class="ap-hero-switch-icon-inactive">${this._icons.power}</span>
+                                <span class="ap-hero-switch-icon-active">${this._icons.steeringWheelMini}</span>
                             </div>
+                            <div class="ap-hero-switch-content">
+                                <div class="ap-hero-switch-header">
+                                    <span class="ap-hero-switch-title" data-i18n="autopilot_master_toggle">${window.i18n.t('autopilot_master_toggle') || 'Auto-Pilote'}</span>
+                                    <span class="ap-hero-switch-dot"></span>
+                                </div>
+                                <div id="apHeroSwitchStateText" class="ap-hero-switch-state" data-i18n="autopilot_state_standby">${window.i18n ? window.i18n.t('autopilot_state_standby') : 'En veille'}</div>
+                            </div>
+
+                            <!-- Slot Compte à Rebours Cylon Scanner (Battlestar Galactica) -->
+                            <div id="apHeroCylonScanner" class="ap-cylon-scanner-slot" style="display: none; cursor: pointer;" onclick="window.AutopilotView.onCylonScannerClick(event)" title="Cliquez pour forcer ou inspecter le relevé bancaire">
+                                <div class="ap-cylon-track">
+                                    <div class="ap-cylon-eye"></div>
+                                </div>
+                                <div class="ap-cylon-content">
+                                    <span class="ap-cylon-label" data-i18n="autopilot_next_sync_label">${window.i18n ? window.i18n.t('autopilot_next_sync_label') : 'PROCHAIN RELEVÉ'}</span>
+                                    <span id="apHeroCountdownTime" class="ap-cylon-time">--</span>
+                                </div>
+                            </div>
+
+                            <input type="checkbox" id="apMasterSwitch" style="display: none;" onchange="window.AutopilotView.toggleMasterSwitch(this.checked)">
                         </div>
                     </div>
                 </div>
@@ -279,8 +287,8 @@ window.AutopilotView = {
 
                 <!-- Split Cockpit Layout : 2 Colonnes (Grisé quand inactif) -->
                 <div id="apCockpitLayout" class="ap-cockpit-layout" style="display: grid; grid-template-columns: 290px 1fr; gap: 24px; align-items: start;">
-                    <!-- COLONNE GAUCHE (290px) : KPIs & Performance Épurés -->
-                    <div class="ap-left-column">
+                    <!-- COLONNE GAUCHE (290px) : KPIs & Performance + Rôle & Philosophie -->
+                    <div class="ap-left-column" style="display: flex; flex-direction: column; gap: 18px;">
                         <div class="ap-kpi-panel">
                             <div class="ap-kpi-panel-header">
                                 <span class="ap-kpi-panel-icon">${this._icons.gauge}</span>
@@ -335,6 +343,62 @@ window.AutopilotView = {
                                     <span id="apLastExecTime" class="ap-kpi-status-val">--</span>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Volet Rôle & Philosophie de l'Auto-Pilote -->
+                        <div class="ap-role-card">
+                            <div class="ap-role-card-header">
+                                <div class="ap-role-header-left">
+                                    <span class="ap-role-card-icon">${this._icons.compass}</span>
+                                    <div>
+                                        <h3 class="ap-role-card-title" data-i18n="autopilot_role_card_title">${window.i18n ? window.i18n.t('autopilot_role_card_title') : 'Rôle & Philosophie'}</h3>
+                                        <p class="ap-role-card-subtitle" data-i18n="autopilot_role_card_subtitle">${window.i18n ? window.i18n.t('autopilot_role_card_subtitle') : 'Chef d\'orchestre & souveraineté'}</p>
+                                    </div>
+                                </div>
+                                <span class="ap-role-badge-optional" data-i18n="autopilot_role_badge_optional">${window.i18n ? window.i18n.t('autopilot_role_badge_optional') : '100% Optionnel'}</span>
+                            </div>
+
+                            <div class="ap-role-quote" data-i18n="autopilot_role_summary_quote">
+                                ${window.i18n ? window.i18n.t('autopilot_role_summary_quote') : 'L\'Auto-Pilote n\'est pas une boîte noire : c\'est un chapeau d\'orchestration dispensable. Il coordonne vos automatismes, mais vous conservez en permanence le contrôle absolu.'}
+                            </div>
+
+                            <div class="ap-role-pillars">
+                                <div class="ap-role-pillar-item">
+                                    <span class="ap-role-pillar-icon">🎯</span>
+                                    <div class="ap-role-pillar-content">
+                                        <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_orchestrator_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_orchestrator_title') : 'Chef d\'orchestre global'}</div>
+                                        <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_orchestrator_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_orchestrator_desc') : 'Il ne remplace pas vos règles, il active et synchronise les 15 automatismes modulaires sous un seuil de confiance unifié.'}</p>
+                                    </div>
+                                </div>
+
+                                <div class="ap-role-pillar-item">
+                                    <span class="ap-role-pillar-icon">🕊️</span>
+                                    <div class="ap-role-pillar-content">
+                                        <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_dispensable_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_dispensable_title') : '100% Dispensable'}</div>
+                                        <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_dispensable_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_dispensable_desc') : 'Désactivé, l\'application repasse en mode manuel classique : vos écritures attendent dans le Sas pour une revue ligne à ligne.'}</p>
+                                    </div>
+                                </div>
+
+                                <div class="ap-role-pillar-item">
+                                    <span class="ap-role-pillar-icon">⚙️</span>
+                                    <div class="ap-role-pillar-content">
+                                        <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_modular_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_modular_title') : 'Modulaire & Découplé'}</div>
+                                        <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_modular_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_modular_desc') : 'Chaque brique (récurrences, budgets, marchands) peut être activée ou coupée unitairement selon vos préférences.'}</p>
+                                    </div>
+                                </div>
+
+                                <div class="ap-role-pillar-item">
+                                    <span class="ap-role-pillar-icon">↩️</span>
+                                    <div class="ap-role-pillar-content">
+                                        <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_reversible_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_reversible_title') : 'Réversibilité Totale'}</div>
+                                        <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_reversible_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_reversible_desc') : 'Zéro risque : chaque décision prise peut être dépointée, rectifiée ou annulée par lot en 1 clic dans le Journal.'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button" class="ap-role-action-btn" onclick="window.AutopilotView.openSettingsDrawer()">
+                                ${this._icons.settings} <span data-i18n="autopilot_role_manage_bricks_btn">${window.i18n ? window.i18n.t('autopilot_role_manage_bricks_btn') : 'Gérer les 15 automatismes unitaires'}</span>
+                            </button>
                         </div>
                     </div>
 
@@ -918,7 +982,7 @@ window.AutopilotView = {
         const isVaultUnlocked = !!status?.vault_unlocked;
         const nextIso = status?.next_execution_at;
         const remSecFromStatus = status?.next_execution_countdown_seconds;
-        this._lastKnownExecutionAt = status?.last_execution_at || null;
+        this._lastKnownExecutionAt = status?.last_bank_sync_at || status?.last_execution_at || null;
 
         // Si l'Auto-Pilote est désactivé OU si le relevé bancaire périodique est désactivé : pas de widget Cylon
         if (!isEnabled || !isAutoSyncEnabled) {
@@ -1043,13 +1107,19 @@ window.AutopilotView = {
                     activeCount = status.preset === 'full' ? 15 : (status.preset === 'balanced' ? 8 : 0);
                 }
 
+                let fullStateText = '';
+                let shortStateText = '';
                 if (status.preset === 'full') {
-                    heroStateText.textContent = window.i18n ? (window.i18n.t('autopilot_state_full') || `Autonomie Totale (15/15)`) : `Autonomie Totale (15/15)`;
+                    fullStateText = window.i18n ? (window.i18n.t('autopilot_state_full') || `Autonomie Totale (15/15)`) : `Autonomie Totale (15/15)`;
+                    shortStateText = window.i18n ? (window.i18n.t('autopilot_state_full_short') || `Totale (15/15)`) : `Totale (15/15)`;
                 } else if (status.preset === 'balanced') {
-                    heroStateText.textContent = window.i18n ? (window.i18n.tp('autopilot_state_balanced', { count: activeCount }) || `Mode Équilibré (${activeCount}/15)`) : `Mode Équilibré (${activeCount}/15)`;
+                    fullStateText = window.i18n ? (window.i18n.tp('autopilot_state_balanced', { count: activeCount }) || `Mode Équilibré (${activeCount}/15)`) : `Mode Équilibré (${activeCount}/15)`;
+                    shortStateText = window.i18n ? (window.i18n.tp('autopilot_state_balanced_short', { count: activeCount }) || `Équilibré (${activeCount}/15)`) : `Équilibré (${activeCount}/15)`;
                 } else {
-                    heroStateText.textContent = window.i18n ? (window.i18n.tp('autopilot_state_custom', { count: activeCount }) || `Personnalisé (${activeCount}/15)`) : `Personnalisé (${activeCount}/15)`;
+                    fullStateText = window.i18n ? (window.i18n.tp('autopilot_state_custom', { count: activeCount }) || `Personnalisé (${activeCount}/15)`) : `Personnalisé (${activeCount}/15)`;
+                    shortStateText = window.i18n ? (window.i18n.tp('autopilot_state_custom_short', { count: activeCount }) || `Perso (${activeCount}/15)`) : `Perso (${activeCount}/15)`;
                 }
+                heroStateText.innerHTML = `<span class="ap-state-full">${fullStateText}</span><span class="ap-state-short">${shortStateText}</span>`;
             }
         }
 
@@ -1095,7 +1165,7 @@ window.AutopilotView = {
         // Format du dernier relevé / cycle
         const lastExecEl = document.getElementById('apLastExecTime');
         if (lastExecEl) {
-            const lastIso = status.last_execution_at || status.last_execution || status.last_run_at;
+            const lastIso = status.last_bank_sync_at || status.last_execution_at || status.last_execution || status.last_run_at;
             if (lastIso) {
                 try {
                     const dt = new Date(lastIso);
@@ -1483,6 +1553,11 @@ window.AutopilotView = {
                     <div style="display: inline-flex; align-items: center; gap: 8px; color: #10b981; font-weight: 600;">
                         ${this._icons.check}
                         <span data-i18n="autopilot_review_empty">${window.i18n ? (window.i18n.t('autopilot_review_empty') || 'Aucune opération en attente de vérification. Vos relevés sont parfaitement synchronisés !') : 'Aucune opération en attente de vérification.'}</span>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="window.BankSyncView ? window.BankSyncView.openLastStatementModal() : null" style="font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+                            <span>📋</span> <span data-i18n="autopilot_view_last_statement_btn">${window.i18n ? window.i18n.t('autopilot_view_last_statement_btn') || 'Dernier relevé' : 'Dernier relevé'}</span>
+                        </button>
                     </div>
                 </div>
             `;
