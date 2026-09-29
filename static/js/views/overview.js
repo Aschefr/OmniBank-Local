@@ -72,7 +72,7 @@ window.OverviewView = {
                                     class="overview-autopilot-btn is-inactive" 
                                     id="ovAutopilotBtn" 
                                     onclick="window.OverviewView.handleAutopilotBtnClick(event)" 
-                                    onmouseenter="window.OverviewView.showAutopilotPopover()" 
+                                    onmouseenter="if (window.innerWidth > 1024) window.OverviewView.showAutopilotPopover()" 
                                     onmouseleave="window.OverviewView.scheduleHideAutopilotPopover()"
                                     aria-haspopup="dialog" 
                                     aria-expanded="false" 
@@ -698,6 +698,7 @@ window.OverviewView = {
                                 <input type="checkbox" id="ovApQuickToggle" ${isEnabled ? 'checked' : ''} onchange="window.OverviewView.toggleAutopilotState(event)">
                                 <span class="ov-ap-slider"></span>
                             </label>
+                            <button type="button" class="ov-ap-close-btn" onclick="window.OverviewView.closeAutopilotPopover()" title="${window.i18n ? window.i18n.t('close') : 'Fermer'}">✕</button>
                         </div>
                     </div>
 
@@ -850,9 +851,18 @@ window.OverviewView = {
     },
 
     handleAutopilotBtnClick(e) {
-        if (e) e.stopPropagation();
+        if (e) {
+            e.stopPropagation();
+            if (e.preventDefault) e.preventDefault();
+        }
         const popover = document.getElementById('ovAutopilotPopover');
         if (!popover) return;
+
+        // If popover was opened less than 400ms ago (e.g. by touch-synthesized mouseenter), keep it open
+        if (popover.style.display !== 'none' && (Date.now() - (this._popoverOpenedAt || 0) < 400)) {
+            return;
+        }
+
         if (popover.style.display !== 'none') {
             this.closeAutopilotPopover();
         } else {
@@ -866,6 +876,7 @@ window.OverviewView = {
         const btn = document.getElementById('ovAutopilotBtn');
         if (!popover) return;
 
+        this._popoverOpenedAt = Date.now();
         popover.style.display = 'block';
         if (btn) btn.setAttribute('aria-expanded', 'true');
 
@@ -884,6 +895,7 @@ window.OverviewView = {
     },
 
     scheduleHideAutopilotPopover() {
+        if (window.innerWidth <= 1024) return;
         clearTimeout(this._apPopoverTimer);
         this._apPopoverTimer = setTimeout(() => {
             this.closeAutopilotPopover();

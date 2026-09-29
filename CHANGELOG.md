@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Auto-Pilot Mobile Usability, Touch Interactions & Overview Popover Caging 📱🎛️**:
+  - **Overview Popover Viewport Containment**: Repositioned the Auto-Pilot popover widget on mobile and tablet devices (≤ 1024px) from right-aligned (`right: 0`) to viewport-contained left-aligned (`left: 0; right: auto; width: calc(100vw - 24px); max-width: 390px;`), completely eliminating horizontal off-screen clipping.
+  - **Mobile Touch Interaction Refinements**: Restricted `onmouseenter` opening to desktop screens (> 1024px), neutralized automatic `mouseleave` auto-hide on mobile devices, and introduced tap debouncing in `handleAutopilotBtnClick` to prevent instant flicker-close on touch screens.
+  - **Mobile Header Close Button**: Added an inline close button (`✕`) in the popover header on mobile viewports for effortless single-tap dismissal alongside existing backdrop clicks.
+  - **Header & Badge Alignment**: Scoped Auto-Sync status badge CSS to preserve circular status dots (6px) without vertical stretching, expanded master profile badge max-width on mobile to avoid premature "Mo..." truncation, and harmonized mobile header icon positioning.
+  - **Direct Ledger Navigation from Review Queue**: Added direct "Voir cette opération dans le grand livre" navigation from review items to All Operations with signed amount direction matching and temporary row pulse highlight.
 - **Smart Label Direct Category Resolution & Mutual Coverage Harmonization 🏷️🎯**:
   - **Direct Active Category Matching (Level 2.5)**: The Smart Label engine directly checks labels against the user's active SQLite categories before generic fallback, accurately suggesting explicit categories like *"Remboursement"* on credit inflows (e.g. *"Remboursement Amazon Bouilloire"* $\rightarrow$ *"Remboursement"*) with 95% confidence.
   - **Balanced Token Coverage Safeguard**: Tightened mutual token coverage thresholds in `matcher.py` to prevent isolated 1-word merchants (e.g. *"Amazon"*) from hijacking 3+ word phrases while preserving multi-word brand matches (*"Crédit Agricole"*, *"Banque Populaire"*).

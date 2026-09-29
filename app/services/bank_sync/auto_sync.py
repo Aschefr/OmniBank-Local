@@ -121,61 +121,133 @@ def execute_auto_sync_for_connection(
                 elif not tx.get("is_reconciled") and not tx.get("is_dismissed") and not tx.get("is_auto_dismissed") and not tx.get("_excluded"):
                     new_txs += 1
 
-        # Créer une notification in-app pour informer l'utilisateur du résultat
-        if auto_reconciled > 0 or matches > 0 or coming_matches > 0 or new_txs > 0:
-            notif_msg = []
-            if auto_reconciled == 1:
-                notif_msg.append("🤖 1 opération rapprochée automatiquement")
-            elif auto_reconciled > 1:
-                notif_msg.append(f"🤖 {auto_reconciled} opérations rapprochées automatiquement")
-            if matches == 1:
-                notif_msg.append("1 opération à rapprocher")
-            elif matches > 1:
-                notif_msg.append(f"{matches} opérations à rapprocher")
-            if coming_matches == 1:
-                notif_msg.append("1 opération en attente")
-            elif coming_matches > 1:
-                notif_msg.append(f"{coming_matches} opérations en attente")
-            if new_txs == 1:
-                notif_msg.append("1 nouvelle opération")
-            elif new_txs > 1:
-                notif_msg.append(f"{new_txs} nouvelles opérations")
+        # Récupérer l'état de l'Auto-Pilote et les indicateurs du lot ingéré
+        from app.services.autopilot_service import is_autopilot_enabled
+        ap_active = is_autopilot_enabled(db)
+        is_manual = (trigger_source == "manual")
 
-            full_content = f"{conn.label} : " + ", ".join(notif_msg) + "."
-            notif = Notification(
-                type="bank_sync",
-                title=f"🏦 Synchronisation {conn.label}",
-                content=full_content,
-                link_data=json.dumps({
-                    "view": "accounts",
-                    "action": "open_pending",
-                    "conn_id": conn.id,
-                    "conn_label": conn.label,
-                    "matches": matches,
-                    "coming": coming_matches,
-                    "new_txs": new_txs
-                }),
-                is_read=False,
-                created_at=datetime.now(timezone.utc)
-            )
-            db.add(notif)
+        promoted_recurrences = auto_res.get("promoted_recurrences", 0)
+
+        # Créer une notification in-app adaptée au contexte :
+        # - Si l'Auto-Pilote est actif en tâche de fond (trigger non manuel) : notification orientée Auto-Pilote
+        #   et suppression intégrale de toute notification si aucune action ni mouvement (zéro spam).
+        # - Si relevé manuel ou Auto-Pilote désactivé : notification de relevé bancaire classique.
+        if ap_active and not is_manual:
+            actions_count = auto_reconciled + auto_committed + promoted_recurrences
+            total_items = actions_count + matches + coming_matches + new_txs
+
+            if total_items > 0:
+                ap_msg = []
+                if auto_reconciled == 1:
+                    ap_msg.append("1 opération auto-rapprochée")
+                elif auto_reconciled > 1:
+                    ap_msg.append(f"{auto_reconciled} opérations auto-rapprochées")
+
+                if auto_committed == 1:
+                    ap_msg.append("1 écriture enregistrée")
+                elif auto_committed > 1:
+                    ap_msg.append(f"{auto_committed} écritures enregistrées")
+
+                if promoted_recurrences == 1:
+                    ap_msg.append("1 récurrence détectée")
+                elif promoted_recurrences > 1:
+                    ap_msg.append(f"{promoted_recurrences} récurrences détectées")
+
+                if matches == 1:
+                    ap_msg.append("1 opération à rapprocher")
+                elif matches > 1:
+                    ap_msg.append(f"{matches} opérations à rapprocher")
+
+                if coming_matches == 1:
+                    ap_msg.append("1 opération en attente")
+                elif coming_matches > 1:
+                    ap_msg.append(f"{coming_matches} opérations en attente")
+
+                if new_txs == 1:
+                    ap_msg.append("1 opération à classer")
+                elif new_txs > 1:
+                    ap_msg.append(f"{new_txs} opérations à classer")
+
+                full_content = f"{conn.label} : " + ", ".join(ap_msg) + "."
+                has_pending = (matches > 0 or new_txs > 0)
+                notif = Notification(
+                    type="autopilot",
+                    title=f"🤖 Auto-Pilote : {conn.label}",
+                    content=full_content,
+                    link_data=json.dumps({
+                        "view": "autopilot",
+                        "action": "open_pending" if (has_pending or auto_reconciled > 0 or auto_committed > 0) else "open_feed",
+                        "conn_id": conn.id,
+                        "conn_label": conn.label,
+                        "auto_reconciled": auto_reconciled,
+                        "auto_committed": auto_committed,
+                        "promoted": promoted_recurrences,
+                        "matches": matches,
+                        "coming": coming_matches,
+                        "new_txs": new_txs
+                    }),
+                    is_read=False,
+                    created_at=datetime.now(timezone.utc)
+                )
+                db.add(notif)
+            else:
+                logger.info(f"[BankAutoSync] Auto-Pilote actif : aucun mouvement ni action pour '{conn.label}' (notification silencieuse).")
         else:
-            notif = Notification(
-                type="bank_sync",
-                title=f"🏦 Relevé {conn.label} : À jour",
-                content=f"Relevé terminé pour {conn.label} : vos comptes sont à jour (aucun nouveau mouvement).",
-                link_data=json.dumps({
-                    "view": "accounts",
-                    "action": "bank_sync",
-                    "conn_id": conn.id,
-                    "conn_label": conn.label,
-                    "matches": 0,
-                    "new_txs": 0
-                }),
-                is_read=False,
-                created_at=datetime.now(timezone.utc)
-            )
-            db.add(notif)
+            # Mode standard ou relevé déclenché manuellement : notification bancaire classique
+            if auto_reconciled > 0 or matches > 0 or coming_matches > 0 or new_txs > 0:
+                notif_msg = []
+                if auto_reconciled == 1:
+                    notif_msg.append("🤖 1 opération rapprochée automatiquement")
+                elif auto_reconciled > 1:
+                    notif_msg.append(f"🤖 {auto_reconciled} opérations rapprochées automatiquement")
+                if matches == 1:
+                    notif_msg.append("1 opération à rapprocher")
+                elif matches > 1:
+                    notif_msg.append(f"{matches} opérations à rapprocher")
+                if coming_matches == 1:
+                    notif_msg.append("1 opération en attente")
+                elif coming_matches > 1:
+                    notif_msg.append(f"{coming_matches} opérations en attente")
+                if new_txs == 1:
+                    notif_msg.append("1 nouvelle opération")
+                elif new_txs > 1:
+                    notif_msg.append(f"{new_txs} nouvelles opérations")
+
+                full_content = f"{conn.label} : " + ", ".join(notif_msg) + "."
+                notif = Notification(
+                    type="bank_sync",
+                    title=f"🏦 Synchronisation {conn.label}",
+                    content=full_content,
+                    link_data=json.dumps({
+                        "view": "accounts",
+                        "action": "open_pending",
+                        "conn_id": conn.id,
+                        "conn_label": conn.label,
+                        "matches": matches,
+                        "coming": coming_matches,
+                        "new_txs": new_txs
+                    }),
+                    is_read=False,
+                    created_at=datetime.now(timezone.utc)
+                )
+                db.add(notif)
+            else:
+                notif = Notification(
+                    type="bank_sync",
+                    title=f"🏦 Relevé {conn.label} : À jour",
+                    content=f"Relevé terminé pour {conn.label} : vos comptes sont à jour (aucun nouveau mouvement).",
+                    link_data=json.dumps({
+                        "view": "accounts",
+                        "action": "bank_sync",
+                        "conn_id": conn.id,
+                        "conn_label": conn.label,
+                        "matches": 0,
+                        "new_txs": 0
+                    }),
+                    is_read=False,
+                    created_at=datetime.now(timezone.utc)
+                )
+                db.add(notif)
 
         conn.last_sync_at = datetime.now(timezone.utc)
         conn.last_sync_status = "auto_checked"

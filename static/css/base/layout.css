@@ -1220,6 +1220,7 @@ h3 {
     background: var(--bg-card, var(--bg-surface)) !important;
     color: var(--text-main) !important;
     cursor: pointer !important;
+    white-space: nowrap !important;
     line-height: 1 !important;
     margin: 0 !important;
     transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;

@@ -98,6 +98,9 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
                         tx_copy["orphan_account_name"] = None
                         tx_copy["matched_db_id"] = forced_db_id
                         tx_copy["db_description"] = forced_tx.description
+                        if forced_tx.category:
+                            tx_copy["category"] = tx_copy.get("category") or forced_tx.category
+                            tx_copy["db_category"] = forced_tx.category
                         matched_ids_global.add(forced_db_id)
                         if is_dismissed:
                             tx_copy["_excluded"] = True
@@ -131,6 +134,9 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
                             tx_copy["matched_db_id"] = rec_info.get("id")
                             tx_copy["db_description"] = rec_info.get("description")
                             tx_copy["match_score"] = rec_info.get("match_score", 0)
+                            if rec_info.get("category"):
+                                tx_copy["category"] = tx_copy.get("category") or rec_info.get("category")
+                                tx_copy["db_category"] = rec_info.get("category")
                             if rec_info.get("id"):
                                 matched_ids_global.add(rec_info.get("id"))
                         else:
