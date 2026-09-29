@@ -215,6 +215,12 @@ def _apply_module_hotfixes(w: Woob, backend_name: str, backend: Any = None):
                         if getattr(self, "_current_dav_account_id", None) == account.id:
                             logger.debug(f"[BankSync] [Crédit Agricole] Réutilisation session detail-dav active pour compte {account.id}")
                             return
+                        # Purge préventive des cookies résiduels du domaine detail-dav avant de basculer de compte,
+                        # pour garantir que le curseur distant du serveur Crédit Agricole ne reste pas figé sur le compte précédent.
+                        if hasattr(self, "session") and hasattr(self.session, "cookies"):
+                            for cookie in list(self.session.cookies):
+                                if "detail-dav" in (cookie.domain or "") or "detaildav" in (cookie.domain or ""):
+                                    self.session.cookies.clear(cookie.domain, cookie.path, cookie.name)
                         fn(self, account)
                         self._current_dav_account_id = account.id
                     return patched_open_detail_dav

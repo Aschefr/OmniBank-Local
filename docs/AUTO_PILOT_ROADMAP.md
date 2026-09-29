@@ -622,6 +622,11 @@ Pour que l'ajout du mode Auto-Pilote ne casse aucune fonctionnalité existante, 
 5. **Scoping Multi-Profils des Clés Auto-Pilote** :
    - La clé `auto_pilot_enabled` et les préférences associées (`bank_sync_on_vault_unlock`, `last_auto_sync_attempt`) doivent être **scopées par profil**. Puisque le multi-profils utilise déjà des bases SQLite séparées (une `GlobalConfig` par profil), les clés sont naturellement isolées. Aucune convention de nommage avec préfixe profil n'est nécessaire — c'est déjà le comportement attendu.
    - Le `AutoPilotService` doit recevoir le `profile_id` courant dans chaque appel, comme les services existants (`bank_sync_scheduler`, `credential_vault`), et invalider le cache de manière ciblée via `stats_cache.invalidate(profile_id)`.
+6. **Garde-Fou d'Empreinte Historique des Relevés Bancaires (`evaluate_historical_fingerprint`)** :
+   - **Problématique traitée** : Risque de désynchronisation de session ou de curseur distant côté banque (ex: serveur Crédit Agricole `detail-dav` renvoyant le relevé du Livret A sous l'identifiant du compte courant).
+   - **Règle de Cold Start** : Si le compte en base possède moins de 5 transactions récentes (compte neuf ou fraîchement importé), aucun blocage n'est appliqué pour permettre l'amorçage.
+   - **Règle Compte Établi (Warm)** : Si le compte possède $\ge 5$ transactions récentes en base et que le relevé bancaire entrant contient des opérations mais qu'**aucune** ne correspond à l'historique connu en base (`matched_count == 0`), le relevé est immédiatement classé `is_suspicious_statement = True`.
+   - **Protection Auto-Pilote** : Tout enregistrement (`AUTO_COMMIT`) et tout rapprochement (`AUTO_RECONCILE`) automatique sont formellement suspendus pour ce compte. Les opérations sont maintenues pour revue manuelle, accompagnées d'un bandeau d'alerte (`🛡️ Garde-fou d'intégrité activé`) et d'une notification invitant l'utilisateur à relancer le relevé ou autoriser manuellement.
 
 ---
 

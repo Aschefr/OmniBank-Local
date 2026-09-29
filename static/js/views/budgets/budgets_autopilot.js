@@ -1291,7 +1291,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             ${window.i18n.t('btn_save') || 'Enregistrer'}
                         </button>
                     </div>
-
+                </form>
             </div>
         `;
 

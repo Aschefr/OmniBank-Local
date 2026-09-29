@@ -523,11 +523,15 @@ def predict_next_paycheck(db: Session):
             is_valid_salary = False
             if tx.is_salary is True:
                 is_valid_salary = True
-            else:
-                has_matching_category = (pay_category and tx.category == pay_category)
-                if has_matching_category:
+            elif tx.is_salary is False:
+                is_valid_salary = False
+            elif pay_category:
+                # If user configured a specific salary category, strictly require matching category
+                if tx.category == pay_category and tx.amount >= threshold_value:
                     is_valid_salary = True
-                elif tx.amount >= threshold_value:
+            else:
+                # No category filter configured: fall back to amount threshold
+                if tx.amount >= threshold_value:
                     is_valid_salary = True
 
             if is_valid_salary:
@@ -555,20 +559,11 @@ def predict_next_paycheck(db: Session):
                 "logical_period": period_str
             })
         elif has_override_for_period:
-            # Override applies if no real transaction is reconciled yet
+            # Override applies if no real transaction is reconciled yet.
+            # An override is an expected / predicted paycheck: it must NOT mark current_month_received = True
+            # so the active cycle remains focused on the expected paycheck until a real transaction is reconciled
+            # or the user explicitly validates the period via 'last_validated_pay_period'.
             o_date_str = override_date_conf.value
-            if i == 0:
-                # Only mark current month paycheck as received if the override date is today or in the past
-                try:
-                    o_date = date.fromisoformat(o_date_str)
-                    if o_date <= today:
-                        current_month_received = True
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"Date d'override de salaire invalide '{o_date_str}': {e}")
-                    current_month_received = True
-                except Exception as e:
-                    logger.error(f"Erreur inattendue lors de la vérification de l'override '{o_date_str}': {e}")
-                    current_month_received = True
             o_amount = float(override_amount_conf.value) if override_amount_conf and override_amount_conf.value else 0.0
             historical_amounts.append(o_amount)
             

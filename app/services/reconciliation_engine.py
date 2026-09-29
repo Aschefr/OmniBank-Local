@@ -365,12 +365,17 @@ def check_reconciliation(
                     logger.debug(f"[Reconciliation] Candidat déjà pointé écarté car delta={delta_days}j > 2j pour op à venir")
                     return None
 
+            is_mirror = bool(
+                recon_match.type == "transfer" or
+                (recon_match.from_account_id is not None and recon_match.to_account_id is not None)
+            )
             return {
                 "id": recon_match.id,
                 "description": recon_match.description,
                 "category": recon_match.category,
                 "type": recon_match.type,
                 "already_reconciled": True,
+                "is_mirror_transfer": is_mirror,
                 "match_score": recon_score,
                 "collision_detected": recon_collision,
                 "suggested_match": (60 <= recon_score < 85) or recon_collision,
@@ -533,29 +538,40 @@ def check_reconciliation(
         return deviant_match
 
     # 2.B : Si aucun match libre, vérifier si c'est le pendant miroir d'un virement interne
-    # déjà apparié dans ce même lot (dans matched_ids)
-    if matched_ids:
-        start_mirror = tx_date - timedelta(days=15)
-        end_mirror = tx_date + timedelta(days=15)
-        base_mirror_query = db.query(Transaction).filter(
-            Transaction.reconciliation_date == None,
-            Transaction.date_operation >= start_mirror,
-            Transaction.date_operation <= end_mirror,
-            Transaction.amount >= abs_amount - epsilon,
-            Transaction.amount <= abs_amount + epsilon
+    # (soit déjà apparié dans ce même lot dans matched_ids, soit déjà rapproché sur l'autre compte)
+    start_mirror = tx_date - timedelta(days=15)
+    end_mirror = tx_date + timedelta(days=15)
+    base_mirror_query = db.query(Transaction).filter(
+        Transaction.date_operation >= start_mirror,
+        Transaction.date_operation <= end_mirror,
+        Transaction.amount >= abs_amount - epsilon,
+        Transaction.amount <= abs_amount + epsilon,
+        or_(
+            Transaction.type == "transfer",
+            and_(Transaction.from_account_id.isnot(None), Transaction.to_account_id.isnot(None))
         )
-        if acc_filter is not None:
-            base_mirror_query = base_mirror_query.filter(acc_filter)
+    )
+    if acc_filter is not None:
+        base_mirror_query = base_mirror_query.filter(acc_filter)
 
-        mirror_query = base_mirror_query.filter(
-            Transaction.id.in_(matched_ids),
+    if matched_ids:
+        mirror_candidates = base_mirror_query.filter(
             or_(
-                Transaction.type == "transfer",
-                and_(Transaction.from_account_id.isnot(None), Transaction.to_account_id.isnot(None))
+                Transaction.id.in_(matched_ids),
+                Transaction.reconciliation_date.isnot(None)
             )
-        )
-        mirror_match, mirror_score, mirror_collision = best_scored_tx(mirror_query.all(), target_dt, bank_label)
+        ).all()
+    else:
+        mirror_candidates = base_mirror_query.filter(
+            Transaction.reconciliation_date.isnot(None)
+        ).all()
+
+    if mirror_candidates:
+        mirror_match, mirror_score, mirror_collision = best_scored_tx(mirror_candidates, target_dt, bank_label, db=db)
         if mirror_match:
+            # Bonus de confiance pour virement interne avéré entre deux comptes connus du profil
+            if mirror_match.from_account_id and mirror_match.to_account_id:
+                mirror_score = min(100, mirror_score + 15)
             return {
                 "id": mirror_match.id,
                 "description": mirror_match.description,

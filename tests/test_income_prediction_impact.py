@@ -195,7 +195,7 @@ def test_unreconciled_income_dated_in_past_counted_before_next_pay():
         db.add(inc)
         db.commit()
 
-        # Configure main_account_id
+        # Configure main_account_id and explicit next paycheck in future so test is invariant to execution calendar day
         from app.models import GlobalConfig
         main_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "main_account_id").first()
         if not main_cfg:
@@ -203,6 +203,12 @@ def test_unreconciled_income_dated_in_past_counted_before_next_pay():
             db.add(main_cfg)
         else:
             main_cfg.value = str(acc.id)
+
+        pay_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_date").first()
+        if not pay_cfg:
+            db.add(GlobalConfig(key="override_paycheck_date", value=(today + timedelta(days=5)).isoformat()))
+        else:
+            pay_cfg.value = (today + timedelta(days=5)).isoformat()
         db.commit()
         stats_cache.invalidate()
 

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Historical Fingerprint Safeguard & Statement Inversion Guardrail 🛡️🏦**:
+  - **Account Fingerprint Integrity Evaluation (`evaluate_historical_fingerprint`)**: Automated overlap analysis comparing incoming statement transactions against recent database history for established accounts.
+  - **Autonomous Execution Freeze on Mismatch**: Automatically suspends `AUTO_COMMIT` and `AUTO_RECONCILE` if an established account receives a statement with zero historical overlap, preventing cross-account statement contaminations (e.g. savings statement attributed to checking account).
+  - **In-App Warning & Review Banners**: Displays a prominent security banner with retry and dismiss options in the Bank Sync Review cockpit alongside system notifications.
+- **Vault Unlock Accessibility & Modal Tree Structure Fix 🔐🛠️**:
+  - **Restored Master Password Modal Flow**: Fixed an unclosed container tag in `bank_sync.js` that caused `#masterPasswordModal` to be swallowed by a hidden parent modal, ensuring the unlock modal opens reliably on click.
+  - **Comprehensive HTML Tag & DOM Audit**: Audited live DOM trees across all routes via Playwright and verified tag pairing in all 58 frontend modules, including closing an unclosed `<form>` in `budgets_autopilot.js`.
+- **Asynchronous Cross-Batch Internal Transfer Linking 🔄↔️**:
+  - **Bidirectional Mirror Recognition**: Automatically recognizes and pairs delayed or separate-batch internal transfer debits and credits between checking and savings accounts (e.g. Livret A $\leftrightarrow$ Compte Courant).
+
 - **Auto-Pilot Mobile Usability, Touch Interactions & Overview Popover Caging 📱🎛️**:
   - **Overview Popover Viewport Containment**: Repositioned the Auto-Pilot popover widget on mobile and tablet devices (≤ 1024px) from right-aligned (`right: 0`) to viewport-contained left-aligned (`left: 0; right: auto; width: calc(100vw - 24px); max-width: 390px;`), completely eliminating horizontal off-screen clipping.
   - **Mobile Touch Interaction Refinements**: Restricted `onmouseenter` opening to desktop screens (> 1024px), neutralized automatic `mouseleave` auto-hide on mobile devices, and introduced tap debouncing in `handleAutopilotBtnClick` to prevent instant flicker-close on touch screens.

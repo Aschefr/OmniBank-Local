@@ -8,7 +8,7 @@ et maintient la cohérence Undo/Redo via history_service.
 import json
 import logging
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
@@ -390,9 +390,8 @@ def process_incoming_batch(
                     tx["category"] = resolve_fallback_category(db, t_type)
                     tx["smart_is_fallback"] = True
                     tx["smart_suggested"] = True
-                    if not tx.get("smart_source"):
-                        tx["smart_source"] = "fallback"
-                    tx["smart_confidence"] = max(float(tx.get("smart_confidence") or 0.0), threshold / 100.0)
+                    # Default fallback categories have low confidence (0.20), never artificially boosted to threshold
+                    tx["smart_confidence"] = float(tx.get("smart_confidence") or 0.20)
     except Exception as sl_err:
         logger.warning(f"[AutoPilot] Avertissement lors de la résolution smart labels du lot: {sl_err}")
 
@@ -500,9 +499,43 @@ def process_incoming_batch(
             snap_acc = statement_snapshot_accounts[acc_idx]
             residual_txs = []
 
+            # Garde-fou d'intégrité de l'empreinte historique
+            is_suspicious_statement = bool(acc.get("is_suspicious_statement", False))
+            fingerprint = acc.get("suspicious_fingerprint")
+            if not fingerprint and acc_id:
+                from app.services.bank_sync.sync_service import evaluate_historical_fingerprint
+                fingerprint = evaluate_historical_fingerprint(
+                    db,
+                    acc_id,
+                    account_txs,
+                    cutoff_date=date.today() - timedelta(days=30)
+                )
+                is_suspicious_statement = bool(fingerprint.get("is_suspicious", False))
+                acc["is_suspicious_statement"] = is_suspicious_statement
+                acc["suspicious_fingerprint"] = fingerprint
+
+            if is_suspicious_statement:
+                logger.warning(
+                    f"[AutoPilot] [GARDE-FOU EMPREINTE] Lot {batch_id} : Le compte #{acc_id} ({acc.get('account_name')}) "
+                    f"a déclenché le garde-fou d'intégrité ({fingerprint.get('warning_message') if fingerprint else 'relevé suspect'}). "
+                    f"Toutes les écritures et rapprochements automatiques sont INTERDITS pour ce compte."
+                )
+
             for tx_idx, tx in enumerate(account_txs):
                 snap_tx = snap_acc["transactions"][tx_idx]
                 total_count += 1
+
+                if is_suspicious_statement:
+                    snap_tx["audit_status"] = "suspicious_mismatch"
+                    snap_tx["audit_action"] = "BLOCKED_BY_GUARD"
+                    snap_tx["decision_reason"] = "fingerprint_guard_triggered"
+                    snap_tx["guard_warning"] = (fingerprint.get("warning_message") if fingerprint else "Relevé suspect bloqué par le garde-fou")
+                    tx["needs_review"] = True
+                    tx["_blocked_by_guard"] = True
+                    needs_review_count += 1
+                    pending_count += 1
+                    residual_txs.append(tx)
+                    continue
 
                 is_rec = bool(tx.get("is_reconciled", False))
                 already_rec = bool(tx.get("already_reconciled", False))
@@ -745,9 +778,11 @@ def process_incoming_batch(
                     to_acc = acc_id if raw_amt >= 0 else None
 
                     # Évaluation du niveau de confiance / besoin de revue utilisateur
+                    # Une catégorie de repli/par défaut (fallback) n'est JAMAIS considérée fiable sans revue utilisateur
                     is_reliable = (
                         not chameleon_blocked
                         and not is_ignored
+                        and not is_fallback
                         and has_valid_category
                         and confidence >= (threshold / 100.0)
                     )

@@ -247,7 +247,29 @@ def execute_auto_sync_for_connection(
                     is_read=False,
                     created_at=datetime.now(timezone.utc)
                 )
-                db.add(notif)
+        # Alerte Garde-fou d'empreinte historique
+        suspicious_accs = [
+            acc.get("account_name", f"Compte #{acc.get('account_id')}")
+            for acc in (preview.get("accounts", []) if preview else [])
+            if acc.get("is_suspicious_statement")
+        ]
+        if suspicious_accs:
+            acc_list_str = ", ".join(suspicious_accs)
+            notif_guard = Notification(
+                type="bank_sync",
+                title=f"🛡️ Garde-fou activé : {conn.label}",
+                content=f"Relevé suspect détecté pour {acc_list_str} : aucune opération ne correspond à l'historique en base. Écritures automatiques bloquées par sécurité.",
+                link_data=json.dumps({
+                    "view": "bank_sync",
+                    "action": "open_pending",
+                    "conn_id": conn.id,
+                    "conn_label": conn.label,
+                    "suspicious_guard": True
+                }),
+                is_read=False,
+                created_at=datetime.now(timezone.utc)
+            )
+            db.add(notif_guard)
 
         conn.last_sync_at = datetime.now(timezone.utc)
         conn.last_sync_status = "auto_checked"

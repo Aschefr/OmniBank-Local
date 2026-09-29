@@ -3306,5 +3306,9 @@
   "autopilot_settings_short": "Réglages",
   "autopilot_state_full_short": "Totale (15/15)",
   "autopilot_state_balanced_short": "Équilibré ({count}/15)",
-  "autopilot_state_custom_short": "Perso ({count}/15)"
+  "autopilot_state_custom_short": "Perso ({count}/15)",
+  "bank_sync_guard_suspicious_title": "Garde-fou d'intégrité activé",
+  "bank_sync_guard_suspicious_desc": "Aucune des opérations reçues ne correspond à l'historique récent de ce compte en base ({count} opérations récentes connues). Par sécurité contre une inversion de compte bancaire, les écritures automatiques ont été suspendues.",
+  "bank_sync_guard_retry": "Relancer le relevé",
+  "bank_sync_guard_dismiss": "Ignorer le garde-fou"
 }
