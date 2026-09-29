@@ -21,6 +21,9 @@ All notable changes to this project will be documented in this file.
   - Automated envelope discovery and smoothed monthly EMA recalibration protected by drift guardrails ($\pm 10\%$/mo, $\pm 25\%$/yr), coupled with out-of-plan charge variance tolerance and perennial rate hike propagation.
 - **Mobile Ergonomics, Touch Controls & Design Polish 📱✨**:
   - Mobile-optimized Auto-Pilot popovers with viewport containment, dedicated mobile dismiss controls, tap debouncing, standardized decision override modals with integrated `CategoryPicker`, and full English/French bilingual parity with privacy blur support.
+- **Overview Cockpit Mode & Simplified Gauges 🎛️✨**:
+  - Added a responsive dual-mode toggle ("Cockpit" vs "Full") on the Overview page with session-persistent user preference.
+  - Introduced modern animated circular SVG gauges for key financial health vitals (Remaining to Spend, Monthly Budget consumption, Savings Rate) and compact status cards with direct navigation shortcuts.
 
 ### Fixed
 - **Vault Unlock & Modal Tree Structure 🔐**: Restored immediate master password modal display upon clicking vault unlock by correcting modal DOM nesting, and validated balanced tag structure across all application views.

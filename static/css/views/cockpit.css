@@ -1,0 +1,443 @@
+/**
+ * OmniBank Local - views/cockpit.css
+ * Cockpit mode: simplified overview with circular gauges & compact cards
+ */
+
+/* ── Mode Toggle Pill ──────────────────────────────────────────────────── */
+.overview-mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 3px;
+    gap: 2px;
+    margin-left: 12px;
+    flex-shrink: 0;
+}
+
+.overview-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.overview-mode-btn:hover {
+    color: var(--text-main);
+    background: rgba(99, 102, 241, 0.08);
+}
+
+.overview-mode-btn.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.theme-dark .overview-mode-btn.active {
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.4);
+}
+
+/* ── Cockpit Container ─────────────────────────────────────────────────── */
+.cockpit-container {
+    display: none;
+    flex-direction: column;
+    gap: 28px;
+    animation: cockpitFadeIn 0.4s ease-out;
+}
+
+.overview-root.cockpit-active .cockpit-container {
+    display: flex;
+}
+
+/* Hide all full-mode sections when cockpit is active */
+.overview-root.cockpit-active > .overview-hero,
+.overview-root.cockpit-active > .overview-rhythm-strip,
+.overview-root.cockpit-active > #ovPendingBankSyncBanner,
+.overview-root.cockpit-active > .overview-main-card,
+.overview-root.cockpit-active > .overview-bottom-grid {
+    display: none !important;
+}
+
+@keyframes cockpitFadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Gauges Row ────────────────────────────────────────────────────────── */
+.cockpit-gauges-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.cockpit-gauge-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 20px 22px;
+    border-radius: 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.cockpit-gauge-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
+    border-color: var(--accent-border);
+}
+
+.theme-dark .cockpit-gauge-card:hover {
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+}
+
+/* SVG Gauge */
+.cockpit-gauge-svg {
+    width: 180px;
+    height: 180px;
+    position: relative;
+}
+
+.cockpit-gauge-bg {
+    fill: none;
+    stroke: var(--border-color);
+    stroke-width: 12;
+    opacity: 0.3;
+}
+
+.cockpit-gauge-arc {
+    fill: none;
+    stroke-width: 12;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s ease;
+    filter: drop-shadow(0 0 6px var(--cockpit-gauge-glow, rgba(99, 102, 241, 0.3)));
+}
+
+/* Gauge center text */
+.cockpit-gauge-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+}
+
+.cockpit-gauge-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cockpit-gauge-percent {
+    font-size: 38px;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -1px;
+    line-height: 1;
+}
+
+.cockpit-gauge-sublabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Below gauge captions */
+.cockpit-gauge-caption {
+    margin-top: 14px;
+    text-align: center;
+}
+
+.cockpit-gauge-amount {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-main);
+    letter-spacing: -0.3px;
+}
+
+.cockpit-gauge-detail {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 3px;
+}
+
+/* ── Compact Cards Row ─────────────────────────────────────────────────── */
+.cockpit-cards-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.cockpit-compact-card {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    border-radius: 18px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(12px);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    min-height: 130px;
+    position: relative;
+    overflow: hidden;
+}
+
+.cockpit-compact-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    border-color: var(--accent-border);
+}
+
+.theme-dark .cockpit-compact-card:hover {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.cockpit-compact-card.clickable {
+    cursor: pointer;
+}
+
+.cockpit-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.cockpit-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.cockpit-card-icon {
+    font-size: 16px;
+}
+
+.cockpit-card-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cockpit-card-badge.badge-active {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.cockpit-card-badge.badge-inactive {
+    background: rgba(156, 163, 175, 0.15);
+    color: var(--text-muted);
+    border: 1px solid rgba(156, 163, 175, 0.25);
+}
+
+.cockpit-card-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+}
+
+.cockpit-card-value.text-green { color: #10b981; }
+.cockpit-card-value.text-red { color: #ef4444; }
+.cockpit-card-value.text-orange { color: #f59e0b; }
+
+.cockpit-card-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 6px;
+}
+
+.cockpit-card-arrow {
+    position: absolute;
+    bottom: 16px;
+    right: 18px;
+    font-size: 18px;
+    color: var(--accent);
+    opacity: 0.5;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.cockpit-compact-card:hover .cockpit-card-arrow {
+    opacity: 1;
+    transform: translateX(3px);
+}
+
+/* AutoPilot status dot animation */
+.cockpit-ap-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    margin-right: 2px;
+    flex-shrink: 0;
+}
+
+.cockpit-ap-dot.active {
+    animation: cockpitDotPulse 2s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+.cockpit-ap-dot.inactive {
+    background: #6b7280;
+    animation: none;
+    box-shadow: none;
+}
+
+@keyframes cockpitDotPulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(16, 185, 129, 0.5); }
+    50%      { opacity: 0.5; box-shadow: 0 0 12px rgba(16, 185, 129, 0.8); }
+}
+
+/* Autopilot actions count */
+.cockpit-ap-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--accent);
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    margin-top: 10px;
+}
+
+/* ── Gauge Color Variants ──────────────────────────────────────────────── */
+
+/* Rest-to-live gauge */
+.cockpit-gauge-card[data-gauge="rav"] .cockpit-gauge-arc {
+    --cockpit-gauge-glow: rgba(16, 185, 129, 0.3);
+}
+
+.cockpit-gauge-card[data-gauge="rav"].gauge-green .cockpit-gauge-arc  { stroke: #10b981; --cockpit-gauge-glow: rgba(16, 185, 129, 0.35); }
+.cockpit-gauge-card[data-gauge="rav"].gauge-orange .cockpit-gauge-arc { stroke: #f59e0b; --cockpit-gauge-glow: rgba(245, 158, 11, 0.35); }
+.cockpit-gauge-card[data-gauge="rav"].gauge-red .cockpit-gauge-arc    { stroke: #ef4444; --cockpit-gauge-glow: rgba(239, 68, 68, 0.35); }
+
+/* Cycle gauge */
+.cockpit-gauge-card[data-gauge="cycle"] .cockpit-gauge-arc {
+    stroke: #6366f1;
+    --cockpit-gauge-glow: rgba(99, 102, 241, 0.3);
+}
+
+/* ── Responsive: Mobile ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .overview-mode-toggle {
+        margin-left: 0;
+        margin-top: 4px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .overview-mode-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    .cockpit-gauges-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        max-width: 100%;
+    }
+
+    .cockpit-gauge-card {
+        padding: 20px 14px 16px;
+        border-radius: 16px;
+    }
+
+    .cockpit-gauge-svg {
+        width: 130px;
+        height: 130px;
+    }
+
+    .cockpit-gauge-percent {
+        font-size: 28px;
+    }
+
+    .cockpit-gauge-sublabel {
+        font-size: 10px;
+    }
+
+    .cockpit-gauge-amount {
+        font-size: 16px;
+    }
+
+    .cockpit-gauge-detail {
+        font-size: 10.5px;
+    }
+
+    .cockpit-cards-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .cockpit-compact-card {
+        padding: 16px;
+        min-height: auto;
+        border-radius: 14px;
+    }
+
+    .cockpit-card-value {
+        font-size: 24px;
+    }
+}
+
+/* Extra-small phones */
+@media (max-width: 380px) {
+    .cockpit-gauge-svg {
+        width: 110px;
+        height: 110px;
+    }
+
+    .cockpit-gauge-percent {
+        font-size: 24px;
+    }
+
+    .cockpit-gauge-card {
+        padding: 16px 10px 14px;
+    }
+}
+
+/* Tablet (2-col cards) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .cockpit-cards-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
