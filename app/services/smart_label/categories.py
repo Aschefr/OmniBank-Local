@@ -175,7 +175,10 @@ def match_category_from_text(
             # Vérifier si un token significatif de la catégorie (>= 5 lettres) est dans les tokens
             sig_cat_tokens = [t for t in cat_tokens if len(t) >= 5]
             if sig_cat_tokens and any(t in raw_tokens for t in sig_cat_tokens):
-                score = 0.85
+                # Protection catégories composites (ex: "Rembours. Hexcel", "Assurance Auto", "Abonnement Sport") :
+                # Si la catégorie comporte plusieurs tokens et qu'un seul mot matche (ex: seulement le tiers sans l'action),
+                # le score ne doit JAMAIS atteindre le seuil d'auto-commit (0.85). On plafonne à 0.45 pour demander revue.
+                score = 0.45 if len(cat_tokens) > 1 else 0.80
                 direct_candidates.append((cat.name, score, max(len(t) for t in sig_cat_tokens)))
 
     if direct_candidates:

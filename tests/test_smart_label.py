@@ -1262,6 +1262,134 @@ def test_multi_category_rule_preserves_explicit_category_match(client, db_sessio
     assert resp.json()["category"] == "Remboursement"
 
 
+def test_long_statement_prefix_matches_concise_history(db_session):
+    """Vérifie qu'un libellé bancaire brut long d'employeur ('HEXCEL REINFORCEMENTS HEXCEL REI')
+    matche l'historique concis ('Hexcel') et récupère la catégorie 'Salaire'."""
+    from datetime import date
+    from app.models import Category, Transaction
+    db_session.add(Category(name="Salaire", type="income", is_closed=False))
+    db_session.add(Category(name="Rembours. Hexcel", type="income", is_closed=False))
+    
+    # Ajouter des salaires passés dans l'historique
+    for m in range(1, 4):
+        db_session.add(Transaction(
+            date_saisie=date(2026, m, 28),
+            date_operation=date(2026, m, 28),
+            description="Hexcel",
+            amount=2500.0,
+            type="income",
+            category="Salaire",
+            reconciliation_date=date(2026, m, 28)
+        ))
+    db_session.commit()
+
+    # Résolution du libellé bancaire long
+    res = resolve_smart_label(db_session, "HEXCEL REINFORCEMENTS HEXCEL REI", tx_type="income")
+    assert res["category"] == "Salaire"
+    assert res["source"] == "history"
+    assert res["confidence"] >= 0.85
+    assert res["description"] == "Hexcel"
+
+
+def test_composite_category_does_not_hijack_single_token(db_session):
+    """Vérifie qu'une catégorie composite comme 'Rembours. Hexcel' ne s'attribue pas
+    avec un score d'auto-commit (0.85) quand seul un mot sur deux est présent."""
+    from app.models import Category
+    db_session.add(Category(name="Rembours. Hexcel", type="income", is_closed=False))
+    db_session.commit()
+
+    # Sans historique ni règle, seulement "HEXCEL..." dans le libellé (sans "rembours")
+    res = resolve_smart_label(db_session, "HEXCEL REINFORCEMENTS HEXCEL REI", tx_type="income")
+    # Le score doit être plafonné à 0.45 (pas de seuil d'auto-commit)
+    assert res["confidence"] <= 0.50
+
+
+def test_carburant_total_not_polluted_by_city_name(db_session):
+    """Vérifie que des commerces sans rapport partageant un nom de ville (La Tour du Pin)
+    ne polluent pas le matching d'une station service Carburant Total."""
+    from datetime import date
+    from app.models import Category, Transaction
+
+    db_session.add(Category(name="Essence", type="expense_var", is_closed=False))
+    db_session.add(Category(name="Medecin", type="expense_var", is_closed=False))
+    db_session.add(Category(name="Divers", type="expense_var", is_closed=False))
+
+    # Historique avec optique et train dans la même ville
+    db_session.add(Transaction(
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        description="Centre vision la tour du pin",
+        amount=50.0,
+        type="expense_var",
+        category="Medecin",
+        reconciliation_date=date.today()
+    ))
+    db_session.add(Transaction(
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        description="Trainline - La tour du pin",
+        amount=15.0,
+        type="expense_var",
+        category="Divers",
+        reconciliation_date=date.today()
+    ))
+    # Transaction de carburant réelle
+    db_session.add(Transaction(
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        description="Essence (Total la tour Alp'Garage)",
+        amount=65.0,
+        type="expense_var",
+        category="Essence",
+        reconciliation_date=date.today()
+    ))
+    db_session.commit()
+
+    # Résolution de la nouvelle opération bancaire
+    res = resolve_smart_label(db_session, "Carburant Total La Tour du Pin", tx_type="expense_var")
+    assert res["category"] == "Essence"
+    assert res["source"] in ("history", "category_keyword")
+    assert res["confidence"] >= 0.75
+
+
+def test_ambiguity_falls_through_to_semantic_category(db_session):
+    """Vérifie qu'en cas d'historique ambigu (plusieurs catégories sans consensus),
+    le pipeline continue vers la détection sémantique directe avant d'abandonner."""
+    from datetime import date
+    from app.models import Category, Transaction
+
+    db_session.add(Category(name="Essence", type="expense_var", is_closed=False))
+    db_session.add(Category(name="Shopping", type="expense_var", is_closed=False))
+
+    # Historique conflictuel sur un motif générique sans consensus
+    db_session.add(Transaction(
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        description="Carburant Express Multi",
+        amount=40.0,
+        type="expense_var",
+        category="Shopping",
+        reconciliation_date=date.today()
+    ))
+    db_session.add(Transaction(
+        date_saisie=date.today(),
+        date_operation=date.today(),
+        description="Carburant Express Multi",
+        amount=45.0,
+        type="expense_var",
+        category="Essence",
+        reconciliation_date=date.today()
+    ))
+    db_session.commit()
+
+    # Résolution : bien que l'historique soit 50/50, le mot-clé sémantique 'Carburant'
+    # doit orienter vers la catégorie active 'Essence'
+    res = resolve_smart_label(db_session, "Carburant Express Multi", tx_type="expense_var")
+    assert res["category"] == "Essence"
+
+
+
+
 
 
 

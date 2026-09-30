@@ -529,6 +529,17 @@ def predict_next_paycheck(db: Session):
                 # If user configured a specific salary category, strictly require matching category
                 if tx.category == pay_category and tx.amount >= threshold_value:
                     is_valid_salary = True
+                elif tx.amount >= threshold_value:
+                    # Filet de sécurité intelligent : si le libellé correspond au nom d'un employeur
+                    # présent dans l'historique récent des salaires validés
+                    past_salary_descriptions = {
+                        h.get("description", "").strip().lower()
+                        for h in history_records
+                        if h.get("description") and not h.get("is_override") and not h.get("is_placeholder")
+                    }
+                    tx_desc_clean = (tx.description or "").strip().lower()
+                    if tx_desc_clean and any(p and (p in tx_desc_clean or tx_desc_clean in p) for p in past_salary_descriptions):
+                        is_valid_salary = True
             else:
                 # No category filter configured: fall back to amount threshold
                 if tx.amount >= threshold_value:

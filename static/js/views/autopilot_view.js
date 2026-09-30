@@ -92,13 +92,6 @@ window.AutopilotView = {
             iconKey: 'tag',
             items: [
                 {
-                    key: 'auto_learn_merchant_rules',
-                    labelKey: 'autopilot_subtoggle_auto_learn_merchant_rules',
-                    label: 'Apprentissage autonome des marchands',
-                    descKey: 'autopilot_subtoggle_auto_learn_merchant_rules_desc',
-                    desc: 'Mémorise automatiquement vos arbitrages dans les règles marchands pour classifier sans faille les prochains relevés.'
-                },
-                {
                     key: 'auto_create_missing_categories',
                     labelKey: 'autopilot_subtoggle_auto_create_missing_categories',
                     label: 'Création autonome des catégories',
@@ -239,11 +232,11 @@ window.AutopilotView = {
                             <button type="button" class="btn ap-header-btn" onclick="window.BankSyncView ? window.BankSyncView.openLastStatementModal() : null" title="${window.i18n ? window.i18n.t('autopilot_view_last_statement_tooltip') || 'Consulter le dernier relevé bancaire et l\'audit des actions de l\'Auto-Pilote' : 'Consulter le dernier relevé bancaire et l\'audit des actions de l\'Auto-Pilote'}">
                                 <span class="ap-btn-icon">📋</span> <span class="ap-btn-label" data-i18n="autopilot_view_last_statement_btn">${window.i18n ? window.i18n.t('autopilot_view_last_statement_btn') || 'Dernier relevé' : 'Dernier relevé'}</span>
                             </button>
-                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="${window.i18n ? window.i18n.t('autopilot_settings_btn_title') : 'Configurer les 15 automatismes et le seuil'}">
+                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="${window.i18n ? window.i18n.t('autopilot_settings_btn_title') : 'Configurer les 14 automatismes et le seuil'}">
                                 <span class="ap-btn-icon">${this._icons.settings}</span>
                                 <span class="ap-btn-label ap-btn-label-full" data-i18n="autopilot_settings_and_bricks">${window.i18n ? window.i18n.t('autopilot_settings_and_bricks') : 'Réglages & Automatismes'}</span>
                                 <span class="ap-btn-label ap-btn-label-short" data-i18n="autopilot_settings_short" style="display: none;">${window.i18n ? (window.i18n.t('autopilot_settings_short') || 'Réglages') : 'Réglages'}</span>
-                                <span id="apActiveBriquesBadge" class="badge ap-briques-badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/15</span>
+                                <span id="apActiveBriquesBadge" class="badge ap-briques-badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/14</span>
                             </button>
                         </div>
 
@@ -596,18 +589,18 @@ window.AutopilotView = {
                                 <button type="button" id="btnPresetCustom" class="btn ap-preset-btn" onclick="window.AutopilotView.focusCustomSubtoggles()" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border-color); background: var(--bg-base); cursor: pointer; position: relative; width: 100%; box-sizing: border-box;">
                                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                                         <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                                            <span>🛠️</span> <span><span data-i18n="autopilot_preset_custom_card">${window.i18n ? (window.i18n.t('autopilot_preset_custom_card') || 'Personnalisé') : 'Personnalisé'}</span> (<span id="presetCustomCountVal">--</span>/15)</span>
+                                            <span>🛠️</span> <span><span data-i18n="autopilot_preset_custom_card">${window.i18n ? (window.i18n.t('autopilot_preset_custom_card') || 'Personnalisé') : 'Personnalisé'}</span> (<span id="presetCustomCountVal">--</span>/14)</span>
                                         </div>
                                         <span id="presetCheckCustom" style="font-size: 10.5px; font-weight: 700; color: #f59e0b; display: none; background: rgba(245, 158, 11, 0.15); padding: 1px 6px; border-radius: 4px;">✓ Actif</span>
                                     </div>
                                     <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; line-height: 1.35;" data-i18n="autopilot_preset_custom_desc">
-                                        ${window.i18n ? (window.i18n.t('autopilot_preset_custom_desc') || 'Sélection sur-mesure de vos 15 briques modulaires ci-dessous') : 'Sélection sur-mesure de vos 15 briques modulaires ci-dessous'}
+                                        ${window.i18n ? (window.i18n.t('autopilot_preset_custom_desc') || 'Sélection sur-mesure de vos 14 briques modulaires ci-dessous') : 'Sélection sur-mesure de vos 14 briques modulaires ci-dessous'}
                                     </div>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Block 2 : 15 Automatismes Modulaires Container -->
+                        <!-- Block 2 : 14 Automatismes Modulaires Container -->
                         <div>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <h4 style="font-size: 13.5px; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 6px;">
@@ -1103,21 +1096,24 @@ window.AutopilotView = {
                 } else if (status.subtoggles && typeof status.subtoggles === 'object') {
                     activeCount = Object.values(status.subtoggles).filter(Boolean).length;
                 }
+                const totalBriques = (this._subtogglesDef && this._subtogglesDef.length > 0)
+                    ? this._subtogglesDef.reduce((acc, cat) => acc + (cat.items?.length || 0), 0)
+                    : 14;
                 if (activeCount === 0) {
-                    activeCount = status.preset === 'full' ? 15 : (status.preset === 'balanced' ? 8 : 0);
+                    activeCount = status.preset === 'full' ? totalBriques : (status.preset === 'balanced' ? 7 : 0);
                 }
 
                 let fullStateText = '';
                 let shortStateText = '';
                 if (status.preset === 'full') {
-                    fullStateText = window.i18n ? (window.i18n.t('autopilot_state_full') || `Autonomie Totale (15/15)`) : `Autonomie Totale (15/15)`;
-                    shortStateText = window.i18n ? (window.i18n.t('autopilot_state_full_short') || `Totale (15/15)`) : `Totale (15/15)`;
+                    fullStateText = window.i18n ? (window.i18n.tp ? window.i18n.tp('autopilot_state_full', { count: totalBriques, total: totalBriques }) : window.i18n.t('autopilot_state_full')) || `Autonomie Totale (${totalBriques}/${totalBriques})` : `Autonomie Totale (${totalBriques}/${totalBriques})`;
+                    shortStateText = window.i18n ? (window.i18n.tp ? window.i18n.tp('autopilot_state_full_short', { count: totalBriques, total: totalBriques }) : window.i18n.t('autopilot_state_full_short')) || `Totale (${totalBriques}/${totalBriques})` : `Totale (${totalBriques}/${totalBriques})`;
                 } else if (status.preset === 'balanced') {
-                    fullStateText = window.i18n ? (window.i18n.tp('autopilot_state_balanced', { count: activeCount }) || `Mode Équilibré (${activeCount}/15)`) : `Mode Équilibré (${activeCount}/15)`;
-                    shortStateText = window.i18n ? (window.i18n.tp('autopilot_state_balanced_short', { count: activeCount }) || `Équilibré (${activeCount}/15)`) : `Équilibré (${activeCount}/15)`;
+                    fullStateText = window.i18n ? (window.i18n.tp('autopilot_state_balanced', { count: activeCount, total: totalBriques }) || `Mode Équilibré (${activeCount}/${totalBriques})`) : `Mode Équilibré (${activeCount}/${totalBriques})`;
+                    shortStateText = window.i18n ? (window.i18n.tp('autopilot_state_balanced_short', { count: activeCount, total: totalBriques }) || `Équilibré (${activeCount}/${totalBriques})`) : `Équilibré (${activeCount}/${totalBriques})`;
                 } else {
-                    fullStateText = window.i18n ? (window.i18n.tp('autopilot_state_custom', { count: activeCount }) || `Personnalisé (${activeCount}/15)`) : `Personnalisé (${activeCount}/15)`;
-                    shortStateText = window.i18n ? (window.i18n.tp('autopilot_state_custom_short', { count: activeCount }) || `Perso (${activeCount}/15)`) : `Perso (${activeCount}/15)`;
+                    fullStateText = window.i18n ? (window.i18n.tp('autopilot_state_custom', { count: activeCount, total: totalBriques }) || `Personnalisé (${activeCount}/${totalBriques})`) : `Personnalisé (${activeCount}/${totalBriques})`;
+                    shortStateText = window.i18n ? (window.i18n.tp('autopilot_state_custom_short', { count: activeCount, total: totalBriques }) || `Perso (${activeCount}/${totalBriques})`) : `Perso (${activeCount}/${totalBriques})`;
                 }
                 heroStateText.innerHTML = `<span class="ap-state-full">${fullStateText}</span><span class="ap-state-short">${shortStateText}</span>`;
             }
@@ -1503,12 +1499,12 @@ window.AutopilotView = {
                 badge.style.color = 'var(--accent)';
                 badge.style.border = '1px solid var(--accent)';
             } else if (preset === 'full') {
-                badge.textContent = window.i18n ? window.i18n.t('autopilot_preset_full') : 'Autonomie Totale (15)';
+                badge.textContent = window.i18n ? window.i18n.t('autopilot_preset_full') : 'Autonomie Totale (14)';
                 badge.style.background = 'rgba(16, 185, 129, 0.15)';
                 badge.style.color = '#10b981';
                 badge.style.border = '1px solid #10b981';
             } else {
-                badge.textContent = window.i18n ? (window.i18n.tp ? window.i18n.tp('autopilot_preset_custom', { active: activeCount }) : window.i18n.t('autopilot_preset_custom').replace('{active}', activeCount)) : `Personnalisé (${activeCount}/15)`;
+                badge.textContent = window.i18n ? (window.i18n.tp ? window.i18n.tp('autopilot_preset_custom', { active: activeCount }) : window.i18n.t('autopilot_preset_custom').replace('{active}', activeCount)) : `Personnalisé (${activeCount}/14)`;
                 badge.style.background = 'rgba(245, 158, 11, 0.15)';
                 badge.style.color = '#f59e0b';
                 badge.style.border = '1px solid #f59e0b';
@@ -1847,12 +1843,12 @@ window.AutopilotView = {
                 tagBadge.style.color = '#10b981';
                 tagBadge.style.borderColor = '#10b981';
             } else if (preset === 'balanced') {
-                tagBadge.textContent = window.i18n ? (window.i18n.t('autopilot_preset_balanced') || 'Mode Équilibré (8)') : 'Mode Équilibré (8)';
+                tagBadge.textContent = window.i18n ? (window.i18n.t('autopilot_preset_balanced') || 'Mode Équilibré (7)') : 'Mode Équilibré (7)';
                 tagBadge.style.background = 'rgba(99, 102, 241, 0.2)';
                 tagBadge.style.color = 'var(--accent)';
                 tagBadge.style.borderColor = 'var(--accent)';
             } else {
-                tagBadge.textContent = window.i18n ? (window.i18n.t('autopilot_preset_custom')?.replace('{active}', activeCount) || `Personnalisé (${activeCount}/15)`) : `Personnalisé (${activeCount}/15)`;
+                tagBadge.textContent = window.i18n ? (window.i18n.t('autopilot_preset_custom')?.replace('{active}', activeCount) || `Personnalisé (${activeCount}/14)`) : `Personnalisé (${activeCount}/14)`;
                 tagBadge.style.background = 'rgba(245, 158, 11, 0.2)';
                 tagBadge.style.color = '#f59e0b';
                 tagBadge.style.borderColor = '#f59e0b';
@@ -2626,11 +2622,15 @@ window.AutopilotView = {
             btnEl.disabled = true;
         }
 
+        const amountInput = document.getElementById('overrideAmount');
+        const amountVal = amountInput ? parseFloat(amountInput.value) : null;
+
         try {
             const res = await API.post('/api/smart-labels/simulate', {
                 raw_label: rawLabel,
                 use_ai_fallback: true,
-                tx_type: this._currentOverrideTxType || 'expense_var'
+                tx_type: this._currentOverrideTxType || 'expense_var',
+                amount: !isNaN(amountVal) ? amountVal : null
             });
 
             if (res) {
@@ -2639,12 +2639,14 @@ window.AutopilotView = {
                 }
                 if (res.category && window.CategoryPicker) {
                     window.CategoryPicker.setValue('overrideCategory', res.category, true);
+                    const isAiSource = (res.source === 'ai');
+                    const successMsg = isAiSource
+                        ? (window.i18n ? (window.i18n.t('smart_label_ai_suggested') || 'Classification IA appliquée') : 'Classification IA appliquée')
+                        : (window.i18n ? (window.i18n.t('smart_label_suggested_success') || 'Catégorie suggérée appliquée') : 'Catégorie suggérée appliquée');
+                    showToast(successMsg, 'success');
+                } else {
+                    showToast(window.i18n ? (window.i18n.t('smart_label_no_category_found') || 'Aucune catégorie correspondante trouvée') : 'Aucune catégorie correspondante trouvée', 'info');
                 }
-                const isAiSource = (res.source === 'ai');
-                const successMsg = isAiSource
-                    ? (window.i18n ? (window.i18n.t('smart_label_ai_suggested') || 'Classification IA appliquée') : 'Classification IA appliquée')
-                    : (window.i18n ? (window.i18n.t('smart_label_suggested_success') || 'Catégorie suggérée appliquée') : 'Catégorie suggérée appliquée');
-                showToast(successMsg, 'success');
             }
         } catch (e) {
             showToast(window.i18n ? window.i18n.t('autopilot_toast_ai_error') : 'Erreur lors de la suggestion IA', 'error');
@@ -2820,7 +2822,7 @@ window.AutopilotView = {
             const subtoggles = this._status.managed_subtoggles || {};
             const vals = Object.values(subtoggles);
             const active = vals.filter(Boolean).length;
-            const total = this._subtogglesDef ? this._subtogglesDef.reduce((acc, cat) => acc + (cat.items?.length || 0), 0) : 15;
+            const total = this._subtogglesDef ? this._subtogglesDef.reduce((acc, cat) => acc + (cat.items?.length || 0), 0) : 14;
             briquesBadge.textContent = `${active}/${total}`;
             briquesBadge.title = window.i18n ? window.i18n.t('autopilot_header_briques_badge_tooltip').replace('{active}', active).replace('{total}', total) : `${active} sur ${total} automatismes actifs`;
         }

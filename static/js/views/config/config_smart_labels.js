@@ -1055,12 +1055,10 @@ window.ConfigSmartLabels = {
 
         const isAutopilotActive = (cfg.auto_pilot_enabled ?? 'false') === 'true';
         const isCreateCats = (cfg.auto_create_missing_categories ?? 'false') === 'true';
-        const isLearnRules = (cfg.auto_learn_merchant_rules ?? 'false') === 'true';
         const isChameleon = (cfg.auto_assign_chameleon_fallback ?? 'false') === 'true';
         const isAiEnabled = (cfg.enable_ai === 'true' || cfg.enable_ai === true);
 
         const isCreateCatsAp = isAutopilotActive && isCreateCats;
-        const isLearnRulesAp = isAutopilotActive && isLearnRules;
         const isChameleonAp = isAutopilotActive && isChameleon;
 
         const apBadgeHtml = `
@@ -1129,21 +1127,6 @@ window.ConfigSmartLabels = {
                             </label>
                         </div>
 
-                        <!-- Option 2 : Auto-apprentissage des règles marchands -->
-                        <div style="padding: 12px 14px; border-radius: 10px; border: ${isLearnRulesAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isLearnRulesAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isLearnRulesAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
-                            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                <input type="checkbox" id="cfg_auto_learn_merchant_rules" ${isLearnRules ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isLearnRulesAp ? '#10b981' : 'var(--accent, #6366f1)'}; cursor: pointer;">
-                                <div style="flex: 1; min-width: 0;">
-                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                                        <span style="display: flex; align-items: center; gap: 6px;"><span>🧠</span> <span>${window.i18n?.t('smart_label_auto_learn_rules_label') || 'Auto-apprentissage des règles marchands'}</span></span>
-                                        ${isLearnRulesAp ? apBadgeHtml : ''}
-                                    </div>
-                                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
-                                        ${window.i18n?.t('smart_label_auto_learn_rules_desc') || 'Mémorise automatiquement les associations commerçant / catégorie stables pour accélérer les futurs imports.'}
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
 
                         <!-- Option 3 : Affectation automatique des marchands polyvalents -->
                         <div style="padding: 12px 14px; border-radius: 10px; border: ${isChameleonAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isChameleonAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isChameleonAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
@@ -1243,12 +1226,10 @@ window.ConfigSmartLabels = {
 
     async saveAutomationsConfig() {
         const createCatsChk = document.getElementById('cfg_auto_create_missing_categories');
-        const learnRulesChk = document.getElementById('cfg_auto_learn_merchant_rules');
         const chameleonChk = document.getElementById('cfg_auto_assign_chameleon_fallback');
 
         const payload = {
             auto_create_missing_categories: createCatsChk?.checked ? 'true' : 'false',
-            auto_learn_merchant_rules: learnRulesChk?.checked ? 'true' : 'false',
             auto_assign_chameleon_fallback: chameleonChk?.checked ? 'true' : 'false',
         };
 

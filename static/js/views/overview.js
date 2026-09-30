@@ -26,6 +26,20 @@ window.OverviewView = {
     _apTargetCountdownEnd: null,
     _apSyncTriggered: false,
 
+    _getTodayISO(d = new Date()) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    },
+
+    _getEndOfMonthISO(d = new Date()) {
+        const y = d.getFullYear();
+        const m = d.getMonth();
+        const lastDay = new Date(y, m + 1, 0).getDate();
+        return `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    },
+
     render() {
         if (window.ProfileStorage) {
             const savedTop6 = window.ProfileStorage.get('overview_top6_filter');
@@ -56,73 +70,77 @@ window.OverviewView = {
                     <div class="overview-header-main">
                         <div class="overview-title-group">
                             <h2 class="overview-main-title">👀 <span data-i18n="nav_overview">${window.i18n.t('nav_overview')}</span></h2>
-                            <div class="overview-mode-toggle" id="ovModeToggle">
-                                <button class="overview-mode-btn ${this._displayMode === 'cockpit' ? 'active' : ''}" onclick="window.OverviewView.setDisplayMode('cockpit')" data-i18n-title="overview_mode_cockpit_tooltip" title="${window.i18n.t('overview_mode_cockpit_tooltip') || 'Vue simplifiée avec jauges visuelles'}">
-                                    🎛️ <span data-i18n="overview_mode_cockpit">${window.i18n.t('overview_mode_cockpit') || 'Cockpit'}</span>
-                                </button>
-                                <button class="overview-mode-btn ${this._displayMode === 'full' ? 'active' : ''}" onclick="window.OverviewView.setDisplayMode('full')" data-i18n-title="overview_mode_full_tooltip" title="${window.i18n.t('overview_mode_full_tooltip') || 'Tableau de bord complet avec toutes les sections'}">
-                                    📊 <span data-i18n="overview_mode_full">${window.i18n.t('overview_mode_full') || 'Complet'}</span>
-                                </button>
-                            </div>
                             <div id="ovOrgTag" class="overview-org-tag" style="display:none;">🏢 <span data-i18n="overview_org_badge">${window.i18n.t('overview_org_badge') || 'Mode Organisation'}</span></div>
                             <div id="ovHealthBadge" class="overview-health-badge">—</div>
                         </div>
+                        <div class="overview-mode-toggle" id="ovModeToggle">
+                            <button class="overview-mode-btn ${this._displayMode === 'cockpit' ? 'active' : ''}" onclick="window.OverviewView.setDisplayMode('cockpit')" data-i18n-title="overview_mode_cockpit_tooltip" title="${window.i18n.t('overview_mode_cockpit_tooltip') || 'Vue simplifiée avec jauges visuelles'}">
+                                🎛️ <span data-i18n="overview_mode_cockpit">${window.i18n.t('overview_mode_cockpit') || 'Cockpit'}</span>
+                            </button>
+                            <button class="overview-mode-btn ${this._displayMode === 'full' ? 'active' : ''}" onclick="window.OverviewView.setDisplayMode('full')" data-i18n-title="overview_mode_full_tooltip" title="${window.i18n.t('overview_mode_full_tooltip') || 'Tableau de bord complet avec toutes les sections'}">
+                                📊 <span data-i18n="overview_mode_full">${window.i18n.t('overview_mode_full') || 'Complet'}</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="overview-controls-bar">
-                        <div id="ovAccountSelect" class="overview-acc-dropdown">
-                            <button type="button" class="overview-acc-trigger" onclick="window.OverviewView.toggleAccountDropdown(event)" aria-haspopup="listbox" aria-expanded="false">
-                                <span class="overview-acc-icon" id="ovAccountTriggerIcon">🏦</span>
-                                <span class="overview-acc-label" id="ovAccountTriggerLabel">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</span>
-                                <span class="overview-acc-chevron">▼</span>
+                        <div class="overview-controls-row-primary">
+                            <div id="ovAccountSelect" class="overview-acc-dropdown">
+                                <button type="button" class="overview-acc-trigger" onclick="window.OverviewView.toggleAccountDropdown(event)" aria-haspopup="listbox" aria-expanded="false">
+                                    <span class="overview-acc-icon" id="ovAccountTriggerIcon">🏦</span>
+                                    <span class="overview-acc-label" id="ovAccountTriggerLabel">${window.i18n.t('overview_filter_all_accounts') || 'Tous les comptes'}</span>
+                                    <span class="overview-acc-chevron">▼</span>
+                                </button>
+                                <div class="overview-acc-menu" id="ovAccountMenu" role="listbox" style="display:none;"></div>
+                            </div>
+
+                            <button class="btn btn-primary overview-add-btn" onclick="window.OverviewView.showAddModal()" data-i18n-title="btn_add_operation" title="${window.i18n.t('btn_add_operation') || '➕ Nouvelle opération'}">
+                                <span class="ov-btn-text-full" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation') || '➕ Nouvelle opération'}</span><span class="ov-btn-text-short">➕ Opération</span>
                             </button>
-                            <div class="overview-acc-menu" id="ovAccountMenu" role="listbox" style="display:none;"></div>
                         </div>
 
-                        <!-- Auto-Pilot Distinctive Dynamic Activation Button & Info-Bulle Popover -->
-                        <div class="overview-autopilot-widget" id="ovAutopilotWidget">
-                            <button type="button" 
-                                    class="overview-autopilot-btn is-inactive" 
-                                    id="ovAutopilotBtn" 
-                                    onclick="window.OverviewView.handleAutopilotBtnClick(event)" 
-                                    onmouseenter="if (window.innerWidth > 1024) window.OverviewView.showAutopilotPopover()" 
-                                    onmouseleave="window.OverviewView.scheduleHideAutopilotPopover()"
-                                    aria-haspopup="dialog" 
-                                    aria-expanded="false" 
-                                    data-i18n-title="overview_autopilot_btn"
-                                    title="${window.i18n.t('overview_autopilot_btn') || 'Auto-Pilote'}">
-                                <span class="overview-autopilot-icon">
-                                    <svg class="ov-autopilot-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="12" r="9.5"></circle>
-                                        <circle cx="12" cy="12" r="3"></circle>
-                                        <line x1="12" y1="15" x2="12" y2="21.5"></line>
-                                        <line x1="2.5" y1="12" x2="9" y2="12"></line>
-                                        <line x1="15" y1="12" x2="21.5" y2="12"></line>
-                                    </svg>
-                                </span>
-                                <span class="overview-autopilot-label" id="ovAutopilotLabel" data-i18n="overview_autopilot_btn">${window.i18n.t('overview_autopilot_btn') || 'Auto-Pilote'}</span>
-                                <span class="overview-autopilot-dot" id="ovAutopilotDot"></span>
-                                <span class="overview-autopilot-timer-chip" id="ovAutopilotTimerChip" style="display:none;"></span>
-                                <span class="overview-autopilot-badge" id="ovAutopilotBadge" style="display:none;">0</span>
-                            </button>
-                            <div class="overview-autopilot-popover" 
-                                 id="ovAutopilotPopover" 
-                                 style="display:none;" 
-                                 role="dialog" 
-                                 onmouseenter="window.OverviewView.keepAutopilotPopoverOpen()" 
-                                 onmouseleave="window.OverviewView.scheduleHideAutopilotPopover()">
-                                <div class="ov-ap-popover-body" style="padding: 16px; text-align: center; color: var(--text-muted);">
-                                    <span>⏳ Chargement...</span>
+                        <div class="overview-actions-group" id="ovActionsGroup">
+                            <!-- Auto-Pilot Distinctive Dynamic Activation Button & Info-Bulle Popover -->
+                            <div class="overview-autopilot-widget" id="ovAutopilotWidget">
+                                <button type="button" 
+                                        class="overview-autopilot-btn is-inactive" 
+                                        id="ovAutopilotBtn" 
+                                        onclick="window.OverviewView.handleAutopilotBtnClick(event)" 
+                                        onmouseenter="if (window.innerWidth > 1024) window.OverviewView.showAutopilotPopover()" 
+                                        onmouseleave="window.OverviewView.scheduleHideAutopilotPopover()"
+                                        aria-haspopup="dialog" 
+                                        aria-expanded="false" 
+                                        data-i18n-title="overview_autopilot_btn"
+                                        title="${window.i18n.t('overview_autopilot_btn') || 'Auto-Pilote'}">
+                                    <span class="overview-autopilot-icon">
+                                        <svg class="ov-autopilot-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="9.5"></circle>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                            <line x1="12" y1="15" x2="12" y2="21.5"></line>
+                                            <line x1="2.5" y1="12" x2="9" y2="12"></line>
+                                            <line x1="15" y1="12" x2="21.5" y2="12"></line>
+                                        </svg>
+                                    </span>
+                                    <span class="overview-autopilot-label" id="ovAutopilotLabel" data-i18n="overview_autopilot_btn">${window.i18n.t('overview_autopilot_btn') || 'Auto-Pilote'}</span>
+                                    <span class="overview-autopilot-dot" id="ovAutopilotDot"></span>
+                                    <span class="overview-autopilot-timer-chip" id="ovAutopilotTimerChip" style="display:none;"></span>
+                                    <span class="overview-autopilot-badge" id="ovAutopilotBadge" style="display:none;">0</span>
+                                </button>
+                                <div class="overview-autopilot-popover" 
+                                     id="ovAutopilotPopover" 
+                                     style="display:none;" 
+                                     role="dialog" 
+                                     onmouseenter="window.OverviewView.keepAutopilotPopoverOpen()" 
+                                     onmouseleave="window.OverviewView.scheduleHideAutopilotPopover()">
+                                    <div class="ov-ap-popover-body" style="padding: 16px; text-align: center; color: var(--text-muted);">
+                                        <span>⏳ Chargement...</span>
+                                    </div>
                                 </div>
                             </div>
+
+                            <button class="overview-bank-sync-btn" style="display: none;" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}">
+                                <span>⚡</span> <span class="ov-btn-text-full" data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span><span class="ov-btn-text-short">Relever</span>
+                            </button>
                         </div>
-
-                        <button class="overview-bank-sync-btn" style="display: none;" onclick="window.BankSyncView ? window.BankSyncView.triggerBackgroundSyncNow() : window.app.loadView('accounts')" data-i18n-title="bank_sync_run_background_tooltip" title="${window.i18n.t('bank_sync_run_background_tooltip') || 'Interroge vos banques connectées en tâche de fond pour récupérer les dernières opérations, détecter les correspondances à rapprocher et actualiser vos soldes sans bloquer l\'interface.'}">
-                            <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne'}</span>
-                        </button>
-                        <button class="btn btn-primary overview-add-btn" onclick="window.OverviewView.showAddModal()" data-i18n="btn_add_operation">
-                            <span>${window.i18n.t('btn_add_operation') || '➕ Nouvelle opération'}</span>
-                        </button>
-
                     </div>
                 </div>
 
@@ -146,7 +164,7 @@ window.OverviewView = {
                     <div class="overview-hero-card overview-hero-projection">
                         <div class="overview-hero-icon">🔮</div>
                         <div class="overview-hero-content">
-                            <div class="overview-hero-label" data-i18n="overview_projection_title">${window.i18n.t('overview_projection_title') || 'Projection Fin de Mois'}</div>
+                            <div class="overview-hero-label" id="ovProjectionLabel" data-i18n="overview_projection_title">${window.i18n.t('overview_projection_title') || 'Projection Fin de Mois'}</div>
                             <div class="overview-hero-value privacy-blur" id="ovProjectionAmount">—</div>
                             <div class="overview-hero-sub" id="ovProjectionSub">${window.i18n.t('overview_projection_sub') || 'Solde estimé en fin de mois'}</div>
                         </div>
@@ -1277,24 +1295,10 @@ window.OverviewView = {
                 : (window.i18n.t('overview_rest_to_live') || 'Reste à vivre');
         }
         if (rav) {
-            let currentRav = stats.rest_to_live;
-            let plannedInc = stats.unreconciled_income || 0;
-            let ravWithInc = (stats.rest_to_live_with_income !== undefined) ? stats.rest_to_live_with_income : (currentRav + plannedInc);
-
-            const isMainAccount = !this._selectedAccountId || (stats.main_account_id && String(this._selectedAccountId) === String(stats.main_account_id));
-            if (!isMainAccount && this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
-                const horizonISO = stats.next_pay_date || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
-                const accTxs = (this._transactions || []).filter(tx => {
-                    if (tx.reconciliation_date || tx.is_skipped) return false;
-                    if (stats.next_pay_date ? tx.date_operation >= horizonISO : tx.date_operation > horizonISO) return false;
-                    return String(tx.to_account_id) === String(this._selectedAccountId);
-                });
-                plannedInc = accTxs.reduce((sum, tx) => sum + (tx.amount > 0 ? tx.amount : 0), 0);
-                ravWithInc = currentRav + plannedInc;
-            } else if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
-                plannedInc = stats.unreconciled_income || 0;
-                ravWithInc = (stats.rest_to_live_with_income !== undefined) ? stats.rest_to_live_with_income : (currentRav + plannedInc);
-            }
+            const ravInfo = this._getRestToLiveInfo(stats);
+            const currentRav = ravInfo.rav;
+            const plannedInc = ravInfo.plannedInc;
+            const ravWithInc = ravInfo.ravWithInc;
 
             rav.textContent = formatCurrency(currentRav);
             if (stats.savings_overflow) {
@@ -1320,49 +1324,21 @@ window.OverviewView = {
             }
         }
 
+        const projLabel = document.getElementById('ovProjectionLabel');
         const projAmt = document.getElementById('ovProjectionAmount');
         const projSub = document.getElementById('ovProjectionSub');
         if (projAmt) {
-            const today = new Date();
-            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-            const todayISO = today.toISOString().split('T')[0];
-            const lastDayISO = lastDay.toISOString().split('T')[0];
-
-            let baseBalance = stats.net_worth;
-            if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
-                baseBalance = this._accountsMap[this._selectedAccountId].balance;
+            const proj = this._calculateProjection(stats);
+            if (projLabel) {
+                projLabel.textContent = proj.titleText;
+                projLabel.setAttribute('data-i18n', proj.titleKey);
             }
-
-            const upcomingTxs = (this._transactions || []).filter(tx => {
-                if (tx.reconciliation_date || tx.is_skipped) return false;
-                if (tx.date_operation < todayISO || tx.date_operation > lastDayISO) return false;
-                if (this._selectedAccountId) {
-                    return String(tx.from_account_id) === String(this._selectedAccountId) || String(tx.to_account_id) === String(this._selectedAccountId);
-                }
-                return true;
-            });
-
-            let projDiff = 0;
-            upcomingTxs.forEach(tx => {
-                if (tx.type === 'income') projDiff += tx.amount;
-                else projDiff -= tx.amount;
-            });
-
-            const projectedEnd = baseBalance + projDiff;
-            projAmt.textContent = formatCurrency(projectedEnd);
-            projAmt.style.color = projectedEnd < 0 ? '#ef4444' : '#10b981';
+            projAmt.textContent = formatCurrency(proj.projectedEnd);
+            projAmt.style.color = proj.projectedEnd < 0 ? '#ef4444' : '#10b981';
+            projAmt.title = proj.tooltipText;
             if (projSub) {
-                const isEn = window.i18n.lang === 'en';
-                const monthName = today.toLocaleDateString(isEn ? 'en-US' : 'fr-FR', { month: 'long' });
-                const dayNum = lastDay.getDate();
-                if (isOrgMode) {
-                    const prefix = window.i18n.t('overview_org_forecast_sub') || (isEn ? 'Forecast organisation balance as of' : 'Solde prévisionnel de l\'organisation au');
-                    projSub.textContent = `${prefix} ${dayNum} ${monthName}`;
-                } else if (isEn) {
-                    projSub.textContent = `Forecast balance as of ${monthName} ${dayNum}`;
-                } else {
-                    projSub.textContent = `Solde prévisionnel au ${dayNum} ${monthName}`;
-                }
+                projSub.title = proj.tooltipText;
+                projSub.textContent = proj.subText;
             }
         }
 
@@ -1420,15 +1396,204 @@ window.OverviewView = {
         }
     },
 
+    _getRestToLiveInfo(stats) {
+        if (!stats) return { rav: 0, plannedInc: 0, ravWithInc: 0 };
+        let currentRav = stats.rest_to_live || 0;
+        let plannedInc = stats.unreconciled_income || 0;
+        let ravWithInc = (stats.rest_to_live_with_income !== undefined) ? stats.rest_to_live_with_income : (currentRav + plannedInc);
+
+        const isMainAccount = !this._selectedAccountId || (stats.main_account_id && String(this._selectedAccountId) === String(stats.main_account_id));
+        if (!isMainAccount && this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
+            const horizonISO = stats.next_pay_date || this._getEndOfMonthISO();
+            const accTxs = (this._transactions || []).filter(tx => {
+                if (tx.reconciliation_date || tx.is_skipped) return false;
+                if (stats.next_pay_date ? tx.date_operation >= horizonISO : tx.date_operation > horizonISO) return false;
+                return String(tx.to_account_id) === String(this._selectedAccountId);
+            });
+            plannedInc = accTxs.reduce((sum, tx) => sum + (tx.amount > 0 ? tx.amount : 0), 0);
+            ravWithInc = currentRav + plannedInc;
+        } else if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
+            plannedInc = stats.unreconciled_income || 0;
+            ravWithInc = (stats.rest_to_live_with_income !== undefined) ? stats.rest_to_live_with_income : (currentRav + plannedInc);
+        }
+
+        return { rav: currentRav, plannedInc, ravWithInc };
+    },
+
+    _calculateProjection(stats) {
+        const isOrgMode = window.app?.config?.enable_org_mode === 'true' || window.app?.config?.enable_org_mode === true;
+        const hasPayCycle = !isOrgMode && !!(stats && stats.next_pay_date);
+        const isEn = window.i18n.lang === 'en';
+        const today = new Date();
+        const todayISO = this._getTodayISO(today);
+
+        let cutoffDate = null;
+        let dayNum = 0;
+        let monthName = '';
+        let titleKey = 'overview_projection_title';
+        let titleText = '';
+        let subText = '';
+
+        if (hasPayCycle) {
+            cutoffDate = stats.next_pay_date;
+            const parts = cutoffDate.split('-');
+            const targetDateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+            dayNum = parseInt(parts[2], 10);
+            monthName = targetDateObj.toLocaleDateString(isEn ? 'en-US' : 'fr-FR', { month: 'long' });
+            titleKey = 'overview_projection_cycle_title';
+            titleText = window.i18n.t('overview_projection_cycle_title') || (isEn ? 'End of Cycle Forecast' : 'Projection Fin de Cycle');
+            const prefix = window.i18n.t('overview_projection_cycle_sub') || (isEn ? 'Forecast balance as of' : 'Solde prévisionnel au');
+            subText = isEn ? `${prefix} ${monthName} ${dayNum}` : `${prefix} ${dayNum} ${monthName}`;
+        } else {
+            cutoffDate = this._getEndOfMonthISO(today);
+            const y = today.getFullYear();
+            const m = today.getMonth();
+            const lastDayDate = new Date(y, m + 1, 0);
+            dayNum = lastDayDate.getDate();
+            monthName = today.toLocaleDateString(isEn ? 'en-US' : 'fr-FR', { month: 'long' });
+            titleKey = 'overview_projection_title';
+            titleText = window.i18n.t('overview_projection_title') || (isEn ? 'End of Month Forecast' : 'Projection Fin de Mois');
+            if (isOrgMode) {
+                const prefix = window.i18n.t('overview_org_forecast_sub') || (isEn ? 'Forecast organisation balance as of' : 'Solde prévisionnel de l\'organisation au');
+                subText = isEn ? `${prefix} ${monthName} ${dayNum}` : `${prefix} ${dayNum} ${monthName}`;
+            } else if (isEn) {
+                subText = `Forecast balance as of ${monthName} ${dayNum}`;
+            } else {
+                subText = `Solde prévisionnel au ${dayNum} ${monthName}`;
+            }
+        }
+
+        let baseBalance = (stats && stats.net_worth !== undefined) ? stats.net_worth : 0;
+        if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
+            baseBalance = this._accountsMap[this._selectedAccountId].balance || 0;
+        }
+
+        const accIdStr = this._selectedAccountId ? String(this._selectedAccountId) : null;
+        const upcomingTxs = (this._transactions || []).filter(tx => {
+            if (tx.reconciliation_date || tx.is_skipped) return false;
+            if (tx.cross_profile_status === 'pending') return false;
+            if (!tx.date_operation) return false;
+
+            // En cycle de paye : on projette avant la nouvelle paye (ou jusqu'au jour de paye hors salaire)
+            if (hasPayCycle) {
+                if (tx.date_operation > cutoffDate) return false;
+                if (tx.date_operation === cutoffDate && (tx.is_salary || (tx.type === 'income' && tx.amount >= 1000))) return false;
+            } else {
+                if (tx.date_operation > cutoffDate) return false;
+            }
+
+            if (accIdStr) {
+                return String(tx.from_account_id) === accIdStr || String(tx.to_account_id) === accIdStr;
+            }
+            return true;
+        });
+
+        let projDiff = 0;
+        let incomingSum = 0;
+        let outgoingSum = 0;
+
+        upcomingTxs.forEach(tx => {
+            const amt = Math.abs(parseFloat(tx.amount) || 0);
+            if (accIdStr) {
+                const isTo = String(tx.to_account_id) === accIdStr;
+                const isFrom = String(tx.from_account_id) === accIdStr;
+                if (isTo && !isFrom) {
+                    projDiff += amt;
+                    incomingSum += amt;
+                } else if (isFrom && !isTo) {
+                    projDiff -= amt;
+                    outgoingSum += amt;
+                } else if (!isTo && !isFrom) {
+                    if (tx.type === 'income') {
+                        projDiff += amt;
+                        incomingSum += amt;
+                    } else {
+                        projDiff -= amt;
+                        outgoingSum += amt;
+                    }
+                }
+            } else {
+                const isTransfer = tx.from_account_id && tx.to_account_id;
+                if (!isTransfer) {
+                    if (tx.to_account_id && !tx.from_account_id) {
+                        projDiff += amt;
+                        incomingSum += amt;
+                    } else if (tx.from_account_id && !tx.to_account_id) {
+                        projDiff -= amt;
+                        outgoingSum += amt;
+                    } else if (tx.type === 'income') {
+                        projDiff += amt;
+                        incomingSum += amt;
+                    } else {
+                        projDiff -= amt;
+                        outgoingSum += amt;
+                    }
+                }
+            }
+        });
+
+        // Opérations fantômes de la synchronisation bancaire (non encore validées)
+        let ghosts = (window.BankSyncView && window.BankSyncView.ghostTransactions) || [];
+        if (accIdStr) {
+            ghosts = ghosts.filter(g => String(g.account_id) === accIdStr);
+        }
+        ghosts.forEach(g => {
+            const gDate = (g.date_operation ? String(g.date_operation).substring(0, 10) : '') || todayISO;
+            if (gDate <= cutoffDate) {
+                const raw = typeof g.raw_amount !== 'undefined' ? parseFloat(g.raw_amount) : (parseFloat(g.amount) || 0);
+                projDiff += raw;
+                if (raw > 0) incomingSum += raw;
+                else outgoingSum += Math.abs(raw);
+            }
+        });
+
+        const projectedEnd = Math.round((baseBalance + projDiff) * 100) / 100;
+        const targetDateLabel = isEn ? `${monthName} ${dayNum}` : `${dayNum} ${monthName}`;
+
+        let tooltipText = '';
+        if (projDiff === 0) {
+            tooltipText = isEn
+                ? `No pending transactions up to ${targetDateLabel}. Balance remains ${formatCurrency(baseBalance)}.`
+                : `Aucune opération prévue d'ici le ${targetDateLabel}. Le solde reste à ${formatCurrency(baseBalance)}.`;
+        } else {
+            const incStr = incomingSum > 0 ? `+${formatCurrency(incomingSum)}` : '';
+            const expStr = outgoingSum > 0 ? `-${formatCurrency(outgoingSum)}` : '';
+            const parts = [incStr, expStr].filter(Boolean).join(', ');
+            tooltipText = isEn
+                ? `Current: ${formatCurrency(baseBalance)} | Planned (${parts}) → Projected: ${formatCurrency(projectedEnd)}`
+                : `Solde actuel : ${formatCurrency(baseBalance)} | Prévues (${parts}) → Solde projeté : ${formatCurrency(projectedEnd)}`;
+        }
+
+        return {
+            baseBalance,
+            projDiff,
+            projectedEnd,
+            incomingSum,
+            outgoingSum,
+            upcomingCount: upcomingTxs.length + ghosts.length,
+            cutoffDate,
+            dayNum,
+            monthName,
+            titleKey,
+            titleText,
+            subText,
+            hasPayCycle,
+            tooltipText
+        };
+    },
+
+    _calculateMonthEndProjection(stats) {
+        return this._calculateProjection(stats);
+    },
+
     _renderUnreconciled(transactions) {
         const container = document.getElementById('ovUnreconciledList');
         const badge = document.getElementById('ovUnreconciledBadge');
         if (!container) return;
 
-        const todayISO = new Date().toISOString().split('T')[0];
+        const todayISO = this._getTodayISO();
         const nextPayDate = this._stats?.next_pay_date;
-        const now = new Date();
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        const endOfMonth = this._getEndOfMonthISO();
         const cutoffDate = nextPayDate || endOfMonth;
 
         // 1. Filtrer les opérations bancaires fantômes (en attente de validation)
@@ -2075,7 +2240,7 @@ window.OverviewView = {
         const accIdStr = this._selectedAccountId ? String(this._selectedAccountId) : null;
 
         const today = new Date();
-        const todayISO = today.toISOString().split('T')[0];
+        const todayISO = this._getTodayISO(today);
 
         // Calcul de la date de début selon le lookback
         let startDateISO = null;
@@ -2084,27 +2249,27 @@ window.OverviewView = {
         if (lookback === '1w') {
             const d = new Date(today);
             d.setDate(d.getDate() - 7);
-            startDateISO = d.toISOString().split('T')[0];
+            startDateISO = this._getTodayISO(d);
             nbDays = 7;
         } else if (lookback === '1m') {
             const d = new Date(today);
             d.setDate(d.getDate() - 30);
-            startDateISO = d.toISOString().split('T')[0];
+            startDateISO = this._getTodayISO(d);
             nbDays = 30;
         } else if (lookback === '3m') {
             const d = new Date(today);
             d.setDate(d.getDate() - 90);
-            startDateISO = d.toISOString().split('T')[0];
+            startDateISO = this._getTodayISO(d);
             nbDays = 90;
         } else if (lookback === '6m') {
             const d = new Date(today);
             d.setDate(d.getDate() - 180);
-            startDateISO = d.toISOString().split('T')[0];
+            startDateISO = this._getTodayISO(d);
             nbDays = 180;
         } else if (lookback === '12m') {
             const d = new Date(today);
             d.setDate(d.getDate() - 365);
-            startDateISO = d.toISOString().split('T')[0];
+            startDateISO = this._getTodayISO(d);
             nbDays = 365;
         } else if (lookback === 'all') {
             startDateISO = '1900-01-01';
@@ -2685,14 +2850,24 @@ window.OverviewView = {
         const stats = this._stats;
         if (!stats) return;
 
-        const t = (key, fallback) => window.i18n.t(key) || fallback;
+        const t = (key, fallback) => {
+            const val = window.i18n.t(key);
+            return (val && val !== key) ? val : fallback;
+        };
         const tp = (key, params, fallback) => (window.i18n.tp ? window.i18n.tp(key, params) : null) || fallback;
 
-        // ── Gauge 1: Reste à vivre (% du revenu moyen) ──
+        // ── Gauge 1: Reste à vivre (% du revenu moyen) & Rentrées prévues ──
+        const ravInfo = this._getRestToLiveInfo(stats);
+        const rav = ravInfo.rav;
+        const plannedInc = ravInfo.plannedInc;
+        const ravWithInc = ravInfo.ravWithInc;
+
         const avgIncome = this._cachedMonthlyAverages?.income || 0;
-        const rav = stats.rest_to_live || 0;
         let ravPercent = avgIncome > 0 ? Math.round((rav / avgIncome) * 100) : 0;
         ravPercent = Math.max(0, Math.min(ravPercent, 100));
+
+        let plannedPercent = avgIncome > 0 ? Math.round((ravWithInc / avgIncome) * 100) : 0;
+        plannedPercent = Math.max(0, Math.min(plannedPercent, 100));
 
         let ravColorClass = 'gauge-green';
         if (ravPercent < 20) ravColorClass = 'gauge-red';
@@ -2702,7 +2877,29 @@ window.OverviewView = {
             ? (tp('cockpit_rav_detail', { income: formatCurrency(avgIncome) }, `sur ${formatCurrency(avgIncome)} de revenus`))
             : (t('cockpit_no_income_data', 'Pas de données de revenus'));
 
-        // ── Gauge 2: Progression du cycle (mois ou paye) ──
+        let plannedSubHtml = '';
+        let plannedTooltip = '';
+        let gaugeTooltip = avgIncome > 0
+            ? tp('cockpit_rav_detail', { income: formatCurrency(avgIncome) }, `sur ${formatCurrency(avgIncome)} de revenus`)
+            : t('cockpit_no_income_data', 'Pas de données de revenus');
+
+        const showPlannedArc = plannedInc > 0 && plannedPercent > ravPercent;
+        const plannedVariant = ravWithInc >= 0 ? 'planned-green' : (plannedPercent >= 20 ? 'planned-orange' : 'planned-red');
+
+        if (plannedInc > 0) {
+            const subText = tp('overview_rav_planned_income', { income: formatCurrency(plannedInc), total: formatCurrency(ravWithInc) }, `+${formatCurrency(plannedInc)} prévus (→ ${formatCurrency(ravWithInc)})`);
+            plannedTooltip = tp('overview_rav_planned_income_tooltip', { income: formatCurrency(plannedInc), total: formatCurrency(ravWithInc) }, `Reste à vivre avec encaissement des recettes prévues (+${formatCurrency(plannedInc)}) : ${formatCurrency(ravWithInc)}`);
+            plannedSubHtml = `<div class="cockpit-gauge-planned" title="${plannedTooltip}">${subText}</div>`;
+            gaugeTooltip = tp('cockpit_rav_gauge_tooltip', {
+                rav: formatCurrency(rav),
+                percent: ravPercent,
+                income: formatCurrency(plannedInc),
+                total: formatCurrency(ravWithInc),
+                planned_percent: plannedPercent
+            }, `Reste à vivre : ${formatCurrency(rav)} (${ravPercent}%). Rentrées prévues non validées : +${formatCurrency(plannedInc)} (soit jusqu'à ${formatCurrency(ravWithInc)}, ${plannedPercent}%).`);
+        }
+
+        // ── Cycle calculation (Pay-cycle or calendar month) ──
         const today = new Date();
         let cycleStart, cycleEnd, cycleDayLabel;
         const isOrgMode = window.app?.config?.enable_org_mode === 'true' || window.app?.config?.enable_org_mode === true;
@@ -2721,18 +2918,153 @@ window.OverviewView = {
 
         const totalCycleDays = Math.max(1, Math.ceil((cycleEnd - cycleStart) / (1000 * 60 * 60 * 24)));
         const elapsedDays = Math.max(0, Math.ceil((today - cycleStart) / (1000 * 60 * 60 * 24)));
-        const cyclePercent = Math.min(100, Math.round((elapsedDays / totalCycleDays) * 100));
         const remainingDays = Math.max(0, totalCycleDays - elapsedDays);
 
         cycleDayLabel = tp('cockpit_cycle_day', { current: elapsedDays, total: totalCycleDays }, `Jour ${elapsedDays}/${totalCycleDays}`);
         const cycleDetailText = tp('cockpit_cycle_remaining', { days: remainingDays },
             `${remainingDays} jour${remainingDays > 1 ? 's' : ''} restant${remainingDays > 1 ? 's' : ''}`);
 
+        const cycleStartISO = `${cycleStart.getFullYear()}-${String(cycleStart.getMonth() + 1).padStart(2, '0')}-${String(cycleStart.getDate()).padStart(2, '0')}`;
+        const cycleEndISO = `${cycleEnd.getFullYear()}-${String(cycleEnd.getMonth() + 1).padStart(2, '0')}-${String(cycleEnd.getDate()).padStart(2, '0')}`;
+
+        // ── Gauge 2: Dépenses prévues rapprochées ──
+        const accIdStr = this._selectedAccountId ? String(this._selectedAccountId) : null;
+        let cycleReconciledExpenses = 0;
+        let cyclePlannedExpenses = 0;
+
+        for (const tx of (this._transactions || [])) {
+            if (tx.is_skipped) continue;
+            if (tx.cross_profile_status === 'pending') continue;
+            if (!tx.date_operation) continue;
+            if (tx.date_operation < cycleStartISO || tx.date_operation > cycleEndISO) continue;
+
+            if (accIdStr) {
+                const isFrom = String(tx.from_account_id) === accIdStr;
+                const isTo = String(tx.to_account_id) === accIdStr;
+                if (!isFrom) continue;
+                if (isTo) continue;
+            } else {
+                if (tx.from_account_id && tx.to_account_id) continue;
+                if (tx.type === 'income' || (!tx.type && tx.amount > 0)) continue;
+            }
+
+            const amt = Math.abs(parseFloat(tx.amount) || 0);
+            if (amt <= 0) continue;
+
+            if (tx.reconciliation_date) {
+                cycleReconciledExpenses += amt;
+            } else {
+                cyclePlannedExpenses += amt;
+            }
+        }
+
+        if (stats.anticipated_recurrences && Array.isArray(stats.anticipated_recurrences)) {
+            for (const cand of stats.anticipated_recurrences) {
+                const cAmt = Math.abs(parseFloat(cand.amount) || 0);
+                if (cAmt > 0) {
+                    cyclePlannedExpenses += cAmt;
+                }
+            }
+        }
+
+        const totalCycleExpenses = cycleReconciledExpenses + cyclePlannedExpenses;
+        let expensesPercent = 0;
+        if (totalCycleExpenses > 0) {
+            expensesPercent = Math.min(100, Math.round((cycleReconciledExpenses / totalCycleExpenses) * 100));
+        } else {
+            expensesPercent = 100;
+        }
+
+        let expensesColorClass = 'gauge-indigo';
+        if (expensesPercent >= 90) expensesColorClass = 'gauge-green';
+        else if (expensesPercent >= 50) expensesColorClass = 'gauge-indigo';
+        else expensesColorClass = 'gauge-purple';
+
+        const expensesTooltip = tp('cockpit_expenses_gauge_tooltip', {
+            reconciled: formatCurrency(cycleReconciledExpenses),
+            total: formatCurrency(totalCycleExpenses),
+            percent: expensesPercent,
+            remaining: formatCurrency(cyclePlannedExpenses)
+        }, `${formatCurrency(cycleReconciledExpenses)} pointés sur ${formatCurrency(totalCycleExpenses)} prévus (${expensesPercent}%). Reste ${formatCurrency(cyclePlannedExpenses)} à débiter.`);
+
+        const expensesDetailText = cyclePlannedExpenses > 0
+            ? tp('cockpit_expenses_reconciled_detail', { reconciled: formatCurrency(cycleReconciledExpenses), total: formatCurrency(totalCycleExpenses) }, `${formatCurrency(cycleReconciledExpenses)} sur ${formatCurrency(totalCycleExpenses)} prévus`)
+            : t('cockpit_expenses_all_reconciled', 'Toutes dépenses prévues pointées');
+
+        const expensesSubText = cyclePlannedExpenses > 0
+            ? `${tp('cockpit_expenses_remaining_planned', { remaining: formatCurrency(cyclePlannedExpenses) }, `Reste ${formatCurrency(cyclePlannedExpenses)} à venir`)} • 📅 ${remainingDays}j`
+            : `📅 ${cycleDetailText} (${cycleDayLabel})`;
+
+        // ── Gauge 3: Cadence Budgétaire (Option C : Rythme de Dépense vs Temps) ──
+        const timeRatio = Math.max(0.01, elapsedDays / totalCycleDays);
+        const timePercent = Math.min(100, Math.max(1, Math.round(timeRatio * 100)));
+
+        const monthlyBudgetTarget = stats.budget_summary?.monthly?.target || 0;
+        const avgExpenses = Math.abs(this._cachedMonthlyAverages?.expense || 0);
+        const cadenceRef = totalCycleExpenses > 0
+            ? totalCycleExpenses
+            : (monthlyBudgetTarget > 0 ? monthlyBudgetTarget : (avgExpenses > 0 ? avgExpenses : 1));
+
+        const spentRatio = Math.max(0, cycleReconciledExpenses / cadenceRef);
+        const spentPercent = Math.round(spentRatio * 100);
+
+        let cadenceRatio = 1.0;
+        if (elapsedDays === 0 || cycleReconciledExpenses === 0) {
+            cadenceRatio = 1.0;
+        } else {
+            cadenceRatio = spentRatio / timeRatio;
+        }
+
+        const cadenceDisplayPercent = Math.min(150, Math.max(0, Math.round(cadenceRatio * 100)));
+        const cadenceArcPercent = Math.min(100, Math.max(5, cadenceDisplayPercent));
+
+        let cadenceColorClass = 'cadence-green';
+        let cadenceStatusClass = 'status-green';
+        let cadenceStatusText = t('cockpit_cadence_steady', 'Rythme maîtrisé');
+        let cadenceSubText = '';
+
+        const diffPercent = Math.round(Math.abs(cadenceRatio - 1.0) * 100);
+
+        if (cadenceRatio <= 0.90) {
+            cadenceColorClass = 'cadence-green';
+            cadenceStatusClass = 'status-green';
+            cadenceStatusText = t('cockpit_cadence_steady', 'Rythme maîtrisé');
+            cadenceSubText = tp('cockpit_cadence_sub_under', { diff: diffPercent }, `-${diffPercent}% sous la cadence`);
+        } else if (cadenceRatio <= 1.10) {
+            cadenceColorClass = 'cadence-blue';
+            cadenceStatusClass = 'status-blue';
+            cadenceStatusText = t('cockpit_cadence_on_track', 'Dans les clous');
+            cadenceSubText = t('cockpit_cadence_sub_aligned', 'Dépenses alignées sur le cycle');
+        } else if (cadenceRatio <= 1.30) {
+            cadenceColorClass = 'cadence-orange';
+            cadenceStatusClass = 'status-orange';
+            cadenceStatusText = t('cockpit_cadence_moderate', 'Cadence soutenue');
+            cadenceSubText = tp('cockpit_cadence_sub_over', { diff: diffPercent }, `+${diffPercent}% au-dessus du rythme`);
+        } else {
+            cadenceColorClass = 'cadence-red';
+            cadenceStatusClass = 'status-red';
+            cadenceStatusText = t('cockpit_cadence_high', 'Surconsommation');
+            cadenceSubText = tp('cockpit_cadence_sub_over', { diff: diffPercent }, `+${diffPercent}% au-dessus du rythme`);
+        }
+
+        const cadenceDetailText = tp('cockpit_cadence_detail', {
+            spent: formatCurrency(cycleReconciledExpenses),
+            day: elapsedDays,
+            total_days: totalCycleDays
+        }, `${formatCurrency(cycleReconciledExpenses)} au jour ${elapsedDays}/${totalCycleDays}`);
+
+        const cadenceTooltip = tp('cockpit_cadence_gauge_tooltip', {
+            cadence: cadenceDisplayPercent,
+            spent_pct: spentPercent,
+            time_pct: timePercent,
+            status: cadenceStatusText
+        }, `Cadence budgétaire : ${cadenceDisplayPercent}%. Dépenses réelles à ${spentPercent}% pour ${timePercent}% du cycle écoulé (${cadenceStatusText}).`);
+
         // ── Build Gauges HTML ──
         gaugesContainer.innerHTML = `
-            <div class="cockpit-gauge-card ${ravColorClass}" data-gauge="rav">
+            <div class="cockpit-gauge-card ${ravColorClass}" data-gauge="rav" title="${gaugeTooltip}">
                 <div class="cockpit-gauge-wrapper">
-                    ${this._buildGaugeSVG(ravPercent, 'rav')}
+                    ${this._buildGaugeSVG(ravPercent, 'rav', showPlannedArc ? plannedPercent : null, plannedTooltip, plannedVariant)}
                     <div class="cockpit-gauge-center">
                         <div class="cockpit-gauge-percent">${ravPercent}%</div>
                         <div class="cockpit-gauge-sublabel">${t('cockpit_rav_label', 'Reste à vivre')}</div>
@@ -2740,58 +3072,47 @@ window.OverviewView = {
                 </div>
                 <div class="cockpit-gauge-caption">
                     <div class="cockpit-gauge-amount privacy-blur">${formatCurrency(rav)}</div>
+                    ${plannedSubHtml}
                     <div class="cockpit-gauge-detail">${ravDetailText}</div>
                 </div>
             </div>
-            <div class="cockpit-gauge-card" data-gauge="cycle">
+            <div class="cockpit-gauge-card ${expensesColorClass}" data-gauge="expenses" title="${expensesTooltip}">
                 <div class="cockpit-gauge-wrapper">
-                    ${this._buildGaugeSVG(cyclePercent, 'cycle')}
+                    ${this._buildGaugeSVG(expensesPercent, 'expenses')}
                     <div class="cockpit-gauge-center">
-                        <div class="cockpit-gauge-percent">${cyclePercent}%</div>
-                        <div class="cockpit-gauge-sublabel">${cycleDayLabel}</div>
+                        <div class="cockpit-gauge-percent">${expensesPercent}%</div>
+                        <div class="cockpit-gauge-sublabel">${t('cockpit_expenses_reconciled_label', 'Dépenses pointées')}</div>
                     </div>
                 </div>
                 <div class="cockpit-gauge-caption">
-                    <div class="cockpit-gauge-amount">📅 ${cycleDetailText}</div>
-                    <div class="cockpit-gauge-detail">${stats.next_pay_date && !isOrgMode
-                        ? (t('cockpit_cycle_pay', 'Cycle jusqu\'à la paye'))
-                        : (t('cockpit_cycle_month', 'Cycle calendaire'))}</div>
+                    <div class="cockpit-gauge-amount privacy-blur">${formatCurrency(cycleReconciledExpenses)}</div>
+                    <div class="cockpit-gauge-detail" style="font-weight:600; color:var(--text-main); margin-top:3px;">${expensesDetailText}</div>
+                    <div class="cockpit-gauge-detail" style="color:var(--text-muted); font-size:11px; margin-top:2px;">${expensesSubText}</div>
+                </div>
+            </div>
+            <div class="cockpit-gauge-card ${cadenceColorClass}" data-gauge="cadence" title="${cadenceTooltip}">
+                <div class="cockpit-gauge-wrapper">
+                    ${this._buildGaugeSVG(cadenceArcPercent, 'cadence')}
+                    <div class="cockpit-gauge-center">
+                        <div class="cockpit-gauge-percent">${cadenceDisplayPercent}%</div>
+                        <div class="cockpit-gauge-sublabel">${t('cockpit_cadence_label', 'Cadence')}</div>
+                    </div>
+                </div>
+                <div class="cockpit-gauge-caption">
+                    <div class="cockpit-cadence-status ${cadenceStatusClass}">${cadenceStatusText}</div>
+                    <div class="cockpit-gauge-detail" style="font-weight:600; color:var(--text-main); margin-top:3px;">${cadenceSubText}</div>
+                    <div class="cockpit-gauge-detail" style="color:var(--text-muted); font-size:11px; margin-top:2px;">${cadenceDetailText}</div>
                 </div>
             </div>
         `;
 
         // ── Build Cards HTML ──
-        // Card 1: Projection Fin de Mois
-        let projAmount = 0;
-        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        const todayISO = today.toISOString().split('T')[0];
-        const lastDayISO = lastDay.toISOString().split('T')[0];
-        let baseBalance = stats.net_worth || 0;
-        if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
-            baseBalance = this._accountsMap[this._selectedAccountId].balance;
-        }
-        const upcomingTxs = (this._transactions || []).filter(tx => {
-            if (tx.reconciliation_date || tx.is_skipped) return false;
-            if (tx.date_operation < todayISO || tx.date_operation > lastDayISO) return false;
-            if (this._selectedAccountId) {
-                return String(tx.from_account_id) === String(this._selectedAccountId) || String(tx.to_account_id) === String(this._selectedAccountId);
-            }
-            return true;
-        });
-        let projDiff = 0;
-        upcomingTxs.forEach(tx => {
-            if (tx.type === 'income') projDiff += tx.amount;
-            else projDiff -= tx.amount;
-        });
-        projAmount = baseBalance + projDiff;
-
+        // Card 1: Projection Fin de Cycle / Fin de Mois
+        const proj = this._calculateProjection(stats);
+        const projAmount = proj.projectedEnd;
         const projColorClass = projAmount >= 0 ? 'text-green' : 'text-red';
-        const isEn = window.i18n.lang === 'en';
-        const monthName = today.toLocaleDateString(isEn ? 'en-US' : 'fr-FR', { month: 'long' });
-        const dayNum = lastDay.getDate();
-        const projSubText = isOrgMode
-            ? (t('overview_org_forecast_sub', `Solde prévisionnel au ${dayNum} ${monthName}`))
-            : (isEn ? `Forecast balance as of ${monthName} ${dayNum}` : `Solde estimé au ${dayNum} ${monthName}`);
+        const projTitle = proj.titleText || (proj.hasPayCycle ? t('cockpit_projection_cycle_title', 'Projection Fin de Cycle') : t('cockpit_projection_title', 'Projection'));
+        const projSubText = proj.subText;
 
         // Card 2: AutoPilot Status
         const apStatus = this._apStatus || {};
@@ -2807,11 +3128,11 @@ window.OverviewView = {
         const unreconciledCount = this._getCockpitUnreconciledCount();
 
         cardsContainer.innerHTML = `
-            <div class="cockpit-compact-card">
+            <div class="cockpit-compact-card" title="${proj.tooltipText}">
                 <div class="cockpit-card-header">
                     <div class="cockpit-card-title">
                         <span class="cockpit-card-icon">🔮</span>
-                        <span>${t('cockpit_projection_title', 'Projection')}</span>
+                        <span>${projTitle}</span>
                     </div>
                 </div>
                 <div class="cockpit-card-value privacy-blur ${projColorClass}">${formatCurrency(projAmount)}</div>
@@ -2857,32 +3178,73 @@ window.OverviewView = {
 
             const ravArc = document.getElementById('cockpitArc_rav');
             if (ravArc) {
-                const target = circumference - (ravPercent / 100) * circumference;
-                ravArc.style.strokeDashoffset = target;
+                if (ravPercent <= 0) {
+                    ravArc.style.strokeDashoffset = circumference;
+                    ravArc.style.opacity = '0';
+                } else {
+                    const target = circumference - (ravPercent / 100) * circumference;
+                    ravArc.style.strokeDashoffset = target;
+                    ravArc.style.opacity = '1';
+                }
             }
 
-            const cycleArc = document.getElementById('cockpitArc_cycle');
-            if (cycleArc) {
-                const target = circumference - (cyclePercent / 100) * circumference;
-                cycleArc.style.strokeDashoffset = target;
+            const ravPlannedArc = document.getElementById('cockpitArc_rav_planned');
+            if (ravPlannedArc) {
+                if (!showPlannedArc || plannedPercent <= 0) {
+                    ravPlannedArc.style.strokeDashoffset = circumference;
+                    ravPlannedArc.style.opacity = '0';
+                } else {
+                    const targetPlanned = circumference - (plannedPercent / 100) * circumference;
+                    ravPlannedArc.style.strokeDashoffset = targetPlanned;
+                    ravPlannedArc.style.opacity = '0.45';
+                }
+            }
+
+            const expensesArc = document.getElementById('cockpitArc_expenses');
+            if (expensesArc) {
+                if (expensesPercent <= 0) {
+                    expensesArc.style.strokeDashoffset = circumference;
+                    expensesArc.style.opacity = '0';
+                } else {
+                    const target = circumference - (expensesPercent / 100) * circumference;
+                    expensesArc.style.strokeDashoffset = target;
+                    expensesArc.style.opacity = '1';
+                }
+            }
+
+            const cadenceArc = document.getElementById('cockpitArc_cadence');
+            if (cadenceArc) {
+                const target = circumference - (cadenceArcPercent / 100) * circumference;
+                cadenceArc.style.strokeDashoffset = target;
             }
         });
     },
 
-    _buildGaugeSVG(percent, id) {
+    _buildGaugeSVG(percent, id, plannedPercent = null, plannedTitle = '', plannedVariant = 'planned-green') {
         // SVG donut gauge with animated arc
         const size = 180;
         const strokeWidth = 12;
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
-        // Start from top (270°, via rotation)
-        const dashOffset = circumference - (percent / 100) * circumference;
+
+        const hasPlanned = plannedPercent !== null && plannedPercent > percent;
 
         return `
             <svg class="cockpit-gauge-svg" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
                 <circle class="cockpit-gauge-bg"
                     cx="${size / 2}" cy="${size / 2}" r="${radius}"
                     stroke-width="${strokeWidth}" />
+                ${hasPlanned ? `
+                <circle class="cockpit-gauge-arc-planned ${plannedVariant}"
+                    id="cockpitArc_${id}_planned"
+                    cx="${size / 2}" cy="${size / 2}" r="${radius}"
+                    stroke-width="${strokeWidth}"
+                    stroke-dasharray="${circumference}"
+                    stroke-dashoffset="${circumference}"
+                    transform="rotate(-90 ${size / 2} ${size / 2})">
+                    ${plannedTitle ? `<title>${plannedTitle}</title>` : ''}
+                </circle>
+                ` : ''}
                 <circle class="cockpit-gauge-arc"
                     id="cockpitArc_${id}"
                     cx="${size / 2}" cy="${size / 2}" r="${radius}"
@@ -2897,7 +3259,7 @@ window.OverviewView = {
 
     _getCockpitUnreconciledCount() {
         const transactions = this._transactions || [];
-        const todayISO = new Date().toISOString().split('T')[0];
+        const todayISO = this._getTodayISO();
         let count = 0;
         for (const tx of transactions) {
             if (tx.reconciliation_date) continue;

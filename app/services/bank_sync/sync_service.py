@@ -1002,16 +1002,6 @@ class BankSyncService:
             if not is_coming and recon_date_val is not None:
                 account_net_flows[account_id] += raw_amt
 
-            # Auto-apprentissage transparent dans la base de connaissances Smart Label
-            raw_lbl = item.get("raw_description") or item.get("raw_label") or item.get("description")
-            clean_lbl = item.get("description")
-            if raw_lbl and clean_lbl:
-                try:
-                    from app.services.smart_label_service import learn_label_mapping
-                    learn_label_mapping(db, raw_label=raw_lbl, clean_description=clean_lbl, category=item.get("category"), is_manual=False)
-                except Exception as ex_learn:
-                    logger.debug(f"[BankSync] Ignoré échec apprentissage smart label: {ex_learn}")
-
         # Rétro-calcul automatique du solde initial pour les comptes nouvellement alimentés :
         # Pour que Solde Initial + Somme(opérations_importées) == Solde Réel de la banque au départ.
         for acc_id, initial_tx_count in account_initial_tx_counts.items():

@@ -27,7 +27,6 @@ CONFIG_DEFAULTS = {
     "auto_commit_incoming_transactions": "false",
     "auto_close_empty_import_sas": "false",
     "auto_create_missing_categories": "false",
-    "auto_learn_merchant_rules": "false",
     "auto_assign_chameleon_fallback": "false",
     "auto_pilot_enabled": "false",
     "autopilot_preset": "balanced",
