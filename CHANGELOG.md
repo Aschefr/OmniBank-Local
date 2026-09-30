@@ -23,11 +23,20 @@ All notable changes to this project will be documented in this file.
   - Mobile-optimized Auto-Pilot popovers with viewport containment, dedicated mobile dismiss controls, tap debouncing, standardized decision override modals with integrated `CategoryPicker`, and full English/French bilingual parity with privacy blur support.
 - **Overview Cockpit Mode & Simplified Gauges 🎛️✨**:
   - Added a responsive dual-mode toggle ("Cockpit" vs "Full") on the Overview page with session-persistent user preference.
-  - Introduced modern animated circular SVG gauges for key financial health vitals (Remaining to Spend, Monthly Budget consumption, Savings Rate) and compact status cards with direct navigation shortcuts.
+  - Introduced modern animated circular SVG gauges for key financial vitals: Reste à vivre (with translucent planned income arc), Cleared Expenses (% and amount of scheduled cycle charges cleared with pending balances), and Budget Cadence (real-time spending velocity vs elapsed cycle time).
+  - Mobile layout optimization: the primary Reste à vivre gauge spans full width while Cleared Expenses and Budget Cadence sit harmoniously side-by-side at half width each.
+  - Streamlined, ultra-compact header toolbar: reduced vertical footprint by ~65% on mobile/tablet viewports by merging title, health badge, and glass capsule mode toggle onto a single row, followed by an elegant 2-row pairing (Account dropdown + '➕ Opération' on row 2, 'Auto-Pilote' + 'Relever en ligne' on row 3), eliminating mobile text truncation and button collisions.
 
 ### Fixed
+- **Mobile Toolbar Text Collision & Button Overflow 📱**: Resolved text bleeding and overlap between the Auto-Pilote timer chip and the bank sync button on narrow mobile viewports (iPhone SE, 375px) by pairing controls into two distinct rows with strict ellipsis protections while preserving a single seamless toolbar row on desktop.
 - **Vault Unlock & Modal Tree Structure 🔐**: Restored immediate master password modal display upon clicking vault unlock by correcting modal DOM nesting, and validated balanced tag structure across all application views.
 - **Simulation Accuracy & Cash Flow Isolation 🧮**: Fixed portfolio projection to treat internal savings transfers as neutral liquidity, corrected historical seasonal income projections, and cleanly evicted deleted recurrence forecasts during price adjustments.
+- **Smart Label Prefix Matching & Rule Cleanliness 🏷️✨**: Enhanced label matching with exact prefix resolution for corporate employers, prevented multi-token category hijacking, and retired headless rule generation so merchant rules are learned strictly from explicit user interventions.
+- **Pay-Cycle Aware Forecast & Timezone Stability 🔮**: Overview and Cockpit projection cards now dynamically align with the active pay period in Personal Mode (projecting to the next paycheck date before salary deposit) while preserving calendar month end for Organisation Mode. Fixed date boundary calculations by eliminating UTC conversion shifts, properly accounting for all pending operations, signing multi-account transfers accurately, properly localizing the Cockpit card header, and surfacing a full breakdown tooltip on hover.
+- **Notification Menu Tab Clarity 🔔**: Renamed the primary tab from "Actives" to "Notifications" (`[ Notifications ]` vs `[ Archives ]`), eliminating the visual ambiguity where "Actives" and "Archives" looked confusingly identical at a glance.
+- **Bank Sync Review Status Badges 🤖**: Removed duplicate robot and lightning icons in the statement review table by decoupling emoji icons from translation strings and standardizing badge rendering.
+- **Smart Category Suggestion & City Name Disambiguation 🏷️⚡**: Prevented unrelated local businesses from polluting transaction matching when sharing geographic town suffixes (e.g. "La Tour du Pin"), allowed ambiguous history matches to fall through to direct semantic category matching ("Carburant" → "Essence") and local AI fallback, and corrected the override modal toast to only confirm suggestions when a valid category is actually resolved.
+- **Auto-Pilot Automation Count Alignment ⚙️**: Aligned total automation count to 14/14 across the Auto-Pilote master status capsule, preset cards, setup wizard, and localization files following the removal of a retired automation toggle.
 
 ## [1.1.8] - 2026-09-10
 

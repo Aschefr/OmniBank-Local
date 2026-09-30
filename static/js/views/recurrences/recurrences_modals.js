@@ -7,11 +7,12 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             return;
         }
 
-        const todayStr = new Date().toISOString().substring(0, 10);
-        
         const now = new Date();
-        const lastDayObj = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        const endOfMonthStr = lastDayObj.toISOString().substring(0, 10);
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        const lastDayNum = new Date(y, m + 1, 0).getDate();
+        const todayStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const endOfMonthStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
 
         const modal = document.createElement('div');
         modal.id = 'closeSubscriptionModal';
@@ -84,12 +85,14 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
 
     async submitCloseModal(templateId) {
         const selectedType = document.querySelector('input[name="close_date_type"]:checked')?.value || 'today';
-        let closureDate = new Date().toISOString().substring(0, 10);
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        let closureDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         
         if (selectedType === 'end_month') {
-            const now = new Date();
-            const lastDayObj = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-            closureDate = lastDayObj.toISOString().substring(0, 10);
+            const lastDayNum = new Date(y, m + 1, 0).getDate();
+            closureDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
         } else if (selectedType === 'custom') {
             closureDate = document.getElementById('close_custom_date_input')?.value || closureDate;
         }

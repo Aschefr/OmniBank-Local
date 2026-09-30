@@ -62,7 +62,6 @@ AUTOPILOT_MANAGED_KEYS = (
     "auto_commit_incoming_transactions",
     "auto_close_empty_import_sas",
     "auto_create_missing_categories",
-    "auto_learn_merchant_rules",
     "auto_assign_chameleon_fallback",
     "bank_auto_sync_enabled",
     "auto_reconcile_threshold",
@@ -74,7 +73,6 @@ AUTOPILOT_BALANCED_KEYS = (
     "auto_assign_chameleon_fallback",
     "auto_close_empty_import_sas",
     "auto_create_missing_categories",
-    "auto_learn_merchant_rules",
     "enable_budget_creation_suggestions",
     "enable_budget_recalibration_suggestions",
 )
@@ -85,7 +83,6 @@ AUTOPILOT_FULL_KEYS = (
     "auto_assign_chameleon_fallback",
     "auto_close_empty_import_sas",
     "auto_create_missing_categories",
-    "auto_learn_merchant_rules",
     "enable_budget_creation_suggestions",
     "enable_budget_recalibration_suggestions",
     "bank_auto_sync_enabled",
@@ -177,7 +174,7 @@ def set_autopilot_preset(db: Session, preset: str) -> Dict[str, Any]:
 
 def set_autopilot_enabled(db: Session, enabled: bool, preset: Optional[str] = None) -> None:
     """Active ou désactive le mode Auto-Pilote dans global_config.
-    Préserve strictement les 15 réglages fins personnalisés lors des bascules marche/veille.
+    Préserve strictement les 14 réglages fins personnalisés lors des bascules marche/veille.
     """
     val_str = "true" if enabled else "false"
     cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_pilot_enabled").first()
@@ -286,11 +283,10 @@ def process_incoming_batch(
     cfg_auto_commit = ap_enabled or _get_cfg_bool(db, "auto_commit_incoming_transactions", False)
     cfg_auto_close_sas = ap_enabled or _get_cfg_bool(db, "auto_close_empty_import_sas", False)
     cfg_auto_create_cats = ap_enabled or _get_cfg_bool(db, "auto_create_missing_categories", False)
-    cfg_auto_learn = ap_enabled or _get_cfg_bool(db, "auto_learn_merchant_rules", False)
     cfg_chameleon_fallback = ap_enabled or _get_cfg_bool(db, "auto_assign_chameleon_fallback", False)
 
     # 1. Si aucun automatisme n'est actif : délégation directe au Sas d'attente (comportement historique)
-    if not (ap_enabled or cfg_auto_reconcile or cfg_auto_commit or cfg_auto_learn):
+    if not (ap_enabled or cfg_auto_reconcile or cfg_auto_commit):
         save_pending_sync_data(db, conn_id, preview_data, profile_id=pid)
         import copy
         delegated_snap = copy.deepcopy(preview_data)
@@ -919,24 +915,6 @@ def process_incoming_batch(
                     snap_tx["description"] = new_tx.description
                     snap_tx["category"] = category
                     auto_committed_count += 1
-
-                    # Auto-apprentissage transparent pour conforter la règle uniquement si fiable
-                    if cfg_auto_learn and is_reliable:
-                        raw_lbl = tx.get("raw_description") or tx.get("raw_label") or tx.get("description")
-                        if raw_lbl and new_tx.description:
-                            try:
-                                from app.services.smart_label_service import learn_label_mapping
-                                learned_rule = learn_label_mapping(
-                                    db,
-                                    raw_label=raw_lbl,
-                                    clean_description=new_tx.description,
-                                    category=new_tx.category,
-                                    is_manual=False
-                                )
-                                if learned_rule:
-                                    rules_learned_count += 1
-                            except Exception as ex_learn:
-                                logger.debug(f"[AutoPilot] Ignoré échec apprentissage: {ex_learn}")
 
                     if is_coming:
                         # Nouvelle opération à venir créée : maintien dans le Sas pour badge "À venir"

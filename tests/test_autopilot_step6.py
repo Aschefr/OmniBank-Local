@@ -689,7 +689,7 @@ def test_autopilot_threshold_preview_api(client, test_db):
 
 
 def test_autopilot_presets_balanced_and_full(client, test_db):
-    """Vérifie l'application des préréglages Équilibré (8/15) et Autonomie Totale (15/15)."""
+    """Vérifie l'application des préréglages Équilibré (7/14) et Autonomie Totale (14/14)."""
     from app.models import GlobalConfig
     from app.services.autopilot_service import (
         AUTOPILOT_BALANCED_KEYS,
@@ -713,9 +713,9 @@ def test_autopilot_presets_balanced_and_full(client, test_db):
     assert data_bal["is_enabled"] is True
     assert data_bal["preset"] == "balanced"
     active_bal = sum(1 for v in data_bal["managed_subtoggles"].values() if v)
-    assert active_bal == 8
+    assert active_bal == 7
 
-    # Vérifier que les 8 clés sont à true et que les autres clés sont à false
+    # Vérifier que les 7 clés sont à true et que les autres clés sont à false
     for k in AUTOPILOT_BALANCED_KEYS:
         assert get_cfg(k) == "true"
     for k in (set(AUTOPILOT_FULL_KEYS) - set(AUTOPILOT_BALANCED_KEYS)):
@@ -728,7 +728,7 @@ def test_autopilot_presets_balanced_and_full(client, test_db):
     assert data_full["is_enabled"] is True
     assert data_full["preset"] == "full"
     active_full = sum(1 for v in data_full["managed_subtoggles"].values() if v)
-    assert active_full == 15
+    assert active_full == 14
 
     for k in AUTOPILOT_FULL_KEYS:
         assert get_cfg(k) == "true"
@@ -740,5 +740,5 @@ def test_autopilot_presets_balanced_and_full(client, test_db):
     data_custom = res_status.json()
     assert data_custom["preset"] == "custom"
     active_custom = sum(1 for v in data_custom["managed_subtoggles"].values() if v)
-    assert active_custom == 14
+    assert active_custom == 13
 

@@ -87,7 +87,6 @@ def test_t5_5_1_defaults_and_schema_version(test_db):
         "auto_commit_incoming_transactions",
         "auto_close_empty_import_sas",
         "auto_create_missing_categories",
-        "auto_learn_merchant_rules",
         "auto_assign_chameleon_fallback",
     ]
 
@@ -337,8 +336,9 @@ def test_t5_5_4_category_auto_creation_modularity(test_db):
     assert tx_b.category == "Sport & Fitness Inconnu"
 
 
-def test_t5_5_5_merchant_rule_auto_learning(test_db):
-    """T5.5.5 : Auto-apprentissage des règles marchands lors de l'intégration."""
+def test_t5_5_5_merchant_rule_learning_only_on_manual_action(test_db):
+    """T5.5.5 : L'ingestion automatique ne crée JAMAIS de règle dans BankLabelMapping (pas de pollution),
+    mais une correction manuelle d'une décision Auto-Pilote (correct_autopilot_decision) mémorise une règle sanctuarisée."""
     test_db.query(GlobalConfig).filter(GlobalConfig.key == "auto_commit_incoming_transactions").first().value = "true"
     test_db.commit()
 
@@ -366,26 +366,31 @@ def test_t5_5_5_merchant_rule_auto_learning(test_db):
         ]
     }
 
-    # Cas A : auto_learn_merchant_rules = "false"
-    res_a = process_incoming_batch(test_db, "conn_sncf_a", batch, profile_id="p1")
-    assert res_a["rules_learned"] == 0
-    mapping_a = test_db.query(BankLabelMapping).filter(BankLabelMapping.raw_pattern.like("%SNCF%")).first()
-    assert mapping_a is None
+    # 1. Ingestion automatique : l'opération est auto-committée, mais AUCUNE règle n'est créée
+    res = process_incoming_batch(test_db, "conn_sncf", batch, profile_id="p1")
+    assert res["auto_committed"] == 1
+    mapping = test_db.query(BankLabelMapping).filter(BankLabelMapping.raw_pattern.like("%SNCF%")).first()
+    assert mapping is None, "L'ingestion automatique ne doit jamais créer de règle marchande à l'aveugle"
 
-    # Nettoyage
-    test_db.query(Transaction).delete()
-    test_db.commit()
+    # 2. Correction manuelle utilisateur : crée une règle sanctuarisée (is_manual=True)
+    from app.services.autopilot_service import override_autopilot_decision
+    from app.models import AutopilotDecisionLog
+    decision = test_db.query(AutopilotDecisionLog).filter(AutopilotDecisionLog.action == "AUTO_COMMIT").first()
+    assert decision is not None
 
-    # Cas B : auto_learn_merchant_rules = "true"
-    test_db.query(GlobalConfig).filter(GlobalConfig.key == "auto_learn_merchant_rules").first().value = "true"
-    test_db.commit()
-
-    res_b = process_incoming_batch(test_db, "conn_sncf_b", batch, profile_id="p1")
-    assert res_b["rules_learned"] == 1
-    mapping_b = test_db.query(BankLabelMapping).filter(BankLabelMapping.raw_pattern.like("%SNCF%")).first()
-    assert mapping_b is not None
-    assert mapping_b.is_manual is False
-    assert mapping_b.category == "Transports"
+    correct_res = override_autopilot_decision(
+        test_db,
+        decision_id=decision.id,
+        new_category="Voyages Pro",
+        new_description="Train SNCF Pro",
+    )
+    assert correct_res["success"] is True
+    assert correct_res["learned_rule"] is True
+    learned_rule = test_db.query(BankLabelMapping).filter(BankLabelMapping.raw_pattern.like("%SNCF%")).first()
+    assert learned_rule is not None
+    assert learned_rule.is_manual is True
+    assert learned_rule.clean_description == "Train SNCF Pro"
+    assert learned_rule.category == "Voyages Pro"
 
 
 def test_t5_5_6_autopilot_custom_preferences_preservation(test_db):
@@ -396,7 +401,6 @@ def test_t5_5_6_autopilot_custom_preferences_preservation(test_db):
         "auto_commit_incoming_transactions": "false",
         "auto_close_empty_import_sas": "true",
         "auto_create_missing_categories": "false",
-        "auto_learn_merchant_rules": "true",
         "auto_assign_chameleon_fallback": "false",
     }
     for k, v in custom_prefs.items():
@@ -497,7 +501,7 @@ def test_autopilot_subtoggle_endpoint(test_db):
     assert res_ok.status_code == 200
     data = res_ok.json()
     assert data["managed_subtoggles"]["bank_auto_sync_enabled"] is True
-    assert len(data["managed_subtoggles"]) == 15
+    assert len(data["managed_subtoggles"]) == 14
 
     # 3. Désactive une autre clé (ex: auto_propagate_recurrence_hikes)
     res_disable = client.post("/api/autopilot/subtoggle", json={"key": "auto_propagate_recurrence_hikes", "enabled": False})

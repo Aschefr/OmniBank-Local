@@ -689,7 +689,35 @@ h3 {
 .overview-controls-bar {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.overview-controls-row-primary {
+    display: contents;
+}
+
+.overview-acc-dropdown {
+    order: 1;
+}
+
+.overview-actions-group {
+    order: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.overview-add-btn {
+    order: 3;
+}
+
+.ov-btn-text-short {
+    display: none;
+}
+
+.ov-btn-text-full {
+    display: inline;
 }
 
 /* Badges harmonization */

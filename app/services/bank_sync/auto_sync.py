@@ -247,6 +247,7 @@ def execute_auto_sync_for_connection(
                     is_read=False,
                     created_at=datetime.now(timezone.utc)
                 )
+                db.add(notif)
         # Alerte Garde-fou d'empreinte historique
         suspicious_accs = [
             acc.get("account_name", f"Compte #{acc.get('account_id')}")

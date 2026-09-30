@@ -395,7 +395,7 @@ Conformément à la règle fondatrice du projet (*« L'app est 100% fonctionnell
      - Bouton `⚙️ Automatismes` dans la vue **Opérations** ouvrant une modale ergonomique 3-zones avec liste repliable des 5 dernières actions automatiques appliquées.
   2. **Volet B — Automatismes Smart Labels & Cycle de Vie des Catégories** :
      - `auto_create_missing_categories` (Défaut : `"false"`) : Lorsque activé, autorise la création automatique de nouvelles catégories déduites par IA (avec strict respect du quota max 2/lot et fusion lexicale $\ge 80\%$). Lorsque désactivé (défaut), le système bascule obligatoirement sur les catégories existantes ou la catégorie fourre-tout (`"Dépenses diverses"` / `"Revenus divers"`), avec zéro création de catégorie en base.
-     - `auto_learn_merchant_rules` (Défaut : `"false"`) : Lorsque activé, consolide automatiquement une règle d'apprentissage `BankLabelMapping` dès la 2ème occurrence concordante ($N \ge 2$). Lorsque désactivé, l'apprentissage ne se fait que sur action manuelle de l'utilisateur.
+     - **Apprentissage des règles marchandes** : Réservé exclusivement aux actions manuelles explicites de l'utilisateur (arbitrage dans la file de revue, correction dans le cockpit ou création manuelle dans l'Atelier). L'ingestion automatique headless ne crée jamais de règles afin d'éviter la prolifération de règles statiques rigides, laissant le Niveau 2 (historique dynamique) opérer sans entrave.
      - `auto_assign_chameleon_fallback` (Défaut : `"false"`) : Lorsque activé, affecte par défaut la catégorie fourre-tout aux marchands caméléons (Amazon, PayPal...) pour permettre leur auto-commit. Lorsque désactivé, les marchands caméléons sont systématiquement maintenus dans le Sas d'attente pour arbitrage humain.
      - Bouton `⚙️ Automatismes` dans l'Atelier Smart Labels ouvrant la modale dédiée avec liste repliable des dernières règles apprises et catégories créées.
   3. **Principe de Snapshot & Respect des Choix Utilisateur** :
@@ -860,14 +860,14 @@ graph TD
 #### Étape 5.5 : Automatismes d'Ingestion Bancaire & Cycle de Vie des Catégories (Boutons UI `⚙️`, Toggles Débrayables par Défaut `"false"` & Historique Récent) — `✅ 100% PASS`
 - [x] **Jalon 5.5.1 : Initialisation des Toggles Découplés dans `GlobalConfig` & Intégration Snapshot** :
   - Clés Volet Opérations : `auto_reconcile_transactions` ("false"), `auto_commit_incoming_transactions` ("false"), `auto_close_empty_import_sas` ("false").
-  - Clés Volet Catégories / Smart Labels : `auto_create_missing_categories` ("false"), `auto_learn_merchant_rules` ("false"), `auto_assign_chameleon_fallback` ("false").
-  - Intégration de ces 6 clés dans `AUTOPILOT_MANAGED_KEYS` dans `app/services/autopilot_service.py` pour préserver le snapshot utilisateur lors des bascules On/Off de l'Auto-Pilote global en Étape 6.
+  - Clés Volet Catégories / Smart Labels : `auto_create_missing_categories` ("false"), `auto_assign_chameleon_fallback` ("false").
+  - Intégration de ces 5 clés dans `AUTOPILOT_MANAGED_KEYS` dans `app/services/autopilot_service.py` pour préserver le snapshot utilisateur lors des bascules On/Off de l'Auto-Pilote global en Étape 6.
 - [x] **Jalon 5.5.2 : Conditionnement Granulaire dans `AutoPilotService.process_incoming_batch()`** :
-  - Découplage de la dépendance exclusive à `auto_pilot_enabled` : les opérations d'auto-rapprochement, d'auto-commit, de création de catégorie et d'apprentissage s'exécutent dès que leur toggle individuel respectif est actif (`"true"`), même si l'interrupteur maître global n'est pas encore engagé.
+  - Découplage de la dépendance exclusive à `auto_pilot_enabled` : les opérations d'auto-rapprochement, d'auto-commit, et de création de catégorie s'exécutent dès que leur toggle individuel respectif est actif (`"true"`), même si l'interrupteur maître global n'est pas encore engagé.
   - Auto-rapprochement conditionné strictement par `auto_reconcile_transactions == "true"`.
   - Auto-commit des écritures courantes conditionné par `auto_commit_incoming_transactions == "true"`.
   - Création de catégories conditionnée par `auto_create_missing_categories == "true"` (si `false`, repli systématique sur `"Dépenses diverses"` ou catégorie existante sans mutation de la table `Category`).
-  - Consolidation des correspondances marchands conditionnée par `auto_learn_merchant_rules == "true"`.
+  - Apprentissage des correspondances marchands sanctuarisé exclusivement sur action/correction manuelle de l'utilisateur (zéro création headless).
   - Clôture automatique de la dropzone/sas conditionnée par `auto_close_empty_import_sas == "true"`.
 - [x] **Jalon 5.5.3 : Bouton `⚙️ Automatismes` & Modale Dédiée dans la Vue Opérations (`all_operations.js`)** :
   - Bouton `⚙️ Automatismes` dans la barre d'outils de la vue Transactions (`all_operations.js`).
@@ -1068,7 +1068,7 @@ Chaque brique implantée doit faire l'objet d'une validation rigoureuse avant d�
 | **T5.5.2** | `auto_reconcile_transactions = "true"` et `auto_commit_incoming_transactions = "false"`. Lot mixte (1 prévision + 1 dépense courante). | Ingestion du lot par `process_incoming_batch`. | La prévision est auto-pointée (`auto_reconciled = 1`), mais la nouvelle dépense est maintenue dans le Sas (`pending = 1`). | Découplage strict des deux automatismes respecté. | ✅ **PASS** |
 | **T5.5.3** | `auto_create_missing_categories = "false"`. Nouvelle catégorie pertinente proposée par l'IA. | Ingestion du lot par `process_incoming_batch`. | La création de nouvelle catégorie est neutralisée. L'écriture bascule sur le filet de sécurité déterministe (`"Dépenses diverses"`). La table `Category` reste strictement inchangée. | Zéro catégorie orpheline insérée en base, repli sur filet de sécurité. | ✅ **PASS** |
 | **T5.5.4** | `auto_create_missing_categories = "true"`. Nouvelle catégorie IA valide proposée (ex: "Jardinage"). | Ingestion du lot avec commit. | La catégorie "Jardinage" est créée en base avec le type approprié. | Insertion contrôlée dans la table `Category`. | ✅ **PASS** |
-| **T5.5.5** | `auto_learn_merchant_rules = "false"`. Opération validée pour un nouveau commerçant. | Exécution du commit. | La fonction `learn_label_mapping` n'est pas appelée ou ne crée pas de règle auto. La table `BankLabelMapping` reste inchangée. | Apprentissage automatique suspendu. | ✅ **PASS** |
+| **T5.5.5** | Ingestion automatique d'un lot d'opérations puis correction manuelle d'une décision. | Exécution de `process_incoming_batch` puis `override_autopilot_decision`. | L'ingestion automatique n'ajoute aucune règle à `BankLabelMapping` (zéro pollution). La correction manuelle mémorise une règle sanctuarisée (`is_manual=True`). | Apprentissage réservé aux interventions manuelles. | ✅ **PASS** |
 | **T5.5.6** | Toggles 5.5 configurés sur des valeurs mixtes (ex: 2 `"true"`, 4 `"false"`). | Bascule `set_autopilot_enabled(True)` puis `set_autopilot_enabled(False)`. | Lors de l'activation, snapshot mémorisé et fonctions requises activées. Lors de la désactivation, restauration exacte des 6 valeurs initiales de l'utilisateur. | Réversibilité et respect absolu des choix fins de l'utilisateur. | ✅ **PASS** |
 
 ---

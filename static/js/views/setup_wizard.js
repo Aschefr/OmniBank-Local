@@ -27,7 +27,6 @@ window.SetupWizard = {
         'auto_assign_chameleon_fallback',
         'auto_close_empty_import_sas',
         'auto_create_missing_categories',
-        'auto_learn_merchant_rules',
         'enable_budget_creation_suggestions',
         'enable_budget_recalibration_suggestions'
     ],
@@ -38,7 +37,6 @@ window.SetupWizard = {
         'auto_assign_chameleon_fallback',
         'auto_close_empty_import_sas',
         'auto_create_missing_categories',
-        'auto_learn_merchant_rules',
         'enable_budget_creation_suggestions',
         'enable_budget_recalibration_suggestions',
         'bank_auto_sync_enabled',
@@ -68,7 +66,6 @@ window.SetupWizard = {
             category: 'Marchands & Catégories',
             icon: '🏷️',
             items: [
-                { key: 'auto_learn_merchant_rules', labelKey: 'autopilot_subtoggle_auto_learn_merchant_rules', label: 'Apprentissage autonome des marchands', descKey: 'autopilot_subtoggle_auto_learn_merchant_rules_desc', desc: 'Mémorise automatiquement vos arbitrages dans les règles marchands pour classifier sans faille les prochains relevés.' },
                 { key: 'auto_create_missing_categories', labelKey: 'autopilot_subtoggle_auto_create_missing_categories', label: 'Création autonome des catégories', descKey: 'autopilot_subtoggle_auto_create_missing_categories_desc', desc: 'Crée automatiquement les catégories détectées lors de l\'enrichissement des flux bancaires.' }
             ]
         },
@@ -1119,24 +1116,24 @@ window.SetupWizard = {
                         <!-- Sélecteur de profil d'autonomie -->
                         <div class="wizard-presets-grid">
                             <div id="wizPresetBalanced" class="wizard-preset-card ${this._autopilotPreset === 'balanced' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('balanced')">
-                                <span class="wizard-preset-badge">🛡️ 8/15 • Recommandé</span>
+                                <span class="wizard-preset-badge">🛡️ 7/14 • Recommandé</span>
                                 <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_balanced">${window.i18n.t('autopilot_wizard_preset_balanced') || 'Mode Équilibré'}</div>
                                 <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_balanced_desc">
                                     ${window.i18n.t('autopilot_wizard_preset_balanced_desc') || 'Rapprochements haute certitude, apprentissage marchands, synchro en arrière-plan et suggestions budgétaires avec validation.'}
                                 </div>
                             </div>
                             <div id="wizPresetFull" class="wizard-preset-card full-preset ${this._autopilotPreset === 'full' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('full')">
-                                <span class="wizard-preset-badge">⚡ 15/15 • Max</span>
+                                <span class="wizard-preset-badge">⚡ 14/14 • Max</span>
                                 <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_full">${window.i18n.t('autopilot_wizard_preset_full') || 'Autonomie Totale'}</div>
                                 <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_full_desc">
                                     ${window.i18n.t('autopilot_wizard_preset_full_desc') || '100% autonome : auto-création d\'enveloppes, auto-application des budgets, auto-clôture des récurrences.'}
                                 </div>
                             </div>
                             <div id="wizPresetCustom" class="wizard-preset-card custom-preset ${this._autopilotPreset === 'custom' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('custom')">
-                                <span class="wizard-preset-badge" id="wizPresetCustomBadge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35);">🛠️ <span id="wizPresetCustomActiveCount">${activeCount}</span>/15 • Sur-mesure</span>
+                                <span class="wizard-preset-badge" id="wizPresetCustomBadge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35);">🛠️ <span id="wizPresetCustomActiveCount">${activeCount}</span>/14 • Sur-mesure</span>
                                 <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_custom">${window.i18n.t('autopilot_wizard_preset_custom') || 'Personnalisé'}</div>
                                 <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_custom_desc">
-                                    ${window.i18n.t('autopilot_wizard_preset_custom_desc') || 'Configurez à la carte chacune des 15 briques modulaires ci-dessous.'}
+                                    ${window.i18n.t('autopilot_wizard_preset_custom_desc') || 'Configurez à la carte chacune des 14 briques modulaires ci-dessous.'}
                                 </div>
                             </div>
                         </div>
@@ -1153,12 +1150,12 @@ window.SetupWizard = {
                             </div>
                         </div>
 
-                        <!-- Accordéon déroulant pour les 15 automatismes -->
+                        <!-- Accordéon déroulant pour les 14 automatismes -->
                         <div>
                             <button type="button" class="wizard-accordion-btn" onclick="window.SetupWizard._toggleAutopilotAccordion()">
                                 <span style="display:flex; align-items:center; gap:6px;">
-                                    ⚙️ <span data-i18n="autopilot_wizard_customize_btn">${window.i18n.t('autopilot_wizard_customize_btn') || 'Personnaliser les 15 automatismes'}</span>
-                                    <span id="wizSubtoggleCountBadge" class="wizard-preset-badge" style="font-size:10px;">${activeCount}/15</span>
+                                    ⚙️ <span data-i18n="autopilot_wizard_customize_btn">${window.i18n.t('autopilot_wizard_customize_btn') || 'Personnaliser les 14 automatismes'}</span>
+                                    <span id="wizSubtoggleCountBadge" class="wizard-preset-badge" style="font-size:10px;">${activeCount}/14</span>
                                 </span>
                                 <span id="wizAccordionIcon">${this._autopilotAccordionOpen ? '▲' : '▼'}</span>
                             </button>
@@ -1341,7 +1338,7 @@ window.SetupWizard = {
         }
         const countBadge = document.getElementById('wizSubtoggleCountBadge');
         if (countBadge) {
-            countBadge.textContent = `${activeCount}/15`;
+            countBadge.textContent = `${activeCount}/14`;
         }
     },
 
@@ -1534,7 +1531,7 @@ window.SetupWizard = {
                         ${this._autopilotEnabled ? `
                         <div class="wizard-recap-item">
                             <span data-i18n="autopilot_wizard_recap_preset">${window.i18n.t('autopilot_wizard_recap_preset') || 'Profil d\'autonomie'}</span>
-                            <strong>${selectedPresetName} (${activeCount}/15)</strong>
+                            <strong>${selectedPresetName} (${activeCount}/14)</strong>
                         </div>
                         <div class="wizard-recap-item">
                             <span data-i18n="autopilot_wizard_recap_threshold">${window.i18n.t('autopilot_wizard_recap_threshold') || 'Seuil de confiance'}</span>

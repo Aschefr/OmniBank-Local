@@ -1122,52 +1122,72 @@ select.inline-input:focus option:checked {
     .overview-top-bar {
         flex-direction: column;
         align-items: stretch;
-        gap: 12px;
-        margin-bottom: 16px;
+        gap: 10px;
+        margin-bottom: 14px;
     }
 
     .overview-header-main {
         width: 100%;
+        display: flex;
         justify-content: space-between;
-        align-items: center;
-    }
-
-    .overview-title-group {
-        width: 100%;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
+        align-items: flex-start;
         gap: 8px;
     }
 
+    .overview-title-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
     .overview-main-title {
-        font-size: 20px;
+        font-size: 17.5px;
+        margin: 0;
+        white-space: nowrap;
+        line-height: 1.25;
     }
 
     .overview-health-badge {
-        font-size: 11.5px;
-        padding: 4px 10px;
+        height: 24px;
+        padding: 0 8px;
+        font-size: 11px;
+        border-radius: 6px;
     }
 
     .overview-controls-bar {
         display: flex !important;
-        flex-wrap: wrap !important;
+        flex-direction: column !important;
         width: 100% !important;
-        align-items: center !important;
         gap: 8px !important;
     }
 
-    .overview-acc-dropdown {
-        flex: 1 1 100% !important;
-        min-width: 0 !important;
+    .overview-controls-row-primary {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        width: 100% !important;
     }
 
-    .overview-acc-trigger {
+    .overview-controls-row-primary .overview-acc-dropdown {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        width: auto !important;
+        order: initial !important;
+    }
+
+    .overview-controls-row-primary .overview-acc-trigger {
         width: 100% !important;
-        height: 36px;
-        padding: 0 10px;
-        font-size: 12px;
-        border-radius: 10px;
+        height: 36px !important;
+        padding: 0 10px !important;
+        font-size: 12px !important;
+        border-radius: 10px !important;
+        justify-content: space-between !important;
+        display: flex !important;
+        align-items: center !important;
+        box-sizing: border-box !important;
     }
 
     .overview-acc-menu {
@@ -1175,28 +1195,85 @@ select.inline-input:focus option:checked {
         max-width: calc(100vw - 32px);
     }
 
-    .overview-bank-sync-btn {
-        flex: 1 1 calc(50% - 4px) !important;
-        height: 36px;
-        padding: 0 10px;
-        font-size: 12px;
-        border-radius: 10px;
-        white-space: nowrap;
+    .overview-controls-row-primary .overview-add-btn {
+        flex: 0 0 auto !important;
+        height: 36px !important;
+        padding: 0 12px !important;
+        font-size: 12px !important;
+        border-radius: 10px !important;
         justify-content: center !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        min-width: 0 !important;
+        white-space: nowrap !important;
+        box-sizing: border-box !important;
+        order: initial !important;
+    }
+
+    .overview-controls-row-primary .ov-btn-text-full {
+        display: none !important;
+    }
+
+    .overview-controls-row-primary .ov-btn-text-short {
+        display: inline !important;
+    }
+
+    .overview-actions-group {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        width: 100% !important;
+        order: initial !important;
+    }
+
+    .overview-autopilot-widget {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+    }
+
+    .overview-autopilot-btn {
+        width: 100% !important;
+        height: 36px !important;
+        padding: 0 8px !important;
+        font-size: 11.5px !important;
+        border-radius: 10px !important;
+        justify-content: center !important;
+        gap: 5px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
         display: inline-flex !important;
         align-items: center !important;
     }
 
-    .overview-add-btn {
-        flex: 1 1 calc(50% - 4px) !important;
-        height: 36px;
-        padding: 0 10px;
-        font-size: 12px;
-        border-radius: 10px;
-        white-space: nowrap;
+    .overview-autopilot-label {
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        min-width: 0 !important;
+    }
+
+    .overview-autopilot-timer-chip {
+        flex-shrink: 0 !important;
+        font-size: 10px !important;
+        padding: 1px 5px !important;
+        line-height: 1.2 !important;
+        white-space: nowrap !important;
+    }
+
+    .overview-bank-sync-btn {
+        flex: 1 1 0 !important;
+        height: 36px !important;
+        padding: 0 8px !important;
+        font-size: 11.5px !important;
+        border-radius: 10px !important;
         justify-content: center !important;
         display: inline-flex !important;
         align-items: center !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+        text-overflow: ellipsis !important;
     }
 
     /* Rhythm Strip & Controls on Mobile */

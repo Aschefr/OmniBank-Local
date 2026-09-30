@@ -313,6 +313,7 @@ def resolve_smart_label(
         if score >= 0.75:
             candidate_matches.append((tx, score))
 
+    is_history_ambiguous = False
     if candidate_matches:
         candidate_matches.sort(key=lambda x: x[1], reverse=True)
         best_tx, best_tx_score = candidate_matches[0]
@@ -325,26 +326,19 @@ def resolve_smart_label(
             total_cats = len(categories_with_matches)
             # S'il n'y a pas de catégorie dominante (>= 75% de consensus), considérer comme ambigu
             if (top_cat_count / total_cats) < 0.75:
-                logger.info(f"[SmartLabel] Ambiguïté détectée pour '{pattern}' ({dict(cat_counts)}) -> Pas de prédiction forcée")
-                return {
-                    "description": raw_str,
-                    "category": None,
-                    "source": "ambiguous",
-                    "confidence": 0.0,
-                    "mapping_id": None,
-                    "is_manual": False,
-                    "is_multi_category": False
-                }
+                logger.info(f"[SmartLabel] Ambiguïté historique détectée pour '{pattern}' ({dict(cat_counts)}) -> Tentative de résolution sémantique/IA")
+                is_history_ambiguous = True
 
-        return {
-            "description": best_tx.description,
-            "category": best_tx.category,
-            "source": "history",
-            "confidence": min(1.0, round(best_tx_score, 2)),
-            "mapping_id": None,
-            "is_manual": False,
-            "is_multi_category": False
-        }
+        if not is_history_ambiguous:
+            return {
+                "description": best_tx.description,
+                "category": best_tx.category,
+                "source": "history",
+                "confidence": min(1.0, round(best_tx_score, 2)),
+                "mapping_id": None,
+                "is_manual": False,
+                "is_multi_category": False
+            }
 
     # ---------------------------------------------------------
     # NIVEAU 2.5 : Correspondance sémantique directe avec les catégories actives SQLite
@@ -383,7 +377,7 @@ def resolve_smart_label(
     return {
         "description": raw_str,
         "category": None,
-        "source": "none",
+        "source": "ambiguous" if is_history_ambiguous else "none",
         "confidence": 0.0,
         "mapping_id": None,
         "is_manual": False,
@@ -613,6 +607,7 @@ def resolve_smart_labels_batch(
             if score >= 0.75:
                 candidate_matches.append((tx, score))
 
+        is_batch_ambiguous = False
         if candidate_matches:
             candidate_matches.sort(key=lambda x: x[1], reverse=True)
             best_tx, best_score = candidate_matches[0]
@@ -624,23 +619,17 @@ def resolve_smart_labels_batch(
                 top_cat_count = cat_counts.most_common(1)[0][1]
                 total_cats = len(categories_with_matches)
                 if (top_cat_count / total_cats) < 0.75:
-                    results[raw_str] = {
-                        "description": raw_str,
-                        "category": None,
-                        "source": "ambiguous",
-                        "confidence": 0.0,
-                        "mapping_id": None
-                    }
-                    continue
+                    is_batch_ambiguous = True
 
-            results[raw_str] = {
-                "description": best_tx.description,
-                "category": best_tx.category,
-                "source": "history",
-                "confidence": min(1.0, round(best_score, 2)),
-                "mapping_id": None
-            }
-            continue
+            if not is_batch_ambiguous:
+                results[raw_str] = {
+                    "description": best_tx.description,
+                    "category": best_tx.category,
+                    "source": "history",
+                    "confidence": min(1.0, round(best_score, 2)),
+                    "mapping_id": None
+                }
+                continue
 
         # 3.5 Match catégorie directe / sémantique
         expected_t = tx_types.get(raw_str) if tx_types else None
@@ -665,7 +654,7 @@ def resolve_smart_labels_batch(
         results[raw_str] = {
             "description": raw_str,
             "category": None,
-            "source": "none",
+            "source": "ambiguous" if is_batch_ambiguous else "none",
             "confidence": 0.0,
             "mapping_id": None
         }

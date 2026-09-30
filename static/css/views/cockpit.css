@@ -7,28 +7,29 @@
 .overview-mode-toggle {
     display: inline-flex;
     align-items: center;
-    background: var(--bg-surface);
+    background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 3px;
+    border-radius: 10px;
+    padding: 2.5px;
     gap: 2px;
-    margin-left: 12px;
+    margin-left: 10px;
     flex-shrink: 0;
+    backdrop-filter: blur(8px);
 }
 
 .overview-mode-btn {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 6px 14px;
+    padding: 5px 12px;
     border: none;
-    border-radius: 10px;
-    font-size: 12.5px;
+    border-radius: 8px;
+    font-size: 11.5px;
     font-weight: 600;
     cursor: pointer;
     background: transparent;
     color: var(--text-muted);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
     line-height: 1;
 }
@@ -39,9 +40,9 @@
 }
 
 .overview-mode-btn.active {
-    background: var(--accent);
+    background: linear-gradient(135deg, var(--accent, #6366f1) 0%, #818cf8 100%);
     color: #fff;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
 }
 
 .theme-dark .overview-mode-btn.active {
@@ -77,9 +78,9 @@
 /* ── Gauges Row ────────────────────────────────────────────────────────── */
 .cockpit-gauges-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 24px;
-    max-width: 720px;
+    max-width: 1040px;
     margin: 0 auto;
     width: 100%;
 }
@@ -126,6 +127,26 @@
     stroke-linecap: round;
     transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s ease;
     filter: drop-shadow(0 0 6px var(--cockpit-gauge-glow, rgba(99, 102, 241, 0.3)));
+}
+
+.cockpit-gauge-arc-planned {
+    fill: none;
+    stroke-width: 12;
+    stroke-linecap: round;
+    stroke: #10b981;
+    opacity: 0.45;
+    filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.3));
+    transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
+}
+
+.cockpit-gauge-arc-planned.planned-orange {
+    stroke: #f59e0b;
+    filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.3));
+}
+
+.cockpit-gauge-arc-planned.planned-red {
+    stroke: #ef4444;
+    filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.3));
 }
 
 /* Gauge center text */
@@ -180,6 +201,17 @@
     color: var(--text-muted);
     font-weight: 500;
     margin-top: 3px;
+}
+
+.cockpit-gauge-planned {
+    font-size: 13px;
+    font-weight: 600;
+    color: #10b981;
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
 }
 
 /* ── Compact Cards Row ─────────────────────────────────────────────────── */
@@ -349,32 +381,99 @@
 .cockpit-gauge-card[data-gauge="rav"].gauge-orange .cockpit-gauge-arc { stroke: #f59e0b; --cockpit-gauge-glow: rgba(245, 158, 11, 0.35); }
 .cockpit-gauge-card[data-gauge="rav"].gauge-red .cockpit-gauge-arc    { stroke: #ef4444; --cockpit-gauge-glow: rgba(239, 68, 68, 0.35); }
 
-/* Cycle gauge */
-.cockpit-gauge-card[data-gauge="cycle"] .cockpit-gauge-arc {
+/* Cleared / Planned Expenses gauge */
+.cockpit-gauge-card[data-gauge="expenses"] .cockpit-gauge-arc {
     stroke: #6366f1;
-    --cockpit-gauge-glow: rgba(99, 102, 241, 0.3);
+    --cockpit-gauge-glow: rgba(99, 102, 241, 0.35);
 }
+.cockpit-gauge-card[data-gauge="expenses"].gauge-green .cockpit-gauge-arc  { stroke: #10b981; --cockpit-gauge-glow: rgba(16, 185, 129, 0.35); }
+.cockpit-gauge-card[data-gauge="expenses"].gauge-indigo .cockpit-gauge-arc { stroke: #6366f1; --cockpit-gauge-glow: rgba(99, 102, 241, 0.35); }
+.cockpit-gauge-card[data-gauge="expenses"].gauge-purple .cockpit-gauge-arc { stroke: #8b5cf6; --cockpit-gauge-glow: rgba(139, 92, 246, 0.35); }
+
+/* Cadence / Pace gauge */
+.cockpit-gauge-card[data-gauge="cadence"] .cockpit-gauge-arc {
+    stroke: #10b981;
+    --cockpit-gauge-glow: rgba(16, 185, 129, 0.35);
+}
+.cockpit-gauge-card[data-gauge="cadence"].cadence-green .cockpit-gauge-arc  { stroke: #10b981; --cockpit-gauge-glow: rgba(16, 185, 129, 0.35); }
+.cockpit-gauge-card[data-gauge="cadence"].cadence-blue .cockpit-gauge-arc   { stroke: #3b82f6; --cockpit-gauge-glow: rgba(59, 130, 246, 0.35); }
+.cockpit-gauge-card[data-gauge="cadence"].cadence-orange .cockpit-gauge-arc { stroke: #f59e0b; --cockpit-gauge-glow: rgba(245, 158, 11, 0.35); }
+.cockpit-gauge-card[data-gauge="cadence"].cadence-red .cockpit-gauge-arc    { stroke: #ef4444; --cockpit-gauge-glow: rgba(239, 68, 68, 0.35); }
+
+/* Cadence status badge / text */
+.cockpit-cadence-status {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.cockpit-cadence-status.status-green { color: #10b981; }
+.cockpit-cadence-status.status-blue { color: #3b82f6; }
+.cockpit-cadence-status.status-orange { color: #f59e0b; }
+.cockpit-cadence-status.status-red { color: #ef4444; }
 
 /* ── Responsive: Mobile ────────────────────────────────────────────────── */
 @media (max-width: 768px) {
     .overview-mode-toggle {
-        margin-left: 0;
-        margin-top: 4px;
-        width: 100%;
-        justify-content: center;
+        margin-left: auto;
+        margin-top: 0;
+        width: auto;
+        flex-shrink: 0;
     }
 
     .overview-mode-btn {
-        flex: 1;
-        justify-content: center;
-        padding: 8px 10px;
-        font-size: 12px;
+        padding: 4px 9px;
+        font-size: 11px;
     }
 
     .cockpit-gauges-row {
         grid-template-columns: 1fr 1fr;
-        gap: 14px;
+        gap: 12px;
         max-width: 100%;
+    }
+
+    /* Premier indicateur (Reste à vivre) : pleine largeur */
+    .cockpit-gauge-card:first-child,
+    .cockpit-gauge-card[data-gauge="rav"] {
+        grid-column: 1 / -1;
+        padding: 24px 18px 20px;
+    }
+
+    /* Les deux indicateurs suivants : mi-largeur chacun */
+    .cockpit-gauge-card[data-gauge="expenses"],
+    .cockpit-gauge-card[data-gauge="cadence"] {
+        grid-column: span 1;
+        padding: 16px 8px 14px;
+    }
+
+    .cockpit-gauge-card[data-gauge="expenses"] .cockpit-gauge-svg,
+    .cockpit-gauge-card[data-gauge="cadence"] .cockpit-gauge-svg {
+        width: 105px;
+        height: 105px;
+    }
+
+    .cockpit-gauge-card[data-gauge="expenses"] .cockpit-gauge-caption,
+    .cockpit-gauge-card[data-gauge="cadence"] .cockpit-gauge-caption {
+        margin-top: 8px;
+    }
+
+    .cockpit-gauge-card[data-gauge="expenses"] .cockpit-gauge-percent,
+    .cockpit-gauge-card[data-gauge="cadence"] .cockpit-gauge-percent {
+        font-size: 24px;
+    }
+
+    .cockpit-gauge-card[data-gauge="expenses"] .cockpit-gauge-amount,
+    .cockpit-gauge-card[data-gauge="cadence"] .cockpit-gauge-amount,
+    .cockpit-gauge-card[data-gauge="cadence"] .cockpit-cadence-status {
+        font-size: 14px;
+    }
+
+    .cockpit-gauge-card[data-gauge="expenses"] .cockpit-gauge-detail,
+    .cockpit-gauge-card[data-gauge="cadence"] .cockpit-gauge-detail {
+        font-size: 9.5px;
+        line-height: 1.25;
     }
 
     .cockpit-gauge-card {
@@ -401,6 +500,10 @@
 
     .cockpit-gauge-detail {
         font-size: 10.5px;
+    }
+
+    .cockpit-gauge-planned {
+        font-size: 11px;
     }
 
     .cockpit-cards-row {
