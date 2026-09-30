@@ -879,10 +879,6 @@ window.AutopilotView = {
 
         const poll = async () => {
             try {
-                if (window.app && window.app.currentView !== 'autopilot') {
-                    this._stopActiveSyncTracker();
-                    return;
-                }
                 const status = await API.get('/api/autopilot/status');
                 const prevLastExec = this._lastKnownExecutionAt;
                 const newLastExec = status?.last_execution_at;
@@ -894,16 +890,25 @@ window.AutopilotView = {
                     this._stopActiveSyncTracker();
                     this._status = status;
                     this._lastKnownExecutionAt = newLastExec;
-                    await this.refresh();
+                    if (window.app && window.app.currentView === 'autopilot') {
+                        await this.refresh();
+                    }
                     window.dispatchEvent(new CustomEvent('bank_sync_completed'));
                     window.dispatchEvent(new CustomEvent('autopilot_updated'));
                     window.dispatchEvent(new CustomEvent('transactions_updated'));
                     window.dispatchEvent(new CustomEvent('transactions_changed'));
+                    window.dispatchEvent(new CustomEvent('budgets:refresh'));
                     if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
                         window.app.updateAutopilotBadge();
                     }
                     if (window.app && typeof window.app.loadNotifications === 'function') {
                         window.app.loadNotifications();
+                    }
+                    if (window.app && typeof window.app.refreshActiveView === 'function') {
+                        window.app.refreshActiveView();
+                    }
+                    if (window.app && typeof window.app.refreshSidebar === 'function') {
+                        window.app.refreshSidebar();
                     }
                     return;
                 } else {

@@ -571,18 +571,18 @@ window.OverviewView = {
         // Bind global event listener once for real-time reactivity without manual F5
         if (!this._apListenerBound) {
             this._apListenerBound = true;
-            window.addEventListener('autopilot_updated', () => {
+            const handleOverviewLiveRefresh = () => {
                 const root = document.getElementById('overviewRoot');
-                if (root && root.offsetParent !== null) {
-                    this._renderAutopilotWidget().catch(e => console.warn('[OverviewView] Autopilot refresh error:', e));
+                if (root && root.offsetParent !== null && window.app?.currentView === 'overview') {
+                    this.init().catch(e => console.warn('[OverviewView] Live refresh error:', e));
+                } else if (root && root.offsetParent !== null) {
+                    this._renderAutopilotWidget().catch(e => console.warn('[OverviewView] Autopilot widget refresh error:', e));
                 }
-            });
-            window.addEventListener('bank_sync_completed', () => {
-                const root = document.getElementById('overviewRoot');
-                if (root && root.offsetParent !== null) {
-                    this._renderAutopilotWidget().catch(e => console.warn('[OverviewView] BankSync refresh error:', e));
-                }
-            });
+            };
+            window.addEventListener('autopilot_updated', handleOverviewLiveRefresh);
+            window.addEventListener('bank_sync_completed', handleOverviewLiveRefresh);
+            window.addEventListener('transactions_updated', handleOverviewLiveRefresh);
+            window.addEventListener('transactions_changed', handleOverviewLiveRefresh);
         }
 
         try {
@@ -831,10 +831,17 @@ window.OverviewView = {
 
                 if (remSec === 0 && !this._apSyncTriggered) {
                     this._apSyncTriggered = true;
+                    if (window.app && typeof window.app._accelerateSyncWatcher === 'function') {
+                        window.app._accelerateSyncWatcher();
+                    }
                     setTimeout(() => {
                         this._apSyncTriggered = false;
-                        this._renderAutopilotWidget().catch(() => {});
-                    }, 5000);
+                        if (window.app?.currentView === 'overview') {
+                            this.init().catch(() => {});
+                        } else {
+                            this._renderAutopilotWidget().catch(() => {});
+                        }
+                    }, 3500);
                 }
             } else {
                 if (timerChip) {

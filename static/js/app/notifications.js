@@ -37,7 +37,7 @@ window.AppModules.notifications = {
         this.loadNotifications();
         
         // Dynamic notification polling
-        this._notifInterval = 60000; // Base: 60s
+        this._notifInterval = 15000; // Base: 15s (Zero F5 réactivité)
         this._notifTimer = null;
         this._startNotifPolling();
     },
@@ -53,7 +53,7 @@ window.AppModules.notifications = {
     },
 
     setFastNotificationsPolling(active) {
-        const newInterval = active ? 3000 : 60000;
+        const newInterval = active ? 2500 : 15000;
         if (this._notifInterval !== newInterval) {
             this._notifInterval = newInterval;
             this._startNotifPolling();
@@ -205,7 +205,11 @@ window.AppModules.notifications = {
                     }
 
                     if (hasBankSyncNotif) {
-                        if (window.BankSyncView && typeof window.BankSyncView.refreshActiveViews === 'function') {
+                        window.dispatchEvent(new CustomEvent('transactions_updated'));
+                        window.dispatchEvent(new CustomEvent('bank_sync_completed'));
+                        if (window.app && typeof window.app.refreshActiveView === 'function') {
+                            window.app.refreshActiveView();
+                        } else if (window.BankSyncView && typeof window.BankSyncView.refreshActiveViews === 'function') {
                             window.BankSyncView.refreshActiveViews();
                         } else if (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') {
                             window.BankSyncView.loadPendingSync();

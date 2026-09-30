@@ -141,6 +141,27 @@ window.TrendsView = {
     },
 
     async init() {
+        // Réactivité en temps réel : actualisation automatique sans F5
+        if (!this._hasAttachedReactiveListeners) {
+            this._hasAttachedReactiveListeners = true;
+            const handleTrendsLiveRefresh = () => {
+                if (window.app?.currentView === 'trends') {
+                    this.loadData().catch(e => console.warn('[TrendsView] Live refresh error:', e));
+                }
+            };
+            window.addEventListener('transactions_updated', handleTrendsLiveRefresh);
+            window.addEventListener('transactions_changed', handleTrendsLiveRefresh);
+            window.addEventListener('transactions-changed', handleTrendsLiveRefresh);
+            window.addEventListener('transactions:refresh', handleTrendsLiveRefresh);
+            window.addEventListener('bank_sync_completed', handleTrendsLiveRefresh);
+            window.addEventListener('autopilot_updated', handleTrendsLiveRefresh);
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && window.app?.currentView === 'trends') {
+                    this.loadData().catch(() => {});
+                }
+            });
+        }
+
         await this.loadConfig();
         await this.loadAccounts();
     },

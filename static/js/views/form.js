@@ -1513,20 +1513,12 @@ window.FormView = {
 
             // PERF: Refresh en arrière-plan, non-bloquant — le toast et la fermeture du modal
             // sont déjà affichés, l'utilisateur perçoit 0ms de délai
-            const refreshPromises = [window.app.refreshSidebar()];
-            if (window.app.currentView === 'dashboard' && window.TimelineView.loadData) {
-                refreshPromises.push(window.TimelineView.loadData());
-            }
-            if (window.app.currentView === 'all_operations' && window.AllOperationsView.loadData) {
-                refreshPromises.push(window.AllOperationsView.loadData());
-            }
-            if (window.app.currentView === 'recurrences' && window.RecurrenceView.loadData) {
-                refreshPromises.push(window.RecurrenceView.loadData());
-            }
-            if (window.app.currentView === 'overview' && window.OverviewView) {
-                refreshPromises.push(window.OverviewView.loadData ? window.OverviewView.loadData() : window.OverviewView.init());
-            }
+            const refreshPromises = [
+                window.app.refreshSidebar(),
+                window.app.refreshActiveView ? window.app.refreshActiveView({ highlightTxId }) : Promise.resolve()
+            ];
             Promise.all(refreshPromises).catch(e => console.error('[Form] Erreur refresh arrière-plan:', e));
+            window.dispatchEvent(new CustomEvent('transactions_updated'));
 
 
         } catch (e) {

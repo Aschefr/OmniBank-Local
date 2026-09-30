@@ -133,6 +133,27 @@ window.AccountsView = {
     },
 
     async init() {
+        // Réactivité en temps réel : actualisation automatique sans F5
+        if (!this._hasAttachedReactiveListeners) {
+            this._hasAttachedReactiveListeners = true;
+            const handleAccountsLiveRefresh = () => {
+                if (window.app?.currentView === 'accounts') {
+                    this.loadData().catch(e => console.warn('[AccountsView] Live refresh error:', e));
+                }
+            };
+            window.addEventListener('transactions_updated', handleAccountsLiveRefresh);
+            window.addEventListener('transactions_changed', handleAccountsLiveRefresh);
+            window.addEventListener('transactions-changed', handleAccountsLiveRefresh);
+            window.addEventListener('transactions:refresh', handleAccountsLiveRefresh);
+            window.addEventListener('bank_sync_completed', handleAccountsLiveRefresh);
+            window.addEventListener('autopilot_updated', handleAccountsLiveRefresh);
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && window.app?.currentView === 'accounts') {
+                    this.loadData().catch(() => {});
+                }
+            });
+        }
+
         await Promise.all([
             this.loadData(),
             window.BankSyncView ? window.BankSyncView.init() : Promise.resolve()

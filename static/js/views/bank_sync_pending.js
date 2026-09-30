@@ -169,41 +169,15 @@ Object.assign(window.BankSyncView, {
 
     async refreshActiveViews(highlightTxId = null) {
         await this.loadPendingSync(true);
-        const curView = window.app?.currentView;
-        if (curView === 'overview' && window.OverviewView && typeof window.OverviewView.init === 'function') {
-            await window.OverviewView.init();
-            if (highlightTxId && typeof window.OverviewView.highlightRow === 'function') {
-                requestAnimationFrame(() => window.OverviewView.highlightRow(highlightTxId));
-            }
-        } else if ((curView === 'dashboard' || curView === 'timeline') && window.TimelineView && typeof window.TimelineView.loadData === 'function') {
-            await window.TimelineView.loadData();
-            if (highlightTxId && typeof window.TimelineView.highlightRow === 'function') {
-                requestAnimationFrame(() => window.TimelineView.highlightRow(highlightTxId));
-            }
-        } else if (curView === 'all_operations' && window.AllOperationsView && typeof window.AllOperationsView.loadData === 'function') {
-            await window.AllOperationsView.loadData();
-            if (highlightTxId && typeof window.AllOperationsView.highlightRow === 'function') {
-                requestAnimationFrame(() => window.AllOperationsView.highlightRow(highlightTxId));
-            }
-        } else if (curView === 'accounts' && window.AccountsView && typeof window.AccountsView.loadData === 'function') {
-            await window.AccountsView.loadData();
-        } else if (curView === 'budgets' && window.BudgetsView && typeof window.BudgetsView.loadBudgets === 'function') {
-            await Promise.all([
-                window.BudgetsView.loadBudgets(),
-                window.BudgetsView.loadAllStatuses ? window.BudgetsView.loadAllStatuses() : Promise.resolve(),
-                window.BudgetsView.loadAutopilotSuggestions ? window.BudgetsView.loadAutopilotSuggestions() : Promise.resolve()
-            ]);
-            if (typeof window.BudgetsView.renderStatus === 'function') {
-                window.BudgetsView.renderStatus();
-            }
-        } else if (curView === 'autopilot' && window.AutopilotView && typeof window.AutopilotView.refresh === 'function') {
-            await window.AutopilotView.refresh();
+        if (window.app && typeof window.app.refreshActiveView === 'function') {
+            await window.app.refreshActiveView({ highlightTxId });
         }
         if (window.app && typeof window.app.refreshSidebar === 'function') {
             await window.app.refreshSidebar();
         }
         window.dispatchEvent(new CustomEvent('budgets:refresh'));
         window.dispatchEvent(new CustomEvent('bank_sync_completed'));
+        window.dispatchEvent(new CustomEvent('transactions_updated'));
     },
 
     getConfirmedMatchesList(pendingData) {
