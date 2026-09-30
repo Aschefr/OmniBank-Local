@@ -1062,15 +1062,18 @@ Object.assign(window.BankSyncView, {
                 : '';
 
             if (isStatementMode && tx.audit_status === 'auto_reconciled') {
-                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><span>🤖</span> <span>${window.i18n ? window.i18n.t('bank_sync_status_auto_reconciled') || 'Auto-rapprochée' : 'Auto-rapprochée'}</span></span>`;
+                const label = ((window.i18n ? window.i18n.t('bank_sync_status_auto_reconciled') : null) || 'Auto-rapprochée').replace(/^🤖\s*/, '');
+                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><span>🤖</span> <span>${label}</span></span>`;
                 actionText = window.i18n ? window.i18n.t('bank_sync_action_auto_reconciled') || 'Rapprochée automatiquement' : 'Rapprochée automatiquement';
                 actionColor = `color: #10b981; font-weight: 600;`;
             } else if (isStatementMode && tx.audit_status === 'auto_committed') {
-                statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.35); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><span>🤖</span> <span>${window.i18n ? window.i18n.t('bank_sync_status_auto_committed') || 'Auto-enregistrée' : 'Auto-enregistrée'}</span></span>`;
+                const label = ((window.i18n ? window.i18n.t('bank_sync_status_auto_committed') : null) || 'Auto-enregistrée').replace(/^🤖\s*/, '');
+                statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.35); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><span>🤖</span> <span>${label}</span></span>`;
                 actionText = window.i18n ? window.i18n.t('bank_sync_action_auto_committed') || 'Écriture enregistrée' : 'Écriture enregistrée';
                 actionColor = `color: var(--accent); font-weight: 600;`;
             } else if (isStatementMode && tx.audit_status === 'pending_review') {
-                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><span>⚡</span> <span>${window.i18n ? window.i18n.t('bank_sync_status_arbitrage') || 'À arbitrer' : 'À arbitrer'}</span></span>`;
+                const label = ((window.i18n ? window.i18n.t('bank_sync_status_arbitrage') : null) || 'À arbitrer').replace(/^⚡\s*/, '');
+                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><span>⚡</span> <span>${label}</span></span>`;
                 actionText = 'À arbitrer dans le sas';
                 actionColor = `color: #d97706; font-weight: 600;`;
             } else if (tx.is_dismissed || (isStatementMode && tx.audit_status === 'dismissed')) {
@@ -1716,13 +1719,17 @@ Object.assign(window.BankSyncView, {
                 const isAi = (res.source === 'ai');
                 const catName = res.category || (window.i18n ? window.i18n.t('uncategorized') || 'Non catégorisé' : 'Non catégorisé');
                 let toastMsg = '';
-                if (isAi) {
+                let toastType = 'success';
+                if (!res.category) {
+                    toastMsg = window.i18n ? (window.i18n.t('smart_label_no_category_found') || 'Aucune catégorie correspondante trouvée') : 'Aucune catégorie correspondante trouvée';
+                    toastType = 'info';
+                } else if (isAi) {
                     const toastTpl = window.i18n ? window.i18n.t('smart_label_ai_classified_toast') : "✨ Nommé '{name}' et classé dans '{category}'";
                     toastMsg = (toastTpl || "✨ Nommé '{name}' et classé dans '{category}'").replace('{name}', res.description || tx.description).replace('{category}', catName);
                 } else {
                     toastMsg = window.i18n ? (window.i18n.t('smart_label_suggested_success') || 'Catégorie suggérée appliquée') : 'Catégorie suggérée appliquée';
                 }
-                this.showToast(toastMsg, 'success');
+                this.showToast(toastMsg, toastType);
             } else {
                 this.renderReviewTable();
             }

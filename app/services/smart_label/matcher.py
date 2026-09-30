@@ -38,10 +38,20 @@ def _compute_match_score_precomputed(
 
     if pat_tokens and cand_tokens:
         is_token_subset = pat_tokens.issubset(cand_tokens) or cand_tokens.issubset(pat_tokens)
-        if is_token_subset and min_len >= 4 and len_ratio >= 0.35:
-            common = pat_tokens.intersection(cand_tokens)
-            if sig_pat.intersection(sig_cand) or not _GENERIC_TOKENS.issuperset(common):
-                return min(1.0, 0.80 + 0.20 * len_ratio)
+        if is_token_subset and min_len >= 4:
+            # Match de préfixe ou sous-ensemble de tokens :
+            # Si le candidat correspond au préfixe du motif (ex: 'HEXCEL' dans 'HEXCEL REINFORCEMENTS HEXCEL REI')
+            # ou si le ratio de longueur est suffisant
+            is_prefix = (
+                pat_clean.startswith(cand_clean + ' ')
+                or cand_clean.startswith(pat_clean + ' ')
+                or len_ratio >= 0.35
+            )
+            if is_prefix:
+                common = pat_tokens.intersection(cand_tokens)
+                if sig_pat.intersection(sig_cand) or not _GENERIC_TOKENS.issuperset(common):
+                    base_score = 0.88 if (pat_clean.startswith(cand_clean + ' ') or cand_clean.startswith(pat_clean + ' ')) else 0.80
+                    return min(1.0, base_score + (1.0 - base_score) * len_ratio)
 
     if not pat_tokens or not cand_tokens:
         return 0.0
@@ -77,6 +87,18 @@ def _compute_match_score_precomputed(
     if not intersection and not matched_pat and not strong_matches and abs(len(pat_clean) - len(cand_clean)) > 4:
         return 0.0
 
+    # Garde-fou d'identité marchande :
+    # Si le ratio difflib est modéré (< 0.75) et que les tokens marchands de tête ne correspondent pas mutuellement,
+    # c'est un faux positif de suffixe géographique (ex: deux commerces distincts dans la même ville "LA TOUR DU PIN")
+    pat_sig_ordered = [t for t in pat_clean.split() if t in sig_pat]
+    cand_sig_ordered = [t for t in cand_clean.split() if t in sig_cand]
+    pat_prefix_in_cand = any(t in sig_cand for t in pat_sig_ordered[:2]) if pat_sig_ordered else False
+    cand_prefix_in_pat = any(t in sig_pat for t in cand_sig_ordered[:2]) if cand_sig_ordered else False
+    has_merchant_overlap = pat_prefix_in_cand and cand_prefix_in_pat
+
+    if not has_merchant_overlap and ratio < 0.75:
+        return 0.0
+
     if strong_matches:
         jaccard = len(common_sig) / max(len(sig_pat.union(sig_cand)), 1)
         coverage_pat = len(common_sig) / max(len(sig_pat), 1)
@@ -88,7 +110,7 @@ def _compute_match_score_precomputed(
         if (len(strong_matches) >= 2 and sum(len(t) for t in strong_matches) >= 8) or (mut_coverage >= 0.40 and jaccard >= 0.25):
             return min(1.0, 0.70 + 0.20 * jaccard + 0.10 * ratio)
 
-    if intersection:
+    if intersection and not _GENERIC_TOKENS.issuperset(intersection):
         jaccard = len(intersection) / len(pat_tokens.union(cand_tokens))
         coverage_pat = len(intersection) / len(pat_tokens)
         coverage_cand = len(intersection) / len(cand_tokens)
