@@ -107,6 +107,8 @@ Object.assign(window.BankSyncView, {
                     (this.connections && this.connections.length > 0) ? this.loadConnections() : Promise.resolve()
                 ]).then(() => {
                     window.dispatchEvent(new CustomEvent('bank_sync_completed'));
+                    window.dispatchEvent(new CustomEvent('autopilot_updated'));
+                    window.dispatchEvent(new CustomEvent('transactions_updated'));
                 });
             }
         } catch (_) {}
@@ -149,6 +151,8 @@ Object.assign(window.BankSyncView, {
                         (this.connections && this.connections.length > 0) ? this.loadConnections() : Promise.resolve()
                     ]).then(() => {
                         window.dispatchEvent(new CustomEvent('bank_sync_completed'));
+                        window.dispatchEvent(new CustomEvent('autopilot_updated'));
+                        window.dispatchEvent(new CustomEvent('transactions_updated'));
                     });
                     return;
                 }

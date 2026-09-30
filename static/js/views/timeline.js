@@ -209,6 +209,31 @@ window.TimelineView = {
         if (window.BankSyncView && typeof window.BankSyncView.ensureSyncButtonsVisibility === 'function') {
             window.BankSyncView.ensureSyncButtonsVisibility();
         }
+
+        // Réactivité en temps réel : actualisation automatique sans F5
+        if (!this._hasAttachedReactiveListeners) {
+            this._hasAttachedReactiveListeners = true;
+            const handleTimelineLiveRefresh = () => {
+                const cur = window.app?.currentView;
+                if (cur === 'dashboard' || cur === 'timeline') {
+                    this.loadData().catch(e => console.warn('[TimelineView] Live refresh error:', e));
+                }
+            };
+            window.addEventListener('transactions_updated', handleTimelineLiveRefresh);
+            window.addEventListener('transactions_changed', handleTimelineLiveRefresh);
+            window.addEventListener('transactions-changed', handleTimelineLiveRefresh);
+            window.addEventListener('transactions:refresh', handleTimelineLiveRefresh);
+            window.addEventListener('timeline:refresh', handleTimelineLiveRefresh);
+            window.addEventListener('bank_sync_completed', handleTimelineLiveRefresh);
+            window.addEventListener('autopilot_updated', handleTimelineLiveRefresh);
+            document.addEventListener('visibilitychange', () => {
+                const cur = window.app?.currentView;
+                if (!document.hidden && (cur === 'dashboard' || cur === 'timeline')) {
+                    this.loadData().catch(() => {});
+                }
+            });
+        }
+
         await this.loadData();
     },
 

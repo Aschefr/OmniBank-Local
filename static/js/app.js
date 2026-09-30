@@ -423,24 +423,62 @@ class App {
         // Init Notification Center
         this._initNotifications();
 
-        // Reactive EventBus Data Sync (Automatic sidebar refresh on mutations)
+        // Reactive EventBus Data Sync (Automatic sidebar & active view refresh on mutations)
         if (window.EventBus) {
-            let _sidebarDebounceTimer = null;
+            let _mutationDebounceTimer = null;
             window.EventBus.on('data:mutated', (detail) => {
                 const ep = detail?.endpoint || '';
                 // Ignorer les endpoints non financiers (ex: chat, logs, feedback)
                 if (ep.includes('/chat/') || ep.includes('/feedback') || ep.includes('/log_action') || ep.includes('/diagnostics')) {
                     return;
                 }
-                clearTimeout(_sidebarDebounceTimer);
-                _sidebarDebounceTimer = setTimeout(() => {
+                clearTimeout(_mutationDebounceTimer);
+                _mutationDebounceTimer = setTimeout(() => {
                     this.refreshSidebar().catch(e => console.warn('[App] EventBus refreshSidebar error:', e));
-                }, 50);
+                    this.refreshActiveView().catch(e => console.warn('[App] EventBus refreshActiveView error:', e));
+                }, 80);
             });
         }
 
-        window.addEventListener('autopilot_updated', () => this.updateAutopilotBadge());
-        window.addEventListener('bank_sync_completed', () => this.updateAutopilotBadge());
+        // Global Real-Time Reactivity Listeners (Zero F5)
+        const reactiveRefreshHandler = () => this.refreshActiveView();
+        window.addEventListener('transactions_updated', reactiveRefreshHandler);
+        window.addEventListener('transactions_changed', reactiveRefreshHandler);
+        window.addEventListener('transactions-changed', reactiveRefreshHandler);
+        window.addEventListener('transactions:refresh', reactiveRefreshHandler);
+        window.addEventListener('bank_sync_completed', () => {
+            this.updateAutopilotBadge();
+            this.refreshActiveView();
+        });
+        window.addEventListener('autopilot_updated', () => {
+            this.updateAutopilotBadge();
+            this.refreshActiveView();
+        });
+        window.addEventListener('budgets:refresh', reactiveRefreshHandler);
+        window.addEventListener('timeline:refresh', reactiveRefreshHandler);
+        window.addEventListener('categoriesUpdated', reactiveRefreshHandler);
+        window.addEventListener('categories-changed', reactiveRefreshHandler);
+        window.addEventListener('recurrences:updated', reactiveRefreshHandler);
+
+        // Document visibility change (Alt-Tab, smartphone 2FA return)
+        document.addEventListener('visibilitychange', async () => {
+            if (!document.hidden) {
+                const now = Date.now();
+                if (now - (this._lastActiveViewRefreshAt || 0) > 2500) {
+                    this._lastActiveViewRefreshAt = now;
+                    this._accelerateSyncWatcher();
+                    await Promise.all([
+                        this.refreshActiveView(),
+                        this.refreshSidebar(),
+                        this.updateAutopilotBadge(),
+                        typeof this.loadNotifications === 'function' ? this.loadNotifications() : Promise.resolve()
+                    ]).catch(e => console.warn('[App] Visibility refresh error:', e));
+                }
+            }
+        });
+
+        // Initialize global bank sync & auto-pilot watcher
+        this._initGlobalSyncWatcher();
 
         // Setup Undo / Redo Header Buttons
         const undoBtn = document.getElementById('headerUndoBtn');
@@ -538,19 +576,203 @@ class App {
         }
     }
 
-    async refreshAll() {
-        await this.refreshSidebar();
-        if (this.currentView && this.views[this.currentView] && typeof this.views[this.currentView].init === 'function') {
-            await this.views[this.currentView].init();
-        } else if (this.currentView) {
-            this.loadView(this.currentView);
+    _refreshActiveViewInFlight = false;
+    _queuedRefreshActiveView = false;
+    _lastActiveViewRefreshAt = 0;
+    _activeViewDebounceTimer = null;
+
+    async refreshActiveView(options = {}) {
+        const { highlightTxId = null, force = false, immediate = false } = options;
+        
+        if (!immediate) {
+            clearTimeout(this._activeViewDebounceTimer);
+            return new Promise((resolve) => {
+                this._activeViewDebounceTimer = setTimeout(async () => {
+                    const res = await this.refreshActiveView({ highlightTxId, force, immediate: true });
+                    resolve(res);
+                }, 60);
+            });
+        }
+
+        if (this._refreshActiveViewInFlight) {
+            this._queuedRefreshActiveView = true;
+            return;
+        }
+        this._refreshActiveViewInFlight = true;
+        this._lastActiveViewRefreshAt = Date.now();
+
+        const curView = this.currentView;
+        try {
+            if (curView === 'overview' && window.OverviewView) {
+                await (window.OverviewView.loadData ? window.OverviewView.loadData() : window.OverviewView.init());
+                if (highlightTxId && typeof window.OverviewView.highlightRow === 'function') {
+                    requestAnimationFrame(() => window.OverviewView.highlightRow(highlightTxId));
+                }
+            } else if ((curView === 'dashboard' || curView === 'timeline') && window.TimelineView) {
+                if (typeof window.TimelineView.loadData === 'function') {
+                    await window.TimelineView.loadData();
+                    if (highlightTxId && typeof window.TimelineView.highlightRow === 'function') {
+                        requestAnimationFrame(() => window.TimelineView.highlightRow(highlightTxId));
+                    }
+                }
+            } else if (curView === 'all_operations' && window.AllOperationsView) {
+                if (typeof window.AllOperationsView.loadData === 'function') {
+                    await window.AllOperationsView.loadData();
+                    if (highlightTxId && typeof window.AllOperationsView.highlightRow === 'function') {
+                        requestAnimationFrame(() => window.AllOperationsView.highlightRow(highlightTxId));
+                    }
+                }
+            } else if (curView === 'accounts' && window.AccountsView) {
+                if (typeof window.AccountsView.loadData === 'function') {
+                    await window.AccountsView.loadData();
+                }
+            } else if (curView === 'budgets' && window.BudgetsView) {
+                await Promise.all([
+                    typeof window.BudgetsView.loadBudgets === 'function' ? window.BudgetsView.loadBudgets() : Promise.resolve(),
+                    typeof window.BudgetsView.loadCategories === 'function' ? window.BudgetsView.loadCategories() : Promise.resolve(),
+                    typeof window.BudgetsView.loadAllStatuses === 'function' ? window.BudgetsView.loadAllStatuses() : Promise.resolve(),
+                    typeof window.BudgetsView.loadAutopilotSuggestions === 'function' ? window.BudgetsView.loadAutopilotSuggestions() : Promise.resolve()
+                ]);
+                if (typeof window.BudgetsView.renderStatus === 'function') {
+                    window.BudgetsView.renderStatus();
+                }
+            } else if (curView === 'autopilot' && window.AutopilotView) {
+                if (typeof window.AutopilotView.refresh === 'function') {
+                    await window.AutopilotView.refresh();
+                }
+            } else if (curView === 'analytics' && window.AnalyticsView) {
+                if (typeof window.AnalyticsView.loadData === 'function') {
+                    await window.AnalyticsView.loadData();
+                }
+            } else if (curView === 'trends' && window.TrendsView) {
+                if (typeof window.TrendsView.loadData === 'function') {
+                    await window.TrendsView.loadData();
+                }
+            } else if (curView === 'recurrences' && window.RecurrenceView) {
+                if (typeof window.RecurrenceView.loadData === 'function') {
+                    await window.RecurrenceView.loadData();
+                }
+            } else if (curView === 'simulator' && window.SimulatorView) {
+                if (typeof window.SimulatorView.loadData === 'function') {
+                    await window.SimulatorView.loadData();
+                }
+            } else if (curView === 'categories' && window.CategoriesView) {
+                if (typeof window.CategoriesView.loadData === 'function') {
+                    await window.CategoriesView.loadData();
+                }
+            } else if (curView === 'history' && window.HistoryView) {
+                if (typeof window.HistoryView.loadActions === 'function') {
+                    await window.HistoryView.loadActions();
+                }
+            }
+
+            this.updateHeaderHistoryState();
+            if (window.BankSyncView && typeof window.BankSyncView.ensureSyncButtonsVisibility === 'function') {
+                window.BankSyncView.ensureSyncButtonsVisibility();
+            }
+        } catch (err) {
+            console.warn(`[App] Erreur lors du refreshActiveView (${curView}):`, err);
+        } finally {
+            this._refreshActiveViewInFlight = false;
+            if (this._queuedRefreshActiveView) {
+                this._queuedRefreshActiveView = false;
+                this.refreshActiveView({ highlightTxId, force, immediate: true });
+            }
         }
     }
 
-    refreshCurrentView() {
-        if (this.currentView) {
-            this.loadView(this.currentView);
+    _syncWatcherTimer = null;
+    _lastSyncExecutionAt = null;
+    _isSyncRunning = false;
+
+    _initGlobalSyncWatcher() {
+        if (this._syncWatcherTimer) return;
+
+        const checkStatus = async () => {
+            try {
+                if (document.hidden) {
+                    this._syncWatcherTimer = setTimeout(checkStatus, 15000);
+                    return;
+                }
+
+                const status = await API.get('/api/autopilot/status').catch(() => null);
+                if (!status) {
+                    this._syncWatcherTimer = setTimeout(checkStatus, 10000);
+                    return;
+                }
+
+                const prevIsSyncing = this._isSyncRunning;
+                const currentIsSyncing = Boolean(status.is_syncing);
+                const currentLastExec = status.last_bank_sync_at || status.last_execution_at || null;
+                const remSec = status.next_execution_countdown_seconds;
+
+                this._isSyncRunning = currentIsSyncing;
+
+                const execChanged = (this._lastSyncExecutionAt && currentLastExec && this._lastSyncExecutionAt !== currentLastExec);
+                const syncJustCompleted = (prevIsSyncing && !currentIsSyncing) || execChanged;
+
+                if (syncJustCompleted) {
+                    this._lastSyncExecutionAt = currentLastExec;
+                    console.info('[App] Synchronisation automatique terminée détectée. Actualisation réactive globale (Zero F5)...');
+
+                    window.dispatchEvent(new CustomEvent('bank_sync_completed'));
+                    window.dispatchEvent(new CustomEvent('autopilot_updated'));
+                    window.dispatchEvent(new CustomEvent('transactions_updated'));
+                    window.dispatchEvent(new CustomEvent('transactions_changed'));
+                    window.dispatchEvent(new CustomEvent('budgets:refresh'));
+
+                    await Promise.all([
+                        this.refreshActiveView(),
+                        this.refreshSidebar()
+                    ]);
+                    this.updateAutopilotBadge();
+                    if (typeof this.loadNotifications === 'function') {
+                        this.loadNotifications();
+                    }
+                    if (window.BankSyncView && typeof window.BankSyncView.setButtonsState === 'function') {
+                        window.BankSyncView.setButtonsState('idle');
+                    }
+                    if (window.BankSyncView && typeof window.BankSyncView.loadConnections === 'function') {
+                        window.BankSyncView.loadConnections().catch(() => {});
+                    }
+                } else if (!this._lastSyncExecutionAt && currentLastExec) {
+                    this._lastSyncExecutionAt = currentLastExec;
+                }
+
+                if (remSec !== null && remSec <= 0 && status.is_enabled && status.bank_auto_sync_enabled && status.vault_unlocked && !currentIsSyncing) {
+                    if (this.currentView !== 'autopilot') {
+                        API.post('/api/bank-sync/trigger-auto-sync', { force: false, trigger_source: 'scheduled' }).catch(() => {});
+                    }
+                }
+
+                const nextInterval = (currentIsSyncing || (remSec !== null && remSec <= 2)) ? 1500 : 10000;
+                this._syncWatcherTimer = setTimeout(checkStatus, nextInterval);
+            } catch (err) {
+                this._syncWatcherTimer = setTimeout(checkStatus, 12000);
+            }
+        };
+
+        this._syncWatcherTimer = setTimeout(checkStatus, 2500);
+    }
+
+    _accelerateSyncWatcher() {
+        if (this._syncWatcherTimer) {
+            clearTimeout(this._syncWatcherTimer);
+            this._syncWatcherTimer = null;
         }
+        this._initGlobalSyncWatcher();
+    }
+
+    async refreshAll() {
+        await Promise.all([
+            this.refreshSidebar(),
+            this.refreshActiveView(),
+            this.updateAutopilotBadge()
+        ]);
+    }
+
+    refreshCurrentView() {
+        this.refreshActiveView();
     }
 
     loadView(viewName) {
