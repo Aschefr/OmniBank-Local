@@ -71,7 +71,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         // Réactivité en temps réel : écoute des actualisations globales et visibilité d'onglet
         if (!this._hasAttachedGlobalRefreshListeners) {
             this._hasAttachedGlobalRefreshListeners = true;
-            window.addEventListener('budgets:refresh', async () => {
+            const handleBudgetsLiveRefresh = async () => {
                 if (window.app?.currentView === 'budgets') {
                     await Promise.all([
                         this.loadBudgets(),
@@ -81,7 +81,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     ]);
                     this.renderStatus();
                 }
-            });
+            };
+            window.addEventListener('budgets:refresh', handleBudgetsLiveRefresh);
+            window.addEventListener('transactions_updated', handleBudgetsLiveRefresh);
+            window.addEventListener('transactions_changed', handleBudgetsLiveRefresh);
+            window.addEventListener('bank_sync_completed', handleBudgetsLiveRefresh);
+            window.addEventListener('autopilot_updated', handleBudgetsLiveRefresh);
 
             document.addEventListener('visibilitychange', async () => {
                 if (!document.hidden && window.app?.currentView === 'budgets') {
