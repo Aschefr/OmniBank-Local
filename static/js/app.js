@@ -132,7 +132,7 @@ class App {
             
             if (!version) {
                 // Fallback for dev mode without Tauri or if IPC fails
-                const vData = await API.get('/api/version');
+                const vData = await API.get('/api/version', { silent: true });
                 version = vData ? vData.version : null;
             }
             const badge = document.getElementById('appVersionBadge');
@@ -408,6 +408,10 @@ class App {
         }
         await this.loadView(savedView);
 
+        // Horodatage d'initialisation pour éviter les faux rebonds visibilitychange au premier affichage mobile
+        this._bootTime = Date.now();
+        this._lastActiveViewRefreshAt = Date.now();
+
         } catch (uiError) {
             console.error('[App] _initUI error:', uiError);
         } finally {
@@ -428,7 +432,7 @@ class App {
             let _mutationDebounceTimer = null;
             window.EventBus.on('data:mutated', (detail) => {
                 const ep = detail?.endpoint || '';
-                // Ignorer les endpoints non financiers (ex: chat, logs, feedback)
+                // Ignorer les endpoints non financiers (ex: chat, logs, feedback, diagnostics)
                 if (ep.includes('/chat/') || ep.includes('/feedback') || ep.includes('/log_action') || ep.includes('/diagnostics')) {
                     return;
                 }
@@ -436,7 +440,7 @@ class App {
                 _mutationDebounceTimer = setTimeout(() => {
                     this.refreshSidebar().catch(e => console.warn('[App] EventBus refreshSidebar error:', e));
                     this.refreshActiveView().catch(e => console.warn('[App] EventBus refreshActiveView error:', e));
-                }, 80);
+                }, 100);
             });
         }
 
@@ -462,19 +466,21 @@ class App {
 
         // Document visibility change (Alt-Tab, smartphone 2FA return)
         document.addEventListener('visibilitychange', async () => {
-            if (!document.hidden) {
-                const now = Date.now();
-                if (now - (this._lastActiveViewRefreshAt || 0) > 2500) {
-                    this._lastActiveViewRefreshAt = now;
-                    this._accelerateSyncWatcher();
-                    await Promise.all([
-                        this.refreshActiveView(),
-                        this.refreshSidebar(),
-                        this.updateAutopilotBadge(),
-                        typeof this.loadNotifications === 'function' ? this.loadNotifications() : Promise.resolve()
-                    ]).catch(e => console.warn('[App] Visibility refresh error:', e));
-                }
-            }
+            if (document.hidden) return;
+            const now = Date.now();
+            // Période de grâce de 4s après le chargement initial pour ignorer les micro-transitions de rendu mobile
+            if (now - (this._bootTime || 0) < 4000) return;
+            // Cooldown de 3s pour éviter les multi-rechargements intempestifs
+            if (now - (this._lastActiveViewRefreshAt || 0) < 3000) return;
+
+            this._lastActiveViewRefreshAt = now;
+            this._accelerateSyncWatcher();
+            await Promise.all([
+                this.refreshActiveView(),
+                this.refreshSidebar(),
+                this.updateAutopilotBadge(),
+                typeof this.loadNotifications === 'function' ? this.loadNotifications(true) : Promise.resolve()
+            ]).catch(e => console.warn('[App] Visibility refresh error:', e));
         });
 
         // Initialize global bank sync & auto-pilot watcher
@@ -527,7 +533,7 @@ class App {
 
     async updateAutopilotBadge() {
         try {
-            const status = await API.get('/api/autopilot/status');
+            const status = await API.get('/api/autopilot/status', { silent: true });
             const reviewCount = status ? (status.review_queue_count || 0) : 0;
             const unseenReviewCount = status ? (status.unseen_review_count ?? 0) : 0;
             
@@ -590,7 +596,7 @@ class App {
                 this._activeViewDebounceTimer = setTimeout(async () => {
                     const res = await this.refreshActiveView({ highlightTxId, force, immediate: true });
                     resolve(res);
-                }, 60);
+                }, 100);
             });
         }
 
@@ -695,7 +701,7 @@ class App {
                     return;
                 }
 
-                const status = await API.get('/api/autopilot/status').catch(() => null);
+                const status = await API.get('/api/autopilot/status', { silent: true }).catch(() => null);
                 if (!status) {
                     this._syncWatcherTimer = setTimeout(checkStatus, 10000);
                     return;
@@ -718,8 +724,6 @@ class App {
                     window.dispatchEvent(new CustomEvent('bank_sync_completed'));
                     window.dispatchEvent(new CustomEvent('autopilot_updated'));
                     window.dispatchEvent(new CustomEvent('transactions_updated'));
-                    window.dispatchEvent(new CustomEvent('transactions_changed'));
-                    window.dispatchEvent(new CustomEvent('budgets:refresh'));
 
                     await Promise.all([
                         this.refreshActiveView(),
@@ -727,7 +731,7 @@ class App {
                     ]);
                     this.updateAutopilotBadge();
                     if (typeof this.loadNotifications === 'function') {
-                        this.loadNotifications();
+                        this.loadNotifications(true);
                     }
                     if (window.BankSyncView && typeof window.BankSyncView.setButtonsState === 'function') {
                         window.BankSyncView.setButtonsState('idle');
@@ -741,7 +745,7 @@ class App {
 
                 if (remSec !== null && remSec <= 0 && status.is_enabled && status.bank_auto_sync_enabled && status.vault_unlocked && !currentIsSyncing) {
                     if (this.currentView !== 'autopilot') {
-                        API.post('/api/bank-sync/trigger-auto-sync', { force: false, trigger_source: 'scheduled' }).catch(() => {});
+                        API.post('/api/bank-sync/trigger-auto-sync', { force: false, trigger_source: 'scheduled' }, { silent: true }).catch(() => {});
                     }
                 }
 
@@ -958,7 +962,7 @@ class App {
 
     async updateHeaderHistoryState() {
         try {
-            const status = await API.get('/api/history/status');
+            const status = await API.get('/api/history/status', { silent: true });
             const undoBtn = document.getElementById('headerUndoBtn');
             const redoBtn = document.getElementById('headerRedoBtn');
             
