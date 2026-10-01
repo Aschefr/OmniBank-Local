@@ -112,27 +112,6 @@ window.AnalyticsView = {
         // Reset account filter (all selected)
         this.selectedAccountIds = null;
 
-        // Réactivité en temps réel : actualisation automatique sans F5
-        if (!this._hasAttachedReactiveListeners) {
-            this._hasAttachedReactiveListeners = true;
-            const handleAnalyticsLiveRefresh = () => {
-                if (window.app?.currentView === 'analytics') {
-                    this.loadData().catch(e => console.warn('[AnalyticsView] Live refresh error:', e));
-                }
-            };
-            window.addEventListener('transactions_updated', handleAnalyticsLiveRefresh);
-            window.addEventListener('transactions_changed', handleAnalyticsLiveRefresh);
-            window.addEventListener('transactions-changed', handleAnalyticsLiveRefresh);
-            window.addEventListener('transactions:refresh', handleAnalyticsLiveRefresh);
-            window.addEventListener('bank_sync_completed', handleAnalyticsLiveRefresh);
-            window.addEventListener('autopilot_updated', handleAnalyticsLiveRefresh);
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden && window.app?.currentView === 'analytics') {
-                    this.loadData().catch(() => {});
-                }
-            });
-        }
-
         // First load to discover available years, then populate selector
         await this.loadData();
         this.renderAccountBar();
