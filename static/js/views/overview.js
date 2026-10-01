@@ -568,27 +568,10 @@ window.OverviewView = {
         const popover = document.getElementById('ovAutopilotPopover');
         if (!btn || !popover) return;
 
-        // Bind global event listener once for real-time reactivity without manual F5
-        if (!this._apListenerBound) {
-            this._apListenerBound = true;
-            const handleOverviewLiveRefresh = () => {
-                const root = document.getElementById('overviewRoot');
-                if (root && root.offsetParent !== null && window.app?.currentView === 'overview') {
-                    this.init().catch(e => console.warn('[OverviewView] Live refresh error:', e));
-                } else if (root && root.offsetParent !== null) {
-                    this._renderAutopilotWidget().catch(e => console.warn('[OverviewView] Autopilot widget refresh error:', e));
-                }
-            };
-            window.addEventListener('autopilot_updated', handleOverviewLiveRefresh);
-            window.addEventListener('bank_sync_completed', handleOverviewLiveRefresh);
-            window.addEventListener('transactions_updated', handleOverviewLiveRefresh);
-            window.addEventListener('transactions_changed', handleOverviewLiveRefresh);
-        }
-
         try {
             const [status, decisionsRes] = await Promise.all([
-                API.get('/api/autopilot/status').catch(() => null),
-                API.get('/api/autopilot/decisions?limit=4').catch(() => ({ items: [] }))
+                API.get('/api/autopilot/status', { silent: true }).catch(() => null),
+                API.get('/api/autopilot/decisions?limit=4', { silent: true }).catch(() => ({ items: [] }))
             ]);
 
             this._apStatus = status || { 
@@ -836,11 +819,7 @@ window.OverviewView = {
                     }
                     setTimeout(() => {
                         this._apSyncTriggered = false;
-                        if (window.app?.currentView === 'overview') {
-                            this.init().catch(() => {});
-                        } else {
-                            this._renderAutopilotWidget().catch(() => {});
-                        }
+                        this._renderAutopilotWidget().catch(() => {});
                     }, 3500);
                 }
             } else {

@@ -299,9 +299,16 @@ window.API = API;
 const GlobalProgress = {
     _element: null,
     _activeCount: 0,
-    _timer: null,
+    _startTimer: null,
+    _doneTimer: null,
+    _resetTimer: null,
     _progress: 0,
     _progressInterval: null,
+
+    _isAppInitLoaderVisible() {
+        const loader = document.getElementById('appInitLoader');
+        return loader && loader.style.display !== 'none' && loader.style.opacity !== '0';
+    },
 
     _getOrCreateElement() {
         if (!this._element || !document.body.contains(this._element)) {
@@ -318,22 +325,30 @@ const GlobalProgress = {
 
     start() {
         this._activeCount++;
+        clearTimeout(this._doneTimer);
+        clearTimeout(this._resetTimer);
+
+        // Ne pas afficher la micro-barre si l'écran de chargement initial plein écran est actif
+        if (this._isAppInitLoaderVisible()) return;
+
         if (this._activeCount === 1) {
-            clearTimeout(this._timer);
+            clearTimeout(this._startTimer);
             // Seuil de 120ms : évite les micro-flashs sur les requêtes locales instantanées
-            this._timer = setTimeout(() => {
-                if (this._activeCount > 0) {
+            this._startTimer = setTimeout(() => {
+                if (this._activeCount > 0 && !this._isAppInitLoaderVisible()) {
                     const el = this._getOrCreateElement();
                     el.classList.remove('is-done');
                     el.classList.add('is-active');
-                    this._progress = 18;
+                    if (this._progress < 15) {
+                        this._progress = 18;
+                    }
                     el.style.width = `${this._progress}%`;
 
                     clearInterval(this._progressInterval);
                     this._progressInterval = setInterval(() => {
                         if (this._progress < 85) {
-                            const step = (85 - this._progress) * 0.15;
-                            this._progress += Math.max(step, 0.4);
+                            const step = (85 - this._progress) * 0.12;
+                            this._progress += Math.max(step, 0.3);
                             el.style.width = `${Math.min(this._progress, 88)}%`;
                         }
                     }, 180);
@@ -345,19 +360,34 @@ const GlobalProgress = {
     done() {
         this._activeCount = Math.max(0, this._activeCount - 1);
         if (this._activeCount === 0) {
-            clearTimeout(this._timer);
+            clearTimeout(this._startTimer);
             clearInterval(this._progressInterval);
-            const el = this._element || document.getElementById('globalProgressBar');
-            if (el && el.classList.contains('is-active')) {
-                el.style.width = '100%';
-                setTimeout(() => {
-                    el.classList.add('is-done');
-                    el.classList.remove('is-active');
-                    setTimeout(() => {
-                        el.style.width = '0%';
-                    }, 350);
-                }, 140);
-            }
+
+            // Fenêtre d'hystérésis (180ms) : évite le clignotement / retour à zéro si une autre requête s'enchaîne
+            clearTimeout(this._doneTimer);
+            this._doneTimer = setTimeout(() => {
+                if (this._activeCount > 0) return;
+
+                const el = this._element || document.getElementById('globalProgressBar');
+                if (el && el.classList.contains('is-active')) {
+                    this._progress = 100;
+                    el.style.width = '100%';
+
+                    this._resetTimer = setTimeout(() => {
+                        if (this._activeCount > 0) return;
+                        el.classList.add('is-done');
+                        el.classList.remove('is-active');
+
+                        setTimeout(() => {
+                            if (this._activeCount === 0) {
+                                this._progress = 0;
+                                el.style.width = '0%';
+                                el.classList.remove('is-done');
+                            }
+                        }, 400);
+                    }, 180);
+                }
+            }, 180);
         }
     }
 };
@@ -417,8 +447,8 @@ if (typeof window._originalFetch === 'undefined') {
             ? resource
             : (resource instanceof Request ? resource.url : '');
 
-        const isApi = urlStr.includes('/api/') || (typeof resource === 'string' && resource.startsWith('/'));
-        const isSilent = config && config.silent === true;
+        const isApi = urlStr.includes('/api/');
+        const isSilent = (config && config.silent === true) || (config && config.headers && (config.headers['X-Silent'] === 'true' || config.headers.silent === true));
 
         if (isApi && !isSilent && window.GlobalProgress) {
             window.GlobalProgress.start();

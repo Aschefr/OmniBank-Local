@@ -335,26 +335,6 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         this.sortOrder = ProfileStorage.get('recurrences_sortOrder') || 'asc';
         this.activeDurationFilter = ProfileStorage.get('recurrences_durationFilter') || 'all';
         this.activePeriodFilter = ProfileStorage.get('recurrences_periodFilter') || 'all';
-        // Réactivité en temps réel : actualisation automatique sans F5
-        if (!this._hasAttachedReactiveListeners) {
-            this._hasAttachedReactiveListeners = true;
-            const handleRecurrenceLiveRefresh = () => {
-                if (window.app?.currentView === 'recurrences') {
-                    this.loadData().catch(e => console.warn('[RecurrenceView] Live refresh error:', e));
-                }
-            };
-            window.addEventListener('transactions_updated', handleRecurrenceLiveRefresh);
-            window.addEventListener('transactions_changed', handleRecurrenceLiveRefresh);
-            window.addEventListener('transactions-changed', handleRecurrenceLiveRefresh);
-            window.addEventListener('recurrences:updated', handleRecurrenceLiveRefresh);
-            window.addEventListener('bank_sync_completed', handleRecurrenceLiveRefresh);
-            window.addEventListener('autopilot_updated', handleRecurrenceLiveRefresh);
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden && window.app?.currentView === 'recurrences') {
-                    this.loadData().catch(() => {});
-                }
-            });
-        }
 
         await this.loadData();
     },

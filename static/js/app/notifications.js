@@ -128,12 +128,13 @@ window.AppModules.notifications = {
         }
     },
 
-    async loadNotifications() {
+    async loadNotifications(silent = true) {
         try {
+            const opt = silent ? { silent: true } : {};
             const [activeNotifs, archivedNotifs, pendingTransfers] = await Promise.all([
-                API.get('/api/notifications?archived=false'),
-                API.get('/api/notifications?archived=true'),
-                API.get('/api/cross-profile/pending').catch(() => [])
+                API.get('/api/notifications?archived=false', opt),
+                API.get('/api/notifications?archived=true', opt),
+                API.get('/api/cross-profile/pending', opt).catch(() => [])
             ]);
 
             this._cachedActiveNotifs = Array.isArray(activeNotifs) ? activeNotifs : [];

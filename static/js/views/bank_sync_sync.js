@@ -56,7 +56,7 @@ Object.assign(window.BankSyncView, {
         if (!this._connectionsLoaded || force) {
             this._connectionsPromise = (async () => {
                 try {
-                    const conns = await API.get('/api/bank-sync/connections');
+                    const conns = await API.get('/api/bank-sync/connections', { silent: true });
                     this.connections = Array.isArray(conns) ? conns : [];
                     this._connectionsLoaded = true;
                 } catch (_) {
@@ -72,7 +72,7 @@ Object.assign(window.BankSyncView, {
 
     async checkBackgroundSyncStatus() {
         try {
-            const statusRes = await API.get('/api/bank-sync/status');
+            const statusRes = await API.get('/api/bank-sync/status', { silent: true });
             const isRunning = Boolean(statusRes && statusRes.is_running);
             
             if (isRunning) {
@@ -85,7 +85,7 @@ Object.assign(window.BankSyncView, {
                 let hasError = false;
                 let conn2FA = null;
                 try {
-                    const connsRes = await API.get('/api/bank-sync/connections');
+                    const connsRes = await API.get('/api/bank-sync/connections', { silent: true });
                     if (Array.isArray(connsRes)) {
                         this.connections = connsRes;
                         conn2FA = connsRes.find(c => c.is_active && (c.last_sync_status === '2fa_required' || (c.last_error && c.last_error.toLowerCase().includes('2fa'))));
@@ -102,7 +102,7 @@ Object.assign(window.BankSyncView, {
                     setTimeout(() => this.setButtonsState('idle'), 3500);
                 }
                 Promise.all([
-                    (window.app && typeof window.app.loadNotifications === 'function') ? window.app.loadNotifications() : Promise.resolve(),
+                    (window.app && typeof window.app.loadNotifications === 'function') ? window.app.loadNotifications(true) : Promise.resolve(),
                     this.refreshActiveViews(),
                     (this.connections && this.connections.length > 0) ? this.loadConnections() : Promise.resolve()
                 ]).then(() => {
@@ -118,7 +118,7 @@ Object.assign(window.BankSyncView, {
         if (this._syncPollingTimer) return;
         const poll = async () => {
             try {
-                const statusRes = await API.get('/api/bank-sync/status');
+                const statusRes = await API.get('/api/bank-sync/status', { silent: true });
                 const isRunning = Boolean(statusRes && statusRes.is_running);
                 if (!isRunning) {
                     this._stopSyncPollingTracker();

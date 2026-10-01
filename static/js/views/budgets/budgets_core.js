@@ -67,39 +67,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             backBtn.classList.toggle('visible', hasBack);
             backBtn.style.display = hasBack ? 'inline-flex' : 'none';
         }
-
-        // Réactivité en temps réel : écoute des actualisations globales et visibilité d'onglet
-        if (!this._hasAttachedGlobalRefreshListeners) {
-            this._hasAttachedGlobalRefreshListeners = true;
-            const handleBudgetsLiveRefresh = async () => {
-                if (window.app?.currentView === 'budgets') {
-                    await Promise.all([
-                        this.loadBudgets(),
-                        this.loadCategories(),
-                        this.loadAllStatuses(),
-                        this.loadAutopilotSuggestions ? this.loadAutopilotSuggestions() : Promise.resolve()
-                    ]);
-                    this.renderStatus();
-                }
-            };
-            window.addEventListener('budgets:refresh', handleBudgetsLiveRefresh);
-            window.addEventListener('transactions_updated', handleBudgetsLiveRefresh);
-            window.addEventListener('transactions_changed', handleBudgetsLiveRefresh);
-            window.addEventListener('bank_sync_completed', handleBudgetsLiveRefresh);
-            window.addEventListener('autopilot_updated', handleBudgetsLiveRefresh);
-
-            document.addEventListener('visibilitychange', async () => {
-                if (!document.hidden && window.app?.currentView === 'budgets') {
-                    await Promise.all([
-                        this.loadBudgets(),
-                        this.loadCategories(),
-                        this.loadAllStatuses(),
-                        this.loadAutopilotSuggestions ? this.loadAutopilotSuggestions() : Promise.resolve()
-                    ]);
-                    this.renderStatus();
-                }
-            });
-        }
     },
 
     // ── Per-type navigation ────────────────────────────────────────────

@@ -778,7 +778,7 @@ window.AutopilotView = {
     async init() {
         // Mark visited on load to clear notification badge
         try {
-            await API.post('/api/autopilot/mark-visited', {});
+            await API.post('/api/autopilot/mark-visited', {}, { silent: true });
             if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
                 window.app.updateAutopilotBadge();
             }
@@ -803,35 +803,12 @@ window.AutopilotView = {
             }, 300);
         }
 
-        // Listen to reactive custom events
+        // Reactive events are handled globally and debounced by App.refreshActiveView
         this._bindEvents();
     },
 
     _bindEvents() {
-        const handleRefresh = () => {
-            if (window.app && window.app.currentView === 'autopilot') {
-                this.refresh();
-            }
-        };
-        window.removeEventListener('autopilot_updated', handleRefresh);
-        window.addEventListener('autopilot_updated', handleRefresh);
-
-        window.removeEventListener('bank_sync_completed', handleRefresh);
-        window.addEventListener('bank_sync_completed', handleRefresh);
-
-        window.removeEventListener('transactions_updated', handleRefresh);
-        window.addEventListener('transactions_updated', handleRefresh);
-
-        window.removeEventListener('transactions_changed', handleRefresh);
-        window.addEventListener('transactions_changed', handleRefresh);
-
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && window.app && window.app.currentView === 'autopilot') {
-                this.refresh();
-            }
-        };
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        document.addEventListener('visibilitychange', handleVisibilityChange);
+        // App.refreshActiveView handles active view refresh on events and visibility change.
     },
 
     _nextExecTimer: null,
@@ -879,7 +856,7 @@ window.AutopilotView = {
 
         const poll = async () => {
             try {
-                const status = await API.get('/api/autopilot/status');
+                const status = await API.get('/api/autopilot/status', { silent: true });
                 const prevLastExec = this._lastKnownExecutionAt;
                 const newLastExec = status?.last_execution_at;
                 const isSyncing = !!status?.is_syncing;
@@ -890,25 +867,13 @@ window.AutopilotView = {
                     this._stopActiveSyncTracker();
                     this._status = status;
                     this._lastKnownExecutionAt = newLastExec;
-                    if (window.app && window.app.currentView === 'autopilot') {
-                        await this.refresh();
-                    }
                     window.dispatchEvent(new CustomEvent('bank_sync_completed'));
                     window.dispatchEvent(new CustomEvent('autopilot_updated'));
-                    window.dispatchEvent(new CustomEvent('transactions_updated'));
-                    window.dispatchEvent(new CustomEvent('transactions_changed'));
-                    window.dispatchEvent(new CustomEvent('budgets:refresh'));
                     if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
                         window.app.updateAutopilotBadge();
                     }
                     if (window.app && typeof window.app.loadNotifications === 'function') {
-                        window.app.loadNotifications();
-                    }
-                    if (window.app && typeof window.app.refreshActiveView === 'function') {
-                        window.app.refreshActiveView();
-                    }
-                    if (window.app && typeof window.app.refreshSidebar === 'function') {
-                        window.app.refreshSidebar();
+                        window.app.loadNotifications(true);
                     }
                     return;
                 } else {
