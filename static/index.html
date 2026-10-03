@@ -111,12 +111,21 @@
                     </button>
                 </div>
                     <!-- Notification Bell & Dropdown -->
+                    <div id="notifBackdrop" class="notif-backdrop" style="display:none;" onclick="window.app && window.app.closeNotifMenu ? window.app.closeNotifMenu() : (document.getElementById('notifMenu').style.display='none', this.classList.remove('active'), this.style.display='none')"></div>
                     <div class="notifications-dropdown" style="position: relative; display: inline-block;">
                         <button id="notifBellBtn" data-i18n-title="notif_title_notifications" title="Notifications" style="font-size:16px; line-height:1; position: relative;">
                             🔔
                             <span id="notifCountBadge" style="display: none; position: absolute; top: -4px; right: -4px; background: var(--accent); color: white; font-size: 8.5px; font-weight: 700; padding: 2px 4.5px; border-radius: 50%; line-height: 1;"></span>
                         </button>
                         <div id="notifMenu" style="display:none; position:absolute; top:100%; right:0; margin-top:8px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; box-shadow:var(--shadow-lg); z-index:10000; width: min(510px, calc(100vw - 24px)); overflow:hidden; font-size:13px; color:var(--text-main);">
+                            <!-- Mobile Title Bar with Close Button -->
+                            <div class="notif-mobile-titlebar">
+                                <div class="notif-mobile-title">
+                                    <span>🔔</span>
+                                    <span data-i18n="notif_title_notifications">Notifications</span>
+                                </div>
+                                <button type="button" class="notif-mobile-close-btn" aria-label="Fermer" onclick="window.app && window.app.closeNotifMenu ? window.app.closeNotifMenu() : (document.getElementById('notifMenu') && (document.getElementById('notifMenu').classList.remove('active'), document.getElementById('notifMenu').style.display='none'), (document.getElementById('notifBackdrop') && (document.getElementById('notifBackdrop').classList.remove('active'), document.getElementById('notifBackdrop').style.display='none')))">✕</button>
+                            </div>
                             <!-- Header with Tabs and Actions -->
                             <div class="notif-menu-header">
                                 <div class="notif-header-top">
@@ -292,7 +301,7 @@
                     <div class="stat-box warning" id="overdraftBox" style="display: none; position: relative;">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div>
-                                <span class="stat-label" data-i18n="stat_overdraft">⚠️ Risque Découvert</span>
+                                <span class="stat-label" id="lblOverdraft" data-i18n="stat_overdraft">⚠️ Risque Découvert</span>
                                 <span class="stat-value text-red" id="valOverdraft" style="display:block;"></span>
                                 <div class="stat-subtext" id="valOverdraftDate"></div>
                             </div>

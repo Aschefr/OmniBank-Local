@@ -74,3 +74,32 @@ Your financial records are 100% local and stored in the SQLite database file `om
 
 ### Restoration:
 When switching computers, reinstall OmniBank Local, go to **Settings > Data Management**, select **"Restore Backup (ZIP)"**, choose your archive file, and confirm. All your accounts, categories, transactions, and settings will be restored instantly.
+
+---
+
+## 6. Going Autonomous with Auto-Pilot (100% Local)
+
+Auto-Pilot streamlines your daily financial tracking by taking over statement reconciliation and categorization without ever sending your records to the cloud:
+
+1. **Activation**: Open **🤖 Auto-Pilot** and pick your desired mode (**Monitoring Mode** to test recommendations or **Active Mode** for full autonomous reconciliation).
+2. **Discreet Oversight (Cockpit)**: The Dashboard Cockpit widget informs you of system status, active rules, and pending review counts in real time.
+3. **1-Click Review Queue**: If an ambiguous or large transaction is detected, inspect it in the **Review Queue** to validate or reassign categories with a single click.
+4. **Absolute Reversibility**: Any decision executed by Auto-Pilot can be rolled back individually via the **Rollback** button in the Decision Feed.
+
+---
+
+## 7. Forecasting the Future with the Financial Simulator
+
+Want to stress-test a major life decision without affecting your actual records?
+
+1. Navigate to the **🔮 Simulator** tab.
+2. Create an alternative scenario (e.g., *Home Purchase*, *Career Sabbatical*, *20-Year Loan*).
+3. Insert **one-off events** (lump-sum expenses) or **recurring shifts** (salary bumps, new charges).
+4. Tweak **inflation** and **seasonality** sliders to visualize your projected cash-flow trajectory over 1 to 30 years with break-even points and lowest cash troughs.
+
+---
+
+## 8. Total Mistake Tolerance (Undo / Redo & Audit Log)
+
+- **Revert any mistake**: Press **`Ctrl + Z`** (or click the ↩️ arrow in the top header) at any time to instantly undo an accidental deletion, bad transaction edit, or budget update.
+- **Audit Log (🕓 Actions)**: Audit every single system mutation with user attributions, timestamps, and side-by-side JSON diffs.

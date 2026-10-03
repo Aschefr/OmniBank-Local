@@ -74,3 +74,32 @@ Vos données sont 100% locales et stockées dans le fichier SQLite `omnibank.db`
 
 ### Restauration :
 En cas de changement d'ordinateur, réinstallez OmniBank Local, allez dans **Configuration > Restauration**, sélectionnez votre fichier de sauvegarde et validez. L'ensemble de vos comptes, catégories, opérations et historiques sera réinstallé instantanément.
+
+---
+
+## 6. Passer en Mode Auto-Pilote (Automatisation 100% Locale)
+
+L'Auto-Pilote simplifie votre quotidien en prenant en charge le rapprochement et la catégorisation sans jamais envoyer vos données à des tiers :
+
+1. **Activation** : Rendez-vous dans **🤖 Auto-Pilote** et activez le mode souhaité (**Mode Veille** pour tester les suggestions ou **Mode Actif** pour une autonomie complète).
+2. **Surveillance Discrète (Cockpit)** : Le widget Cockpit présent sur le Tableau de Bord vous indique en temps réel l'état du système, le nombre de décisions prises et la file d'attente.
+3. **Revue en 1 Clic** : Si une opération présente une ambiguïté, retrouvez-la dans la **File de Revue** pour la valider ou la réassigner d'un simple clic.
+4. **Réversibilité Absolue** : N'importe quelle décision prise par l'Auto-Pilote peut être annulée individuellement via le bouton **Rollback** dans le Flux de Décisions.
+
+---
+
+## 7. Projeter l'Avenir avec le Simulateur Financier
+
+Envie de tester la faisabilité d'un grand projet de vie sans modifier vos données réelles ?
+
+1. Rendez-vous dans l'onglet **🔮 Simulateur**.
+2. Créez un scénario alternatif (ex: *Achat Maison*, *Année Sabbatique*, *Emprunt 20 ans*).
+3. Ajoutez des **événements ponctuels** (dépenses exceptionnelles) ou des **changements récurrents** (nouveaux revenus ou mensualités).
+4. Ajustez le curseur d'**inflation** et la **saisonnalité** pour visualiser votre trajectoire de trésorerie sur 1 à 30 ans avec point mort et solde plancher.
+
+---
+
+## 8. Droit à l'Erreur Absolu (Undo / Redo & Journal d'Audit)
+
+- **Annuler une fausse manipulation** : Appuyez à tout moment sur **`Ctrl + Z`** (ou cliquez sur la flèche ↩️ dans l'en-tête) pour annuler immédiatement votre dernière saisie, suppression ou modification de budget.
+- **Journal d'Audit (🕓 Actions)** : Consultez l'historique complet et transparent de chaque mutation avec son auteur et son comparatif avant/après.

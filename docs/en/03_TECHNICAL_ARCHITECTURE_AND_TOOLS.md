@@ -53,9 +53,21 @@ The SQLite database `omnibank.db` relies on a normalized relational schema via S
 4. `budgets` & `budget_categories`: Multi-category budget envelopes (`id`, `name`, `monthly_amount`, `period`, `is_locked`, `is_closed`, `is_project`, `envelope_type`, `base_annual_amount`).
 5. `recurrence_templates`: Recurrence templates (`id`, `description`, `amount`, `type`, `category`, `frequency` ['Monthly', 'Yearly', 'Bi-Monthly'...], `day_of_month`, `is_closed`, `max_occurrences`).
 6. `autopilot_decision_logs`: Timestamped decision register for autonomous actions and suggestions (envelope creation, enrichment, recalibration, auto-skipping, auto-closing) with raw JSON snapshots and statuses (`SUGGESTED`, `AUTO_COMMIT`, `DISMISSED`).
-7. `history` (`ActionHistory`): Audit log of user actions, undo stack, and entity modifications.
+7. `history` (`action_history`): Immutable audit ledger of user actions, JSON delta snapshots (before/after states), and reversibility engine for Undo/Redo.
 8. `config` / `global_config`: Key-value application settings (language, theme, Ollama URL, Auto-Pilot options, minimum floor thresholds).
 9. `org_users`: Organization Mode user profiles and audit tracking (for associations / CSE).
+10. `bank_sync_connections`: Local Woob banking connections, credential encryption metadata (Fernet AES-256), timestamps, and sync health.
+11. `bank_label_mappings`: Merchant pattern learning and normalization table (mapping raw bank strings to clean merchant names and categories).
+12. `simulations` & `simulation_events`: Long-term wealth forecasting scenarios, scheduled one-off & recurring events, inflation parameters, and seasonality modulators.
+
+---
+
+## ⚡ UI Reactivity Architecture (Zero F5 Guarantee)
+
+OmniBank Local guarantees a **100% reactive interface**: manual browser reloads (**F5**) are strictly never required.
+- **DOM Event Bus (`CustomEvent`)**: Every mutation (operation creation, reconciliation, budget update, Auto-Pilot run, or Undo/Redo) dispatches custom DOM events (`omni-transaction-mutated`, `omni-budget-updated`, `omni-balance-changed`).
+- **Decoupled Components**: Active views listen to these events to surgically update their tables (`VirtualTable`) and progress gauges without losing focus or causing UI flicker.
+- **Tab Resynchronization (`visibilitychange`)**: Switching back to the application window automatically reconciles any background-synced data.
 
 ---
 

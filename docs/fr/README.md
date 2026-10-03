@@ -40,6 +40,10 @@ Accédez directement à la fiche explicative correspondant à l'écran sur leque
 | **Comptes** | 💳 [09_COMPTES.md](pages/09_COMPTES.md) | Gestion de vos comptes bancaires (Courant, Épargne, Livrets) et soldes initiaux. |
 | **Configuration & Licence** | ⚙️ [10_CONFIGURATION_ET_LICENCE.md](pages/10_CONFIGURATION_ET_LICENCE.md) | Réglages généraux, connexion Ollama, i18n et activation Mode Organisation. |
 | **Assistant & Importation CSV** | 📥 [11_ASSISTANT_ET_IMPORTATION_CSV.md](pages/11_ASSISTANT_ET_IMPORTATION_CSV.md) | Assistant de démarrage initial et moteur d'importation de relevés bancaires CSV. |
+| **Auto-Pilote & Contrôle** | 🤖 [12_AUTO_PILOTE_CENTRE_DE_CONTROLE.md](pages/12_AUTO_PILOTE_CENTRE_DE_CONTROLE.md) | Moteur autonome, Cockpit, flux de décisions réversibles et file de revue post-action. |
+| **Simulateur Financier** | 🔮 [13_SIMULATEUR_FINANCIER.md](pages/13_SIMULATEUR_FINANCIER.md) | Projections de trésorerie sur 1 à 30 ans, multi-scénarios, événements et inflation. |
+| **Journal d'Audit & Undo/Redo** | 🕓 [14_JOURNAL_ACTIONS_ET_UNDO_REDO.md](pages/14_JOURNAL_ACTIONS_ET_UNDO_REDO.md) | Historique complet des mutations, snapshots JSON, attribution multi-utilisateurs et Ctrl+Z. |
+| **Synchronisation Directe** | 🏦 [15_SYNCHRONISATION_BANCAIRE_DIRECTE.md](pages/15_SYNCHRONISATION_BANCAIRE_DIRECTE.md) | Relevé bancaire automatique local (Woob), coffre-fort AES-256 et sas d'intégrité. |
 
 ---
 

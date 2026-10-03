@@ -53,9 +53,21 @@ La base de données SQLite `omnibank.db` s'appuie sur un schéma relationnel nor
 4. `budgets` & `budget_categories` : Enveloppes budgétaires multi-catégories (id, name, monthly_amount, period, is_locked, is_closed, is_project, envelope_type, base_annual_amount).
 5. `recurrence_templates` : Modèles de récurrence (id, description, amount, type, category, frequency ['Monthly', 'Yearly', 'Bi-Monthly'...], day_of_month, is_closed, max_occurrences).
 6. `autopilot_decision_logs` : Registre horodaté des décisions et suggestions autonomes (création d'enveloppes, enrichissements, recalibrages, auto-saut, auto-clôture) avec snapshots JSON complets et statuts (SUGGESTED, AUTO_COMMIT, DISMISSED).
-7. `history` (ActionHistory) : Journal d'audit des actions utilisateur, annulations (undo) et modifications.
+7. `history` (`action_history`) : Journal d'audit des actions utilisateur, snapshots différentiels (diffs avant/après) et traçabilité pour le moteur Undo/Redo.
 8. `config` / `global_config` : Clés-valeurs de configuration (langue, thème, URL Ollama, options d'Auto-Pilote, seuils planchers).
 9. `org_users` : Utilisateurs et droits d'accès en Mode Organisation (CSE / Association).
+10. `bank_sync_connections` : Connexions bancaires Woob locales, chiffrement des accès (Fernet AES-256), horodatages et statuts de synchronisation.
+11. `bank_label_mappings` : Table d'apprentissage et de normalisation marchands (libellés bruts vers catégories et tiers nettoyés).
+12. `simulations` & `simulation_events` : Scénarios patrimoniaux prospectifs, événements temporels (ponctuels et récurrents), taux d'inflation et modulation de saisonnalité.
+
+---
+
+## ⚡ Réactivité de l'Interface (Architecture Événementielle Zero F5)
+
+OmniBank Local applique une règle absolue de réactivité : **aucun rechargement de page (F5)** n'est requis lors de l'utilisation.
+- **Bus d'Événements DOM (`CustomEvent`)** : Chaque mutation (ajout d'opération, pointage, modification de budget, déclenchement de l'Auto-Pilote ou Undo) émet des événements personnalisés (`omni-transaction-mutated`, `omni-budget-updated`, `omni-balance-changed`).
+- **Composants Découplés** : Les vues actives écoutent ces événements pour rafraîchir chirurgicalement leurs tableaux (`VirtualTable`) et jauges sans perte de focus ni scintillement d'écran.
+- **Restauration au Changement d'Onglet (`visibilitychange`)** : Si l'utilisateur revient sur l'application après une synchronisation en arrière-plan, les données sont immédiatement resynchronisées.
 
 ---
 

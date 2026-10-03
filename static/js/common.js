@@ -190,12 +190,13 @@ const API = {
     },
     async post(endpoint, data, extraOptions = {}) {
         this._invalidateInflight();
+        const { skipMutateEvent, silent, ...restOptions } = extraOptions;
         const targetUrl = this.fullUrl(endpoint);
-        const headers = Object.assign({ 'Content-Type': 'application/json' }, this._getCommonHeaders(), extraOptions.headers || {});
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, this._getCommonHeaders(), restOptions.headers || {});
         const fetchOptions = {
             method: 'POST',
             headers,
-            ...extraOptions
+            ...restOptions
         };
         if (data !== undefined) {
             fetchOptions.body = JSON.stringify(data);
@@ -206,19 +207,20 @@ const API = {
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
             window.app.updateHeaderHistoryState();
         }
-        if (window.EventBus) {
+        if (window.EventBus && !skipMutateEvent && !silent) {
             window.EventBus.emit('data:mutated', { endpoint, method: 'POST', data: json });
         }
         return json;
     },
     async put(endpoint, data, extraOptions = {}) {
         this._invalidateInflight();
+        const { skipMutateEvent, silent, ...restOptions } = extraOptions;
         const targetUrl = this.fullUrl(endpoint);
-        const headers = Object.assign({ 'Content-Type': 'application/json' }, this._getCommonHeaders(), extraOptions.headers || {});
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, this._getCommonHeaders(), restOptions.headers || {});
         const fetchOptions = {
             method: 'PUT',
             headers,
-            ...extraOptions
+            ...restOptions
         };
         if (data !== undefined) {
             fetchOptions.body = JSON.stringify(data);
@@ -229,15 +231,20 @@ const API = {
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
             window.app.updateHeaderHistoryState();
         }
-        if (window.EventBus) {
+        if (window.EventBus && !skipMutateEvent && !silent) {
             window.EventBus.emit('data:mutated', { endpoint, method: 'PUT', data: json });
         }
         return json;
     },
-    async del(endpoint, data = null, customHeaders = null) {
+    async del(endpoint, data = null, customHeaders = null, extraOptions = {}) {
         this._invalidateInflight();
+        const { skipMutateEvent, silent, ...restOptions } = extraOptions;
         const targetUrl = this.fullUrl(endpoint);
-        const options = { method: 'DELETE', headers: Object.assign(this._getCommonHeaders(), customHeaders || {}) };
+        const options = { 
+            method: 'DELETE', 
+            headers: Object.assign(this._getCommonHeaders(), customHeaders || {}, restOptions.headers || {}),
+            ...restOptions
+        };
         if (data !== null && data !== undefined) {
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(data);
@@ -248,7 +255,7 @@ const API = {
             if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
                 window.app.updateHeaderHistoryState();
             }
-            if (window.EventBus) {
+            if (window.EventBus && !skipMutateEvent && !silent) {
                 window.EventBus.emit('data:mutated', { endpoint, method: 'DELETE', data: null });
             }
             return { ok: true };
@@ -257,7 +264,7 @@ const API = {
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
             window.app.updateHeaderHistoryState();
         }
-        if (window.EventBus) {
+        if (window.EventBus && !skipMutateEvent && !silent) {
             window.EventBus.emit('data:mutated', { endpoint, method: 'DELETE', data: json });
         }
         return json;

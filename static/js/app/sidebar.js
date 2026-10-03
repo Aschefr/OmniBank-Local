@@ -25,11 +25,10 @@ window.AppModules.sidebar = {
     },
 
     showUnreconciledBeforePay() {
-        if (!window.app.nextPayDate) return;
-        
+        const payDate = window.app.nextPayDate || window.OverviewView?._stats?.next_pay_date;
         if (window.TimelineView) {
             window.TimelineView.pendingFilter = {
-                unreconciledBeforeDate: window.app.nextPayDate
+                unreconciledBeforeDate: payDate || true
             };
         }
         this.loadView('dashboard');
@@ -418,7 +417,20 @@ window.AppModules.sidebar = {
             if (stats.overdraft_warning) {
                 overdraftBox.style.display = 'block';
                 const od = stats.overdraft_warning;
-                document.getElementById('valOverdraft').textContent = formatCurrency(od.projected_balance);
+                const isCovered = !!od.covered_by_income;
+                const valOd = document.getElementById('valOverdraft');
+                const lblOd = document.getElementById('lblOverdraft');
+                if (valOd) {
+                    valOd.textContent = formatCurrency(od.projected_balance);
+                    valOd.style.color = isCovered ? '#f59e0b' : '#ef4444';
+                    if (isCovered) valOd.classList.remove('text-red');
+                    else valOd.classList.add('text-red');
+                }
+                if (lblOd) {
+                    lblOd.textContent = isCovered
+                        ? (window.i18n.t('stat_contingent_cashflow') || '⏳ Vigilance trésorerie')
+                        : (window.i18n.t('stat_overdraft') || '⚠️ Risque Découvert');
+                }
                 
                 let dateSub = `${formatDate(od.date)} (${od.transaction_description})`;
                 if (od.covered_by_income) {

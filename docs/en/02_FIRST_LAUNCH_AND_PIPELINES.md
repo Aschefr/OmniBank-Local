@@ -88,3 +88,53 @@ When clicking **"Download Full Backup (ZIP)"** in Settings:
 - The user uploads a `.zip` or `.db` file via `POST /api/backup/restore`.
 - The backend validates the database schema and integrity.
 - If valid, the active database is replaced atomically and SQLAlchemy sessions are re-initialized without requiring a server restart.
+
+---
+
+## 🤖 Pipeline 5: Auto-Pilot Engine & Multi-Stage Normalization
+
+The Auto-Pilot pipeline (`app/services/autopilot_orchestrator.py` and `app/services/autopilot_rules.py`) continuously processes transactions without blocking the user interface:
+
+```mermaid
+flowchart TD
+    A[New Transaction / Statement Entry] --> B{Lookup Merchant Rules}
+    B -- Match Found (100% Score) --> C[Apply Category & Clean Merchant]
+    B -- Not Found --> D{Historical Pattern Matching}
+    D -- Confidence >= 85% --> E[Deterministic Auto-Categorization]
+    D -- 60% <= Confidence < 85% --> F[Auto-Commit with needs_review=True]
+    D -- Unknown (<60%) --> G[Local Ollama Inference or Review Queue]
+    C & E --> H{Reconciliation Match Verification}
+    H -- Exact Match --> I[Autonomous Reconciliation]
+    H -- No Match --> J[Account Balance & Safe-to-Spend Updated]
+    I & J --> K[Record in autopilot_decision_logs]
+```
+
+1. **Merchant Normalization**: Strips card prefixes (`CB*`, `CARTE 1234`), postal codes, and payment processor artifacts to identify the clean merchant identity.
+2. **Exponential Moving Average (EMA) Budgets**: The statistical engine computes 3-to-6 month moving averages to suggest smoothed, realistic envelope recalibrations.
+3. **Proactive Recurrence Discovery**: Automatically detects repeating fixed-interval amounts (e.g., monthly gym or utility fees) and proposes promoting them into managed recurrence templates.
+
+---
+
+## 🏦 Pipeline 6: Direct Bank Synchronization (Woob & Vault)
+
+Direct synchronization (`app/services/woob_service.py` and `app/services/bank_sync_service.py`) connects directly to banking institutions without external cloud aggregators:
+
+1. **Volatile Decryption in RAM**: The master password derives the Fernet encryption key via PBKDF2 in memory to decrypt stored banking credentials.
+2. **Sandboxed Woob Subprocess**: An isolated local process executes the specific banking connector module to negotiate the remote bank session.
+3. **Strong Customer Authentication (SCA/2FA)**: If SMS OTP or mobile banking app approvals are required, bi-directional SSE streams prompt the user interactively.
+4. **Integrity Guard Staging ("Pending Sync")**:
+   - Computes deterministic SHA-256 hashes to guarantee complete deduplication.
+   - If an unexpected balance deviation is detected, the statement payload is staged in a review quarantine rather than blindly committed.
+
+---
+
+## 🕓 Pipeline 7: Complete Auditability & Undo / Redo Pipeline
+
+The audit engine (`app/services/history_service.py` and `static/js/views/history_manager.js`) ensures total reversibility of every user and autonomous mutation:
+
+1. **Systematic Snapshot Capture**: Before executing any `INSERT`, `UPDATE`, or `DELETE` statement in SQLAlchemy, an event listener serializes the full before/after state into JSON.
+2. **Immutable Persistence in `action_history`**: Every record logs the entity (`Transaction`, `Budget`, `Category`, `Account`), mutation type, before snapshot, after snapshot, acting user, and timestamp.
+3. **Rollback Pipeline (Ctrl+Z)**:
+   - Calling `POST /api/history/undo/{history_id}` retrieves the prior snapshot.
+   - Re-applies the exact state into SQLite within an atomic database transaction.
+   - Balances, totals, and envelope limits are instantly refreshed across the UI through DOM CustomEvents without triggering a page reload (Zero F5).

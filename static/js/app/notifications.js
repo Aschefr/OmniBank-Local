@@ -20,16 +20,15 @@ window.AppModules.notifications = {
         bellBtn.onclick = (e) => {
             e.stopPropagation();
             if (notifMenu.style.display === 'none') {
-                this.loadNotifications();
-                notifMenu.style.display = 'block';
+                this.openNotificationsMenu();
             } else {
-                notifMenu.style.display = 'none';
+                this.closeNotificationsMenu();
             }
         };
 
         document.addEventListener('click', (e) => {
             if (!bellBtn.contains(e.target) && !notifMenu.contains(e.target)) {
-                notifMenu.style.display = 'none';
+                this.closeNotificationsMenu();
             }
         });
 
@@ -122,10 +121,37 @@ window.AppModules.notifications = {
 
     openNotificationsMenu() {
         const notifMenu = document.getElementById('notifMenu');
+        const notifBackdrop = document.getElementById('notifBackdrop');
         if (notifMenu) {
             this.loadNotifications();
+            notifMenu.classList.add('active');
             notifMenu.style.display = 'block';
+            if (notifBackdrop && window.innerWidth <= 768) {
+                notifBackdrop.classList.add('active');
+                notifBackdrop.style.display = 'block';
+            }
         }
+    },
+
+    closeNotificationsMenu() {
+        const notifMenu = document.getElementById('notifMenu');
+        const notifBackdrop = document.getElementById('notifBackdrop');
+        if (notifMenu) {
+            notifMenu.classList.remove('active');
+            notifMenu.style.display = 'none';
+        }
+        if (notifBackdrop) {
+            notifBackdrop.classList.remove('active');
+            notifBackdrop.style.display = 'none';
+        }
+    },
+
+    closeNotifMenu() {
+        this.closeNotificationsMenu();
+    },
+
+    openNotifMenu() {
+        this.openNotificationsMenu();
     },
 
     async loadNotifications(silent = true) {
@@ -820,10 +846,10 @@ window.AppModules.notifications = {
                     if (window.ChatView) {
                         window.ChatView.activeSessionId = linkObj.session_id;
                     }
-                    if (notifMenu) notifMenu.style.display = 'none';
+                    this.closeNotificationsMenu();
                     this.loadView('chat');
                 } else if (is2FA) {
-                    if (notifMenu) notifMenu.style.display = 'none';
+                    this.closeNotificationsMenu();
                     if (this.currentView !== 'accounts') {
                         await this.loadView('accounts');
                     }
@@ -831,27 +857,27 @@ window.AppModules.notifications = {
                         window.BankSyncView.promptAndSync(linkObj.conn_id);
                     }
                 } else if (isVaultOrPasswordIssue) {
-                    if (notifMenu) notifMenu.style.display = 'none';
+                    this.closeNotificationsMenu();
                     if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') {
                         window.BankSyncView.unlockVaultManually();
                     }
                 } else if (linkObj.view === 'autopilot' && linkObj.action === 'open_feed') {
-                    if (notifMenu) notifMenu.style.display = 'none';
+                    this.closeNotificationsMenu();
                     if (this.currentView !== 'autopilot') {
                         this.loadView('autopilot');
                     }
                 } else if (linkObj.action === 'open_pending' || linkObj.action === 'last_statement' || (linkObj.matches > 0 || linkObj.new_txs > 0) || (n.type === 'autopilot' && (linkObj.auto_reconciled > 0 || linkObj.auto_committed > 0))) {
-                    if (notifMenu) notifMenu.style.display = 'none';
+                    this.closeNotificationsMenu();
                     if (window.BankSyncView && window.BankSyncView.openPendingReviewModal) {
                         window.BankSyncView.openPendingReviewModal(null, null, linkObj.conn_id);
                     }
                 } else if (linkObj.view === 'autopilot' || n.type === 'autopilot') {
-                    if (notifMenu) notifMenu.style.display = 'none';
+                    this.closeNotificationsMenu();
                     if (this.currentView !== 'autopilot') {
                         this.loadView('autopilot');
                     }
                 } else if (linkObj.view === 'accounts' || linkObj.view === 'accounts_manager' || linkObj.action === 'bank_sync' || n.type === 'bank_sync_error') {
-                    if (notifMenu) notifMenu.style.display = 'none';
+                    this.closeNotificationsMenu();
                     if (this.currentView !== 'accounts') {
                         this.loadView('accounts');
                     }
@@ -1001,8 +1027,7 @@ window.AppModules.notifications = {
     async deepenAIReport(content, detailedContent) {
         try {
             // Close popover
-            const notifMenu = document.getElementById('notifMenu');
-            if (notifMenu) notifMenu.style.display = 'none';
+            this.closeNotificationsMenu();
 
             const isEn = window.i18n.lang === 'en';
             const sessionTitle = isEn ? "AI Financial Report Deepening" : "Approfondissement Bilan IA";

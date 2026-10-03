@@ -267,6 +267,47 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     opacity: 0.5;
                     cursor: not-allowed;
                 }
+                .gantt-scroll-wrapper {
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                    width: 100%;
+                }
+                .gantt-header, .gantt-row {
+                    min-width: 860px;
+                }
+                .gantt-mobile-swipe-hint {
+                    display: none;
+                }
+                @media (max-width: 768px) {
+                    .gantt-mobile-swipe-hint {
+                        display: flex !important;
+                        font-size: 11px;
+                        color: var(--text-muted);
+                        margin-top: 8px;
+                        margin-bottom: 4px;
+                        align-items: center;
+                        gap: 6px;
+                    }
+                    .gantt-header, .gantt-row {
+                        min-width: 800px !important;
+                    }
+                    .gantt-desc, .gantt-header > div:first-child {
+                        position: sticky !important;
+                        left: 0 !important;
+                        background: var(--bg-surface) !important;
+                        z-index: 5 !important;
+                        box-shadow: 3px 0 6px rgba(0, 0, 0, 0.18) !important;
+                        width: 190px !important;
+                        min-width: 190px !important;
+                        max-width: 190px !important;
+                    }
+                    .gantt-header > div:first-child {
+                        z-index: 12 !important;
+                    }
+                    .gantt-row:hover .gantt-desc {
+                        background: var(--bg-surface) !important;
+                    }
+                }
             </style>
             <div class="view-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;display:flex;justify-content:space-between;align-items:center;">
                 <div class="view-header-title-group">

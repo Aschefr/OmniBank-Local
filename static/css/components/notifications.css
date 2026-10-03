@@ -5,6 +5,13 @@
 
 /* ─── Section: Notification center & archives (Lines 8211-8854) ─── */
 /* ── NOTIFICATION CENTER & ARCHIVES ────────────────────────────────────────── */
+.notif-mobile-titlebar {
+    display: none;
+}
+.notif-backdrop {
+    display: none;
+}
+
 #notifMenu {
     box-sizing: border-box;
     overflow-x: hidden !important;

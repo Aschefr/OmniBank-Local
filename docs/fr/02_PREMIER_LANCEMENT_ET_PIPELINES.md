@@ -87,3 +87,53 @@ Lorsque l'utilisateur clique sur **"Exporter la sauvegarde"** depuis les paramè
 - L'utilisateur envoie son fichier `.zip` ou `.db` via `POST /api/backup/restore`.
 - Le backend valide le schéma de la base de données.
 - Si le fichier est valide, la base de données active est remplacée de manière atomique et les connexions SQLAlchemy sont réinitialisées sans nécessiter le redémarrage du serveur.
+
+---
+
+## 🤖 Pipeline 5 : Moteur Auto-Pilote & Normalisation Multi-Stage
+
+Le pipeline de l'Auto-Pilote (`app/services/autopilot_orchestrator.py` et `app/services/autopilot_rules.py`) traite les flux de transactions de bout en bout sans blocage de l'interface :
+
+```mermaid
+flowchart TD
+    A[Nouvelle Écriture / Relevé] --> B{Recherche Règles Marchands}
+    B -- Trouvé (Score 100%) --> C[Application Catégorie & Tiers]
+    B -- Non Trouvé --> D{Similarité Historique (Levenshtein/Jaro)}
+    D -- Confiance >= 85% --> E[Catégorisation Déterministe]
+    D -- 60% <= Confiance < 85% --> F[Auto-Commit avec needs_review=True]
+    D -- Inconnu (<60%) --> G[Inférence Ollama Locale ou File de Revue]
+    C & E --> H{Vérification Rapprochement}
+    H -- Match Parfait --> I[Rapprochement Automatique Pointé]
+    H -- Non Rapproché --> J[Solde & Reste à Vivre Actualisés]
+    I & J --> K[Enregistrement Journal autopilot_decision_logs]
+```
+
+1. **Normalisation & Dépoussiérage Marchand** : Extraction du nom propre du commerçant (ex: suppression des codes cartes `CB*`, `CARTE 1234`, codes postaux ou références techniques).
+2. **Filtrage EMA des Budgets** : Le moteur statistique calcule une moyenne mobile exponentielle sur les 3 à 6 derniers mois pour suggérer des ajustements d'enveloppes lissés et fiables.
+3. **Détection Proactive des Récurrences** : Identification automatique des montants et périodicités fixes (ex: même montant prélevé à intervalle mensuel régulier) avec proposition de conversion en modèle de récurrence.
+
+---
+
+## 🏦 Pipeline 6 : Synchronisation Bancaire Directe (Woob & Coffre-Fort)
+
+La synchronisation directe (`app/services/woob_service.py` et `app/services/bank_sync_service.py`) assure le relevé sécurisé sans passer par le cloud :
+
+1. **Déchiffrement Volatile en RAM** : Le mot de passe maître de l'utilisateur dérive la clé Fernet (PBKDF2) pour déchiffrer en mémoire vive les identifiants de la banque.
+2. **Exécution du Module Woob** : Un sous-processus local isolé exécute le connecteur bancaire approprié et négocie la session avec le portail bancaire.
+3. **Challenge d'Authentification Forte** : Si un OTP SMS ou une validation sur smartphone est requis, une communication bidirectionnelle SSE/WebSocket transmet l'état au frontend pour solliciter l'utilisateur.
+4. **Passage par le Sas d'Intégrité ("Pending Sync")** :
+   - Vérification de la continuité des soldes et filtrage strict des doublons via hash SHA-256.
+   - Si les écarts dépassent les seuils de tolérance, le lot est mis en quarantaine pour validation manuelle.
+
+---
+
+## 🕓 Pipeline 7 : Traçabilité Complète & Pipeline d'Inversion (Undo / Redo)
+
+Le moteur d'audit (`app/services/history_service.py` et `static/js/views/history_manager.js`) garantit la réversibilité absolue de chaque interaction :
+
+1. **Capture Systématique Avant / Après** : Avant chaque opération `INSERT`, `UPDATE`, ou `DELETE` via SQLAlchemy, un événement d'écoute capture l'état complet de l'entité sous forme de dictionnaire JSON.
+2. **Enregistrement dans `action_history`** : Un enregistrement immutable stocke : l'entité (`Transaction`, `Budget`, `Category`, `Account`), le type d'action, le snapshot avant, le snapshot après, l'utilisateur auteur, et l'horodatage.
+3. **Pipeline d'Annulation (Rollback / Ctrl+Z)** :
+   - L'API `POST /api/history/undo/{history_id}` charge le snapshot antérieur.
+   - Elle réinjecte les valeurs exactes dans la base SQLite de manière transactionnelle atomique.
+   - Les soldes bancaires et les totaux d'enveloppes sont immédiatement recalculés et réémis via des événements frontend pour une actualisation sans rafraîchissement d'écran (Zero F5).

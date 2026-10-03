@@ -77,3 +77,27 @@ La page **Configuration** regroupe tous les réglages généraux d'OmniBank Loca
 - **Sélecteur "Fréquence des sauvegardes"** : Quotidienne, Hebdomadaire ou Mensuelle.
 - **Sélecteur "Nombre maximal de sauvegardes conservées"** (3, 5, 10 ou 20) : Définit la politique de rotation des archives.
 - **Bouton "▶️ Déclencher une sauvegarde automatique"** : Crée immédiatement un instantané de sauvegarde dans le sous-dossier `data/backups/`.
+
+---
+
+### 🤖 8. Paramètres de l'Auto-Pilote
+
+- **Mode de Fonctionnement** : Basculer entre le **Mode Veille** (simple suggestion d'actions et de catégorisation) et le **Mode Actif** (validation et enregistrement autonome des écritures comptables certaines).
+- **Plafond Montant Maximum par Action Autonome** : Définit la limite financière au-delà de laquelle toute transaction est obligatoirement orientée vers la File de Revue.
+- **Seuil de Confiance de Rapprochement** : Détermine le degré de certitude exigé (ex: 85%) pour rapprocher automatiquement une opération bancaire.
+- **Période de Lissage Budgétaire (EMA)** : Calibre l'inertie du lissage exponentiel (3 à 6 mois) appliqué lors des suggestions de recalibrage de budgets.
+
+---
+
+### 🔐 9. Coffre-Fort & Synchronisation Bancaire
+
+- **Gestion du Mot de Passe Maître** : Définition ou modification du mot de passe protégeant les identifiants chiffrés en local (AES-256).
+- **Délai de Verrouillage en RAM** : Durée d'inactivité avant la purge automatique de la clé en mémoire vive.
+- **Fréquence du Relevé d'Arrière-Plan** : Intervalle de mise à jour des comptes connectés (12h, 24h, 48h ou manuel).
+
+---
+
+### 💼 10. Profils Maîtres & Espaces Indépendants
+
+- **Création d'un Nouveau Profil** : Permet d'isoler totalement différentes comptabilités sur la même machine (ex: *Personnel*, *Activité Freelance*, *Association sportive*).
+- **Sélecteur Actif** : Basculez d'un profil à un autre en 1 clic sans avoir à redémarrer l'application.

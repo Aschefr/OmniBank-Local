@@ -40,6 +40,10 @@ Directly access the reference guide corresponding to the screen you are currentl
 | **Accounts** | 💳 [09_ACCOUNTS.md](pages/09_ACCOUNTS.md) | Bank account management (Checking, Savings, Cards), initial balances, and internal transfers. |
 | **Configuration & License** | ⚙️ [10_CONFIGURATION_AND_LICENSE.md](pages/10_CONFIGURATION_AND_LICENSE.md) | Global settings, Ollama connection, i18n, maintenance tools, and Organization Mode license. |
 | **Wizards & Statement Import** | 📥 [11_WIZARDS_AND_CSV_IMPORT.md](pages/11_WIZARDS_AND_CSV_IMPORT.md) | Initial setup wizard and CSV/XLSX statement import & reconciliation wizard. |
+| **Auto-Pilot & Control Center** | 🤖 [12_AUTO_PILOT_CONTROL_CENTER.md](pages/12_AUTO_PILOT_CONTROL_CENTER.md) | Autonomous engine, Cockpit, reversible decision feed, and post-action review queue. |
+| **Financial Simulator** | 🔮 [13_FINANCIAL_SIMULATOR.md](pages/13_FINANCIAL_SIMULATOR.md) | Cash-flow & wealth forecasting over 1-30 years, multi-scenarios, timeline events & inflation. |
+| **Actions Audit Log & Undo/Redo** | 🕓 [14_ACTIONS_AUDIT_LOG_AND_UNDO_REDO.md](pages/14_ACTIONS_AUDIT_LOG_AND_UNDO_REDO.md) | Complete mutation ledger, JSON snapshots, multi-user attribution & global Ctrl+Z. |
+| **Direct Bank Synchronization** | 🏦 [15_DIRECT_BANK_SYNC.md](pages/15_DIRECT_BANK_SYNC.md) | 100% local direct bank sync (Woob), AES-256 encrypted vault, and staging integrity guard. |
 
 ---
 

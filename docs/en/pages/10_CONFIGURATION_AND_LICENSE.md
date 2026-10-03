@@ -77,3 +77,27 @@ The **Configuration** page gathers global application settings, Ollama AI integr
 - **"Backup Frequency" Dropdown**: Daily, Weekly, or Monthly.
 - **"Maximum Kept Backups" Dropdown** (3, 5, 10, or 20): Defines rolling backup retention policies.
 - **"▶️ Trigger Auto-Backup Now" Button**: Immediately creates a backup snapshot in `data/backups/`.
+
+---
+
+### 🤖 8. Auto-Pilot Settings
+
+- **Operational Mode**: Toggle between **Monitoring Mode** (suggestions and proposed labels) and **Active Mode** (autonomous reconciliation and recording of high-certainty transactions).
+- **Maximum Amount Limit per Autonomous Action**: Sets a financial ceiling above which any transaction is routed to the Review Queue.
+- **Reconciliation Confidence Threshold**: Configures the certainty percentage required (e.g., 85%) before auto-reconciling statement matches.
+- **Budget Smoothing Period (EMA)**: Adjusts the exponential moving average window (3 to 6 months) for budget recalibration advice.
+
+---
+
+### 🔐 9. Bank Sync & Encrypted Vault
+
+- **Master Vault Password Management**: Create or update the master password protecting local encrypted credentials (AES-256).
+- **RAM Lock Timeout**: Idle time before purging the decryption key from volatile memory.
+- **Background Sync Frequency**: Polling interval for connected accounts (12h, 24h, 48h, or on app launch).
+
+---
+
+### 💼 10. Master Profiles & Multi-Workspace Isolation
+
+- **Create New Profile**: Fully isolates different financial records on the same physical computer (e.g., *Personal*, *Freelance Business*, *Association*).
+- **Active Profile Switcher**: Switch between profiles in 1 click without restarting the application.

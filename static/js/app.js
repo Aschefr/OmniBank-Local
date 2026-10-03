@@ -432,8 +432,15 @@ class App {
             let _mutationDebounceTimer = null;
             window.EventBus.on('data:mutated', (detail) => {
                 const ep = detail?.endpoint || '';
-                // Ignorer les endpoints non financiers (ex: chat, logs, feedback, diagnostics)
-                if (ep.includes('/chat/') || ep.includes('/feedback') || ep.includes('/log_action') || ep.includes('/diagnostics')) {
+                // Ignorer les endpoints non financiers ou bac à sable (chat, logs, feedback, diagnostics, simulator, config UI, utilitaires IA)
+                if (ep.includes('/chat/') || 
+                    ep.includes('/feedback') || 
+                    ep.includes('/log_action') || 
+                    ep.includes('/diagnostics') ||
+                    ep.includes('/simulator/') ||
+                    ep.includes('/config') ||
+                    ep.includes('/ai/categorize') ||
+                    ep.includes('/smart-labels/')) {
                     return;
                 }
                 clearTimeout(_mutationDebounceTimer);
@@ -833,6 +840,10 @@ class App {
         // Destroy overview chart when switching away
         if (viewName !== 'overview' && window.OverviewView && window.OverviewView.destroy) {
             window.OverviewView.destroy();
+        }
+        // Destroy simulator chart when switching away
+        if (viewName !== 'simulator' && window.SimulatorView && window.SimulatorView.destroy) {
+            window.SimulatorView.destroy();
         }
 
         // Fullscreen toggle for overview
