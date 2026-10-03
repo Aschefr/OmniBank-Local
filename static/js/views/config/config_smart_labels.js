@@ -1151,7 +1151,7 @@ window.ConfigSmartLabels = {
                                     <span>📜</span> <span>${window.i18n?.t('smart_label_auto_history_title') || 'Dernières règles & catégories apprises'}</span>
                                 </span>
                             </div>
-                            <div id="smartLabelRecentAutomationsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; padding-right: 2px; scrollbar-width: thin;">
+                            <div id="smartLabelRecentAutomationsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; padding-right: 2px; scrollbar-width: thin;">
                                 <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px;">
                                     <span>⏳ Chargement...</span>
                                 </div>
@@ -1193,23 +1193,37 @@ window.ConfigSmartLabels = {
                 return;
             }
 
+            const esc = (s) => (window.escapeHtml ? window.escapeHtml(s) : String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'));
+
             listEl.innerHTML = items.map(it => {
-                const multiBadge = it.is_multi_category ? '<span style="font-size: 9.5px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; margin-left: 6px;">Multi-catégorie</span>' : '';
+                const label = it.clean_label || it.raw_pattern || 'Motif bancaire';
+                const cat = it.category && it.category !== '—' ? it.category : '';
+                const dateStr = it.created_at ? new Date(it.created_at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+                const multiBadge = it.is_multi_category ? '<span style="font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; flex-shrink: 0; white-space: nowrap;">Multi</span>' : '';
+
                 return `
-                    <div style="padding: 7px 10px; border-radius: 6px; background: var(--bg-base); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px;">
-                        <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
-                            <span style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); white-space: nowrap;">
-                                Règle apprise
-                            </span>
-                            <span style="font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${it.raw_pattern || ''}">
-                                ${it.clean_label || it.raw_pattern}
-                            </span>
+                    <div style="padding: 8px 10px; border-radius: 8px; background: var(--bg-base); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; box-sizing: border-box;">
+                        <!-- Ligne 1 : Badge + Motif & Tag Multi -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
+                                <span style="font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px;">
+                                    <span>🧠</span> <span>${esc(window.i18n?.t('smart_label_learned_rule') || 'Règle apprise')}</span>
+                                </span>
+                                <span style="font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1;" title="${esc(it.raw_pattern || label)}">
+                                    ${esc(label)}
+                                </span>
+                            </div>
                             ${multiBadge}
                         </div>
-                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-                            <span style="color: var(--text-muted); font-size: 11px;">
-                                📁 ${it.category || '—'}
+                        <!-- Ligne 2 : Catégorie cible & Date -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10.5px; color: var(--text-muted); min-width: 0;">
+                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1;" title="${esc(cat || 'Sans catégorie')}">
+                                📁 ${esc(cat || (window.i18n?.t('uncategorized') || 'Sans catégorie'))}
                             </span>
+                            ${dateStr ? `
+                            <span style="white-space: nowrap; flex-shrink: 0; font-size: 10px; margin-left: 6px;">
+                                🕒 ${esc(dateStr)}
+                            </span>` : ''}
                         </div>
                     </div>
                 `;

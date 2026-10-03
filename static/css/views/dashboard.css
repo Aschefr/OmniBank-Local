@@ -95,6 +95,7 @@
 .overview-hero-rav .overview-hero-icon { background: rgba(16, 185, 129, 0.15); }
 .overview-hero-pay .overview-hero-icon { background: rgba(59, 130, 246, 0.15); }
 .overview-hero-overdraft .overview-hero-icon { background: rgba(239, 68, 68, 0.15); }
+.overview-hero-overdraft.is-vigilance .overview-hero-icon { background: rgba(245, 158, 11, 0.15); }
 .overview-hero-orguser .overview-hero-icon { background: rgba(139, 92, 246, 0.15); }
 
 .overview-hero-switch-btn {

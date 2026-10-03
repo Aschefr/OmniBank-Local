@@ -337,62 +337,6 @@ window.AutopilotView = {
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Volet Rôle & Philosophie de l'Auto-Pilote -->
-                        <div class="ap-role-card">
-                            <div class="ap-role-card-header">
-                                <div class="ap-role-header-left">
-                                    <span class="ap-role-card-icon">${this._icons.compass}</span>
-                                    <div>
-                                        <h3 class="ap-role-card-title" data-i18n="autopilot_role_card_title">${window.i18n ? window.i18n.t('autopilot_role_card_title') : 'Rôle & Philosophie'}</h3>
-                                        <p class="ap-role-card-subtitle" data-i18n="autopilot_role_card_subtitle">${window.i18n ? window.i18n.t('autopilot_role_card_subtitle') : 'Chef d\'orchestre & souveraineté'}</p>
-                                    </div>
-                                </div>
-                                <span class="ap-role-badge-optional" data-i18n="autopilot_role_badge_optional">${window.i18n ? window.i18n.t('autopilot_role_badge_optional') : '100% Optionnel'}</span>
-                            </div>
-
-                            <div class="ap-role-quote" data-i18n="autopilot_role_summary_quote">
-                                ${window.i18n ? window.i18n.t('autopilot_role_summary_quote') : 'L\'Auto-Pilote n\'est pas une boîte noire : c\'est un chapeau d\'orchestration dispensable. Il coordonne vos automatismes, mais vous conservez en permanence le contrôle absolu.'}
-                            </div>
-
-                            <div class="ap-role-pillars">
-                                <div class="ap-role-pillar-item">
-                                    <span class="ap-role-pillar-icon">🎯</span>
-                                    <div class="ap-role-pillar-content">
-                                        <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_orchestrator_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_orchestrator_title') : 'Chef d\'orchestre global'}</div>
-                                        <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_orchestrator_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_orchestrator_desc') : 'Il ne remplace pas vos règles, il active et synchronise les 15 automatismes modulaires sous un seuil de confiance unifié.'}</p>
-                                    </div>
-                                </div>
-
-                                <div class="ap-role-pillar-item">
-                                    <span class="ap-role-pillar-icon">🕊️</span>
-                                    <div class="ap-role-pillar-content">
-                                        <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_dispensable_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_dispensable_title') : '100% Dispensable'}</div>
-                                        <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_dispensable_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_dispensable_desc') : 'Désactivé, l\'application repasse en mode manuel classique : vos écritures attendent dans le Sas pour une revue ligne à ligne.'}</p>
-                                    </div>
-                                </div>
-
-                                <div class="ap-role-pillar-item">
-                                    <span class="ap-role-pillar-icon">⚙️</span>
-                                    <div class="ap-role-pillar-content">
-                                        <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_modular_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_modular_title') : 'Modulaire & Découplé'}</div>
-                                        <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_modular_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_modular_desc') : 'Chaque brique (récurrences, budgets, marchands) peut être activée ou coupée unitairement selon vos préférences.'}</p>
-                                    </div>
-                                </div>
-
-                                <div class="ap-role-pillar-item">
-                                    <span class="ap-role-pillar-icon">↩️</span>
-                                    <div class="ap-role-pillar-content">
-                                        <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_reversible_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_reversible_title') : 'Réversibilité Totale'}</div>
-                                        <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_reversible_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_reversible_desc') : 'Zéro risque : chaque décision prise peut être dépointée, rectifiée ou annulée par lot en 1 clic dans le Journal.'}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="button" class="ap-role-action-btn" onclick="window.AutopilotView.openSettingsDrawer()">
-                                ${this._icons.settings} <span data-i18n="autopilot_role_manage_bricks_btn">${window.i18n ? window.i18n.t('autopilot_role_manage_bricks_btn') : 'Gérer les 15 automatismes unitaires'}</span>
-                            </button>
-                        </div>
                     </div>
 
                     <!-- COLONNE DROITE (1fr) : Tables et Données -->
@@ -495,10 +439,65 @@ window.AutopilotView = {
                                     <!-- Injected dynamically -->
                                 </div>
                             </div>
+                </div>
+
+                <!-- Volet Rôle & Philosophie de l'Auto-Pilote (Bas de page) -->
+                <div class="ap-role-card ap-role-card-bottom" style="margin-top: 24px;">
+                    <div class="ap-role-card-header">
+                        <div class="ap-role-header-left">
+                            <span class="ap-role-card-icon">${this._icons.compass}</span>
+                            <div>
+                                <h3 class="ap-role-card-title" data-i18n="autopilot_role_card_title">${window.i18n ? window.i18n.t('autopilot_role_card_title') : 'Rôle & Philosophie'}</h3>
+                                <p class="ap-role-card-subtitle" data-i18n="autopilot_role_card_subtitle">${window.i18n ? window.i18n.t('autopilot_role_card_subtitle') : 'Chef d\'orchestre & souveraineté'}</p>
+                            </div>
+                        </div>
+                        <span class="ap-role-badge-optional" data-i18n="autopilot_role_badge_optional">${window.i18n ? window.i18n.t('autopilot_role_badge_optional') : '100% Optionnel'}</span>
+                    </div>
+
+                    <div class="ap-role-quote" data-i18n="autopilot_role_summary_quote">
+                        ${window.i18n ? window.i18n.t('autopilot_role_summary_quote') : 'L\'Auto-Pilote n\'est pas une boîte noire : c\'est un chapeau d\'orchestration dispensable. Il coordonne vos automatismes, mais vous conservez en permanence le contrôle absolu.'}
+                    </div>
+
+                    <div class="ap-role-pillars">
+                        <div class="ap-role-pillar-item">
+                            <span class="ap-role-pillar-icon">🎯</span>
+                            <div class="ap-role-pillar-content">
+                                <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_orchestrator_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_orchestrator_title') : 'Chef d\'orchestre global'}</div>
+                                <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_orchestrator_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_orchestrator_desc') : 'Il ne remplace pas vos règles, il active et synchronise les 15 automatismes modulaires sous un seuil de confiance unifié.'}</p>
+                            </div>
+                        </div>
+
+                        <div class="ap-role-pillar-item">
+                            <span class="ap-role-pillar-icon">🕊️</span>
+                            <div class="ap-role-pillar-content">
+                                <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_dispensable_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_dispensable_title') : '100% Dispensable'}</div>
+                                <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_dispensable_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_dispensable_desc') : 'Désactivé, l\'application repasse en mode manuel classique : vos écritures attendent dans le Sas pour une revue ligne à ligne.'}</p>
+                            </div>
+                        </div>
+
+                        <div class="ap-role-pillar-item">
+                            <span class="ap-role-pillar-icon">⚙️</span>
+                            <div class="ap-role-pillar-content">
+                                <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_modular_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_modular_title') : 'Modulaire & Découplé'}</div>
+                                <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_modular_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_modular_desc') : 'Chaque brique (récurrences, budgets, marchands) peut être activée ou coupée unitairement selon vos préférences.'}</p>
+                            </div>
+                        </div>
+
+                        <div class="ap-role-pillar-item">
+                            <span class="ap-role-pillar-icon">↩️</span>
+                            <div class="ap-role-pillar-content">
+                                <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_reversible_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_reversible_title') : 'Réversibilité Totale'}</div>
+                                <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_reversible_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_reversible_desc') : 'Zéro risque : chaque décision prise peut être dépointée, rectifiée ou annulée par lot en 1 clic dans le Journal.'}</p>
+                            </div>
                         </div>
                     </div>
+
+                    <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+                        <button type="button" class="ap-role-action-btn" onclick="window.AutopilotView.openSettingsDrawer()" style="width: auto; padding: 8px 18px;">
+                            ${this._icons.settings} <span data-i18n="autopilot_role_manage_bricks_btn">${window.i18n ? window.i18n.t('autopilot_role_manage_bricks_btn') : 'Gérer les 15 automatismes unitaires'}</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
                 </div>
             </div>
 

@@ -558,7 +558,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const modal = document.createElement('div');
         modal.id = 'budgetSuggestionsReviewModal';
         modal.className = 'modal-overlay';
-        modal.style.zIndex = '1000';
+        modal.style.zIndex = '10000';
 
         modal.onclick = (e) => {
             if (e.target === modal) {
@@ -1239,8 +1239,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                             <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                                 ${window.i18n.t('budget_auto_apply_desc') || 'Applique automatiquement les ajustements EMA mensuels lissés (bornes de sécurité : ±10%/mois et ±25%/an).'}
                                             </div>
-                                            <div style="font-size: 11px; color: #f59e0b; margin-top: 4px; font-style: italic;">
-                                                ${window.i18n.t('budget_auto_apply_warning') || '⚠️ Requiert le Centre de Contrôle (Étape 6) pour une visibilité optimale'}
+                                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.35;">
+                                                ${window.i18n.t('budget_auto_apply_warning') || '💡 Historique et annulation en 1 clic disponibles dans le Centre de Contrôle Auto-Pilote'}
                                             </div>
                                         </div>
                                     </label>
@@ -1373,18 +1373,27 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     : '<span style="font-size: 10px; color: var(--text-muted); opacity: 0.85;">⚡ Déterministe</span>';
 
                 return `
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); font-size: 12px; gap: 8px; flex-wrap: wrap;">
-                        <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 180px;">
-                            <span style="${badgeStyle} font-size: 10.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">
-                                ${icon} ${badgeText}
+                    <div style="padding: 8px 10px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; box-sizing: border-box;">
+                        <!-- Ligne 1 : Badge + Nom de l'enveloppe & Montant -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
+                                <span style="${badgeStyle} font-size: 9.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">
+                                    ${icon} ${badgeText}
+                                </span>
+                                <strong style="color: var(--text-main); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1;" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</strong>
+                            </div>
+                            <span style="color: var(--accent); font-weight: 700; font-size: 12px; white-space: nowrap; flex-shrink: 0; margin-left: 6px;">
+                                ${Number(item.amount || 0).toFixed(2)} €
                             </span>
-                            <strong style="color: var(--text-main); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</strong>
-                            <span style="color: var(--accent); font-weight: 700; white-space: nowrap; margin-left: auto;">${Number(item.amount || 0).toFixed(2)} €</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); flex-shrink: 0;">
-                            ${engineBadge}
-                            <span>•</span>
-                            <span title="${item.created_at}">${dateStr}</span>
+                        <!-- Ligne 2 : Moteur & Date -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10.5px; color: var(--text-muted); min-width: 0;">
+                            <span style="flex-shrink: 0;">
+                                ${engineBadge}
+                            </span>
+                            <span style="white-space: nowrap; flex-shrink: 0; font-size: 10px; margin-left: 6px;" title="${item.created_at}">
+                                🕒 ${dateStr}
+                            </span>
                         </div>
                     </div>
                 `;

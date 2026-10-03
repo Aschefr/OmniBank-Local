@@ -545,6 +545,10 @@ body.theme-classic-light .ap-decision-row:hover {
     align-items: center;
 }
 
+.ov-autopilot-backdrop {
+    display: none;
+}
+
 .overview-autopilot-btn {
     display: inline-flex;
     align-items: center;
@@ -647,9 +651,9 @@ body.theme-classic-light .ap-decision-row:hover {
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Unseen Badge */
+/* Unseen Review Badge (ambre attentif au lieu de rouge alarmant) */
 .overview-autopilot-badge {
-    background: #ef4444;
+    background: #f59e0b;
     color: #ffffff;
     font-size: 10px;
     font-weight: 700;
@@ -2121,6 +2125,16 @@ body.privacy-mode input.privacy-blur:focus {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+.ap-role-card-bottom {
+    margin-top: 24px;
+}
+
+.ap-role-card-bottom .ap-role-pillars {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
 }
 
 .ap-role-pillar-item {

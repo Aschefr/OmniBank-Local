@@ -125,6 +125,7 @@ window.OverviewView = {
                                     <span class="overview-autopilot-timer-chip" id="ovAutopilotTimerChip" style="display:none;"></span>
                                     <span class="overview-autopilot-badge" id="ovAutopilotBadge" style="display:none;">0</span>
                                 </button>
+                                <div id="ovAutopilotBackdrop" class="ov-autopilot-backdrop" style="display:none;" onclick="window.OverviewView.closeAutopilotPopover()"></div>
                                 <div class="overview-autopilot-popover" 
                                      id="ovAutopilotPopover" 
                                      style="display:none;" 
@@ -187,10 +188,10 @@ window.OverviewView = {
                             </button>
                         </div>
                     </div>
-                    <div class="overview-hero-card overview-hero-overdraft" id="ovOverdraftCard" style="display:none;">
-                        <div class="overview-hero-icon">⚠️</div>
+                    <div class="overview-hero-card overview-hero-overdraft clickable" id="ovOverdraftCard" style="display:none; cursor: pointer;" onclick="window.OverviewView.showCockpitTileInfo('hero_overdraft')">
+                        <div class="overview-hero-icon" id="ovOverdraftIcon">⚠️</div>
                         <div class="overview-hero-content">
-                            <div class="overview-hero-label" data-i18n="overview_overdraft_risk">${window.i18n.t('overview_overdraft_risk')}</div>
+                            <div class="overview-hero-label" id="ovOverdraftLabel" data-i18n="overview_overdraft_risk">${window.i18n.t('overview_overdraft_risk')}</div>
                             <div class="overview-hero-value privacy-blur text-red" id="ovOverdraftAmount">—</div>
                             <div class="overview-hero-sub" id="ovOverdraftDate"></div>
                         </div>
@@ -586,7 +587,8 @@ window.OverviewView = {
 
             const isEnabled = !!this._apStatus.is_enabled;
             const threshold = Math.round(this._apStatus.threshold || 85);
-            const count = this._apStatus.unseen_decisions_count || 0;
+            // Mode silencieux strict : le badge n'apparaît que si des opérations requièrent une vérification manuelle
+            const pendingReviewCount = (this._apStatus.unseen_review_count ?? this._apStatus.review_queue_count ?? 0);
 
             // Set countdown target
             if (this._apStatus.next_execution_countdown_seconds !== null && this._apStatus.next_execution_countdown_seconds !== undefined) {
@@ -611,11 +613,13 @@ window.OverviewView = {
             }
 
             if (badge) {
-                if (count > 0) {
-                    badge.textContent = count > 99 ? '99+' : count;
+                if (pendingReviewCount > 0) {
+                    badge.textContent = pendingReviewCount > 99 ? '99+' : pendingReviewCount;
                     badge.style.display = 'inline-block';
+                    badge.setAttribute('title', `${pendingReviewCount} ${window.i18n ? window.i18n.t('autopilot_to_review_count') || 'opération(s) à vérifier' : 'opération(s) à vérifier'}`);
                 } else {
                     badge.style.display = 'none';
+                    badge.removeAttribute('title');
                 }
             }
 
@@ -899,11 +903,17 @@ window.OverviewView = {
         clearTimeout(this._apPopoverTimer);
         const popover = document.getElementById('ovAutopilotPopover');
         const btn = document.getElementById('ovAutopilotBtn');
+        const backdrop = document.getElementById('ovAutopilotBackdrop');
         if (!popover) return;
 
         this._popoverOpenedAt = Date.now();
+        popover.classList.add('active');
         popover.style.display = 'block';
         if (btn) btn.setAttribute('aria-expanded', 'true');
+        if (backdrop && window.innerWidth <= 768) {
+            backdrop.classList.add('active');
+            backdrop.style.display = 'block';
+        }
 
         const onOutsideClick = (evt) => {
             const widget = document.getElementById('ovAutopilotWidget');
@@ -931,8 +941,16 @@ window.OverviewView = {
         clearTimeout(this._apPopoverTimer);
         const popover = document.getElementById('ovAutopilotPopover');
         const btn = document.getElementById('ovAutopilotBtn');
-        if (popover) popover.style.display = 'none';
+        const backdrop = document.getElementById('ovAutopilotBackdrop');
+        if (popover) {
+            popover.classList.remove('active');
+            popover.style.display = 'none';
+        }
         if (btn) btn.setAttribute('aria-expanded', 'false');
+        if (backdrop) {
+            backdrop.classList.remove('active');
+            backdrop.style.display = 'none';
+        }
     },
 
     async toggleAutopilotState(e) {
@@ -1239,16 +1257,33 @@ window.OverviewView = {
         const isOrgMode = window.app?.config?.enable_org_mode === 'true';
 
         if (stats.overdraft_warning) {
-            badge.className = 'overview-health-badge danger badge-danger';
-            badge.textContent = window.i18n.t('overview_health_danger') || '⚠️ Risque Découvert';
+            const od = stats.overdraft_warning;
+            if (od.covered_by_income) {
+                badge.className = 'overview-health-badge warning badge-warning';
+                badge.textContent = window.i18n.t('overview_health_contingent_cashflow') || '⏳ Vigilance trésorerie';
+                const incAmt = od.planned_income_before_risk || od.planned_income_total || 0;
+                badge.title = window.i18n.tp
+                    ? window.i18n.tp('overview_health_contingent_tooltip', {
+                        date: formatDate(od.date),
+                        amount: formatCurrency(od.projected_balance),
+                        income: formatCurrency(incAmt)
+                    })
+                    : `Creux de trésorerie temporaire (${formatCurrency(od.projected_balance)} au ${formatDate(od.date)}) absorbé par les rentrées prévues (+${formatCurrency(incAmt)}).`;
+            } else {
+                badge.className = 'overview-health-badge danger badge-danger';
+                badge.textContent = window.i18n.t('overview_health_danger') || '⚠️ Risque Découvert';
+                badge.title = '';
+            }
         } else if (stats.rest_to_live < 0) {
             badge.className = 'overview-health-badge warning badge-warning';
             badge.textContent = window.i18n.t('overview_health_warning') || '⚡ Reste à vivre négatif';
+            badge.title = '';
         } else {
             badge.className = 'overview-health-badge success badge-success';
             badge.textContent = isOrgMode
                 ? (window.i18n.t('overview_org_health_ok') || '✨ Trésorerie Saine')
                 : (window.i18n.t('overview_health_ok') || '✨ Budget Équilibré');
+            badge.title = '';
         }
     },
 
@@ -1352,12 +1387,32 @@ window.OverviewView = {
         if (stats.overdraft_warning && odCard) {
             odCard.style.display = 'flex';
             const od = stats.overdraft_warning;
+            const isCovered = !!od.covered_by_income;
+            const odIconEl = document.getElementById('ovOverdraftIcon');
+            const odLabelEl = document.getElementById('ovOverdraftLabel');
             const odAmtEl = document.getElementById('ovOverdraftAmount');
             const odDateEl = document.getElementById('ovOverdraftDate');
-            if (odAmtEl) {
-                odAmtEl.textContent = formatCurrency(od.projected_balance);
-                odAmtEl.style.color = '#ef4444';
+
+            if (isCovered) {
+                odCard.classList.add('is-vigilance');
+                if (odIconEl) odIconEl.textContent = '⏳';
+                if (odLabelEl) odLabelEl.textContent = window.i18n.t('overview_contingent_cashflow') || 'Vigilance trésorerie';
+                if (odAmtEl) {
+                    odAmtEl.textContent = formatCurrency(od.projected_balance);
+                    odAmtEl.style.color = '#f59e0b';
+                    odAmtEl.classList.remove('text-red');
+                }
+            } else {
+                odCard.classList.remove('is-vigilance');
+                if (odIconEl) odIconEl.textContent = '⚠️';
+                if (odLabelEl) odLabelEl.textContent = window.i18n.t('overview_overdraft_risk') || 'Risque découvert';
+                if (odAmtEl) {
+                    odAmtEl.textContent = formatCurrency(od.projected_balance);
+                    odAmtEl.style.color = '#ef4444';
+                    odAmtEl.classList.add('text-red');
+                }
             }
+
             if (odDateEl) {
                 let dateSub = formatDate(od.date);
                 if (od.covered_by_income) {
@@ -2220,6 +2275,40 @@ window.OverviewView = {
         });
     },
 
+    _winsorize(values, sensitivity = 2) {
+        if (!values || values.length < 3) return { regular: values || [], outliers: [], excess: 0 };
+        const sensitivityMap = {
+            1: [1.5, 100.0],
+            2: [2.0, 150.0],
+            3: [2.5, 200.0],
+            4: [3.5, 500.0],
+            5: [999.0, 999999.0]
+        };
+        const [multFactor, minThresh] = sensitivityMap[sensitivity] || [2.0, 150.0];
+        if (sensitivity >= 5) return { regular: [...values], outliers: [], excess: 0 };
+
+        const sorted = [...values].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        const med = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+        if (med <= 0) return { regular: [...values], outliers: [], excess: 0 };
+
+        const threshold = Math.max(multFactor * med, minThresh);
+        const regular = [];
+        const outliers = [];
+        let excess = 0;
+
+        for (const v of values) {
+            if (v > threshold) {
+                outliers.push(v);
+                regular.push(threshold);
+                excess += (v - threshold);
+            } else {
+                regular.push(v);
+            }
+        }
+        return { regular, outliers, excess, threshold };
+    },
+
     _calculateAverages() {
         const transactions = this._transactions || [];
         const lookback = this._statsLookback || '6m';
@@ -2266,6 +2355,7 @@ window.OverviewView = {
         let totalFixed = 0;
         let totalVar = 0;
         let earliestDate = null;
+        const varAmounts = [];
 
         for (const tx of transactions) {
             if (tx.is_skipped) continue;
@@ -2297,6 +2387,7 @@ window.OverviewView = {
                         totalFixed += amt;
                     } else {
                         totalVar += amt;
+                        varAmounts.push(amt);
                     }
                 }
             } else {
@@ -2306,8 +2397,10 @@ window.OverviewView = {
                     totalFixed += amt;
                 } else if (tx.type === 'expense_var') {
                     totalVar += amt;
+                    varAmounts.push(amt);
                 } else if (tx.type !== 'transfer') {
                     totalVar += amt;
+                    varAmounts.push(amt);
                 }
             }
         }
@@ -2326,11 +2419,21 @@ window.OverviewView = {
         const dailyFixed = totalFixed / nbDays;
         const dailyVar = totalVar / nbDays;
 
+        // Calcul de la moyenne journalière propre (sans les pics / dépenses exceptionnelles)
+        const winsorized = this._winsorize(varAmounts, 2);
+        const totalVarClean = (winsorized.regular || []).reduce((a, b) => a + b, 0);
+        const dailyVarClean = nbDays > 0 ? (totalVarClean / nbDays) : dailyVar;
+
         const daysInMonth = 365.25 / 12;
         this._cachedMonthlyAverages = {
             income: dailyIncome * daysInMonth,
             fixed: dailyFixed * daysInMonth,
-            variable: dailyVar * daysInMonth
+            variable: dailyVar * daysInMonth,
+            dailyIncome,
+            dailyFixed,
+            dailyVar,
+            dailyVarClean,
+            nbDays
         };
 
         this._renderRhythmBadges();
@@ -2842,60 +2945,31 @@ window.OverviewView = {
         };
         const tp = (key, params, fallback) => (window.i18n.tp ? window.i18n.tp(key, params) : null) || fallback;
 
-        // ── Gauge 1: Reste à vivre (% du revenu moyen) & Rentrées prévues ──
-        const ravInfo = this._getRestToLiveInfo(stats);
-        const rav = ravInfo.rav;
-        const plannedInc = ravInfo.plannedInc;
-        const ravWithInc = ravInfo.ravWithInc;
-
-        const avgIncome = this._cachedMonthlyAverages?.income || 0;
-        let ravPercent = avgIncome > 0 ? Math.round((rav / avgIncome) * 100) : 0;
-        ravPercent = Math.max(0, Math.min(ravPercent, 100));
-
-        let plannedPercent = avgIncome > 0 ? Math.round((ravWithInc / avgIncome) * 100) : 0;
-        plannedPercent = Math.max(0, Math.min(plannedPercent, 100));
-
-        let ravColorClass = 'gauge-green';
-        if (ravPercent < 20) ravColorClass = 'gauge-red';
-        else if (ravPercent < 50) ravColorClass = 'gauge-orange';
-
-        const ravDetailText = avgIncome > 0
-            ? (tp('cockpit_rav_detail', { income: formatCurrency(avgIncome) }, `sur ${formatCurrency(avgIncome)} de revenus`))
-            : (t('cockpit_no_income_data', 'Pas de données de revenus'));
-
-        let plannedSubHtml = '';
-        let plannedTooltip = '';
-        let gaugeTooltip = avgIncome > 0
-            ? tp('cockpit_rav_detail', { income: formatCurrency(avgIncome) }, `sur ${formatCurrency(avgIncome)} de revenus`)
-            : t('cockpit_no_income_data', 'Pas de données de revenus');
-
-        const showPlannedArc = plannedInc > 0 && plannedPercent > ravPercent;
-        const plannedVariant = ravWithInc >= 0 ? 'planned-green' : (plannedPercent >= 20 ? 'planned-orange' : 'planned-red');
-
-        if (plannedInc > 0) {
-            const subText = tp('overview_rav_planned_income', { income: formatCurrency(plannedInc), total: formatCurrency(ravWithInc) }, `+${formatCurrency(plannedInc)} prévus (→ ${formatCurrency(ravWithInc)})`);
-            plannedTooltip = tp('overview_rav_planned_income_tooltip', { income: formatCurrency(plannedInc), total: formatCurrency(ravWithInc) }, `Reste à vivre avec encaissement des recettes prévues (+${formatCurrency(plannedInc)}) : ${formatCurrency(ravWithInc)}`);
-            plannedSubHtml = `<div class="cockpit-gauge-planned" title="${plannedTooltip}">${subText}</div>`;
-            gaugeTooltip = tp('cockpit_rav_gauge_tooltip', {
-                rav: formatCurrency(rav),
-                percent: ravPercent,
-                income: formatCurrency(plannedInc),
-                total: formatCurrency(ravWithInc),
-                planned_percent: plannedPercent
-            }, `Reste à vivre : ${formatCurrency(rav)} (${ravPercent}%). Rentrées prévues non validées : +${formatCurrency(plannedInc)} (soit jusqu'à ${formatCurrency(ravWithInc)}, ${plannedPercent}%).`);
-        }
-
         // ── Cycle calculation (Pay-cycle or calendar month) ──
         const today = new Date();
+        const todayISO = this._getTodayISO(today);
         let cycleStart, cycleEnd, cycleDayLabel;
         const isOrgMode = window.app?.config?.enable_org_mode === 'true' || window.app?.config?.enable_org_mode === true;
 
         if (stats.next_pay_date && !isOrgMode) {
             // Cycle basé sur la paye
             cycleEnd = new Date(stats.next_pay_date);
-            // Approximation : le cycle a commencé il y a ~30 jours avant la prochaine paye
-            cycleStart = new Date(cycleEnd);
-            cycleStart.setDate(cycleStart.getDate() - 30);
+            // Recherche de la date de paie précédente dans pay_history ou décalage d'un mois
+            let prevPayDateStr = null;
+            if (Array.isArray(stats.pay_history)) {
+                for (const p of stats.pay_history) {
+                    if (p.date && p.date < stats.next_pay_date && p.date <= todayISO) {
+                        prevPayDateStr = p.date;
+                        break;
+                    }
+                }
+            }
+            if (prevPayDateStr) {
+                cycleStart = new Date(prevPayDateStr);
+            } else {
+                cycleStart = new Date(cycleEnd);
+                cycleStart.setDate(cycleStart.getDate() - 30);
+            }
         } else {
             // Cycle calendaire (1er → dernier jour du mois)
             cycleStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -2913,10 +2987,11 @@ window.OverviewView = {
         const cycleStartISO = `${cycleStart.getFullYear()}-${String(cycleStart.getMonth() + 1).padStart(2, '0')}-${String(cycleStart.getDate()).padStart(2, '0')}`;
         const cycleEndISO = `${cycleEnd.getFullYear()}-${String(cycleEnd.getMonth() + 1).padStart(2, '0')}-${String(cycleEnd.getDate()).padStart(2, '0')}`;
 
-        // ── Gauge 2: Dépenses prévues rapprochées ──
+        // ── Scan des transactions du cycle pour les dépenses fixes/variables ──
         const accIdStr = this._selectedAccountId ? String(this._selectedAccountId) : null;
         let cycleReconciledExpenses = 0;
         let cyclePlannedExpenses = 0;
+        let cycleReconciledVarExpenses = 0;
 
         for (const tx of (this._transactions || [])) {
             if (tx.is_skipped) continue;
@@ -2937,8 +3012,13 @@ window.OverviewView = {
             const amt = Math.abs(parseFloat(tx.amount) || 0);
             if (amt <= 0) continue;
 
+            const isFixed = tx.type === 'expense_fixed' || tx.is_monthly || tx.is_yearly || !!tx.recurrence_id;
+
             if (tx.reconciliation_date) {
                 cycleReconciledExpenses += amt;
+                if (!isFixed) {
+                    cycleReconciledVarExpenses += amt;
+                }
             } else {
                 cyclePlannedExpenses += amt;
             }
@@ -2953,6 +3033,92 @@ window.OverviewView = {
             }
         }
 
+        // ── Gauge 1: Reste à vivre (% de l'enveloppe initiale du cycle) & Rentrées prévues ──
+        const ravInfo = this._getRestToLiveInfo(stats);
+        const rav = ravInfo.rav;
+        const plannedInc = ravInfo.plannedInc;
+        const ravWithInc = ravInfo.ravWithInc;
+
+        let ravPercent = 0;
+        let plannedPercent = 0;
+        let ravRef = 0;
+        let ravDetailText = '';
+        let gaugeTooltip = '';
+        let plannedTooltip = '';
+
+        if (!isOrgMode && stats.next_pay_date) {
+            // Mode Personnel : les charges prévues au départ du cycle sont sanctuarisées.
+            // 100% correspond à l'enveloppe de Reste à Vivre initiale du cycle (avant dépenses variables consommées).
+            const ravInitial = Math.round((rav + cycleReconciledVarExpenses) * 100) / 100;
+            const ravInitialWithInc = Math.round((ravWithInc + cycleReconciledVarExpenses) * 100) / 100;
+            ravRef = plannedInc > 0 ? ravInitialWithInc : ravInitial;
+
+            if (ravRef > 0) {
+                ravPercent = Math.max(0, Math.min(100, Math.round((rav / ravRef) * 100)));
+                plannedPercent = Math.max(0, Math.min(100, Math.round((ravWithInc / ravRef) * 100)));
+                ravDetailText = tp('cockpit_rav_detail_initial', { initial: formatCurrency(ravRef) }, `sur ${formatCurrency(ravRef)} de reste à vivre initial`);
+            } else {
+                ravPercent = 0;
+                plannedPercent = 0;
+                ravDetailText = t('cockpit_rav_deficit', 'Enveloppe initiale en déficit');
+            }
+
+            if (plannedInc > 0) {
+                plannedTooltip = tp('overview_rav_planned_income_tooltip', { income: formatCurrency(plannedInc), total: formatCurrency(ravWithInc) }, `Reste à vivre avec encaissement des recettes prévues (+${formatCurrency(plannedInc)}) : ${formatCurrency(ravWithInc)}`);
+                gaugeTooltip = tp('cockpit_rav_gauge_tooltip_initial_planned', {
+                    rav: formatCurrency(rav),
+                    percent: ravPercent,
+                    income: formatCurrency(plannedInc),
+                    total: formatCurrency(ravWithInc),
+                    planned_percent: plannedPercent,
+                    initial: formatCurrency(ravRef),
+                    consumed: formatCurrency(cycleReconciledVarExpenses)
+                }, `Reste à vivre : ${formatCurrency(rav)} (${ravPercent}%). Rentrées prévues : +${formatCurrency(plannedInc)} (soit ${formatCurrency(ravWithInc)}, ${plannedPercent}%). Enveloppe initiale : ${formatCurrency(ravRef)} (dépenses variables consommées : ${formatCurrency(cycleReconciledVarExpenses)}).`);
+            } else {
+                gaugeTooltip = tp('cockpit_rav_gauge_tooltip_initial', {
+                    rav: formatCurrency(rav),
+                    percent: ravPercent,
+                    initial: formatCurrency(ravRef),
+                    consumed: formatCurrency(cycleReconciledVarExpenses)
+                }, `Reste à vivre : ${formatCurrency(rav)} sur ${formatCurrency(ravRef)} initial (${ravPercent}%). Dépenses variables consommées : ${formatCurrency(cycleReconciledVarExpenses)}.`);
+            }
+        } else {
+            // Mode Organisation ou sans cycle de paie : calcul par rapport au revenu moyen historique
+            const avgIncome = this._cachedMonthlyAverages?.income || 0;
+            ravRef = avgIncome;
+            ravPercent = avgIncome > 0 ? Math.max(0, Math.min(100, Math.round((rav / avgIncome) * 100))) : 0;
+            plannedPercent = avgIncome > 0 ? Math.max(0, Math.min(100, Math.round((ravWithInc / avgIncome) * 100))) : 0;
+            ravDetailText = avgIncome > 0
+                ? (tp('cockpit_rav_detail', { income: formatCurrency(avgIncome) }, `sur ${formatCurrency(avgIncome)} de revenus`))
+                : (t('cockpit_no_income_data', 'Pas de données de revenus'));
+            if (plannedInc > 0) {
+                plannedTooltip = tp('overview_rav_planned_income_tooltip', { income: formatCurrency(plannedInc), total: formatCurrency(ravWithInc) }, `Reste à vivre avec encaissement des recettes prévues (+${formatCurrency(plannedInc)}) : ${formatCurrency(ravWithInc)}`);
+                gaugeTooltip = tp('cockpit_rav_gauge_tooltip', {
+                    rav: formatCurrency(rav),
+                    percent: ravPercent,
+                    income: formatCurrency(plannedInc),
+                    total: formatCurrency(ravWithInc),
+                    planned_percent: plannedPercent
+                }, `Reste à vivre : ${formatCurrency(rav)} (${ravPercent}%). Rentrées prévues non validées : +${formatCurrency(plannedInc)} (soit jusqu'à ${formatCurrency(ravWithInc)}, ${plannedPercent}%).`);
+            } else {
+                gaugeTooltip = ravDetailText;
+            }
+        }
+
+        let ravColorClass = 'gauge-green';
+        if (ravPercent < 20) ravColorClass = 'gauge-red';
+        else if (ravPercent < 50) ravColorClass = 'gauge-orange';
+
+        const showPlannedArc = plannedInc > 0 && plannedPercent > ravPercent;
+        const plannedVariant = ravWithInc >= 0 ? 'planned-green' : (plannedPercent >= 20 ? 'planned-orange' : 'planned-red');
+
+        let plannedSubHtml = '';
+        if (plannedInc > 0) {
+            const subText = tp('overview_rav_planned_income', { income: formatCurrency(plannedInc), total: formatCurrency(ravWithInc) }, `+${formatCurrency(plannedInc)} prévus (→ ${formatCurrency(ravWithInc)})`);
+            plannedSubHtml = `<div class="cockpit-gauge-planned" title="${plannedTooltip}">${subText}</div>`;
+        }
+
+        // ── Gauge 2: Dépenses prévues rapprochées ──
         const totalCycleExpenses = cycleReconciledExpenses + cyclePlannedExpenses;
         let expensesPercent = 0;
         if (totalCycleExpenses > 0) {
@@ -2981,74 +3147,139 @@ window.OverviewView = {
             ? `${tp('cockpit_expenses_remaining_planned', { remaining: formatCurrency(cyclePlannedExpenses) }, `Reste ${formatCurrency(cyclePlannedExpenses)} à venir`)} • 📅 ${remainingDays}j`
             : `📅 ${cycleDetailText} (${cycleDayLabel})`;
 
-        // ── Gauge 3: Cadence Budgétaire (Option C : Rythme de Dépense vs Temps) ──
-        const timeRatio = Math.max(0.01, elapsedDays / totalCycleDays);
-        const timePercent = Math.min(100, Math.max(1, Math.round(timeRatio * 100)));
-
-        const monthlyBudgetTarget = stats.budget_summary?.monthly?.target || 0;
-        const avgExpenses = Math.abs(this._cachedMonthlyAverages?.expense || 0);
-        const cadenceRef = totalCycleExpenses > 0
-            ? totalCycleExpenses
-            : (monthlyBudgetTarget > 0 ? monthlyBudgetTarget : (avgExpenses > 0 ? avgExpenses : 1));
-
-        const spentRatio = Math.max(0, cycleReconciledExpenses / cadenceRef);
-        const spentPercent = Math.round(spentRatio * 100);
-
+        // ── Gauge 3: Cadence Budgétaire (Rythme Journalier vs Moyenne hors pics) ──
         let cadenceRatio = 1.0;
-        if (elapsedDays === 0 || cycleReconciledExpenses === 0) {
-            cadenceRatio = 1.0;
-        } else {
-            cadenceRatio = spentRatio / timeRatio;
-        }
-
-        const cadenceDisplayPercent = Math.min(150, Math.max(0, Math.round(cadenceRatio * 100)));
-        const cadenceArcPercent = Math.min(100, Math.max(5, cadenceDisplayPercent));
-
-        let cadenceColorClass = 'cadence-green';
-        let cadenceStatusClass = 'status-green';
-        let cadenceStatusText = t('cockpit_cadence_steady', 'Rythme maîtrisé');
+        let cadenceDisplayPercent = 100;
+        let cadenceArcPercent = 100;
+        let cadenceColorClass = 'cadence-blue';
+        let cadenceStatusClass = 'status-blue';
+        let cadenceStatusText = t('cockpit_cadence_on_track', 'Dans les clous');
         let cadenceSubText = '';
+        let cadenceDetailText = '';
+        let cadenceCycleText = '';
+        let cadenceTooltip = '';
+        let dailySpent = 0;
+        let dailyRef = 0;
 
-        const diffPercent = Math.round(Math.abs(cadenceRatio - 1.0) * 100);
+        if (!isOrgMode && stats.next_pay_date) {
+            // Mode Personnel : dépenses réelles par jour (vie courante) comparées au rythme moyen habituel (hors pics)
+            const effectiveDays = Math.max(1, elapsedDays);
+            dailySpent = cycleReconciledVarExpenses / effectiveDays;
+            dailyRef = (this._cachedMonthlyAverages?.dailyVarClean > 0)
+                ? this._cachedMonthlyAverages.dailyVarClean
+                : (totalCycleExpenses / Math.max(1, totalCycleDays));
 
-        if (cadenceRatio <= 0.90) {
-            cadenceColorClass = 'cadence-green';
-            cadenceStatusClass = 'status-green';
-            cadenceStatusText = t('cockpit_cadence_steady', 'Rythme maîtrisé');
-            cadenceSubText = tp('cockpit_cadence_sub_under', { diff: diffPercent }, `-${diffPercent}% sous la cadence`);
-        } else if (cadenceRatio <= 1.10) {
-            cadenceColorClass = 'cadence-blue';
-            cadenceStatusClass = 'status-blue';
-            cadenceStatusText = t('cockpit_cadence_on_track', 'Dans les clous');
-            cadenceSubText = t('cockpit_cadence_sub_aligned', 'Dépenses alignées sur le cycle');
-        } else if (cadenceRatio <= 1.30) {
-            cadenceColorClass = 'cadence-orange';
-            cadenceStatusClass = 'status-orange';
-            cadenceStatusText = t('cockpit_cadence_moderate', 'Cadence soutenue');
-            cadenceSubText = tp('cockpit_cadence_sub_over', { diff: diffPercent }, `+${diffPercent}% au-dessus du rythme`);
+            cadenceRatio = (elapsedDays === 0 || cycleReconciledVarExpenses === 0)
+                ? 1.0
+                : (dailyRef > 0 ? (dailySpent / dailyRef) : 1.0);
+
+            cadenceDisplayPercent = Math.min(150, Math.max(0, Math.round(cadenceRatio * 100)));
+            cadenceArcPercent = Math.min(100, Math.max(5, cadenceDisplayPercent));
+            const diffPercent = Math.round(Math.abs(cadenceRatio - 1.0) * 100);
+
+            if (cadenceRatio <= 0.90) {
+                cadenceColorClass = 'cadence-green';
+                cadenceStatusClass = 'status-green';
+                cadenceStatusText = t('cockpit_cadence_steady', 'Rythme maîtrisé');
+                cadenceSubText = tp('cockpit_cadence_sub_under', { diff: diffPercent }, `-${diffPercent}% sous le rythme`);
+            } else if (cadenceRatio <= 1.10) {
+                cadenceColorClass = 'cadence-blue';
+                cadenceStatusClass = 'status-blue';
+                cadenceStatusText = t('cockpit_cadence_on_track', 'Dans les clous');
+                cadenceSubText = t('cockpit_cadence_sub_aligned', 'Dépenses alignées sur le cycle');
+            } else if (cadenceRatio <= 1.30) {
+                cadenceColorClass = 'cadence-orange';
+                cadenceStatusClass = 'status-orange';
+                cadenceStatusText = t('cockpit_cadence_moderate', 'Cadence soutenue');
+                cadenceSubText = tp('cockpit_cadence_sub_over', { diff: diffPercent }, `+${diffPercent}% au-dessus du rythme`);
+            } else {
+                cadenceColorClass = 'cadence-red';
+                cadenceStatusClass = 'status-red';
+                cadenceStatusText = t('cockpit_cadence_high', 'Surconsommation');
+                cadenceSubText = tp('cockpit_cadence_sub_over', { diff: diffPercent }, `+${diffPercent}% au-dessus du rythme`);
+            }
+
+            cadenceDetailText = tp('cockpit_cadence_detail_daily', {
+                spent: formatCurrency(dailySpent),
+                avg: formatCurrency(dailyRef)
+            }, `${formatCurrency(dailySpent)}/j (vs ${formatCurrency(dailyRef)}/j moy.)`);
+
+            cadenceCycleText = tp('cockpit_cadence_sub_cycle', {
+                current: elapsedDays,
+                total: totalCycleDays,
+                totalSpent: formatCurrency(cycleReconciledVarExpenses)
+            }, `${formatCurrency(cycleReconciledVarExpenses)} vie courante au j. ${elapsedDays}/${totalCycleDays}`);
+
+            cadenceTooltip = tp('cockpit_cadence_gauge_tooltip_daily', {
+                dailySpent: formatCurrency(dailySpent),
+                dailyRef: formatCurrency(dailyRef),
+                cadence: cadenceDisplayPercent,
+                status: cadenceStatusText,
+                days: elapsedDays,
+                totalSpent: formatCurrency(cycleReconciledVarExpenses)
+            }, `Cadence budgétaire : ${cadenceDisplayPercent}% (${cadenceStatusText}). Dépenses de vie courante : ${formatCurrency(dailySpent)}/jour (${formatCurrency(cycleReconciledVarExpenses)} sur ${elapsedDays} jours, charges fixes et pics exclus). Rythme moyen habituel : ${formatCurrency(dailyRef)}/jour.`);
         } else {
-            cadenceColorClass = 'cadence-red';
-            cadenceStatusClass = 'status-red';
-            cadenceStatusText = t('cockpit_cadence_high', 'Surconsommation');
-            cadenceSubText = tp('cockpit_cadence_sub_over', { diff: diffPercent }, `+${diffPercent}% au-dessus du rythme`);
+            // Mode Organisation ou sans cycle de paie : cadence temporelle globale
+            const timeRatio = Math.max(0.01, elapsedDays / totalCycleDays);
+            const timePercent = Math.min(100, Math.max(1, Math.round(timeRatio * 100)));
+            const monthlyBudgetTarget = stats.budget_summary?.monthly?.target || 0;
+            const avgExpenses = Math.abs(this._cachedMonthlyAverages?.expense || 0);
+            const cadenceRef = totalCycleExpenses > 0
+                ? totalCycleExpenses
+                : (monthlyBudgetTarget > 0 ? monthlyBudgetTarget : (avgExpenses > 0 ? avgExpenses : 1));
+
+            const spentRatio = Math.max(0, cycleReconciledExpenses / cadenceRef);
+            const spentPercent = Math.round(spentRatio * 100);
+
+            cadenceRatio = (elapsedDays === 0 || cycleReconciledExpenses === 0)
+                ? 1.0
+                : (spentRatio / timeRatio);
+
+            cadenceDisplayPercent = Math.min(150, Math.max(0, Math.round(cadenceRatio * 100)));
+            cadenceArcPercent = Math.min(100, Math.max(5, cadenceDisplayPercent));
+            const diffPercent = Math.round(Math.abs(cadenceRatio - 1.0) * 100);
+
+            if (cadenceRatio <= 0.90) {
+                cadenceColorClass = 'cadence-green';
+                cadenceStatusClass = 'status-green';
+                cadenceStatusText = t('cockpit_cadence_steady', 'Rythme maîtrisé');
+                cadenceSubText = tp('cockpit_cadence_sub_under', { diff: diffPercent }, `-${diffPercent}% sous la cadence`);
+            } else if (cadenceRatio <= 1.10) {
+                cadenceColorClass = 'cadence-blue';
+                cadenceStatusClass = 'status-blue';
+                cadenceStatusText = t('cockpit_cadence_on_track', 'Dans les clous');
+                cadenceSubText = t('cockpit_cadence_sub_aligned', 'Dépenses alignées sur le cycle');
+            } else if (cadenceRatio <= 1.30) {
+                cadenceColorClass = 'cadence-orange';
+                cadenceStatusClass = 'status-orange';
+                cadenceStatusText = t('cockpit_cadence_moderate', 'Cadence soutenue');
+                cadenceSubText = tp('cockpit_cadence_sub_over', { diff: diffPercent }, `+${diffPercent}% au-dessus du rythme`);
+            } else {
+                cadenceColorClass = 'cadence-red';
+                cadenceStatusClass = 'status-red';
+                cadenceStatusText = t('cockpit_cadence_high', 'Surconsommation');
+                cadenceSubText = tp('cockpit_cadence_sub_over', { diff: diffPercent }, `+${diffPercent}% au-dessus du rythme`);
+            }
+
+            cadenceDetailText = tp('cockpit_cadence_detail', {
+                spent: formatCurrency(cycleReconciledExpenses),
+                day: elapsedDays,
+                total_days: totalCycleDays
+            }, `${formatCurrency(cycleReconciledExpenses)} au jour ${elapsedDays}/${totalCycleDays}`);
+
+            cadenceCycleText = `📅 ${cycleDetailText} (${cycleDayLabel})`;
+
+            cadenceTooltip = tp('cockpit_cadence_gauge_tooltip', {
+                cadence: cadenceDisplayPercent,
+                spent_pct: spentPercent,
+                time_pct: timePercent,
+                status: cadenceStatusText
+            }, `Cadence budgétaire : ${cadenceDisplayPercent}%. Dépenses réelles à ${spentPercent}% pour ${timePercent}% du cycle écoulé (${cadenceStatusText}).`);
         }
-
-        const cadenceDetailText = tp('cockpit_cadence_detail', {
-            spent: formatCurrency(cycleReconciledExpenses),
-            day: elapsedDays,
-            total_days: totalCycleDays
-        }, `${formatCurrency(cycleReconciledExpenses)} au jour ${elapsedDays}/${totalCycleDays}`);
-
-        const cadenceTooltip = tp('cockpit_cadence_gauge_tooltip', {
-            cadence: cadenceDisplayPercent,
-            spent_pct: spentPercent,
-            time_pct: timePercent,
-            status: cadenceStatusText
-        }, `Cadence budgétaire : ${cadenceDisplayPercent}%. Dépenses réelles à ${spentPercent}% pour ${timePercent}% du cycle écoulé (${cadenceStatusText}).`);
 
         // ── Build Gauges HTML ──
         gaugesContainer.innerHTML = `
-            <div class="cockpit-gauge-card ${ravColorClass}" data-gauge="rav" title="${gaugeTooltip}">
+            <div class="cockpit-gauge-card ${ravColorClass} clickable" data-gauge="rav" title="${gaugeTooltip}" onclick="window.OverviewView.showCockpitTileInfo('rav')">
                 <div class="cockpit-gauge-wrapper">
                     ${this._buildGaugeSVG(ravPercent, 'rav', showPlannedArc ? plannedPercent : null, plannedTooltip, plannedVariant)}
                     <div class="cockpit-gauge-center">
@@ -3057,12 +3288,12 @@ window.OverviewView = {
                     </div>
                 </div>
                 <div class="cockpit-gauge-caption">
-                    <div class="cockpit-gauge-amount privacy-blur">${formatCurrency(rav)}</div>
+                    <div class="cockpit-gauge-amount privacy-blur" style="${rav < 0 ? 'color: #ef4444;' : ''}">${formatCurrency(rav)}</div>
                     ${plannedSubHtml}
                     <div class="cockpit-gauge-detail">${ravDetailText}</div>
                 </div>
             </div>
-            <div class="cockpit-gauge-card ${expensesColorClass}" data-gauge="expenses" title="${expensesTooltip}">
+            <div class="cockpit-gauge-card ${expensesColorClass} clickable" data-gauge="expenses" title="${expensesTooltip}" onclick="window.OverviewView.showCockpitTileInfo('expenses')">
                 <div class="cockpit-gauge-wrapper">
                     ${this._buildGaugeSVG(expensesPercent, 'expenses')}
                     <div class="cockpit-gauge-center">
@@ -3076,7 +3307,7 @@ window.OverviewView = {
                     <div class="cockpit-gauge-detail" style="color:var(--text-muted); font-size:11px; margin-top:2px;">${expensesSubText}</div>
                 </div>
             </div>
-            <div class="cockpit-gauge-card ${cadenceColorClass}" data-gauge="cadence" title="${cadenceTooltip}">
+            <div class="cockpit-gauge-card ${cadenceColorClass} clickable" data-gauge="cadence" title="${cadenceTooltip}" onclick="window.OverviewView.showCockpitTileInfo('cadence')">
                 <div class="cockpit-gauge-wrapper">
                     ${this._buildGaugeSVG(cadenceArcPercent, 'cadence')}
                     <div class="cockpit-gauge-center">
@@ -3086,8 +3317,8 @@ window.OverviewView = {
                 </div>
                 <div class="cockpit-gauge-caption">
                     <div class="cockpit-cadence-status ${cadenceStatusClass}">${cadenceStatusText}</div>
-                    <div class="cockpit-gauge-detail" style="font-weight:600; color:var(--text-main); margin-top:3px;">${cadenceSubText}</div>
-                    <div class="cockpit-gauge-detail" style="color:var(--text-muted); font-size:11px; margin-top:2px;">${cadenceDetailText}</div>
+                    <div class="cockpit-gauge-detail" style="font-weight:600; color:var(--text-main); margin-top:3px;">${cadenceDetailText}</div>
+                    <div class="cockpit-gauge-detail" style="color:var(--text-muted); font-size:11px; margin-top:2px;">${cadenceCycleText}</div>
                 </div>
             </div>
         `;
@@ -3100,29 +3331,139 @@ window.OverviewView = {
         const projTitle = proj.titleText || (proj.hasPayCycle ? t('cockpit_projection_cycle_title', 'Projection Fin de Cycle') : t('cockpit_projection_title', 'Projection'));
         const projSubText = proj.subText;
 
+        let candidateSum = 0;
+        if (stats.anticipated_recurrences && Array.isArray(stats.anticipated_recurrences)) {
+            candidateSum = stats.anticipated_recurrences.reduce((sum, cand) => sum + (Math.abs(parseFloat(cand.amount)) || 0), 0);
+        }
+        candidateSum = Math.round(candidateSum * 100) / 100;
+
+        let projNetSubHtml = '';
+        if (candidateSum > 0) {
+            const netProjAmount = Math.round((projAmount - candidateSum) * 100) / 100;
+            const netSubText = tp('cockpit_proj_net_sub', { amount: formatCurrency(netProjAmount) }, `Net après charges récurrentes : ${formatCurrency(netProjAmount)}`);
+            const netTooltip = tp('cockpit_proj_net_tooltip', { amount: formatCurrency(candidateSum) }, `Déduction faite de ${formatCurrency(candidateSum)} de charges récurrentes anticipées (abonnements)`);
+            projNetSubHtml = `<div class="cockpit-card-sub-extra" title="${netTooltip}">${netSubText}</div>`;
+        }
+
+        let projBadgeHtml = '';
+        if (stats.overdraft_warning) {
+            if (stats.overdraft_warning.covered_by_income) {
+                projBadgeHtml = `<span class="cockpit-card-badge badge-warning" style="font-size: 10px; padding: 2px 7px;" title="${t('cockpit_vigilance_tooltip', 'Tension de trésorerie temporaire absorbée par les rentrées prévues')}">${t('cockpit_vigilance_badge', '⏳ Vigilance')}</span>`;
+            } else {
+                projBadgeHtml = `<span class="cockpit-card-badge badge-danger" style="font-size: 10px; padding: 2px 7px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35);" title="${t('cockpit_overdraft_tooltip', 'Risque de découvert sans rentrées supplémentaires')}">${t('cockpit_overdraft_badge', '⚠️ Risque')}</span>`;
+            }
+        }
+
+        // Cache tile information for mobile / click info sheets
+        const netProjAmount = Math.round((projAmount - candidateSum) * 100) / 100;
+        this._cachedCockpitTileData = {
+            rav: {
+                icon: '💰',
+                title: t('cockpit_rav_label', 'Reste à vivre'),
+                value: formatCurrency(rav),
+                valueClass: rav < 0 ? 'text-red' : 'text-green',
+                badge: plannedInc > 0 ? `${ravPercent}% (${plannedPercent}% avec rentrées)` : `${ravPercent}%`,
+                badgeClass: ravColorClass,
+                subtitle: ravDetailText,
+                rows: [
+                    { label: 'Reste à vivre brut actuel', value: formatCurrency(rav) },
+                    ...(plannedInc > 0 ? [
+                        { label: 'Rentrées prévues non pointées', value: `+${formatCurrency(plannedInc)}`, valueClass: 'text-green' },
+                        { label: 'Reste à vivre avec rentrées', value: formatCurrency(ravWithInc), valueClass: 'text-green' }
+                    ] : []),
+                    { label: 'Enveloppe initiale du cycle', value: formatCurrency(ravRef) },
+                    { label: 'Dépenses courantes consommées', value: formatCurrency(cycleReconciledVarExpenses) }
+                ],
+                text: gaugeTooltip
+            },
+            expenses: {
+                icon: '💳',
+                title: t('cockpit_expenses_reconciled_label', 'Dépenses pointées'),
+                value: formatCurrency(cycleReconciledExpenses),
+                valueClass: 'text-main',
+                badge: `${expensesPercent}%`,
+                badgeClass: expensesColorClass,
+                subtitle: expensesDetailText,
+                rows: [
+                    { label: 'Dépenses pointées (débitées)', value: formatCurrency(cycleReconciledExpenses) },
+                    { label: 'Dépenses prévues restantes', value: formatCurrency(cyclePlannedExpenses) },
+                    { label: 'Total prévu sur le cycle', value: formatCurrency(totalCycleExpenses) },
+                    { label: 'Jours restants dans le cycle', value: `${remainingDays} j` }
+                ],
+                text: expensesTooltip
+            },
+            cadence: {
+                icon: '⏱️',
+                title: t('cockpit_cadence_label', 'Cadence budgétaire'),
+                value: `${cadenceDisplayPercent}%`,
+                valueClass: 'text-main',
+                badge: cadenceStatusText,
+                badgeClass: cadenceStatusClass,
+                subtitle: cadenceDetailText,
+                rows: [
+                    { label: 'Statut du rythme', value: cadenceStatusText },
+                    { label: 'Dépenses courantes consommées', value: formatCurrency(cycleReconciledVarExpenses) },
+                    ...(dailySpent > 0 ? [{ label: 'Rythme journalier constaté', value: `${formatCurrency(dailySpent)}/j` }] : []),
+                    ...(dailyRef > 0 ? [{ label: 'Rythme habituel de référence', value: `${formatCurrency(dailyRef)}/j` }] : []),
+                    { label: 'Avancement du cycle', value: `${elapsedDays} / ${totalCycleDays} jours` }
+                ],
+                text: cadenceTooltip
+            },
+            projection: {
+                icon: '🔮',
+                title: projTitle,
+                value: formatCurrency(projAmount),
+                valueClass: projColorClass,
+                badge: stats.overdraft_warning ? (stats.overdraft_warning.covered_by_income ? '⏳ Vigilance' : '⚠️ Risque') : (projAmount >= 0 ? '✨ Positif' : '⚠️ Déficit'),
+                badgeClass: stats.overdraft_warning ? (stats.overdraft_warning.covered_by_income ? 'badge-warning' : 'badge-danger') : (projAmount >= 0 ? 'badge-success' : 'badge-danger'),
+                subtitle: projSubText,
+                rows: [
+                    { label: 'Solde actuel pointé', value: formatCurrency(proj.baseBalance) },
+                    { label: 'Recettes à venir', value: `+${formatCurrency(proj.incomingSum)}`, valueClass: 'text-green' },
+                    { label: 'Dépenses à venir', value: `-${formatCurrency(proj.outgoingSum)}`, valueClass: 'text-red' },
+                    { label: 'Solde bancaire prévisionnel', value: formatCurrency(projAmount) },
+                    ...(candidateSum > 0 ? [
+                        { label: 'Charges récurrentes anticipées', value: `-${formatCurrency(candidateSum)}` },
+                        { label: 'Net prévisionnel après récurrences', value: formatCurrency(netProjAmount), valueClass: 'text-main' }
+                    ] : [])
+                ],
+                text: proj.tooltipText + (stats.overdraft_warning && stats.overdraft_warning.covered_by_income ? `\n\n⏳ Vigilance trésorerie : creux temporaire de ${formatCurrency(stats.overdraft_warning.projected_balance)} le ${formatDate(stats.overdraft_warning.date)}, mais couvert par les recettes prévues (+${formatCurrency(stats.overdraft_warning.planned_income_before_risk || stats.overdraft_warning.planned_income_total || 0)}).` : '')
+            }
+        };
+
         // Card 2: AutoPilot Status
         const apStatus = this._apStatus || {};
         const apEnabled = !!apStatus.is_enabled;
         const apCount = apStatus.unseen_decisions_count || 0;
-        const apBadgeClass = apEnabled ? 'badge-active' : 'badge-inactive';
-        const apDotClass = apEnabled ? 'active' : 'inactive';
+        const apReviewCount = apStatus.unseen_review_count || apStatus.review_queue_count || 0;
+        const isVaultLocked = apEnabled && !apStatus.vault_unlocked && (apStatus.bank_auto_sync_enabled !== false);
+        const apBadgeClass = apEnabled ? (isVaultLocked ? 'badge-warning' : 'badge-active') : 'badge-inactive';
+        const apDotClass = apEnabled ? (isVaultLocked ? 'warning' : 'active') : 'inactive';
         const apLabel = apEnabled
-            ? (t('autopilot_status_active', '🟢 Actif'))
-            : (t('autopilot_status_inactive', '⚪ En veille'));
+            ? (isVaultLocked ? t('cockpit_ap_active_vault_locked', 'Actif · 🔒 Verrouillé') : t('cockpit_ap_active', 'Actif'))
+            : (t('cockpit_ap_inactive', 'Veille'));
+        const apBadgeTooltip = isVaultLocked
+            ? t('cockpit_ap_vault_locked_tooltip', 'Auto-Pilote actif mais coffre-fort verrouillé : les relevés bancaires automatiques sont suspendus. Cliquez pour déverrouiller.')
+            : (apEnabled ? t('cockpit_ap_active_tooltip', 'Auto-Pilote actif : surveillance et automatisations opérationnelles.') : t('cockpit_ap_inactive_tooltip', 'Auto-Pilote en veille.'));
+        const apBadgeClick = isVaultLocked
+            ? `onclick="event.stopPropagation(); if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') window.BankSyncView.unlockVaultManually(); else window.OverviewView.showAutopilotPopover();"`
+            : '';
 
         // Card 3: Operations to reconcile
         const unreconciledCount = this._getCockpitUnreconciledCount();
 
         cardsContainer.innerHTML = `
-            <div class="cockpit-compact-card" title="${proj.tooltipText}">
+            <div class="cockpit-compact-card clickable" title="${proj.tooltipText}" onclick="window.OverviewView.showCockpitTileInfo('projection')">
                 <div class="cockpit-card-header">
                     <div class="cockpit-card-title">
                         <span class="cockpit-card-icon">🔮</span>
                         <span>${projTitle}</span>
                     </div>
+                    ${projBadgeHtml}
                 </div>
                 <div class="cockpit-card-value privacy-blur ${projColorClass}">${formatCurrency(projAmount)}</div>
                 <div class="cockpit-card-sub">${projSubText}</div>
+                ${projNetSubHtml}
             </div>
             <div class="cockpit-compact-card clickable" onclick="window.OverviewView.showAutopilotPopover()">
                 <div class="cockpit-card-header">
@@ -3130,19 +3471,25 @@ window.OverviewView = {
                         <span class="cockpit-card-icon">🎯</span>
                         <span>AutoPilot</span>
                     </div>
-                    <span class="cockpit-card-badge ${apBadgeClass}">
+                    <span class="cockpit-card-badge ${apBadgeClass}" title="${apBadgeTooltip}" ${apBadgeClick}>
                         <span class="cockpit-ap-dot ${apDotClass}"></span>
-                        ${apEnabled ? (t('cockpit_ap_active', 'Actif')) : (t('cockpit_ap_inactive', 'Veille'))}
+                        <span>${apLabel}</span>
                     </span>
                 </div>
                 <div class="cockpit-card-sub" style="margin-top: auto;">
-                    ${apCount > 0
-                        ? `<span class="cockpit-ap-actions">⚡ ${apCount} ${t('cockpit_ap_actions', 'action' + (apCount > 1 ? 's récentes' : ' récente'))}</span>`
-                        : `<span style="color:var(--text-muted); font-size: 12px;">${t('cockpit_ap_no_actions', 'Aucune action en attente')}</span>`
+                    ${apReviewCount > 0
+                        ? `<span class="cockpit-ap-actions" style="color: #f59e0b; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3);">🔍 ${apReviewCount} ${t('cockpit_ap_to_review', 'à vérifier')}</span>`
+                        : (apCount > 0
+                            ? `<span class="cockpit-ap-actions">⚡ ${apCount} ${t('cockpit_ap_actions', 'action' + (apCount > 1 ? 's récentes' : ' récente'))}</span>`
+                            : (isVaultLocked
+                                ? `<span style="color:#f59e0b; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" onclick="event.stopPropagation(); if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') window.BankSyncView.unlockVaultManually(); else window.OverviewView.showAutopilotPopover();" title="${t('cockpit_ap_vault_locked_tooltip', 'Coffre verrouillé (cliquer pour déverrouiller)')}">⚠️ ${t('overview_autopilot_next_exec_vault_locked', 'Coffre verrouillé')}</span>`
+                                : `<span style="color:var(--text-muted); font-size: 12px;">${t('cockpit_ap_no_actions', 'Aucune action en attente')}</span>`
+                            )
+                        )
                     }
                 </div>
             </div>
-            <div class="cockpit-compact-card clickable" onclick="window.OverviewView.setDisplayMode('full')">
+            <div class="cockpit-compact-card clickable" onclick="window.app.loadView('dashboard')" title="${window.i18n ? (window.i18n.t('nav_dashboard') || 'Dashboard') : 'Dashboard'}">
                 <div class="cockpit-card-header">
                     <div class="cockpit-card-title">
                         <span class="cockpit-card-icon">📋</span>
@@ -3257,8 +3604,151 @@ window.OverviewView = {
         return count;
     },
 
+    showCockpitTileInfo(tileKey) {
+        if (!this._cachedCockpitTileData) this._cachedCockpitTileData = {};
+        let data = this._cachedCockpitTileData[tileKey];
+
+        // Handle hero overdraft card on demand
+        if (!data && tileKey === 'hero_overdraft' && this._stats?.overdraft_warning) {
+            const od = this._stats.overdraft_warning;
+            const isCovered = !!od.covered_by_income;
+            const incAmt = od.planned_income_before_risk || od.planned_income_total || 0;
+            data = {
+                icon: isCovered ? '⏳' : '⚠️',
+                title: isCovered ? (window.i18n.t('overview_contingent_cashflow') || 'Vigilance trésorerie') : (window.i18n.t('overview_overdraft_risk') || 'Risque Découvert'),
+                value: formatCurrency(od.projected_balance),
+                valueClass: isCovered ? 'text-orange' : 'text-red',
+                badge: isCovered ? '✅ Couvert' : '⚠️ Découvert',
+                badgeClass: isCovered ? 'badge-warning' : 'badge-danger',
+                subtitle: `${formatDate(od.date)} (${od.transaction_description})`,
+                rows: [
+                    { label: 'Date d\'impact estimée', value: formatDate(od.date) },
+                    { label: 'Opération déclenchante', value: od.transaction_description },
+                    { label: 'Montant de l\'opération', value: `-${formatCurrency(od.transaction_amount)}` },
+                    { label: 'Creux théorique sans recettes', value: formatCurrency(od.projected_balance), valueClass: 'text-red' },
+                    ...(isCovered ? [
+                        { label: 'Recettes prévues absorbant le creux', value: `+${formatCurrency(incAmt)}`, valueClass: 'text-green' },
+                        { label: 'Solde minimal avec recettes', value: formatCurrency(od.projected_balance_with_income || 0), valueClass: 'text-green' }
+                    ] : [])
+                ],
+                text: isCovered
+                    ? (window.i18n.tp ? window.i18n.tp('overview_health_contingent_tooltip', { date: formatDate(od.date), amount: formatCurrency(od.projected_balance), income: formatCurrency(incAmt) }) : `Creux de trésorerie temporaire absorbé par les rentrées prévues (+${formatCurrency(incAmt)}).`)
+                    : `Risque de découvert le ${formatDate(od.date)} suite au débit de cette opération si aucune rentrée n'intervient.`
+            };
+        }
+
+        if (!data) return;
+        this._openInfoSheet(data);
+    },
+
+    _openInfoSheet(data) {
+        let overlay = document.getElementById('ovCockpitInfoSheetOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'ovCockpitInfoSheetOverlay';
+            overlay.className = 'cockpit-info-sheet-overlay';
+            overlay.innerHTML = `
+                <div class="cockpit-info-sheet" role="dialog" aria-modal="true">
+                    <div class="cockpit-info-sheet-handle"></div>
+                    <div class="cockpit-info-sheet-header">
+                        <div class="cockpit-info-sheet-title-group">
+                            <span class="cockpit-info-sheet-icon" id="ovSheetIcon">💡</span>
+                            <span class="cockpit-info-sheet-title" id="ovSheetTitle">Titre</span>
+                        </div>
+                        <button class="cockpit-info-sheet-close" id="ovSheetCloseBtn" aria-label="Fermer">✕</button>
+                    </div>
+                    <div class="cockpit-info-sheet-value-card" id="ovSheetValueCard">
+                        <div>
+                            <div class="cockpit-info-sheet-value privacy-blur" id="ovSheetValue">—</div>
+                            <div class="cockpit-gauge-detail" id="ovSheetSubtitle" style="margin-top: 4px;"></div>
+                        </div>
+                        <span id="ovSheetBadge" class="cockpit-card-badge"></span>
+                    </div>
+                    <div class="cockpit-info-sheet-rows" id="ovSheetRows"></div>
+                    <div class="cockpit-info-sheet-text" id="ovSheetText"></div>
+                    <button class="cockpit-info-sheet-btn" id="ovSheetActionBtn">Compris</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            // Close handlers
+            const closeBtn = document.getElementById('ovSheetCloseBtn');
+            const actionBtn = document.getElementById('ovSheetActionBtn');
+            if (closeBtn) closeBtn.onclick = () => this.closeInfoSheet();
+            if (actionBtn) actionBtn.onclick = () => this.closeInfoSheet();
+            overlay.onclick = (e) => {
+                if (e.target === overlay) this.closeInfoSheet();
+            };
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && overlay.classList.contains('active')) {
+                    this.closeInfoSheet();
+                }
+            });
+        }
+
+        const t = (k, fb) => (window.i18n ? window.i18n.t(k) : null) || fb;
+        document.getElementById('ovSheetIcon').textContent = data.icon || 'ℹ️';
+        document.getElementById('ovSheetTitle').textContent = data.title || '';
+        const valEl = document.getElementById('ovSheetValue');
+        valEl.textContent = data.value || '—';
+        valEl.className = `cockpit-info-sheet-value privacy-blur ${data.valueClass || ''}`;
+
+        const subEl = document.getElementById('ovSheetSubtitle');
+        if (data.subtitle) {
+            subEl.style.display = 'block';
+            subEl.textContent = data.subtitle;
+        } else {
+            subEl.style.display = 'none';
+        }
+
+        const badgeEl = document.getElementById('ovSheetBadge');
+        if (data.badge) {
+            badgeEl.style.display = 'inline-flex';
+            badgeEl.className = `cockpit-card-badge ${data.badgeClass || ''}`;
+            badgeEl.textContent = data.badge;
+        } else {
+            badgeEl.style.display = 'none';
+        }
+
+        const rowsEl = document.getElementById('ovSheetRows');
+        if (data.rows && data.rows.length > 0) {
+            rowsEl.style.display = 'flex';
+            rowsEl.innerHTML = data.rows.map(r => `
+                <div class="cockpit-info-sheet-row">
+                    <span class="cockpit-info-sheet-row-label">${r.label}</span>
+                    <span class="cockpit-info-sheet-row-value privacy-blur ${r.valueClass || ''}">${r.value}</span>
+                </div>
+            `).join('');
+        } else {
+            rowsEl.style.display = 'none';
+        }
+
+        const textEl = document.getElementById('ovSheetText');
+        if (data.text) {
+            textEl.style.display = 'block';
+            textEl.textContent = data.text;
+        } else {
+            textEl.style.display = 'none';
+        }
+
+        const actionBtn = document.getElementById('ovSheetActionBtn');
+        if (actionBtn) actionBtn.textContent = t('cockpit_sheet_close', 'Compris');
+
+        requestAnimationFrame(() => {
+            overlay.classList.add('active');
+        });
+    },
+
+    closeInfoSheet() {
+        const overlay = document.getElementById('ovCockpitInfoSheetOverlay');
+        if (overlay) {
+            overlay.classList.remove('active');
+        }
+    },
+
     destroy() {
         this.closeActionMenu();
+        this.closeInfoSheet();
         if (this._chart) {
             this._chart.destroy();
             this._chart = null;

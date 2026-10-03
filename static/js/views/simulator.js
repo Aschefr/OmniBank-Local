@@ -46,7 +46,7 @@ window.SimulatorView = {
             const payload = { ...this._pendingConfigUpdates };
             this._pendingConfigUpdates = {};
             try {
-                await API.post('/api/config/', payload);
+                await API.post('/api/config/', payload, { skipMutateEvent: true });
                 if (window.app && window.app.config) {
                     Object.assign(window.app.config, payload);
                 }
@@ -160,7 +160,89 @@ window.SimulatorView = {
             showToast(window.i18n.t('error_loading_data') || "Erreur de chargement", "error");
         } finally {
             this.isLoading = false;
-            this.render();
+            const root = document.getElementById('simulatorRoot');
+            if (root) {
+                this.updateHeaderControls();
+                this.updateLiveSimulationView(true);
+            } else {
+                this.render();
+            }
+        }
+    },
+
+    destroy() {
+        if (this.chart) {
+            this.chart.destroy();
+            this.chart = null;
+        }
+    },
+
+    updateHeaderControls() {
+        const activeScenario = this.scenarios.find(s => s.id === this.activeScenarioId);
+
+        // Update Scenario Selector
+        const scSelect = document.getElementById('simActiveScenarioSelect');
+        if (scSelect) {
+            let optionsHtml = '';
+            if (this.scenarios.length === 0) {
+                optionsHtml = `<option value="">${window.i18n.t('sim_no_scenario_created') || '(Aucun scénario créé)'}</option>`;
+            } else {
+                optionsHtml = this.scenarios.map(s => {
+                    const activeEvCount = s.events ? s.events.filter(e => e.is_active).length : 0;
+                    const evSuffix = window.i18n.t('sim_events_count_suffix') || 'événements';
+                    return `<option value="${s.id}" ${s.id === this.activeScenarioId ? 'selected' : ''}>${escapeHtml(s.name)} (${activeEvCount} ${evSuffix})</option>`;
+                }).join('');
+            }
+            scSelect.innerHTML = optionsHtml;
+            const pill = scSelect.closest('.filter-pill');
+            if (pill) {
+                pill.style.borderColor = activeScenario ? activeScenario.color : 'var(--border-color)';
+            }
+        }
+
+        // Update Scenario Actions Menu
+        const menuContainer = document.querySelector('.sim-scenario-menu');
+        if (menuContainer && activeScenario) {
+            menuContainer.innerHTML = `
+                <button class="btn btn-ghost btn-xs" onclick="this.nextElementSibling.classList.toggle('open');event.stopPropagation();" style="font-size:16px;padding:2px 6px;line-height:1;" title="${window.i18n.t('sim_scenario_actions')}">⋮</button>
+                <div class="sim-scenario-dropdown" onclick="this.classList.remove('open');">
+                    <button onclick="window.SimulatorView.duplicateScenario(${activeScenario.id})">📋 ${window.i18n.t('sim_btn_duplicate')}</button>
+                    <button onclick="window.SimulatorView.openEditScenarioModal(${activeScenario.id})">✏️ ${window.i18n.t('sim_btn_edit')}</button>
+                    <button onclick="window.SimulatorView.deleteScenario(${activeScenario.id})" style="color:#ef4444;">🗑️ ${window.i18n.t('sim_btn_delete')}</button>
+                </div>
+            `;
+        }
+
+        // Update Account Selector
+        const accSelect = document.getElementById('simAccountSelect');
+        if (accSelect && this.accounts.length > 0) {
+            accSelect.innerHTML = `<option value="" ${this.accountId === null ? 'selected' : ''} data-i18n="sim_all_liquid_accounts">${window.i18n.t('sim_all_liquid_accounts')}</option>` +
+                this.accounts.map(a => `<option value="${a.id}" ${this.accountId === a.id ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('');
+        }
+
+        // Update Horizon Selector
+        const horizonSelect = document.getElementById('simHorizonSelect');
+        if (horizonSelect) {
+            horizonSelect.value = String(this.horizonMonths);
+        }
+
+        // Update Events List
+        const eventsContainer = document.getElementById('simEventsContainer');
+        if (eventsContainer) {
+            eventsContainer.innerHTML = this.renderEventsList(activeScenario);
+        }
+
+        // Update Add Event button visibility in card header
+        const cardTitle = document.querySelector('.sim-events-card .sim-card-title');
+        if (cardTitle) {
+            cardTitle.innerHTML = `
+                <span data-i18n="sim_events_title">${window.i18n.t('sim_events_title')}</span>
+                ${activeScenario ? `
+                    <button class="btn btn-primary btn-xs" onclick="window.SimulatorView.openAddEventModal()">
+                        ➕ <span data-i18n="sim_btn_add_event">${window.i18n.t('sim_btn_add_event')}</span>
+                    </button>
+                ` : ''}
+            `;
         }
     },
 
@@ -181,7 +263,7 @@ window.SimulatorView = {
                 seasonality_mode: this.seasonalityMode || 'disabled',
                 seasonality_intensity: (typeof this.seasonalityIntensity === 'number') ? this.seasonalityIntensity : 1.0
             };
-            const result = await API.post('/api/simulator/run', payload);
+            const result = await API.post('/api/simulator/run', payload, { skipMutateEvent: true });
             if (this._simSeq === currentSeq) {
                 this.simulationData = result;
             }
@@ -668,6 +750,104 @@ window.SimulatorView = {
                         padding: 6px 5px !important;
                         font-size: 11px !important;
                     }
+                    .view-header-bar {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        gap: 10px !important;
+                    }
+                    .view-header-title-group {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        width: 100% !important;
+                        gap: 8px !important;
+                    }
+                    .view-header-title-group .filter-pill {
+                        width: 100% !important;
+                        box-sizing: border-box !important;
+                    }
+                    #simActiveScenarioSelect {
+                        min-width: 0 !important;
+                        width: 100% !important;
+                        font-size: 12px !important;
+                        text-overflow: ellipsis !important;
+                    }
+                    .view-header-toolbar {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        width: 100% !important;
+                        gap: 8px !important;
+                    }
+                    .view-header-toolbar .filter-pill {
+                        width: 100% !important;
+                        justify-content: space-between !important;
+                        box-sizing: border-box !important;
+                    }
+                    .view-header-toolbar .filter-pill select {
+                        flex: 1 !important;
+                        min-width: 0 !important;
+                    }
+                    .view-header-toolbar .toolbar-btn {
+                        width: 100% !important;
+                        justify-content: center !important;
+                        min-height: 38px !important;
+                        font-size: 13px !important;
+                        white-space: normal !important;
+                        text-align: center !important;
+                        line-height: 1.25 !important;
+                    }
+                    .sim-slider-header {
+                        display: flex !important;
+                        justify-content: space-between !important;
+                        align-items: center !important;
+                        flex-wrap: wrap !important;
+                        gap: 6px !important;
+                    }
+                    .sim-slider-badge-btn {
+                        white-space: normal !important;
+                        max-width: 100% !important;
+                        height: auto !important;
+                        padding: 3px 8px !important;
+                        text-align: right !important;
+                        line-height: 1.25 !important;
+                    }
+                    .sim-seasonality-row {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        gap: 10px !important;
+                    }
+                    .sim-seasonality-mode-container {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        width: 100% !important;
+                        gap: 8px !important;
+                    }
+                    .sim-seasonality-btn-group {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        width: 100% !important;
+                        gap: 4px !important;
+                        background: transparent !important;
+                        border: none !important;
+                        padding: 0 !important;
+                    }
+                    .sim-seasonality-btn-group .btn {
+                        width: 100% !important;
+                        justify-content: flex-start !important;
+                        padding: 8px 12px !important;
+                        font-size: 12px !important;
+                        height: auto !important;
+                        min-height: 36px !important;
+                        white-space: normal !important;
+                        border-radius: 8px !important;
+                        border: 1px solid var(--border-color) !important;
+                    }
+                    .sim-seasonality-toggle-btn {
+                        width: 100% !important;
+                        justify-content: center !important;
+                        padding: 7px 12px !important;
+                        margin-top: 4px !important;
+                    }
                 }
                 @media (max-width: 420px) {
                     .sim-kpi-grid {
@@ -758,7 +938,7 @@ window.SimulatorView = {
                     <div class="sim-sliders-grid" style="gap:24px;align-items:start;">
                         <!-- Colonne 1 : Curseur de Prudence & Réalisme -->
                         <div style="display:flex;flex-direction:column;gap:6px;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div class="sim-slider-header" style="display:flex;justify-content:space-between;align-items:center;">
                                 <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_prudence_slider_tooltip')}">
                                     <span style="font-size:14px;">🛡️</span>
                                     <span data-i18n="sim_prudence_title">${window.i18n.t('sim_prudence_title')}</span>
@@ -779,7 +959,7 @@ window.SimulatorView = {
 
                         <!-- Colonne 2 : Curseur d'Effort Budgétaire -->
                         <div style="display:flex;flex-direction:column;gap:6px;border-left:1px solid var(--border-color);padding-left:24px;" class="sim-secondary-controls">
-                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div class="sim-slider-header" style="display:flex;justify-content:space-between;align-items:center;">
                                 <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_var_adj_tooltip')}">
                                     <span style="font-size:14px;">⚡</span>
                                     <span data-i18n="sim_effort_title">${window.i18n.t('sim_effort_title')}</span>
@@ -801,7 +981,7 @@ window.SimulatorView = {
 
                         <!-- Colonne 3 : Curseur de Sensibilité Dépenses Exceptionnelles (Outliers 1-5) -->
                         <div style="display:flex;flex-direction:column;gap:6px;border-left:1px solid var(--border-color);padding-left:24px;" class="sim-secondary-controls">
-                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div class="sim-slider-header" style="display:flex;justify-content:space-between;align-items:center;">
                                 <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_outlier_tooltip')}">
                                     <span style="font-size:14px;">🧹</span>
                                     <span data-i18n="sim_outlier_title">${window.i18n.t('sim_outlier_title')}</span>
@@ -823,14 +1003,14 @@ window.SimulatorView = {
 
                     <!-- ═══ Seasonality Controls Row ═══ -->
                     <div style="border-top:1px solid var(--border-color);margin-top:14px;padding-top:12px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                        <div class="sim-seasonality-row" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
                             <!-- Mode selector buttons -->
-                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <div class="sim-seasonality-mode-container" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                                 <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_seasonality_tooltip')}">
                                     <span style="font-size:14px;">🍂</span>
                                     <span data-i18n="sim_seasonality_title">${window.i18n.t('sim_seasonality_title')} :</span>
                                 </label>
-                                <div style="display:inline-flex;background:var(--bg-base);border:1px solid var(--border-color);border-radius:8px;padding:2px;gap:2px;">
+                                <div class="sim-seasonality-btn-group" style="display:inline-flex;background:var(--bg-base);border:1px solid var(--border-color);border-radius:8px;padding:2px;gap:2px;">
                                     <button type="button" class="btn btn-xs ${this.seasonalityMode === 'disabled' ? 'btn-primary' : 'btn-ghost'}" style="font-size:11px;padding:3px 8px;border-radius:6px;" onclick="window.SimulatorView.setSeasonalityMode('disabled')">
                                         🍂 <span data-i18n="sim_seasonality_mode_disabled">${window.i18n.t('sim_seasonality_mode_disabled')}</span>
                                     </button>
@@ -2253,21 +2433,21 @@ window.SimulatorView = {
         this.customIncomeAmount = parseFloat(val) || 0;
         this._saveParam('sim_custom_income', this.customIncomeAmount);
         await this.runSimulation();
-        this.render();
+        this.updateLiveSimulationView(true);
     },
 
     async onHorizonChange(val) {
         this.horizonMonths = parseInt(val);
         this._saveParam('sim_horizon', this.horizonMonths);
         await this.runSimulation();
-        this.render();
+        this.updateLiveSimulationView(true);
     },
 
     async onInflationChange(val) {
         this.inflationRate = (parseFloat(val) || 0) / 100;  // Convert from % to decimal
         this._saveParam('sim_inflation_rate', this.inflationRate);
         await this.runSimulation();
-        this.render();
+        this.updateLiveSimulationView(true);
     },
 
     onVarExpenseAdjustmentInput(val) {
@@ -2311,8 +2491,15 @@ window.SimulatorView = {
         let targetPct = Math.min(100, Math.ceil(pct));
         this.varExpenseAdjustmentPct = -(targetPct / 100.0);
         this._saveParam('sim_var_expense_adj', this.varExpenseAdjustmentPct);
+        const slider = document.getElementById('simVarAdjSlider');
+        if (slider) slider.value = Math.round(this.varExpenseAdjustmentPct * 100);
+        const badge = document.getElementById('simVarAdjBadge');
+        if (badge) {
+            badge.textContent = `-${targetPct}%`;
+            badge.style.color = '#10b981';
+        }
         await this.runSimulation();
-        this.render();
+        this.updateLiveSimulationView(true);
         if (typeof showToast === 'function') {
             showToast(`${window.i18n.t('sim_btn_apply_break_even').replace('{pct}', targetPct)}`, "info");
         }
@@ -2321,35 +2508,43 @@ window.SimulatorView = {
     async resetEffort() {
         this.varExpenseAdjustmentPct = 0.0;
         this._saveParam('sim_var_expense_adj', 0.0);
+        const slider = document.getElementById('simVarAdjSlider');
+        if (slider) slider.value = 0;
+        const badge = document.getElementById('simVarAdjBadge');
+        if (badge) {
+            badge.textContent = `0%`;
+            badge.style.color = 'var(--text-main)';
+        }
         await this.runSimulation();
-        this.render();
+        this.updateLiveSimulationView(true);
     },
-
 
     async onAccountChange(val) {
         this.accountId = val ? parseInt(val) : null;
         this._saveParam('sim_account', this.accountId);
         await this.runSimulation();
-        this.render();
+        this.updateLiveSimulationView(true);
     },
 
     async onScenarioChange(val) {
         this.activeScenarioId = val ? parseInt(val) : null;
         this._saveParam('sim_active_scenario', this.activeScenarioId);
         await this.runSimulation();
-        this.render();
+        this.updateHeaderControls();
+        this.updateLiveSimulationView(true);
     },
 
     async toggleEvent(eventId, isActive) {
         try {
-            await API.put(`/api/simulator/events/${eventId}`, { is_active: isActive });
+            await API.put(`/api/simulator/events/${eventId}`, { is_active: isActive }, { skipMutateEvent: true });
             const scenario = this.scenarios.find(s => s.id === this.activeScenarioId);
             if (scenario && scenario.events) {
                 const ev = scenario.events.find(e => e.id === eventId);
                 if (ev) ev.is_active = isActive;
             }
             await this.runSimulation();
-            this.render();
+            this.updateHeaderControls();
+            this.updateLiveSimulationView(true);
         } catch (err) {
             console.error("[SimulatorView] Erreur toggle event:", err);
             showToast("Erreur lors de l'activation/désactivation de l'événement", "error");
@@ -2425,10 +2620,10 @@ window.SimulatorView = {
 
         try {
             if (this.editingScenario) {
-                const res = await API.put(`/api/simulator/scenarios/${this.editingScenario.id}`, { name, description, color });
+                const res = await API.put(`/api/simulator/scenarios/${this.editingScenario.id}`, { name, description, color }, { skipMutateEvent: true });
                 showToast(window.i18n.t('sim_toast_scenario_updated') || "Scénario mis à jour", "success");
             } else {
-                const res = await API.post('/api/simulator/scenarios', { name, description, color, events: [] });
+                const res = await API.post('/api/simulator/scenarios', { name, description, color, events: [] }, { skipMutateEvent: true });
                 this.activeScenarioId = res.id;
                 this._saveParam('sim_active_scenario', res.id);
                 showToast(window.i18n.t('sim_toast_scenario_created') || "Nouveau scénario créé", "success");
@@ -2444,7 +2639,7 @@ window.SimulatorView = {
     async deleteScenario(scenarioId) {
         if (await showInlineConfirm(window.i18n.t('title_confirmation') || "Confirmation", window.i18n.t('sim_confirm_delete_scenario') || "Supprimer définitivement ce scénario et tous ses événements ?")) {
             try {
-                await API.del(`/api/simulator/scenarios/${scenarioId}`);
+                await API.del(`/api/simulator/scenarios/${scenarioId}`, null, null, { skipMutateEvent: true });
                 showToast(window.i18n.t('sim_toast_scenario_deleted') || "Scénario supprimé", "info");
                 if (this.activeScenarioId === scenarioId) {
                     this.activeScenarioId = null;
@@ -2460,7 +2655,7 @@ window.SimulatorView = {
 
     async duplicateScenario(scenarioId) {
         try {
-            const res = await API.post(`/api/simulator/scenarios/${scenarioId}/duplicate`);
+            const res = await API.post(`/api/simulator/scenarios/${scenarioId}/duplicate`, {}, { skipMutateEvent: true });
             this.activeScenarioId = res.id;
             this._saveParam('sim_active_scenario', res.id);
             showToast(window.i18n.t('sim_toast_scenario_duplicated') || "Scénario dupliqué", "success");
@@ -2542,7 +2737,7 @@ window.SimulatorView = {
                 color: preset.color,
                 is_active: true,
                 events: eventsPayload
-            });
+            }, { skipMutateEvent: true });
 
             this.activeScenarioId = created.id;
             this._saveParam('sim_active_scenario', created.id);
@@ -2694,10 +2889,10 @@ window.SimulatorView = {
 
         try {
             if (this.editingEvent) {
-                await API.put(`/api/simulator/events/${this.editingEvent.id}`, payload);
+                await API.put(`/api/simulator/events/${this.editingEvent.id}`, payload, { skipMutateEvent: true });
                 showToast(window.i18n.t('sim_toast_event_updated') || "Événement mis à jour", "success");
             } else {
-                await API.post(`/api/simulator/scenarios/${this.activeScenarioId}/events`, payload);
+                await API.post(`/api/simulator/scenarios/${this.activeScenarioId}/events`, payload, { skipMutateEvent: true });
                 showToast(window.i18n.t('sim_toast_event_added') || "Événement ajouté au scénario", "success");
             }
             this.closeModal('simEventModal');
@@ -2711,7 +2906,7 @@ window.SimulatorView = {
     async deleteEvent(eventId) {
         if (await showInlineConfirm(window.i18n.t('title_confirmation') || "Confirmation", window.i18n.t('sim_confirm_delete_event') || "Supprimer cet événement simulé ?")) {
             try {
-                await API.del(`/api/simulator/events/${eventId}`);
+                await API.del(`/api/simulator/events/${eventId}`, null, null, { skipMutateEvent: true });
                 showToast(window.i18n.t('sim_toast_event_deleted') || "Événement supprimé", "info");
                 await this.loadData();
             } catch (err) {

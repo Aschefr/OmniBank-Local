@@ -75,7 +75,7 @@ window.AccountsView = {
             </div>
 
             <div class="accounts-table-card" style="overflow-x: auto;">
-                <table class="data-table accounts-data-table">
+                <table class="data-table accounts-data-table mobile-card-table">
                     <thead>
                         <tr>
                             <th class="acc-col-name" data-i18n="acc_th_name">${window.i18n.t('acc_th_name')}</th>
@@ -395,25 +395,25 @@ window.AccountsView = {
 
                 return `
                 <tr style="${acc.is_closed ? 'opacity: 0.6;' : ''}">
-                    <td class="acc-col-name">
+                    <td class="acc-col-name" data-label="${window.i18n.t('acc_th_name') || 'Compte'}">
                         <div style="display: inline-flex; align-items: center; gap: 6px;">
                             ${isMain ? '<span class="acc-main-star" title="' + window.i18n.t('acc_main_account') + '" style="cursor:pointer;" onclick="window.AccountsView.setMainAccount(' + acc.id + ')">⭐</span>' : ''}
-                            <strong style="color: var(--text-main); font-size: 13px;">${acc.name}</strong>
-                            <span class="acc-color-dot" style="background:${color}; cursor:pointer; width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex-shrink: 0; box-shadow: 0 0 0 1px var(--border-color);" onclick="window.AccountsView.openColorPopover(${acc.id}, this)" title="${window.i18n.t('acc_color_label')}"></span>
+                            <strong style="color: var(--text-main); font-size: 13.5px;">${acc.name}</strong>
+                            <span class="acc-color-dot" style="background:${color}; cursor:pointer; width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0; box-shadow: 0 0 0 1px var(--border-color);" onclick="window.AccountsView.openColorPopover(${acc.id}, this)" title="${window.i18n.t('acc_color_label')}"></span>
                             ${acc.is_closed ? `<span data-i18n="badge_closed" style="background:var(--danger); color:#fff; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:bold;">${window.i18n.t('badge_closed') || 'Fermé'}</span>` : ''}
                         </div>
                         ${subInfoHtml}
                     </td>
-                    <td class="acc-col-type" style="white-space: nowrap;">
+                    <td class="acc-col-type" data-label="${window.i18n.t('acc_th_type') || 'Type'}" style="white-space: nowrap;">
                         <span class="badge" style="background: var(--bg-hover); color: var(--text-main); font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--border-color);">${acc.type}</span>
                         <span class="badge" style="background: rgba(99,102,241,0.08); color: var(--primary); font-weight: 700; padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-left: 3px;">${curr}</span>
                     </td>
-                    <td class="acc-col-feed" style="white-space: nowrap;">
+                    <td class="acc-col-feed" data-label="${window.i18n.t('acc_th_feed') || 'Alimentation'}" style="white-space: nowrap;">
                         ${sourceBadgeHtml}
                     </td>
-                    <td class="acc-col-init" style="text-align: right; font-size: 12.5px;"><span class="privacy-blur" style="color: var(--text-muted); font-family: monospace;">${formatCurrency(acc.initial_balance, curr)}</span></td>
-                    <td class="acc-col-curr" style="text-align: right; font-size: 12.5px;"><strong class="privacy-blur" style="color: ${curBalColor}; font-family: monospace;">${formatCurrency(curBal, curr)}</strong></td>
-                    <td class="acc-col-actions col-actions">
+                    <td class="acc-col-init" data-label="${window.i18n.t('acc_th_initial_balance') || 'Solde Initial'}" style="text-align: right; font-size: 12.5px;"><span class="privacy-blur" style="color: var(--text-muted); font-family: monospace;">${formatCurrency(acc.initial_balance, curr)}</span></td>
+                    <td class="acc-col-curr" data-label="${window.i18n.t('acc_th_current_balance') || 'Solde Actuel'}" style="text-align: right; font-size: 12.5px;"><strong class="privacy-blur" style="color: ${curBalColor}; font-family: monospace;">${formatCurrency(curBal, curr)}</strong></td>
+                    <td class="acc-col-actions col-actions" data-label="${window.i18n.t('acc_th_actions') || 'Actions'}">
                         <div class="acc-actions-wrap">
                             ${feedActionBtn}
                             <button class="acc-action-btn ${isMain ? 'acc-star-active' : 'acc-star-btn'}" onclick="window.AccountsView.setMainAccount(${acc.id})" title="${window.i18n.t('acc_set_main')}">${isMain ? '⭐' : '☆'}</button>

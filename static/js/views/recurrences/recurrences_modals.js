@@ -600,7 +600,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const modal = document.createElement('div');
         modal.id = 'recurrenceAutomationsModal';
         modal.className = 'modal-overlay';
-        modal.style.zIndex = '1000';
+        modal.style.zIndex = '10000';
 
         const title = window.i18n.t('rec_automations_title', 'Automatismes du cycle de vie des récurrences');
         const desc = window.i18n.t('rec_automations_desc', 'Configurez les comportements autonomes de détection, ajustement et clôture des récurrences.');
